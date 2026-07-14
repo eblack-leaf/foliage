@@ -7,7 +7,7 @@ use crate::foliage::{DiffMarkers, Foliage, MainMarkers};
 pub(crate) use crate::grid::layout::viewport_changed;
 pub use crate::grid::location::{anchor, auto, Adjust, AnchorDescriptor, Justify};
 pub use crate::grid::location::{GridExt, LocationValue};
-use crate::grid::view::extent_check_v2;
+use crate::grid::view::extent_check;
 use crate::{Attachment, Component, CoordinateUnit};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoScheduleConfigs;
@@ -25,7 +25,7 @@ impl Attachment for Grid {
             .add_systems(viewport_changed.in_set(MainMarkers::External));
         foliage
             .diff
-            .add_systems(extent_check_v2.in_set(DiffMarkers::Prepare));
+            .add_systems(extent_check.in_set(DiffMarkers::Prepare));
     }
 }
 #[derive(Component, Copy, Clone)]

@@ -2,6 +2,10 @@ pub(crate) mod action;
 pub(crate) mod keybindings;
 
 use crate::composite::Root;
+use crate::coordinate::position::Position;
+use crate::foliage::MainMarkers;
+use crate::ginkgo::ScaleFactor;
+use crate::grid::view::ViewAdjustment;
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
@@ -11,17 +15,31 @@ use crate::{
     Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
     InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafSprout, Location, Logical,
     Opacity, OverscrollPropagation, Panel, Section, Sprout, Stem, Text, TextValue, Tree, Unfocused,
-    View, Write,
+    View,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::Insert;
-use bevy_ecs::system::{Query, Res};
+use bevy_ecs::prelude::IntoScheduleConfigs;
+use bevy_ecs::query::Changed;
+use bevy_ecs::system::{Query, Res, SystemParam};
 use keybindings::KeyBindings;
 use std::collections::HashMap;
 use std::ops::Range;
+
+/// `scale_factor`/`views`/`sections` bundled into one `SystemParam` -- `bevy_ecs`'s
+/// `SystemParam` tuple impl only goes up to 16 (`all_tuples!(.., 0, 16, ..)` in
+/// `system_param.rs`), and `Input::obs` was already close to that before these three were
+/// needed for scroll-into-view. A `#[derive(SystemParam)]` struct counts as one parameter to
+/// the outer system no matter how many fields it bundles.
+#[derive(SystemParam)]
+pub(crate) struct ScrollContext<'w, 's> {
+    scale_factor: Res<'w, ScaleFactor>,
+    views: Query<'w, 's, &'static View>,
+    sections: Query<'w, 's, &'static Section<Logical>>,
+}
 
 /// Largest char boundary strictly before `byte` (0 if none). All cursor/selection offsets are
 /// byte offsets into the `TextValue` string (matching fontdue's `byte_offset`), so every text
@@ -71,6 +89,31 @@ impl Attachment for TextInput {
         foliage.define(Input::forward);
         foliage.define(InsertText::obs);
         foliage.world.insert_resource(KeyBindings::default());
+        // Change-detection safety net, not another manually-threaded call site: every place
+        // that mutates `Selection` (there were a dozen `clear_selection` call sites alone)
+        // would otherwise need to remember to also call `reselect_range` to despawn/sync the
+        // per-glyph highlight panels -- `clear_selection` never did, so plain (non-Shift)
+        // arrow keys reset the selection data but left the highlight panels on screen
+        // forever. This catches every `Selection` write, including future ones, instead of
+        // relying on every caller getting it right by hand.
+        foliage
+            .main
+            .add_systems(TextInput::sync_highlights_to_selection.in_set(MainMarkers::Process));
+        // Same shape, different staleness: the cursor's `Location` isn't "wherever
+        // byte-offset N is" -- it's a snapshot, `(col, row)` numbers looked up in the glyph
+        // layout at the time of the last click/keystroke. A parent resize re-triggers
+        // `Update<Location>` for the cursor (via `Section::on_insert`'s cascade) and
+        // correctly re-resolves that *same stored* `(col, row)` against the new context,
+        // but nothing re-derives `(col, row)` from the cursor's actual byte-offset against
+        // the *new* (rewrapped) glyph layout -- same offset, different row after a rewrap,
+        // and the resize alone never calls `move_cursor` to notice. Highlight panels have
+        // the identical exposure (their positions are also glyph-layout lookups baked in at
+        // `reselect_range` time) -- `sync_highlights_to_selection` only catches range
+        // changes, not glyphs reflowing under an unchanged range. Reacting to `Glyphs`
+        // itself changing (typing *and* rewrap-from-resize both touch it) covers both.
+        foliage
+            .main
+            .add_systems(TextInput::resync_on_glyphs_changed.in_set(MainMarkers::Process));
     }
 }
 #[derive(Component, Copy, Clone)]
@@ -346,7 +389,7 @@ impl TextInput {
         tree.entity(handle.hint_text).insert(style.foreground);
         tree.entity(handle.panel).insert(style.background);
         tree.entity(handle.visible).insert(style.accent);
-        for (_, e) in handle.highlights.iter() {
+        for (_, (e, _, _)) in handle.highlights.iter() {
             tree.entity(*e).insert(style.accent);
         }
     }
@@ -508,15 +551,17 @@ impl PlaceCursor {
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
-        sections: Query<&Section<Logical>>,
-        views: Query<&View>,
         handles: Query<&Handle>,
         mut cursor: Query<&mut Cursor>,
         glyphs: Query<&Glyphs>,
         line_metrics: Query<&LineMetrics>,
         mut selections: Query<&mut Selection>,
+        scroll: ScrollContext,
     ) {
         let this = trigger.event_target();
+        // TODO: every click unconditionally restarts the selection here, even Shift+Click --
+        // some editors instead extend the existing selection to the click point when Shift
+        // is held. Not implemented; scoping only, not clear this is wanted yet.
         TextInput::clear_selection(this, &mut selections);
         tree.trigger_targets(TextInputState::AwaitingInput, this);
         let (col, row) = TextInput::location_from_click(
@@ -526,8 +571,8 @@ impl PlaceCursor {
             &font,
             &font_sizes,
             *layout,
-            &sections,
-            &views,
+            &scroll.sections,
+            &scroll.views,
             &handles,
             &line_metrics,
         );
@@ -542,13 +587,16 @@ impl PlaceCursor {
             &handles,
             &mut cursor,
             &line_metrics,
+            &scroll,
+            true,
+            true,
         );
     }
 }
 /// Ephemeral hand-off value: was a `Component` (`RequestedLocation`) written by one system and
 /// immediately consumed by `MoveCursor`'s observer -- nothing else ever read it as persistent
 /// state, so it's now just an argument passed directly into `TextInput::move_cursor`.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) enum RequestedLocation {
     Offset(GlyphOffset),
     ColRow((u32, u32)),
@@ -594,6 +642,7 @@ impl TextInput {
     }
     /// Was `MoveCursor::obs`: resolve a requested (column, row) or byte offset against the
     /// text's actual glyph layout, and place the cursor + its visible indicator there.
+    #[allow(clippy::too_many_arguments)]
     fn move_cursor(
         this: Entity,
         tree: &mut Tree,
@@ -605,9 +654,51 @@ impl TextInput {
         handles: &Query<&Handle>,
         cursor: &mut Query<&mut Cursor>,
         line_metrics: &Query<&LineMetrics>,
+        scroll: &ScrollContext,
+        // Gates writing `Location` onto the cursor/visible entities (the visual position).
+        // `false` only for `after_edit`'s own synchronous call, where col/row can still be
+        // stale-glyph-derived (it runs before `Text::update` has settled) -- writing a stale
+        // visual position there raced against the guaranteed-fresh reactive follow-up
+        // (`Selection::reselect`, via `TextContentChanged`) and sometimes landed *after* it,
+        // clobbering the correct value. `cursor.location`/`column`/`row` (logical state,
+        // always trustworthy) update regardless of `follow`. Everywhere else this is `true`.
+        follow: bool,
+        // Gates the scroll-into-view check specifically -- separate from `follow` because
+        // they answer different questions ("should the visual position update" vs "did the
+        // *cursor* actually move, such that following it into view makes sense"). A passive
+        // resync after a rewrap (`resync_on_glyphs_changed`) needs `follow = true` (the
+        // cursor's row genuinely changed and must redraw there) but `allow_scroll = false`:
+        // forcing a scroll there isn't a real cursor move, and doing it anyway closed a loop
+        // -- the `ViewAdjustment` it inserted cascaded through `Section::on_insert` back to
+        // the panel's children, re-triggering `Text::update`'s `Write<Section<Logical>>`
+        // listener, which mutates `Glyphs` again, re-triggering this same resync forever,
+        // full glyph-layout rescans every frame. The natural reclamp already in
+        // `extent_check_v2` is what should settle the offset once the extent itself is
+        // correct, not an explicit force from here.
+        allow_scroll: bool,
     ) {
+        tracing::trace!(entity = ?this, req = ?req, "text_input: move_cursor invoked");
+        // `character_block` is fed a raw pixel size and returns raw pixel metrics -- no
+        // inherent Logical/Physical concept, it's whatever space the input size is in.
+        // `text_glyphs` below (`Glyphs.layout`) was laid out using the *scaled* font size
+        // (`text/mod.rs`'s `Text::update`), i.e. Physical space, so `dims` has to be computed
+        // the same way here or every ratio against a real glyph position is off by exactly
+        // `scale_factor` -- invisible at scale_factor 1.0 (native desktop), a straight 2x on
+        // HiDPI/mobile. `location_from_click` is a different, unrelated computation (compares
+        // against `Section<Logical>`-relative click position, not raw glyph data) and must
+        // stay unscaled -- don't "fix" it to match this.
         let fsv = font_sizes.get(this).unwrap().resolve(layout).value;
-        let dims = font.character_block(fsv);
+        let dims = font.character_block((fsv as f32 * scroll.scale_factor.value()) as u32);
+        // Grid's own `.col()`/`.row()` resolution (`grid/location.rs`'s `calc`, the
+        // `LocationValue::Column`/`Row`/`Letters` arms) sizes cells from `stem_letters`,
+        // computed via `character_block` at the *unscaled* font size -- deliberately
+        // different from `dims` above. Reusing `dims / scale_factor` here to reconstruct a
+        // pixel position doesn't reliably round-trip to the same number `stem_letters`
+        // gives directly: fontdue's hinting/kerning isn't a linear function of size, so
+        // scale-then-unscale drifts from computing at the unscaled size outright. Needed to
+        // match Grid's actual pixel math bit-for-bit, or the scroll-into-view check below
+        // disagrees with where the cursor really renders.
+        let letter_block = font.character_block(fsv);
         let handle = handles.get(this).unwrap();
         let metrics = line_metrics.get(handle.text).unwrap();
         let mut cursor = cursor.get_mut(this).unwrap();
@@ -696,15 +787,90 @@ impl TextInput {
             }
             (location, col, row)
         };
+        // `cursor.location`/`column`/`row` (logical state) are always updated -- `location`
+        // (byte offset) is authoritative regardless of glyph staleness (see the comment
+        // above), and something needs the target offset available immediately for
+        // subsequent typing to insert at the right spot.
         cursor.location = location;
         cursor.column = col;
         cursor.row = row;
-        let location = Location::new().xs(
-            (col + 1).col().as_left().with((col + 1).col().as_right()),
-            (row + 1).row().as_top().with((row + 1).row().as_bottom()),
-        );
-        tree.entity(handle.cursor).insert(location);
-        tree.entity(handle.visible).insert(location);
+
+        // The *visual* placement (writing `Location` onto the cursor/visible entities, and
+        // the scroll-into-view check) is gated on `follow` and skipped entirely when col/row
+        // might still be stale-glyph-derived (`after_edit`'s own synchronous call, which
+        // runs before `Text::update` has settled). Writing it there anyway created a real
+        // race: that write is deferred into the *outer* system's command buffer, while the
+        // guaranteed-fresh reactive follow-up (`Selection::reselect`, via
+        // `TextContentChanged`) runs its own nested trigger cascade and applies its Commands
+        // essentially immediately -- so the outer, stale write was landing *after* the
+        // fresher one and clobbering it. Only ever writing the visual position from the
+        // fresh call removes the race instead of trying to win it.
+        //
+        // This used to also skip the write when col/row hadn't moved, to stop
+        // `resync_on_glyphs_changed`'s per-frame calls from cascading back into another
+        // `Section` write -- but the comparison was against `cursor.column`/`row`, which
+        // *every* call updates regardless of `follow` (including `after_edit`'s stale one),
+        // so the following genuine `follow=true` call frequently saw "no change" against a
+        // value `after_edit` had just quietly set, and skipped the real visual write
+        // entirely (cursor never rendered, or froze after the first edit). The actual
+        // feedback loop is fixed at its source now: `Text::update` no longer marks `Glyphs`
+        // Changed on a pure position shift (see its own comment), so this insert cascading
+        // into a `Section` write on the text entity no longer re-triggers a relayout. No
+        // gate needed here.
+        if follow {
+            let visual_location = Location::new().xs(
+                (col + 1).col().as_left().with((col + 1).col().as_right()),
+                (row + 1).row().as_top().with((row + 1).row().as_bottom()),
+            );
+            tree.entity(handle.cursor).insert(visual_location);
+            tree.entity(handle.visible).insert(visual_location);
+        }
+
+        if allow_scroll
+            && let (Ok(view), Ok(section)) = (
+            scroll.views.get(handle.panel),
+            scroll.sections.get(handle.panel),
+        ) {
+            let cursor_content: Position<Logical> = (
+                col as f32 * letter_block.a(),
+                row as f32 * letter_block.b(),
+            )
+                .into();
+            let window_relative = cursor_content - view.offset;
+            let mut delta = Position::<Logical>::default();
+            // "fully in view" means the *whole cell* (col/row extended by one letter's
+            // width/height), not just its near edge -- checking only
+            // `window_relative.top() > section.height()` missed the case where the row
+            // starts exactly at (or is straddling) the bottom edge: a row starting exactly
+            // at `section.height()` has zero visible pixels, but `176 > 176` is false, so
+            // no correction fired. That's what let the cursor sit rendered off-screen.
+            if window_relative.left() < 0.0 {
+                delta.set_left(window_relative.left());
+            } else if window_relative.left() + letter_block.a() > section.width() {
+                delta.set_left(window_relative.left() + letter_block.a() - section.width());
+            }
+            if window_relative.top() < 0.0 {
+                delta.set_top(window_relative.top());
+            } else if window_relative.top() + letter_block.b() > section.height() {
+                delta.set_top(window_relative.top() + letter_block.b() - section.height());
+            }
+            tracing::trace!(
+                entity = ?this,
+                col,
+                row,
+                letter_block = ?letter_block,
+                cursor_content = ?cursor_content,
+                view_offset = ?view.offset,
+                view_extent = ?view.extent,
+                section = ?*section,
+                window_relative = ?window_relative,
+                delta = ?delta,
+                "text_input: scroll-into-view check"
+            );
+            if delta.left() != 0.0 || delta.top() != 0.0 {
+                tree.entity(handle.panel).insert(ViewAdjustment(delta));
+            }
+        }
     }
 }
 #[derive(Component, Clone, Default)]
@@ -714,19 +880,18 @@ pub(crate) struct Selection {
 }
 impl Selection {
     pub(crate) fn reselect(
-        trigger: Trigger<Write<Text>>,
+        trigger: Trigger<crate::text::TextContentChanged>,
         mut tree: Tree,
         roots: Query<&Root>,
         glyphs: Query<&Glyphs>,
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
-        mut handles: Query<&mut Handle>,
-        selections: Query<&Selection>,
-        styles: Query<&TextInputStyle>,
+        handles: Query<&mut Handle>,
         // single mutable Query -- see the comment on `Input::obs`'s `handles` param.
         mut cursor: Query<&mut Cursor>,
         line_metrics: Query<&LineMetrics>,
+        scroll: ScrollContext,
     ) {
         let root = Root::resolve(trigger.event_target(), &roots);
         let offset = cursor.get(root).unwrap().location;
@@ -741,22 +906,29 @@ impl Selection {
             &handles.as_readonly(),
             &mut cursor,
             &line_metrics,
+            &scroll,
+            // Now gated at the source (`Text::update` only fires `TextContentChanged` for a
+            // genuine value change, not a pure scroll-caused `Section` shift), so this is
+            // always a real edit settling with fresh glyph/line data -- safe to follow.
+            true,
+            // A genuine edit (typing) should scroll the cursor into view.
+            true,
         );
-        TextInput::reselect_range(
-            root,
-            &mut tree,
-            &mut handles,
-            &glyphs,
-            &selections,
-            &font,
-            &font_sizes,
-            *layout,
-            &styles,
-        );
+        // No direct `reselect_range` call -- a genuine content change always relays out
+        // (`Text::update`'s `layout_dirty` includes the text field), so `Changed<Glyphs>`
+        // is guaranteed this same frame and `resync_on_glyphs_changed` already does this
+        // exact call. `move_cursor` above is still needed on its own: unlike that system's
+        // (deliberately non-scrolling) call, this one is a genuine edit and should scroll
+        // the cursor into view.
     }
+    // TODO: no auto-scroll while dragging near the box's edges -- drag-selection is only
+    // ever in view of whatever's currently visible. Calls `extend_range` directly rather
+    // than through `move_cursor`/`extend_and_reselect`, so it never touches the
+    // scroll-into-view logic keyboard navigation has. Reusing that math but driven
+    // continuously while the pointer sits near the boundary (not just once per keystroke)
+    // is the likely shape of the fix, not built yet -- scoping only.
     pub(crate) fn select(
         trigger: Trigger<Dragged>,
-        mut tree: Tree,
         roots: Query<&Root>,
         current_interaction: Res<CurrentInteraction>,
         font: Res<MonospacedFont>,
@@ -765,13 +937,11 @@ impl Selection {
         sections: Query<&Section<Logical>>,
         views: Query<&View>,
         // single mutable Query -- see the comment on `Input::obs`'s `handles` param.
-        mut handles: Query<&mut Handle>,
+        handles: Query<&mut Handle>,
         line_metrics: Query<&LineMetrics>,
         cursors: Query<&Cursor>,
         mut selections: Query<&mut Selection>,
         glyphs: Query<&Glyphs>,
-        values: Query<&TextValue>,
-        styles: Query<&TextInputStyle>,
     ) {
         let root = Root::resolve(trigger.event_target(), &roots);
         let (col, row) = TextInput::location_from_click(
@@ -797,20 +967,11 @@ impl Selection {
             &font,
             &font_sizes,
             *layout,
-            &values,
         );
-        let selections_ro = selections.as_readonly();
-        TextInput::reselect_range(
-            root,
-            &mut tree,
-            &mut handles,
-            &glyphs,
-            &selections_ro,
-            &font,
-            &font_sizes,
-            *layout,
-            &styles,
-        );
+        // No direct `reselect_range` call -- `sync_highlights_to_selection` (a
+        // `Changed<Selection>` reactive safety net, see its comment) picks this up
+        // automatically every frame while dragging. Calling it here too just doubled the
+        // cost of every glyph the drag passed over.
     }
 }
 impl TextInput {
@@ -826,28 +987,151 @@ impl TextInput {
         font: &MonospacedFont,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
-        values: &Query<&TextValue>,
     ) {
-        let value = values.get(this).unwrap();
         let handle = handles.get(this).unwrap();
         let fsv = font_sizes.get(this).unwrap().resolve(layout).value;
         let dims = font.character_block(fsv);
         let cursor = cursors.get(this).unwrap();
         let mut selection = selections.get_mut(this).unwrap();
         if let RequestedLocation::ColRow((c, r)) = req {
-            for glyph in glyphs.get(handle.text).unwrap().layout.glyphs() {
-                if (glyph.x / dims.a()) as u32 == c && (glyph.y / dims.b()) as u32 == r {
-                    if cursor.location < glyph.byte_offset {
-                        selection.inverted = false;
-                        selection.range =
-                            cursor.location..next_boundary(&value.0, glyph.byte_offset);
-                    } else {
-                        selection.inverted = true;
-                        selection.range =
-                            glyph.byte_offset..next_boundary(&value.0, cursor.location);
-                    }
+            let text_glyphs = glyphs.get(handle.text).unwrap().layout.glyphs();
+            // Exact (col, row) match if one exists; otherwise the row's last glyph. Up/Down
+            // landing on a shorter row (crossing into a blank/short line) previously found
+            // no exact match at all and silently did nothing -- Shift+Up/Down could get
+            // stuck, unable to move past a short line.
+            let target = text_glyphs
+                .iter()
+                .find(|g| (g.x / dims.a()) as u32 == c && (g.y / dims.b()) as u32 == r)
+                .or_else(|| {
+                    text_glyphs
+                        .iter()
+                        .filter(|g| (g.y / dims.b()) as u32 == r)
+                        .max_by_key(|g| g.byte_offset)
+                });
+            if let Some(glyph) = target {
+                // The anchor is the *fixed* end of an already-in-progress selection --
+                // whichever end isn't the one that's been moving -- falling back to the
+                // cursor's own position only when starting a fresh selection (empty range).
+                // Using `cursor.location` unconditionally here relied on it never changing
+                // across repeated Shift+Arrow presses; now that `extend_and_reselect`
+                // correctly moves the cursor to the selection's moving edge after every
+                // press (fixing "stops after one"), treating that moving position as the
+                // anchor again made every press replace the selection with a sliver near
+                // wherever the cursor currently was, instead of extending from where it
+                // started.
+                let anchor = if selection.range.is_empty() {
+                    cursor.location
+                } else if selection.inverted {
+                    selection.range.end
+                } else {
+                    selection.range.start
+                };
+                // The target glyph's byte offset is a cursor-equivalent *boundary* (same as
+                // what `move_cursor` treats it as), not "a character to include" -- wrapping
+                // it in `next_boundary` used to pad the range by one extra character on
+                // whichever side was just touched (e.g. one Shift+Right from a fresh
+                // selection selected two characters, not one), compounding on every
+                // repeated press at a boundary the target couldn't move past (e.g.
+                // Shift+Down at the bottom row kept growing the range by one more character
+                // each press instead of no-op'ing). The range is just the plain span
+                // between anchor and target.
+                if anchor < glyph.byte_offset {
+                    selection.inverted = false;
+                    selection.range = anchor..glyph.byte_offset;
+                } else {
+                    selection.inverted = true;
+                    selection.range = glyph.byte_offset..anchor;
                 }
             }
+        }
+    }
+    /// Runs whenever `Selection` changes for *any* reason (typing, clicking, Shift+Arrow,
+    /// `clear_selection`) and syncs the highlight-panel-per-glyph set to match -- see the
+    /// comment on its registration in `attach` for why this is change-detection-driven
+    /// instead of yet another call site callers have to remember.
+    fn sync_highlights_to_selection(
+        changed: Query<Entity, Changed<Selection>>,
+        mut tree: Tree,
+        mut handles: Query<&mut Handle>,
+        glyphs: Query<&Glyphs>,
+        selections: Query<&Selection>,
+        font: Res<MonospacedFont>,
+        font_sizes: Query<&FontSize>,
+        layout: Res<Layout>,
+        styles: Query<&TextInputStyle>,
+    ) {
+        for this in changed.iter() {
+            TextInput::reselect_range(
+                this,
+                &mut tree,
+                &mut handles,
+                &glyphs,
+                &selections,
+                &font,
+                &font_sizes,
+                *layout,
+                &styles,
+            );
+        }
+    }
+    /// Runs whenever `Glyphs` changes for *any* text entity (typing, or a rewrap from a
+    /// parent resize) and re-derives the cursor's `(col, row)` from its actual byte-offset
+    /// against the current layout, plus resyncs the highlight panels -- see the comment on
+    /// its registration in `attach` for why. `Root::resolve` + the `cursor.get` guard is
+    /// what scopes this to text entities that actually belong to a `TextInput` (`hint_text`
+    /// resolves to the same root as `text` and just does harmless duplicate work; a
+    /// standalone `Text` outside any `TextInput` has no `Cursor` to look up and is skipped).
+    fn resync_on_glyphs_changed(
+        changed: Query<Entity, Changed<Glyphs>>,
+        roots: Query<&Root>,
+        mut tree: Tree,
+        mut cursor: Query<&mut Cursor>,
+        mut handles: Query<&mut Handle>,
+        glyphs: Query<&Glyphs>,
+        font: Res<MonospacedFont>,
+        font_sizes: Query<&FontSize>,
+        layout: Res<Layout>,
+        line_metrics: Query<&LineMetrics>,
+        scroll: ScrollContext,
+        selections: Query<&Selection>,
+        styles: Query<&TextInputStyle>,
+    ) {
+        for text_entity in changed.iter() {
+            let this = Root::resolve(text_entity, &roots);
+            let offset = if let Ok(cursor_val) = cursor.get(this) {
+                cursor_val.location
+            } else {
+                continue;
+            };
+            TextInput::move_cursor(
+                this,
+                &mut tree,
+                RequestedLocation::Offset(offset),
+                &glyphs,
+                &font,
+                &font_sizes,
+                *layout,
+                &handles.as_readonly(),
+                &mut cursor,
+                &line_metrics,
+                &scroll,
+                true,
+                // No scroll-into-view here: this is a passive resync after a rewrap, not a
+                // genuine cursor move. Forcing it anyway is what closed the feedback loop --
+                // see `move_cursor`'s `allow_scroll` comment.
+                false,
+            );
+            TextInput::reselect_range(
+                this,
+                &mut tree,
+                &mut handles,
+                &glyphs,
+                &selections,
+                &font,
+                &font_sizes,
+                *layout,
+                &styles,
+            );
         }
     }
     /// Was `ReselectRange::obs`: sync the highlight-panel-per-glyph set to the current
@@ -872,7 +1156,7 @@ impl TextInput {
             .highlights
             .iter()
             .filter(|(o, _)| !selection.range.contains(*o))
-            .map(|(o, e)| (*o, *e))
+            .map(|(o, (e, ..))| (*o, *e))
             .collect::<Vec<_>>();
         for (o, e) in stale {
             handle.highlights.remove(&o);
@@ -880,42 +1164,20 @@ impl TextInput {
         }
         // one child per selected glyph -- new glyphs entering the range branch from
         // `handle.panel`, same as the composite's own construction.
+        //
+        // Single pass over the glyph list, classifying each in-range glyph as either
+        // "already highlighted" (needs its `Location` refreshed) or "newly entering the
+        // selection" (needs a new highlight panel) -- previously `existing` re-scanned the
+        // *entire* glyph list with `.find()` once per already-highlighted glyph, making this
+        // `O(selected_glyphs * total_glyphs)`, which is why it visibly slowed down the more
+        // was selected.
         let panel = handle.panel;
-        let existing: Vec<GlyphOffset> = glyph
+        let color = styles.get(this).unwrap().accent;
+        let in_range: Vec<(GlyphOffset, u32, u32)> = glyph
             .layout
             .glyphs()
             .iter()
-            .filter(|g| {
-                selection.range.contains(&g.byte_offset)
-                    && handle.highlights.contains_key(&g.byte_offset)
-            })
-            .map(|g| g.byte_offset)
-            .collect();
-        for o in existing {
-            let (col, row) = glyph
-                .layout
-                .glyphs()
-                .iter()
-                .find(|g| g.byte_offset == o)
-                .map(|g| ((g.x / dims.a()) as u32, (g.y / dims.b()) as u32))
-                .unwrap();
-            let location = Location::new().xs(
-                (col + 1).col().as_left().with((col + 1).col().as_right()),
-                (row + 1).row().as_top().with((row + 1).row().as_bottom()),
-            );
-            let existing = *handle.highlights.get(&o).unwrap();
-            tree.entity(existing)
-                .insert(Opacity::new(1.0))
-                .insert(location);
-        }
-        let new_glyphs: Vec<(GlyphOffset, u32, u32)> = glyph
-            .layout
-            .glyphs()
-            .iter()
-            .filter(|g| {
-                selection.range.contains(&g.byte_offset)
-                    && !handle.highlights.contains_key(&g.byte_offset)
-            })
+            .filter(|g| selection.range.contains(&g.byte_offset))
             .map(|g| {
                 (
                     g.byte_offset,
@@ -924,22 +1186,39 @@ impl TextInput {
                 )
             })
             .collect();
-        let color = styles.get(this).unwrap().accent;
-        for (offset, col, row) in new_glyphs {
-            let location = Location::new().xs(
-                (col + 1).col().as_left().with((col + 1).col().as_right()),
-                (row + 1).row().as_top().with((row + 1).row().as_bottom()),
-            );
-            let h = tree.branch(
-                panel,
-                Panel::new().elevate(Elevation::up(2)).at(location).with((
-                    Opacity::new(1.0),
-                    color,
-                    InteractionPropagation::pass_through(),
-                    FocusBehavior::ignore(),
-                )),
-            );
-            handle.highlights.insert(offset, h);
+        for (offset, col, row) in in_range {
+            if let Some((existing, prev_col, prev_row)) = handle.highlights.get(&offset).copied()
+            {
+                // Already highlighted and hasn't moved -- skip the re-`insert` entirely (see
+                // the comment on `Handle::highlights`). This is the common case for a large,
+                // stable selection: most glyphs aren't moving on any given call.
+                if col != prev_col || row != prev_row {
+                    let location = Location::new().xs(
+                        (col + 1).col().as_left().with((col + 1).col().as_right()),
+                        (row + 1).row().as_top().with((row + 1).row().as_bottom()),
+                    );
+                    tree.entity(existing).insert(location);
+                    handle.highlights.insert(offset, (existing, col, row));
+                }
+            } else {
+                let location = Location::new().xs(
+                    (col + 1).col().as_left().with((col + 1).col().as_right()),
+                    (row + 1).row().as_top().with((row + 1).row().as_bottom()),
+                );
+                let h = tree.branch(
+                    panel,
+                    Panel::new()
+                        .color(color)
+                        .elevate(Elevation::up(2))
+                        .at(location)
+                        .with((
+                            Opacity::new(1.0),
+                            InteractionPropagation::pass_through(),
+                            FocusBehavior::ignore(),
+                        )),
+                );
+                handle.highlights.insert(offset, (h, col, row));
+            }
         }
     }
 }
@@ -993,6 +1272,7 @@ impl Input {
         mut handles: Query<&mut Handle>,
         styles: Query<&TextInputStyle>,
         key_bindings: Res<KeyBindings>,
+        scroll: ScrollContext,
     ) {
         let this = trigger.event_target();
         let cursor_val = *cursor.get(this).unwrap();
@@ -1027,6 +1307,7 @@ impl Input {
                             *layout,
                             &line_metrics,
                             &mut selections,
+                            &scroll,
                         );
                     }
                 },
@@ -1053,6 +1334,7 @@ impl Input {
                             *layout,
                             &line_metrics,
                             &mut selections,
+                            &scroll,
                         );
                     } else if cursor_val.location > 0 {
                         let mut value = values.get_mut(this).unwrap();
@@ -1077,6 +1359,9 @@ impl Input {
                                 &handles.as_readonly(),
                                 &mut cursor,
                                 &line_metrics,
+                                &scroll,
+                                true,
+                                true,
                             );
                             tree.trigger_targets(TextInputState::AwaitingInput, this);
                             TextInput::clear_selection(this, &mut selections);
@@ -1106,6 +1391,7 @@ impl Input {
                             *layout,
                             &line_metrics,
                             &mut selections,
+                            &scroll,
                         );
                     } else if cursor_val.location < values.get(this).unwrap().0.len() {
                         let mut value = values.get_mut(this).unwrap();
@@ -1128,6 +1414,9 @@ impl Input {
                             &handles.as_readonly(),
                             &mut cursor,
                             &line_metrics,
+                            &scroll,
+                            true,
+                            true,
                         );
                         tree.trigger_targets(TextInputState::AwaitingInput, this);
                         TextInput::clear_selection(this, &mut selections);
@@ -1150,6 +1439,9 @@ impl Input {
                         &handles.as_readonly(),
                         &mut cursor,
                         &line_metrics,
+                        &scroll,
+                        true,
+                        true,
                     );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
@@ -1166,6 +1458,9 @@ impl Input {
                         &handles.as_readonly(),
                         &mut cursor,
                         &line_metrics,
+                        &scroll,
+                        true,
+                        true,
                     );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
@@ -1206,6 +1501,7 @@ impl Input {
                             *layout,
                             &line_metrics,
                             &mut selections,
+                            &scroll,
                         );
                     }
                 }
@@ -1227,19 +1523,14 @@ impl Input {
                             &handles.as_readonly(),
                             &mut cursor,
                             &line_metrics,
+                            &scroll,
+                            true,
+                            true,
                         );
-                        let selections_ro = selections.as_readonly();
-                        TextInput::reselect_range(
-                            this,
-                            &mut tree,
-                            &mut handles,
-                            &glyphs,
-                            &selections_ro,
-                            &font,
-                            &font_sizes,
-                            *layout,
-                            &styles,
-                        );
+                        // No direct `reselect_range` call -- `sync_highlights_to_selection`
+                        // (a `Changed<Selection>` reactive safety net, see its comment) picks
+                        // this up automatically. Calling it here too just doubled the cost of
+                        // every selecting action for no benefit.
                         tree.trigger_targets(TextInputState::Highlighting, this);
                     }
                 }
@@ -1251,15 +1542,15 @@ impl Input {
                             cursor_val.column.saturating_sub(1),
                             cursor_val.row,
                         )),
-                        &cursor,
+                        &mut cursor,
                         &mut selections,
                         &glyphs,
                         &mut handles,
                         &font,
                         &font_sizes,
                         *layout,
-                        &values.as_readonly(),
-                        &styles,
+                        &line_metrics,
+                        &scroll,
                     );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
@@ -1271,15 +1562,15 @@ impl Input {
                             (cursor_val.column + 1).min(metrics.max_letter_idx_horizontal),
                             cursor_val.row,
                         )),
-                        &cursor,
+                        &mut cursor,
                         &mut selections,
                         &glyphs,
                         &mut handles,
                         &font,
                         &font_sizes,
                         *layout,
-                        &values.as_readonly(),
-                        &styles,
+                        &line_metrics,
+                        &scroll,
                     );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
@@ -1291,15 +1582,15 @@ impl Input {
                             cursor_val.column,
                             cursor_val.row.saturating_sub(1),
                         )),
-                        &cursor,
+                        &mut cursor,
                         &mut selections,
                         &glyphs,
                         &mut handles,
                         &font,
                         &font_sizes,
                         *layout,
-                        &values.as_readonly(),
-                        &styles,
+                        &line_metrics,
+                        &scroll,
                     );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
@@ -1310,15 +1601,15 @@ impl Input {
                         this,
                         &mut tree,
                         RequestedLocation::ColRow((cursor_val.column, target_row)),
-                        &cursor,
+                        &mut cursor,
                         &mut selections,
                         &glyphs,
                         &mut handles,
                         &font,
                         &font_sizes,
                         *layout,
-                        &values.as_readonly(),
-                        &styles,
+                        &line_metrics,
+                        &scroll,
                     );
                     tree.trigger_targets(TextInputState::Highlighting, this);
                 }
@@ -1337,6 +1628,9 @@ impl Input {
                         &handles.as_readonly(),
                         &mut cursor,
                         &line_metrics,
+                        &scroll,
+                        true,
+                        true,
                     );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
@@ -1355,6 +1649,9 @@ impl Input {
                         &handles.as_readonly(),
                         &mut cursor,
                         &line_metrics,
+                        &scroll,
+                        true,
+                        true,
                     );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
@@ -1376,6 +1673,9 @@ impl Input {
                         &handles.as_readonly(),
                         &mut cursor,
                         &line_metrics,
+                        &scroll,
+                        true,
+                        true,
                     );
                     tree.trigger_targets(TextInputState::AwaitingInput, this);
                     TextInput::clear_selection(this, &mut selections);
@@ -1395,6 +1695,9 @@ impl Input {
                         &handles.as_readonly(),
                         &mut cursor,
                         &line_metrics,
+                        &scroll,
+                        true,
+                        true,
                     );
                 }
                 TextInputAction::Space => {
@@ -1418,6 +1721,7 @@ impl Input {
                         *layout,
                         &line_metrics,
                         &mut selections,
+                        &scroll,
                     );
                 }
                 // no text mutation; enclosing composites react via the InputAction broadcast
@@ -1442,6 +1746,7 @@ impl Input {
                     *layout,
                     &line_metrics,
                     &mut selections,
+                    &scroll,
                 );
             }
         }
@@ -1495,6 +1800,7 @@ impl TextInput {
         layout: Layout,
         line_metrics: &Query<&LineMetrics>,
         selections: &mut Query<&mut Selection>,
+        scroll: &ScrollContext,
     ) {
         Self::forward_text(this, tree, values, handles);
         TextInput::move_cursor(
@@ -1508,6 +1814,14 @@ impl TextInput {
             handles,
             cursor,
             line_metrics,
+            scroll,
+            // `false`: glyphs/LineMetrics may still reflect pre-edit state here (this runs
+            // synchronously, before `Text::update` settles) -- the guaranteed-fresh reactive
+            // follow-up (`Selection::reselect`, via `TextContentChanged`) does the actual
+            // visual placement instead. See `move_cursor`'s comment on `follow`.
+            false,
+            // Same reasoning as above applies to the scroll-into-view check.
+            false,
         );
         tree.trigger_targets(TextInputState::AwaitingInput, this);
         Self::clear_selection(this, selections);
@@ -1518,7 +1832,7 @@ impl TextInput {
         this: Entity,
         tree: &mut Tree,
         req: RequestedLocation,
-        cursor: &Query<&mut Cursor>,
+        cursor: &mut Query<&mut Cursor>,
         selections: &mut Query<&mut Selection>,
         glyphs: &Query<&Glyphs>,
         // single mutable Query -- splitting this into a read step then a write step internally
@@ -1529,34 +1843,56 @@ impl TextInput {
         font: &MonospacedFont,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
-        values: &Query<&TextValue>,
-        styles: &Query<&TextInputStyle>,
+        line_metrics: &Query<&LineMetrics>,
+        scroll: &ScrollContext,
     ) {
-        let cursor_ro = cursor.as_readonly();
-        TextInput::extend_range(
-            this,
-            req,
-            &cursor_ro,
-            selections,
-            glyphs,
-            &handles.as_readonly(),
-            font,
-            font_sizes,
-            layout,
-            values,
-        );
-        let selections_ro = selections.as_readonly();
-        TextInput::reselect_range(
+        {
+            let cursor_ro = cursor.as_readonly();
+            TextInput::extend_range(
+                this,
+                req,
+                &cursor_ro,
+                selections,
+                glyphs,
+                &handles.as_readonly(),
+                font,
+                font_sizes,
+                layout,
+            );
+        }
+        // `extend_range` only ever updates `Selection.range` -- `Cursor` was left frozen at
+        // its pre-extend position, so every subsequent Shift+Arrow recomputed the exact same
+        // target instead of advancing (it stopped after one step, every direction after that
+        // a no-op). The blinking cursor has to track the selection's moving edge -- the end
+        // opposite whichever side is now anchored -- both logically (so the *next* keystroke
+        // extends from here) and visually (placement + scroll-into-view).
+        let edge = {
+            let selection = selections.get(this).unwrap();
+            if selection.inverted {
+                selection.range.start
+            } else {
+                selection.range.end
+            }
+        };
+        TextInput::move_cursor(
             this,
             tree,
-            handles,
+            RequestedLocation::Offset(edge),
             glyphs,
-            &selections_ro,
             font,
             font_sizes,
             layout,
-            styles,
+            &handles.as_readonly(),
+            cursor,
+            line_metrics,
+            scroll,
+            true,
+            true,
         );
+        // No direct `reselect_range` call -- `sync_highlights_to_selection` (a
+        // `Changed<Selection>` reactive safety net, see its comment) picks this up
+        // automatically. Calling it here too just doubled the cost of every Shift+Arrow
+        // keystroke, and the slowdown scaled with how much was already selected.
     }
 }
 /// Fired at the `TextInput` root whenever its text content changes (typing, deletion, paste,
@@ -1584,6 +1920,7 @@ impl InsertText {
         font_sizes: Query<&FontSize>,
         layout: Res<Layout>,
         line_metrics: Query<&LineMetrics>,
+        scroll: ScrollContext,
     ) {
         let this = trigger.event_target();
         let cursor_location = cursor.get(this).unwrap().location;
@@ -1607,6 +1944,7 @@ impl InsertText {
             *layout,
             &line_metrics,
             &mut selections,
+            &scroll,
         );
     }
 }
@@ -1619,7 +1957,17 @@ pub struct Handle {
     pub hint_text: Entity,
     pub cursor: Entity,
     pub visible: Entity,
-    pub highlights: HashMap<GlyphOffset, Entity>,
+    // `(Entity, col, row)` -- the (col, row) is the position the highlight panel's `Location`
+    // was last actually written with, so `reselect_range` can skip a redundant re-`insert`
+    // when a glyph stays selected across a call but its position hasn't moved. `insert`
+    // always marks the component (and everything downstream via `on_insert` cascades)
+    // Changed regardless of whether the value differs -- for a large selection (one panel
+    // per glyph) that meant every keystroke/rewrap re-cascaded `Location` -> `Section` ->
+    // view-extent regrow for *every already-correctly-placed* highlight, not just the ones
+    // that actually moved. On a large pasted block with everything selected, that's
+    // thousands of redundant cascades per call -- the multi-second freezes/crashes on
+    // resize-while-selected, Ctrl+A, and deselect.
+    pub highlights: HashMap<GlyphOffset, (Entity, u32, u32)>,
 }
 #[derive(Component, Clone, Default)]
 pub struct HintText(pub(crate) String);

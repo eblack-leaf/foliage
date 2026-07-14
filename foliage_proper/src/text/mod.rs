@@ -225,29 +225,57 @@ impl Text {
             horizontal_alignment: *horizontal_alignment.get(this).unwrap(),
             vertical_alignment: *vertical_alignment.get(this).unwrap(),
         };
+        // Captured before the cache comparison/overwrite below -- `UpdateCache` also
+        // changes on a pure `Section` shift (e.g. the entity repositioning as a side
+        // effect of a parent's scroll offset), not just a genuine content edit. Consumers
+        // that care specifically about "the text *value* changed, glyphs are freshly
+        // laid out" (like `TextInput`'s scroll-into-view) need that distinction --
+        // `Write<Text>` below fires for both cases and can't make it.
+        let content_changed = cache.get(this).unwrap().text.value != current.text.value;
         if cache.get(this).unwrap() != &current {
+            let old = cache.get(this).unwrap().clone();
+            // A pure position shift (this entity repositioned by a parent's scroll offset, its
+            // own `Section.position` changing with `width`/`height` untouched) doesn't affect
+            // wrapping or glyph shapes at all -- only where the already-laid-out glyphs get
+            // drawn. Re-running `layout.reset`/`.append` on *every* `UpdateCache` difference
+            // (position included) unconditionally re-marked `Glyphs` Changed even when the
+            // recomputed layout was byte-identical to before. During any scroll -- or the
+            // `Location` write `TextInput::move_cursor` does when following the cursor --
+            // that fired every single frame, and `TextInput::resync_on_glyphs_changed`
+            // reacting to `Changed<Glyphs>` fed straight back into another `Section` write,
+            // never settling (a real hang -- wayland eventually kills an unresponsive
+            // client). Gating the relayout on the fields that actually affect it breaks the
+            // loop at its source instead of trying to dampen it downstream.
+            let layout_dirty = old.font_size != current.font_size
+                || old.text != current.text
+                || old.horizontal_alignment != current.horizontal_alignment
+                || old.vertical_alignment != current.vertical_alignment
+                || old.section.width() != current.section.width()
+                || old.section.height() != current.section.height();
             let mut glyphs = glyph_query.get_mut(this).unwrap();
             let auto_width = auto_widths.get(this).unwrap();
             let auto_height = auto_heights.get(this).unwrap();
-            glyphs.layout.reset(&fontdue::layout::LayoutSettings {
-                horizontal_align: current.horizontal_alignment.into(),
-                vertical_align: current.vertical_alignment.into(),
-                max_width: if auto_width.0 {
-                    None
-                } else {
-                    Some(current.section.width())
-                },
-                max_height: Some(current.section.height()),
-                ..fontdue::layout::LayoutSettings::default()
-            });
-            glyphs.layout.append(
-                &[&font.0],
-                &fontdue::layout::TextStyle::new(
-                    current.text.value.as_str(),
-                    current.font_size.value as f32,
-                    0,
-                ),
-            );
+            if layout_dirty {
+                glyphs.layout.reset(&fontdue::layout::LayoutSettings {
+                    horizontal_align: current.horizontal_alignment.into(),
+                    vertical_align: current.vertical_alignment.into(),
+                    max_width: if auto_width.0 {
+                        None
+                    } else {
+                        Some(current.section.width())
+                    },
+                    max_height: Some(current.section.height()),
+                    ..fontdue::layout::LayoutSettings::default()
+                });
+                glyphs.layout.append(
+                    &[&font.0],
+                    &fontdue::layout::TextStyle::new(
+                        current.text.value.as_str(),
+                        current.font_size.value as f32,
+                        0,
+                    ),
+                );
+            }
             let dims = font.character_block(current.font_size.value);
             let adjusted = if auto_height.0 {
                 Some(
@@ -269,6 +297,15 @@ impl Text {
             let mut insert_adjusted = false;
             if let Some(adjusted) = adjusted {
                 let scaled = adjusted.to_physical(scale_factor.value());
+                tracing::trace!(
+                    entity = ?this,
+                    auto_width = auto_width.0,
+                    auto_height = auto_height.0,
+                    pre_adjust_section = ?current.section,
+                    post_adjust_section = ?scaled,
+                    glyph_layout_height = glyphs.layout.height(),
+                    "text: auto width/height adjusted section"
+                );
                 if current.section != scaled {
                     insert_adjusted = true;
                     current.section = scaled;
@@ -306,6 +343,9 @@ impl Text {
                 }
             }
             tree.trigger_targets(Write::<Text>::new(), this);
+            if content_changed {
+                tree.trigger_targets(TextContentChanged::new(), this);
+            }
         }
     }
     fn clear_last_on_visibility(
@@ -536,6 +576,12 @@ pub(crate) struct UpdateCache {
     pub(crate) horizontal_alignment: HorizontalAlignment,
     pub(crate) vertical_alignment: VerticalAlignment,
 }
+/// Fires only when the text *value* actually changed and glyphs/`LineMetrics` have just been
+/// freshly recomputed -- unlike `Write<Text>`, which also fires for a pure `Section` shift
+/// (e.g. scrolling a parent view repositions this entity with no content change at all).
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub(crate) struct TextContentChanged {}
 #[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
 #[component(on_insert = HorizontalAlignment::on_insert)]
 pub enum HorizontalAlignment {

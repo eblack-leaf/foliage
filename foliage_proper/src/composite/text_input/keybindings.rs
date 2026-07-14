@@ -102,12 +102,20 @@ impl Default for KeyBindings {
 }
 impl KeyBindings {
     pub fn action(&self, i: &InputSequence) -> Option<TextInputAction> {
-        self.bindings.iter().find_map(|(s, a)| {
-            if i.key == s.key && i.mods.contains(s.mods) {
-                Some(*a)
-            } else {
-                None
-            }
-        })
+        // Every entry with `s.mods` a subset of `i.mods` "matches" (see the type's own doc
+        // comment on why `contains` is used) -- but `Modifiers::empty()` (the plain, no-
+        // modifier bindings like `Left`) is a subset of *everything*, including `SHIFT`, so
+        // holding Shift makes both `Left` and `ExtendLeft` match at once. `HashMap` iteration
+        // order isn't deterministic across runs (random hash seed per construction), so
+        // `.find_map`'s "first" match was effectively a coin flip, per key, per launch --
+        // consistent within one run (explaining why some directions "worked" reliably and
+        // others never did, in the same session) but different the next time the app
+        // started. Taking the match with the most bits set picks the more specific binding
+        // deterministically, every time.
+        self.bindings
+            .iter()
+            .filter(|(s, _)| i.key == s.key && i.mods.contains(s.mods))
+            .max_by_key(|(s, _)| s.mods.bits().count_ones())
+            .map(|(_, a)| *a)
     }
 }

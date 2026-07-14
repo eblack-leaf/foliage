@@ -119,6 +119,13 @@ impl Foliage {
                         .world
                         .get_resource_mut::<KeyboardAdapter>()
                         .expect("keys");
+                    tracing::trace!(
+                        logical_key = ?event.logical_key,
+                        state = ?event.state,
+                        repeat = event.repeat,
+                        current_mods = ?adapter.mods,
+                        "photosynthesis: KeyboardInput received"
+                    );
                     let physical = adapter.parse_physical(event.physical_key, event.state);
                     let logical = adapter.parse(event.logical_key, event.state, event.repeat);
                     (logical, physical)
@@ -131,10 +138,16 @@ impl Foliage {
                 }
             }
             WindowEvent::ModifiersChanged(new_mods) => {
+                let converted: crate::Modifiers = new_mods.state().into();
+                tracing::trace!(
+                    winit_state = ?new_mods.state(),
+                    converted = ?converted,
+                    "photosynthesis: ModifiersChanged received"
+                );
                 self.world
                     .get_resource_mut::<KeyboardAdapter>()
                     .expect("keyboard-adapter")
-                    .mods = new_mods.state().into();
+                    .mods = converted;
             }
             WindowEvent::Ime(ime) => {
                 // Composition UI (preedit rendering) is deliberately out of scope; committed text

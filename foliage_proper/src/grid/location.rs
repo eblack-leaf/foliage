@@ -263,6 +263,13 @@ impl Location {
                     };
                     let anim_diff = diff * location.animation_percent;
                     resolution.section += anim_diff;
+                    tracing::trace!(
+                        entity = ?this,
+                        view_offset = ?view.offset,
+                        context = ?context,
+                        resolved_section = ?resolution.section,
+                        "location: resolved section"
+                    );
                     tree.entity(this).insert(resolution);
                     tree.entity(this).insert(resolution.section);
                 } else {

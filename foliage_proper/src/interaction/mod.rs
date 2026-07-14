@@ -365,10 +365,17 @@ pub(crate) fn interactive_elements(
         }
         if let Some(event) = ended.last() {
             if let Some(p) = current.primary {
-                if current.past_drag
-                    || event.method == InteractionMethod::ScrollWheel
-                        && !all.get(p).unwrap().4.disable_drag
-                {
+                // `disable_drag` suppresses *pointer*-drag panning specifically (e.g. the
+                // text_input cursor and the slider knob both drag-subscribe themselves and
+                // don't want that drag to also pan an ancestor's `View`) -- it was also
+                // gating scroll-wheel here, an unrelated interaction method that only ever
+                // sends Start+End (no Moved), so `current.past_drag` never becomes true for
+                // it either. Together that meant a `disable_drag` entity swallowed every
+                // wheel-scroll over it with no `ViewAdjustment` ever inserted, anywhere --
+                // e.g. scrolling while the mouse sat over an active (grabbed) text cursor did
+                // nothing instead of scrolling the input. Wheel-scroll should always be
+                // allowed through regardless of drag suppression.
+                if current.past_drag || event.method == InteractionMethod::ScrollWheel {
                     let diff = current.last_drag - event.position;
                     if let Ok(_) = views.get(p) {
                         tree.entity(p).insert(ViewAdjustment(diff));

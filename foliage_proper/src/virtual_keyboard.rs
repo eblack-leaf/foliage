@@ -15,7 +15,7 @@ use crate::{AndroidConnection, Attachment, Foliage};
 #[derive(Clone)]
 pub(crate) enum PendingInput {
     Text(String),
-    Key(crate::Key),
+    Key(crate::Key, crate::Modifiers),
 }
 
 /// A `NonSend` resource, not a regular one: wasm32 in the browser is single-threaded, so a
@@ -142,7 +142,27 @@ impl VirtualKeyboardAdapter {
                     // its already-empty value) -- this key is handled via `InputSequence`
                     // instead, same as a real physical keystroke would be.
                     e.prevent_default();
-                    key_queue.0.borrow_mut().push_back(PendingInput::Key(key));
+                    // Built fresh from this DOM event, not read off `KeyboardAdapter.mods`
+                    // (winit's `ModifiersChanged` tracker) -- that resource only updates
+                    // from canvas-focused events, which this trigger input's focus already
+                    // starves it of, same as the raw key events themselves.
+                    let mut mods = crate::Modifiers::empty();
+                    if e.shift_key() {
+                        mods |= crate::Modifiers::SHIFT;
+                    }
+                    if e.ctrl_key() {
+                        mods |= crate::Modifiers::CONTROL;
+                    }
+                    if e.alt_key() {
+                        mods |= crate::Modifiers::ALT;
+                    }
+                    if e.meta_key() {
+                        mods |= crate::Modifiers::SUPER;
+                    }
+                    key_queue
+                        .0
+                        .borrow_mut()
+                        .push_back(PendingInput::Key(key, mods));
                 }
             }) as Box<dyn FnMut(_)>);
             element
@@ -164,11 +184,13 @@ impl VirtualKeyboardAdapter {
         {
             let pending: Vec<PendingInput> = queue.0.borrow_mut().drain(..).collect();
             for input in pending {
-                let key = match input {
-                    PendingInput::Text(text) => crate::Key::Character(text),
-                    PendingInput::Key(key) => key,
+                let (key, mods) = match input {
+                    PendingInput::Text(text) => {
+                        (crate::Key::Character(text), crate::Modifiers::default())
+                    }
+                    PendingInput::Key(key, mods) => (key, mods),
                 };
-                commands.trigger(crate::InputSequence::new(key, crate::Modifiers::default()));
+                commands.trigger(crate::InputSequence::new(key, mods));
             }
         }
     }

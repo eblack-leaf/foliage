@@ -217,10 +217,11 @@ impl<Context: CoordinateContext> Section<Context> {
         if deps.is_empty() {
             return;
         }
-        world.commands().trigger_targets(
-            Update::<Location>::new(),
-            deps.iter().copied().collect::<Vec<_>>(),
-        );
+        let dep_vec = deps.iter().copied().collect::<Vec<_>>();
+        tracing::trace!(entity = ?this, deps = ?dep_vec, "coordinate::section: Section<Logical> on_insert cascading Update<Location>");
+        world
+            .commands()
+            .trigger_targets(Update::<Location>::new(), dep_vec);
     }
 }
 impl Section<Numerical> {

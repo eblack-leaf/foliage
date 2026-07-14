@@ -78,7 +78,7 @@ fn ovrscrl(
     }
     (contexts.get(entity).unwrap().1.id, over)
 }
-pub(crate) fn extent_check_v2(
+pub(crate) fn extent_check(
     adjustments: Query<(Entity, &ViewAdjustment), Changed<ViewAdjustment>>,
     mut views: Query<&mut View>,
     propagations: Query<&OverscrollPropagation>,
@@ -88,6 +88,7 @@ pub(crate) fn extent_check_v2(
 ) {
     let mut to_check = HashSet::new();
     for (entity, adjustment) in adjustments.iter() {
+        tracing::trace!(entity = ?entity, adjustment = ?adjustment.0, "grid::view: extent_check_v2 saw changed ViewAdjustment");
         to_check.insert(entity);
     }
     for (entity, context) in contexts.iter() {
@@ -111,8 +112,18 @@ pub(crate) fn extent_check_v2(
     }
     for entity in to_check.iter() {
         let section = *sections.get(*entity).unwrap().1;
+        let old_extent = views.get(*entity).unwrap().extent;
+        let old_offset = views.get(*entity).unwrap().offset;
         views.get_mut(*entity).unwrap().extent =
             Section::new(section.position, (section.right(), section.bottom()));
+        tracing::trace!(
+            entity = ?entity,
+            own_section = ?section,
+            old_extent = ?old_extent,
+            reset_extent = ?views.get(*entity).unwrap().extent,
+            current_offset = ?old_offset,
+            "grid::view: extent reset to own section (pre-regrow)"
+        );
     }
     for (entity, context) in contexts.iter() {
         if let Some(id) = context.id {
@@ -138,8 +149,16 @@ pub(crate) fn extent_check_v2(
             }
         }
     }
+    for entity in to_check.iter() {
+        tracing::trace!(
+            entity = ?entity,
+            grown_extent = ?views.get(*entity).unwrap().extent,
+            "grid::view: extent after regrow-from-children pass"
+        );
+    }
     let mut to_trigger = HashSet::new();
     for entity in to_check.iter() {
+        let before = views.get(*entity).unwrap().offset;
         let _ovr = ovrscrl(
             *entity,
             Position::default(),
@@ -149,11 +168,20 @@ pub(crate) fn extent_check_v2(
             &sections,
             &mut to_trigger,
         );
+        let after = views.get(*entity).unwrap().offset;
+        tracing::trace!(
+            entity = ?entity,
+            before_offset = ?before,
+            after_offset = ?after,
+            "grid::view: initial ovrscrl (zero-delta clamp) pass"
+        );
     }
     for entity in to_check.iter() {
         let mut view = views.get_mut(*entity).unwrap();
         if let Ok((_, adjustment)) = adjustments.get(*entity) {
+            let before = view.offset;
             view.offset += adjustment.0;
+            tracing::trace!(entity = ?entity, before = ?before, after = ?view.offset, "grid::view: applied ViewAdjustment to offset");
             to_trigger.insert(*entity);
         }
     }
@@ -194,6 +222,7 @@ pub(crate) fn extent_check_v2(
     }
     for entity in to_trigger.difference(&in_chain) {
         let section = *sections.get(*entity).unwrap().1;
+        tracing::trace!(entity = ?entity, section = ?section, "grid::view: re-inserting Section<Logical> to cascade");
         tree.entity(*entity).insert(section);
     }
 }
