@@ -268,13 +268,9 @@ impl Render for Text {
         for (entity, glyphs) in queues.attribute::<Text, ResolvedGlyphs>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();
-            tracing::trace!(
-                entity = ?entity,
-                group = ?id,
-                removed = ?glyphs.removed.iter().map(|g| g.offset).collect::<Vec<_>>(),
-                updated = ?glyphs.updated.iter().map(|g| g.offset).collect::<Vec<_>>(),
-                "text-pipeline: resolved-glyphs packet"
-            );
+            let sync_start = std::time::Instant::now();
+            let removed_count = glyphs.removed.len();
+            let updated_count = glyphs.updated.len();
             for glyph in glyphs.removed {
                 if group.coordinator.has_instance(glyph.offset as InstanceId) {
                     let order = group.coordinator.order(glyph.offset as InstanceId);
@@ -348,6 +344,14 @@ impl Render for Text {
                     .sections
                     .queue(glyph.offset as InstanceId, glyph.section.c_repr());
             }
+            tracing::trace!(
+                entity = ?entity,
+                group = ?id,
+                removed_count,
+                updated_count,
+                elapsed = ?sync_start.elapsed(),
+                "text-pipeline: resolved-glyphs packet synced"
+            );
         }
         for (_id, group) in renderer.groups.iter_mut() {
             let (changed, grown) = group.group.texture_atlas.as_mut().unwrap().resolve(ginkgo);

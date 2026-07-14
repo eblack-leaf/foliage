@@ -180,14 +180,21 @@ impl InstanceCoordinator {
         })
     }
     pub(crate) fn remove(&mut self, order: Order) {
-        let removed = self.instances.remove(order as usize);
+        // `swap_remove` moves the *last* element into the vacated slot instead of shifting
+        // every subsequent element down by one -- the previous `Vec::remove` + "shift every
+        // row after it, updating `orders` for each" was O(n) per removal, so removing n
+        // instances in one batch (e.g. every glyph instance when a huge pasted block gets
+        // deleted) was O(n^2): the actual cause of the multi-second-to-minutes freezes/crash
+        // reported on deleting a large selection. Only the one relocated instance's `orders`
+        // entry needs updating -- `orders` just needs to stay a dense 0..len() mapping to
+        // GPU buffer slots, not any particular shifted order, since `sort()` (always run
+        // after any remove, `needs_sort = true` below) fully re-establishes render order from
+        // elevation regardless of this method's internal physical layout.
+        let removed = self.instances.swap_remove(order as usize);
         tracing::trace!(id = removed.id, order, "instance-coordinator: remove");
         self.orders.remove(&removed.id);
-        // rows after the removed one shift down by one
-        for instance in self.instances[order as usize..].iter() {
-            if let Some(o) = self.orders.get_mut(&instance.id) {
-                *o -= 1;
-            }
+        if let Some(relocated) = self.instances.get(order as usize) {
+            self.orders.insert(relocated.id, order);
         }
         self.needs_sort = true;
     }

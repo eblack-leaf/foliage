@@ -39,6 +39,7 @@ impl Remove {
                 deps.insert(*e);
             }
         }
+        tracing::trace!(entity = ?trigger.event_target(), deps_count = deps.len(), "remove: observer fired");
         if deps.is_empty() {
             return;
         }

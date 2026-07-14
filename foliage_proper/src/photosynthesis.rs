@@ -11,6 +11,10 @@ use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowId;
 
+thread_local! {
+    static LAST_TICK: std::cell::Cell<Option<std::time::Instant>> = std::cell::Cell::new(None);
+}
+
 impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         trace!("resuming");
@@ -67,9 +71,31 @@ impl ApplicationHandler for Foliage {
             }
         }
         if self.booted {
+            // Heartbeat: is the event loop ticking rapidly (busy-looping somewhere inside
+            // main/user/diff, or in redraw) or is `about_to_wait` itself not being called for
+            // seconds at a stretch (blocked further upstream, e.g. in winit/OS event
+            // dispatch before we even get control back)? A large `since_last` here narrows
+            // a multi-second stall to one side of that question.
+            let tick_start = std::time::Instant::now();
+            let since_last = LAST_TICK.with(|c| {
+                let prev = c.get();
+                c.set(Some(tick_start));
+                prev.map(|p| tick_start.duration_since(p))
+            });
+            tracing::trace!(since_last = ?since_last, "photosynthesis: about_to_wait tick start");
             self.main.run(&mut self.world);
+            let after_main = tick_start.elapsed();
             self.user.run(&mut self.world);
+            let after_user = tick_start.elapsed();
             self.diff.run(&mut self.world);
+            let after_diff = tick_start.elapsed();
+            tracing::trace!(
+                main = ?after_main,
+                user = ?(after_user - after_main),
+                diff = ?(after_diff - after_user),
+                total = ?after_diff,
+                "photosynthesis: about_to_wait tick done"
+            );
             self.willow.window().request_redraw();
             self.ash.drawn = false;
             self.ran_at_least_once = true;

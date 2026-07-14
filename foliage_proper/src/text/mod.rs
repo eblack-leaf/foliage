@@ -180,9 +180,11 @@ impl Text {
         changed.extend(colors.p1().iter().collect::<Vec<_>>());
         changed.extend(glyphs.p1().iter().collect::<Vec<_>>());
         for e in changed {
+            let resolve_start = std::time::Instant::now();
             let mut res = ResolvedColors::default();
             let color = *colors.p0().get(e).unwrap();
             let exceptions = glyph_colors.p0().get(e).unwrap().exceptions.clone();
+            let glyph_count = glyphs.p0().get(e).unwrap().glyphs.len();
             for g in glyphs.p0().get(e).unwrap().glyphs.iter() {
                 let c = if let Some(gc) = exceptions.get(&g.offset) {
                     *gc
@@ -195,6 +197,12 @@ impl Text {
                 });
             }
             *resolved.get_mut(e).unwrap() = res;
+            tracing::trace!(
+                entity = ?e,
+                glyph_count,
+                elapsed = ?resolve_start.elapsed(),
+                "text: resolve_colors"
+            );
         }
     }
     fn update(
@@ -256,6 +264,7 @@ impl Text {
             let auto_width = auto_widths.get(this).unwrap();
             let auto_height = auto_heights.get(this).unwrap();
             if layout_dirty {
+                let relayout_start = std::time::Instant::now();
                 glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                     horizontal_align: current.horizontal_alignment.into(),
                     vertical_align: current.vertical_alignment.into(),
@@ -274,6 +283,12 @@ impl Text {
                         current.font_size.value as f32,
                         0,
                     ),
+                );
+                tracing::trace!(
+                    entity = ?this,
+                    text_len = current.text.value.len(),
+                    elapsed = ?relayout_start.elapsed(),
+                    "text: fontdue relayout"
                 );
             }
             let dims = font.character_block(current.font_size.value);
@@ -378,6 +393,7 @@ impl Text {
             if !vis.visible() {
                 continue;
             }
+            let resolve_start = std::time::Instant::now();
             let new = glyphs
                 .layout
                 .glyphs()
@@ -397,15 +413,20 @@ impl Text {
             resolved.updated.clear();
             resolved.removed.clear();
             let len_last = glyphs.glyphs.len();
-            for (i, g) in glyphs
-                .glyphs
-                .drain(..)
-                .collect::<Vec<_>>()
-                .iter()
-                .enumerate()
-            {
+            // Only glyphs that actually differ from last frame belong in `updated` -- this
+            // used to push *every* pre-existing glyph unconditionally on every relayout
+            // (never compared `n` against `g`), so appending a single character to an
+            // already-large document re-flagged the entire, mostly-unchanged glyph list as
+            // updated every time. That differential feeds the render pipeline's per-glyph
+            // instance sync (`text/pipeline.rs`), so it was re-touching every render
+            // instance for the whole document on every keystroke -- the real driver of the
+            // multi-second pastes into an already-large `TextInput` (relayout itself is only
+            // a fraction of that cost).
+            for (i, g) in glyphs.glyphs.iter().enumerate() {
                 if let Some(n) = new.get(i) {
-                    resolved.updated.push(n.clone());
+                    if n != g {
+                        resolved.updated.push(n.clone());
+                    }
                 } else {
                     resolved.removed.push(g.clone());
                 }
@@ -417,6 +438,15 @@ impl Text {
                 }
             }
             glyphs.glyphs = new;
+            tracing::trace!(
+                entity = ?entity,
+                len_last,
+                len_new,
+                updated_count = resolved.updated.len(),
+                removed_count = resolved.removed.len(),
+                elapsed = ?resolve_start.elapsed(),
+                "text: resolve_glyphs"
+            );
         }
     }
 }

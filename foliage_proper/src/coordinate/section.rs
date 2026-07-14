@@ -16,7 +16,7 @@ use crate::coordinate::{
 };
 use crate::{Anchor, AnchorDeps, Branch, Location, Update, Write};
 
-#[derive(Copy, Clone, Default, Component, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Default, Component, PartialEq, PartialOrd)]
 #[component(on_insert = Section::<Logical>::on_insert)]
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
@@ -31,6 +31,13 @@ impl<Context: CoordinateContext> Display for Section<Context> {
             self.top(),
             self.height()
         ))
+    }
+}
+// See `Coordinates`' `Debug` impl -- delegate to the already-compact `Display` instead of
+// the derived form, which spelled out `position`/`area`'s full nested struct names.
+impl<Context: CoordinateContext> std::fmt::Debug for Section<Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 #[repr(C)]

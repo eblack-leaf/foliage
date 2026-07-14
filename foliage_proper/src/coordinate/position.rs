@@ -9,7 +9,7 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
 
-#[derive(Copy, Clone, Default, PartialEq, PartialOrd, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, PartialOrd)]
 pub struct Position<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
@@ -17,6 +17,13 @@ pub struct Position<Context: CoordinateContext> {
 impl<Context: CoordinateContext> Display for Position<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}", self.coordinates))
+    }
+}
+// See `Coordinates`' `Debug` impl -- `derive(Debug)` here printed the `PhantomData` marker
+// and the struct name on top of `Coordinates`' own verbosity; `Display` is already compact.
+impl<Context: CoordinateContext> std::fmt::Debug for Position<Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 #[repr(C)]

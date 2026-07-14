@@ -9,7 +9,7 @@ use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
 
-#[derive(Copy, Clone, Default, PartialEq, Debug, PartialOrd)]
+#[derive(Copy, Clone, Default, PartialEq, PartialOrd)]
 pub struct Area<Context: CoordinateContext> {
     pub coordinates: Coordinates,
     _phantom: PhantomData<Context>,
@@ -17,6 +17,12 @@ pub struct Area<Context: CoordinateContext> {
 impl<Context: CoordinateContext> Display for Area<Context> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("{}", self.coordinates))
+    }
+}
+// See `Coordinates`' `Debug` impl -- delegate to the already-compact `Display`.
+impl<Context: CoordinateContext> std::fmt::Debug for Area<Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 #[repr(C)]

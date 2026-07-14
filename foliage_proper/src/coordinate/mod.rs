@@ -33,11 +33,20 @@ impl CoordinateContext for Numerical {}
 pub type CoordinateUnit = f32;
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable, Debug, Default)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable, Default)]
 pub struct Coordinates(pub [CoordinateUnit; 2]);
 impl Display for Coordinates {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("[{} {}]", self.a(), self.b()))
+    }
+}
+// `derive(Debug)` printed `Coordinates([12.0, -31092.0])` -- `{:?}` in `tracing::trace!`
+// fields (the `?field` shorthand) is what every trace call in this codebase uses, so that
+// verbosity was in every logged coordinate. `Display` above is already the compact form;
+// `Debug` just delegates to it instead of duplicating the formatting logic.
+impl std::fmt::Debug for Coordinates {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 impl Coordinates {

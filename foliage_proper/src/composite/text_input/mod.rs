@@ -393,6 +393,15 @@ impl TextInput {
             tree.entity(*e).insert(style.accent);
         }
     }
+    // TODO: hint text sometimes renders clipped on initial spawn (e.g. "multiline" instead
+    // of the full "multiline input..."). Specifically only self-corrects on a *resize*, not
+    // on any other action (click/keystroke do NOT fix it) -- points at the hint text's
+    // `Section` being stuck at an initial/wrong width until something forces a general
+    // grid-resolve pass, since resize is the one thing that touches width broadly and clicks
+    // /keystrokes don't touch the hint text's `Section` at all. Not root-caused yet -- that's
+    // still an inference from the symptom, not a diagnosis; confirmed NOT an
+    // entrance-animation settling artifact (there isn't one here; ruled out when raised).
+    // Needs an actual repro trace before touching anything.
     fn update_hint(
         trigger: Trigger<Insert, HintText>,
         mut tree: Tree,
@@ -640,6 +649,16 @@ impl TextInput {
             .min(metrics.max_letter_idx_horizontal);
         (column, row)
     }
+    // TODO: scroll up away from the cursor (cursor sitting at/below the bottom of view), then
+    // resize the box bigger -- the resulting rewrap drops `view.offset` back toward the
+    // cursor instead of leaving the user's manual scroll position alone. Two candidate
+    // causes, not yet distinguished by an actual trace: this function's `allow_scroll` gate
+    // not covering every path a resize takes through here, or `extent_check`'s regrow/clamp
+    // (`grid/view.rs`) recomputing a "valid" offset against the *new*, bigger extent that
+    // happens to land back near the cursor as a side effect, independent of any explicit
+    // follow logic. Not root-caused or fixed -- resolve which one it actually is before
+    // touching anything.
+
     /// Was `MoveCursor::obs`: resolve a requested (column, row) or byte offset against the
     /// text's actual glyph layout, and place the cursor + its visible indicator there.
     #[allow(clippy::too_many_arguments)]
@@ -703,89 +722,132 @@ impl TextInput {
         let metrics = line_metrics.get(handle.text).unwrap();
         let mut cursor = cursor.get_mut(this).unwrap();
         let text_glyphs = glyphs.get(handle.text).unwrap().layout.glyphs();
-        let (location, col, row) = if let Some(found) = text_glyphs.iter().find(|glyph| match req {
-            RequestedLocation::ColRow((column, row)) => {
-                (glyph.x / dims.a()) as u32 == column && (glyph.y / dims.b()) as u32 == row
-            }
-            RequestedLocation::Offset(offset) => glyph.byte_offset == offset,
-        }) {
-            let col = (found.x / dims.a()) as u32;
-            let row = (found.y / dims.b()) as u32;
-            (found.byte_offset, col, row)
-        } else {
-            let mut col = 0;
-            let mut row = 0;
-            let mut location = 0;
-            match req {
-                RequestedLocation::Offset(offset) => {
-                    // `location` is always the requested offset -- it's the authoritative
-                    // value `after_edit` just computed from the real (post-write) text
-                    // length, whereas `text_glyphs` here can still be lagging one edit
-                    // behind (glyph layout hasn't caught up to a just-applied, still-
-                    // deferred text write). Letting the nearest-glyph interpolation below
-                    // override `location` made every keystroke land the cursor one
-                    // character behind where it was just typed. Only `col`/`row` (visual
-                    // placement) are worth best-effort interpolating from a stale glyph;
-                    // they can be a frame late without corrupting where the next character
-                    // actually gets inserted.
-                    location = offset;
-                    let mut scan = offset;
-                    let mut found_glyph = false;
-                    while let Some(s) = scan.checked_sub(1) {
-                        if let Some(found) = text_glyphs.iter().find(|g| g.byte_offset == s) {
-                            // `s` is however many positions back the scan had to walk to
-                            // find a settled glyph -- stale `Glyphs` can be missing more
-                            // than just the one just-typed character (e.g. typing outpaces
-                            // the glyph-recompute cycle), so the column has to advance by
-                            // the actual gap (`offset - s`), not a hard-coded 1, or the
-                            // cursor undershoots by however many positions were skipped.
-                            let distance = (offset - s) as u32;
-                            col = (found.x / dims.a()) as u32 + distance;
-                            col = col.min(metrics.max_letter_idx_horizontal);
-                            row = (found.y / dims.b()) as u32;
-                            found_glyph = true;
-                            break;
-                        }
-                        scan = s;
+        let (location, col, row) = match req {
+            RequestedLocation::Offset(offset) => {
+                // `text_glyphs` is built by fontdue processing the text strictly
+                // left-to-right (`fontdue::layout::Layout::append` walks the string forward,
+                // pushing each glyph's `byte_offset` in increasing order), so it's sorted --
+                // a binary search finds the same result as the old two-tier linear scan (an
+                // exact-match `.find()`, then on miss a backward walk that reran a *full*
+                // linear scan for every position stepped back -- worst-case O(n^2) on a
+                // large document with runs of skipped/whitespace positions between real
+                // glyphs). `perf` showed that scan alone as 96%+ of total CPU time pasting
+                // into an already-large `TextInput`.
+                match text_glyphs.binary_search_by_key(&offset, |g| g.byte_offset) {
+                    Ok(idx) => {
+                        let found = &text_glyphs[idx];
+                        let col = (found.x / dims.a()) as u32;
+                        let row = (found.y / dims.b()) as u32;
+                        (found.byte_offset, col, row)
                     }
-                    if !found_glyph {
-                        // no settled glyph at all to derive a visual column from (e.g. the
-                        // very first keystroke into an empty field) -- approximate
-                        // directly from the byte offset; self-corrects next tick once
-                        // glyphs catch up.
-                        col = offset.min(metrics.max_letter_idx_horizontal as GlyphOffset) as u32;
-                    }
-                }
-                RequestedLocation::ColRow((c, r)) => {
-                    let mut scan = c;
-                    while let Some(sc) = scan.checked_sub(1) {
-                        if let Some(found) = text_glyphs
-                            .iter()
-                            .find(|g| (g.x / dims.a()) as u32 == sc && (g.y / dims.b()) as u32 == r)
-                        {
-                            col = (sc + 1).min(metrics.max_letter_idx_horizontal);
-                            row = r;
-                            location = found.byte_offset + 1;
-                            break;
+                    Err(insert_idx) => {
+                        // `location` is always the requested offset -- it's the authoritative
+                        // value `after_edit` just computed from the real (post-write) text
+                        // length, whereas `text_glyphs` here can still be lagging one edit
+                        // behind (glyph layout hasn't caught up to a just-applied, still-
+                        // deferred text write). Letting the nearest-glyph interpolation below
+                        // override `location` made every keystroke land the cursor one
+                        // character behind where it was just typed. Only `col`/`row` (visual
+                        // placement) are worth best-effort interpolating from a stale glyph;
+                        // they can be a frame late without corrupting where the next
+                        // character actually gets inserted.
+                        //
+                        // `insert_idx` is where `offset` would land to keep the list sorted,
+                        // so `text_glyphs[insert_idx - 1]` (if any) is the nearest earlier
+                        // settled glyph -- the same one the old backward scan would have
+                        // walked to, just found directly instead of by stepping through
+                        // every position in between.
+                        let (col, row) = if insert_idx > 0 {
+                            let found = &text_glyphs[insert_idx - 1];
+                            // however many positions back that glyph is -- stale `Glyphs` can
+                            // be missing more than just the one just-typed character (e.g.
+                            // typing outpaces the glyph-recompute cycle), so the column has
+                            // to advance by the actual gap, not a hard-coded 1, or the cursor
+                            // undershoots by however many positions were skipped.
+                            let distance = (offset - found.byte_offset) as u32;
+                            let col = ((found.x / dims.a()) as u32 + distance)
+                                .min(metrics.max_letter_idx_horizontal);
+                            let row = (found.y / dims.b()) as u32;
+                            (col, row)
                         } else {
-                            if sc == 0 {
-                                col = 0;
-                                row = r;
-                                if row == 0 {
-                                    location = 0;
-                                } else {
-                                    location = *metrics.last_offsets.get(row as usize - 1).unwrap()
-                                        as GlyphOffset
-                                        + 1;
-                                }
-                                break;
-                            }
-                        }
-                        scan = sc;
+                            // no settled glyph at all to derive a visual column from (e.g. the
+                            // very first keystroke into an empty field) -- approximate
+                            // directly from the byte offset; self-corrects next tick once
+                            // glyphs catch up.
+                            (
+                                offset.min(metrics.max_letter_idx_horizontal as GlyphOffset) as u32,
+                                0,
+                            )
+                        };
+                        (offset, col, row)
                     }
                 }
             }
-            (location, col, row)
+            RequestedLocation::ColRow((c, r)) => {
+                // Same shape of bug as the `Offset` arm above, just triggered by scanning
+                // columns instead of byte offsets: the old code searched the *entire*
+                // document's glyphs for an exact (col, row) match, and on a miss, repeated
+                // that full scan once per column stepped back. `LineMetrics.last_offsets`
+                // (the byte offset of each row's last glyph) pins down exactly which
+                // contiguous slice of the (byte-offset-sorted) `text_glyphs` belongs to row
+                // `r`, via two binary searches -- bounding every lookup to that one row's
+                // glyphs (tens of characters) instead of the whole document (hundreds of
+                // thousands), regardless of how far into the document row `r` is.
+                let row_start_offset = if r == 0 {
+                    0
+                } else {
+                    metrics
+                        .last_offsets
+                        .get(r as usize - 1)
+                        .map(|o| *o as GlyphOffset + 1)
+                        .unwrap_or(0)
+                };
+                let row_start_idx = text_glyphs
+                    .partition_point(|g| g.byte_offset < row_start_offset)
+                    .min(text_glyphs.len());
+                let row_end_idx = metrics
+                    .last_offsets
+                    .get(r as usize)
+                    .map(|&last| {
+                        text_glyphs.partition_point(|g| g.byte_offset <= last as GlyphOffset)
+                    })
+                    .unwrap_or(text_glyphs.len())
+                    .min(text_glyphs.len());
+                let row_glyphs = &text_glyphs[row_start_idx..row_end_idx.max(row_start_idx)];
+                match row_glyphs.binary_search_by_key(&c, |g| (g.x / dims.a()) as u32) {
+                    Ok(idx) => {
+                        let found = &row_glyphs[idx];
+                        let col = (found.x / dims.a()) as u32;
+                        let row = (found.y / dims.b()) as u32;
+                        (found.byte_offset, col, row)
+                    }
+                    Err(insert_idx) => {
+                        if insert_idx > 0 {
+                            // nearest earlier column in this row -- the same glyph the old
+                            // backward scan would have stopped at first.
+                            let found = &row_glyphs[insert_idx - 1];
+                            let sc = (found.x / dims.a()) as u32;
+                            let col = (sc + 1).min(metrics.max_letter_idx_horizontal);
+                            let row = (found.y / dims.b()) as u32;
+                            let location = found.byte_offset + 1;
+                            (location, col, row)
+                        } else {
+                            // no glyph in this row at any column before `c` -- same terminal
+                            // fallback as the old loop's `sc == 0` case.
+                            let col = 0;
+                            let row = r;
+                            let location = if row == 0 {
+                                0
+                            } else {
+                                *metrics.last_offsets.get(row as usize - 1).unwrap()
+                                    as GlyphOffset
+                                    + 1
+                            };
+                            (location, col, row)
+                        }
+                    }
+                }
+            }
         };
         // `cursor.location`/`column`/`row` (logical state) are always updated -- `location`
         // (byte offset) is authoritative regardless of glyph staleness (see the comment
@@ -1134,8 +1196,18 @@ impl TextInput {
             );
         }
     }
-    /// Was `ReselectRange::obs`: sync the highlight-panel-per-glyph set to the current
+    /// Was `ReselectRange::obs`: sync the highlight-panel-per-*row* set to the current
     /// `Selection.range`.
+    ///
+    /// One panel per selected *glyph* (the original design) doesn't scale: selecting a large
+    /// pasted block spawned/repositioned thousands of individual entities, each a `Location`
+    /// insert cascading through `Section`/view-extent resolution -- multi-second freezes (and
+    /// eventually a wayland-killing hang) on Ctrl+A, deselect, or especially a resize while a
+    /// large selection was active, since a rewrap moves almost every selected glyph's (col,
+    /// row) at once. Selected columns within a single row are always contiguous (`Selection`
+    /// is one contiguous byte range), so one rectangle per row -- spanning from that row's
+    /// first to last selected column -- renders identically with `O(selected_lines)` entities
+    /// instead of `O(selected_glyphs)`.
     fn reselect_range(
         this: Entity,
         tree: &mut Tree,
@@ -1152,57 +1224,64 @@ impl TextInput {
         let glyph = glyphs.get(handle.text).unwrap();
         let fsv = font_sizes.get(this).unwrap().resolve(layout).value;
         let dims = font.character_block(fsv);
-        let stale = handle
-            .highlights
-            .iter()
-            .filter(|(o, _)| !selection.range.contains(*o))
-            .map(|(o, (e, ..))| (*o, *e))
-            .collect::<Vec<_>>();
-        for (o, e) in stale {
-            handle.highlights.remove(&o);
-            tree.remove(e);
-        }
-        // one child per selected glyph -- new glyphs entering the range branch from
-        // `handle.panel`, same as the composite's own construction.
-        //
-        // Single pass over the glyph list, classifying each in-range glyph as either
-        // "already highlighted" (needs its `Location` refreshed) or "newly entering the
-        // selection" (needs a new highlight panel) -- previously `existing` re-scanned the
-        // *entire* glyph list with `.find()` once per already-highlighted glyph, making this
-        // `O(selected_glyphs * total_glyphs)`, which is why it visibly slowed down the more
-        // was selected.
-        let panel = handle.panel;
-        let color = styles.get(this).unwrap().accent;
-        let in_range: Vec<(GlyphOffset, u32, u32)> = glyph
+        let mut spans: HashMap<u32, (u32, u32)> = HashMap::new();
+        for g in glyph
             .layout
             .glyphs()
             .iter()
             .filter(|g| selection.range.contains(&g.byte_offset))
-            .map(|g| {
-                (
-                    g.byte_offset,
-                    (g.x / dims.a()) as u32,
-                    (g.y / dims.b()) as u32,
-                )
-            })
-            .collect();
-        for (offset, col, row) in in_range {
-            if let Some((existing, prev_col, prev_row)) = handle.highlights.get(&offset).copied()
-            {
-                // Already highlighted and hasn't moved -- skip the re-`insert` entirely (see
-                // the comment on `Handle::highlights`). This is the common case for a large,
-                // stable selection: most glyphs aren't moving on any given call.
-                if col != prev_col || row != prev_row {
+        {
+            let col = (g.x / dims.a()) as u32;
+            let row = (g.y / dims.b()) as u32;
+            spans
+                .entry(row)
+                .and_modify(|(start, end)| {
+                    *start = (*start).min(col);
+                    *end = (*end).max(col);
+                })
+                .or_insert((col, col));
+        }
+        let stale = handle
+            .highlights
+            .iter()
+            .filter(|(row, _)| !spans.contains_key(row))
+            .map(|(row, (e, ..))| (*row, *e))
+            .collect::<Vec<_>>();
+        let stale_count = stale.len();
+        let stale_start = std::time::Instant::now();
+        for (row, e) in stale {
+            handle.highlights.remove(&row);
+            tree.remove(e);
+        }
+        tracing::trace!(
+            entity = ?this,
+            stale_count,
+            elapsed = ?stale_start.elapsed(),
+            "text_input: reselect_range stale-highlight removal"
+        );
+        let panel = handle.panel;
+        let color = styles.get(this).unwrap().accent;
+        for (row, (start_col, end_col)) in spans {
+            if let Some((existing, prev_start, prev_end)) = handle.highlights.get(&row).copied() {
+                // Already highlighted and the span hasn't moved -- skip the re-`insert`
+                // entirely (see the comment on `Handle::highlights`).
+                if start_col != prev_start || end_col != prev_end {
                     let location = Location::new().xs(
-                        (col + 1).col().as_left().with((col + 1).col().as_right()),
+                        (start_col + 1)
+                            .col()
+                            .as_left()
+                            .with((end_col + 1).col().as_right()),
                         (row + 1).row().as_top().with((row + 1).row().as_bottom()),
                     );
                     tree.entity(existing).insert(location);
-                    handle.highlights.insert(offset, (existing, col, row));
+                    handle.highlights.insert(row, (existing, start_col, end_col));
                 }
             } else {
                 let location = Location::new().xs(
-                    (col + 1).col().as_left().with((col + 1).col().as_right()),
+                    (start_col + 1)
+                        .col()
+                        .as_left()
+                        .with((end_col + 1).col().as_right()),
                     (row + 1).row().as_top().with((row + 1).row().as_bottom()),
                 );
                 let h = tree.branch(
@@ -1217,7 +1296,7 @@ impl TextInput {
                             FocusBehavior::ignore(),
                         )),
                 );
-                handle.highlights.insert(offset, (h, col, row));
+                handle.highlights.insert(row, (h, start_col, end_col));
             }
         }
     }
@@ -1957,17 +2036,18 @@ pub struct Handle {
     pub hint_text: Entity,
     pub cursor: Entity,
     pub visible: Entity,
-    // `(Entity, col, row)` -- the (col, row) is the position the highlight panel's `Location`
-    // was last actually written with, so `reselect_range` can skip a redundant re-`insert`
-    // when a glyph stays selected across a call but its position hasn't moved. `insert`
-    // always marks the component (and everything downstream via `on_insert` cascades)
-    // Changed regardless of whether the value differs -- for a large selection (one panel
-    // per glyph) that meant every keystroke/rewrap re-cascaded `Location` -> `Section` ->
-    // view-extent regrow for *every already-correctly-placed* highlight, not just the ones
-    // that actually moved. On a large pasted block with everything selected, that's
-    // thousands of redundant cascades per call -- the multi-second freezes/crashes on
-    // resize-while-selected, Ctrl+A, and deselect.
-    pub highlights: HashMap<GlyphOffset, (Entity, u32, u32)>,
+    // Row -> `(Entity, start_col, end_col)` -- one highlight panel per selected *row*, not
+    // per selected glyph (selected columns within a row are always contiguous, since
+    // `Selection` is one contiguous byte range, so a single rectangle per row renders
+    // identically). `start_col`/`end_col` are the span the panel's `Location` was last
+    // actually written with, so `reselect_range` can skip a redundant re-`insert` when a
+    // row's span hasn't moved. `insert` always marks the component (and everything
+    // downstream via `on_insert` cascades) Changed regardless of whether the value differs --
+    // per-glyph, that meant every keystroke/rewrap re-cascaded `Location` -> `Section` ->
+    // view-extent regrow for every selected character individually. On a large pasted block
+    // with everything selected, that was thousands of redundant cascades per call -- the
+    // multi-second freezes/crashes on resize-while-selected, Ctrl+A, and deselect.
+    pub highlights: HashMap<u32, (Entity, u32, u32)>,
 }
 #[derive(Component, Clone, Default)]
 pub struct HintText(pub(crate) String);
