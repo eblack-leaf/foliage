@@ -1247,7 +1247,7 @@ impl TextInput {
             .map(|(row, (e, ..))| (*row, *e))
             .collect::<Vec<_>>();
         let stale_count = stale.len();
-        let stale_start = std::time::Instant::now();
+        let stale_start = web_time::Instant::now();
         for (row, e) in stale {
             handle.highlights.remove(&row);
             tree.remove(e);

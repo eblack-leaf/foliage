@@ -268,7 +268,7 @@ impl Render for Text {
         for (entity, glyphs) in queues.attribute::<Text, ResolvedGlyphs>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = renderer.groups.get_mut(id).unwrap();
-            let sync_start = std::time::Instant::now();
+            let sync_start = web_time::Instant::now();
             let removed_count = glyphs.removed.len();
             let updated_count = glyphs.updated.len();
             for glyph in glyphs.removed {

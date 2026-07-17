@@ -12,7 +12,7 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowId;
 
 thread_local! {
-    static LAST_TICK: std::cell::Cell<Option<std::time::Instant>> = std::cell::Cell::new(None);
+    static LAST_TICK: std::cell::Cell<Option<web_time::Instant>> = std::cell::Cell::new(None);
 }
 
 impl ApplicationHandler for Foliage {
@@ -76,7 +76,7 @@ impl ApplicationHandler for Foliage {
             // seconds at a stretch (blocked further upstream, e.g. in winit/OS event
             // dispatch before we even get control back)? A large `since_last` here narrows
             // a multi-second stall to one side of that question.
-            let tick_start = std::time::Instant::now();
+            let tick_start = web_time::Instant::now();
             let since_last = LAST_TICK.with(|c| {
                 let prev = c.get();
                 c.set(Some(tick_start));

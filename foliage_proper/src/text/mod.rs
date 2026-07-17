@@ -181,7 +181,7 @@ impl Text {
         changed.extend(colors.p1().iter().collect::<Vec<_>>());
         changed.extend(glyphs.p1().iter().collect::<Vec<_>>());
         for e in changed {
-            let resolve_start = std::time::Instant::now();
+            let resolve_start = web_time::Instant::now();
             let mut res = ResolvedColors::default();
             let color = *colors.p0().get(e).unwrap();
             let exceptions = glyph_colors.p0().get(e).unwrap().exceptions.clone();
@@ -265,7 +265,7 @@ impl Text {
             let auto_width = auto_widths.get(this).unwrap();
             let auto_height = auto_heights.get(this).unwrap();
             if layout_dirty {
-                let relayout_start = std::time::Instant::now();
+                let relayout_start = web_time::Instant::now();
                 glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                     horizontal_align: current.horizontal_alignment.into(),
                     vertical_align: current.vertical_alignment.into(),
@@ -405,7 +405,7 @@ impl Text {
             if !vis.visible() {
                 continue;
             }
-            let resolve_start = std::time::Instant::now();
+            let resolve_start = web_time::Instant::now();
             let new = glyphs
                 .layout
                 .glyphs()
