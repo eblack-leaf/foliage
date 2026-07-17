@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-98515c77.js";
+            window.path_to_searchindex_js = "searchindex-2224a7dc.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-bd03f8e0.js"></script>
@@ -195,11 +195,39 @@ not a runtime vector renderer). Content updates through <code>IconValue</code>.<
 — <code>Aspect</code> preserves aspect ratio and centers, <code>Stretch</code> fills exactly, <code>Crop</code> fills and clips.</li>
 <li><strong><code>Line</code></strong>/<strong><code>Shape</code></strong> — a line segment between two points (<code>Line::new(weight)</code>, positioned via
 <code>Location</code>’s point-pair form rather than a rect) — used for the connective/underline marks
-you’ll see in composite widgets like <code>Scrubber</code>.</li>
-<li><strong><code>TextInput</code></strong> — an editable text field composite (<code>foliage_proper/src/text/text_input/</code>),
-itself authored the same way as anything in <a href="./example.html">A Complete Example</a> — not special
-library-only magic, just the first composite you’d read if you wanted a second example.</li>
+you’ll see in composite widgets like <code>Slider</code>.</li>
 </ul>
+<h2 id="the-composites"><a class="header" href="#the-composites">The composites</a></h2>
+<p>Everything in <code>foliage_proper/src/composite/</code> is authored with the same <code>Sprout</code> trait as
+<a href="./example.html">A Complete Example</a> — no library-only magic, each one a second example you can
+read. The contract per widget is uniform: value component(s) in via <code>write_to</code>, a
+<code>#[targeted_event]</code> out via <code>subscribe</code>.</p>
+<ul>
+<li><strong><code>Button</code></strong> — <code>ButtonStyle</code>/<code>TextValue</code>/<code>IconValue</code> in, <code>OnClick</code> out.</li>
+<li><strong><code>TextInput</code></strong> — <code>TextValue</code>/<code>TextInputStyle</code>/<code>HintText</code> in, <code>TextChanged</code> out
+(<code>composite/text_input/</code> — the deep-end example: cursor, selection, keybindings).</li>
+<li><strong><code>Slider</code></strong> — <code>Progress</code> (0..=1) in, <code>ProgressChanged</code> out. Drag, tap-to-seek, and
+programmatic writes share the one <code>Progress</code> door; <code>.interactive(false)</code> is the
+display-only progress bar.</li>
+<li><strong><code>Toggle</code></strong> — <code>ToggleState</code> in, <code>Toggled</code> out.</li>
+<li><strong><code>Pagination</code></strong> — <code>PageIndex</code>/<code>PageCount</code> in, <code>PageChanged</code> out. <code>Dots</code> or <code>Numbered</code>
+(with <code>…</code> collapse); prev/next step buttons exist only when <code>.step_icons(..)</code> supplies
+icons — the library ships none.</li>
+<li><strong><code>List</code></strong> — <code>ListItems</code>/<code>ListLayout</code> in, rows out as YOUR content (see the slot
+convention below). Scrolling and clipping come free from <code>View</code>.</li>
+<li><strong><code>Dropdown</code></strong> — <code>DropdownOptions</code>/<code>Selected</code> in, <code>SelectionChanged</code> out. Options are
+deliberately plain strings; rich rows = compose your own trigger + <code>List</code>.</li>
+<li><strong><code>Carousel</code></strong> — <code>CarouselPages</code>/<code>PageIndex</code> in, <code>PageChanged</code> out (the same event
+Pagination defines); swipe + optional embedded dot strip.</li>
+<li><strong><code>Modal</code></strong> — full-screen overlay hosting your content, growing from an optional anchor
+entity; <code>Closed</code> out, <code>CloseModal</code> in for programmatic closes.</li>
+</ul>
+<p><strong>The slot convention</strong> (<code>SlotFn</code>/<code>IndexedSlotFn</code>, <code>composite/mod.rs</code>): content-hosting
+composites (List rows, Carousel pages, Modal body) never define what your content <em>is</em> —
+you hand them a closure, they hand it a positioned <strong>slot</strong> entity, and you <code>tree.branch</code>
+whatever you want under it with full <code>Location</code>/<code>Grid</code>/<code>Anchor</code> freedom. The closure lives
+in the widget’s config component, so rewriting that config via <code>write_to</code> re-runs it —
+config writes ARE the re-render API, the same <code>react</code> door as every value.</p>
 <h2 id="positioning"><a class="header" href="#positioning">Positioning</a></h2>
 <p>Every spawnable carries these through <code>LeafSprout</code> (<code>.at()</code>/<code>.elevate()</code>/<code>.with()</code> — see
 <a href="./authoring.html">Authoring a Widget</a> for where these live in the <code>Sprout</code> trait):</p>
