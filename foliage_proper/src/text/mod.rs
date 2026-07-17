@@ -14,6 +14,7 @@ use crate::text::monospaced::MonospacedFont;
 use crate::Differential;
 use crate::EcsExtension;
 use crate::Trigger;
+use crate::alignment::{HorizontalAlignment, VerticalAlignment};
 use crate::{
     Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Stem, Tree, Update,
     Visibility, Write,
@@ -24,7 +25,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::prelude::{Component, IntoScheduleConfigs, Res};
-use bevy_ecs::query::{Changed, With};
+use bevy_ecs::query::{Changed, Or, With};
 use bevy_ecs::system::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
 pub use glyph::GlyphColors;
@@ -377,6 +378,17 @@ impl Text {
                 .clear();
         }
     }
+    // Re-diffs on `Changed<ResolvedVisibility>` too, not just `Changed<Glyphs>` -- the bail
+    // below (`!vis.visible()`) skips the actual diff while hidden, but `clear_last_on_visibility`
+    // already zeroed `glyphs.glyphs` at that point. Going hidden->visible later touches only
+    // `ResolvedVisibility`, not `Glyphs` (the fontdue layout itself never changed), so without
+    // this the loop below never re-ran and `resolved`/`glyphs.glyphs` stayed at their
+    // last-computed-while-visible values forever -- `cached_differential`'s own
+    // visibility-restore path (ash/differential.rs) just re-sends whatever stale `ResolvedGlyphs`
+    // is already sitting there, it doesn't force a fresh diff. A `TextInput`'s hint text hitting
+    // this exact hidden->visible transition (typed text cleared back to empty) was the visible
+    // symptom: it wouldn't reappear until something else (a resize) forced a genuine relayout
+    // and therefore a real `Changed<Glyphs>`.
     fn resolve_glyphs(
         mut glyph_query: Query<
             (
@@ -385,7 +397,7 @@ impl Text {
                 &ResolvedVisibility,
                 &mut ResolvedGlyphs,
             ),
-            Changed<Glyphs>,
+            Or<(Changed<Glyphs>, Changed<ResolvedVisibility>)>,
         >,
         mut tree: Tree,
     ) {
@@ -612,20 +624,8 @@ pub(crate) struct UpdateCache {
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub(crate) struct TextContentChanged {}
-#[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
-#[component(on_insert = HorizontalAlignment::on_insert)]
-pub enum HorizontalAlignment {
-    #[default]
-    Left,
-    Center,
-    Right,
-}
-impl HorizontalAlignment {
-    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
-        let this = ctx.entity;
-        world.trigger_targets(Update::<Text>::new(), this);
-    }
-}
+// The alignment vocabulary itself lives in `crate::alignment` (shared with `Icon`); only
+// the fontdue conversions are text's own concern.
 impl From<HorizontalAlignment> for fontdue::layout::HorizontalAlign {
     fn from(value: HorizontalAlignment) -> Self {
         match value {
@@ -633,20 +633,6 @@ impl From<HorizontalAlignment> for fontdue::layout::HorizontalAlign {
             HorizontalAlignment::Center => fontdue::layout::HorizontalAlign::Center,
             HorizontalAlignment::Right => fontdue::layout::HorizontalAlign::Right,
         }
-    }
-}
-#[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
-#[component(on_insert = VerticalAlignment::on_insert)]
-pub enum VerticalAlignment {
-    #[default]
-    Top,
-    Middle,
-    Bottom,
-}
-impl VerticalAlignment {
-    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
-        let this = ctx.entity;
-        world.trigger_targets(Update::<Text>::new(), this);
     }
 }
 impl From<VerticalAlignment> for fontdue::layout::VerticalAlign {

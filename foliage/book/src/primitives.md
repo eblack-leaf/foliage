@@ -23,10 +23,40 @@ leaf content.
   — `Aspect` preserves aspect ratio and centers, `Stretch` fills exactly, `Crop` fills and clips.
 - **`Line`**/**`Shape`** — a line segment between two points (`Line::new(weight)`, positioned via
   `Location`'s point-pair form rather than a rect) — used for the connective/underline marks
-  you'll see in composite widgets like `Scrubber`.
-- **`TextInput`** — an editable text field composite (`foliage_proper/src/text/text_input/`),
-  itself authored the same way as anything in [A Complete Example](./example.md) — not special
-  library-only magic, just the first composite you'd read if you wanted a second example.
+  you'll see in composite widgets like `Slider`.
+
+## The composites
+
+Everything in `foliage_proper/src/composite/` is authored with the same `Sprout` trait as
+[A Complete Example](./example.md) — no library-only magic, each one a second example you can
+read. The contract per widget is uniform: value component(s) in via `write_to`, a
+`#[targeted_event]` out via `subscribe`.
+
+- **`Button`** — `ButtonStyle`/`TextValue`/`IconValue` in, `OnClick` out.
+- **`TextInput`** — `TextValue`/`TextInputStyle`/`HintText` in, `TextChanged` out
+  (`composite/text_input/` — the deep-end example: cursor, selection, keybindings).
+- **`Slider`** — `Progress` (0..=1) in, `ProgressChanged` out. Drag, tap-to-seek, and
+  programmatic writes share the one `Progress` door; `.interactive(false)` is the
+  display-only progress bar.
+- **`Toggle`** — `ToggleState` in, `Toggled` out.
+- **`Pagination`** — `PageIndex`/`PageCount` in, `PageChanged` out. `Dots` or `Numbered`
+  (with `…` collapse); prev/next step buttons exist only when `.step_icons(..)` supplies
+  icons — the library ships none.
+- **`List`** — `ListItems`/`ListLayout` in, rows out as YOUR content (see the slot
+  convention below). Scrolling and clipping come free from `View`.
+- **`Dropdown`** — `DropdownOptions`/`Selected` in, `SelectionChanged` out. Options are
+  deliberately plain strings; rich rows = compose your own trigger + `List`.
+- **`Carousel`** — `CarouselPages`/`PageIndex` in, `PageChanged` out (the same event
+  Pagination defines); swipe + optional embedded dot strip.
+- **`Modal`** — full-screen overlay hosting your content, growing from an optional anchor
+  entity; `Closed` out, `CloseModal` in for programmatic closes.
+
+**The slot convention** (`SlotFn`/`IndexedSlotFn`, `composite/mod.rs`): content-hosting
+composites (List rows, Carousel pages, Modal body) never define what your content *is* —
+you hand them a closure, they hand it a positioned **slot** entity, and you `tree.branch`
+whatever you want under it with full `Location`/`Grid`/`Anchor` freedom. The closure lives
+in the widget's config component, so rewriting that config via `write_to` re-runs it —
+config writes ARE the re-render API, the same `react` door as every value.
 
 ## Positioning
 

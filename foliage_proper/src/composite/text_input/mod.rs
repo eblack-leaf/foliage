@@ -393,15 +393,14 @@ impl TextInput {
             tree.entity(*e).insert(style.accent);
         }
     }
-    // TODO: hint text sometimes renders clipped on initial spawn (e.g. "multiline" instead
-    // of the full "multiline input..."). Specifically only self-corrects on a *resize*, not
-    // on any other action (click/keystroke do NOT fix it) -- points at the hint text's
-    // `Section` being stuck at an initial/wrong width until something forces a general
-    // grid-resolve pass, since resize is the one thing that touches width broadly and clicks
-    // /keystrokes don't touch the hint text's `Section` at all. Not root-caused yet -- that's
-    // still an inference from the symptom, not a diagnosis; confirmed NOT an
-    // entrance-animation settling artifact (there isn't one here; ruled out when raised).
-    // Needs an actual repro trace before touching anything.
+    // Was: hint text sometimes rendered clipped/missing until a resize forced a general
+    // grid-resolve pass. Root cause was in `Text::resolve_glyphs` (text/mod.rs) -- it only
+    // re-diffed `ResolvedGlyphs` on `Changed<Glyphs>`, which never refires on a pure
+    // hidden->visible flip (only `Glyphs` content/layout changes do), so a hint whose
+    // `Visibility` toggled off and back on kept whatever stale (often empty, post-
+    // `clear_last_on_visibility`) diff it last had -- resize "fixed" it only because it's the
+    // one thing that also forces a genuine relayout. Fixed by also re-diffing on
+    // `Changed<ResolvedVisibility>`.
     fn update_hint(
         trigger: Trigger<Insert, HintText>,
         mut tree: Tree,

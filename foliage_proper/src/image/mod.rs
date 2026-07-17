@@ -34,6 +34,7 @@ use wgpu::TextureFormat;
 #[require(Differential<Image, BlendedOpacity>)]
 #[require(Differential<Image, ResolvedElevation>)]
 #[require(Differential<Image, Stem>)]
+#[require(CropAdjustment, Differential<Image, CropAdjustment>)]
 pub struct Image {
     pub key: AssetKey,
 }
@@ -58,18 +59,16 @@ impl ImageView {
                     world.commands().entity(this).insert(ratio);
                 }
                 world
-                    .get_resource_mut::<RenderQueue<Image, CropAdjustment>>()
-                    .unwrap()
-                    .queue
-                    .insert(this, CropAdjustment::default());
+                    .commands()
+                    .entity(this)
+                    .insert(CropAdjustment::default());
             }
             ImageView::Stretch => {
                 world.commands().entity(this).insert(AspectRatio::new());
                 world
-                    .get_resource_mut::<RenderQueue<Image, CropAdjustment>>()
-                    .unwrap()
-                    .queue
-                    .insert(this, CropAdjustment::default());
+                    .commands()
+                    .entity(this)
+                    .insert(CropAdjustment::default());
             }
             _ => {
                 world.commands().entity(this).insert(AspectRatio::new());
@@ -77,7 +76,7 @@ impl ImageView {
         }
     }
 }
-#[derive(Copy, Clone, PartialEq, Default)]
+#[derive(Component, Copy, Clone, PartialEq, Default)]
 pub(crate) struct CropAdjustment {
     pub(crate) adjustments: Section<Numerical>,
 }
@@ -87,9 +86,6 @@ impl Attachment for Image {
             .world
             .insert_resource(RenderQueue::<Image, ImageWrite>::new());
         foliage
-            .world
-            .insert_resource(RenderQueue::<Image, CropAdjustment>::new());
-        foliage
             .diff
             .add_systems(Image::update.in_set(DiffMarkers::Finalize));
         foliage.remove_queue::<Image>();
@@ -97,6 +93,7 @@ impl Attachment for Image {
         foliage.differential::<Image, Stem>();
         foliage.differential::<Image, BlendedOpacity>();
         foliage.differential::<Image, ResolvedElevation>();
+        foliage.differential::<Image, CropAdjustment>();
     }
 }
 impl Image {
@@ -193,8 +190,13 @@ impl Image {
             );
     }
     fn update(
-        images: Query<
-            (Entity, &ImageView, &ImageMetrics, &Section<Logical>),
+        mut images: Query<
+            (
+                &ImageView,
+                &ImageMetrics,
+                &Section<Logical>,
+                &mut CropAdjustment,
+            ),
             Or<(
                 Changed<ImageView>,
                 Changed<ImageMetrics>,
@@ -202,9 +204,11 @@ impl Image {
             )>,
         >,
         layout: Res<Layout>,
-        mut queue: ResMut<RenderQueue<Image, CropAdjustment>>,
     ) {
-        for (entity, view, metrics, section) in images.iter() {
+        // direct Query mutation, NOT commands: this runs at Finalize and the differential
+        // senders run at Extract in the same frame -- crop must ship in the same frame as
+        // the Section that caused it, or resize/scroll shows a frame of wrong crop
+        for (view, metrics, section, mut crop) in images.iter_mut() {
             match view {
                 ImageView::Crop => {
                     let fitted = AspectRatio::new()
@@ -217,7 +221,9 @@ impl Image {
                         let w = (fitted.right() - section.right()) / fitted.width();
                         let h = (fitted.bottom() - section.bottom()) / fitted.height();
                         let adjustments = Section::numerical((x, y), (w, h));
-                        queue.queue.insert(entity, CropAdjustment { adjustments });
+                        *crop = CropAdjustment { adjustments };
+                    } else {
+                        *crop = CropAdjustment::default();
                     }
                 }
                 _ => {}

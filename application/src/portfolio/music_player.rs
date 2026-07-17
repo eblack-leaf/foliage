@@ -1,13 +1,13 @@
 use crate::icons::IconHandles;
-use crate::widgets::{icon_button, Scrubbed, Scrubber};
+use crate::widgets::icon_button;
 use foliage::bevy_ecs;
 use foliage::Component;
 use foliage::Justify::Center;
 use foliage::{
     Animation, AssetKey, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid,
     GridExt, HorizontalAlignment, Icon, Image, ImageView, Leaf, Location, OnClick, Opacity,
-    Outline, Panel, Query, Rounding, Sequence, Sprout, Text, TextInput, Tree, Trigger,
-    VerticalAlignment,
+    Outline, Panel, ProgressChanged, Query, Rounding, Sequence, Slider, Sprout, Text, TextInput,
+    Toggle, Toggled, Tree, Trigger, VerticalAlignment,
 };
 
 /// End-user data riding on the play Button's root entity -- widget entities carry the
@@ -174,19 +174,60 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, album_cover: AssetKey) {
         },
     );
     // the whole duration cluster (track line + elapsed line + anchored knob + drag math)
-    // is now one widget spawn -- Progress in, Scrubbed out. Programmatic writes share the
-    // drag's door: tree.write_to(scrubber, Progress(0.0)) on track change.
-    let scrubber = tree.branch(
+    // is now one library widget spawn -- Progress in, ProgressChanged out. Programmatic
+    // writes share the drag's door: tree.write_to(slider, Progress(0.0)) on track change.
+    let slider = tree.branch(
         app,
-        Scrubber::new()
+        Slider::new()
             .progress(0.35)
+            .colors(Color::gray(700), Color::green(300))
             .at(Location::new().xs(
                 3.col().as_left().with(10.col().as_right()).max(700.0),
                 16.row().as_top().with(24.px().as_height()),
             ))
             .elevate(Elevation::up(1)),
     );
-    tree.subscribe(scrubber, move |trigger: Trigger<Scrubbed>| {
+    tree.subscribe(slider, move |trigger: Trigger<ProgressChanged>| {
         let _progress = trigger.event().progress; // a real player would seek here
+    });
+    // same widget, display-only: knob hidden and interaction disabled -- a volume readout
+    // driven purely by Progress writes.
+    tree.branch(
+        app,
+        Slider::new()
+            .progress(0.6)
+            .interactive(false)
+            .colors(Color::gray(700), Color::gray(400))
+            .weight(2)
+            .at(Location::new().xs(
+                3.col().as_left().with(7.col().as_right()),
+                17.row().as_top().with(24.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    tree.branch(
+        app,
+        Text::new("autoplay")
+            .size(FontSize::new(14))
+            .color(Color::gray(400))
+            .at(Location::new().xs(
+                8.col().as_left().with(9.col().as_right()),
+                17.row().as_top().with(24.px().as_height()),
+            ))
+            .elevate(Elevation::up(1))
+            .with((VerticalAlignment::Middle, HorizontalAlignment::Right)),
+    );
+    let autoplay = tree.branch(
+        app,
+        Toggle::new()
+            .colors(Color::green(500), Color::gray(700), Color::gray(200))
+            .at(Location::new().xs(
+                10.col().as_left().with(52.px().as_width()),
+                17.row().as_center_y().with(28.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    tree.subscribe(autoplay, move |trigger: Trigger<Toggled>| {
+        let _on = trigger.event().on; // a real player would arm autoplay here
     });
 }

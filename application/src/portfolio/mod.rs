@@ -1,22 +1,25 @@
-pub(crate) mod demo;
+pub(crate) mod artist_blog;
 pub(crate) mod music_player;
 
 use crate::icons::IconHandles;
-use crate::widgets::{icon_button, Closed, Launch, Modal, ProjectCard};
+use crate::widgets::{icon_button, Launch, ProjectCard};
 use foliage::{
-    Animation, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt, Keyring, Leaf,
-    Location, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Tree, Trigger,
+    Animation, Closed, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt, Keyring,
+    Leaf, Location, Modal, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Tree,
+    Trigger,
 };
 
 /// The panel each modal's content lives in, plus injecting that content -- isolated here so
-/// the `music_player`-vs-`demo` branch reads as one named step instead of sitting mid-closure.
+/// the `music_player`-vs-`artist_blog` branch reads as one named step instead of sitting
+/// mid-closure.
 /// `album_cover` is pre-resolved from the `Keyring` at the call site rather than threading a
 /// whole `Keyring` reference into `Modal`'s content closure, which needs to be `'static`.
 fn spawn_modal_content(
     tree: &mut Tree,
-    backdrop: Entity,
+    slot: Entity,
     i: usize,
     album_cover: Option<foliage::AssetKey>,
+    artwork: [foliage::AssetKey; 3],
 ) -> Entity {
     let app_base = Leaf::sprout()
         .at(Location::new().xs(
@@ -27,7 +30,7 @@ fn spawn_modal_content(
         .with(Opacity::new(0.0));
     let app = match i {
         0 => tree.branch(
-            backdrop,
+            slot,
             app_base.with((
                 Panel::default(),
                 Grid::new(12.col().gap(8), 40.px().gap(8)),
@@ -35,13 +38,13 @@ fn spawn_modal_content(
             )),
         ),
         _ => tree.branch(
-            backdrop,
+            slot,
             app_base.with(Grid::new(12.col().gap(8), 40.px().gap(8))),
         ),
     };
     match i {
         0 => music_player::build(tree, app, album_cover.expect("album cover key")),
-        _ => demo::build(tree, app),
+        _ => artist_blog::build(tree, app, artwork),
     }
     app
 }
@@ -173,14 +176,22 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             );
             last = i + 2;
             let album_cover = (i == 0).then(|| keyring.get("album-cover"));
+            let artwork = [
+                keyring.get("artist-blog"),
+                keyring.get("album-cover"),
+                keyring.get("music-player"),
+            ];
             let open_modal = move |trigger: Trigger<Launch>, mut tree: Tree| {
                 tree.disable([root, back]);
                 fade_page_chrome_out(&mut tree, root, back);
                 let modal = tree.leaf(
-                    Modal::new(card_root)
-                        .content(move |tree: &mut Tree, backdrop: Entity| {
-                            spawn_modal_content(tree, backdrop, i, album_cover)
+                    Modal::new()
+                        .anchor_to(card_root)
+                        .content(move |tree: &mut Tree, slot: Entity| {
+                            spawn_modal_content(tree, slot, i, album_cover, artwork)
                         })
+                        .close_icon(IconHandles::X.into())
+                        .colors(Color::gray(800), Color::gray(200), Color::orange(800))
                         .elevate(Elevation::abs(50)),
                 );
                 tree.subscribe(modal, move |_: Trigger<Closed>, mut tree: Tree| {

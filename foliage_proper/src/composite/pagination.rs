@@ -1,0 +1,430 @@
+use crate::composite::{PageCount, PageIndex};
+use crate::Trigger;
+use crate::{
+    Button, ButtonStyle, Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid,
+    GridExt, HorizontalAlignment, IconId, IconValue, InteractionListener, Leaf, LeafSprout,
+    Location, OnClick, Outline, Panel, Rounding, Sprout, Text, TextValue, Tree,
+    VerticalAlignment,
+};
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::event::EntityEvent;
+use bevy_ecs::lifecycle::Insert;
+use bevy_ecs::system::Query;
+
+/// Pagination is one entity: components in ([`PageIndex`], [`PageCount`],
+/// [`PaginationStyle`]), [`PageChanged`] out. Indicator clicks, prev/next steps, and
+/// programmatic `PageIndex` writes all go through the same door.
+///
+/// Indicator entities are built once per STRUCTURE change (count/style) and only patched --
+/// color/label writes onto stable entities -- on page changes. Positions never move, and a
+/// page change never spawns or removes anything, so event cycles through an enclosing
+/// widget (Carousel keeps its embedded strip in sync by writing `PageIndex` back) re-enter
+/// a pure patch, not a teardown.
+///
+/// Prev/next buttons exist only when `.step_icons(..)` supplies icons (the library ships
+/// none); without them the indicator strip spans the whole widget.
+#[derive(Component, Copy, Clone)]
+pub struct Pagination {}
+impl Pagination {
+    pub fn new(count: usize) -> PaginationSprout {
+        PaginationSprout {
+            leaf: LeafSprout::default(),
+            count,
+            page: 0,
+            style: PaginationStyle::default(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Default, PartialEq)]
+pub enum PaginationMode {
+    /// one dot per page -- the carousel indicator
+    #[default]
+    Dots,
+    /// a fixed strip of at most 5 numbered pips showing a contiguous window of pages
+    /// centered on the current one -- the window slides as you page, so any count fits
+    /// any width without cramming or filler
+    Numbered,
+}
+
+const NUMBERED_SLOTS: usize = 5;
+
+/// First page of the visible window -- pure so the build pass, the patch pass, and every
+/// click handler agree by construction.
+fn window_start(current: usize, count: usize, shown: usize) -> usize {
+    current
+        .saturating_sub(shown / 2)
+        .min(count.saturating_sub(shown))
+}
+
+/// Pagination's OWN config vocabulary, poked as one unit.
+#[derive(Component, Copy, Clone, Default)]
+pub struct PaginationStyle {
+    /// current-page indicator color
+    pub active: Color,
+    /// every other indicator's color
+    pub inactive: Color,
+    pub mode: PaginationMode,
+    /// prev/next button icons; `None` = no step buttons at all
+    pub step_icons: Option<(IconId, IconId)>,
+    /// prev/next button (icon, fill) colors; `None` falls back to (active, inactive)
+    pub step_colors: Option<(Color, Color)>,
+}
+
+/// Emitted at the pagination root whenever [`PageIndex`] changes (indicator click,
+/// prev/next, or programmatic write) -- including once at spawn with the initial value,
+/// since the reaction that fires it re-fires initial state like every `react`.
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct PageChanged {
+    pub index: usize,
+}
+
+/// Private child registry: the patch reaction and click handlers need the stable slot
+/// entities the structure reaction built.
+#[derive(Component, Clone)]
+pub(crate) struct PaginationHandle {
+    slots: Vec<Entity>,
+    step: Option<(Entity, Entity)>,
+}
+impl PaginationHandle {
+    fn empty() -> Self {
+        Self {
+            slots: Vec::new(),
+            step: None,
+        }
+    }
+}
+
+pub struct PaginationSprout {
+    leaf: LeafSprout,
+    count: usize,
+    page: usize,
+    style: PaginationStyle,
+}
+impl PaginationSprout {
+    pub fn page(mut self, p: usize) -> Self {
+        self.page = p;
+        self
+    }
+    pub fn mode(mut self, m: PaginationMode) -> Self {
+        self.style.mode = m;
+        self
+    }
+    pub fn step_icons(mut self, prev: IconId, next: IconId) -> Self {
+        self.style.step_icons = Some((prev, next));
+        self
+    }
+    pub fn step_colors(mut self, foreground: Color, background: Color) -> Self {
+        self.style.step_colors = Some((foreground, background));
+        self
+    }
+    pub fn colors(mut self, active: Color, inactive: Color) -> Self {
+        self.style.active = active;
+        self.style.inactive = inactive;
+        self
+    }
+}
+impl Sprout for PaginationSprout {
+    fn seed(&mut self) -> &mut LeafSprout {
+        &mut self.leaf
+    }
+    fn root(self) -> impl Bundle {
+        (
+            Pagination {},
+            PageIndex(self.page.min(self.count.saturating_sub(1))),
+            PageCount(self.count),
+            self.style,
+            Grid::default(),
+        )
+    }
+    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
+        // static skeleton: the indicator strip. Everything inside it (and the optional step
+        // buttons beside it) depends on count/style, so it lands via the structure
+        // reaction's first fire.
+        let strip = tree.branch(
+            this,
+            Leaf::sprout()
+                .elevate(Elevation::up(1))
+                .with(Grid::default()),
+        );
+        tree.write_to(this, PaginationHandle::empty());
+
+        // STRUCTURE: rebuild slot/step entities only when count or style changes -- never
+        // on a page change, so no event cycle can remove what a same-flush fire spawned.
+        tree.react_any::<(PageCount, PaginationStyle), _>(
+            this,
+            move |trigger: Trigger<Insert, (PageCount, PaginationStyle)>,
+                  counts: Query<&PageCount>,
+                  styles: Query<&PaginationStyle>,
+                  pages: Query<&PageIndex>,
+                  mut handles: Query<&mut PaginationHandle>,
+                  render_sizes: bevy_ecs::system::Res<crate::IconRenderSizes>,
+                  mut tree: Tree| {
+                let e = trigger.event_target();
+                let count = counts.get(e).unwrap().0;
+                let current = pages.get(e).unwrap().0.min(count.saturating_sub(1));
+                let style = *styles.get(e).unwrap();
+                let mut handle = handles.get_mut(e).unwrap();
+                for slot in handle.slots.drain(..) {
+                    tree.remove(slot);
+                }
+                // step buttons: exist only while icons are configured; circle = the icon's
+                // registered footprint + breathing room, never a fixed size
+                match (style.step_icons, handle.step) {
+                    (Some((prev_icon, next_icon)), existing) => {
+                        let (prev, next) = existing.unwrap_or_else(|| {
+                            let prev = tree.branch(
+                                e,
+                                Button::new()
+                                    .rounding(Rounding::Full)
+                                    .elevate(Elevation::up(1)),
+                            );
+                            let next = tree.branch(
+                                e,
+                                Button::new()
+                                    .rounding(Rounding::Full)
+                                    .elevate(Elevation::up(1)),
+                            );
+                            tree.on_click(
+                                prev,
+                                move |_: Trigger<OnClick>,
+                                      pages: Query<&PageIndex>,
+                                      mut tree: Tree| {
+                                    let current = pages.get(e).unwrap().0;
+                                    tree.write_to(e, PageIndex(current.saturating_sub(1)));
+                                },
+                            );
+                            tree.on_click(
+                                next,
+                                move |_: Trigger<OnClick>,
+                                      pages: Query<&PageIndex>,
+                                      counts: Query<&PageCount>,
+                                      mut tree: Tree| {
+                                    let current = pages.get(e).unwrap().0;
+                                    let count = counts.get(e).unwrap().0;
+                                    tree.write_to(
+                                        e,
+                                        PageIndex((current + 1).min(count.saturating_sub(1))),
+                                    );
+                                },
+                            );
+                            (prev, next)
+                        });
+                        handle.step = Some((prev, next));
+                        let (fg, bg) = style.step_colors.unwrap_or((style.active, style.inactive));
+                        let button_style = ButtonStyle {
+                            foreground: fg,
+                            background: bg,
+                            outline: Outline::default(),
+                            rounding: Rounding::Full,
+                        };
+                        let pad = 20;
+                        let psz = render_sizes.get(prev_icon);
+                        let nsz = render_sizes.get(next_icon);
+                        let (pw, ph) = (psz.a() as i32 + pad, psz.b() as i32 + pad);
+                        let (nw, nh) = (nsz.a() as i32 + pad, nsz.b() as i32 + pad);
+                        tree.write_to(
+                            prev,
+                            (
+                                IconValue(prev_icon),
+                                button_style,
+                                Location::new().xs(
+                                    0.pct().as_left().with(pw.px().as_width()),
+                                    50.pct().as_center_y().with(ph.px().as_height()),
+                                ),
+                            ),
+                        );
+                        tree.write_to(
+                            next,
+                            (
+                                IconValue(next_icon),
+                                button_style,
+                                Location::new().xs(
+                                    100.pct().as_right().with(nw.px().as_width()),
+                                    50.pct().as_center_y().with(nh.px().as_height()),
+                                ),
+                            ),
+                        );
+                        if current == 0 {
+                            tree.disable(prev);
+                        } else {
+                            tree.enable(prev);
+                        }
+                        if current + 1 >= count {
+                            tree.disable(next);
+                        } else {
+                            tree.enable(next);
+                        }
+                        let inset = pw.max(nw) + 8;
+                        tree.write_to(
+                            strip,
+                            Location::new().xs(
+                                0.pct()
+                                    .as_left()
+                                    .adjust(inset)
+                                    .with(100.pct().as_right().adjust(-inset)),
+                                0.pct().as_top().with(100.pct().as_bottom()),
+                            ),
+                        );
+                    }
+                    (None, Some((prev, next))) => {
+                        tree.remove([prev, next]);
+                        handle.step = None;
+                        tree.write_to(
+                            strip,
+                            Location::new().xs(
+                                0.pct().as_left().with(100.pct().as_right()),
+                                0.pct().as_top().with(100.pct().as_bottom()),
+                            ),
+                        );
+                    }
+                    (None, None) => {
+                        tree.write_to(
+                            strip,
+                            Location::new().xs(
+                                0.pct().as_left().with(100.pct().as_right()),
+                                0.pct().as_top().with(100.pct().as_bottom()),
+                            ),
+                        );
+                    }
+                }
+                let shown = match style.mode {
+                    PaginationMode::Dots => count,
+                    PaginationMode::Numbered => count.min(NUMBERED_SLOTS),
+                };
+                tree.write_to(strip, Grid::new(shown.max(1).col(), 1.row()));
+                let ws = window_start(current, count, shown);
+                for s in 0..shown {
+                    match style.mode {
+                        PaginationMode::Dots => {
+                            let dot = tree.branch(
+                                strip,
+                                Panel::new()
+                                    .rounding(Rounding::Full)
+                                    .color(if s == current {
+                                        style.active
+                                    } else {
+                                        style.inactive
+                                    })
+                                    .at(Location::new().xs(
+                                        (s + 1).col().as_center_x().with(8.px().as_width()),
+                                        50.pct().as_center_y().with(8.px().as_height()),
+                                    ))
+                                    .elevate(Elevation::up(1))
+                                    .with((InteractionListener::new(), FocusBehavior::ignore())),
+                            );
+                            tree.on_click(dot, move |_: Trigger<OnClick>, mut tree: Tree| {
+                                tree.write_to(e, PageIndex(s));
+                            });
+                            handle.slots.push(dot);
+                        }
+                        PaginationMode::Numbered => {
+                            let number = tree.branch(
+                                strip,
+                                Text::new(format!("{}", ws + s + 1))
+                                    .color(if ws + s == current {
+                                        style.active
+                                    } else {
+                                        style.inactive
+                                    })
+                                    .at(Location::new().xs(
+                                        (s + 1).col().as_left().with((s + 1).col().as_right()),
+                                        1.row().as_top().with(1.row().as_bottom()),
+                                    ))
+                                    .elevate(Elevation::up(1))
+                                    .with((
+                                        HorizontalAlignment::Center,
+                                        VerticalAlignment::Middle,
+                                        InteractionListener::new(),
+                                        FocusBehavior::ignore(),
+                                    )),
+                            );
+                            // which page this slot means depends on where the window sits
+                            // at click time
+                            tree.on_click(
+                                number,
+                                move |_: Trigger<OnClick>,
+                                      pages: Query<&PageIndex>,
+                                      counts: Query<&PageCount>,
+                                      mut tree: Tree| {
+                                    let count = counts.get(e).unwrap().0;
+                                    let current =
+                                        pages.get(e).unwrap().0.min(count.saturating_sub(1));
+                                    let ws = window_start(
+                                        current,
+                                        count,
+                                        count.min(NUMBERED_SLOTS),
+                                    );
+                                    tree.write_to(e, PageIndex(ws + s));
+                                },
+                            );
+                            handle.slots.push(number);
+                        }
+                    }
+                }
+            },
+        );
+        // PATCH: page changes recolor (and, for Numbered, slide the window's labels across)
+        // the stable indicators and announce -- no spawns, no removes; safe to re-enter
+        // from enclosing widgets' sync writes.
+        tree.react::<PageIndex, _>(
+            this,
+            move |trigger: Trigger<Insert, PageIndex>,
+                  pages: Query<&PageIndex>,
+                  counts: Query<&PageCount>,
+                  styles: Query<&PaginationStyle>,
+                  handles: Query<&PaginationHandle>,
+                  mut tree: Tree| {
+                let e = trigger.event_target();
+                let count = counts.get(e).unwrap().0;
+                let current = pages.get(e).unwrap().0.min(count.saturating_sub(1));
+                let style = *styles.get(e).unwrap();
+                let handle = handles.get(e).unwrap().clone();
+                if let Some((prev, next)) = handle.step {
+                    if current == 0 {
+                        tree.disable(prev);
+                    } else {
+                        tree.enable(prev);
+                    }
+                    if current + 1 >= count {
+                        tree.disable(next);
+                    } else {
+                        tree.enable(next);
+                    }
+                }
+                match style.mode {
+                    PaginationMode::Dots => {
+                        for (s, slot) in handle.slots.iter().enumerate() {
+                            tree.write_to(
+                                *slot,
+                                if s == current {
+                                    style.active
+                                } else {
+                                    style.inactive
+                                },
+                            );
+                        }
+                    }
+                    PaginationMode::Numbered => {
+                        let ws = window_start(current, count, handle.slots.len());
+                        for (s, slot) in handle.slots.iter().enumerate() {
+                            tree.write_to(
+                                *slot,
+                                (
+                                    TextValue(format!("{}", ws + s + 1)),
+                                    if ws + s == current {
+                                        style.active
+                                    } else {
+                                        style.inactive
+                                    },
+                                ),
+                            );
+                        }
+                    }
+                }
+                tree.trigger_targets(PageChanged::new(current), e);
+            },
+        );
+    }
+}

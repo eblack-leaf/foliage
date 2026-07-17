@@ -1,4 +1,5 @@
 #![allow(unused)]
+mod alignment;
 mod anim;
 mod ash;
 mod asset;
@@ -58,13 +59,23 @@ pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{
     button::{Button, ButtonSprout, ButtonStyle, Engagement},
+    carousel::{Carousel, CarouselConfig, CarouselPages, CarouselSprout, CarouselStyle},
+    dropdown::{
+        Dropdown, DropdownConfig, DropdownOptions, DropdownSprout, DropdownStyle, Expanded,
+        Selected, SelectionChanged,
+    },
+    list::{List, ListItems, ListLayout, ListSprout},
+    modal::{CloseModal, Closed, Modal, ModalSprout, ModalStyle},
+    pagination::{PageChanged, Pagination, PaginationMode, PaginationSprout, PaginationStyle},
+    slider::{ProgressChanged, Slider, SliderBehavior, SliderSprout, SliderStyle},
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
         TextInput, TextInputSprout, TextInputStyle,
     },
+    toggle::{Toggle, ToggleSprout, ToggleState, ToggleStyle, Toggled},
     Root,
 };
-pub use composite::{IconValue, TextValue};
+pub use composite::{IconValue, IndexedSlotFn, PageCount, PageIndex, Progress, SlotFn, TextValue};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
@@ -73,7 +84,7 @@ pub use grid::{
     anchor, auto, view::OverscrollPropagation, AspectRatio, Grid, Layout, Location, View,
 };
 pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify};
-pub use icon::{Icon, IconId, IconMemory, IconSprout};
+pub use icon::{Icon, IconId, IconMemory, IconRenderSizes, IconSprout};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
 pub use interaction::{
@@ -91,11 +102,9 @@ pub use panel::{Outline, Panel, PanelSprout, Rounding};
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use shape::{Line, LineSprout, Shape};
+pub use alignment::{HorizontalAlignment, VerticalAlignment};
 pub use text::GlyphOffset;
-pub use text::{
-    AutoHeight, AutoWidth, FontSize, GlyphColors, HorizontalAlignment, Text, TextSprout,
-    VerticalAlignment,
-};
+pub use text::{AutoHeight, AutoWidth, FontSize, GlyphColors, Text, TextSprout};
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
 pub use tree::{EcsExtension, Graft, IntoTargets, Refire, Sequence, TargetedEvent, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};

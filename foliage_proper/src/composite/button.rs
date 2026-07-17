@@ -1,10 +1,10 @@
 use crate::Component;
 use crate::Trigger;
 use crate::{
-    anchor, Anchor, Color, Disengaged, EcsExtension, Elevation, Engaged, Entity, FocusBehavior,
-    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener,
-    InteractionPropagation, LeafSprout, Location, Outline, Panel, Rounding, Sprout, Text,
-    TextValue, Tree, VerticalAlignment, Visibility,
+    anchor, Anchor, Color, Coordinates, Disengaged, EcsExtension, Elevation, Engaged, Entity,
+    FocusBehavior, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
+    InteractionListener, InteractionPropagation, LeafSprout, Location, Outline, Panel, Rounding,
+    Sprout, Text, TextValue, Tree, VerticalAlignment, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -54,6 +54,7 @@ fn restyle(
     text: Entity,
     style: ButtonStyle,
     engaged: bool,
+    icon_size: Coordinates,
 ) {
     let content = if engaged {
         style.background
@@ -81,13 +82,17 @@ fn restyle(
         );
     }
     tree.write_to(this, InteractionListener::new());
-    let (icon_location, icon_anchor) = match style.rounding {
+    // Full: the whole button is the icon's alignment region (see `Icon::align_render_size`),
+    // centered. Anchored: the box is exactly the icon's registered footprint, its right
+    // edge 8px left of the text -- exact size because the clip region derives from the box.
+    let (icon_location, icon_anchor, icon_alignment) = match style.rounding {
         Rounding::Full => (
             Location::new().xs(
-                50.pct().as_center_x().with(24.px().as_width()),
-                50.pct().as_center_y().with(24.px().as_height()),
+                0.pct().as_left().with(100.pct().as_right()),
+                0.pct().as_top().with(100.pct().as_bottom()),
             ),
             Anchor::default(),
+            (HorizontalAlignment::Center, VerticalAlignment::Middle),
         ),
         _ => (
             Location::new().xs(
@@ -95,14 +100,18 @@ fn restyle(
                     .left()
                     .as_right()
                     .adjust(-8)
-                    .with(24.px().as_width()),
-                50.pct().as_center_y().with(24.px().as_height()),
+                    .with((icon_size.a() as i32).px().as_width()),
+                50.pct()
+                    .as_center_y()
+                    .with((icon_size.b() as i32).px().as_height()),
             ),
             Anchor::new(text),
+            (HorizontalAlignment::Right, VerticalAlignment::Middle),
         ),
     };
     tree.write_to(icon, icon_location);
     tree.write_to(icon, icon_anchor);
+    tree.write_to(icon, icon_alignment);
     match style.rounding {
         Rounding::Full => {
             tree.write_to(panel, Rounding::Full);
@@ -180,12 +189,15 @@ impl Sprout for ButtonSprout {
             )),
         );
 
-        // one restyle for every appearance input, engage-state included
-        tree.react_any::<(ButtonStyle, Engagement), _>(
+        // one restyle for every appearance input -- engage-state and icon identity included
+        // (a swapped icon can carry a different registered footprint)
+        tree.react_any::<(ButtonStyle, Engagement, IconValue), _>(
             this,
-            move |trigger: Trigger<Insert, (ButtonStyle, Engagement)>,
+            move |trigger: Trigger<Insert, (ButtonStyle, Engagement, IconValue)>,
                   styles: Query<&ButtonStyle>,
                   engagement: Query<&Engagement>,
+                  icon_values: Query<&IconValue>,
+                  render_sizes: bevy_ecs::system::Res<crate::IconRenderSizes>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 restyle(
@@ -196,6 +208,7 @@ impl Sprout for ButtonSprout {
                     text,
                     *styles.get(e).unwrap(),
                     engagement.get(e).unwrap().0,
+                    render_sizes.get(icon_values.get(e).unwrap().0),
                 );
             },
         );

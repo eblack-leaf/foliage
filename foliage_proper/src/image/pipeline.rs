@@ -204,17 +204,8 @@ impl Render for Image {
                 };
                 renderer.groups.insert(group_id, RenderGroup::new(g));
             }
-            if let Some((e, g)) = renderer
-                .resources
-                .entity_to_memory
-                .iter()
-                .find(|(e, g)| **g == group_id && **e != entity)
-            {
-                panic!(
-                    "overwriting existing image group {} with active entity {:?} from {:?}",
-                    g, e, entity
-                )
-            }
+            // the texture was filled when the group was created -- a later viewer of the
+            // same key just registers; its instance arrives whenever its elevation does
             renderer.resources.entity_to_memory.insert(entity, group_id);
         }
         for (entity, elevation) in queues.attribute::<Image, ResolvedElevation>() {

@@ -6,8 +6,9 @@ use crate::remove::Remove;
 use crate::Stem;
 use crate::Trigger;
 use crate::{
-    AssetKey, Attachment, Color, Component, Coordinates, Differential, Foliage, LeafSprout,
-    Logical, ResolvedElevation, Section, Sprout, Tree, Visibility, Write,
+    AssetKey, Attachment, Color, Component, Coordinates, Differential, Foliage,
+    HorizontalAlignment, LeafSprout, Logical, ResolvedElevation, Section, Sprout, Tree,
+    VerticalAlignment, Visibility, Write,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
@@ -121,7 +122,7 @@ impl Icon {
             .entity(this)
             .observe(Visibility::push_remove_packet::<Self>)
             .observe(Remove::push_remove_packet::<Self>)
-            .observe(Self::clamp_render_size);
+            .observe(Self::align_render_size);
     }
     /// An icon's public value channel: write `IconValue` to an icon entity and the glyph
     /// follows -- the render marker stays private. Entities that carry `IconValue` as mere
@@ -139,18 +140,49 @@ impl Icon {
             }
         }
     }
-    /// Clamps every icon to its registered [`IconMemory::render_size`] (falling back to
-    /// [`Icon::SCALE`] if no memory has been registered for this `IconId` yet) -- an icon's
-    /// on-screen footprint is fixed by its backing texture, not by the layout system.
-    fn clamp_render_size(
+    /// An icon's on-screen footprint is fixed by its backing texture (ahead-of-time
+    /// rasterization -- see `foliage_icons`), never by the layout system. Its `Location`
+    /// box is therefore an ALIGNMENT REGION, the same model `Text` uses: the true-size
+    /// footprint (registered [`IconMemory::render_size`], [`Icon::SCALE`] fallback) is
+    /// placed within the resolved box per `HorizontalAlignment`/`VerticalAlignment` --
+    /// Center/Middle by default for icons (inserted by `IconSprout`; `Default` on those
+    /// enums is text's Left/Top). A box exactly the footprint's size aligns to itself, so
+    /// exact-size spawns are untouched.
+    ///
+    /// Idempotent across re-fires: once the section IS the footprint, every alignment
+    /// produces a zero shift; a genuine relayout resolves a fresh box from `Location`
+    /// first, and this re-places within it.
+    fn align_render_size(
         trigger: Trigger<Write<Section<Logical>>>,
-        mut sections: Query<(&mut Section<Logical>, &Icon)>,
+        mut sections: Query<(
+            &mut Section<Logical>,
+            &Icon,
+            Option<&HorizontalAlignment>,
+            Option<&VerticalAlignment>,
+        )>,
         render_sizes: Res<IconRenderSizes>,
     ) {
-        if let Ok((mut sec, icon)) = sections.get_mut(trigger.event_target()) {
-            let target = render_sizes.0.get(&icon.id).copied().unwrap_or(Self::SCALE);
+        if let Ok((mut sec, icon, horizontal, vertical)) =
+            sections.get_mut(trigger.event_target())
+        {
+            let target = render_sizes.get(icon.id);
             if sec.area.coordinates != target {
-                sec.area.coordinates = target;
+                let slack = (sec.width() - target.a(), sec.height() - target.b());
+                // absent components read as an icon's natural alignment (centered), NOT the
+                // enums' `Default` (Left/Top -- that's text's prose default)
+                let dx = match horizontal.copied().unwrap_or(HorizontalAlignment::Center) {
+                    HorizontalAlignment::Left => 0.0,
+                    HorizontalAlignment::Center => slack.0 * 0.5,
+                    HorizontalAlignment::Right => slack.0,
+                };
+                let dy = match vertical.copied().unwrap_or(VerticalAlignment::Middle) {
+                    VerticalAlignment::Top => 0.0,
+                    VerticalAlignment::Middle => slack.1 * 0.5,
+                    VerticalAlignment::Bottom => slack.1,
+                };
+                sec.position += (dx, dy).into();
+                sec.area.set_width(target.a());
+                sec.area.set_height(target.b());
             }
         }
     }
@@ -177,8 +209,21 @@ impl IconSprout {
 }
 /// `IconId -> render size`, populated as each [`IconMemory`] resolves -- what
 /// [`Icon::clamp_render_size`] looks up instead of a single global constant.
+///
+/// Public because anyone composing icons into a widget needs it: an icon renders at exactly
+/// its registered footprint regardless of the `Location` box it's given (the clamp keeps
+/// the box's top-left and snaps the size), so a box that isn't exactly [`Self::get`]'s
+/// answer puts the icon visibly off-center in it. Composites -- library and custom sprouts
+/// alike -- read this to size icon boxes correctly instead of hardcoding a design size.
 #[derive(Resource, Default)]
-pub(crate) struct IconRenderSizes(pub(crate) HashMap<IconId, Coordinates>);
+pub struct IconRenderSizes(pub(crate) HashMap<IconId, Coordinates>);
+impl IconRenderSizes {
+    /// The on-screen footprint `id` will actually render at ([`Icon::SCALE`] until/unless
+    /// a memory is registered for it).
+    pub fn get<ID: Into<IconId>>(&self, id: ID) -> Coordinates {
+        self.0.get(&id.into()).copied().unwrap_or(Icon::SCALE)
+    }
+}
 
 #[derive(Clone)]
 pub(crate) enum IconSource {
