@@ -130,6 +130,10 @@ impl Sprout for CarouselSprout {
         // static skeleton: the viewport every page slot lives in. Its listener is the swipe
         // surface -- author pages with their own listeners take precedence over it, so swipe
         // works from any non-interactive part of a page.
+        // no listener here: the slots overflow this entity's implicit View (Grid requires
+        // one), and a listener would make that View the target of wheel/drag panning --
+        // the swipe surface is the ROOT, whose view extent exactly fits its children, so
+        // any pan attempt clamps to zero
         let viewport = tree.branch(
             this,
             Leaf::sprout()
@@ -138,14 +142,7 @@ impl Sprout for CarouselSprout {
                     0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .elevate(Elevation::up(1))
-                .with((
-                    Grid::default(),
-                    InteractionListener::new(),
-                    // swipe drags are the carousel's own gesture -- never pan an ancestor
-                    // View with them (slider-knob precedent)
-                    crate::InteractionPropagation::grab().disable_drag(),
-                    Root(this),
-                )),
+                .with(Grid::default()),
         );
         tree.write_to(
             this,
@@ -157,7 +154,7 @@ impl Sprout for CarouselSprout {
         );
         // swipe: horizontal drag past a fifth of the width steps a page.
         tree.subscribe(
-            viewport,
+            this,
             move |_: Trigger<Disengaged>,
                   interaction: Res<CurrentInteraction>,
                   sections: Query<&Section<Logical>>,
@@ -209,7 +206,11 @@ impl Sprout for CarouselSprout {
                         Leaf::sprout()
                             .at(slot_location(i, current))
                             .elevate(Elevation::up(1))
-                            .with((Grid::default(), Root(e))),
+                            .with((
+                                Grid::default(),
+                                crate::OverscrollPropagation(false),
+                                Root(e),
+                            )),
                     );
                     (pages.builder)(&mut tree, slot, i);
                     handle.slots.push(slot);

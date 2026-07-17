@@ -10,11 +10,9 @@ mod widgets;
 
 fn main() {
     let mut foliage = Foliage::new();
-    // Tracing off for this round -- switching to `perf` for the paste-slowness
-    // investigation, and log I/O would skew a CPU profile. Re-enable ad hoc, e.g.
     // foliage.enable_tracing(
     //     tracing_subscriber::filter::Targets::new()
-    //         .with_target("foliage_proper::text", tracing::Level::TRACE)
+    //         .with_target("foliage_proper::grid::view", tracing::Level::TRACE)
     //         .with_default(tracing_subscriber::filter::LevelFilter::OFF),
     // );
     foliage.desktop_size((360, 800));

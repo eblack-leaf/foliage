@@ -17,7 +17,10 @@ use foliage::{
 
 const ARCHIVE_PAGES: usize = 9;
 const POSTS_PER_PAGE: usize = 12;
-const CAPTIONS: [&str; 3] = ["gallery wall", "moonlight", "interface study"];
+const CAPTIONS: [&str; 3] = ["moonlight", "gallery wall", "interface study"];
+const MONTHS: [&str; 12] = [
+    "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+];
 
 /// The feed's inputs, riding on the blog's root entity (the music player `Playing`
 /// pattern) -- three composites' events each funnel their piece here, then rebuild the
@@ -35,18 +38,10 @@ fn posts_for(page: usize) -> Vec<(String, String)> {
             let n = page * POSTS_PER_PAGE + i + 1;
             (
                 format!("study no. {n}"),
-                format!("2026-{:02}-{:02}", (n % 12) + 1, (n % 27) + 1),
+                format!("{} {:02}", MONTHS[n % 12], (n % 27) + 1),
             )
         })
         .collect()
-}
-
-fn swatch_color(n: usize) -> Color {
-    match n % 3 {
-        0 => Color::orange(500),
-        1 => Color::green(300),
-        _ => Color::gray(400),
-    }
 }
 
 /// One feed's worth of rows from the current state; spawn and every rebuild share this.
@@ -62,7 +57,8 @@ fn feed_items(state: BlogState) -> ListItems {
             slot,
             Panel::new()
                 .rounding(Rounding::Sm)
-                .color(swatch_color(state.page * POSTS_PER_PAGE + i))
+                .outline(1)
+                .color(Color::gray(600))
                 .at(Location::new().xs(
                     0.pct().as_left().with(32.px().as_width()),
                     50.pct().as_center_y().with(32.px().as_height()),
@@ -75,7 +71,7 @@ fn feed_items(state: BlogState) -> ListItems {
                 .size(FontSize::new(16))
                 .color(Color::gray(200))
                 .at(Location::new().xs(
-                    44.px().as_left().with(100.pct().as_right().adjust(-92)),
+                    44.px().as_left().with(100.pct().as_right().adjust(-80)),
                     0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .elevate(Elevation::up(1))
@@ -88,7 +84,7 @@ fn feed_items(state: BlogState) -> ListItems {
                     .size(FontSize::new(14))
                     .color(Color::gray(500))
                     .at(Location::new().xs(
-                        100.pct().as_right().with(88.px().as_width()),
+                        100.pct().as_right().with(72.px().as_width()),
                         0.pct().as_top().with(100.pct().as_bottom()),
                     ))
                     .elevate(Elevation::up(1))
