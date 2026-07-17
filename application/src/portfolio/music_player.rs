@@ -7,7 +7,7 @@ use foliage::{
     Animation, AssetKey, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid,
     GridExt, HorizontalAlignment, Icon, Image, ImageView, Leaf, Location, OnClick, Opacity,
     Outline, Panel, ProgressChanged, Query, Rounding, Sequence, Slider, Sprout, Text, TextInput,
-    Toggle, Toggled, Tree, Trigger, VerticalAlignment,
+    Tree, Trigger, VerticalAlignment,
 };
 
 /// End-user data riding on the play Button's root entity -- widget entities carry the
@@ -205,29 +205,4 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, album_cover: AssetKey) {
             ))
             .elevate(Elevation::up(1)),
     );
-    tree.branch(
-        app,
-        Text::new("autoplay")
-            .size(FontSize::new(14))
-            .color(Color::gray(400))
-            .at(Location::new().xs(
-                8.col().as_left().with(9.col().as_right()),
-                17.row().as_top().with(24.px().as_height()),
-            ))
-            .elevate(Elevation::up(1))
-            .with((VerticalAlignment::Middle, HorizontalAlignment::Right)),
-    );
-    let autoplay = tree.branch(
-        app,
-        Toggle::new()
-            .colors(Color::green(500), Color::gray(700), Color::gray(200))
-            .at(Location::new().xs(
-                10.col().as_left().with(52.px().as_width()),
-                17.row().as_center_y().with(28.px().as_height()),
-            ))
-            .elevate(Elevation::up(1)),
-    );
-    tree.subscribe(autoplay, move |trigger: Trigger<Toggled>| {
-        let _on = trigger.event().on; // a real player would arm autoplay here
-    });
 }

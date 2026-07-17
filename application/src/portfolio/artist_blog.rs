@@ -9,15 +9,19 @@ use crate::icons::IconHandles;
 use foliage::bevy_ecs;
 use foliage::{
     Animation, AssetKey, Carousel, CarouselPages, Color, Component, Dropdown, EcsExtension,
-    Elevation, Entity, FontSize, GlyphColors, GridExt, HorizontalAlignment, Image, ImageView,
-    LineConstraint, List, ListItems, Location, Opacity, PageChanged, Pagination, PaginationMode,
-    Panel, Query, Rounding, SelectionChanged, Sequence, Sprout, Text, TextInput, Toggled, Tree,
-    Trigger, VerticalAlignment,
+    Elevation, Entity, FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, Image,
+    ImageView, Line, LineConstraint, List, ListItems, Location, Opacity, PageChanged, Pagination,
+    PaginationMode, Panel, Query, Rounding, SelectionChanged, Sequence, Sprout, Text, TextInput,
+    Toggled, Tree, Trigger, VerticalAlignment,
 };
+use std::ops::Range;
 
 const ARCHIVE_PAGES: usize = 9;
 const POSTS_PER_PAGE: usize = 12;
 const CAPTIONS: [&str; 3] = ["moonlight", "gallery wall", "interface study"];
+// the glyph range each caption gets accented, same "highlight the word that matters" idiom
+// as the title/tagline above -- "moon-LIGHT", "gallery WALL", "interface STUDY".
+const CAPTION_ACCENTS: [Range<usize>; 3] = [4..9, 8..12, 10..15];
 const MONTHS: [&str; 12] = [
     "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
 ];
@@ -55,23 +59,11 @@ fn feed_items(state: BlogState) -> ListItems {
         let (title, date) = posts[i].clone();
         tree.branch(
             slot,
-            Panel::new()
-                .rounding(Rounding::Sm)
-                .outline(1)
-                .color(Color::gray(600))
-                .at(Location::new().xs(
-                    0.pct().as_left().with(32.px().as_width()),
-                    50.pct().as_center_y().with(32.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        tree.branch(
-            slot,
             Text::new(title)
                 .size(FontSize::new(16))
                 .color(Color::gray(200))
                 .at(Location::new().xs(
-                    44.px().as_left().with(100.pct().as_right().adjust(-80)),
+                    4.px().as_left().with(100.pct().as_right().adjust(-80)),
                     0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .elevate(Elevation::up(1))
@@ -91,6 +83,19 @@ fn feed_items(state: BlogState) -> ListItems {
                     .with((VerticalAlignment::Middle, HorizontalAlignment::Right)),
             );
         }
+        // hairline divider at the row's own bottom edge -- the same Line-as-separator idiom
+        // as home's measurement connectors, in place of the old decorative (non-functional)
+        // checkbox square.
+        tree.branch(
+            slot,
+            Line::new(1)
+                .color(Color::gray(800))
+                .at(Location::new().xs(
+                    0.pct().as_x().with(100.pct().as_y()),
+                    100.pct().as_x().with(100.pct().as_y()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
     })
 }
 
@@ -182,7 +187,23 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
                                 0.pct().as_top().with(28.px().as_height()),
                             ))
                             .elevate(Elevation::up(3))
-                            .with(VerticalAlignment::Middle),
+                            .with((
+                                VerticalAlignment::Middle,
+                                GlyphColors::new().add(CAPTION_ACCENTS[i].clone(), Color::green(300)),
+                            )),
+                    );
+                    // accent line under the caption -- the same "underline the label" idiom
+                    // as the header's measurement connectors, tying the caption to the app's
+                    // title styling instead of leaving it a bare overlay.
+                    tree.branch(
+                        slot,
+                        Line::new(2)
+                            .color(Color::green(300))
+                            .at(Location::new().xs(
+                                0.pct().as_x().with(28.px().as_y()),
+                                100.pct().as_x().with(28.px().as_y()),
+                            ))
+                            .elevate(Elevation::up(4)),
                     );
                 },
             ))
@@ -228,7 +249,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
                 "by series",
                 "archived",
             ])
-            .chevron(IconHandles::Layers.into())
+            .chevron(IconHandles::ChevronDown.into())
             .max_visible(5)
             .colors(Color::gray(200), Color::gray(900), Color::green(600))
             .at(Location::new()
@@ -322,15 +343,16 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
             tree.write_to(feed, feed_items(state));
         },
     );
-    tree.branch(
+    // the box's own frame: an outlined, rounded Panel matching the list rows' outline
+    // color, with the TextInput nested inside (inset a few px) -- the same
+    // frame-Panel-plus-inset-child shape the search bar already uses, in place of the
+    // comment field floating with only a fill color and no edge.
+    let comment_frame = tree.branch(
         app,
-        TextInput::new()
-            .line_constraint(LineConstraint::Multiple)
-            .hint_text("leave a comment...")
-            .foreground(Color::gray(200))
-            .background(Color::gray(900))
-            .accent(Color::green(600))
-            .font_size(FontSize::new(16))
+        Panel::new()
+            .rounding(Rounding::Sm)
+            .outline(1)
+            .color(Color::gray(600))
             .at(Location::new()
                 .xs(
                     8.px().as_left().with(100.pct().as_right().adjust(-8)),
@@ -340,6 +362,22 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
                     8.col().as_left().with(12.col().as_right()),
                     3.row().as_top().with(7.row().as_bottom()),
                 ))
+            .elevate(Elevation::up(1))
+            .with(Grid::new(1.col(), 1.row())),
+    );
+    tree.branch(
+        comment_frame,
+        TextInput::new()
+            .line_constraint(LineConstraint::Multiple)
+            .hint_text("leave a comment...")
+            .foreground(Color::gray(200))
+            .background(Color::gray(900))
+            .accent(Color::green(600))
+            .font_size(FontSize::new(16))
+            .at(Location::new().xs(
+                4.px().as_left().with(100.pct().as_right().adjust(-4)),
+                4.px().as_top().with(100.pct().as_bottom().adjust(-4)),
+            ))
             .elevate(Elevation::up(1)),
     );
 }
