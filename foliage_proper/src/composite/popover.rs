@@ -20,13 +20,18 @@ use std::sync::Arc;
 /// [`crate::composite::SlotFn`]) for both halves: what's always visible (the trigger) and
 /// what shows while expanded (the content).
 ///
-/// Constraint worth knowing: the trigger slot itself passes interaction through to this
-/// entity's own click handler (the same way `Dropdown`'s trigger panel/text do), but
-/// whatever the author's own `.trigger(..)` closure builds does not automatically inherit
-/// that -- if the author's trigger content is itself `InteractionListener`-bearing (a
-/// button, say) without its own `InteractionPropagation::pass_through()`, it will consume
-/// the click and the popover won't open. Plain content (`Text`/`Icon`/`Panel` with no
-/// listener of their own) works with no extra care.
+/// Constraint worth knowing: hit-testing here is a flat, elevation-ranked scan over every
+/// `Leaf`, not ancestor-bubbling -- `InteractionPropagation`'s default is `grab: true`
+/// (`Leaf` requires it unconditionally), so **every** entity the author's `.trigger(..)`
+/// closure builds competes to own the click, whether or not it carries its own
+/// `InteractionListener`. A plain `Icon`/`Text`/`Panel` with no listener still grabs by
+/// default; if it wins the hit-test at that point (the normal case for nested visual
+/// content), the click is swallowed -- nothing fires, not even this entity's own handler.
+/// The trigger slot itself already sets `InteractionPropagation::pass_through()`, but that
+/// doesn't cascade to what the closure builds inside it. The author's trigger content
+/// always needs its own explicit `.with(InteractionPropagation::pass_through())` unless it
+/// is deliberately meant to be its own interactive target (the same requirement `Button`'s
+/// own internal icon child follows, see `button.rs`).
 #[derive(Component, Copy, Clone)]
 pub struct Popover {}
 impl Popover {

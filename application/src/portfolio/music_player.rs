@@ -190,19 +190,4 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, album_cover: AssetKey) {
     tree.subscribe(slider, move |trigger: Trigger<ProgressChanged>| {
         let _progress = trigger.event().progress; // a real player would seek here
     });
-    // same widget, display-only: knob hidden and interaction disabled -- a volume readout
-    // driven purely by Progress writes.
-    tree.branch(
-        app,
-        Slider::new()
-            .progress(0.6)
-            .interactive(false)
-            .colors(Color::gray(700), Color::gray(400))
-            .weight(2)
-            .at(Location::new().xs(
-                3.col().as_left().with(7.col().as_right()),
-                17.row().as_top().with(24.px().as_height()),
-            ))
-            .elevate(Elevation::up(1)),
-    );
 }

@@ -3,8 +3,8 @@ use crate::composite::{IndexedSlotFn, PageCount, PageIndex, Root};
 use crate::Trigger;
 use crate::{
     Animation, Color, Component, CurrentInteraction, Disengaged, Ease, EcsExtension, Elevation,
-    Entity, Grid, GridExt, InteractionListener, Leaf, LeafSprout, Location, Logical, Section,
-    Sequence, Sprout, Tree,
+    Entity, Grid, GridExt, InteractionListener, InteractionPropagation, Leaf, LeafSprout,
+    Location, Logical, Section, Sequence, Sprout, Tree,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -208,6 +208,15 @@ impl Sprout for CarouselSprout {
                 }
                 let viewport = handle.viewport;
                 for i in 0..pages.count {
+                    // `disable_drag` (the same primitive Slider's knob already uses) stops
+                    // drag from auto-panning this slot's own View at all -- there's nothing
+                    // left to skew the carousel with, since paging is driven entirely by the
+                    // Disengaged subscribe below, not View panning. Unlike
+                    // `OverscrollPropagation(false)` (what used to be here), this doesn't
+                    // also block wheel-scroll from reaching the page behind the carousel --
+                    // wheel bypasses `disable_drag` unconditionally (see the fix already in
+                    // `interaction/mod.rs` for the same class of problem on text-input
+                    // cursors/slider knobs).
                     let slot = tree.branch(
                         viewport,
                         Leaf::sprout()
@@ -215,7 +224,7 @@ impl Sprout for CarouselSprout {
                             .elevate(Elevation::up(1))
                             .with((
                                 Grid::default(),
-                                crate::OverscrollPropagation(false),
+                                InteractionPropagation::grab().disable_drag(),
                                 Root(e),
                             )),
                     );

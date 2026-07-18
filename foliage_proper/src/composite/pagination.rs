@@ -2,8 +2,8 @@ use crate::composite::{PageCount, PageIndex};
 use crate::Trigger;
 use crate::{
     Button, ButtonStyle, Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid,
-    GridExt, HorizontalAlignment, IconId, IconValue, InteractionListener, Leaf, LeafSprout,
-    Location, OnClick, Outline, Panel, Rounding, Sprout, Text, TextValue, Tree,
+    GridExt, HorizontalAlignment, IconId, IconValue, InteractionListener, InteractionPropagation,
+    Leaf, LeafSprout, Location, OnClick, Outline, Panel, Rounding, Sprout, Text, TextValue, Tree,
     VerticalAlignment,
 };
 use bevy_ecs::bundle::Bundle;
@@ -226,7 +226,7 @@ impl Sprout for PaginationSprout {
                             outline: Outline::default(),
                             rounding: Rounding::Full,
                         };
-                        let pad = 20;
+                        let pad = 14;
                         let psz = render_sizes.get(prev_icon);
                         let nsz = render_sizes.get(next_icon);
                         let (pw, ph) = (psz.a() as i32 + pad, psz.b() as i32 + pad);
@@ -306,8 +306,33 @@ impl Sprout for PaginationSprout {
                     match style.mode {
                         PaginationMode::Dots => {
                             let (dot_w, dot_h) = style.dot_size.unwrap_or((16, 4));
-                            let dot = tree.branch(
+                            // hit region is a comfortable minimum regardless of how thin the
+                            // visual pip is -- a 4px-tall bar is a real bar to look at, not a
+                            // real click target, so the two are separate entities: an
+                            // invisible, generously-sized hit region carries the listener,
+                            // the visual pip inside it is what's actually drawn.
+                            let mut transparent = Color::default();
+                            transparent.set_alpha(0.0);
+                            let hit = tree.branch(
                                 strip,
+                                Panel::new()
+                                    .color(transparent)
+                                    .at(Location::new().xs(
+                                        (s + 1)
+                                            .col()
+                                            .as_center_x()
+                                            .with(dot_w.max(24).px().as_width()),
+                                        50.pct().as_center_y().with(24.px().as_height()),
+                                    ))
+                                    .elevate(Elevation::up(1))
+                                    .with((
+                                        Grid::default(),
+                                        InteractionListener::new(),
+                                        FocusBehavior::ignore(),
+                                    )),
+                            );
+                            let dot = tree.branch(
+                                hit,
                                 Panel::new()
                                     .rounding(Rounding::Full)
                                     .color(if s == current {
@@ -316,13 +341,16 @@ impl Sprout for PaginationSprout {
                                         style.inactive
                                     })
                                     .at(Location::new().xs(
-                                        (s + 1).col().as_center_x().with(dot_w.px().as_width()),
+                                        50.pct().as_center_x().with(dot_w.px().as_width()),
                                         50.pct().as_center_y().with(dot_h.px().as_height()),
                                     ))
                                     .elevate(Elevation::up(1))
-                                    .with((InteractionListener::new(), FocusBehavior::ignore())),
+                                    .with((
+                                        InteractionPropagation::pass_through(),
+                                        FocusBehavior::ignore(),
+                                    )),
                             );
-                            tree.on_click(dot, move |_: Trigger<OnClick>, mut tree: Tree| {
+                            tree.on_click(hit, move |_: Trigger<OnClick>, mut tree: Tree| {
                                 tree.write_to(e, PageIndex(s));
                             });
                             handle.slots.push(dot);

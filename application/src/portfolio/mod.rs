@@ -1,4 +1,4 @@
-pub(crate) mod artist_blog;
+pub(crate) mod composites;
 pub(crate) mod music_player;
 
 use crate::icons::IconHandles;
@@ -44,7 +44,7 @@ fn spawn_modal_content(
     };
     match i {
         0 => music_player::build(tree, app, album_cover.expect("album cover key")),
-        _ => artist_blog::build(tree, app, artwork),
+        _ => composites::build(tree, app, artwork),
     }
     app
 }
@@ -294,8 +294,8 @@ pub(crate) const ITEMS: [PortfolioItem; 2] = [
         "music-player",
     ),
     PortfolioItem::new(
-        "Artist Blog",
-        "Showcase your artwork with a scrolling feed.",
+        "Composites",
+        "A live tour of every built-in widget.",
         "artist-blog",
     ),
 ];

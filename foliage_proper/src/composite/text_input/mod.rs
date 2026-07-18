@@ -186,19 +186,39 @@ impl Sprout for TextInputSprout {
                         .adjust(4)
                         .with(100.pct().as_bottom().adjust(-4)),
                 ))
-                .with((
-                    Grid::new(1.letters(), 1.letters()),
-                    InteractionListener::new(),
-                    Root(this),
-                )),
+                .with((Grid::default(), InteractionListener::new(), Root(this))),
         );
         tree.subscribe(panel, TextInput::unfocused);
         tree.subscribe(panel, PlaceCursor::forward);
 
-        // panel owns cursor/visible/text/hint_text -- branching from it mirrors the
+        // `field` insets further from panel's own edge (breathing room from wherever
+        // panel's outline/rounding is drawn) and hosts the letter-grid -- text, cursor,
+        // and the selection highlight all measure column/row against *this* entity's own
+        // origin, so they stay in sync with each other regardless of panel's own styling.
+        // Panel itself stays free to be sized/outlined/rounded independently.
+        let field = tree.branch(
+            panel,
+            Leaf::sprout()
+                .elevate(Elevation::up(1))
+                .at(Location::new().xs(
+                    8.px().as_left().with(100.pct().as_right().adjust(-8)),
+                    4.px().as_top().with(100.pct().as_bottom().adjust(-4)),
+                ))
+                .with((
+                    Grid::new(1.letters(), 1.letters()),
+                    // field sits above panel (elevate up(1) relative to it) with no
+                    // listener of its own -- without this it grabs by default (Leaf's
+                    // default) and silently swallows every click meant for panel's own
+                    // InteractionListener, the same bug class Popover had.
+                    InteractionPropagation::pass_through(),
+                    Root(this),
+                )),
+        );
+
+        // field owns cursor/visible/text/hint_text -- branching from it mirrors the
         // real hierarchy.
         let cursor = tree.branch(
-            panel,
+            field,
             Leaf::sprout()
                 .elevate(Elevation::up(6))
                 .at(Location::new().xs(
@@ -212,7 +232,7 @@ impl Sprout for TextInputSprout {
                 )),
         );
         let visible = tree.branch(
-            panel,
+            field,
             Panel::new()
                 .elevate(Elevation::up(3))
                 .at(Location::new().xs(
@@ -229,13 +249,13 @@ impl Sprout for TextInputSprout {
         // no Location / auto flags: LineConstraint-dependent, set by that reaction's
         // first fire below, in the same command batch.
         let text = tree.branch(
-            panel,
+            field,
             Text::new("")
                 .elevate(Elevation::up(5))
                 .with((InteractionListener::new(), Root(this))),
         );
         let hint_text = tree.branch(
-            panel,
+            field,
             Text::new("").elevate(Elevation::up(4)).with((
                 InteractionPropagation::pass_through(),
                 FocusBehavior::ignore(),
@@ -255,6 +275,7 @@ impl Sprout for TextInputSprout {
             this,
             Handle {
                 panel,
+                field,
                 text,
                 hint_text,
                 cursor,
@@ -340,6 +361,11 @@ impl TextInput {
         let this = trigger.event_target();
         let line_constraint = *constraints.get(this).unwrap();
         let handle = handles.get(this).unwrap();
+        // text MUST start exactly at panel's own origin (0%): the cursor's own visual
+        // placement (`move_cursor`, below) is computed via `(col+1).col()`/`(row+1).row()`
+        // against panel's letter-metric Grid, which assumes column/row 0 sits at panel's
+        // raw edge -- any offset here desyncs the cursor from the glyphs it's tracking.
+        // Padding/border effects belong on a backing Panel around TextInput, not inside it.
         let text_location = Location::new().xs(
             match line_constraint {
                 LineConstraint::Single => 0.pct().as_left().with(text_content().as_width()),
@@ -386,7 +412,9 @@ impl TextInput {
             .insert(font_sizes.get(trigger.event_target()).unwrap().clone());
         tree.entity(handle.hint_text)
             .insert(font_sizes.get(trigger.event_target()).unwrap().clone());
-        tree.entity(handle.panel)
+        // `field`, not `panel`: it's the one with the letter-metric Grid that needs
+        // FontSize to interpret `1.letters()` sizing.
+        tree.entity(handle.field)
             .insert(font_sizes.get(trigger.event_target()).unwrap().clone());
     }
     fn update_style(
@@ -640,10 +668,12 @@ impl TextInput {
         let click = current_interaction.click.current;
         let fsv = font_sizes.get(this).unwrap().resolve(layout).value;
         let dims = font.character_block(fsv);
-        let section = sections.get(this).unwrap();
         let handle = handles.get(this).unwrap();
-        let relative =
-            click - section.position - (4, 4).into() + views.get(handle.panel).unwrap().offset;
+        // `field`'s own resolved position is the letter-grid's true origin -- reading it
+        // directly (rather than `this`'s position minus a hardcoded inset) stays correct
+        // regardless of how panel/field's own padding is configured.
+        let section = sections.get(handle.field).unwrap();
+        let relative = click - section.position + views.get(handle.field).unwrap().offset;
         let (x, y) = (
             (relative.left().max(0.0) / dims.a()) as u32,
             (relative.top().max(0.0) / dims.b()) as u32,
@@ -902,8 +932,8 @@ impl TextInput {
 
         if allow_scroll
             && let (Ok(view), Ok(section)) = (
-            scroll.views.get(handle.panel),
-            scroll.sections.get(handle.panel),
+            scroll.views.get(handle.field),
+            scroll.sections.get(handle.field),
         ) {
             let cursor_content: Position<Logical> = (
                 col as f32 * letter_block.a(),
@@ -942,7 +972,7 @@ impl TextInput {
                 "text_input: scroll-into-view check"
             );
             if delta.left() != 0.0 || delta.top() != 0.0 {
-                tree.entity(handle.panel).insert(ViewAdjustment(delta));
+                tree.entity(handle.field).insert(ViewAdjustment(delta));
             }
         }
     }
@@ -1271,7 +1301,7 @@ impl TextInput {
             elapsed = ?stale_start.elapsed(),
             "text_input: reselect_range stale-highlight removal"
         );
-        let panel = handle.panel;
+        let field = handle.field;
         let color = styles.get(this).unwrap().accent;
         for (row, (start_col, end_col)) in spans {
             if let Some((existing, prev_start, prev_end)) = handle.highlights.get(&row).copied() {
@@ -1297,7 +1327,7 @@ impl TextInput {
                     (row + 1).row().as_top().with((row + 1).row().as_bottom()),
                 );
                 let h = tree.branch(
-                    panel,
+                    field,
                     Panel::new()
                         .color(color)
                         .elevate(Elevation::up(2))
@@ -2044,6 +2074,10 @@ impl InsertText {
 #[derive(Component, Clone, Debug)]
 pub struct Handle {
     pub panel: Entity,
+    /// the inset letter-grid host text/cursor/highlights measure column/row against --
+    /// separate from `panel` so the backing panel stays free to be styled/outlined without
+    /// desyncing the cursor from the glyphs it tracks.
+    pub field: Entity,
     pub text: Entity,
     pub hint_text: Entity,
     pub cursor: Entity,

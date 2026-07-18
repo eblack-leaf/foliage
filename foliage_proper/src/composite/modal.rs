@@ -187,10 +187,16 @@ impl Sprout for ModalSprout {
                         tree.remove(t);
                     }
                 }
-                tree.write_to(e, (origin_location(cfg.anchor_to.is_some()), style.backdrop));
+                // Anchor MUST land before Location: Location's own on_insert hook resolves
+                // it immediately (synchronously, as this command is applied), and an
+                // anchor()-relative Location resolves against whatever Anchor is already on
+                // the entity at that moment -- write it after, and the anchor stack lookup
+                // fails (no anchor yet), silently falling back to an unanchored origin
+                // (top-left) instead of growing from the card.
                 if let Some(a) = cfg.anchor_to {
                     tree.write_to(e, Anchor::new(a));
                 }
+                tree.write_to(e, (origin_location(cfg.anchor_to.is_some()), style.backdrop));
                 let slot = tree.branch(
                     e,
                     Leaf::sprout()

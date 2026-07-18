@@ -326,7 +326,17 @@ pub(crate) fn interactive_elements(
                         let mut context = *contexts.get(p).unwrap();
                         while let Some(id) = context.id {
                             if let Ok(_) = views.get(id) {
-                                tree.entity(id).insert(ViewAdjustment(diff));
+                                // `p`'s own `disable_drag` (checked above) only covers "the
+                                // grabbed entity refuses to let anything pan" (a knob/cursor
+                                // with no view of its own). It says nothing about a *view*
+                                // reached by walking up from some other grabbed content (a
+                                // Carousel page's own author content, say) that wants to
+                                // refuse drag-panning itself regardless of what's grabbed
+                                // inside it -- so that view's own `disable_drag` is checked
+                                // here too, independently.
+                                if !all.get(id).unwrap().4.disable_drag {
+                                    tree.entity(id).insert(ViewAdjustment(diff));
+                                }
                                 break;
                             }
                             if let Ok(up) = contexts.get(id) {
@@ -383,7 +393,15 @@ pub(crate) fn interactive_elements(
                         let mut context = *contexts.get(p).unwrap();
                         while let Some(id) = context.id {
                             if let Ok(_) = views.get(id) {
-                                tree.entity(id).insert(ViewAdjustment(diff));
+                                // same reasoning as the move-phase walk-up above: the
+                                // specific view being targeted gets its own disable_drag
+                                // check, independent of `p`'s -- but wheel still bypasses
+                                // it here too, same as it bypasses `p`'s own check.
+                                if !all.get(id).unwrap().4.disable_drag
+                                    || event.method == InteractionMethod::ScrollWheel
+                                {
+                                    tree.entity(id).insert(ViewAdjustment(diff));
+                                }
                                 break;
                             }
                             if let Ok(up) = contexts.get(id) {

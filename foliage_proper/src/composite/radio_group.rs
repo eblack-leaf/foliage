@@ -1,9 +1,9 @@
 use crate::composite::Root;
 use crate::Trigger;
 use crate::{
-    Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid, GridExt,
-    HorizontalAlignment, InteractionListener, InteractionPropagation, LeafSprout, Location,
-    OnClick, Outline, Panel, Sprout, Text, Tree, VerticalAlignment,
+    Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt, HorizontalAlignment,
+    InteractionListener, LeafSprout, Location, OnClick, Outline, Panel, Sprout, Text, Tree,
+    VerticalAlignment,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -150,6 +150,8 @@ impl Sprout for RadioGroupSprout {
                             .elevate(Elevation::up(1))
                             .with((InteractionListener::new(), Root(e))),
                     );
+                    // clickable too, not just the circle -- the label is the bigger, more
+                    // natural tap target for this kind of row.
                     let label = tree.branch(
                         e,
                         Text::new(text.clone())
@@ -165,11 +167,14 @@ impl Sprout for RadioGroupSprout {
                             .with((
                                 VerticalAlignment::Middle,
                                 HorizontalAlignment::Left,
-                                InteractionPropagation::pass_through(),
-                                FocusBehavior::ignore(),
+                                InteractionListener::new(),
+                                Root(e),
                             )),
                     );
                     tree.on_click(circle, move |_: Trigger<OnClick>, mut tree: Tree| {
+                        tree.write_to(e, RadioSelected(i));
+                    });
+                    tree.on_click(label, move |_: Trigger<OnClick>, mut tree: Tree| {
                         tree.write_to(e, RadioSelected(i));
                     });
                     handle.rows.push((circle, label));

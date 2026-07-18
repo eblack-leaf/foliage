@@ -11,6 +11,7 @@ pub enum IconHandles {
     ChevronDown,
     Code,
     Github,
+    Grid,
     Layers,
     Menu,
     Play,
@@ -34,6 +35,7 @@ pub fn register(foliage: &mut Foliage) {
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::ChevronDown), include_bytes!("chevron-down.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Code), include_bytes!("code.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Github), include_bytes!("github.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
+    foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Grid), include_bytes!("grid.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Layers), include_bytes!("layers.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Menu), include_bytes!("menu.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Play), include_bytes!("play.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));

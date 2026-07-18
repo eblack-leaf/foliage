@@ -180,25 +180,36 @@ impl Sprout for SliderSprout {
             },
         );
 
-        // render: value -> geometry.
+        // render: value -> geometry. The knob is centered on fill's endpoint with no inset
+        // of its own (see the style reaction below), so fill's endpoint itself carries a
+        // px correction that shrinks linearly from +half-knob at value=0 to -half-knob at
+        // value=1 (and vanishes at the midpoint) -- the closed-form equivalent of mapping
+        // value onto an (inset, track_width - inset) range instead of the full (0, 100%)
+        // one, expressed as a pct-plus-px adjustment since the two can't be combined any
+        // other way here. Without it the knob clips past the track's own edges at the
+        // extremes (half the knob renders outside the parent rect and gets cut off).
         tree.react::<Progress, _>(
             this,
             move |trigger: Trigger<Insert, Progress>,
                   progress: Query<&Progress>,
+                  styles: Query<&SliderStyle>,
                   mut tree: Tree| {
-                let value = progress
-                    .get(trigger.event_target())
-                    .unwrap()
-                    .0
-                    .clamp(0.0, 1.0);
+                let e = trigger.event_target();
+                let value = progress.get(e).unwrap().0.clamp(0.0, 1.0);
+                let inset = styles.get(e).unwrap().knob_size as f32 / 2.0;
+                let correction = (inset * (1.0 - 2.0 * value)) as i32;
                 tree.write_to(
                     fill,
                     Location::new().xs(
                         0.pct().as_x().with(50.pct().as_y()),
-                        (value * 100.0).pct().as_x().with(50.pct().as_y()),
+                        (value * 100.0)
+                            .pct()
+                            .as_x()
+                            .adjust(correction)
+                            .with(50.pct().as_y()),
                     ),
                 );
-                tree.trigger_targets(ProgressChanged::new(value), trigger.event_target());
+                tree.trigger_targets(ProgressChanged::new(value), e);
             },
         );
         // appearance + interactivity, one door for config writes and initial state
