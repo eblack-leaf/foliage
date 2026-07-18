@@ -69,20 +69,36 @@ fn handle_load_asset(trigger: Trigger<LoadAsset>, mut asset_loader: ResMut<Asset
                 sender.send(Asset::new(asset)).ok();
             });
         }
-        // native fetches block the calling thread -- acceptable here (no single-threaded
-        // event loop to stall the way wasm has), so no awaiting/channel machinery needed:
-        // the bytes are simply in hand by the time this returns.
-        #[cfg(not(target_family = "wasm"))]
+        // mirrors the wasm branch exactly: queue the fetch, do the actual work off the
+        // calling thread, hand the result to `await_assets` through the same channel --
+        // fire-and-arrives-later on both platforms, never a blocking call on the caller's
+        // thread. A background OS thread (not the async `reqwest::Client`) because reqwest's
+        // non-wasm backend needs an ambient Tokio runtime regardless of how its future is
+        // polled -- `reqwest::blocking` is the one Rust-supported way to make the call
+        // without the caller managing a runtime; running it on its own thread is what keeps
+        // it from blocking anything else.
+        #[cfg(all(not(target_family = "wasm"), feature = "remote-assets"))]
         AssetSource::Url(url) => {
-            let bytes = reqwest::blocking::Client::new()
-                .get(url)
-                .header("Accept", "application/octet-stream")
-                .send()
-                .expect("asset-request")
-                .bytes()
-                .expect("asset-bytes")
-                .to_vec();
-            asset_loader.assets.insert(key, Asset::new(bytes));
+            let (fetch, sender) = AssetFetch::new(key);
+            asset_loader.queue_fetch(fetch);
+            let url = url.clone();
+            std::thread::spawn(move || {
+                let bytes = reqwest::blocking::Client::new()
+                    .get(url)
+                    .header("Accept", "application/octet-stream")
+                    .send()
+                    .expect("asset-request")
+                    .bytes()
+                    .expect("asset-bytes")
+                    .to_vec();
+                sender.send(Asset::new(bytes)).ok();
+            });
+        }
+        #[cfg(all(not(target_family = "wasm"), not(feature = "remote-assets")))]
+        AssetSource::Url(_) => {
+            panic!(
+                "AssetSource::Url used on native without the `remote-assets` feature enabled"
+            );
         }
     }
 }

@@ -43,11 +43,18 @@ features = [
     "Window",
     "Document"
 ]
+[features]
+default = ["remote-assets"]
+# native's half of `AssetSource::Url` -- an app that only ever loads bundled `Bytes` assets
+# can drop this to shed reqwest/rustls entirely. wasm's own fetch path is unconditional (it's
+# how bundled assets load there at all, not an optional extra), so this only affects native.
+remote-assets = ["dep:reqwest"]
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 pollster = "1.0.1"
 copypasta = "0.10.1"
 open = "5.3.0"
-reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "blocking"] }
+reqwest = { version = "0.13.4", default-features = false, features = ["rustls", "blocking"], optional = true }
 [target.'cfg(target_family = "wasm")'.dependencies]
 tracing-subscriber-wasm = "0.1.0"
 wasm-bindgen-futures = "0.4.76"

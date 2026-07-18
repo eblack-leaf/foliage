@@ -11,11 +11,11 @@ use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::Trigger;
 use crate::{
-    auto, Attachment, AutoHeight, AutoWidth, Color, Component, Dragged, EcsExtension, Elevation,
+    Attachment, TextContentHeight, TextContentWidth, Color, Component, Dragged, EcsExtension, Elevation,
     Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
     InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafSprout, Location, Logical,
     Opacity, Outline, OverscrollPropagation, Panel, Rounding, Section, Sprout, Stem, Text,
-    TextValue, Tree, Unfocused, View,
+    TextValue, Tree, Unfocused, View, text_content,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
@@ -342,21 +342,21 @@ impl TextInput {
         let handle = handles.get(this).unwrap();
         let text_location = Location::new().xs(
             match line_constraint {
-                LineConstraint::Single => 0.pct().as_left().with(auto().as_width()),
+                LineConstraint::Single => 0.pct().as_left().with(text_content().as_width()),
                 LineConstraint::Multiple => 0.pct().as_left().with(100.pct().as_right()),
             },
             match line_constraint {
                 LineConstraint::Single => 0.pct().as_top().with(100.pct().as_bottom()),
-                LineConstraint::Multiple => 0.pct().as_top().with(auto().as_height()),
+                LineConstraint::Multiple => 0.pct().as_top().with(text_content().as_height()),
             },
         );
         let auto_width = match line_constraint {
-            LineConstraint::Single => AutoWidth(true),
-            LineConstraint::Multiple => AutoWidth(false),
+            LineConstraint::Single => TextContentWidth(true),
+            LineConstraint::Multiple => TextContentWidth(false),
         };
         let auto_height = match line_constraint {
-            LineConstraint::Single => AutoHeight(false),
-            LineConstraint::Multiple => AutoHeight(true),
+            LineConstraint::Single => TextContentHeight(false),
+            LineConstraint::Multiple => TextContentHeight(true),
         };
         tree.entity(handle.text)
             .insert((text_location, auto_width, auto_height));

@@ -61,7 +61,7 @@ impl Attachment for Text {
 #[derive(Component, Clone, PartialEq, Default, Debug)]
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
-#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, AutoHeight, AutoWidth)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, TextContentHeight, TextContentWidth)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
 #[require(Differential<Text, ResolvedFontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]
@@ -218,8 +218,8 @@ impl Text {
         cache: Query<&mut UpdateCache>,
         font: Res<MonospacedFont>,
         scale_factor: Res<ScaleFactor>,
-        auto_heights: Query<&AutoHeight>,
-        auto_widths: Query<&AutoWidth>,
+        auto_heights: Query<&TextContentHeight>,
+        auto_widths: Query<&TextContentWidth>,
     ) {
         let this = trigger.event_target();
         let mut current = UpdateCache {
@@ -471,9 +471,9 @@ pub(crate) struct LineMetrics {
 #[derive(Component, Copy, Clone, PartialEq, Debug, Default)]
 pub(crate) struct TextBounds(pub(crate) Section<Physical>);
 #[derive(Component, Copy, Clone, Default)]
-pub struct AutoHeight(pub bool);
+pub struct TextContentHeight(pub bool);
 #[derive(Component, Copy, Clone, Default)]
-pub struct AutoWidth(pub bool);
+pub struct TextContentWidth(pub bool);
 #[derive(Copy, Clone, Component, Default, PartialEq)]
 pub(crate) struct UniqueCharacters(pub(crate) u32);
 impl UniqueCharacters {

@@ -60,6 +60,7 @@ pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{
     button::{Button, ButtonSprout, ButtonStyle, Engagement},
     carousel::{Carousel, CarouselConfig, CarouselPages, CarouselSprout, CarouselStyle},
+    checkbox::{Checkbox, CheckboxSprout, CheckboxState, CheckboxStyle, Checked},
     dropdown::{
         Dropdown, DropdownConfig, DropdownOptions, DropdownSprout, DropdownStyle, Expanded,
         Selected, SelectionChanged,
@@ -67,7 +68,17 @@ pub use composite::{
     list::{List, ListItems, ListLayout, ListSprout},
     modal::{CloseModal, Closed, Modal, ModalSprout, ModalStyle},
     pagination::{PageChanged, Pagination, PaginationMode, PaginationSprout, PaginationStyle},
+    popover::{
+        Popover, PopoverClosed, PopoverExpanded, PopoverOpened, PopoverPlacement, PopoverSprout,
+        PopoverStyle,
+    },
+    radio_group::{RadioChanged, RadioGroup, RadioGroupSprout, RadioOptions, RadioSelected, RadioStyle},
+    segmented_control::{
+        SegmentChanged, SegmentedControl, SegmentedControlSprout, SegmentedOptions,
+        SegmentedSelected, SegmentedStyle,
+    },
     slider::{ProgressChanged, Slider, SliderBehavior, SliderSprout, SliderStyle},
+    tabs::{Tabs, TabsPages, TabsSprout, TabsStyle},
     text_input::{
         keybindings::KeyBindings, HintColor, HintText, InsertText, LineConstraint, TextChanged,
         TextInput, TextInputSprout, TextInputStyle,
@@ -81,9 +92,9 @@ pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
 pub use grid::{
-    anchor, auto, view::OverscrollPropagation, AspectRatio, Grid, Layout, Location, View,
+    anchor, text_content, view::OverscrollPropagation, AspectRatio, Grid, Layout, Location, View,
 };
-pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify};
+pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationValue};
 pub use icon::{Icon, IconId, IconMemory, IconRenderSizes, IconSprout};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
@@ -104,7 +115,7 @@ pub use platform::AndroidConnection;
 pub use shape::{Line, LineSprout, Shape};
 pub use alignment::{HorizontalAlignment, VerticalAlignment};
 pub use text::GlyphOffset;
-pub use text::{AutoHeight, AutoWidth, FontSize, GlyphColors, Text, TextSprout};
+pub use text::{TextContentHeight, TextContentWidth, FontSize, GlyphColors, Text, TextSprout};
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
 pub use tree::{EcsExtension, Graft, IntoTargets, Refire, Sequence, TargetedEvent, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};

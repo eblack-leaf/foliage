@@ -526,17 +526,17 @@ fn resolve(
             } else {
                 1.0
             };
-            if config.horizontal.a.value == LocationValue::Auto
+            if config.horizontal.a.value == LocationValue::TextContent
                 && config.horizontal.a.designator == Designator::Width
-                || config.horizontal.b.value == LocationValue::Auto
+                || config.horizontal.b.value == LocationValue::TextContent
                     && config.horizontal.b.designator == Designator::Width
             {
                 resolution
                     .section
                     .set_width(resolution.section.height() * ratio);
-            } else if config.vertical.b.value == LocationValue::Auto
+            } else if config.vertical.b.value == LocationValue::TextContent
                 && config.vertical.b.designator == Designator::Height
-                || config.vertical.a.value == LocationValue::Auto
+                || config.vertical.a.value == LocationValue::TextContent
                     && config.vertical.a.designator == Designator::Height
             {
                 resolution
@@ -711,7 +711,7 @@ fn calc(
                 None
             }
         }
-        LocationValue::Auto => match desc.designator {
+        LocationValue::TextContent => match desc.designator {
             Designator::Height => Some(current.height()),
             Designator::Width => Some(current.width()),
             _ => None,
@@ -842,7 +842,7 @@ pub enum LocationValue {
     Column(i32),
     Row(i32),
     Anchor(Designator),
-    Auto,
+    TextContent,
     Letters(i32),
 }
 impl LocationValue {
@@ -940,8 +940,13 @@ impl AnchorDescriptor {
 pub fn anchor() -> AnchorDescriptor {
     AnchorDescriptor {}
 }
-pub fn auto() -> LocationValue {
-    LocationValue::Auto
+/// Sizes this dimension to the entity's own text content, measured via font shaping
+/// (`fontdue`) rather than resolved against the parent -- `Text`/`TextInput`'s own
+/// mechanism specifically, not a general "size to fit children" primitive (no such thing
+/// exists in this framework: layout is single-pass and top-down, with no path for a
+/// child's computed size to flow back into a parent's).
+pub fn text_content() -> LocationValue {
+    LocationValue::TextContent
 }
 #[derive(Copy, Clone)]
 pub(crate) struct LocationDescriptor {

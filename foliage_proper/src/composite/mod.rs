@@ -5,11 +5,16 @@ use std::sync::Arc;
 
 pub(crate) mod button;
 pub(crate) mod carousel;
+pub(crate) mod checkbox;
 pub(crate) mod dropdown;
 pub(crate) mod list;
 pub(crate) mod modal;
 pub(crate) mod pagination;
+pub(crate) mod popover;
+pub(crate) mod radio_group;
+pub(crate) mod segmented_control;
 pub(crate) mod slider;
+pub(crate) mod tabs;
 pub(crate) mod text_input;
 pub(crate) mod toggle;
 pub(crate) use text_input::keybindings::KeyBindings;
