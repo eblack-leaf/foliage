@@ -271,11 +271,12 @@ impl Sprout for CarouselSprout {
                 let style = *styles.get(e).unwrap();
                 let config = *configs.get(e).unwrap();
                 let mut handle = handles.get_mut(e).unwrap();
-                // strip height derives from the actual configured pip height (+ 20px
-                // breathing room) instead of a flat guess -- matches Pagination's own
-                // default (16, 4) exactly when dot_size isn't overridden, so this changes
-                // nothing for callers who never touch it.
-                let strip_height = config.dot_size.map(|(_, h)| h).unwrap_or(4) + 20;
+                // strip height derives from the actual configured pip height + a small
+                // breathing-room margin (the same 8px gap this codebase uses everywhere else
+                // for "a little room around a compact element" -- Button's icon-to-text gap,
+                // the chevron's own edge inset, etc.) -- never a flat guess independent of
+                // whatever pip size is actually configured.
+                let strip_height = config.dot_size.map(|(_, h)| h).unwrap_or(4) + 8;
                 match (config.pagination, handle.pagination) {
                     (Some(_), Some(existing)) => {
                         tree.write_to(
