@@ -59,6 +59,9 @@ pub struct CarouselStyle {
 pub struct CarouselConfig {
     /// embed a [`Pagination`] strip pinned bottom-center; `None` = pages + swipe only
     pub pagination: Option<PaginationMode>,
+    /// forwarded straight to the embedded `Pagination`'s own `.dot_size(..)`; `None` falls
+    /// back to `Pagination`'s own default (16, 4)
+    pub dot_size: Option<(i32, i32)>,
 }
 
 /// Private child registry.
@@ -101,6 +104,10 @@ impl CarouselSprout {
     }
     pub fn pagination(mut self, mode: PaginationMode) -> Self {
         self.config.pagination = Some(mode);
+        self
+    }
+    pub fn dot_size(mut self, width: i32, height: i32) -> Self {
+        self.config.dot_size = Some((width, height));
         self
     }
     pub fn colors(mut self, active: Color, inactive: Color) -> Self {
@@ -264,6 +271,11 @@ impl Sprout for CarouselSprout {
                 let style = *styles.get(e).unwrap();
                 let config = *configs.get(e).unwrap();
                 let mut handle = handles.get_mut(e).unwrap();
+                // strip height derives from the actual configured pip height (+ 20px
+                // breathing room) instead of a flat guess -- matches Pagination's own
+                // default (16, 4) exactly when dot_size isn't overridden, so this changes
+                // nothing for callers who never touch it.
+                let strip_height = config.dot_size.map(|(_, h)| h).unwrap_or(4) + 20;
                 match (config.pagination, handle.pagination) {
                     (Some(_), Some(existing)) => {
                         tree.write_to(
@@ -274,19 +286,37 @@ impl Sprout for CarouselSprout {
                                 mode: config.pagination.unwrap_or_default(),
                                 step_icons: None,
                                 step_colors: None,
+                                dot_size: config.dot_size,
                             },
+                        );
+                        tree.write_to(
+                            existing,
+                            Location::new().xs(
+                                50.pct().as_center_x().with(50.pct().as_width()),
+                                100.pct()
+                                    .as_bottom()
+                                    .adjust(-8)
+                                    .with(strip_height.px().as_height()),
+                            ),
                         );
                     }
                     (Some(mode), None) => {
+                        let mut pagination = Pagination::new(counts.get(e).unwrap().0)
+                            .page(page_index.get(e).unwrap().0)
+                            .mode(mode)
+                            .colors(style.active, style.inactive);
+                        if let Some((w, h)) = config.dot_size {
+                            pagination = pagination.dot_size(w, h);
+                        }
                         let strip = tree.branch(
                             e,
-                            Pagination::new(counts.get(e).unwrap().0)
-                                .page(page_index.get(e).unwrap().0)
-                                .mode(mode)
-                                .colors(style.active, style.inactive)
+                            pagination
                                 .at(Location::new().xs(
                                     50.pct().as_center_x().with(50.pct().as_width()),
-                                    100.pct().as_bottom().adjust(-8).with(24.px().as_height()),
+                                    100.pct()
+                                        .as_bottom()
+                                        .adjust(-8)
+                                        .with(strip_height.px().as_height()),
                                 ))
                                 .elevate(Elevation::up(2)),
                         );

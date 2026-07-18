@@ -14,8 +14,8 @@ use crate::{
     auto, Attachment, AutoHeight, AutoWidth, Color, Component, Dragged, EcsExtension, Elevation,
     Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
     InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafSprout, Location, Logical,
-    Opacity, OverscrollPropagation, Panel, Section, Sprout, Stem, Text, TextValue, Tree, Unfocused,
-    View,
+    Opacity, Outline, OverscrollPropagation, Panel, Rounding, Section, Sprout, Stem, Text,
+    TextValue, Tree, Unfocused, View,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
@@ -130,6 +130,10 @@ pub struct TextInputStyle {
     pub background: Color,
     /// cursor + selection-highlight color
     pub accent: Color,
+    /// backdrop panel shape -- same knobs `Panel`/`Button` already expose, just never
+    /// forwarded here before
+    pub rounding: Rounding,
+    pub outline: Outline,
 }
 impl TextInput {
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
@@ -284,6 +288,14 @@ impl TextInputSprout {
         self.style.accent = c;
         self
     }
+    pub fn rounding(mut self, r: Rounding) -> Self {
+        self.style.rounding = r;
+        self
+    }
+    pub fn outline(mut self, w: i32) -> Self {
+        self.style.outline = Outline::new(w);
+        self
+    }
     pub fn font_size(mut self, f: FontSize) -> Self {
         self.font_size = Some(f);
         self
@@ -387,7 +399,8 @@ impl TextInput {
         let style = *styles.get(trigger.event_target()).unwrap();
         tree.entity(handle.text).insert(style.foreground);
         tree.entity(handle.hint_text).insert(style.foreground);
-        tree.entity(handle.panel).insert(style.background);
+        tree.entity(handle.panel)
+            .insert((style.background, style.rounding, style.outline));
         tree.entity(handle.visible).insert(style.accent);
         for (_, (e, _, _)) in handle.highlights.iter() {
             tree.entity(*e).insert(style.accent);

@@ -227,15 +227,23 @@ impl Sprout for ButtonSprout {
             this,
             move |trigger: Trigger<Insert, TextValue>,
                   values: Query<&TextValue>,
+                  icon_values: Query<&IconValue>,
+                  render_sizes: bevy_ecs::system::Res<crate::IconRenderSizes>,
                   mut tree: Tree| {
-                let value = values.get(trigger.event_target()).unwrap().0.clone();
+                let e = trigger.event_target();
+                let value = values.get(e).unwrap().0.clone();
                 let width = value.len();
+                // shift text right by half the icon's own real footprint + its 8px gap (see
+                // `icon_location` above), so icon+gap+text reads as one centered block --
+                // never a guessed offset, since the icon's size is itself configurable.
+                let icon_width = render_sizes.get(icon_values.get(e).unwrap().0).a() as i32;
+                let center_adjust = (icon_width + 8) / 2;
                 tree.entity(text).insert((
                     TextValue(value),
                     Location::new().xs(
                         50.pct()
                             .as_center_x()
-                            .adjust(20)
+                            .adjust(center_adjust)
                             .with(width.letters().as_width()),
                         1.row().as_top().with(1.row().as_bottom()),
                     ),

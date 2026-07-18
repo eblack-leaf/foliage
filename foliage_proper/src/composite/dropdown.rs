@@ -4,7 +4,7 @@ use crate::{
     anchor, Anchor, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity,
     FocusBehavior, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
     InteractionListener, InteractionPropagation, LeafSprout, List, ListItems, Location, OnClick,
-    Panel, Rounding, Sprout, Text, TextValue, Tree, Unfocused, VerticalAlignment,
+    Outline, Panel, Rounding, Sprout, Text, TextValue, Tree, Unfocused, VerticalAlignment,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -54,6 +54,8 @@ pub struct DropdownStyle {
     pub background: Color,
     /// selected row highlight + expanded trigger accent
     pub accent: Color,
+    /// trigger panel outline -- same knob `Panel` already exposes, just never forwarded here
+    pub outline: Outline,
 }
 /// Structural config, separate from [`DropdownStyle`] so restyling doesn't re-state it.
 #[derive(Component, Copy, Clone)]
@@ -62,12 +64,18 @@ pub struct DropdownConfig {
     pub chevron: Option<IconId>,
     /// option rows shown before the list scrolls
     pub max_visible: usize,
+    /// expanded option row height in px -- forwarded straight to the `List` underneath
+    pub row_height: i32,
+    /// expanded option row gap in px -- forwarded straight to the `List` underneath
+    pub row_gap: i32,
 }
 impl Default for DropdownConfig {
     fn default() -> Self {
         Self {
             chevron: None,
             max_visible: 5,
+            row_height: 36,
+            row_gap: 4,
         }
     }
 }
@@ -80,9 +88,6 @@ impl Default for DropdownConfig {
 pub struct SelectionChanged {
     pub index: usize,
 }
-
-const ROW_HEIGHT: i32 = 36;
-const ROW_GAP: i32 = 4;
 
 /// Private child registry -- the collapse/select/unfocus paths all need these ids.
 #[derive(Component, Copy, Clone)]
@@ -118,12 +123,22 @@ impl DropdownSprout {
         self.config.max_visible = n.max(1);
         self
     }
+    pub fn row_height(mut self, px: i32) -> Self {
+        self.config.row_height = px;
+        self
+    }
+    pub fn row_gap(mut self, px: i32) -> Self {
+        self.config.row_gap = px;
+        self
+    }
     pub fn colors(mut self, foreground: Color, background: Color, accent: Color) -> Self {
-        self.style = DropdownStyle {
-            foreground,
-            background,
-            accent,
-        };
+        self.style.foreground = foreground;
+        self.style.background = background;
+        self.style.accent = accent;
+        self
+    }
+    pub fn outline(mut self, w: i32) -> Self {
+        self.style.outline = Outline::new(w);
         self
     }
 }
@@ -160,13 +175,12 @@ impl Sprout for DropdownSprout {
                     FocusBehavior::ignore(),
                 )),
         );
+        // no Location: depends on whether a chevron is configured (right inset needs to
+        // leave room for one only when it's actually there), set by the structure
+        // reaction's first fire below.
         let text = tree.branch(
             this,
             Text::new("")
-                .at(Location::new().xs(
-                    12.px().as_left().with(100.pct().as_right().adjust(-36)),
-                    0.pct().as_top().with(100.pct().as_bottom()),
-                ))
                 .elevate(Elevation::up(2))
                 .with((
                     VerticalAlignment::Middle,
@@ -214,12 +228,24 @@ impl Sprout for DropdownSprout {
                     .0
                     .min(opts.0.len().saturating_sub(1));
                 let mut handle = handles.get_mut(e).unwrap();
-                tree.write_to(handle.panel, style.background);
+                tree.write_to(handle.panel, (style.background, style.outline));
+                // right inset reserves exactly the configured chevron's own registered
+                // footprint (+ its own 8px right inset, + 4px breathing room) when one
+                // exists -- never a guessed constant, since the chevron's size is itself
+                // fully configurable per icon.
+                let text_right_inset = match config.chevron {
+                    Some(icon) => -(8 + render_sizes.get(icon).a() as i32 + 4),
+                    None => -12,
+                };
                 tree.write_to(
                     handle.text,
                     (
                         TextValue(opts.0.get(current).cloned().unwrap_or_default()),
                         style.foreground,
+                        Location::new().xs(
+                            12.px().as_left().with(100.pct().as_right().adjust(text_right_inset)),
+                            0.pct().as_top().with(100.pct().as_bottom()),
+                        ),
                     ),
                 );
                 // chevron exists only while configured -- no defunct hidden entity. Its box
@@ -272,7 +298,7 @@ impl Sprout for DropdownSprout {
                 }
                 if open && !opts.0.is_empty() {
                     let shown = opts.0.len().min(config.max_visible);
-                    let height = shown as i32 * (ROW_HEIGHT + ROW_GAP) + ROW_GAP;
+                    let height = shown as i32 * (config.row_height + config.row_gap) + config.row_gap;
                     let row_options = opts.0.clone();
                     let surface = tree.leaf(
                         List::new()
@@ -312,8 +338,8 @@ impl Sprout for DropdownSprout {
                                     tree.write_to(e, (Selected(i), Expanded(false)));
                                 });
                             }))
-                            .row_height(ROW_HEIGHT)
-                            .gap(ROW_GAP)
+                            .row_height(config.row_height)
+                            .gap(config.row_gap)
                             .at(Location::new().xs(
                                 anchor().left().as_left().with(anchor().right().as_right()),
                                 anchor()

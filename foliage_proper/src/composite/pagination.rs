@@ -69,6 +69,9 @@ pub struct PaginationStyle {
     pub step_icons: Option<(IconId, IconId)>,
     /// prev/next button (icon, fill) colors; `None` falls back to (active, inactive)
     pub step_colors: Option<(Color, Color)>,
+    /// `Dots` mode pip (width, height) in px -- a bar, not a circle; `None` falls back to
+    /// (16, 4)
+    pub dot_size: Option<(i32, i32)>,
 }
 
 /// Emitted at the pagination root whenever [`PageIndex`] changes (indicator click,
@@ -117,6 +120,10 @@ impl PaginationSprout {
     }
     pub fn step_colors(mut self, foreground: Color, background: Color) -> Self {
         self.style.step_colors = Some((foreground, background));
+        self
+    }
+    pub fn dot_size(mut self, width: i32, height: i32) -> Self {
+        self.style.dot_size = Some((width, height));
         self
     }
     pub fn colors(mut self, active: Color, inactive: Color) -> Self {
@@ -298,6 +305,7 @@ impl Sprout for PaginationSprout {
                 for s in 0..shown {
                     match style.mode {
                         PaginationMode::Dots => {
+                            let (dot_w, dot_h) = style.dot_size.unwrap_or((16, 4));
                             let dot = tree.branch(
                                 strip,
                                 Panel::new()
@@ -308,8 +316,8 @@ impl Sprout for PaginationSprout {
                                         style.inactive
                                     })
                                     .at(Location::new().xs(
-                                        (s + 1).col().as_center_x().with(8.px().as_width()),
-                                        50.pct().as_center_y().with(8.px().as_height()),
+                                        (s + 1).col().as_center_x().with(dot_w.px().as_width()),
+                                        50.pct().as_center_y().with(dot_h.px().as_height()),
                                     ))
                                     .elevate(Elevation::up(1))
                                     .with((InteractionListener::new(), FocusBehavior::ignore())),
