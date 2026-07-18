@@ -16,11 +16,74 @@ use uuid::Uuid;
 impl Attachment for Asset {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(AssetLoader::default());
+        foliage.world.add_observer(handle_load_asset);
         foliage.main.add_systems(
             (await_assets, on_retrieve)
                 .chain()
                 .in_set(MainMarkers::External),
         );
+    }
+}
+
+/// Where a runtime-loaded asset's bytes come from. `Url` is used exactly as given -- no
+/// origin/base-url composition happens anywhere in this crate; the caller (native: a full
+/// filesystem path or http(s) URL: wasm: a full, already-resolved URL) owns that entirely.
+pub enum AssetSource {
+    Bytes(Vec<u8>),
+    Url(String),
+}
+
+/// The only door into `AssetLoader.assets` from outside this module -- `AssetLoader` itself
+/// stays unreachable (its module is private). `key` is caller-generated
+/// (`AssetLoader::generate_key`) so it's usable immediately (e.g. `Image::new(key)`)
+/// regardless of whether `Bytes` resolves this tick or `Url` is still in flight.
+#[derive(Event)]
+pub struct LoadAsset {
+    pub key: AssetKey,
+    pub source: AssetSource,
+}
+
+fn handle_load_asset(trigger: Trigger<LoadAsset>, mut asset_loader: ResMut<AssetLoader>) {
+    let event = trigger.event();
+    let key = event.key;
+    match &event.source {
+        AssetSource::Bytes(bytes) => {
+            asset_loader.assets.insert(key, Asset::new(bytes.clone()));
+        }
+        #[cfg(target_family = "wasm")]
+        AssetSource::Url(url) => {
+            let (fetch, sender) = AssetFetch::new(key);
+            asset_loader.queue_fetch(fetch);
+            let url = url.clone();
+            wasm_bindgen_futures::spawn_local(async move {
+                let asset = reqwest::Client::new()
+                    .get(url)
+                    .header("Accept", "application/octet-stream")
+                    .send()
+                    .await
+                    .expect("asset-request")
+                    .bytes()
+                    .await
+                    .expect("asset-bytes")
+                    .to_vec();
+                sender.send(Asset::new(asset)).ok();
+            });
+        }
+        // native fetches block the calling thread -- acceptable here (no single-threaded
+        // event loop to stall the way wasm has), so no awaiting/channel machinery needed:
+        // the bytes are simply in hand by the time this returns.
+        #[cfg(not(target_family = "wasm"))]
+        AssetSource::Url(url) => {
+            let bytes = reqwest::blocking::Client::new()
+                .get(url)
+                .header("Accept", "application/octet-stream")
+                .send()
+                .expect("asset-request")
+                .bytes()
+                .expect("asset-bytes")
+                .to_vec();
+            asset_loader.assets.insert(key, Asset::new(bytes));
+        }
     }
 }
 #[derive(Resource, Default)]
@@ -93,21 +156,6 @@ impl AssetLoader {
         Uuid::new_v4().as_u128()
     }
 }
-#[macro_export]
-macro_rules! load_asset {
-    ($foliage:ident, $path:literal) => {{
-        #[cfg(target_family = "wasm")]
-        let id = $foliage.load_remote_asset($path);
-        #[cfg(not(target_family = "wasm"))]
-        let id = $foliage.load_native_asset(include_bytes!($path).to_vec());
-        id
-    }};
-    ($foliage:ident, $path:literal, $name:literal) => {{
-        let id = $crate::load_asset!($foliage, $path);
-        $foliage.store(id, $name);
-        id
-    }};
-}
 pub type AssetKey = u128;
 #[derive(Clone)]
 pub struct Asset {
@@ -128,4 +176,19 @@ impl AssetFetch {
         let (sender, recv) = futures_channel::oneshot::channel();
         (Self { key, recv }, sender)
     }
+}
+
+/// A bundled asset -- embedded via `include_bytes!` on native, fetched from `$url` on wasm.
+/// The *mechanics* of that split (which `AssetSource` variant per platform) are the only
+/// thing this provides; `$url` is always a caller-supplied expression -- this crate still
+/// makes no assumption about where an app's assets are actually hosted.
+#[macro_export]
+macro_rules! bundled_asset {
+    ($foliage:expr, $path:literal, $url:expr) => {{
+        #[cfg(not(target_family = "wasm"))]
+        let source = $crate::AssetSource::Bytes(include_bytes!($path).to_vec());
+        #[cfg(target_family = "wasm")]
+        let source = $crate::AssetSource::Url($url);
+        $foliage.load_asset(source)
+    }};
 }

@@ -10,7 +10,6 @@ pub struct CodegenConfig {
     pub mips: u32,
     /// Largest mip's pixel dimension (`size << (mips - 1)`).
     pub texture_scale: u32,
-    pub dynamic: bool,
 }
 
 /// Emits the registration module: an `#[icon_handle]` enum (one variant per icon) plus a
@@ -23,9 +22,7 @@ pub fn generate(entries: &[IconEntry], cfg: &CodegenConfig) -> String {
         "// Regenerate via: foliage_icons gen --svg <svg-dir> --out <this-dir> --size {} --mips {}\n\n",
         cfg.size, cfg.mips
     ));
-    out.push_str(
-        "use foliage::{icon_handle, load_asset, EcsExtension, Foliage, Icon, IconId};\n\n",
-    );
+    out.push_str("use foliage::{icon_handle, EcsExtension, Foliage, Icon, IconId};\n\n");
     out.push_str("#[icon_handle]\n");
     out.push_str(&format!("pub enum {} {{\n", cfg.enum_name));
     for e in entries {
@@ -44,20 +41,10 @@ pub fn generate(entries: &[IconEntry], cfg: &CodegenConfig) -> String {
     out.push_str("pub fn register(foliage: &mut Foliage) {\n");
     for e in entries {
         let id = format!("IconId::from({}::{})", cfg.enum_name, e.variant);
-        if cfg.dynamic {
-            out.push_str(&format!(
-                "    let key = load_asset!(foliage, \"{stem}.icon\");\n",
-                stem = e.file_stem
-            ));
-            out.push_str(&format!(
-                "    foliage.world.spawn(Icon::memory_from_asset({id}, key, TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));\n"
-            ));
-        } else {
-            out.push_str(&format!(
-                "    foliage.world.spawn(Icon::memory_sized({id}, include_bytes!(\"{stem}.icon\"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));\n",
-                stem = e.file_stem
-            ));
-        }
+        out.push_str(&format!(
+            "    foliage.world.spawn(Icon::memory_sized({id}, include_bytes!(\"{stem}.icon\"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));\n",
+            stem = e.file_stem
+        ));
     }
     out.push_str("}\n");
     out

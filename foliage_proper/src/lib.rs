@@ -46,7 +46,7 @@ pub use anim::{
     Animate, Animation,
 };
 pub(crate) use ash::differential::Differential;
-pub use asset::{asset_retrieval, AssetKey, AssetRetrieval};
+pub use asset::{asset_retrieval, AssetKey, AssetRetrieval, AssetSource, LoadAsset};
 pub use attachment::Attachment;
 pub use author::{LeafSprout, Sprout, With};
 pub use bevy_ecs::{self, prelude::*};

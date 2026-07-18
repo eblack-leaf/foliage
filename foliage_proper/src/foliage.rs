@@ -1,7 +1,7 @@
 use crate::anim::animate;
 use crate::ash::differential::{cached_differential, RenderQueue, RenderRemoveQueue};
 use crate::ash::Ash;
-use crate::asset::{Asset, AssetKey, AssetLoader};
+use crate::asset::{Asset, AssetKey, AssetLoader, AssetSource, LoadAsset};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::Ginkgo;
 use crate::remove::Remove;
@@ -35,7 +35,6 @@ pub struct Foliage {
     pub(crate) main: Schedule,
     pub user: Schedule,
     pub(crate) diff: Schedule,
-    pub base_url: String,
     pub(crate) willow: Willow,
     pub(crate) ginkgo: Ginkgo,
     pub(crate) ash: Ash,
@@ -71,7 +70,6 @@ impl Foliage {
             willow: Default::default(),
             ginkgo: Default::default(),
             ash: Default::default(),
-            base_url: "".to_string(),
             android_connection: Default::default(),
             booted: false,
             queue: vec![],
@@ -157,8 +155,13 @@ impl Foliage {
     pub fn desktop_size<V: Into<Area<Physical>>>(&mut self, v: V) {
         self.willow.requested_size.replace(v.into());
     }
-    pub fn url<S: AsRef<str>>(&mut self, path: S) {
-        self.base_url = path.as_ref().to_string();
+    /// The browser's own origin (e.g. `https://example.com`) -- a raw environment fact, not a
+    /// hosting convention. Callers building a full URL for `AssetSource::Url` compose whatever
+    /// path structure their own deployment uses on top of this themselves; the crate assumes
+    /// nothing about where an app's assets live.
+    #[cfg(target_family = "wasm")]
+    pub fn window_origin() -> String {
+        web_sys::window().expect("window").origin()
     }
     pub fn define<M>(&mut self, obs: impl IntoObserver<M>) {
         self.world.add_observer(obs);
@@ -248,43 +251,13 @@ impl Foliage {
         self.diff
             .add_systems(cached_differential::<R, RT>.in_set(DiffMarkers::Extract));
     }
-    #[cfg(target_family = "wasm")]
-    pub fn load_remote_asset(&mut self, path: &str) -> AssetKey {
+    /// Load an asset at runtime -- `Bytes` for data already in hand, `Url` for a full,
+    /// already-resolved location to fetch from (native: blocking; wasm: async, resolves once
+    /// `Image`/whatever holds `key` next reacts to `OnRetrieval`). `key` is usable immediately
+    /// regardless of which variant is given or how long it takes to resolve.
+    pub fn load_asset(&mut self, source: AssetSource) -> AssetKey {
         let key = AssetLoader::generate_key();
-        let (fetch, sender) = crate::asset::AssetFetch::new(key);
-        self.world
-            .get_resource_mut::<AssetLoader>()
-            .expect("asset-loader")
-            .queue_fetch(fetch);
-        let path = format!(
-            "{}/{}/{}",
-            web_sys::window().expect("window").origin(),
-            self.base_url,
-            path
-        );
-        wasm_bindgen_futures::spawn_local(async move {
-            let asset = reqwest::Client::new()
-                .get(path)
-                .header("Accept", "application/octet-stream")
-                .send()
-                .await
-                .expect("asset-request")
-                .bytes()
-                .await
-                .expect("asset-bytes")
-                .to_vec();
-            sender.send(Asset::new(asset)).ok();
-        });
-        key
-    }
-    #[cfg(not(target_family = "wasm"))]
-    pub fn load_native_asset(&mut self, bytes: Vec<u8>) -> AssetKey {
-        let key = AssetLoader::generate_key();
-        self.world
-            .get_resource_mut::<AssetLoader>()
-            .expect("asset-loader")
-            .assets
-            .insert(key, Asset::new(bytes));
+        self.send(LoadAsset { key, source });
         key
     }
     pub fn enable_tracing(&self, targets: Targets) {

@@ -30,9 +30,6 @@ enum Cli {
         /// Name of the generated `#[icon_handle]` enum.
         #[arg(long, default_value = "IconHandles")]
         enum_name: String,
-        /// Emit `load_asset!`-backed dynamic registration instead of `include_bytes!`.
-        #[arg(long, default_value_t = false)]
-        dynamic: bool,
     },
 }
 
@@ -44,8 +41,7 @@ fn main() -> Result<(), String> {
             size,
             mips,
             enum_name,
-            dynamic,
-        } => generate(svg, out, size, mips, enum_name, dynamic),
+        } => generate(svg, out, size, mips, enum_name),
     }
 }
 
@@ -55,7 +51,6 @@ fn generate(
     size: u32,
     mips: u32,
     enum_name: String,
-    dynamic: bool,
 ) -> Result<(), String> {
     if mips == 0 {
         return Err("--mips must be at least 1".to_string());
@@ -109,7 +104,6 @@ fn generate(
         size,
         mips,
         texture_scale: size << (mips - 1),
-        dynamic,
     };
     let generated = codegen::generate(&entries, &cfg);
     let generated_path = out_dir.join("generated.rs");
