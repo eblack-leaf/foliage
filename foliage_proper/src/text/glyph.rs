@@ -1,10 +1,14 @@
+use crate::ash::differential::RenderQueue;
 use crate::coordinate::section::Section;
 use crate::coordinate::Physical;
+use crate::text::Text;
 use crate::EcsExtension;
-use crate::{Color, Component, Update};
+use crate::{Color, Component, Differential, ResolvedVisibility, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::lifecycle::HookContext;
+use bevy_ecs::query::{Changed, With};
+use bevy_ecs::system::{ParamSet, Query, ResMut};
 use bevy_ecs::world::DeferredWorld;
 use fontdue::layout::CoordinateSystem::PositiveYDown;
 use serde::{Deserialize, Serialize};
@@ -98,4 +102,100 @@ pub(crate) struct GlyphColor {
 #[derive(Component, Default, PartialEq, Clone)]
 pub struct ResolvedColors {
     pub colors: Vec<GlyphColor>,
+}
+
+/// `ResolvedGlyphs`' own queuing system -- every other differential channel goes through
+/// the shared, generic `cached_differential` (`ash/differential.rs`), which keeps only the
+/// *latest* value per entity in its `RenderQueue`. That's correct for every other component
+/// here (`Section`, `Color`, `ResolvedColors`, ...): each one is a complete snapshot, so an
+/// unflushed value being replaced by a newer one loses nothing. `ResolvedGlyphs` is the one
+/// exception -- its value is an *incremental* diff against whatever `resolve_glyphs` saw
+/// last tick (see `text/mod.rs`), not a full picture of current state. If two relayouts of
+/// the same entity land before a render flush ever drains the queue (a `Section` rewrite
+/// during an ancestor's animation is enough, even with unchanged text content -- the second
+/// relayout just diffs against the first's already-updated snapshot and comes out empty),
+/// the generic "latest wins" queuing silently drops the first diff's real `add()`s. Any
+/// other differential channel referencing those same glyph offsets afterward (`ResolvedColors`,
+/// most commonly) then points at offsets the render-side coordinator never registered,
+/// which is what panics in `InstanceCoordinator::order`. This merges successive diffs by
+/// offset instead of replacing one with the next, so nothing pending ever gets lost purely
+/// because a later, unrelated relayout happened to land on the same entity first.
+pub(crate) fn glyph_differential(
+    mut values: ParamSet<(
+        Query<(Entity, &ResolvedGlyphs), (Changed<ResolvedGlyphs>, With<Differential<Text, ResolvedGlyphs>>)>,
+        Query<&ResolvedGlyphs>,
+    )>,
+    mut caches: Query<&mut Differential<Text, ResolvedGlyphs>>,
+    mut visibility: ParamSet<(
+        Query<&ResolvedVisibility>,
+        Query<Entity, (Changed<ResolvedVisibility>, With<Differential<Text, ResolvedGlyphs>>)>,
+    )>,
+    mut queue: ResMut<RenderQueue<Text, ResolvedGlyphs>>,
+) {
+    // visibility-restore: a fresh full resend when going hidden -> visible, not a delta
+    // relative to anything already queued, so no merge is needed here -- same shape as
+    // `cached_differential`'s own visibility-restore half.
+    let changed = visibility.p1().iter().collect::<Vec<_>>();
+    for c in changed {
+        let Ok(visible) = visibility.p0().get(c).map(|v| v.visible()) else {
+            continue;
+        };
+        if visible {
+            let Ok(v) = values.p1().get(c).map(|v| v.clone()) else {
+                continue;
+            };
+            let Ok(mut cache) = caches.get_mut(c) else {
+                continue;
+            };
+            cache.cache.replace(v.clone());
+            queue.queue.insert(c, v);
+        }
+    }
+    // changed: merge into whatever's already unflushed instead of overwriting it.
+    for (e, v) in values.p0().iter() {
+        let Ok(visible) = visibility.p0().get(e).map(|v| v.visible()) else {
+            continue;
+        };
+        if visible {
+            let Ok(mut cache) = caches.get_mut(e) else {
+                continue;
+            };
+            if cache.different(v.clone()) {
+                let existing = queue.queue.remove(&e);
+                queue.queue.insert(e, merge_resolved_glyphs(existing, v.clone()));
+            }
+        }
+    }
+}
+
+enum GlyphDisposition {
+    Updated(Glyph),
+    Removed(Glyph),
+}
+fn merge_resolved_glyphs(existing: Option<ResolvedGlyphs>, incoming: ResolvedGlyphs) -> ResolvedGlyphs {
+    let Some(existing) = existing else {
+        return incoming;
+    };
+    let mut by_offset: HashMap<GlyphOffset, GlyphDisposition> = HashMap::new();
+    for g in existing.updated {
+        by_offset.insert(g.offset, GlyphDisposition::Updated(g));
+    }
+    for g in existing.removed {
+        by_offset.insert(g.offset, GlyphDisposition::Removed(g));
+    }
+    // incoming is strictly newer -- it overwrites whatever the older diff said per offset.
+    for g in incoming.updated {
+        by_offset.insert(g.offset, GlyphDisposition::Updated(g));
+    }
+    for g in incoming.removed {
+        by_offset.insert(g.offset, GlyphDisposition::Removed(g));
+    }
+    let mut merged = ResolvedGlyphs::new();
+    for (_, disposition) in by_offset {
+        match disposition {
+            GlyphDisposition::Updated(g) => merged.updated.push(g),
+            GlyphDisposition::Removed(g) => merged.removed.push(g),
+        }
+    }
+    merged
 }

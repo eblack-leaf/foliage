@@ -326,18 +326,29 @@ pub(crate) fn interactive_elements(
                     } else {
                         let mut context = *contexts.get(p).unwrap();
                         while let Some(id) = context.id {
+                            // `p`'s own `disable_drag` (checked above) only covers "the
+                            // grabbed entity refuses to let anything pan" (a knob/cursor
+                            // with no view of its own). It says nothing about a *view*
+                            // reached by walking up from some other grabbed content (a
+                            // Carousel page's own author content, say) that wants to
+                            // refuse drag-panning itself regardless of what's grabbed
+                            // inside it -- so that view's own `disable_drag` is checked
+                            // here too, independently. A disabled view doesn't stop the
+                            // search, though -- it keeps walking up for the next ancestor
+                            // view instead: touch has no separate wheel channel, so a drag
+                            // that isn't meant for this view (Carousel swiping its own
+                            // pages, say) must still be able to reach whatever scrollable
+                            // ancestor further out IS meant to receive it (the page behind
+                            // the Carousel, on mobile where dragging is the only scroll
+                            // input there is).
+                            let mut wrote = false;
                             if let Ok(_) = views.get(id) {
-                                // `p`'s own `disable_drag` (checked above) only covers "the
-                                // grabbed entity refuses to let anything pan" (a knob/cursor
-                                // with no view of its own). It says nothing about a *view*
-                                // reached by walking up from some other grabbed content (a
-                                // Carousel page's own author content, say) that wants to
-                                // refuse drag-panning itself regardless of what's grabbed
-                                // inside it -- so that view's own `disable_drag` is checked
-                                // here too, independently.
                                 if !all.get(id).unwrap().4.disable_drag {
                                     tree.entity(id).insert(ViewAdjustment(diff));
+                                    wrote = true;
                                 }
+                            }
+                            if wrote {
                                 break;
                             }
                             if let Ok(up) = contexts.get(id) {
@@ -408,17 +419,24 @@ pub(crate) fn interactive_elements(
                     } else {
                         let mut context = *contexts.get(p).unwrap();
                         while let Some(id) = context.id {
+                            // same reasoning as the move-phase walk-up above: the specific
+                            // view being targeted gets its own disable_drag check,
+                            // independent of `p`'s -- wheel still bypasses it here too,
+                            // same as it bypasses `p`'s own check -- and a view that
+                            // declines the drag doesn't stop the search, it keeps walking
+                            // up for the next ancestor view instead (see the move-phase
+                            // comment above for why: touch has no separate wheel channel).
+                            let mut wrote = false;
                             if let Ok(_) = views.get(id) {
-                                // same reasoning as the move-phase walk-up above: the
-                                // specific view being targeted gets its own disable_drag
-                                // check, independent of `p`'s -- but wheel still bypasses
-                                // it here too, same as it bypasses `p`'s own check.
                                 if !all.get(id).unwrap().4.disable_drag
                                     || event.method == InteractionMethod::ScrollWheel
                                 {
                                     let scaled = wheel_diff(&mut tree, id);
                                     tree.entity(id).insert(ViewAdjustment(scaled));
+                                    wrote = true;
                                 }
+                            }
+                            if wrote {
                                 break;
                             }
                             if let Ok(up) = contexts.get(id) {

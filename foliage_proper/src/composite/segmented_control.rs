@@ -34,10 +34,14 @@ pub struct SegmentedSelected(pub usize);
 /// Segmented control's OWN config vocabulary, poked as one unit.
 #[derive(Component, Copy, Clone)]
 pub struct SegmentedStyle {
-    /// selected segment's fill + label color
+    /// selected segment's fill
     pub active: Color,
-    /// every other segment's label color
+    /// every other segment's fill
     pub inactive: Color,
+    /// every label's own color, in both states -- separate from the two fills so a label
+    /// is never the same color as the panel sitting directly behind it (matches
+    /// `Dropdown`/`Toggle`'s own fill-vs-foreground split).
+    pub foreground: Color,
     pub rounding: Rounding,
     /// The first segment's own outer shape, applied exactly as given -- no mirroring.
     /// Defaults to `Side::left()` (a full capsule end: top and bottom both round). Every
@@ -54,6 +58,7 @@ impl Default for SegmentedStyle {
         Self {
             active: Color::default(),
             inactive: Color::default(),
+            foreground: Color::default(),
             rounding: Rounding::default(),
             first_end: Side::left(),
             last_end: Side::right(),
@@ -102,9 +107,10 @@ impl SegmentedControlSprout {
         self.selected = index;
         self
     }
-    pub fn colors(mut self, active: Color, inactive: Color) -> Self {
+    pub fn colors(mut self, active: Color, inactive: Color, foreground: Color) -> Self {
         self.style.active = active;
         self.style.inactive = inactive;
+        self.style.foreground = foreground;
         self
     }
     pub fn rounding(mut self, r: Rounding) -> Self {
@@ -201,11 +207,7 @@ impl Sprout for SegmentedControlSprout {
                     let label = tree.branch(
                         e,
                         Text::new(text.clone())
-                            .color(if i == current {
-                                style.active
-                            } else {
-                                style.inactive
-                            })
+                            .color(style.foreground)
                             .at(Location::new().xs(
                                 (i + 1).col().as_left().with((i + 1).col().as_right()),
                                 1.row().as_top().with(1.row().as_bottom()),
@@ -240,10 +242,9 @@ impl Sprout for SegmentedControlSprout {
                 let current = selected.get(e).unwrap().0.min(opts.0.len().saturating_sub(1));
                 let style = *styles.get(e).unwrap();
                 let handle = handles.get(e).unwrap();
-                for (i, (panel, label)) in handle.segments.iter().enumerate() {
-                    let active = i == current;
-                    tree.write_to(*panel, if active { style.active } else { style.inactive });
-                    tree.write_to(*label, if active { style.active } else { style.inactive });
+                for (i, (panel, _label)) in handle.segments.iter().enumerate() {
+                    // label color never depends on selection -- only the panel fill swaps.
+                    tree.write_to(*panel, if i == current { style.active } else { style.inactive });
                 }
                 tree.trigger_targets(SegmentChanged::new(current), e);
             },

@@ -52,7 +52,14 @@ impl Attachment for Text {
         foliage.differential::<Text, Section<Logical>>();
         foliage.differential::<Text, ResolvedElevation>();
         foliage.differential::<Text, Stem>();
-        foliage.differential::<Text, ResolvedGlyphs>();
+        // ResolvedGlyphs gets its own queuing system, not the generic `differential()` --
+        // see `glyph::glyph_differential`'s own doc comment for why.
+        foliage
+            .world
+            .insert_resource(crate::ash::differential::RenderQueue::<Text, ResolvedGlyphs>::new());
+        foliage
+            .diff
+            .add_systems(glyph::glyph_differential.in_set(DiffMarkers::Extract));
         foliage.differential::<Text, ResolvedColors>();
         foliage.differential::<Text, UniqueCharacters>();
         foliage.differential::<Text, TextBounds>();

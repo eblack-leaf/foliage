@@ -5,8 +5,8 @@
 use crate::icons::IconHandles;
 use foliage::{
     AssetKey, Carousel, CarouselPages, Checkbox, Color, Dropdown, EcsExtension, Elevation, Entity,
-    FontSize, GridExt, HorizontalAlignment, Icon, ImageView, InteractionPropagation, Location,
-    Opacity, Pagination, PaginationMode, Panel, Popover, PopoverPlacement, RadioGroup, Rounding,
+    FontSize, GridExt, HorizontalAlignment, Icon, InteractionPropagation, Location, Opacity,
+    Pagination, PaginationMode, Panel, Popover, PopoverPlacement, RadioGroup, Rounding,
     SegmentedControl, Slider, Sprout, Tabs, TabsPages, Text, TextInput, Toggle, Tree,
     VerticalAlignment,
 };
@@ -33,7 +33,7 @@ fn section(tree: &mut Tree, parent: Entity, cursor: &mut i32, label: &str, heigh
     (top, bottom)
 }
 
-pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
+pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
     tree.write_to(app, Opacity::new(1.0));
 
     // header -- row-based, same as the old artist_blog.rs (title row 1, subtitle row 2 of
@@ -144,7 +144,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
         SegmentedControl::new()
             .options(["A", "B", "C"])
             .selected(0)
-            .colors(Color::green(500), Color::gray(600))
+            .colors(Color::green(500), Color::gray(600), Color::gray(900))
             .rounding(Rounding::Sm)
             .at(Location::new().xs(
                 8.px().as_left().with(240.px().as_width()),
@@ -177,7 +177,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
             .background(Color::gray(900))
             .accent(Color::green(600))
             .rounding(Rounding::Sm)
-            .outline(1)
+            .outline(3)
             .at(Location::new().xs(
                 8.px().as_left().with(100.pct().as_right().adjust(-8)),
                 top.px().as_top().with(bottom.px().as_bottom()),
@@ -236,17 +236,32 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
         app,
         Carousel::new()
             .pages(CarouselPages::new(
-                artwork.len(),
+                3,
                 move |tree: &mut Tree, slot: Entity, i| {
+                    // placeholder pages -- a plain colored backing + a page-number label,
+                    // not a real image (the artwork crops looked wrong here).
+                    let backing = [Color::gray(700), Color::gray(600), Color::gray(500)];
                     tree.branch(
                         slot,
-                        foliage::Image::new(artwork[i])
-                            .view(ImageView::Crop)
+                        Panel::new()
+                            .color(backing[i % backing.len()])
                             .at(Location::new().xs(
                                 0.pct().as_left().with(100.pct().as_right()),
                                 0.pct().as_top().with(100.pct().as_bottom()),
                             ))
                             .elevate(Elevation::up(1)),
+                    );
+                    tree.branch(
+                        slot,
+                        Text::new(format!("page {}", i + 1))
+                            .size(FontSize::new(16))
+                            .color(Color::gray(200))
+                            .at(Location::new().xs(
+                                0.pct().as_left().with(100.pct().as_right()),
+                                0.pct().as_top().with(100.pct().as_bottom()),
+                            ))
+                            .elevate(Elevation::up(2))
+                            .with((HorizontalAlignment::Center, VerticalAlignment::Middle)),
                     );
                 },
             ))
@@ -309,7 +324,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
                     );
                 },
             ))
-            .colors(Color::green(500), Color::gray(600))
+            .colors(Color::green(500), Color::gray(600), Color::gray(900))
             .rounding(Rounding::Sm)
             .at(Location::new().xs(
                 8.px().as_left().with(100.pct().as_right().adjust(-8)),

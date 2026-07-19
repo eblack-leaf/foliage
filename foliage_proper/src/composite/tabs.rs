@@ -62,6 +62,9 @@ impl TabsPages {
 pub struct TabsStyle {
     pub active: Color,
     pub inactive: Color,
+    /// header label color, in both states -- separate from the two fills so a label is
+    /// never the same color as the segment sitting directly behind it.
+    pub foreground: Color,
     pub rounding: Rounding,
     pub header_height: i32,
 }
@@ -70,6 +73,7 @@ impl Default for TabsStyle {
         Self {
             active: Color::default(),
             inactive: Color::default(),
+            foreground: Color::default(),
             rounding: Rounding::default(),
             header_height: 44,
         }
@@ -98,9 +102,10 @@ impl TabsSprout {
         self.page = p;
         self
     }
-    pub fn colors(mut self, active: Color, inactive: Color) -> Self {
+    pub fn colors(mut self, active: Color, inactive: Color, foreground: Color) -> Self {
         self.style.active = active;
         self.style.inactive = inactive;
+        self.style.foreground = foreground;
         self
     }
     pub fn rounding(mut self, r: Rounding) -> Self {
@@ -184,6 +189,7 @@ impl Sprout for TabsSprout {
                         crate::composite::segmented_control::SegmentedStyle {
                             active: style.active,
                             inactive: style.inactive,
+                            foreground: style.foreground,
                             rounding: style.rounding,
                             // top only on each end: the header sits flush over the content
                             // area below it, so the whole bottom edge stays flat instead of

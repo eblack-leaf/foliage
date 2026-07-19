@@ -138,9 +138,14 @@ impl Sprout for CarouselSprout {
         // surface -- author pages with their own listeners take precedence over it, so swipe
         // works from any non-interactive part of a page.
         // no listener here: the slots overflow this entity's implicit View (Grid requires
-        // one), and a listener would make that View the target of wheel/drag panning --
-        // the swipe surface is the ROOT, whose view extent exactly fits its children, so
-        // any pan attempt clamps to zero
+        // one). `disable_drag` keeps that View from ever accepting a raw drag-panning
+        // ViewAdjustment -- paging is driven entirely by the Disengaged subscribe below,
+        // sliding each slot to its own animated `slot_location`; a stray per-tick drag
+        // delta landing on the viewport's own offset too would fight that animation and
+        // drift the strip out of sync with where paging thinks it put it (the extent
+        // spans every slot, on- and off-screen, so a pan attempt here is not the no-op it
+        // used to look like once the interaction walk-up was taught to skip past disabled
+        // views and keep going instead of stopping dead at the first one it finds).
         let viewport = tree.branch(
             this,
             Leaf::sprout()
@@ -149,7 +154,7 @@ impl Sprout for CarouselSprout {
                     0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .elevate(Elevation::up(1))
-                .with(Grid::default()),
+                .with((Grid::default(), InteractionPropagation::grab().disable_drag())),
         );
         tree.write_to(
             this,
