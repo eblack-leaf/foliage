@@ -239,8 +239,11 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
                 3,
                 move |tree: &mut Tree, slot: Entity, i| {
                     // placeholder pages -- a plain colored backing + a page-number label,
-                    // not a real image (the artwork crops looked wrong here).
-                    let backing = [Color::gray(700), Color::gray(600), Color::gray(500)];
+                    // not a real image (the artwork crops looked wrong here). avoid green --
+                    // that's the brand/active accent (the dots' active color, the Tabs
+                    // indicator) everywhere else on this page. also avoid gray(600) (the
+                    // dots' own inactive color) and gray(800) (the modal's own backdrop).
+                    let backing = [Color::blue(700), Color::orange(700), Color::gray(500)];
                     tree.branch(
                         slot,
                         Panel::new()

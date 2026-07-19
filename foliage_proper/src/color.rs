@@ -1,5 +1,6 @@
 use crate::anim::interpolation::Interpolations;
 use crate::{Animate, Attachment, Component, Foliage};
+use bevy_color::palettes::tailwind;
 use bevy_color::Alpha;
 
 #[derive(Component, Copy, Clone, PartialEq, Debug)]
@@ -110,6 +111,27 @@ impl From<i32> for Luminance {
         }
     }
 }
+macro_rules! color_fn {
+    ($name:ident: $c50:expr, $c100:expr, $c200:expr, $c300:expr, $c400:expr, $c500:expr, $c600:expr, $c700:expr, $c800:expr, $c900:expr, $c950:expr) => {
+        pub fn $name<L: Into<Luminance>>(l: L) -> Self {
+            Self {
+                value: match l.into() {
+                    Luminance::Fifty => $c50,
+                    Luminance::OneHundred => $c100,
+                    Luminance::TwoHundred => $c200,
+                    Luminance::ThreeHundred => $c300,
+                    Luminance::FourHundred => $c400,
+                    Luminance::FiveHundred => $c500,
+                    Luminance::SixHundred => $c600,
+                    Luminance::SevenHundred => $c700,
+                    Luminance::EightHundred => $c800,
+                    Luminance::NineHundred => $c900,
+                    Luminance::NineHundredFifty => $c950,
+                },
+            }
+        }
+    };
+}
 impl Color {
     pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
         Self {
@@ -147,72 +169,26 @@ impl Color {
     pub fn c_repr(&self) -> CReprColor {
         CReprColor::from(*self)
     }
-    pub fn gray<L: Into<Luminance>>(l: L) -> Self {
-        Self {
-            value: match l.into() {
-                Luminance::Fifty => bevy_color::palettes::tailwind::GRAY_50,
-                Luminance::OneHundred => bevy_color::palettes::tailwind::GRAY_100,
-                Luminance::TwoHundred => bevy_color::palettes::tailwind::GRAY_200,
-                Luminance::ThreeHundred => bevy_color::palettes::tailwind::GRAY_300,
-                Luminance::FourHundred => bevy_color::palettes::tailwind::GRAY_400,
-                Luminance::FiveHundred => bevy_color::palettes::tailwind::GRAY_500,
-                Luminance::SixHundred => bevy_color::palettes::tailwind::GRAY_600,
-                Luminance::SevenHundred => bevy_color::palettes::tailwind::GRAY_700,
-                Luminance::EightHundred => bevy_color::palettes::tailwind::GRAY_800,
-                Luminance::NineHundred => bevy_color::palettes::tailwind::GRAY_900,
-                Luminance::NineHundredFifty => bevy_color::palettes::tailwind::GRAY_950,
-            },
-        }
-    }
-    pub fn orange<L: Into<Luminance>>(l: L) -> Self {
-        Self {
-            value: match l.into() {
-                Luminance::Fifty => bevy_color::palettes::tailwind::ORANGE_50,
-                Luminance::OneHundred => bevy_color::palettes::tailwind::ORANGE_100,
-                Luminance::TwoHundred => bevy_color::palettes::tailwind::ORANGE_200,
-                Luminance::ThreeHundred => bevy_color::palettes::tailwind::ORANGE_300,
-                Luminance::FourHundred => bevy_color::palettes::tailwind::ORANGE_400,
-                Luminance::FiveHundred => bevy_color::palettes::tailwind::ORANGE_500,
-                Luminance::SixHundred => bevy_color::palettes::tailwind::ORANGE_600,
-                Luminance::SevenHundred => bevy_color::palettes::tailwind::ORANGE_700,
-                Luminance::EightHundred => bevy_color::palettes::tailwind::ORANGE_800,
-                Luminance::NineHundred => bevy_color::palettes::tailwind::ORANGE_900,
-                Luminance::NineHundredFifty => bevy_color::palettes::tailwind::ORANGE_950,
-            },
-        }
-    }
-    pub fn green<L: Into<Luminance>>(l: L) -> Self {
-        Self {
-            value: match l.into() {
-                Luminance::Fifty => bevy_color::palettes::tailwind::GREEN_50,
-                Luminance::OneHundred => bevy_color::palettes::tailwind::GREEN_100,
-                Luminance::TwoHundred => bevy_color::palettes::tailwind::GREEN_200,
-                Luminance::ThreeHundred => bevy_color::palettes::tailwind::GREEN_300,
-                Luminance::FourHundred => bevy_color::palettes::tailwind::GREEN_400,
-                Luminance::FiveHundred => bevy_color::palettes::tailwind::GREEN_500,
-                Luminance::SixHundred => bevy_color::palettes::tailwind::GREEN_600,
-                Luminance::SevenHundred => bevy_color::palettes::tailwind::GREEN_700,
-                Luminance::EightHundred => bevy_color::palettes::tailwind::GREEN_800,
-                Luminance::NineHundred => bevy_color::palettes::tailwind::GREEN_900,
-                Luminance::NineHundredFifty => bevy_color::palettes::tailwind::GREEN_950,
-            },
-        }
-    }
-    pub fn blue<L: Into<Luminance>>(l: L) -> Self {
-        Self {
-            value: match l.into() {
-                Luminance::Fifty => bevy_color::palettes::tailwind::BLUE_50,
-                Luminance::OneHundred => bevy_color::palettes::tailwind::BLUE_100,
-                Luminance::TwoHundred => bevy_color::palettes::tailwind::BLUE_200,
-                Luminance::ThreeHundred => bevy_color::palettes::tailwind::BLUE_300,
-                Luminance::FourHundred => bevy_color::palettes::tailwind::BLUE_400,
-                Luminance::FiveHundred => bevy_color::palettes::tailwind::BLUE_500,
-                Luminance::SixHundred => bevy_color::palettes::tailwind::BLUE_600,
-                Luminance::SevenHundred => bevy_color::palettes::tailwind::BLUE_700,
-                Luminance::EightHundred => bevy_color::palettes::tailwind::BLUE_800,
-                Luminance::NineHundred => bevy_color::palettes::tailwind::BLUE_900,
-                Luminance::NineHundredFifty => bevy_color::palettes::tailwind::BLUE_950,
-            },
-        }
-    }
+    color_fn!(red: tailwind::RED_50, tailwind::RED_100, tailwind::RED_200, tailwind::RED_300, tailwind::RED_400, tailwind::RED_500, tailwind::RED_600, tailwind::RED_700, tailwind::RED_800, tailwind::RED_900, tailwind::RED_950);
+    color_fn!(amber: tailwind::AMBER_50, tailwind::AMBER_100, tailwind::AMBER_200, tailwind::AMBER_300, tailwind::AMBER_400, tailwind::AMBER_500, tailwind::AMBER_600, tailwind::AMBER_700, tailwind::AMBER_800, tailwind::AMBER_900, tailwind::AMBER_950);
+    color_fn!(orange: tailwind::ORANGE_50, tailwind::ORANGE_100, tailwind::ORANGE_200, tailwind::ORANGE_300, tailwind::ORANGE_400, tailwind::ORANGE_500, tailwind::ORANGE_600, tailwind::ORANGE_700, tailwind::ORANGE_800, tailwind::ORANGE_900, tailwind::ORANGE_950);
+    color_fn!(yellow: tailwind::YELLOW_50, tailwind::YELLOW_100, tailwind::YELLOW_200, tailwind::YELLOW_300, tailwind::YELLOW_400, tailwind::YELLOW_500, tailwind::YELLOW_600, tailwind::YELLOW_700, tailwind::YELLOW_800, tailwind::YELLOW_900, tailwind::YELLOW_950);
+    color_fn!(lime: tailwind::LIME_50, tailwind::LIME_100, tailwind::LIME_200, tailwind::LIME_300, tailwind::LIME_400, tailwind::LIME_500, tailwind::LIME_600, tailwind::LIME_700, tailwind::LIME_800, tailwind::LIME_900, tailwind::LIME_950);
+    color_fn!(green: tailwind::GREEN_50, tailwind::GREEN_100, tailwind::GREEN_200, tailwind::GREEN_300, tailwind::GREEN_400, tailwind::GREEN_500, tailwind::GREEN_600, tailwind::GREEN_700, tailwind::GREEN_800, tailwind::GREEN_900, tailwind::GREEN_950);
+    color_fn!(emerald: tailwind::EMERALD_50, tailwind::EMERALD_100, tailwind::EMERALD_200, tailwind::EMERALD_300, tailwind::EMERALD_400, tailwind::EMERALD_500, tailwind::EMERALD_600, tailwind::EMERALD_700, tailwind::EMERALD_800, tailwind::EMERALD_900, tailwind::EMERALD_950);
+    color_fn!(teal: tailwind::TEAL_50, tailwind::TEAL_100, tailwind::TEAL_200, tailwind::TEAL_300, tailwind::TEAL_400, tailwind::TEAL_500, tailwind::TEAL_600, tailwind::TEAL_700, tailwind::TEAL_800, tailwind::TEAL_900, tailwind::TEAL_950);
+    color_fn!(cyan: tailwind::CYAN_50, tailwind::CYAN_100, tailwind::CYAN_200, tailwind::CYAN_300, tailwind::CYAN_400, tailwind::CYAN_500, tailwind::CYAN_600, tailwind::CYAN_700, tailwind::CYAN_800, tailwind::CYAN_900, tailwind::CYAN_950);
+    color_fn!(sky: tailwind::SKY_50, tailwind::SKY_100, tailwind::SKY_200, tailwind::SKY_300, tailwind::SKY_400, tailwind::SKY_500, tailwind::SKY_600, tailwind::SKY_700, tailwind::SKY_800, tailwind::SKY_900, tailwind::SKY_950);
+    color_fn!(blue: tailwind::BLUE_50, tailwind::BLUE_100, tailwind::BLUE_200, tailwind::BLUE_300, tailwind::BLUE_400, tailwind::BLUE_500, tailwind::BLUE_600, tailwind::BLUE_700, tailwind::BLUE_800, tailwind::BLUE_900, tailwind::BLUE_950);
+    color_fn!(indigo: tailwind::INDIGO_50, tailwind::INDIGO_100, tailwind::INDIGO_200, tailwind::INDIGO_300, tailwind::INDIGO_400, tailwind::INDIGO_500, tailwind::INDIGO_600, tailwind::INDIGO_700, tailwind::INDIGO_800, tailwind::INDIGO_900, tailwind::INDIGO_950);
+    color_fn!(violet: tailwind::VIOLET_50, tailwind::VIOLET_100, tailwind::VIOLET_200, tailwind::VIOLET_300, tailwind::VIOLET_400, tailwind::VIOLET_500, tailwind::VIOLET_600, tailwind::VIOLET_700, tailwind::VIOLET_800, tailwind::VIOLET_900, tailwind::VIOLET_950);
+    color_fn!(purple: tailwind::PURPLE_50, tailwind::PURPLE_100, tailwind::PURPLE_200, tailwind::PURPLE_300, tailwind::PURPLE_400, tailwind::PURPLE_500, tailwind::PURPLE_600, tailwind::PURPLE_700, tailwind::PURPLE_800, tailwind::PURPLE_900, tailwind::PURPLE_950);
+    color_fn!(fuchsia: tailwind::FUCHSIA_50, tailwind::FUCHSIA_100, tailwind::FUCHSIA_200, tailwind::FUCHSIA_300, tailwind::FUCHSIA_400, tailwind::FUCHSIA_500, tailwind::FUCHSIA_600, tailwind::FUCHSIA_700, tailwind::FUCHSIA_800, tailwind::FUCHSIA_900, tailwind::FUCHSIA_950);
+    color_fn!(pink: tailwind::PINK_50, tailwind::PINK_100, tailwind::PINK_200, tailwind::PINK_300, tailwind::PINK_400, tailwind::PINK_500, tailwind::PINK_600, tailwind::PINK_700, tailwind::PINK_800, tailwind::PINK_900, tailwind::PINK_950);
+    color_fn!(rose: tailwind::ROSE_50, tailwind::ROSE_100, tailwind::ROSE_200, tailwind::ROSE_300, tailwind::ROSE_400, tailwind::ROSE_500, tailwind::ROSE_600, tailwind::ROSE_700, tailwind::ROSE_800, tailwind::ROSE_900, tailwind::ROSE_950);
+    color_fn!(slate: tailwind::SLATE_50, tailwind::SLATE_100, tailwind::SLATE_200, tailwind::SLATE_300, tailwind::SLATE_400, tailwind::SLATE_500, tailwind::SLATE_600, tailwind::SLATE_700, tailwind::SLATE_800, tailwind::SLATE_900, tailwind::SLATE_950);
+    color_fn!(gray: tailwind::GRAY_50, tailwind::GRAY_100, tailwind::GRAY_200, tailwind::GRAY_300, tailwind::GRAY_400, tailwind::GRAY_500, tailwind::GRAY_600, tailwind::GRAY_700, tailwind::GRAY_800, tailwind::GRAY_900, tailwind::GRAY_950);
+    color_fn!(zinc: tailwind::ZINC_50, tailwind::ZINC_100, tailwind::ZINC_200, tailwind::ZINC_300, tailwind::ZINC_400, tailwind::ZINC_500, tailwind::ZINC_600, tailwind::ZINC_700, tailwind::ZINC_800, tailwind::ZINC_900, tailwind::ZINC_950);
+    color_fn!(neutral: tailwind::NEUTRAL_50, tailwind::NEUTRAL_100, tailwind::NEUTRAL_200, tailwind::NEUTRAL_300, tailwind::NEUTRAL_400, tailwind::NEUTRAL_500, tailwind::NEUTRAL_600, tailwind::NEUTRAL_700, tailwind::NEUTRAL_800, tailwind::NEUTRAL_900, tailwind::NEUTRAL_950);
+    color_fn!(stone: tailwind::STONE_50, tailwind::STONE_100, tailwind::STONE_200, tailwind::STONE_300, tailwind::STONE_400, tailwind::STONE_500, tailwind::STONE_600, tailwind::STONE_700, tailwind::STONE_800, tailwind::STONE_900, tailwind::STONE_950);
 }
