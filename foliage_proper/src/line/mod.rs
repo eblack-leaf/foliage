@@ -20,21 +20,21 @@ use bytemuck::{Pod, Zeroable};
 
 mod pipeline;
 #[derive(Component, Copy, Clone)]
-#[require(Shape)]
+#[require(LineQuad)]
 pub struct Line {
     pub weight: i32,
 }
-impl Attachment for Shape {
+impl Attachment for Line {
     fn attach(foliage: &mut Foliage) {
         foliage
             .diff
             .add_systems(Line::distill_descriptor.in_set(DiffMarkers::Finalize));
-        foliage.remove_queue::<Shape>();
-        foliage.differential::<Shape, Shape>();
-        foliage.differential::<Shape, BlendedOpacity>();
-        foliage.differential::<Shape, ResolvedElevation>();
-        foliage.differential::<Shape, Stem>();
-        foliage.differential::<Shape, Color>();
+        foliage.remove_queue::<LineQuad>();
+        foliage.differential::<LineQuad, LineQuad>();
+        foliage.differential::<LineQuad, BlendedOpacity>();
+        foliage.differential::<LineQuad, ResolvedElevation>();
+        foliage.differential::<LineQuad, Stem>();
+        foliage.differential::<LineQuad, Color>();
     }
 }
 impl Line {
@@ -50,12 +50,12 @@ impl Line {
     }
     pub(crate) fn distill_descriptor(
         mut lines: Query<
-            (&Points<Logical>, &Line, &mut Shape),
+            (&Points<Logical>, &Line, &mut LineQuad),
             Or<(Changed<Line>, Changed<Points<Logical>>)>,
         >,
         scale_factor: Res<ScaleFactor>,
     ) {
-        for (points, line, mut shape) in lines.iter_mut() {
+        for (points, line, mut quad) in lines.iter_mut() {
             let pts = (points.data[0].coordinates, points.data[1].coordinates);
             let x_diff = pts.1.a() - pts.0.a();
             let y_diff = pts.1.b() - pts.0.b();
@@ -75,7 +75,7 @@ impl Line {
             let left_bottom = Position::logical((pts.0.a() - x_adjust, pts.0.b() + y_adjust));
             let right_top = Position::logical((pts.1.a() + x_adjust, pts.1.b() - y_adjust));
             let right_bottom = Position::logical((pts.1.a() - x_adjust, pts.1.b() + y_adjust));
-            *shape = Shape::new(
+            *quad = LineQuad::new(
                 EdgePoints::new(
                     left_bottom.to_physical(scale_factor.value()).coordinates,
                     left_top.to_physical(scale_factor.value()).coordinates,
@@ -112,30 +112,38 @@ impl LineSprout {
 }
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
-pub struct EdgePoints {
-    pub start: Coordinates,
-    pub end: Coordinates,
+pub(crate) struct EdgePoints {
+    pub(crate) start: Coordinates,
+    pub(crate) end: Coordinates,
 }
 impl EdgePoints {
-    pub fn new(start: Coordinates, end: Coordinates) -> Self {
+    pub(crate) fn new(start: Coordinates, end: Coordinates) -> Self {
         Self { start, end }
     }
 }
+/// The quad `Line` draws -- not a general shape primitive, just `Line`'s own render
+/// payload split out so it can carry `#[repr(C)]`/`Pod` without dragging `weight` (a
+/// CPU-only authoring value, never uploaded) along into the GPU buffer. `pub(crate)` and
+/// unexported: only `Line::distill_descriptor` ever constructs or touches one, so a
+/// self-intersecting/degenerate quad can only happen via a real bug in that one system,
+/// never from outside code reaching in through `Query<&mut LineQuad>` and hand-editing
+/// corners. There's deliberately no path to author one directly -- this framework doesn't
+/// support arbitrary/tessellated shapes, only the rectangle `Line` itself needs.
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
-#[require(Differential<Shape, Shape>)]
-#[require(Differential<Shape, Stem>)]
-#[require(Color, Differential<Shape, Color>)]
-#[require(Differential<Shape, ResolvedElevation>)]
-#[require(Differential<Shape, BlendedOpacity>)]
+#[require(Differential<LineQuad, LineQuad>)]
+#[require(Differential<LineQuad, Stem>)]
+#[require(Color, Differential<LineQuad, Color>)]
+#[require(Differential<LineQuad, ResolvedElevation>)]
+#[require(Differential<LineQuad, BlendedOpacity>)]
 #[require(Points<Logical>)]
 #[component(on_add = Self::on_add)]
-pub struct Shape {
-    pub left: EdgePoints,
-    pub right: EdgePoints,
+pub(crate) struct LineQuad {
+    pub(crate) left: EdgePoints,
+    pub(crate) right: EdgePoints,
 }
-impl Shape {
-    pub fn new(left: EdgePoints, right: EdgePoints) -> Self {
+impl LineQuad {
+    pub(crate) fn new(left: EdgePoints, right: EdgePoints) -> Self {
         Self { left, right }
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {

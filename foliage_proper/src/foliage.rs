@@ -11,8 +11,8 @@ use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::willow::Willow;
 use crate::{
     AndroidConnection, Animate, Animation, Area, Attachment, Color, Disable, EcsExtension,
-    Elevation, Enable, Grid, Icon, Image, Interaction, Location, Named, OnClick, Opacity, Panel,
-    Physical, Resource, Shape, SystemSet, Text, TextInput, Visibility,
+    Elevation, Enable, Grid, Icon, Image, Interaction, Line, Location, Named, OnClick, Opacity,
+    Panel, Physical, Polygon, Resource, SystemSet, Text, TextInput, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -108,7 +108,8 @@ impl Foliage {
         Disable::attach(&mut foliage);
         Enable::attach(&mut foliage);
         Panel::attach(&mut foliage);
-        Shape::attach(&mut foliage);
+        Line::attach(&mut foliage);
+        Polygon::attach(&mut foliage);
         Grid::attach(&mut foliage);
         Interaction::attach(&mut foliage);
         Icon::attach(&mut foliage);

@@ -3,8 +3,8 @@ use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
+use crate::line::LineQuad;
 use crate::opacity::BlendedOpacity;
-use crate::shape::Shape;
 use crate::{CReprColor, Color, Coordinates, ResolvedElevation, Stem};
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
@@ -35,17 +35,17 @@ pub(crate) const VERTICES: [Vertex; 6] = [
 ];
 pub(crate) struct Resources {}
 pub(crate) struct Group {
-    shapes: InstanceBuffer<Shape>,
+    quads: InstanceBuffer<LineQuad>,
     elevations: InstanceBuffer<ResolvedElevation>,
     colors: InstanceBuffer<CReprColor>,
     opacities: InstanceBuffer<BlendedOpacity>,
 }
-impl Render for Shape {
+impl Render for LineQuad {
     type Group = Group;
     type Resources = Resources;
 
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self> {
-        let shader = ginkgo.create_shader(include_wgsl!("shape.wgsl"));
+        let shader = ginkgo.create_shader(include_wgsl!("line.wgsl"));
         let vertex_buffer = ginkgo.create_vertex_buffer(VERTICES);
         let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("line-bind-group-layout"),
@@ -75,7 +75,7 @@ impl Render for Shape {
                         VertexStepMode::Vertex,
                         &wgpu::vertex_attr_array![0 => Float32x2],
                     ),
-                    Ginkgo::vertex_buffer_layout::<Shape>(
+                    Ginkgo::vertex_buffer_layout::<LineQuad>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![
                             1 => Float32x4,
@@ -109,7 +109,7 @@ impl Render for Shape {
         });
         let mut groups = HashMap::new();
         let group = Group {
-            shapes: InstanceBuffer::new(ginkgo, 1),
+            quads: InstanceBuffer::new(ginkgo, 1),
             elevations: InstanceBuffer::new(ginkgo, 1),
             colors: InstanceBuffer::new(ginkgo, 1),
             opacities: InstanceBuffer::new(ginkgo, 1),
@@ -129,7 +129,7 @@ impl Render for Shape {
         queues: &mut RenderQueueHandle,
         ginkgo: &Ginkgo,
     ) -> Nodes {
-        tracing::trace!("pipeline: shape prepare");
+        tracing::trace!("pipeline: line prepare");
         let mut nodes = Nodes::new();
         let group = renderer.groups.get_mut(&0).unwrap();
         for entity in queues.removes::<Self>() {
@@ -137,15 +137,15 @@ impl Render for Shape {
             if group.coordinator.has_instance(id) {
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
-                nodes.remove(RemoveNode::new(PipelineId::Shape, 0, id));
-                queues.remove_attr::<Shape, Shape>(entity);
-                queues.remove_attr::<Shape, ResolvedElevation>(entity);
-                queues.remove_attr::<Shape, Stem>(entity);
-                queues.remove_attr::<Shape, Color>(entity);
-                queues.remove_attr::<Shape, BlendedOpacity>(entity);
+                nodes.remove(RemoveNode::new(PipelineId::Line, 0, id));
+                queues.remove_attr::<LineQuad, LineQuad>(entity);
+                queues.remove_attr::<LineQuad, ResolvedElevation>(entity);
+                queues.remove_attr::<LineQuad, Stem>(entity);
+                queues.remove_attr::<LineQuad, Color>(entity);
+                queues.remove_attr::<LineQuad, BlendedOpacity>(entity);
             }
         }
-        for (entity, shape) in queues.attribute::<Self, Self>() {
+        for (entity, quad) in queues.attribute::<Self, Self>() {
             let id = entity.index().index() as InstanceId;
             if !group.coordinator.has_instance(id) {
                 group.coordinator.add(Instance::new(
@@ -154,7 +154,7 @@ impl Render for Shape {
                     id,
                 ));
             }
-            group.group.shapes.queue(id, shape);
+            group.group.quads.queue(id, quad);
         }
         for (entity, elevation) in queues.attribute::<Self, ResolvedElevation>() {
             let id = entity.index().index() as InstanceId;
@@ -174,20 +174,20 @@ impl Render for Shape {
             group.group.opacities.queue(id, opacity);
         }
         if let Some(n) = group.coordinator.grown() {
-            group.group.shapes.grow(ginkgo, n);
+            group.group.quads.grow(ginkgo, n);
             group.group.elevations.grow(ginkgo, n);
             group.group.colors.grow(ginkgo, n);
             group.group.opacities.grow(ginkgo, n);
         }
         for swap in group.coordinator.sort() {
-            group.group.shapes.swap(swap);
+            group.group.quads.swap(swap);
             group.group.elevations.swap(swap);
             group.group.colors.swap(swap);
             group.group.opacities.swap(swap);
         }
-        for (id, data) in group.group.shapes.queued() {
+        for (id, data) in group.group.quads.queued() {
             let order = group.coordinator.order(id);
-            group.group.shapes.write_cpu(order, data);
+            group.group.quads.write_cpu(order, data);
         }
         for (id, data) in group.group.elevations.queued() {
             let order = group.coordinator.order(id);
@@ -201,11 +201,11 @@ impl Render for Shape {
             let order = group.coordinator.order(id);
             group.group.opacities.write_cpu(order, data);
         }
-        group.group.shapes.write_gpu(ginkgo);
+        group.group.quads.write_gpu(ginkgo);
         group.group.elevations.write_gpu(ginkgo);
         group.group.colors.write_gpu(ginkgo);
         group.group.opacities.write_gpu(ginkgo);
-        for node in group.coordinator.updated_nodes(PipelineId::Shape, 0) {
+        for node in group.coordinator.updated_nodes(PipelineId::Line, 0) {
             nodes.update(node);
         }
         nodes
@@ -216,7 +216,7 @@ impl Render for Shape {
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &renderer.bind_group, &[]);
         render_pass.set_vertex_buffer(0, renderer.vertex_buffer.slice(..));
-        render_pass.set_vertex_buffer(1, group.group.shapes.buffer.slice(..));
+        render_pass.set_vertex_buffer(1, group.group.quads.buffer.slice(..));
         render_pass.set_vertex_buffer(2, group.group.elevations.buffer.slice(..));
         render_pass.set_vertex_buffer(3, group.group.colors.buffer.slice(..));
         render_pass.set_vertex_buffer(4, group.group.opacities.buffer.slice(..));

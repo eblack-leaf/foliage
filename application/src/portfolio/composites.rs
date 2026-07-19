@@ -6,7 +6,7 @@ use crate::icons::IconHandles;
 use foliage::{
     AssetKey, Carousel, CarouselPages, Checkbox, Color, Dropdown, EcsExtension, Elevation, Entity,
     FontSize, GridExt, HorizontalAlignment, Icon, InteractionPropagation, Location, Opacity,
-    Pagination, PaginationMode, Panel, Popover, PopoverPlacement, RadioGroup, Rounding,
+    Pagination, PaginationMode, Panel, Polygon, Popover, PopoverPlacement, RadioGroup, Rounding,
     SegmentedControl, Slider, Sprout, Tabs, TabsPages, Text, TextInput, Toggle, Tree,
     VerticalAlignment,
 };
@@ -287,11 +287,12 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
                 |tree: &mut Tree, slot: Entity, i| {
                     // a real dark, square-cornered backing + a small icon, not just
                     // floating text -- makes it obvious the content actually changed per
-                    // tab, without turning it into a bright color swatch.
-                    // page background is gray(800) (the modal's own backdrop) -- none of
-                    // these can be gray(800) or tab content is invisible against it, same
-                    // mistake as the Popover surface earlier.
-                    let backing = [Color::gray(700), Color::gray(600), Color::gray(500)];
+                    // tab, without turning it into a bright color swatch. a couple distinct
+                    // hues here (unlike Carousel's backing, this one never sits under the
+                    // Tabs colors() config -- that only styles the header SegmentedControl)
+                    // -- still avoid gray(800), the modal's own backdrop, same mistake as
+                    // the Popover surface earlier.
+                    let backing = [Color::teal(700), Color::indigo(700), Color::gray(500)];
                     let icons = [IconHandles::Terminal, IconHandles::Layers, IconHandles::BookOpen];
                     tree.branch(
                         slot,
@@ -441,6 +442,30 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
             ))
             .elevate(Elevation::up(2)),
     );
+
+    // Polygon -- the "expressive shape" primitive: sides/rounding/rotation are plain
+    // animatable scalars, not a Panel variant (Panel keeps arbitrary-aspect rects with
+    // independent per-corner radii; this is regular, roughly-square shapes only). One
+    // color throughout so the row reads as "compare shapes," not "compare colors" --
+    // sharp triangle, lightly-rounded pentagon, more-rounded hexagon, and full rounding
+    // (any side count converges to a true circle once rounding hits 1.0).
+    let (top, bottom) = section(tree, app, &mut cursor, "Polygon", 60);
+    let polygons: [(f32, f32); 4] = [(3.0, 0.0), (5.0, 0.15), (6.0, 0.4), (8.0, 1.0)];
+    for (i, (sides, rounding)) in polygons.into_iter().enumerate() {
+        let left = 8 + i as i32 * 68;
+        tree.branch(
+            app,
+            Polygon::new()
+                .sides(sides)
+                .rounding(rounding)
+                .color(Color::gray(600))
+                .at(Location::new().xs(
+                    left.px().as_left().with(60.px().as_width()),
+                    top.px().as_top().with(bottom.px().as_bottom()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+    }
 
     cursor += 40;
     let _spacer = tree.branch(

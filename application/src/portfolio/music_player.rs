@@ -60,7 +60,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, album_cover: AssetKey) {
     tree.branch(
         search,
         TextInput::new()
-            .text("Search Library")
+            .hint_text("Search Library")
             .foreground(Color::gray(600))
             .background(Color::gray(900))
             .accent(Color::green(300))

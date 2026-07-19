@@ -26,9 +26,10 @@ pub(crate) type GroupId = i32;
 pub(crate) enum PipelineId {
     Text,
     Icon,
-    Shape,
+    Line,
     Panel,
     Image,
+    Polygon,
 }
 #[derive(Clone)]
 pub(crate) struct ContiguousSpan {

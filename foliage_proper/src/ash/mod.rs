@@ -4,7 +4,8 @@ use crate::foliage::Foliage;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::image::Image;
-use crate::shape::Shape;
+use crate::line::LineQuad;
+use crate::polygon::Polygon;
 use crate::{Attachment, Color, Icon, Panel, Stem, Text};
 use bevy_ecs::prelude::IntoScheduleConfigs;
 use bevy_ecs::world::World;
@@ -38,7 +39,8 @@ pub(crate) struct Ash {
     pub(crate) panel: Option<Renderer<Panel>>,
     pub(crate) image: Option<Renderer<Image>>,
     pub(crate) icon: Option<Renderer<Icon>>,
-    pub(crate) shape: Option<Renderer<Shape>>,
+    pub(crate) line: Option<Renderer<LineQuad>>,
+    pub(crate) polygon: Option<Renderer<Polygon>>,
     pub(crate) clip: HashMap<Stem, ClipSection>,
 }
 impl Default for Ash {
@@ -56,7 +58,8 @@ impl Ash {
             panel: None,
             image: None,
             icon: None,
-            shape: None,
+            line: None,
+            polygon: None,
             clip: Default::default(),
         }
     }
@@ -65,7 +68,8 @@ impl Ash {
         self.panel.replace(Panel::renderer(ginkgo));
         self.image.replace(Image::renderer(ginkgo));
         self.icon.replace(Icon::renderer(ginkgo));
-        self.shape.replace(Shape::renderer(ginkgo));
+        self.line.replace(LineQuad::renderer(ginkgo));
+        self.polygon.replace(Polygon::renderer(ginkgo));
     }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
         let mut queues = RenderQueueHandle::new(world);
@@ -86,9 +90,12 @@ impl Ash {
         let icon_nodes = Render::prepare(self.icon.as_mut().unwrap(), &mut queues, ginkgo);
         nodes.extend(icon_nodes.updated);
         to_remove.extend(icon_nodes.removed);
-        let shape_nodes = Render::prepare(self.shape.as_mut().unwrap(), &mut queues, ginkgo);
-        nodes.extend(shape_nodes.updated);
-        to_remove.extend(shape_nodes.removed);
+        let line_nodes = Render::prepare(self.line.as_mut().unwrap(), &mut queues, ginkgo);
+        nodes.extend(line_nodes.updated);
+        to_remove.extend(line_nodes.removed);
+        let polygon_nodes = Render::prepare(self.polygon.as_mut().unwrap(), &mut queues, ginkgo);
+        nodes.extend(polygon_nodes.updated);
+        to_remove.extend(polygon_nodes.removed);
         if nodes.is_empty() && to_remove.is_empty() {
             return;
         }
@@ -219,14 +226,17 @@ impl Ash {
                     PipelineId::Icon => {
                         Render::render(self.icon.as_mut().unwrap(), &mut rpass, parameters);
                     }
-                    PipelineId::Shape => {
-                        Render::render(self.shape.as_mut().unwrap(), &mut rpass, parameters);
+                    PipelineId::Line => {
+                        Render::render(self.line.as_mut().unwrap(), &mut rpass, parameters);
                     }
                     PipelineId::Panel => {
                         Render::render(self.panel.as_mut().unwrap(), &mut rpass, parameters);
                     }
                     PipelineId::Image => {
                         Render::render(self.image.as_mut().unwrap(), &mut rpass, parameters);
+                    }
+                    PipelineId::Polygon => {
+                        Render::render(self.polygon.as_mut().unwrap(), &mut rpass, parameters);
                     }
                 }
             }

@@ -37,9 +37,17 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
 }
 fn distance_to_edge(edge: vec4f, pt: vec2f) -> f32 {
     let line_dir = edge.zw - edge.xy;
+    let bias = f32(line_dir.x == 0 || line_dir.y == 0 || distance(edge.zw, edge.xy) == 0);// TODO % from pi/2
+    // a collapsed corner (triangle via a degenerate quad side) makes line_dir zero --
+    // normalize(vec2f(0,0)) is NaN, and that NaN would poison the min() below regardless
+    // of which of the four sides (left/right from instance data, or top/bot synthesized
+    // from adjacent corners) went degenerate. bias alone is the right non-constraining
+    // value here: a collapsed side isn't a real boundary of the shape.
+    if (dot(line_dir, line_dir) == 0.0) {
+        return bias;
+    }
     let perpendicular = vec2f(line_dir.y, -line_dir.x);
     let dir_to_pt = edge.xy - pt;
-    let bias = f32(line_dir.x == 0 || line_dir.y == 0 || distance(edge.zw, edge.xy) == 0);// TODO % from pi/2
     return abs(dot(normalize(perpendicular), dir_to_pt)) + bias;
 }
 @fragment
