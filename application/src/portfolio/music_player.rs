@@ -66,7 +66,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, album_cover: AssetKey) {
             .accent(Color::green(300))
             .at(Location::new().xs(
                 48.px().as_left().with(100.pct().as_right().adjust(-16)),
-                50.pct().as_center_y().adjust(4).with(90.pct().as_height()),
+                50.pct().as_center_y().with(90.pct().as_height()),
             ))
             .elevate(Elevation::up(1)),
     );

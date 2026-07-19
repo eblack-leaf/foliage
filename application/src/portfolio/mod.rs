@@ -5,8 +5,8 @@ use crate::icons::IconHandles;
 use crate::widgets::{icon_button, Launch, ProjectCard};
 use foliage::{
     Animation, Closed, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt, Keyring,
-    Leaf, Location, Modal, OnClick, OnEnd, Opacity, Panel, Res, Rounding, Sequence, Sprout, Tree,
-    Trigger,
+    Leaf, Location, Modal, OnClick, OnEnd, Opacity, Panel, Query, Res, Rounding, Sequence, Sprout,
+    Tree, Trigger,
 };
 
 /// The panel each modal's content lives in, plus injecting that content -- isolated here so
@@ -83,8 +83,13 @@ fn fade_page_chrome_in(tree: &mut Tree, root: Entity, back: Entity) {
                 .start(1000)
                 .finish(1500),
         )
-        .end(move |_: Trigger<OnEnd>, mut tree: Tree| {
-            tree.enable([root, back]);
+        .end(move |_: Trigger<OnEnd>, mut tree: Tree, modals: Query<&Modal>| {
+            // same race as the page-load timer (see its comment): if the user reopens a
+            // modal before this fade-back-in finishes, this fires anyway and would
+            // re-enable `back`/`root` right out from under the new modal.
+            if modals.is_empty() {
+                tree.enable([root, back]);
+            }
         });
 }
 
@@ -269,9 +274,22 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 .during(seq),
         );
     }
-    tree.timer(1000, move |trigger: Trigger<OnEnd>, mut tree: Tree| {
-        tree.enable(back);
-    });
+    tree.timer(
+        1000,
+        move |trigger: Trigger<OnEnd>, mut tree: Tree, modals: Query<&Modal>| {
+            // a card can open its modal before this fires (cards start fading in at
+            // 750ms, this timer fires at 1000ms) -- `open_modal` already disabled `back`
+            // for that case, and re-enabling it here regardless would let `back`'s own
+            // handler (fade root/back out, fade home in, remove root/back) fire while a
+            // modal's still open, skipping the modal's own close teardown entirely and
+            // jumping straight to home out from under it. Only enable if nothing beat us
+            // to disabling it for a real reason -- the modal's own `Closed` handler
+            // (`fade_page_chrome_in`) re-enables `back` once it actually closes.
+            if modals.is_empty() {
+                tree.enable(back);
+            }
+        },
+    );
 }
 pub(crate) struct PortfolioItem {
     title: &'static str,

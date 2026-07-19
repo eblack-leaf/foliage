@@ -224,6 +224,19 @@ pub(crate) fn interactive_elements(
             current.past_drag = false;
             let mut grabbed_elevation = ResolvedElevation::new(101.0);
             for (entity, section, elevation, clip, propagation, shape) in all.iter() {
+                // a disabled entity must not compete for the grab at all -- geometry and
+                // elevation alone used to decide this, so a disabled-but-still-elevated
+                // entity (an app hiding a page-level button behind a modal, say) could win
+                // it purely by sitting on top, silently eating clicks/scrolls meant for
+                // whatever's actually beneath it even though its own OnClick/Engaged/
+                // Dragged were already correctly gated off downstream.
+                if listeners
+                    .get(entity)
+                    .map(|l| l.disabled())
+                    .unwrap_or(false)
+                {
+                    continue;
+                }
                 if propagation.grab {
                     if elevation >= &grabbed_elevation {
                         if InteractionListener::is_contained(
