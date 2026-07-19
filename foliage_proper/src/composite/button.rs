@@ -81,7 +81,6 @@ fn restyle(
             },
         );
     }
-    tree.write_to(this, InteractionListener::new());
     // Full: the whole button is the icon's alignment region (see `Icon::align_render_size`),
     // centered. Anchored: the box is exactly the icon's registered footprint, its right
     // edge 8px left of the text -- exact size because the clip region derives from the box.
