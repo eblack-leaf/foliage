@@ -185,6 +185,11 @@ impl Sprout for TabsSprout {
                             active: style.active,
                             inactive: style.inactive,
                             rounding: style.rounding,
+                            // top only on each end: the header sits flush over the content
+                            // area below it, so the whole bottom edge stays flat instead of
+                            // a capsule.
+                            first_end: crate::Side::corners(true, false, false, false),
+                            last_end: crate::Side::corners(false, true, false, false),
                         },
                         crate::composite::segmented_control::SegmentedSelected(current),
                         Location::new().xs(

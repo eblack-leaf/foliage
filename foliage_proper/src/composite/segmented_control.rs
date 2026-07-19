@@ -3,7 +3,7 @@ use crate::Trigger;
 use crate::{
     Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid, GridExt,
     HorizontalAlignment, InteractionListener, InteractionPropagation, LeafSprout, Location,
-    OnClick, Panel, Rounding, Sprout, Text, Tree, VerticalAlignment,
+    OnClick, Panel, Rounding, Side, Sprout, Text, Tree, VerticalAlignment,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -32,13 +32,33 @@ pub struct SegmentedOptions(pub Vec<String>);
 pub struct SegmentedSelected(pub usize);
 
 /// Segmented control's OWN config vocabulary, poked as one unit.
-#[derive(Component, Copy, Clone, Default)]
+#[derive(Component, Copy, Clone)]
 pub struct SegmentedStyle {
     /// selected segment's fill + label color
     pub active: Color,
     /// every other segment's label color
     pub inactive: Color,
     pub rounding: Rounding,
+    /// The first segment's own outer shape, applied exactly as given -- no mirroring.
+    /// Defaults to `Side::left()` (a full capsule end: top and bottom both round). Every
+    /// seam in between always stays flat regardless of either end's shape.
+    pub first_end: Side,
+    /// The last segment's own outer shape, same deal as [`Self::first_end`] -- set it
+    /// explicitly rather than relying on it matching the first end. Defaults to
+    /// `Side::right()`. When there's only one segment, it gets both shapes unioned
+    /// together (so the default pair still produces a full capsule).
+    pub last_end: Side,
+}
+impl Default for SegmentedStyle {
+    fn default() -> Self {
+        Self {
+            active: Color::default(),
+            inactive: Color::default(),
+            rounding: Rounding::default(),
+            first_end: Side::left(),
+            last_end: Side::right(),
+        }
+    }
 }
 
 /// Emitted at the control's root whenever [`SegmentedSelected`] changes (segment click or
@@ -91,6 +111,11 @@ impl SegmentedControlSprout {
         self.style.rounding = r;
         self
     }
+    pub fn ends(mut self, first: Side, last: Side) -> Self {
+        self.style.first_end = first;
+        self.style.last_end = last;
+        self
+    }
 }
 impl Sprout for SegmentedControlSprout {
     fn seed(&mut self) -> &mut LeafSprout {
@@ -134,15 +159,33 @@ impl Sprout for SegmentedControlSprout {
                 if opts.0.is_empty() {
                     return;
                 }
-                tree.write_to(
-                    e,
-                    Grid::new(opts.0.len().col().gap(4), 1.row()),
+                tree.write_to(e, Grid::new(opts.0.len().col(), 1.row()));
+                let last = opts.0.len() - 1;
+                let (first_end, last_end) = (style.first_end, style.last_end);
+                let solo = Side::corners(
+                    first_end.top_left || last_end.top_left,
+                    first_end.top_right || last_end.top_right,
+                    first_end.bottom_left || last_end.bottom_left,
+                    first_end.bottom_right || last_end.bottom_right,
                 );
                 for (i, text) in opts.0.iter().enumerate() {
+                    // one joined strip, not a row of separate pills -- only the outer ends
+                    // ever round, each independently shaped; every seam in between stays
+                    // flush, so the strip reads as a single bar.
+                    let side = if last == 0 {
+                        solo
+                    } else if i == 0 {
+                        first_end
+                    } else if i == last {
+                        last_end
+                    } else {
+                        Side::none()
+                    };
                     let panel = tree.branch(
                         e,
                         Panel::new()
                             .rounding(style.rounding)
+                            .side(side)
                             .color(if i == current {
                                 style.active
                             } else {

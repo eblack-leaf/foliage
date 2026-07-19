@@ -21,7 +21,7 @@ mod pipeline;
 mod vertex;
 
 #[derive(Component, Copy, Clone, Default, PartialEq)]
-#[require(Rounding, Color, Outline)]
+#[require(Rounding, Side, Color, Outline)]
 #[require(Differential<Self, ResolvedElevation>)]
 #[require(Differential<Self, Color>)]
 #[require(Differential<Self, Panel>)]
@@ -69,6 +69,7 @@ impl Panel {
         trigger: Trigger<Update<Panel>>,
         mut panels: Query<&mut Panel>,
         roundings: Query<&Rounding>,
+        sides: Query<&Side>,
         outlines: Query<&Outline>,
         sections: Query<&Section<Logical>>,
         scale_factor: Res<ScaleFactor>,
@@ -79,6 +80,7 @@ impl Panel {
         }
         if let Ok(section) = sections.get(this) {
             if let Ok(rounding) = roundings.get(this) {
+                let side = sides.get(this).copied().unwrap_or_default();
                 let section = section.to_physical(scale_factor.value()).rounded();
                 let min = section.width().min(section.height()) * 0.5;
                 let depth = match rounding {
@@ -100,28 +102,43 @@ impl Panel {
                 };
                 if let Ok(mut panel) = panels.get_mut(this) {
                     let edge_adjust = 0.15;
-                    let near = if let Some(w) = weight {
-                        depth - w.max(1.0)
-                    } else {
-                        0.0
-                    } - edge_adjust;
-                    let adjusted_depth = depth + edge_adjust;
+                    // the vertex stage insets every corner's segment quad uniformly by
+                    // corner_i's own depth (panel.wgsl reads only corner_i.x for that), so a
+                    // squared corner can't shrink its mesh region independently -- instead it
+                    // gets a far/near pushed well past any distance reachable inside that
+                    // region, so the rounding curve never bends and it reads flush. A real
+                    // Outline on a squared corner degrades to a solid fill there (no mitered
+                    // right angle) rather than a hollow ring -- the ring math is radial-
+                    // distance based and can't produce a sharp corner; harmless for the
+                    // common unoutlined case this exists for (segmented control ends, etc).
+                    let sentinel = depth * 4.0 + 10.0;
+                    let far = |rounded: bool| if rounded { depth + edge_adjust } else { sentinel };
+                    let near = |rounded: bool| {
+                        if !rounded {
+                            return -edge_adjust;
+                        }
+                        (if let Some(w) = weight {
+                            depth - w.max(1.0)
+                        } else {
+                            0.0
+                        }) - edge_adjust
+                    };
                     panel.corner_i = {
                         let c = Position::physical((depth, depth));
-                        Corner::new(c.coordinates, adjusted_depth, near)
+                        Corner::new(c.coordinates, far(side.top_left), near(side.top_left))
                     };
                     panel.corner_ii = {
                         let c = Position::physical((section.width() - depth, depth));
-                        Corner::new(c.coordinates, adjusted_depth, near)
+                        Corner::new(c.coordinates, far(side.top_right), near(side.top_right))
                     };
                     panel.corner_iii = {
                         let c = Position::physical((depth, section.height() - depth));
-                        Corner::new(c.coordinates, adjusted_depth, near)
+                        Corner::new(c.coordinates, far(side.bottom_left), near(side.bottom_left))
                     };
                     panel.corner_iv = {
                         let c =
                             Position::physical((section.width() - depth, section.height() - depth));
-                        Corner::new(c.coordinates, adjusted_depth, near)
+                        Corner::new(c.coordinates, far(side.bottom_right), near(side.bottom_right))
                     };
                 }
             }
@@ -148,6 +165,7 @@ pub struct PanelSprout {
     leaf: crate::LeafSprout,
     color: Option<Color>,
     rounding: Option<Rounding>,
+    side: Option<Side>,
     outline: Option<i32>,
 }
 impl crate::Sprout for PanelSprout {
@@ -159,6 +177,7 @@ impl crate::Sprout for PanelSprout {
             Panel::new_marker(),
             self.color.unwrap_or_default(),
             self.rounding.unwrap_or_default(),
+            self.side.unwrap_or_default(),
             self.outline.map(Outline::new).unwrap_or_default(),
         )
     }
@@ -172,15 +191,95 @@ impl PanelSprout {
         self.rounding = Some(r);
         self
     }
+    pub fn side(mut self, s: Side) -> Self {
+        self.side = Some(s);
+        self
+    }
     pub fn outline(mut self, w: i32) -> Self {
         self.outline = Some(w);
         self
     }
 }
-// TODO: per-edge rounding (a segmented control only wants its first/last segment's outer
-// corners rounded). Two shapes considered, neither built yet: a single combined variant per
-// corner-set (e.g. `Rounding::EdgeSm`), or splitting into `Rounding::Sm` + a separate
-// `EdgeBias::Left/Top`-style component so the corner selection composes independently of size.
+/// Which corners [`Rounding`] actually applies to -- composes independently of the amount
+/// (a segmented control's middle segment wants `Side::none()`, its first wants
+/// `Side::left()`, sharing one `Rounding` throughout). Defaults to all four.
+#[derive(Component, Copy, Clone, PartialEq)]
+#[component(on_insert = Self::on_insert)]
+pub struct Side {
+    pub top_left: bool,
+    pub top_right: bool,
+    pub bottom_left: bool,
+    pub bottom_right: bool,
+}
+impl Default for Side {
+    fn default() -> Self {
+        Self::all()
+    }
+}
+impl Side {
+    pub fn all() -> Self {
+        Self {
+            top_left: true,
+            top_right: true,
+            bottom_left: true,
+            bottom_right: true,
+        }
+    }
+    pub fn none() -> Self {
+        Self {
+            top_left: false,
+            top_right: false,
+            bottom_left: false,
+            bottom_right: false,
+        }
+    }
+    pub fn left() -> Self {
+        Self {
+            top_left: true,
+            bottom_left: true,
+            top_right: false,
+            bottom_right: false,
+        }
+    }
+    pub fn right() -> Self {
+        Self {
+            top_left: false,
+            bottom_left: false,
+            top_right: true,
+            bottom_right: true,
+        }
+    }
+    pub fn top() -> Self {
+        Self {
+            top_left: true,
+            top_right: true,
+            bottom_left: false,
+            bottom_right: false,
+        }
+    }
+    pub fn bottom() -> Self {
+        Self {
+            top_left: false,
+            top_right: false,
+            bottom_left: true,
+            bottom_right: true,
+        }
+    }
+    pub fn corners(top_left: bool, top_right: bool, bottom_left: bool, bottom_right: bool) -> Self {
+        Self {
+            top_left,
+            top_right,
+            bottom_left,
+            bottom_right,
+        }
+    }
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
+        if world.get::<Panel>(this).is_some() {
+            world.trigger_targets(Update::<Panel>::new(), this);
+        }
+    }
+}
 #[derive(Component, Copy, Clone, Default, Eq, PartialEq)]
 #[component(on_insert = Self::on_insert)]
 pub enum Rounding {
