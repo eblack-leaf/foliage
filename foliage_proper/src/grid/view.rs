@@ -1,4 +1,4 @@
-use crate::{Component, Logical, Position, Section, Stem, Tree};
+use crate::{Component, Logical, Moment, Position, Section, Stem, Tree};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref};
 use std::collections::HashSet;
@@ -12,8 +12,51 @@ impl Default for OverscrollPropagation {
         OverscrollPropagation(true)
     }
 }
+/// Wheel-scroll momentum, tracked per view: a multiplier applied to each wheel tick's raw
+/// delta, separate from drag (which stays 1:1, no momentum) since a wheel tick is a
+/// discrete pulse, not continuous tracking. Slow to start (base multiplier) so a single
+/// tick stays a subtle nudge; grows toward a cap while ticks keep arriving close together,
+/// resetting back to base once they stop -- pure state, no interpolation/animation
+/// involved, since the delta itself (not a value being eased toward) is what scales.
 #[derive(Component, Copy, Clone, Debug)]
-#[require(ViewAdjustment, OverscrollPropagation)]
+pub(crate) struct ScrollMomentum {
+    pub(crate) value: f32,
+    pub(crate) last_tick: Option<Moment>,
+}
+impl Default for ScrollMomentum {
+    fn default() -> Self {
+        Self {
+            value: Self::BASE,
+            last_tick: None,
+        }
+    }
+}
+impl ScrollMomentum {
+    const BASE: f32 = 1.0;
+    const GROWTH: f32 = 0.15;
+    const MAX: f32 = 3.0;
+    const WINDOW_MS: u128 = 150;
+    /// Given the current state, returns (the multiplier to scale this tick's delta by, the
+    /// updated state to write back).
+    pub(crate) fn tick(self) -> (f32, Self) {
+        let now = Moment::now();
+        let value = match self.last_tick {
+            Some(last) if now.duration_since(last).as_millis() < Self::WINDOW_MS => {
+                (self.value + Self::GROWTH).min(Self::MAX)
+            }
+            _ => Self::BASE,
+        };
+        (
+            value,
+            Self {
+                value,
+                last_tick: Some(now),
+            },
+        )
+    }
+}
+#[derive(Component, Copy, Clone, Debug)]
+#[require(ViewAdjustment, OverscrollPropagation, ScrollMomentum)]
 pub struct View {
     pub offset: Position<Logical>,
     pub extent: Section<Logical>,

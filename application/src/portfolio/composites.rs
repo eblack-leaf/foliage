@@ -269,7 +269,10 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
                     // a real dark, square-cornered backing + a small icon, not just
                     // floating text -- makes it obvious the content actually changed per
                     // tab, without turning it into a bright color swatch.
-                    let backing = [Color::gray(800), Color::gray(700), Color::gray(600)];
+                    // page background is gray(800) (the modal's own backdrop) -- none of
+                    // these can be gray(800) or tab content is invisible against it, same
+                    // mistake as the Popover surface earlier.
+                    let backing = [Color::gray(700), Color::gray(600), Color::gray(500)];
                     let icons = [IconHandles::Terminal, IconHandles::Layers, IconHandles::BookOpen];
                     tree.branch(
                         slot,
@@ -322,15 +325,32 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
         app,
         Popover::new()
             .trigger(|tree: &mut Tree, slot: Entity| {
+                // looks like this app's own icon_button (filled circle) so it actually
+                // reads as clickable -- can't *be* a real Button here though, since a real
+                // Button's own InteractionListener would grab the click before it ever
+                // reaches Popover's root (the same constraint documented on Popover
+                // itself): a plain circular Panel + Icon, both passed through, instead.
+                tree.branch(
+                    slot,
+                    Panel::new()
+                        .rounding(Rounding::Full)
+                        .color(Color::gray(700))
+                        .at(Location::new().xs(
+                            0.px().as_left().with(44.px().as_width()),
+                            50.pct().as_center_y().with(44.px().as_height()),
+                        ))
+                        .elevate(Elevation::up(1))
+                        .with(InteractionPropagation::pass_through()),
+                );
                 tree.branch(
                     slot,
                     Icon::new(IconHandles::Grid)
                         .color(Color::gray(200))
                         .at(Location::new().xs(
-                            0.px().as_left().with(24.px().as_width()),
+                            10.px().as_left().with(24.px().as_width()),
                             50.pct().as_center_y().with(24.px().as_height()),
                         ))
-                        .elevate(Elevation::up(1))
+                        .elevate(Elevation::up(2))
                         .with(InteractionPropagation::pass_through()),
                 )
             })

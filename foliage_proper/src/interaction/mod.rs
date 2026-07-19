@@ -13,7 +13,7 @@ pub(crate) mod listener;
 
 use crate::ash::clip::ResolvedClip;
 use crate::foliage::{Foliage, MainMarkers};
-use crate::grid::view::ViewAdjustment;
+use crate::grid::view::{ScrollMomentum, ViewAdjustment};
 use crate::{
     Attachment, Component, InteractionShape, ResolvedElevation, Section, Stem, Tree, View,
 };
@@ -164,6 +164,7 @@ pub(crate) fn interactive_elements(
     mut current: ResMut<CurrentInteraction>,
     contexts: Query<&Stem>,
     views: Query<Entity, With<View>>,
+    momentums: Query<&ScrollMomentum>,
     mut tree: Tree,
 ) {
     let events = reader.read().copied().collect::<Vec<_>>();
@@ -387,8 +388,23 @@ pub(crate) fn interactive_elements(
                 // allowed through regardless of drag suppression.
                 if current.past_drag || event.method == InteractionMethod::ScrollWheel {
                     let diff = current.last_drag - event.position;
+                    // wheel scaling: drag stays exactly 1:1 (a raw pointer-drag is
+                    // continuous tracking, not a discrete pulse -- momentum doesn't apply
+                    // to it), a wheel tick's delta gets scaled by that target's own
+                    // ScrollMomentum, which grows the closer together repeated ticks
+                    // arrive and resets once they stop -- see ScrollMomentum::tick.
+                    let wheel_diff = |tree: &mut Tree, target: Entity| -> Position<Logical> {
+                        if event.method != InteractionMethod::ScrollWheel {
+                            return diff;
+                        }
+                        let (scale, updated) =
+                            momentums.get(target).copied().unwrap_or_default().tick();
+                        tree.entity(target).insert(updated);
+                        diff * scale
+                    };
                     if let Ok(_) = views.get(p) {
-                        tree.entity(p).insert(ViewAdjustment(diff));
+                        let scaled = wheel_diff(&mut tree, p);
+                        tree.entity(p).insert(ViewAdjustment(scaled));
                     } else {
                         let mut context = *contexts.get(p).unwrap();
                         while let Some(id) = context.id {
@@ -400,7 +416,8 @@ pub(crate) fn interactive_elements(
                                 if !all.get(id).unwrap().4.disable_drag
                                     || event.method == InteractionMethod::ScrollWheel
                                 {
-                                    tree.entity(id).insert(ViewAdjustment(diff));
+                                    let scaled = wheel_diff(&mut tree, id);
+                                    tree.entity(id).insert(ViewAdjustment(scaled));
                                 }
                                 break;
                             }
