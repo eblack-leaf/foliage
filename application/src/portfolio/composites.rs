@@ -113,6 +113,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, artwork: [AssetKey; 3]) {
         app,
         Checkbox::new()
             .on(true)
+            .check_icon(IconHandles::Check)
             .colors(Color::gray(600), Color::green(500), Color::gray(900))
             .at(Location::new().xs(
                 8.px().as_left().with(24.px().as_width()),

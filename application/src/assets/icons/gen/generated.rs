@@ -8,6 +8,7 @@ pub enum IconHandles {
     ArrowUp,
     BookOpen,
     Box,
+    Check,
     ChevronDown,
     Code,
     Github,
@@ -32,6 +33,7 @@ pub fn register(foliage: &mut Foliage) {
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::ArrowUp), include_bytes!("arrow-up.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::BookOpen), include_bytes!("book-open.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Box), include_bytes!("box.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
+    foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Check), include_bytes!("check.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::ChevronDown), include_bytes!("chevron-down.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Code), include_bytes!("code.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
     foliage.world.spawn(Icon::memory_sized(IconId::from(IconHandles::Github), include_bytes!("github.icon"), TEXTURE_SCALE.into(), RENDER_SIZE.into(), MIP_COUNT));
