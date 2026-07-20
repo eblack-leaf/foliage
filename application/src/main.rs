@@ -33,5 +33,9 @@ fn main() {
 
     icons::register(&mut foliage);
     home::build(&mut foliage.world);
+    // perf probe for Polyline's teardown-and-rebuild-per-write pattern -- see
+    // portfolio::composites::drive_polyline_draw. `foliage.user` is the app-code schedule,
+    // run every tick alongside (but separately timed from) the engine's own `main`/`diff`.
+    foliage.user.add_systems(portfolio::composites::drive_polyline_draw);
     foliage.photosynthesize(); // run
 }

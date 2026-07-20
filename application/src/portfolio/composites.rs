@@ -3,13 +3,73 @@
 //! rather than trying to fit everything on screen at once.
 
 use crate::icons::IconHandles;
+use foliage::bevy_ecs;
 use foliage::{
-    AssetKey, Carousel, CarouselPages, Checkbox, Color, DashPattern, Dropdown, EcsExtension,
-    Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon, InteractionPropagation,
-    Location, Opacity, Pagination, PaginationMode, Panel, Polygon, Polyline, Popover,
-    PopoverPlacement, Position, RadioGroup, Rounding, SegmentedControl, Slider, Sprout, Tabs,
-    TabsPages, Text, TextInput, Toggle, Tree, VerticalAlignment,
+    AssetKey, Carousel, CarouselPages, Checkbox, Color, Component, DashPattern, Dropdown,
+    EcsExtension, Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon,
+    InteractionPropagation, Location, Opacity, Pagination, PaginationMode, Panel, Polygon,
+    Polyline, PolylinePoints, Popover, PopoverPlacement, Position, Query, RadioGroup, Res,
+    Rounding, SegmentedControl, Slider, Sprout, Tabs, TabsPages, Text, TextInput, Time, Toggle,
+    Tree, VerticalAlignment,
 };
+
+/// Perf probe (not part of the library, this file only): `Polyline` tears down and
+/// respawns every `Line`/joint child on every `PolylinePoints` write (see the type's own
+/// docs) -- this drives one of the demo instances through a repeating "draw the path in"
+/// animation, at 60-ish fps, so that cost is actually visible/felt rather than theoretical.
+/// The full point list is fixed at spawn; only how much of it is currently "drawn" changes.
+#[derive(Component)]
+pub(crate) struct DrawProgress {
+    points: Vec<Position<foliage::Logical>>,
+    elapsed: f32,
+}
+const DRAW_CYCLE_SECS: f32 = 1.5;
+
+/// The sub-path of `points` covered by the first `t` (0..=1) of its total arc length --
+/// full vertices up to wherever `t` lands, then one lerped point ending the visible prefix
+/// exactly on the path (not just at the nearest vertex), so the draw-in looks continuous
+/// rather than jumping vertex to vertex.
+fn drawn_prefix(points: &[Position<foliage::Logical>], t: f32) -> Vec<Position<foliage::Logical>> {
+    if points.len() < 2 {
+        return points.to_vec();
+    }
+    let total: f32 = points.windows(2).map(|w| w[0].distance(w[1])).sum();
+    let target = total * t.clamp(0.0, 1.0);
+    let mut traveled = 0.0;
+    let mut out = vec![points[0]];
+    for w in points.windows(2) {
+        let (a, b) = (w[0], w[1]);
+        let len = a.distance(b);
+        if traveled + len >= target {
+            let frac = if len > 0.0 { (target - traveled) / len } else { 0.0 };
+            out.push(Position::logical((
+                a.left() + (b.left() - a.left()) * frac,
+                a.top() + (b.top() - a.top()) * frac,
+            )));
+            return out;
+        }
+        traveled += len;
+        out.push(b);
+    }
+    out
+}
+
+/// Registered onto `foliage.user` (the app-code schedule, see `Foliage::user`) from
+/// `main.rs` -- advances every `DrawProgress` by this frame's delta and rewrites
+/// `PolylinePoints` to the new prefix, which is what actually triggers `Polyline`'s
+/// teardown-and-rebuild each frame.
+pub(crate) fn drive_polyline_draw(
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut DrawProgress)>,
+    mut tree: Tree,
+) {
+    for (entity, mut progress) in query.iter_mut() {
+        progress.elapsed += time.frame_diff().as_secs_f32();
+        let t = (progress.elapsed % DRAW_CYCLE_SECS) / DRAW_CYCLE_SECS;
+        let prefix = drawn_prefix(&progress.points, t);
+        tree.write_to(entity, PolylinePoints(prefix));
+    }
+}
 
 /// One section: a small gray label above whatever `.at()` box the caller gives the
 /// composite instance -- returns that box's (top, bottom) in px so the caller only ever
@@ -489,7 +549,11 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
                 8.px().as_left().with(180.px().as_width()),
                 top.px().as_top().with(bottom.px().as_bottom()),
             ))
-            .elevate(Elevation::up(1)),
+            .elevate(Elevation::up(1))
+            .with(DrawProgress {
+                points: zigzag.clone(),
+                elapsed: 0.0,
+            }),
     );
     tree.branch(
         app,

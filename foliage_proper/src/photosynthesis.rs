@@ -41,6 +41,11 @@ impl ApplicationHandler for Foliage {
             self.ginkgo.configure_view(&self.willow);
             self.ginkgo.size_viewport(&self.willow);
             self.suspended = false;
+            // if the redraw `about_to_wait` requested before suspending never got to paint
+            // (`RedrawRequested` explicitly skips drawing while `self.suspended`), this would
+            // otherwise stay stuck true forever -- gating out every tick permanently, since
+            // it only ever clears on a successful paint.
+            self.tick_pending = false;
         }
     }
     fn window_event(
@@ -71,33 +76,41 @@ impl ApplicationHandler for Foliage {
             }
         }
         if self.booted {
-            // Heartbeat: is the event loop ticking rapidly (busy-looping somewhere inside
-            // main/user/diff, or in redraw) or is `about_to_wait` itself not being called for
-            // seconds at a stretch (blocked further upstream, e.g. in winit/OS event
-            // dispatch before we even get control back)? A large `since_last` here narrows
-            // a multi-second stall to one side of that question.
-            let tick_start = web_time::Instant::now();
-            let since_last = LAST_TICK.with(|c| {
-                let prev = c.get();
-                c.set(Some(tick_start));
-                prev.map(|p| tick_start.duration_since(p))
-            });
-            tracing::trace!(since_last = ?since_last, "photosynthesis: about_to_wait tick start");
-            self.main.run(&mut self.world);
-            let after_main = tick_start.elapsed();
-            self.user.run(&mut self.world);
-            let after_user = tick_start.elapsed();
-            self.diff.run(&mut self.world);
-            let after_diff = tick_start.elapsed();
-            tracing::trace!(
-                main = ?after_main,
-                user = ?(after_user - after_main),
-                diff = ?(after_diff - after_user),
-                total = ?after_diff,
-                "photosynthesis: about_to_wait tick done"
-            );
-            self.willow.window().request_redraw();
-            self.ash.drawn = false;
+            // `about_to_wait` isn't 1:1 with real paint frames, especially on web (see
+            // `Foliage::tick_pending`'s own doc) -- only simulate a new tick if the last one
+            // we requested a redraw for has actually painted. Otherwise a burst of
+            // `about_to_wait` calls between two real paints would each re-run
+            // `main`/`user`/`diff`, stacking up ECS churn that never individually renders.
+            if !self.tick_pending {
+                // Heartbeat: is the event loop ticking rapidly (busy-looping somewhere inside
+                // main/user/diff, or in redraw) or is `about_to_wait` itself not being called
+                // for seconds at a stretch (blocked further upstream, e.g. in winit/OS event
+                // dispatch before we even get control back)? A large `since_last` here narrows
+                // a multi-second stall to one side of that question.
+                let tick_start = web_time::Instant::now();
+                let since_last = LAST_TICK.with(|c| {
+                    let prev = c.get();
+                    c.set(Some(tick_start));
+                    prev.map(|p| tick_start.duration_since(p))
+                });
+                tracing::trace!(since_last = ?since_last, "photosynthesis: about_to_wait tick start");
+                self.main.run(&mut self.world);
+                let after_main = tick_start.elapsed();
+                self.user.run(&mut self.world);
+                let after_user = tick_start.elapsed();
+                self.diff.run(&mut self.world);
+                let after_diff = tick_start.elapsed();
+                tracing::trace!(
+                    main = ?after_main,
+                    user = ?(after_user - after_main),
+                    diff = ?(after_diff - after_user),
+                    total = ?after_diff,
+                    "photosynthesis: about_to_wait tick done"
+                );
+                self.willow.window().request_redraw();
+                self.ash.drawn = false;
+                self.tick_pending = true;
+            }
             self.ran_at_least_once = true;
         }
     }
@@ -321,6 +334,7 @@ impl Foliage {
                     self.ash.prepare(&mut self.world, &self.ginkgo);
                     self.ash.render(&self.ginkgo);
                     self.ash.drawn = true;
+                    self.tick_pending = false;
                     // self.ran_at_least_once = false;
                 }
             }

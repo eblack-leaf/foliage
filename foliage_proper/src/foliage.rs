@@ -49,6 +49,18 @@ pub struct Foliage {
     pub(crate) receiver: Option<oneshot::Receiver<Ginkgo>>,
     pub(crate) ran_at_least_once: bool,
     pub(crate) suspended: bool,
+    /// True from the moment `about_to_wait` requests a redraw until that redraw actually
+    /// paints. Winit's `about_to_wait` isn't 1:1 with real paint frames -- high-frequency
+    /// input (mouse move, wheel/scroll especially on web, where each DOM event tends to
+    /// pump its own cycle rather than batching like native OS event queues do) can fire it
+    /// many times before the next `RedrawRequested`. Without this gate, each of those ticks
+    /// re-runs `main`/`user`/`diff` and requests another redraw, stacking up several
+    /// generations of ECS churn (entity spawns/despawns from reactive rebuilds, e.g.
+    /// `Polyline`) that never individually get painted -- only the last of which should
+    /// exist by the time a paint finally happens. See the winit `ApplicationHandler` docs:
+    /// "high frequency event sources... could potentially lead to lots of wake ups and
+    /// also lots of corresponding `AboutToWait` events."
+    pub(crate) tick_pending: bool,
 }
 
 impl Default for Foliage {
@@ -77,6 +89,7 @@ impl Foliage {
             receiver: None,
             ran_at_least_once: false,
             suspended: false,
+            tick_pending: false,
         };
         foliage.main.configure_sets(
             (
