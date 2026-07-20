@@ -46,7 +46,7 @@ pub struct PolylineStyle {
 impl Default for PolylineStyle {
     fn default() -> Self {
         Self {
-            weight: 2,
+            weight: 3,
             color: Color::default(),
             dash: None,
         }
@@ -92,8 +92,11 @@ impl PolylineSprout {
         self.points = Some(PolylinePoints(points.into_iter().map(Into::into).collect()));
         self
     }
+    /// Clamped to >= 3: below that, the joint's rounded-to-a-whole-px diameter (see
+    /// `PolylineSprout::build`) can't track `Line`'s perceived width closely enough to look
+    /// clean at a bend -- same reasoning as `Polygon::sides`' own floor.
     pub fn weight(mut self, w: i32) -> Self {
-        self.style.weight = w.max(1);
+        self.style.weight = w.max(3);
         self
     }
     pub fn color(mut self, c: Color) -> Self {
@@ -157,7 +160,16 @@ impl Sprout for PolylineSprout {
                 // its true one, but the joint's perceived edge sits exactly on its true one.
                 // Shrink the joint to the segment's perceived width (mirrors
                 // `edge_precision`'s own `min(1.0, weight / 2.0)` cap) so the two line up.
-                let diameter = style.weight as f32 - (style.weight as f32 / 2.0).min(1.0);
+                // Rounded to a whole px: every renderer's `prepare()` step (this crate's
+                // universal, deliberate crisp-pixel-alignment pass, e.g.
+                // `polygon/pipeline.rs`) snaps `Section<Logical>` position and area to the
+                // nearest physical pixel *independently*, so a `left` derived from a
+                // fractional center/width pair can round to a different sub-pixel offset
+                // than its width did, visibly shifting the shape off-center. A whole-px
+                // diameter sidesteps that entirely, at the cost of `weight == 1` landing
+                // back on a plain (slightly-oversized rather than perceived-perfect) circle.
+                let diameter =
+                    (style.weight as f32 - (style.weight as f32 / 2.0).min(1.0)).round();
                 for j in joints {
                     let child = tree.branch(
                         e,

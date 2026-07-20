@@ -437,7 +437,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
             .row_height(28)
             .gap(4)
             .at(Location::new().xs(
-                8.px().as_left().with(100.pct().as_right().adjust(-8)),
+                20.px().as_left().with(100.pct().as_right().adjust(-20)),
                 top.px().as_top().with(bottom.px().as_bottom()),
             ))
             .elevate(Elevation::up(2)),
@@ -483,7 +483,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
         app,
         Polyline::new()
             .points(zigzag.clone())
-            .weight(5)
+            .weight(1)
             .color(Color::gray(400))
             .at(Location::new().xs(
                 8.px().as_left().with(180.px().as_width()),
@@ -495,7 +495,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
         app,
         Polyline::new()
             .points(zigzag)
-            .weight(5)
+            .weight(3)
             .color(Color::gray(400))
             .dash(DashPattern::new(10.0, 6.0))
             .at(Location::new().xs(
