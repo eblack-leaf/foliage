@@ -1,10 +1,10 @@
+use crate::Differential;
+use crate::Stem;
 use crate::coordinate::points::Points;
 use crate::foliage::DiffMarkers;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::Differential;
-use crate::Stem;
 use crate::{
     Attachment, Color, Component, Coordinates, Foliage, LeafSprout, Logical, Position,
     ResolvedElevation, Sprout, Visibility,

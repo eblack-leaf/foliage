@@ -1,5 +1,5 @@
-use crate::composite::{IndexedSlotFn, Root};
 use crate::Trigger;
+use crate::composite::{IndexedSlotFn, Root};
 use crate::{
     Component, EcsExtension, Elevation, Entity, Grid, GridExt, InteractionListener, Leaf,
     LeafSprout, Location, Sprout, Tree, View,

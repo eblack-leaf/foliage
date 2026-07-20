@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::foliage::{Foliage, MainMarkers};
-use crate::tree::Tree;
 use crate::Attachment;
 use crate::Trigger;
+use crate::foliage::{Foliage, MainMarkers};
+use crate::tree::Tree;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::event::Event;
@@ -96,9 +96,7 @@ fn handle_load_asset(trigger: Trigger<LoadAsset>, mut asset_loader: ResMut<Asset
         }
         #[cfg(all(not(target_family = "wasm"), not(feature = "remote-assets")))]
         AssetSource::Url(_) => {
-            panic!(
-                "AssetSource::Url used on native without the `remote-assets` feature enabled"
-            );
+            panic!("AssetSource::Url used on native without the `remote-assets` feature enabled");
         }
     }
 }

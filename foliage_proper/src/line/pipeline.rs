@@ -9,8 +9,8 @@ use crate::{CReprColor, Color, Coordinates, ResolvedElevation, Stem};
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use wgpu::{
-    include_wgsl, BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor,
-    RenderPass, RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode,
+    BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor, RenderPass,
+    RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode, include_wgsl,
 };
 
 #[repr(C)]

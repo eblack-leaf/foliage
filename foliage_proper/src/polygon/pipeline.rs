@@ -6,13 +6,13 @@ use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::polygon::Polygon;
 use crate::{
-    Color, CReprColor, CReprSection, Coordinates, Logical, ResolvedElevation, Section, Stem,
+    CReprColor, CReprSection, Color, Coordinates, Logical, ResolvedElevation, Section, Stem,
 };
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use wgpu::{
-    include_wgsl, BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor,
-    RenderPass, RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode,
+    BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor, RenderPass,
+    RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode, include_wgsl,
 };
 
 #[repr(C)]

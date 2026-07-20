@@ -1,5 +1,5 @@
-use proc_macro_crate::{crate_name, FoundCrate};
-use syn::{parse_macro_input, Fields, Item, ItemEnum, ItemStruct};
+use proc_macro_crate::{FoundCrate, crate_name};
+use syn::{Fields, Item, ItemEnum, ItemStruct, parse_macro_input};
 
 /// Path to the foliage crate root from wherever the macro is invoked: `foliage` for
 /// consumers, `crate` inside foliage_proper itself.
@@ -78,7 +78,10 @@ fn wrap_bevy_derive(
                 .into();
         }
     };
-    let scope = syn::Ident::new(&format!("__foliage_scope_{ident}"), proc_macro2::Span::call_site());
+    let scope = syn::Ident::new(
+        &format!("__foliage_scope_{ident}"),
+        proc_macro2::Span::call_site(),
+    );
     let expanded = quote::quote! {
         #[allow(non_snake_case)]
         mod #scope {
@@ -96,13 +99,19 @@ fn wrap_bevy_derive(
 /// `#[component(..)]`/`#[require(..)]` attribute surface as the real derive -- those pass
 /// through untouched, since this only changes *where* the derive runs, not what it does.
 #[proc_macro_attribute]
-pub fn component(_attrs: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn component(
+    _attrs: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     wrap_bevy_derive(input, quote::quote!(bevy_ecs::component::Component))
 }
 
 /// `#[derive(Resource)]`, without needing `bevy_ecs` in scope.
 #[proc_macro_attribute]
-pub fn resource(_attrs: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn resource(
+    _attrs: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     wrap_bevy_derive(input, quote::quote!(bevy_ecs::resource::Resource))
 }
 
@@ -110,7 +119,10 @@ pub fn resource(_attrs: proc_macro::TokenStream, input: proc_macro::TokenStream)
 /// query terms into one named, field-accessed system parameter instead of a positional
 /// tuple: `fn sys(items: Query<MyQuery>)` instead of `Query<(Entity, &A, &mut B)>`.
 #[proc_macro_attribute]
-pub fn query_data(_attrs: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn query_data(
+    _attrs: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     wrap_bevy_derive(input, quote::quote!(bevy_ecs::query::QueryData))
 }
 
@@ -118,10 +130,20 @@ pub fn query_data(_attrs: proc_macro::TokenStream, input: proc_macro::TokenStrea
 /// scope -- the trailing four are bevy's own required bound on every `SystemSet`, always
 /// needed together, so this includes them rather than making every caller repeat them.
 #[proc_macro_attribute]
-pub fn system_set(_attrs: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn system_set(
+    _attrs: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     wrap_bevy_derive(
         input,
-        quote::quote!(bevy_ecs::schedule::SystemSet, Debug, Clone, PartialEq, Eq, Hash),
+        quote::quote!(
+            bevy_ecs::schedule::SystemSet,
+            Debug,
+            Clone,
+            PartialEq,
+            Eq,
+            Hash
+        ),
     )
 }
 

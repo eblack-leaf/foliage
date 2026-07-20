@@ -1,9 +1,9 @@
-use crate::composite::{Root, SlotFn};
 use crate::Trigger;
+use crate::composite::{Root, SlotFn};
 use crate::{
-    anchor, Anchor, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity, Grid,
-    GridExt, InteractionListener, InteractionPropagation, Leaf, LeafSprout, Location,
-    LocationValue, OnClick, Panel, Sprout, Tree, Unfocused,
+    Anchor, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity, Grid, GridExt,
+    InteractionListener, InteractionPropagation, Leaf, LeafSprout, Location, LocationValue,
+    OnClick, Panel, Sprout, Tree, Unfocused, anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;

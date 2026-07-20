@@ -1,7 +1,7 @@
-use crate::enable::InheritEnable;
-use crate::interaction::listener::InteractionListener;
 use crate::EcsExtension;
 use crate::Trigger;
+use crate::enable::InheritEnable;
+use crate::interaction::listener::InteractionListener;
 use crate::{AnchorDeps, Attachment, Branch, Event, Foliage, InteractionState, Tree, Write};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;

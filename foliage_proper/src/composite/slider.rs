@@ -1,9 +1,9 @@
-use crate::composite::Progress;
 use crate::Trigger;
+use crate::composite::Progress;
 use crate::{
-    anchor, Anchor, Color, Component, CurrentInteraction, Dragged, EcsExtension, Elevation,
-    Entity, FocusBehavior, Grid, GridExt, InteractionListener, InteractionPropagation, LeafSprout,
-    Line, Location, Logical, OnClick, Panel, Rounding, Section, Sprout, Tree, Visibility,
+    Anchor, Color, Component, CurrentInteraction, Dragged, EcsExtension, Elevation, Entity,
+    FocusBehavior, Grid, GridExt, InteractionListener, InteractionPropagation, LeafSprout, Line,
+    Location, Logical, OnClick, Panel, Rounding, Section, Sprout, Tree, Visibility, anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;

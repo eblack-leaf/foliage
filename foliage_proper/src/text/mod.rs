@@ -2,19 +2,19 @@ mod glyph;
 pub(crate) mod monospaced;
 mod pipeline;
 
+use crate::Differential;
+use crate::EcsExtension;
+use crate::Trigger;
+use crate::alignment::{HorizontalAlignment, VerticalAlignment};
 use crate::color::Color;
-use crate::coordinate::section::Section;
 use crate::coordinate::Logical;
+use crate::coordinate::section::Section;
 use crate::foliage::{DiffMarkers, Foliage};
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
-use crate::Differential;
-use crate::EcsExtension;
-use crate::Trigger;
-use crate::alignment::{HorizontalAlignment, VerticalAlignment};
 use crate::{
     Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Stem, Tree, Update,
     Visibility, Write,
@@ -68,7 +68,13 @@ impl Attachment for Text {
 #[derive(Component, Clone, PartialEq, Default, Debug)]
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
-#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, TextContentHeight, TextContentWidth)]
+#[require(
+    ResolvedGlyphs,
+    ResolvedColors,
+    GlyphColors,
+    TextContentHeight,
+    TextContentWidth
+)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
 #[require(Differential<Text, ResolvedFontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]

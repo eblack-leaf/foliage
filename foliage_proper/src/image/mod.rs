@@ -1,12 +1,12 @@
 mod pipeline;
 
+use crate::Trigger;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, OnRetrieval};
 use crate::foliage::DiffMarkers;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::Trigger;
 use crate::{
     Area, Attachment, Component, Foliage, Layout, LeafSprout, Logical, Numerical,
     ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem, Write,

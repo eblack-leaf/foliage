@@ -1,10 +1,10 @@
+use crate::Position;
 use crate::foliage::Foliage;
-use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::ScaleFactor;
+use crate::ginkgo::viewport::ViewportHandle;
 use crate::interaction::{
     Interaction, InteractionMethod, InteractionPhase, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
-use crate::Position;
 use tracing::trace;
 use winit::application::ApplicationHandler;
 use winit::event::{MouseScrollDelta, WindowEvent};

@@ -2,10 +2,10 @@ use crate::icons::IconHandles;
 use crate::portfolio;
 use crate::widgets::icon_button;
 use foliage::{
-    anchor, component, Anchor, Animation, Color, EcsExtension, Elevation, Entity, EntityEvent,
-    FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconId, Insert, Keyring,
-    Leaf, LeafSprout, Line, Location, Logical, OnClick, OnEnd, Opacity, Query, Res, Rounding,
-    Section, Sequence, Sprout, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
+    Anchor, Animation, Color, EcsExtension, Elevation, Entity, EntityEvent, FontSize, GlyphColors,
+    Grid, GridExt, HorizontalAlignment, HrefLink, IconId, Insert, Keyring, Leaf, LeafSprout, Line,
+    Location, Logical, OnClick, OnEnd, Opacity, Query, Res, Rounding, Section, Sequence, Sprout,
+    Text, TextValue, Tree, Trigger, VerticalAlignment, Write, anchor, component,
 };
 use std::ops::Range;
 

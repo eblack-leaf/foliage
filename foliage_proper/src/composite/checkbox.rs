@@ -1,8 +1,8 @@
 use crate::Trigger;
 use crate::{
-    Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid, GridExt, Icon,
-    IconId, InteractionListener, InteractionPropagation, LeafSprout, Location, OnClick, Outline,
-    Panel, Rounding, Sprout, Tree, Visibility,
+    Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid, GridExt, Icon, IconId,
+    InteractionListener, InteractionPropagation, LeafSprout, Location, OnClick, Outline, Panel,
+    Rounding, Sprout, Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;

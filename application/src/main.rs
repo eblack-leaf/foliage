@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use foliage::{bundled_asset, Foliage, GridExt};
+use foliage::{Foliage, GridExt, bundled_asset};
 
 mod home;
 #[path = "assets/icons/gen/generated.rs"]
@@ -24,11 +24,23 @@ fn main() {
     // );
     foliage.desktop_size((360, 800));
 
-    let music_player = bundled_asset!(foliage, "assets/music-player.png", asset_url("assets/music-player.png"));
+    let music_player = bundled_asset!(
+        foliage,
+        "assets/music-player.png",
+        asset_url("assets/music-player.png")
+    );
     foliage.store(music_player, "music-player");
-    let artist_blog = bundled_asset!(foliage, "assets/artist-blog.png", asset_url("assets/artist-blog.png"));
+    let artist_blog = bundled_asset!(
+        foliage,
+        "assets/artist-blog.png",
+        asset_url("assets/artist-blog.png")
+    );
     foliage.store(artist_blog, "artist-blog");
-    let album_cover = bundled_asset!(foliage, "assets/album-cover.jpg", asset_url("assets/album-cover.jpg"));
+    let album_cover = bundled_asset!(
+        foliage,
+        "assets/album-cover.jpg",
+        asset_url("assets/album-cover.jpg")
+    );
     foliage.store(album_cover, "album-cover");
 
     icons::register(&mut foliage);
@@ -36,6 +48,8 @@ fn main() {
     // perf probe for Polyline's teardown-and-rebuild-per-write pattern -- see
     // portfolio::composites::drive_polyline_draw. `foliage.user` is the app-code schedule,
     // run every tick alongside (but separately timed from) the engine's own `main`/`diff`.
-    foliage.user.add_systems(portfolio::composites::drive_polyline_draw);
+    foliage
+        .user
+        .add_systems(portfolio::composites::drive_polyline_draw);
     foliage.photosynthesize(); // run
 }

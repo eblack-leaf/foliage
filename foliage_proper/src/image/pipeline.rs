@@ -7,15 +7,15 @@ use crate::image::{CropAdjustment, Image, ImageWrite};
 use crate::opacity::BlendedOpacity;
 use crate::texture::TextureCoordinates;
 use crate::{
-    texture, Area, AssetKey, CReprSection, Logical, Numerical, ResolvedElevation, Section, Stem,
+    Area, AssetKey, CReprSection, Logical, Numerical, ResolvedElevation, Section, Stem, texture,
 };
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
-    include_wgsl, BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    Extent3d, Origin3d, PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor,
-    ShaderStages, TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect,
-    TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
+    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Extent3d, Origin3d,
+    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderStages,
+    TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect, TextureSampleType,
+    TextureView, TextureViewDimension, VertexState, VertexStepMode, include_wgsl,
 };
 
 pub(crate) struct Resources {

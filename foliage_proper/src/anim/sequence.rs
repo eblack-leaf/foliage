@@ -1,5 +1,5 @@
-use crate::time::TimeDelta;
 use crate::Component;
+use crate::time::TimeDelta;
 
 #[derive(Copy, Clone, Default)]
 pub(crate) struct SequenceTimeRange {

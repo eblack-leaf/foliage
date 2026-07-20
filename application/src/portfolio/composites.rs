@@ -4,12 +4,12 @@
 
 use crate::icons::IconHandles;
 use foliage::{
-    component, AssetKey, Carousel, CarouselPages, Checkbox, Color, DashPattern, Dropdown,
-    EcsExtension, Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon,
-    InteractionPropagation, Location, Opacity, Pagination, PaginationMode, Panel, Polygon,
-    Polyline, PolylineDrawProgress, Popover, PopoverPlacement, Position, Query, RadioGroup, Res,
-    Rounding, SegmentedControl, Slider, Sprout, Tabs, TabsPages, Text, TextInput, Time, Toggle,
-    Tree, VerticalAlignment,
+    AssetKey, Carousel, CarouselPages, Checkbox, Color, DashPattern, Dropdown, EcsExtension,
+    Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon, InteractionPropagation,
+    Location, Opacity, Pagination, PaginationMode, Panel, Polygon, Polyline, PolylineDrawProgress,
+    Popover, PopoverPlacement, Position, Query, RadioGroup, Res, Rounding, SegmentedControl,
+    Slider, Sprout, Tabs, TabsPages, Text, TextInput, Time, Toggle, Tree, VerticalAlignment,
+    component,
 };
 
 /// Drives the demo's draw-in `Polyline` through a repeating "draw the path in" cycle. All
@@ -39,7 +39,13 @@ pub(crate) fn drive_polyline_draw(
 /// One section: a small gray label above whatever `.at()` box the caller gives the
 /// composite instance -- returns that box's (top, bottom) in px so the caller only ever
 /// picks a height, never computes an absolute position by hand.
-fn section(tree: &mut Tree, parent: Entity, cursor: &mut i32, label: &str, height: i32) -> (i32, i32) {
+fn section(
+    tree: &mut Tree,
+    parent: Entity,
+    cursor: &mut i32,
+    label: &str,
+    height: i32,
+) -> (i32, i32) {
     tree.branch(
         parent,
         Text::new(label)
@@ -47,7 +53,10 @@ fn section(tree: &mut Tree, parent: Entity, cursor: &mut i32, label: &str, heigh
             .color(Color::gray(500))
             .at(Location::new().xs(
                 8.px().as_left().with(100.pct().as_right().adjust(-8)),
-                (*cursor).px().as_top().with((*cursor + 20).px().as_bottom()),
+                (*cursor)
+                    .px()
+                    .as_top()
+                    .with((*cursor + 20).px().as_bottom()),
             ))
             .elevate(Elevation::up(1)),
     );
@@ -318,7 +327,11 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
                     // -- still avoid gray(800), the modal's own backdrop, same mistake as
                     // the Popover surface earlier.
                     let backing = [Color::teal(700), Color::indigo(700), Color::gray(500)];
-                    let icons = [IconHandles::Terminal, IconHandles::Layers, IconHandles::BookOpen];
+                    let icons = [
+                        IconHandles::Terminal,
+                        IconHandles::Layers,
+                        IconHandles::BookOpen,
+                    ];
                     tree.branch(
                         slot,
                         Panel::new()
@@ -445,20 +458,23 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
     tree.branch(
         app,
         foliage::List::new()
-            .items(foliage::ListItems::new(20, |tree: &mut Tree, slot: Entity, i| {
-                tree.branch(
-                    slot,
-                    Text::new(format!("row {}", i + 1))
-                        .size(FontSize::new(16))
-                        .color(Color::gray(300))
-                        .at(Location::new().xs(
-                            8.px().as_left().with(100.pct().as_right()),
-                            0.pct().as_top().with(100.pct().as_bottom()),
-                        ))
-                        .elevate(Elevation::up(1))
-                        .with(VerticalAlignment::Middle),
-                );
-            }))
+            .items(foliage::ListItems::new(
+                20,
+                |tree: &mut Tree, slot: Entity, i| {
+                    tree.branch(
+                        slot,
+                        Text::new(format!("row {}", i + 1))
+                            .size(FontSize::new(16))
+                            .color(Color::gray(300))
+                            .at(Location::new().xs(
+                                8.px().as_left().with(100.pct().as_right()),
+                                0.pct().as_top().with(100.pct().as_bottom()),
+                            ))
+                            .elevate(Elevation::up(1))
+                            .with(VerticalAlignment::Middle),
+                    );
+                },
+            ))
             .row_height(28)
             .gap(4)
             .at(Location::new().xs(

@@ -1,6 +1,7 @@
 pub(crate) mod action;
 pub(crate) mod keybindings;
 
+use crate::Trigger;
 use crate::composite::Root;
 use crate::coordinate::position::Position;
 use crate::foliage::MainMarkers;
@@ -9,13 +10,12 @@ use crate::grid::view::ViewAdjustment;
 use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
-use crate::Trigger;
 use crate::{
-    Attachment, TextContentHeight, TextContentWidth, Color, Component, Dragged, EcsExtension, Elevation,
-    Engaged, Event, FocusBehavior, Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence,
-    InteractionListener, InteractionPropagation, Key, Layout, Leaf, LeafSprout, Location, Logical,
-    Opacity, Outline, OverscrollPropagation, Panel, Rounding, Section, Sprout, Stem, Text,
-    TextValue, Tree, Unfocused, View, text_content,
+    Attachment, Color, Component, Dragged, EcsExtension, Elevation, Engaged, Event, FocusBehavior,
+    Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
+    InteractionPropagation, Key, Layout, Leaf, LeafSprout, Location, Logical, Opacity, Outline,
+    OverscrollPropagation, Panel, Rounding, Section, Sprout, Stem, Text, TextContentHeight,
+    TextContentWidth, TextValue, Tree, Unfocused, View, text_content,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
@@ -881,8 +881,7 @@ impl TextInput {
                             let location = if row == 0 {
                                 0
                             } else {
-                                *metrics.last_offsets.get(row as usize - 1).unwrap()
-                                    as GlyphOffset
+                                *metrics.last_offsets.get(row as usize - 1).unwrap() as GlyphOffset
                                     + 1
                             };
                             (location, col, row)
@@ -932,14 +931,12 @@ impl TextInput {
 
         if allow_scroll
             && let (Ok(view), Ok(section)) = (
-            scroll.views.get(handle.field),
-            scroll.sections.get(handle.field),
-        ) {
-            let cursor_content: Position<Logical> = (
-                col as f32 * letter_block.a(),
-                row as f32 * letter_block.b(),
+                scroll.views.get(handle.field),
+                scroll.sections.get(handle.field),
             )
-                .into();
+        {
+            let cursor_content: Position<Logical> =
+                (col as f32 * letter_block.a(), row as f32 * letter_block.b()).into();
             let window_relative = cursor_content - view.offset;
             let mut delta = Position::<Logical>::default();
             // "fully in view" means the *whole cell* (col/row extended by one letter's
@@ -1316,7 +1313,9 @@ impl TextInput {
                         (row + 1).row().as_top().with((row + 1).row().as_bottom()),
                     );
                     tree.entity(existing).insert(location);
-                    handle.highlights.insert(row, (existing, start_col, end_col));
+                    handle
+                        .highlights
+                        .insert(row, (existing, start_col, end_col));
                 }
             } else {
                 let location = Location::new().xs(
@@ -1852,8 +1851,13 @@ impl Input {
         } else {
             if let Key::Character(text) = &trigger.sequence.key {
                 let text = text.to_string();
-                let end =
-                    TextInput::insert_text(this, &text, cursor_val.location, &mut values, &selections);
+                let end = TextInput::insert_text(
+                    this,
+                    &text,
+                    cursor_val.location,
+                    &mut values,
+                    &selections,
+                );
                 TextInput::after_edit(
                     this,
                     end,

@@ -1,10 +1,10 @@
-use crate::composite::Root;
 use crate::Trigger;
+use crate::composite::Root;
 use crate::{
-    anchor, Anchor, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity,
-    FocusBehavior, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
-    InteractionListener, InteractionPropagation, LeafSprout, List, ListItems, Location, OnClick,
-    Outline, Panel, Rounding, Sprout, Text, TextValue, Tree, Unfocused, VerticalAlignment,
+    Anchor, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity, FocusBehavior,
+    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener,
+    InteractionPropagation, LeafSprout, List, ListItems, Location, OnClick, Outline, Panel,
+    Rounding, Sprout, Text, TextValue, Tree, Unfocused, VerticalAlignment, anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -180,13 +180,11 @@ impl Sprout for DropdownSprout {
         // reaction's first fire below.
         let text = tree.branch(
             this,
-            Text::new("")
-                .elevate(Elevation::up(2))
-                .with((
-                    VerticalAlignment::Middle,
-                    InteractionPropagation::pass_through(),
-                    FocusBehavior::ignore(),
-                )),
+            Text::new("").elevate(Elevation::up(2)).with((
+                VerticalAlignment::Middle,
+                InteractionPropagation::pass_through(),
+                FocusBehavior::ignore(),
+            )),
         );
         tree.write_to(
             this,
@@ -208,7 +206,10 @@ impl Sprout for DropdownSprout {
         // structure/appearance, one door: expansion state, option set, colors, config.
         tree.react_any::<(Expanded, DropdownOptions, DropdownStyle, DropdownConfig), _>(
             this,
-            move |trigger: Trigger<Insert, (Expanded, DropdownOptions, DropdownStyle, DropdownConfig)>,
+            move |trigger: Trigger<
+                Insert,
+                (Expanded, DropdownOptions, DropdownStyle, DropdownConfig),
+            >,
                   expanded: Query<&Expanded>,
                   options: Query<&DropdownOptions>,
                   styles: Query<&DropdownStyle>,
@@ -243,7 +244,9 @@ impl Sprout for DropdownSprout {
                         TextValue(opts.0.get(current).cloned().unwrap_or_default()),
                         style.foreground,
                         Location::new().xs(
-                            12.px().as_left().with(100.pct().as_right().adjust(text_right_inset)),
+                            12.px()
+                                .as_left()
+                                .with(100.pct().as_right().adjust(text_right_inset)),
                             0.pct().as_top().with(100.pct().as_bottom()),
                         ),
                     ),
@@ -298,7 +301,8 @@ impl Sprout for DropdownSprout {
                 }
                 if open && !opts.0.is_empty() {
                     let shown = opts.0.len().min(config.max_visible);
-                    let height = shown as i32 * (config.row_height + config.row_gap) + config.row_gap;
+                    let height =
+                        shown as i32 * (config.row_height + config.row_gap) + config.row_gap;
                     let row_options = opts.0.clone();
                     let surface = tree.leaf(
                         List::new()

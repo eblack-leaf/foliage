@@ -7,14 +7,14 @@ use crate::opacity::BlendedOpacity;
 use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
-use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, Vertex, VERTICES};
+use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, VERTICES, Vertex};
 use crate::{CReprColor, CReprSection, Logical, ResolvedElevation, Section, Stem, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
-    include_wgsl, BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor,
-    RenderPass, RenderPipelineDescriptor, ShaderStages, TextureSampleType, TextureViewDimension,
-    VertexState, VertexStepMode,
+    BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor, RenderPass,
+    RenderPipelineDescriptor, ShaderStages, TextureSampleType, TextureViewDimension, VertexState,
+    VertexStepMode, include_wgsl,
 };
 
 pub(crate) struct Resources {

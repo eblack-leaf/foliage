@@ -1,6 +1,6 @@
-use crate::ash::differential::RenderRemoveQueue;
 use crate::EcsExtension;
 use crate::Trigger;
+use crate::ash::differential::RenderRemoveQueue;
 use crate::{AnchorDeps, Attachment, Branch, Component, Foliage, Stem, Tree, Update, Write};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;

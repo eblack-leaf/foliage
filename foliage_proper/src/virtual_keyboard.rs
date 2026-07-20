@@ -93,8 +93,8 @@ impl VirtualKeyboardAdapter {
     /// soft keyboard), with nothing reading back what got typed through it.
     #[cfg(target_family = "wasm")]
     fn create_hook(queue: VirtualInputQueue) {
-        use wasm_bindgen::closure::Closure;
         use wasm_bindgen::JsCast;
+        use wasm_bindgen::closure::Closure;
 
         let document = web_sys::window().unwrap().document().unwrap();
         let node = document.create_element("div").unwrap();
@@ -112,7 +112,11 @@ impl VirtualKeyboardAdapter {
         let body = document.body().unwrap();
         body.append_child(&node).unwrap();
 
-        for id in ["keyboard_trigger", "telephone_pad_trigger", "numpad_trigger"] {
+        for id in [
+            "keyboard_trigger",
+            "telephone_pad_trigger",
+            "numpad_trigger",
+        ] {
             let element = document.get_element_by_id(id).unwrap();
 
             let input_queue = queue.clone();

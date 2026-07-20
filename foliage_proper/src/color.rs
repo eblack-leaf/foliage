@@ -1,7 +1,7 @@
 use crate::anim::interpolation::Interpolations;
 use crate::{Animate, Attachment, Component, Foliage};
-use bevy_color::palettes::tailwind;
 use bevy_color::Alpha;
+use bevy_color::palettes::tailwind;
 
 #[derive(Component, Copy, Clone, PartialEq, Debug)]
 pub struct Color {

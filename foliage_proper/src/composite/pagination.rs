@@ -1,5 +1,5 @@
-use crate::composite::{PageCount, PageIndex};
 use crate::Trigger;
+use crate::composite::{PageCount, PageIndex};
 use crate::{
     Button, ButtonStyle, Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid,
     GridExt, HorizontalAlignment, IconId, IconValue, InteractionListener, InteractionPropagation,
@@ -387,11 +387,8 @@ impl Sprout for PaginationSprout {
                                     let count = counts.get(e).unwrap().0;
                                     let current =
                                         pages.get(e).unwrap().0.min(count.saturating_sub(1));
-                                    let ws = window_start(
-                                        current,
-                                        count,
-                                        count.min(NUMBERED_SLOTS),
-                                    );
+                                    let ws =
+                                        window_start(current, count, count.min(NUMBERED_SLOTS));
                                     tree.write_to(e, PageIndex(ws + s));
                                 },
                             );

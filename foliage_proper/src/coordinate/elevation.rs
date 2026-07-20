@@ -1,6 +1,6 @@
-use crate::anim::interpolation::Interpolations;
 use crate::EcsExtension;
 use crate::Trigger;
+use crate::anim::interpolation::Interpolations;
 use crate::{Animate, Attachment, Branch, Foliage, Stem, Tree, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;

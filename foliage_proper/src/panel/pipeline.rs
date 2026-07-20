@@ -4,7 +4,7 @@ use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
-use crate::panel::{vertex, Corner};
+use crate::panel::{Corner, vertex};
 use crate::{
     CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section, Stem,
 };
@@ -12,8 +12,8 @@ use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use wgpu::{
-    include_wgsl, BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor,
-    RenderPass, RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode,
+    BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor, RenderPass,
+    RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode, include_wgsl,
 };
 
 pub(crate) struct Resources {

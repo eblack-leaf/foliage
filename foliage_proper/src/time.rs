@@ -1,6 +1,6 @@
-use crate::foliage::{Foliage, MainMarkers};
 use crate::Attachment;
 use crate::EcsExtension;
+use crate::foliage::{Foliage, MainMarkers};
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;

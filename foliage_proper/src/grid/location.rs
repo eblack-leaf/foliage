@@ -1,3 +1,5 @@
+use crate::EcsExtension;
+use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
 use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
@@ -5,8 +7,6 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration};
 use crate::text::monospaced::MonospacedFont;
 use crate::visibility::AutoVisibility;
-use crate::EcsExtension;
-use crate::Trigger;
 use crate::{
     Animate, AspectRatio, Attachment, Component, CoordinateUnit, Coordinates, Foliage, FontSize,
     Grid, Layout, Line, Logical, Points, ResolvedVisibility, Section, Stem, Tree, Update, View,

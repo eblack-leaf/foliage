@@ -1,9 +1,9 @@
-use crate::composite::SlotFn;
 use crate::Trigger;
+use crate::composite::SlotFn;
 use crate::{
-    anchor, Anchor, Animation, Button, ButtonStyle, Color, Component, Ease, EcsExtension,
-    Elevation, Entity, Grid, IconId, IconValue, LeafSprout, Leaf, Location, GridExt, OnClick,
-    OnEnd, Opacity, Outline, Panel, Rounding, Sequence, Sprout, Tree,
+    Anchor, Animation, Button, ButtonStyle, Color, Component, Ease, EcsExtension, Elevation,
+    Entity, Grid, GridExt, IconId, IconValue, Leaf, LeafSprout, Location, OnClick, OnEnd, Opacity,
+    Outline, Panel, Rounding, Sequence, Sprout, Tree, anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -196,7 +196,10 @@ impl Sprout for ModalSprout {
                 if let Some(a) = cfg.anchor_to {
                     tree.write_to(e, Anchor::new(a));
                 }
-                tree.write_to(e, (origin_location(cfg.anchor_to.is_some()), style.backdrop));
+                tree.write_to(
+                    e,
+                    (origin_location(cfg.anchor_to.is_some()), style.backdrop),
+                );
                 let slot = tree.branch(
                     e,
                     Leaf::sprout()

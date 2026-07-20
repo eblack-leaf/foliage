@@ -1,8 +1,8 @@
-use crate::ash::differential::RenderQueue;
-use crate::coordinate::section::Section;
-use crate::coordinate::Physical;
-use crate::text::Text;
 use crate::EcsExtension;
+use crate::ash::differential::RenderQueue;
+use crate::coordinate::Physical;
+use crate::coordinate::section::Section;
+use crate::text::Text;
 use crate::{Color, Component, Differential, ResolvedVisibility, Update};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -122,13 +122,25 @@ pub struct ResolvedColors {
 /// because a later, unrelated relayout happened to land on the same entity first.
 pub(crate) fn glyph_differential(
     mut values: ParamSet<(
-        Query<(Entity, &ResolvedGlyphs), (Changed<ResolvedGlyphs>, With<Differential<Text, ResolvedGlyphs>>)>,
+        Query<
+            (Entity, &ResolvedGlyphs),
+            (
+                Changed<ResolvedGlyphs>,
+                With<Differential<Text, ResolvedGlyphs>>,
+            ),
+        >,
         Query<&ResolvedGlyphs>,
     )>,
     mut caches: Query<&mut Differential<Text, ResolvedGlyphs>>,
     mut visibility: ParamSet<(
         Query<&ResolvedVisibility>,
-        Query<Entity, (Changed<ResolvedVisibility>, With<Differential<Text, ResolvedGlyphs>>)>,
+        Query<
+            Entity,
+            (
+                Changed<ResolvedVisibility>,
+                With<Differential<Text, ResolvedGlyphs>>,
+            ),
+        >,
     )>,
     mut queue: ResMut<RenderQueue<Text, ResolvedGlyphs>>,
 ) {
@@ -162,7 +174,9 @@ pub(crate) fn glyph_differential(
             };
             if cache.different(v.clone()) {
                 let existing = queue.queue.remove(&e);
-                queue.queue.insert(e, merge_resolved_glyphs(existing, v.clone()));
+                queue
+                    .queue
+                    .insert(e, merge_resolved_glyphs(existing, v.clone()));
             }
         }
     }
@@ -172,7 +186,10 @@ enum GlyphDisposition {
     Updated(Glyph),
     Removed(Glyph),
 }
-fn merge_resolved_glyphs(existing: Option<ResolvedGlyphs>, incoming: ResolvedGlyphs) -> ResolvedGlyphs {
+fn merge_resolved_glyphs(
+    existing: Option<ResolvedGlyphs>,
+    incoming: ResolvedGlyphs,
+) -> ResolvedGlyphs {
     let Some(existing) = existing else {
         return incoming;
     };

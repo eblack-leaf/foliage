@@ -1,6 +1,6 @@
-use crate::coordinate::position::Position;
-use crate::coordinate::Logical;
 use crate::EcsExtension;
+use crate::coordinate::Logical;
+use crate::coordinate::position::Position;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::message::{Message, MessageReader};
@@ -230,11 +230,7 @@ pub(crate) fn interactive_elements(
                 // it purely by sitting on top, silently eating clicks/scrolls meant for
                 // whatever's actually beneath it even though its own OnClick/Engaged/
                 // Dragged were already correctly gated off downstream.
-                if listeners
-                    .get(entity)
-                    .map(|l| l.disabled())
-                    .unwrap_or(false)
-                {
+                if listeners.get(entity).map(|l| l.disabled()).unwrap_or(false) {
                     continue;
                 }
                 if propagation.grab {

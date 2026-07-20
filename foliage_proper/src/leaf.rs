@@ -1,5 +1,3 @@
-use crate::ash::clip::ClipSection;
-use crate::interaction::CurrentInteraction;
 use crate::EcsExtension;
 use crate::Elevation;
 use crate::Logical;
@@ -7,6 +5,8 @@ use crate::Opacity;
 use crate::Section;
 use crate::Trigger;
 use crate::Visibility;
+use crate::ash::clip::ClipSection;
+use crate::interaction::CurrentInteraction;
 use crate::{
     Animation, Component, FocusBehavior, InteractionPropagation, InteractionShape, Location, Tree,
     Update,

@@ -1,9 +1,9 @@
+use crate::EcsExtension;
+use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::EcsExtension;
-use crate::Trigger;
 use crate::{
     Animate, Animation, Attachment, Color, Component, CoordinateUnit, Coordinates, Differential,
     Foliage, InteractionShape, Logical, Position, ResolvedElevation, Section, Stem, Tree, Update,
@@ -112,7 +112,13 @@ impl Panel {
                     // distance based and can't produce a sharp corner; harmless for the
                     // common unoutlined case this exists for (segmented control ends, etc).
                     let sentinel = depth * 4.0 + 10.0;
-                    let far = |rounded: bool| if rounded { depth + edge_adjust } else { sentinel };
+                    let far = |rounded: bool| {
+                        if rounded {
+                            depth + edge_adjust
+                        } else {
+                            sentinel
+                        }
+                    };
                     let near = |rounded: bool| {
                         if !rounded {
                             return -edge_adjust;
@@ -138,7 +144,11 @@ impl Panel {
                     panel.corner_iv = {
                         let c =
                             Position::physical((section.width() - depth, section.height() - depth));
-                        Corner::new(c.coordinates, far(side.bottom_right), near(side.bottom_right))
+                        Corner::new(
+                            c.coordinates,
+                            far(side.bottom_right),
+                            near(side.bottom_right),
+                        )
                     };
                 }
             }

@@ -1,7 +1,7 @@
-use crate::ash::differential::RenderRemoveQueue;
-use crate::foliage::Foliage;
 use crate::EcsExtension;
 use crate::Trigger;
+use crate::ash::differential::RenderRemoveQueue;
+use crate::foliage::Foliage;
 use crate::{AnchorDeps, Attachment, Branch, Tree};
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::entity::Entity;

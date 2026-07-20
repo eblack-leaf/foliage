@@ -1,10 +1,10 @@
 mod pipeline;
+use crate::Stem;
+use crate::Trigger;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::Stem;
-use crate::Trigger;
 use crate::{
     AssetKey, Attachment, Color, Component, Coordinates, Differential, Foliage,
     HorizontalAlignment, LeafSprout, Logical, ResolvedElevation, Section, Sprout, Tree,
@@ -162,8 +162,7 @@ impl Icon {
         )>,
         render_sizes: Res<IconRenderSizes>,
     ) {
-        if let Ok((mut sec, icon, horizontal, vertical)) =
-            sections.get_mut(trigger.event_target())
+        if let Ok((mut sec, icon, horizontal, vertical)) = sections.get_mut(trigger.event_target())
         {
             let target = render_sizes.get(icon.id);
             if sec.area.coordinates != target {

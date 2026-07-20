@@ -1,8 +1,8 @@
+use crate::Component;
+use crate::anim::Animate;
 use crate::anim::ease::Easement;
 use crate::anim::interpolation::Interpolations;
 use crate::anim::sequence::{AnimationTime, SequenceMarker};
-use crate::anim::Animate;
-use crate::Component;
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::lifecycle::HookContext;

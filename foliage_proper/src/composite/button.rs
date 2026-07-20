@@ -1,10 +1,10 @@
 use crate::Component;
 use crate::Trigger;
 use crate::{
-    anchor, Anchor, Color, Coordinates, Disengaged, EcsExtension, Elevation, Engaged, Entity,
+    Anchor, Color, Coordinates, Disengaged, EcsExtension, Elevation, Engaged, Entity,
     FocusBehavior, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
     InteractionListener, InteractionPropagation, LeafSprout, Location, Outline, Panel, Rounding,
-    Sprout, Text, TextValue, Tree, VerticalAlignment, Visibility,
+    Sprout, Text, TextValue, Tree, VerticalAlignment, Visibility, anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;

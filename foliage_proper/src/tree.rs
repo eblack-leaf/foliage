@@ -1,3 +1,4 @@
+use crate::Trigger;
 use crate::anim::runner::AnimationRunner;
 use crate::anim::sequence::{AnimationTime, SequenceMarker};
 use crate::disable::Disable;
@@ -7,7 +8,6 @@ use crate::leaf::Stem;
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
-use crate::Trigger;
 use crate::{Animate, Animation, AssetKey, OnClick, Sprout, TimeDelta, Timer};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;

@@ -1,8 +1,8 @@
+use crate::Trigger;
 use crate::{
     Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt, LeafSprout, Line, Location,
     Logical, Opacity, Polygon, Position, Sprout, Tree,
 };
-use crate::Trigger;
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::Insert;
@@ -206,11 +206,21 @@ impl Sprout for PolylineSprout {
         // the current one to get this tick's actual front-eviction count, so re-sending
         // the same total (or never touching the component at all) is always a no-op.
         let mut last_dropped: usize = 0;
-        tree.react_any::<(PolylinePoints, PolylineStyle, PolylineDrawProgress, PolylineDroppedPoints), _>(
+        tree.react_any::<(
+            PolylinePoints,
+            PolylineStyle,
+            PolylineDrawProgress,
+            PolylineDroppedPoints,
+        ), _>(
             this,
             move |trigger: Trigger<
                 Insert,
-                (PolylinePoints, PolylineStyle, PolylineDrawProgress, PolylineDroppedPoints),
+                (
+                    PolylinePoints,
+                    PolylineStyle,
+                    PolylineDrawProgress,
+                    PolylineDroppedPoints,
+                ),
             >,
                   points_q: Query<&PolylinePoints>,
                   styles: Query<&PolylineStyle>,
@@ -220,7 +230,12 @@ impl Sprout for PolylineSprout {
                 let e = trigger.event_target();
                 let points = points_q.get(e).unwrap().0.clone();
                 let style = *styles.get(e).unwrap();
-                let progress = progresses.get(e).copied().unwrap_or_default().0.clamp(0.0, 1.0);
+                let progress = progresses
+                    .get(e)
+                    .copied()
+                    .unwrap_or_default()
+                    .0
+                    .clamp(0.0, 1.0);
                 let dropped_total = drops.get(e).copied().unwrap_or_default().0;
                 let newly_dropped = dropped_total.saturating_sub(last_dropped);
                 last_dropped = dropped_total;
@@ -277,9 +292,13 @@ impl Sprout for PolylineSprout {
                     }
                 };
 
-                reconcile(&mut tree, e, &mut segments, segment_data.len(), |tree, parent| {
-                    tree.branch(parent, Line::new(1).elevate(Elevation::up(1)))
-                });
+                reconcile(
+                    &mut tree,
+                    e,
+                    &mut segments,
+                    segment_data.len(),
+                    |tree, parent| tree.branch(parent, Line::new(1).elevate(Elevation::up(1))),
+                );
                 segment_cache.resize(segments.len(), None);
                 for (i, child) in segments.iter().enumerate() {
                     let value = visible_segment_data.get(i).copied();
@@ -321,12 +340,20 @@ impl Sprout for PolylineSprout {
                 // than its width did, visibly shifting the shape off-center. A whole-px
                 // diameter sidesteps that entirely, at the cost of `weight == 1` landing
                 // back on a plain (slightly-oversized rather than perceived-perfect) circle.
-                let diameter =
-                    (style.weight as f32 - (style.weight as f32 / 2.0).min(1.0)).round();
+                let diameter = (style.weight as f32 - (style.weight as f32 / 2.0).min(1.0)).round();
 
-                reconcile(&mut tree, e, &mut joints, joint_data.len(), |tree, parent| {
-                    tree.branch(parent, Polygon::new().rounding(1.0).elevate(Elevation::up(2)))
-                });
+                reconcile(
+                    &mut tree,
+                    e,
+                    &mut joints,
+                    joint_data.len(),
+                    |tree, parent| {
+                        tree.branch(
+                            parent,
+                            Polygon::new().rounding(1.0).elevate(Elevation::up(2)),
+                        )
+                    },
+                );
                 joint_cache.resize(joints.len(), None);
                 for (i, child) in joints.iter().enumerate() {
                     let value = visible_joint_data.get(i).copied();
@@ -372,7 +399,11 @@ fn truncate_path(points: &[Position<Logical>], t: f32) -> Vec<Position<Logical>>
         let (a, b) = (w[0], w[1]);
         let len = a.distance(b);
         if traveled + len >= target {
-            let frac = if len > 0.0 { (target - traveled) / len } else { 0.0 };
+            let frac = if len > 0.0 {
+                (target - traveled) / len
+            } else {
+                0.0
+            };
             out.push(lerp(a, b, frac));
             return out;
         }
@@ -415,7 +446,10 @@ fn lerp(a: Position<Logical>, b: Position<Logical>, t: f32) -> Position<Logical>
 /// vertex is where two segments actually meet.
 fn straight_segments(
     points: &[Position<Logical>],
-) -> (Vec<(Position<Logical>, Position<Logical>)>, Vec<Position<Logical>>) {
+) -> (
+    Vec<(Position<Logical>, Position<Logical>)>,
+    Vec<Position<Logical>>,
+) {
     let segments = points.windows(2).map(|w| (w[0], w[1])).collect();
     let joints = points[1..points.len() - 1].to_vec();
     (segments, joints)
@@ -431,7 +465,10 @@ fn straight_segments(
 fn dashed_segments(
     points: &[Position<Logical>],
     dash: DashPattern,
-) -> (Vec<(Position<Logical>, Position<Logical>)>, Vec<Position<Logical>>) {
+) -> (
+    Vec<(Position<Logical>, Position<Logical>)>,
+    Vec<Position<Logical>>,
+) {
     let cycle = dash.on + dash.off;
     let mut segments = Vec::new();
     let mut joints = Vec::new();

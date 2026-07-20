@@ -1,10 +1,10 @@
+use crate::Trigger;
 use crate::composite::pagination::{PageChanged, Pagination, PaginationMode};
 use crate::composite::{IndexedSlotFn, PageCount, PageIndex, Root};
-use crate::Trigger;
 use crate::{
     Animation, Color, Component, CurrentInteraction, Disengaged, Ease, EcsExtension, Elevation,
-    Entity, Grid, GridExt, InteractionListener, InteractionPropagation, Leaf, LeafSprout,
-    Location, Logical, Section, Sequence, Sprout, Tree,
+    Entity, Grid, GridExt, InteractionListener, InteractionPropagation, Leaf, LeafSprout, Location,
+    Logical, Section, Sequence, Sprout, Tree,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -154,7 +154,10 @@ impl Sprout for CarouselSprout {
                     0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .elevate(Elevation::up(1))
-                .with((Grid::default(), InteractionPropagation::grab().disable_drag())),
+                .with((
+                    Grid::default(),
+                    InteractionPropagation::grab().disable_drag(),
+                )),
         );
         tree.write_to(
             this,

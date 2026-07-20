@@ -1,5 +1,5 @@
-use crate::coordinate::position::Position;
 use crate::coordinate::Logical;
+use crate::coordinate::position::Position;
 use crate::ginkgo::ScaleFactor;
 use crate::interaction::{Interaction, InteractionMethod, InteractionPhase};
 use crate::{Event, Resource};

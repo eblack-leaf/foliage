@@ -1,5 +1,5 @@
-use crate::composite::Root;
 use crate::Trigger;
+use crate::composite::Root;
 use crate::{
     Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt, HorizontalAlignment,
     InteractionListener, LeafSprout, Location, OnClick, Outline, Panel, Sprout, Text, Tree,
@@ -130,10 +130,7 @@ impl Sprout for RadioGroupSprout {
                 if opts.0.is_empty() {
                     return;
                 }
-                tree.write_to(
-                    e,
-                    Grid::new(1.col(), opts.0.len().row().gap(4)),
-                );
+                tree.write_to(e, Grid::new(1.col(), opts.0.len().row().gap(4)));
                 for (i, text) in opts.0.iter().enumerate() {
                     let row = (i + 1) as i32;
                     let active = i == current;
@@ -157,10 +154,7 @@ impl Sprout for RadioGroupSprout {
                         Text::new(text.clone())
                             .color(if active { style.active } else { style.inactive })
                             .at(Location::new().xs(
-                                (CIRCLE_SIZE + 8)
-                                    .px()
-                                    .as_left()
-                                    .with(100.pct().as_right()),
+                                (CIRCLE_SIZE + 8).px().as_left().with(100.pct().as_right()),
                                 row.row().as_top().with(row.row().as_bottom()),
                             ))
                             .elevate(Elevation::up(1))
@@ -193,7 +187,11 @@ impl Sprout for RadioGroupSprout {
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 let opts = options.get(e).unwrap();
-                let current = selected.get(e).unwrap().0.min(opts.0.len().saturating_sub(1));
+                let current = selected
+                    .get(e)
+                    .unwrap()
+                    .0
+                    .min(opts.0.len().saturating_sub(1));
                 let style = *styles.get(e).unwrap();
                 let handle = handles.get(e).unwrap();
                 for (i, (circle, label)) in handle.rows.iter().enumerate() {

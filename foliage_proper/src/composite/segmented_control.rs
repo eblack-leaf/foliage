@@ -1,5 +1,5 @@
-use crate::composite::Root;
 use crate::Trigger;
+use crate::composite::Root;
 use crate::{
     Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid, GridExt,
     HorizontalAlignment, InteractionListener, InteractionPropagation, LeafSprout, Location,
@@ -239,12 +239,23 @@ impl Sprout for SegmentedControlSprout {
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 let opts = options.get(e).unwrap();
-                let current = selected.get(e).unwrap().0.min(opts.0.len().saturating_sub(1));
+                let current = selected
+                    .get(e)
+                    .unwrap()
+                    .0
+                    .min(opts.0.len().saturating_sub(1));
                 let style = *styles.get(e).unwrap();
                 let handle = handles.get(e).unwrap();
                 for (i, (panel, _label)) in handle.segments.iter().enumerate() {
                     // label color never depends on selection -- only the panel fill swaps.
-                    tree.write_to(*panel, if i == current { style.active } else { style.inactive });
+                    tree.write_to(
+                        *panel,
+                        if i == current {
+                            style.active
+                        } else {
+                            style.inactive
+                        },
+                    );
                 }
                 tree.trigger_targets(SegmentChanged::new(current), e);
             },

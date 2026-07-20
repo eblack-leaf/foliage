@@ -3,10 +3,10 @@
 //! events as the library's own Button/TextInput. Nothing here is foliage-internal.
 
 use foliage::{
-    component, targeted_event, AssetKey, Button, ButtonSprout, Color, EcsExtension, Elevation,
-    Entity, EntityEvent, FontSize, Grid, GridExt, IconId, Image, ImageView, Insert,
-    InteractionListener, Leaf, LeafSprout, Location, OnClick, Panel, Query, Rounding, Sprout,
-    Text, TextValue, Tree, Trigger,
+    AssetKey, Button, ButtonSprout, Color, EcsExtension, Elevation, Entity, EntityEvent, FontSize,
+    Grid, GridExt, IconId, Image, ImageView, Insert, InteractionListener, Leaf, LeafSprout,
+    Location, OnClick, Panel, Query, Rounding, Sprout, Text, TextValue, Tree, Trigger, component,
+    targeted_event,
 };
 
 /// A round icon-only button -- the shape every icon button in this app shares, differing only
@@ -173,4 +173,3 @@ impl Sprout for ProjectCardSprout {
         );
     }
 }
-

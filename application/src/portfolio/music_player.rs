@@ -1,7 +1,7 @@
 use crate::icons::IconHandles;
 use crate::widgets::icon_button;
-use foliage::component;
 use foliage::Justify::Center;
+use foliage::component;
 use foliage::{
     Animation, AssetKey, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid,
     GridExt, HorizontalAlignment, Icon, Image, ImageView, Leaf, Location, OnClick, Opacity,
