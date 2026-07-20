@@ -101,3 +101,72 @@ impl Default for BlendedOpacity {
         Self::new(1.0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{EcsExtension, Elevation, Entity, Foliage, Leaf, Location, Sprout};
+
+    fn blended_of(foliage: &mut Foliage, entity: Entity) -> f32 {
+        foliage.world.get::<BlendedOpacity>(entity).unwrap().value
+    }
+
+    #[test]
+    fn a_bare_leaf_defaults_to_fully_opaque() {
+        let mut foliage = Foliage::new();
+        let leaf = foliage
+            .world
+            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+        foliage.world.flush();
+        assert_eq!(blended_of(&mut foliage, leaf), 1.0);
+    }
+
+    #[test]
+    fn a_childs_blended_opacity_multiplies_through_its_parent() {
+        let mut foliage = Foliage::new();
+        let parent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::up(1))
+                .with(Opacity::new(0.5)),
+        );
+        let child = foliage.world.branch(
+            parent,
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::up(1))
+                .with(Opacity::new(0.5)),
+        );
+        foliage.world.flush();
+        assert_eq!(blended_of(&mut foliage, parent), 0.5);
+        assert_eq!(
+            blended_of(&mut foliage, child),
+            0.25,
+            "0.5 (parent) * 0.5 (own) -- not 0.5 and not 1.0"
+        );
+    }
+
+    #[test]
+    fn a_parents_opacity_change_propagates_down_to_an_already_spawned_child() {
+        let mut foliage = Foliage::new();
+        let parent = foliage
+            .world
+            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+        let child = foliage.world.branch(
+            parent,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+        assert_eq!(blended_of(&mut foliage, child), 1.0, "sanity: fully opaque before any change");
+
+        foliage.write_to(parent, Opacity::new(0.4));
+        foliage.world.flush();
+        assert_eq!(
+            blended_of(&mut foliage, child),
+            0.4,
+            "the child never had its own Opacity written -- this is purely the parent's \
+             on_insert hook pushing a new blended value down to an existing child, not \
+             just a freshly-spawned one inheriting it"
+        );
+    }
+}

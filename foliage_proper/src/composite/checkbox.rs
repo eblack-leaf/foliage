@@ -13,8 +13,11 @@ use bevy_ecs::system::Query;
 /// [`CheckboxSprout::check_icon`]), [`Checked`] out. Same `Engagement`-free
 /// persistent-state shape as `Toggle` (click flips one component, a reaction draws the
 /// result) -- the visual difference is the whole point: an empty outlined box at rest, a
-/// filled box + checkmark icon once checked. The checkmark is an author-supplied icon --
-/// the library ships no icons of its own, so `.check_icon(..)` is required.
+/// filled box once checked. `Panel`'s own fill-vs-outline exclusivity already carries that
+/// distinction on its own (see the style reaction in `build`), so the checkmark icon is
+/// an optional embellishment on top of an already-legible state, not load-bearing --
+/// `.check_icon(..)` is genuinely optional; a caller who skips it just gets a plain
+/// filled/outlined box with no glyph.
 #[derive(Component, Copy, Clone)]
 pub struct Checkbox {}
 impl Checkbox {
@@ -39,20 +42,23 @@ pub struct CheckboxStyle {
     pub rounding: Rounding,
 }
 
-/// The checkmark glyph -- structural (which icon), not a color/rounding style knob, so it
-/// gets its own component, same split as `Modal`'s `ModalConfig`/`ModalStyle`. Set once at
-/// spawn, `build`'s reaction on this is what actually spawns the icon child (`build` itself
-/// has no way to read the sprout's own config back -- this component is that door).
+/// The checkmark glyph -- structural (which icon, if any), not a color/rounding style
+/// knob, so it gets its own component, same split as `Modal`'s `ModalConfig`/
+/// `ModalStyle`. Set once at spawn, `build`'s reaction on this is what actually spawns
+/// the icon child (`build` itself has no way to read the sprout's own config back --
+/// this component is that door). `None` means no icon was configured -- no child gets
+/// spawned at all, not a defunct hidden one.
 #[derive(Component, Copy, Clone)]
 pub(crate) struct CheckboxConfig {
-    check_icon: IconId,
+    check_icon: Option<IconId>,
 }
 
 /// Private child registry: the style reaction needs the check icon's entity id, which only
-/// exists after the config reaction below has run.
+/// exists after the config reaction below has run. `None` mirrors `CheckboxConfig`: no
+/// icon configured, nothing to update in the style reaction below.
 #[derive(Component, Copy, Clone)]
 pub(crate) struct CheckboxHandle {
-    check: Entity,
+    check: Option<Entity>,
 }
 
 /// Emitted at the checkbox root whenever [`CheckboxState`] changes (click or programmatic
@@ -85,7 +91,9 @@ impl CheckboxSprout {
         self.on = on;
         self
     }
-    /// The checkmark glyph -- required; the library ships no icons of its own.
+    /// The checkmark glyph -- optional; the library ships no icons of its own, and the
+    /// box's own fill-vs-outline switch already carries the checked/unchecked state
+    /// without it (see `Checkbox`'s own docs).
     pub fn check_icon<ID: Into<IconId>>(mut self, id: ID) -> Self {
         self.check_icon = Some(id.into());
         self
@@ -110,9 +118,7 @@ impl Sprout for CheckboxSprout {
             Checkbox {},
             CheckboxState(self.on),
             CheckboxConfig {
-                check_icon: self
-                    .check_icon
-                    .expect("Checkbox::check_icon(..) is required"),
+                check_icon: self.check_icon,
             },
             self.style,
             Grid::default(),
@@ -148,19 +154,21 @@ impl Sprout for CheckboxSprout {
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 let check_icon = configs.get(e).unwrap().check_icon;
-                let check = tree.branch(
-                    e,
-                    Icon::new(check_icon)
-                        .at(Location::new().xs(
-                            20.pct().as_left().with(80.pct().as_right()),
-                            20.pct().as_top().with(80.pct().as_bottom()),
-                        ))
-                        .elevate(Elevation::up(2))
-                        .with((
-                            InteractionPropagation::pass_through(),
-                            FocusBehavior::ignore(),
-                        )),
-                );
+                let check = check_icon.map(|icon| {
+                    tree.branch(
+                        e,
+                        Icon::new(icon)
+                            .at(Location::new().xs(
+                                20.pct().as_left().with(80.pct().as_right()),
+                                20.pct().as_top().with(80.pct().as_bottom()),
+                            ))
+                            .elevate(Elevation::up(2))
+                            .with((
+                                InteractionPropagation::pass_through(),
+                                FocusBehavior::ignore(),
+                            )),
+                    )
+                });
                 tree.write_to(e, CheckboxHandle { check });
             },
         );
@@ -192,8 +200,9 @@ impl Sprout for CheckboxSprout {
                 } else {
                     tree.write_to(panel, (style.outline, Outline::new(2), style.rounding));
                 }
-                let check = handles.get(e).unwrap().check;
-                tree.write_to(check, (style.check, Visibility::new(on)));
+                if let Some(check) = handles.get(e).unwrap().check {
+                    tree.write_to(check, (style.check, Visibility::new(on)));
+                }
             },
         );
         // state -> event bridge; kept out of the render reaction so style-only writes don't

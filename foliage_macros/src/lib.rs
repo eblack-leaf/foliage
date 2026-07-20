@@ -2,17 +2,43 @@ use proc_macro_crate::{FoundCrate, crate_name};
 use syn::{Fields, Item, ItemEnum, ItemStruct, parse_macro_input};
 
 /// Path to the foliage crate root from wherever the macro is invoked: `foliage` for
-/// consumers, `crate` inside foliage_proper itself.
+/// consumers, `crate` inside foliage_proper's (or foliage's) own *library* target.
+///
+/// `proc_macro_crate::crate_name`'s `FoundCrate::Itself` means "the queried name matches
+/// `CARGO_PKG_NAME`" -- true for *every* target in that package (the lib, but also every
+/// example/bin/test), not just the lib. `crate::bevy_ecs` only actually resolves from the
+/// lib target itself; an example (a separate compilation unit that only sees the package's
+/// *public* API, the same as any external consumer would) needs the real crate name even
+/// though `crate_name` reports `Itself`. `CARGO_CRATE_NAME` (the specific target currently
+/// being compiled) vs `CARGO_PKG_NAME` (the package, constant across all its targets)
+/// distinguishes the two: they match only for the lib target itself. Found by actually
+/// hitting `error[E0432]: unresolved import 'crate', no 'bevy_ecs' in the root` compiling
+/// `foliage/examples/polyline.rs` -- `Itself` alone isn't a safe signal on its own.
 fn foliage_root() -> proc_macro2::TokenStream {
     let found = crate_name("foliage").or_else(|_| crate_name("foliage_proper"));
     match found {
-        Ok(FoundCrate::Itself) => quote::quote!(crate),
+        Ok(FoundCrate::Itself) if compiling_the_actual_lib_target() => quote::quote!(crate),
+        Ok(FoundCrate::Itself) => {
+            // Itself, but not the lib target -- fall back to the package's own name
+            // (CARGO_PKG_NAME), same as a downstream consumer would spell it.
+            let name = std::env::var("CARGO_PKG_NAME")
+                .unwrap_or_else(|_| "foliage".to_string())
+                .replace('-', "_");
+            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
+            quote::quote!( #ident )
+        }
         Ok(FoundCrate::Name(name)) => {
             let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
             quote::quote!( #ident )
         }
         Err(_) => quote::quote!(foliage),
     }
+}
+
+fn compiling_the_actual_lib_target() -> bool {
+    let crate_name = std::env::var("CARGO_CRATE_NAME").unwrap_or_default();
+    let pkg_name = std::env::var("CARGO_PKG_NAME").unwrap_or_default().replace('-', "_");
+    crate_name == pkg_name
 }
 
 /// Shared machinery for `#[component]`/`#[resource]`/`#[query_data]`/`#[system_set]`: none
@@ -241,14 +267,11 @@ pub fn icon_handle(
 ) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as ItemEnum);
     let name = &input.ident;
-    let found_crate = crate_name("foliage").expect("foliage is present in `Cargo.toml`");
-    let foliage = match found_crate {
-        FoundCrate::Itself => quote::quote!(crate),
-        FoundCrate::Name(name) => {
-            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
-            quote::quote!( #ident )
-        }
-    };
+    // Was its own separate, un-deduplicated copy of this same crate-path resolution --
+    // carried the exact same `Itself`-means-lib-target bug `foliage_root()` had until an
+    // example in this same package (`foliage/examples/controls.rs`, using `#[icon_handle]`)
+    // hit it too. Sharing the one (now-fixed) helper instead of maintaining two copies.
+    let foliage = foliage_root();
     let expanded = quote::quote!(
         #[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]
         #input

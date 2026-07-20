@@ -498,3 +498,89 @@ fn dashed_segments(
     }
     (segments, joints)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn p(x: f32, y: f32) -> Position<Logical> {
+        Position::logical((x, y))
+    }
+
+    #[test]
+    fn lerp_finds_the_midpoint_at_t_half() {
+        assert_eq!(lerp(p(0.0, 0.0), p(10.0, 20.0), 0.5), p(5.0, 10.0));
+    }
+
+    #[test]
+    fn lerp_at_t_zero_and_one_returns_the_endpoints() {
+        let (a, b) = (p(0.0, 0.0), p(10.0, 20.0));
+        assert_eq!(lerp(a, b, 0.0), a);
+        assert_eq!(lerp(a, b, 1.0), b);
+    }
+
+    #[test]
+    fn straight_segments_is_one_line_per_edge_and_one_joint_per_interior_vertex() {
+        let points = vec![p(0.0, 0.0), p(10.0, 0.0), p(10.0, 10.0), p(20.0, 10.0)];
+        let (segments, joints) = straight_segments(&points);
+        assert_eq!(
+            segments,
+            vec![
+                (p(0.0, 0.0), p(10.0, 0.0)),
+                (p(10.0, 0.0), p(10.0, 10.0)),
+                (p(10.0, 10.0), p(20.0, 10.0)),
+            ]
+        );
+        // interior points only -- the first and last points of the path are never joints.
+        assert_eq!(joints, vec![p(10.0, 0.0), p(10.0, 10.0)]);
+    }
+
+    #[test]
+    fn dashed_segments_phase_carries_continuously_across_a_bend() {
+        // a right-angle bend at (10,0), each leg 10 long, dash on=6/off=4 (cycle 10):
+        // the first "on" run (0..6) ends mid-leg-one, well before the bend, so the
+        // bend at distance 10 lands exactly on a fresh cycle boundary (phase 0, "on").
+        // That means the walk is still "on" as it crosses the bend -- one continuous
+        // dash spans the corner as two clipped `Line`s, not a single quad cutting it,
+        // and the vertex needs its own joint since two emitted lines actually meet there.
+        let points = vec![p(0.0, 0.0), p(10.0, 0.0), p(10.0, 10.0)];
+        let dash = DashPattern::new(6.0, 4.0);
+        let (segments, joints) = dashed_segments(&points, dash);
+
+        // on-run 1: (0,0)-(6,0). off: (6,0)-(10,0). on-run 2 starts exactly at the
+        // bend (10,0) and continues onto the second leg: (10,0)-(10,6).
+        assert_eq!(segments.len(), 2, "the on-run either side of the untouched off-gap");
+        assert_eq!(segments[0], (p(0.0, 0.0), p(6.0, 0.0)));
+        assert_eq!(segments[1], (p(10.0, 0.0), p(10.0, 6.0)));
+
+        // the bend (10,0) is mid-"on" (phase resets to 0 right at the vertex, which is
+        // still < dash.on), so the two segments actually meet there -- it gets a joint.
+        assert_eq!(joints, vec![p(10.0, 0.0)]);
+    }
+
+    #[test]
+    fn dashed_segments_gives_no_joint_when_the_bend_lands_in_an_off_gap() {
+        // same bend, but dash on=6/off=8 (cycle 14): distance 10 (the bend) falls at
+        // phase 10, which is within [6, 14) -- the "off" range -- so nothing is drawn
+        // right at the vertex, no two emitted lines actually meet there, and it
+        // correctly gets no joint.
+        let points = vec![p(0.0, 0.0), p(10.0, 0.0), p(10.0, 10.0)];
+        let dash = DashPattern::new(6.0, 8.0);
+        let (_, joints) = dashed_segments(&points, dash);
+        assert!(joints.is_empty());
+    }
+
+    #[test]
+    fn truncate_path_at_t_one_returns_the_full_path_unchanged() {
+        let points = vec![p(0.0, 0.0), p(10.0, 0.0), p(10.0, 10.0)];
+        assert_eq!(truncate_path(&points, 1.0), points);
+    }
+
+    #[test]
+    fn truncate_path_at_half_stops_exactly_halfway_along_total_arc_length() {
+        // total length 20 (10 + 10), so t=0.5 should stop at arc length 10 -- exactly
+        // the first vertex, with nothing of the second leg revealed yet.
+        let points = vec![p(0.0, 0.0), p(10.0, 0.0), p(10.0, 10.0)];
+        assert_eq!(truncate_path(&points, 0.5), vec![p(0.0, 0.0), p(10.0, 0.0)]);
+    }
+}

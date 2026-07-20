@@ -60,3 +60,89 @@ bitflags! {
         const INHERIT_ENABLED = 1 << 2;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ash::clip::ResolvedClip;
+
+    fn section(left: f32, top: f32, width: f32, height: f32) -> Section<Logical> {
+        Section::new((left, top), (width, height))
+    }
+    fn unclipped(section: Section<Logical>) -> ResolvedClip {
+        ResolvedClip(section)
+    }
+    fn at(x: f32, y: f32) -> Position<Logical> {
+        Position::logical((x, y))
+    }
+
+    #[test]
+    fn rectangle_shape_is_a_plain_bounds_check() {
+        let bounds = section(0.0, 0.0, 100.0, 50.0);
+        let clip = unclipped(bounds);
+        assert!(InteractionListener::is_contained(
+            InteractionShape::Rectangle,
+            bounds,
+            clip,
+            at(50.0, 25.0),
+        ));
+        assert!(!InteractionListener::is_contained(
+            InteractionShape::Rectangle,
+            bounds,
+            clip,
+            at(150.0, 25.0),
+        ));
+    }
+
+    #[test]
+    fn circle_shape_uses_distance_from_center_not_the_bounding_box() {
+        // a 100x100 box's circle has radius 50 -- a point in the box's corner is well
+        // within the *rectangular* bounds but outside the *circular* hit area, which is
+        // exactly the distinction `InteractionShape::Circle` exists to make (round
+        // buttons/knobs shouldn't be clickable in their square corners).
+        let bounds = section(0.0, 0.0, 100.0, 100.0);
+        let clip = unclipped(bounds);
+        let corner = at(5.0, 5.0);
+        assert!(
+            InteractionListener::is_contained(InteractionShape::Rectangle, bounds, clip, corner),
+            "sanity: the corner is inside the rectangular bounds"
+        );
+        assert!(
+            !InteractionListener::is_contained(InteractionShape::Circle, bounds, clip, corner),
+            "but outside the circle inscribed in those same bounds"
+        );
+        assert!(InteractionListener::is_contained(
+            InteractionShape::Circle,
+            bounds,
+            clip,
+            at(50.0, 50.0), // dead center -- inside any shape
+        ));
+    }
+
+    #[test]
+    fn a_point_inside_the_section_but_outside_the_clip_is_not_contained() {
+        // clip is narrower than the section itself -- e.g. a scrolled child peeking past
+        // its parent View's visible edge. The point is genuinely inside the entity's own
+        // section, but the clip (an ancestor's visible bounds) says it's cut off.
+        let section_bounds = section(0.0, 0.0, 100.0, 100.0);
+        let clip = unclipped(section(0.0, 0.0, 40.0, 100.0));
+        assert!(!InteractionListener::is_contained(
+            InteractionShape::Rectangle,
+            section_bounds,
+            clip,
+            at(70.0, 50.0),
+        ));
+    }
+
+    #[test]
+    fn disabled_requires_all_three_enable_flags_together() {
+        let mut listener = InteractionListener::new();
+        assert!(!listener.disabled(), "default state is fully enabled");
+
+        listener.state.remove(InteractionState::AUTO_ENABLED);
+        assert!(
+            listener.disabled(),
+            "ENABLED and INHERIT_ENABLED alone aren't enough -- it's a conjunction of all three"
+        );
+    }
+}

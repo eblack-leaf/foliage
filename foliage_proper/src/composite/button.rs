@@ -45,12 +45,13 @@ pub struct Engagement(pub bool);
 /// outline. Panel's fill/outline is the only part that varies: filled with background when
 /// there's no outline (inverting to foreground on engage); when outlined, the fill is always
 /// foreground and only the outline itself toggles away on engage. One computation, shared by
-/// every property/engage-state change, run by the one reaction below.
+/// every property/engage-state change, run by the one reaction below. `icon`/`icon_size` are
+/// `None`/zero when no icon was configured -- text simply isn't offset to make room for one.
 fn restyle(
     tree: &mut Tree,
     this: Entity,
     panel: Entity,
-    icon: Entity,
+    icon: Option<Entity>,
     text: Entity,
     style: ButtonStyle,
     engaged: bool,
@@ -61,7 +62,9 @@ fn restyle(
     } else {
         style.foreground
     };
-    tree.write_to(icon, content);
+    if let Some(icon) = icon {
+        tree.write_to(icon, content);
+    }
     tree.write_to(text, content);
     if style.outline == Outline::default() {
         let fill = if engaged {
@@ -108,9 +111,11 @@ fn restyle(
             (HorizontalAlignment::Right, VerticalAlignment::Middle),
         ),
     };
-    tree.write_to(icon, icon_location);
-    tree.write_to(icon, icon_anchor);
-    tree.write_to(icon, icon_alignment);
+    if let Some(icon) = icon {
+        tree.write_to(icon, icon_location);
+        tree.write_to(icon, icon_anchor);
+        tree.write_to(icon, icon_alignment);
+    }
     match style.rounding {
         Rounding::Full => {
             tree.write_to(panel, Rounding::Full);
@@ -122,6 +127,14 @@ fn restyle(
         }
     }
 }
+
+/// Whether `.icon(..)` was ever called on the sprout -- `IconValue` alone can't answer
+/// this (it collapses "no icon configured" into a default `IconId`, losing the
+/// distinction), and the icon child's *presence* is a one-time decision made at spawn:
+/// there's no public way to remove an icon once configured, only to change which one via
+/// `IconValue` writes, so this never needs to be reactive itself, just read once.
+#[derive(Component, Copy, Clone, Default)]
+pub(crate) struct ButtonHasIcon(pub(crate) bool);
 
 #[derive(Default)]
 pub struct ButtonSprout {
@@ -148,6 +161,7 @@ impl Sprout for ButtonSprout {
             },
             TextValue(self.text.unwrap_or_default()),
             IconValue(self.icon.unwrap_or_default()),
+            ButtonHasIcon(self.icon.is_some()),
             FontSize::default(),
             Engagement(false),
             InteractionListener::new(),
@@ -157,7 +171,10 @@ impl Sprout for ButtonSprout {
     fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // static skeleton -- no config touches these spawns; every config-dependent value
         // (icon id/location, text content/width, colors, rounding) lands via the reactions'
-        // first fire, in the same command batch.
+        // first fire, in the same command batch. The icon child is the one exception --
+        // it isn't spawned here at all when no icon was configured (`ButtonHasIcon(false)`),
+        // spawned lazily on the main reaction's first fire instead, same as Checkbox's own
+        // optional check-icon child.
         let panel = tree.branch(
             this,
             Panel::new()
@@ -171,13 +188,6 @@ impl Sprout for ButtonSprout {
                     FocusBehavior::ignore(),
                 )),
         );
-        let icon = tree.branch(
-            this,
-            Icon::new(0).elevate(Elevation::up(2)).with((
-                InteractionPropagation::pass_through(),
-                FocusBehavior::ignore(),
-            )),
-        );
         let text = tree.branch(
             this,
             Text::new("").elevate(Elevation::up(2)).with((
@@ -190,15 +200,35 @@ impl Sprout for ButtonSprout {
 
         // one restyle for every appearance input -- engage-state and icon identity included
         // (a swapped icon can carry a different registered footprint)
+        let mut icon: Option<Entity> = None;
         tree.react_any::<(ButtonStyle, Engagement, IconValue), _>(
             this,
             move |trigger: Trigger<Insert, (ButtonStyle, Engagement, IconValue)>,
                   styles: Query<&ButtonStyle>,
                   engagement: Query<&Engagement>,
                   icon_values: Query<&IconValue>,
+                  has_icon: Query<&ButtonHasIcon>,
                   render_sizes: bevy_ecs::system::Res<crate::IconRenderSizes>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
+                if icon.is_none() && has_icon.get(e).unwrap().0 {
+                    icon = Some(tree.branch(
+                        e,
+                        Icon::new(0).elevate(Elevation::up(2)).with((
+                            InteractionPropagation::pass_through(),
+                            FocusBehavior::ignore(),
+                        )),
+                    ));
+                }
+                let icon_size = if let Some(icon) = icon {
+                    let value = icon_values.get(e).unwrap().0;
+                    tree.write_to(icon, IconValue(value)); // was `tree.forward::<IconValue>` --
+                    // folded in here since the icon entity isn't known until this reaction's
+                    // first fire, too late for `forward`'s own fixed-target registration.
+                    render_sizes.get(value)
+                } else {
+                    Coordinates::default()
+                };
                 restyle(
                     &mut tree,
                     e,
@@ -207,7 +237,7 @@ impl Sprout for ButtonSprout {
                     text,
                     *styles.get(e).unwrap(),
                     engagement.get(e).unwrap().0,
-                    render_sizes.get(icon_values.get(e).unwrap().0),
+                    icon_size,
                 );
             },
         );
@@ -227,6 +257,7 @@ impl Sprout for ButtonSprout {
             move |trigger: Trigger<Insert, TextValue>,
                   values: Query<&TextValue>,
                   icon_values: Query<&IconValue>,
+                  has_icon: Query<&ButtonHasIcon>,
                   render_sizes: bevy_ecs::system::Res<crate::IconRenderSizes>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
@@ -234,9 +265,15 @@ impl Sprout for ButtonSprout {
                 let width = value.len();
                 // shift text right by half the icon's own real footprint + its 8px gap (see
                 // `icon_location` above), so icon+gap+text reads as one centered block --
-                // never a guessed offset, since the icon's size is itself configurable.
-                let icon_width = render_sizes.get(icon_values.get(e).unwrap().0).a() as i32;
-                let center_adjust = (icon_width + 8) / 2;
+                // never a guessed offset, since the icon's size is itself configurable. No
+                // icon configured at all -> no footprint and no gap to make room for -> no
+                // shift, text lands perfectly centered instead of off by half a phantom gap.
+                let center_adjust = if has_icon.get(e).unwrap().0 {
+                    let icon_width = render_sizes.get(icon_values.get(e).unwrap().0).a() as i32;
+                    (icon_width + 8) / 2
+                } else {
+                    0
+                };
                 tree.entity(text).insert((
                     TextValue(value),
                     Location::new().xs(
@@ -249,8 +286,7 @@ impl Sprout for ButtonSprout {
                 ));
             },
         );
-        // pure copies
-        tree.forward::<IconValue>(this, icon);
+        // pure copy
         tree.forward::<FontSize>(this, text);
     }
 }
