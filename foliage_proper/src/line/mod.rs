@@ -63,14 +63,8 @@ impl Line {
             let normal_slope = 1.0 / slope;
             let angle = normal_slope.atan();
             let half_weight = line.weight as f32 / 2.0;
-            let factor = f32::from(x_diff.abs() > 0.0 && y_diff.abs() > 0.0);
-            let angle_bias = 0.5 * factor;
-            // println!(
-            //     "angle-bias: {} with {} for {}-{}",
-            //     angle_bias, factor, x_diff, y_diff
-            // );
-            let x_adjust = angle.cos() * (half_weight + angle_bias);
-            let y_adjust = angle.sin() * (half_weight + angle_bias);
+            let x_adjust = angle.cos() * half_weight;
+            let y_adjust = angle.sin() * half_weight;
             let left_top = Position::logical((pts.0.a() + x_adjust, pts.0.b() - y_adjust));
             let left_bottom = Position::logical((pts.0.a() - x_adjust, pts.0.b() + y_adjust));
             let right_top = Position::logical((pts.1.a() + x_adjust, pts.1.b() - y_adjust));

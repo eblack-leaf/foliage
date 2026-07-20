@@ -35,30 +35,38 @@ fn vertex_entry(vertex: Vertex) -> Fragment {
         vertex.right,
     );
 }
-fn distance_to_edge(edge: vec4f, pt: vec2f) -> f32 {
+fn distance_to_edge(edge: vec4f, pt: vec2f, edge_precision: f32) -> f32 {
     let line_dir = edge.zw - edge.xy;
-    let bias = f32(line_dir.x == 0 || line_dir.y == 0 || distance(edge.zw, edge.xy) == 0);// TODO % from pi/2
     // a collapsed corner (triangle via a degenerate quad side) makes line_dir zero --
     // normalize(vec2f(0,0)) is NaN, and that NaN would poison the min() below regardless
     // of which of the four sides (left/right from instance data, or top/bot synthesized
-    // from adjacent corners) went degenerate. bias alone is the right non-constraining
-    // value here: a collapsed side isn't a real boundary of the shape.
+    // from adjacent corners) went degenerate. `edge_precision` itself is the right non-
+    // constraining value here: a collapsed side isn't a real boundary of the shape, so it
+    // should never be the edge that decides coverage (same as `smoothstep`'s own upper
+    // bound would, if this edge had a real, arbitrarily-far-away distance instead).
     if (dot(line_dir, line_dir) == 0.0) {
-        return bias;
+        return edge_precision;
     }
     let perpendicular = vec2f(line_dir.y, -line_dir.x);
     let dir_to_pt = edge.xy - pt;
-    return abs(dot(normalize(perpendicular), dir_to_pt)) + bias;
+    return abs(dot(normalize(perpendicular), dir_to_pt));
 }
 @fragment
 fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
-    let edge_precision = 1.0;
     let top = vec4f(frag.left.zw, frag.right.zw);
     let bot = vec4f(frag.left.xy, frag.right.xy);
-    let left_inclusion = distance_to_edge(frag.left, frag.position.xy);
-    let top_inclusion = distance_to_edge(top, frag.position.xy);
-    let right_inclusion = distance_to_edge(frag.right, frag.position.xy);
-    let bot_inclusion = distance_to_edge(bot, frag.position.xy);
+    // half of the line's own actual rendered width -- caps the AA feather so a line
+    // thinner than the nominal 1px feather still reaches full coverage at its centerline,
+    // for any angle. Previously only axis-aligned edges got an escape hatch for this (a
+    // flat +1 bias on that edge's distance), which is why a thin diagonal line needed its
+    // CPU-side geometry padded out just to read as fully opaque -- see
+    // `Line::distill_descriptor`'s (now removed) `angle_bias`.
+    let half_weight = distance(frag.left.xy, frag.left.zw) * 0.5;
+    let edge_precision = min(1.0, half_weight);
+    let left_inclusion = distance_to_edge(frag.left, frag.position.xy, edge_precision);
+    let top_inclusion = distance_to_edge(top, frag.position.xy, edge_precision);
+    let right_inclusion = distance_to_edge(frag.right, frag.position.xy, edge_precision);
+    let bot_inclusion = distance_to_edge(bot, frag.position.xy, edge_precision);
     let inclusion = min(min(min(left_inclusion, top_inclusion), right_inclusion), bot_inclusion);
     let coverage = smoothstep(0.0, edge_precision, inclusion);
     return vec4f(frag.color.rgb, frag.color.a * coverage);

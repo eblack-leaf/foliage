@@ -10,6 +10,7 @@ pub(crate) mod dropdown;
 pub(crate) mod list;
 pub(crate) mod modal;
 pub(crate) mod pagination;
+pub(crate) mod polyline;
 pub(crate) mod popover;
 pub(crate) mod radio_group;
 pub(crate) mod segmented_control;

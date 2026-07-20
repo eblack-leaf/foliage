@@ -4,11 +4,11 @@
 
 use crate::icons::IconHandles;
 use foliage::{
-    AssetKey, Carousel, CarouselPages, Checkbox, Color, Dropdown, EcsExtension, Elevation, Entity,
-    FontSize, GridExt, HorizontalAlignment, Icon, InteractionPropagation, Location, Opacity,
-    Pagination, PaginationMode, Panel, Polygon, Popover, PopoverPlacement, RadioGroup, Rounding,
-    SegmentedControl, Slider, Sprout, Tabs, TabsPages, Text, TextInput, Toggle, Tree,
-    VerticalAlignment,
+    AssetKey, Carousel, CarouselPages, Checkbox, Color, DashPattern, Dropdown, EcsExtension,
+    Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon, InteractionPropagation,
+    Location, Opacity, Pagination, PaginationMode, Panel, Polygon, Polyline, Popover,
+    PopoverPlacement, Position, RadioGroup, Rounding, SegmentedControl, Slider, Sprout, Tabs,
+    TabsPages, Text, TextInput, Toggle, Tree, VerticalAlignment,
 };
 
 /// One section: a small gray label above whatever `.at()` box the caller gives the
@@ -412,7 +412,7 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
         Panel::new()
             .color(Color::gray(700))
             .at(Location::new().xs(
-                8.px().as_left().with(100.pct().as_right().adjust(-8)),
+                20.px().as_left().with(100.pct().as_right().adjust(-20)),
                 top.px().as_top().with(bottom.px().as_bottom()),
             ))
             .elevate(Elevation::up(1)),
@@ -466,6 +466,44 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
                 .elevate(Elevation::up(1)),
         );
     }
+
+    // Polyline -- built from Line + Polygon, not its own render pipeline (see the type's own
+    // docs). Points are authored in the polyline's own local px space, same zigzag shape on
+    // both sides so the row reads as "compare line style" -- plain vs. dashed -- not "compare
+    // shapes." One color throughout, same reasoning as the Polygon row above.
+    let (top, bottom) = section(tree, app, &mut cursor, "Polyline", 60);
+    let zigzag: Vec<Position<foliage::Logical>> = vec![
+        (10, 50).into(),
+        (50, 10).into(),
+        (90, 50).into(),
+        (130, 10).into(),
+        (170, 40).into(),
+    ];
+    tree.branch(
+        app,
+        Polyline::new()
+            .points(zigzag.clone())
+            .weight(5)
+            .color(Color::gray(400))
+            .at(Location::new().xs(
+                8.px().as_left().with(180.px().as_width()),
+                top.px().as_top().with(bottom.px().as_bottom()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    tree.branch(
+        app,
+        Polyline::new()
+            .points(zigzag)
+            .weight(5)
+            .color(Color::gray(400))
+            .dash(DashPattern::new(10.0, 6.0))
+            .at(Location::new().xs(
+                208.px().as_left().with(180.px().as_width()),
+                top.px().as_top().with(bottom.px().as_bottom()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
 
     cursor += 40;
     let _spacer = tree.branch(
