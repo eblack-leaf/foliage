@@ -1,9 +1,8 @@
 use crate::icons::IconHandles;
 use crate::portfolio;
 use crate::widgets::icon_button;
-use foliage::bevy_ecs;
 use foliage::{
-    anchor, Anchor, Animation, Color, Component, EcsExtension, Elevation, Entity, EntityEvent,
+    anchor, component, Anchor, Animation, Color, EcsExtension, Elevation, Entity, EntityEvent,
     FontSize, GlyphColors, Grid, GridExt, HorizontalAlignment, HrefLink, IconId, Insert, Keyring,
     Leaf, LeafSprout, Line, Location, Logical, OnClick, OnEnd, Opacity, Query, Res, Rounding,
     Section, Sequence, Sprout, Text, TextValue, Tree, Trigger, VerticalAlignment, Write,
@@ -228,7 +227,7 @@ fn measurement_readout<T: EcsExtension>(
 // nobody outside needs its children" is exactly what `Sprout` is for.
 // ===========================================================================
 
-#[derive(Component)]
+#[component]
 struct GithubLink {}
 
 struct GithubLinkSprout {
@@ -337,10 +336,11 @@ impl Sprout for GithubLinkSprout {
 // spawning directly like GithubLink does).
 // ===========================================================================
 
-#[derive(Component)]
+#[component]
 struct OptionRow {}
 
-#[derive(Component, Clone)]
+#[component]
+#[derive(Clone)]
 struct OptionRowConfig {
     icon: IconId,
     color: Color,

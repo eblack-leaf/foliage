@@ -3,9 +3,8 @@
 //! rather than trying to fit everything on screen at once.
 
 use crate::icons::IconHandles;
-use foliage::bevy_ecs;
 use foliage::{
-    AssetKey, Carousel, CarouselPages, Checkbox, Color, Component, DashPattern, Dropdown,
+    component, AssetKey, Carousel, CarouselPages, Checkbox, Color, DashPattern, Dropdown,
     EcsExtension, Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon,
     InteractionPropagation, Location, Opacity, Pagination, PaginationMode, Panel, Polygon,
     Polyline, PolylineDrawProgress, Popover, PopoverPlacement, Position, Query, RadioGroup, Res,
@@ -17,7 +16,7 @@ use foliage::{
 /// the actual path/segment math (which portion of the path is revealed at a given
 /// progress) now lives in the library itself (`PolylineDrawProgress`, see its own docs) --
 /// this is nothing more than a looping timer writing a single `f32` each frame.
-#[derive(Component)]
+#[component]
 pub(crate) struct DrawProgress {
     elapsed: f32,
 }

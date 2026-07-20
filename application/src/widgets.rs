@@ -2,11 +2,8 @@
 //! contract: same `Sprout` trait, same `react`/`forward` door, same `#[targeted_event]`
 //! events as the library's own Button/TextInput. Nothing here is foliage-internal.
 
-// bevy's own derives (Component) resolve `bevy_ecs::` relative to this module --
-// the foliage re-export satisfies them with no direct dependency.
-use foliage::bevy_ecs;
 use foliage::{
-    targeted_event, AssetKey, Button, ButtonSprout, Color, Component, EcsExtension, Elevation,
+    component, targeted_event, AssetKey, Button, ButtonSprout, Color, EcsExtension, Elevation,
     Entity, EntityEvent, FontSize, Grid, GridExt, IconId, Image, ImageView, Insert,
     InteractionListener, Leaf, LeafSprout, Location, OnClick, Panel, Query, Rounding, Sprout,
     Text, TextValue, Tree, Trigger,
@@ -32,7 +29,8 @@ pub(crate) fn icon_button<ID: Into<IconId>>(
 // ===========================================================================
 
 /// ProjectCard's public data component. Poke it, the card redraws.
-#[derive(Component, Clone, Default)]
+#[component]
+#[derive(Clone, Default)]
 pub(crate) struct ProjectInfo {
     pub(crate) title: String,
     pub(crate) desc: String,
@@ -44,7 +42,7 @@ pub(crate) struct ProjectInfo {
 #[derive(Copy)]
 pub(crate) struct Launch {}
 
-#[derive(Component)]
+#[component]
 pub(crate) struct ProjectCard {}
 impl ProjectCard {
     pub(crate) fn new() -> ProjectCardSprout {

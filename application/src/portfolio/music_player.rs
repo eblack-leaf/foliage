@@ -1,7 +1,6 @@
 use crate::icons::IconHandles;
 use crate::widgets::icon_button;
-use foliage::bevy_ecs;
-use foliage::Component;
+use foliage::component;
 use foliage::Justify::Center;
 use foliage::{
     Animation, AssetKey, ButtonStyle, Color, EcsExtension, Elevation, Entity, FontSize, Grid,
@@ -12,7 +11,8 @@ use foliage::{
 
 /// End-user data riding on the play Button's root entity -- widget entities carry the
 /// caller's components alongside the widget's own.
-#[derive(Component, Copy, Clone)]
+#[component]
+#[derive(Copy, Clone)]
 struct Playing(bool);
 
 pub(crate) fn build(tree: &mut Tree, app: Entity, album_cover: AssetKey) {
