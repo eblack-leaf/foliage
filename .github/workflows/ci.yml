@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # winit/wgpu link against the platform windowing stack at compile time on Linux;
+      # macOS and Windows runners already ship what's needed (Cocoa/AppKit, Win32).
+      - name: Install Linux windowing/audio dev libs
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo test --workspace
+        run: cargo test --workspace
+
+      - name: cargo build --examples -p foliage
+        run: cargo build --examples -p foliage
+
+      - name: cargo check -p application
+        run: cargo check -p application
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+
+      # build-only: no browser to execute a WASM test binary in, and the framework's real
+      # tests are headless-native (Foliage::new() never touches wgpu/winit either way).
+      - name: cargo check --target wasm32-unknown-unknown
+        run: cargo check -p foliage_proper -p foliage --target wasm32-unknown-unknown
+
+# Android: real code exists (AndroidConnection, cfg(target_os = "android") branches,
+# winit's android-game-activity feature) but there's no actual app project wired up yet, and
+# a real build needs the Android SDK's interactive license-acceptance step, which is doable
+# in Actions (android-actions/setup-android + `yes | sdkmanager --licenses`) but is real
+# setup work for a target that isn't finished locally either -- add this job once the app
+# side exists to build against.
+#
+# iOS: no toolchain available to compile or run against (no Xcode) -- the code that touches
+# `cfg(not(target_os = "ios"))` is a single branch with no iOS-specific implementation behind
+# it, so there's nothing an `aarch64-apple-ios` cross-compile check would actually catch that
+# isn't already covered by the native macOS job compiling the same shared source.
