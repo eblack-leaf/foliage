@@ -807,10 +807,29 @@ impl TextInput {
                             // to advance by the actual gap, not a hard-coded 1, or the cursor
                             // undershoots by however many positions were skipped.
                             let distance = (offset - found.byte_offset) as u32;
-                            let col = ((found.x / dims.a()) as u32 + distance)
-                                .min(metrics.max_letter_idx_horizontal);
                             let row = (found.y / dims.b()) as u32;
-                            (col, row)
+                            if found.parent == '\n' {
+                                // fontdue only performs a hard linebreak while processing the
+                                // character *after* the `\n` (its own linebreak-opportunity
+                                // check reports one token late, see `layout.rs`'s `append`) --
+                                // a `\n` with nothing typed after it yet (pressing Enter at the
+                                // very end of the text) never gets a `LinePosition` of its own
+                                // at all; its glyph is silently absorbed into the *previous*
+                                // line by fontdue's post-loop finalize, keeping `found.y` on
+                                // the old row. Trusting that `y` directly left the cursor
+                                // parked on the old line instead of dropping to the new
+                                // (still-empty) one -- the actual reported bug. The newline
+                                // itself doesn't occupy a column on the new row, so column is
+                                // `distance - 1`, not `distance`.
+                                let col = distance
+                                    .saturating_sub(1)
+                                    .min(metrics.max_letter_idx_horizontal);
+                                (col, row + 1)
+                            } else {
+                                let col = ((found.x / dims.a()) as u32 + distance)
+                                    .min(metrics.max_letter_idx_horizontal);
+                                (col, row)
+                            }
                         } else {
                             // no settled glyph at all to derive a visual column from (e.g. the
                             // very first keystroke into an empty field) -- approximate
@@ -2108,3 +2127,345 @@ impl HintText {
 }
 #[derive(Component, Clone, Default)]
 pub struct HintColor(pub Color);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Modifiers;
+
+    fn spawn_multiline(foliage: &mut Foliage, text: &str) -> Entity {
+        let this = foliage.world.leaf(
+            TextInput::new()
+                .text(text)
+                .line_constraint(LineConstraint::Multiple)
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+        this
+    }
+
+    fn press_enter(foliage: &mut Foliage, this: Entity) {
+        press(foliage, this, Key::Enter, Modifiers::default());
+    }
+
+    fn press(foliage: &mut Foliage, this: Entity, key: Key, mods: Modifiers) {
+        foliage
+            .world
+            .trigger_targets(Input::new(InputSequence::new(key, mods)), this);
+        foliage.world.flush();
+    }
+
+    fn type_char(foliage: &mut Foliage, this: Entity, c: char) {
+        press(foliage, this, Key::Character(c.to_string()), Modifiers::default());
+    }
+
+    fn set_cursor(foliage: &mut Foliage, this: Entity, location: GlyphOffset, column: u32, row: u32) {
+        foliage
+            .world
+            .entity_mut(this)
+            .insert(Cursor { location, column, row });
+        foliage.world.flush();
+    }
+
+    fn text_value(foliage: &mut Foliage, this: Entity) -> String {
+        foliage.world.get::<TextValue>(this).unwrap().0.clone()
+    }
+
+    /// The actual reported bug: pressing Enter at the very end of a field's text left the
+    /// cursor on the old row instead of dropping to the new (empty) one. Root cause was in
+    /// `move_cursor`'s `Offset` arm (`Err(insert_idx)` branch): fontdue only performs a hard
+    /// linebreak while processing the character *after* a `'\n'`, so a trailing `'\n'` with
+    /// nothing typed after it never gets its own line -- its glyph's `y` stays on the old
+    /// row, and that `y` was trusted directly for the cursor's row.
+    #[test]
+    fn pressing_enter_at_the_end_of_text_moves_the_cursor_to_a_new_row() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        // place the cursor at the end of "hello" -- the exact precondition ("just typed
+        // some text, cursor trails it") the reported bug needs. `Cursor` has no reactive
+        // hook of its own, so a direct write is safe test setup, not fighting anything.
+        foliage.world.entity_mut(this).insert(Cursor {
+            location: 5,
+            column: 5,
+            row: 0,
+        });
+        foliage.world.flush();
+
+        press_enter(&mut foliage, this);
+
+        let cursor = *foliage.world.get::<Cursor>(this).unwrap();
+        assert_eq!(cursor.row, 1, "the cursor should have dropped to the new (empty) line");
+        assert_eq!(cursor.column, 0, "the new line is empty -- cursor should be at its start");
+    }
+
+    #[test]
+    fn pressing_enter_mid_text_still_correctly_splits_the_line() {
+        // the non-buggy case, kept alongside the fix as a guard against overcorrecting:
+        // a '\n' with real content *after* it does get its own line from fontdue already
+        // (the deferred-linebreak issue only bites when nothing follows the newline), so
+        // this must keep working via the ordinary `found.y`-trusting path, not the new
+        // `found.parent == '\n'` branch.
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "helloworld");
+        foliage.world.entity_mut(this).insert(Cursor {
+            location: 5, // between "hello" and "world"
+            column: 5,
+            row: 0,
+        });
+        foliage.world.flush();
+
+        press_enter(&mut foliage, this);
+
+        let cursor = *foliage.world.get::<Cursor>(this).unwrap();
+        assert_eq!(cursor.row, 1);
+        assert_eq!(cursor.column, 0);
+        let text = foliage.world.get::<TextValue>(this).unwrap().0.clone();
+        assert_eq!(text, "hello\nworld", "the newline should have landed between the two words");
+    }
+
+    #[test]
+    fn single_line_constraint_ignores_enter_entirely() {
+        let mut foliage = Foliage::new();
+        let this = foliage.world.leaf(
+            TextInput::new()
+                .text("hello")
+                .line_constraint(LineConstraint::Single)
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(40.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+        foliage.world.entity_mut(this).insert(Cursor {
+            location: 5,
+            column: 5,
+            row: 0,
+        });
+        foliage.world.flush();
+
+        press_enter(&mut foliage, this);
+
+        let text = foliage.world.get::<TextValue>(this).unwrap().0.clone();
+        assert_eq!(text, "hello", "a single-line field should never gain a newline");
+    }
+
+    // ---------- typing / backspace / delete ----------
+
+    #[test]
+    fn typing_a_character_inserts_it_at_the_cursor_and_advances_the_cursor() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "helo");
+        set_cursor(&mut foliage, this, 3, 3, 0); // between "hel" and "o"
+
+        type_char(&mut foliage, this, 'l');
+
+        assert_eq!(text_value(&mut foliage, this), "hello");
+        let cursor = *foliage.world.get::<Cursor>(this).unwrap();
+        assert_eq!(cursor.location, 4, "cursor lands right after the inserted character");
+    }
+
+    #[test]
+    fn backspace_removes_the_previous_character_and_moves_the_cursor_back() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        set_cursor(&mut foliage, this, 5, 5, 0);
+
+        press(&mut foliage, this, Key::Backspace, Modifiers::default());
+
+        assert_eq!(text_value(&mut foliage, this), "hell");
+        let cursor = *foliage.world.get::<Cursor>(this).unwrap();
+        assert_eq!(cursor.location, 4);
+    }
+
+    #[test]
+    fn backspace_at_the_start_of_text_does_nothing() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        set_cursor(&mut foliage, this, 0, 0, 0);
+
+        press(&mut foliage, this, Key::Backspace, Modifiers::default());
+
+        assert_eq!(text_value(&mut foliage, this), "hello");
+    }
+
+    #[test]
+    fn delete_removes_the_next_character_and_leaves_the_cursor_in_place() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        set_cursor(&mut foliage, this, 0, 0, 0);
+
+        press(&mut foliage, this, Key::Delete, Modifiers::default());
+
+        assert_eq!(text_value(&mut foliage, this), "ello");
+        let cursor = *foliage.world.get::<Cursor>(this).unwrap();
+        assert_eq!(cursor.location, 0, "delete removes forward -- the cursor doesn't move");
+    }
+
+    #[test]
+    fn backspace_with_an_active_selection_removes_the_whole_selection_instead_of_one_character() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello world");
+        set_cursor(&mut foliage, this, 11, 11, 0);
+        foliage.world.entity_mut(this).insert(Selection {
+            range: 6..11, // "world"
+            inverted: false,
+        });
+        foliage.world.flush();
+
+        press(&mut foliage, this, Key::Backspace, Modifiers::default());
+
+        assert_eq!(
+            text_value(&mut foliage, this),
+            "hello ",
+            "backspace with a live selection should remove the whole selection, not one char"
+        );
+    }
+
+    #[test]
+    fn typing_over_an_active_selection_replaces_it() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello world");
+        set_cursor(&mut foliage, this, 11, 11, 0);
+        foliage.world.entity_mut(this).insert(Selection {
+            range: 6..11, // "world"
+            inverted: false,
+        });
+        foliage.world.flush();
+
+        type_char(&mut foliage, this, 'x');
+
+        assert_eq!(text_value(&mut foliage, this), "hello x");
+    }
+
+    #[test]
+    fn multi_byte_characters_are_removed_whole_not_split() {
+        // backspace/delete must move between UTF-8 char boundaries (`prev_boundary`/
+        // `next_boundary`), not by a fixed `± 1` byte -- otherwise a multi-byte character
+        // (e.g. 'é', 2 bytes in UTF-8) gets sliced mid-codepoint and panics.
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "café");
+        let len = text_value(&mut foliage, this).len();
+        set_cursor(&mut foliage, this, len as GlyphOffset, 4, 0);
+
+        press(&mut foliage, this, Key::Backspace, Modifiers::default());
+
+        assert_eq!(text_value(&mut foliage, this), "caf");
+    }
+
+    // ---------- selection ----------
+
+    #[test]
+    fn select_all_selects_the_entire_text() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        set_cursor(&mut foliage, this, 0, 0, 0);
+
+        press(&mut foliage, this, Key::Character("a".to_string()), Modifiers::CONTROL);
+
+        let selection = foliage.world.get::<Selection>(this).unwrap();
+        assert_eq!(selection.range, 0..5);
+    }
+
+    #[test]
+    fn extend_right_grows_the_selection_from_the_cursor() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        set_cursor(&mut foliage, this, 0, 0, 0);
+
+        press(&mut foliage, this, Key::ArrowRight, Modifiers::SHIFT);
+        press(&mut foliage, this, Key::ArrowRight, Modifiers::SHIFT);
+
+        let selection = foliage.world.get::<Selection>(this).unwrap();
+        assert_eq!(selection.range, 0..2, "two shift-right presses should select the first two characters");
+    }
+
+    #[test]
+    fn a_plain_arrow_press_clears_an_active_selection() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        set_cursor(&mut foliage, this, 5, 5, 0);
+        foliage.world.entity_mut(this).insert(Selection {
+            range: 0..5,
+            inverted: false,
+        });
+        foliage.world.flush();
+
+        press(&mut foliage, this, Key::ArrowLeft, Modifiers::default());
+
+        let selection = foliage.world.get::<Selection>(this).unwrap();
+        assert!(selection.range.is_empty(), "an unmodified arrow press should drop the selection");
+    }
+
+    // ---------- cursor navigation ----------
+
+    #[test]
+    fn arrow_left_and_right_move_the_cursor_by_one_character() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        set_cursor(&mut foliage, this, 2, 2, 0);
+
+        press(&mut foliage, this, Key::ArrowLeft, Modifiers::default());
+        assert_eq!(foliage.world.get::<Cursor>(this).unwrap().location, 1);
+
+        press(&mut foliage, this, Key::ArrowRight, Modifiers::default());
+        press(&mut foliage, this, Key::ArrowRight, Modifiers::default());
+        assert_eq!(foliage.world.get::<Cursor>(this).unwrap().location, 3);
+    }
+
+    #[test]
+    fn home_and_end_move_the_cursor_to_the_line_boundaries() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello");
+        set_cursor(&mut foliage, this, 2, 2, 0);
+
+        press(&mut foliage, this, Key::Home, Modifiers::default());
+        assert_eq!(foliage.world.get::<Cursor>(this).unwrap().column, 0);
+
+        press(&mut foliage, this, Key::End, Modifiers::default());
+        assert_eq!(foliage.world.get::<Cursor>(this).unwrap().column, 5);
+    }
+
+    #[test]
+    fn down_then_up_returns_to_the_original_row_preserving_column() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello\nworld");
+        set_cursor(&mut foliage, this, 2, 2, 0); // "he|llo"
+
+        press(&mut foliage, this, Key::ArrowDown, Modifiers::default());
+        let after_down = *foliage.world.get::<Cursor>(this).unwrap();
+        assert_eq!(after_down.row, 1, "should have moved to the second line");
+        assert_eq!(after_down.column, 2, "column should be preserved across rows");
+
+        press(&mut foliage, this, Key::ArrowUp, Modifiers::default());
+        let after_up = *foliage.world.get::<Cursor>(this).unwrap();
+        assert_eq!(after_up.row, 0);
+        assert_eq!(after_up.column, 2);
+    }
+
+    #[test]
+    fn up_at_the_first_row_stays_on_the_first_row() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello\nworld");
+        set_cursor(&mut foliage, this, 2, 2, 0);
+
+        press(&mut foliage, this, Key::ArrowUp, Modifiers::default());
+
+        assert_eq!(foliage.world.get::<Cursor>(this).unwrap().row, 0);
+    }
+
+    #[test]
+    fn down_at_the_last_row_stays_on_the_last_row() {
+        let mut foliage = Foliage::new();
+        let this = spawn_multiline(&mut foliage, "hello\nworld");
+        set_cursor(&mut foliage, this, 8, 2, 1); // second row
+
+        press(&mut foliage, this, Key::ArrowDown, Modifiers::default());
+
+        assert_eq!(foliage.world.get::<Cursor>(this).unwrap().row, 1);
+    }
+}

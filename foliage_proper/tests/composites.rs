@@ -5,7 +5,8 @@
 
 use foliage_proper::{
     Color, EcsExtension, Elevation, Entity, Foliage, GridExt, Line, Location, Logical, Polygon,
-    Polyline, PolylineDroppedPoints, PolylinePoints, Position, Section, Sprout, Stem, Toggle,
+    Polyline, PolylineDroppedPoints, PolylinePoints, Position, RadioGroup, RadioSelected, Section,
+    Sprout, Stem, Text, Toggle,
 };
 
 fn children_of(foliage: &mut Foliage, parent: Entity) -> Vec<Entity> {
@@ -64,6 +65,78 @@ fn a_freshly_spawned_toggles_knob_sits_further_right_when_on_than_off() {
     assert!(
         left_of(&mut on_foliage, on_knob) > left_of(&mut off_foliage, off_knob),
         "the on knob should sit further right than the off knob on an identically-sized toggle"
+    );
+}
+
+// ---------- RadioGroup: selection exclusivity ----------
+
+/// The active-colored row's label text, by scanning every child for a `Text` component
+/// (the label -- its content lives directly on `Text.value`, not a separate `TextValue`,
+/// which is only relevant for post-spawn rewrites) and its `Color`. `RadioHandle` itself
+/// is private, so this goes through the same public components the composite's own
+/// reaction writes, not an internal registry.
+fn active_label(foliage: &mut Foliage, group: Entity, active_color: Color) -> String {
+    let children = children_of(foliage, group);
+    let mut labels_with_color: Vec<(String, Color)> = children
+        .iter()
+        .filter_map(|e| {
+            let text = foliage.world.get::<Text>(*e)?.value.clone();
+            let color = *foliage.world.get::<Color>(*e)?;
+            Some((text, color))
+        })
+        .collect();
+    labels_with_color.retain(|(_, c)| *c == active_color);
+    assert_eq!(
+        labels_with_color.len(),
+        1,
+        "exactly one label should carry the active color at a time"
+    );
+    labels_with_color.remove(0).0
+}
+
+#[test]
+fn only_the_selected_radio_option_carries_the_active_color() {
+    let active = Color::green(500);
+    let inactive = Color::gray(600);
+    let mut foliage = Foliage::new();
+    let group = foliage.world.leaf(
+        RadioGroup::new()
+            .options(["One", "Two", "Three"])
+            .selected(0)
+            .colors(active, inactive)
+            .at(Location::new().xs(
+                0.px().as_left().with(200.px().as_width()),
+                0.px().as_top().with(100.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    foliage.world.flush();
+    assert_eq!(active_label(&mut foliage, group, active), "One");
+}
+
+#[test]
+fn writing_radio_selected_flips_exclusivity_to_the_new_index() {
+    let active = Color::green(500);
+    let inactive = Color::gray(600);
+    let mut foliage = Foliage::new();
+    let group = foliage.world.leaf(
+        RadioGroup::new()
+            .options(["One", "Two", "Three"])
+            .selected(0)
+            .colors(active, inactive)
+            .at(Location::new().xs(
+                0.px().as_left().with(200.px().as_width()),
+                0.px().as_top().with(100.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    foliage.world.flush();
+    foliage.write_to(group, RadioSelected(2));
+    foliage.world.flush();
+    assert_eq!(
+        active_label(&mut foliage, group, active),
+        "Three",
+        "exclusivity should have moved off \"One\" onto \"Three\", not just added a second active row"
     );
 }
 

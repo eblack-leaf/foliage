@@ -200,6 +200,87 @@ impl InstanceCoordinator {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ResolvedElevation;
+
+    fn instance(id: InstanceId, elevation: f32) -> Instance {
+        Instance::new(ResolvedElevation::new(elevation), Stem::default(), id)
+    }
+
+    #[test]
+    fn add_makes_has_instance_true_and_flags_a_sort() {
+        let mut c = InstanceCoordinator::new(4);
+        assert!(!c.has_instance(1));
+        c.add(instance(1, 0.0));
+        assert!(c.has_instance(1));
+        assert!(c.needs_sort);
+    }
+
+    #[test]
+    fn generate_id_hands_out_sequential_ids_when_the_pool_is_empty() {
+        let mut c = InstanceCoordinator::new(4);
+        assert_eq!(c.generate_id(), 0);
+        assert_eq!(c.generate_id(), 1);
+        assert_eq!(c.generate_id(), 2);
+    }
+
+    #[test]
+    fn generate_id_reuses_a_pooled_id_before_minting_a_new_one() {
+        let mut c = InstanceCoordinator::new(4);
+        let _ = c.generate_id(); // 0
+        let _ = c.generate_id(); // 1
+        c.gen_pool.insert(0);
+        assert_eq!(c.generate_id(), 0, "a freed id should come back before minting id 2");
+        assert_eq!(c.generate_id(), 2, "pool now empty -- back to sequential minting");
+    }
+
+    #[test]
+    fn sort_orders_instances_so_a_smaller_raw_elevation_value_sorts_last() {
+        // mirrors `ResolvedElevation`'s own inverted `PartialOrd` (see `elevation.rs`'
+        // tests): a *smaller* raw value means *more in front*, and the render list is
+        // built back-to-front, so it needs to land *last* -- drawn last (highest
+        // painter's-algorithm order) is exactly what "most in front" has to mean.
+        let mut c = InstanceCoordinator::new(4);
+        c.add(instance(10, 5.0)); // furthest back
+        c.add(instance(20, 1.0)); // furthest in front (smallest raw value)
+        c.add(instance(30, 3.0)); // middle
+        c.sort();
+        let order: Vec<InstanceId> = c.instances.iter().map(|i| i.id).collect();
+        assert_eq!(order, vec![10, 30, 20], "back-to-front: 5.0, 3.0, then 1.0 last");
+    }
+
+    #[test]
+    fn sort_is_a_no_op_until_needs_sort_is_set() {
+        let mut c = InstanceCoordinator::new(4);
+        c.add(instance(1, 5.0));
+        c.sort();
+        assert!(!c.needs_sort, "sanity: sort() itself clears the flag");
+        let swaps = c.sort();
+        assert!(swaps.is_empty(), "nothing changed since the last sort -- no swaps to report");
+    }
+
+    #[test]
+    fn remove_reindexes_the_relocated_instance_and_drops_the_removed_one() {
+        // the exact property the `swap_remove`-based rewrite (see `remove`'s own doc
+        // comment -- this used to be an O(n) `Vec::remove` per call, causing real
+        // multi-second freezes deleting a large selection) has to preserve: every
+        // *surviving* id still resolves to a valid, correct order afterward.
+        let mut c = InstanceCoordinator::new(4);
+        c.add(instance(1, 0.0));
+        c.add(instance(2, 0.0));
+        c.add(instance(3, 0.0));
+        let order_of_2 = c.order(2);
+        c.remove(c.order(1)); // remove the first one; swap_remove relocates the last (3) into its slot
+        assert!(!c.has_instance(1));
+        assert!(c.has_instance(2));
+        assert!(c.has_instance(3));
+        assert_eq!(c.order(2), order_of_2, "the untouched middle instance's order shouldn't move");
+        assert_eq!(c.instances.len(), 2);
+    }
+}
+
 pub(crate) struct InstanceBuffer<I: bytemuck::Pod + bytemuck::Zeroable + Default> {
     pub(crate) cpu: Vec<I>,
     pub(crate) buffer: wgpu::Buffer,
