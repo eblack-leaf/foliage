@@ -1,6 +1,6 @@
 use crate::{
     Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt, LeafSprout, Line, Location,
-    Logical, Polygon, Position, Sprout, Tree,
+    Logical, Opacity, Polygon, Position, Sprout, Tree,
 };
 use crate::Trigger;
 use bevy_ecs::bundle::Bundle;
@@ -34,6 +34,36 @@ impl Polyline {
 /// `tree.write_to(polyline, PolylinePoints(vec![..]))` re-derives every segment and joint.
 #[derive(Component, Clone, Default)]
 pub struct PolylinePoints(pub Vec<Position<Logical>>);
+
+/// How much of the path (by arc length, 0.0..=1.0) is currently drawn -- the "draw the
+/// line in" effect, distilled into the composite itself rather than left for every author
+/// to hand-roll. `tree.write_to(polyline, PolylineDrawProgress(0.4))` reveals the first 40%
+/// of the path; a caller driving this every frame (their own system, or eventually
+/// `tree.animate` once `Animate` covers it) gets a smooth draw-in with the same zero-churn
+/// property `PolylinePoints` writes already have -- see `PolylineSprout::build`: the full
+/// point list always determines segment/joint *count* (and therefore the entity pool),
+/// completely independent of progress, so animating this from 0 to 1 never spawns or
+/// despawns anything after the first frame. Defaults to fully drawn, so ignoring this
+/// entirely reproduces today's behavior exactly.
+#[derive(Component, Copy, Clone)]
+pub struct PolylineDrawProgress(pub f32);
+impl Default for PolylineDrawProgress {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
+/// The running total of points ever dropped from the *front* of [`PolylinePoints`] over
+/// this polyline's lifetime -- a sliding window's own eviction bookkeeping (fixed count,
+/// fixed time range, whatever), written alongside the shrunk `PolylinePoints` on the same
+/// tick a caller trims its history. Cumulative, not a per-write delta: `Polyline` tracks
+/// its own last-seen total internally and diffs against it, so re-sending the same total
+/// (or never touching this at all -- it defaults to 0) is always a safe no-op. Only
+/// meaningful without `dash` (see `PolylineSprout::build` for why); with a dash pattern
+/// active it's read but not acted on, since a dash's segment boundaries don't correspond
+/// 1:1 with point count.
+#[derive(Component, Copy, Clone, Default)]
+pub struct PolylineDroppedPoints(pub usize);
 
 /// Polyline's OWN appearance vocabulary, poked as one unit:
 /// `tree.write_to(polyline, PolylineStyle { .. })`.
@@ -75,6 +105,8 @@ pub struct PolylineSprout {
     leaf: LeafSprout,
     points: Option<PolylinePoints>,
     style: PolylineStyle,
+    draw_progress: PolylineDrawProgress,
+    dropped_points: PolylineDroppedPoints,
 }
 impl Default for PolylineSprout {
     fn default() -> Self {
@@ -82,6 +114,8 @@ impl Default for PolylineSprout {
             leaf: LeafSprout::default(),
             points: None,
             style: PolylineStyle::default(),
+            draw_progress: PolylineDrawProgress::default(),
+            dropped_points: PolylineDroppedPoints::default(),
         }
     }
 }
@@ -107,6 +141,13 @@ impl PolylineSprout {
         self.style.dash = Some(d);
         self
     }
+    /// Starting reveal fraction -- see [`PolylineDrawProgress`]. Almost always left at the
+    /// default (fully drawn); set this when a polyline should *start* mid-draw-in rather
+    /// than snap to it after spawning.
+    pub fn draw_progress(mut self, t: f32) -> Self {
+        self.draw_progress = PolylineDrawProgress(t.clamp(0.0, 1.0));
+        self
+    }
 }
 impl Sprout for PolylineSprout {
     fn seed(&mut self) -> &mut LeafSprout {
@@ -117,42 +158,154 @@ impl Sprout for PolylineSprout {
             Polyline {},
             self.points.expect("Polyline::points(..) is required"),
             self.style,
+            self.draw_progress,
+            self.dropped_points,
             Grid::default(),
         )
     }
     fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
-        // no static skeleton: segment/joint count is data-dependent, so it all lands via
-        // the reaction's first fire -- the List/Dropdown teardown-and-rebuild pattern.
-        let mut children: Vec<Entity> = Vec::new();
-        tree.react_any::<(PolylinePoints, PolylineStyle), _>(
+        // Persistent pools, one entity per segment/joint -- reconciled in place on every
+        // write instead of torn down and rebuilt (the old List/Dropdown-style pattern this
+        // used to follow). Pool size is driven by the *full* point list only, never by
+        // `PolylineDrawProgress` -- see below -- so an existing polyline's points moving,
+        // or its draw-in progress advancing, is nothing more than new `Location`/`Color`/
+        // `Opacity` values on entities that already exist. `Location` already implements
+        // `Animate` (the same machinery driving every other animated position in this
+        // crate), so a caller can `tree.animate(polyline, ..)` a `PolylinePoints` change
+        // and get real interpolation, not a series of respawns. Only an actual topology
+        // change (a point added/removed, or dash toggling) touches `reconcile`'s
+        // spawn/despawn path at all, and only for the entities the count delta requires.
+        //
+        // Both `reconcile` and the value-diff caches below key everything by raw index,
+        // and `reconcile` only grows/shrinks the pool from the tail. That's exactly right
+        // for append-only growth (a stock ticker pushing new points on the end: every
+        // earlier index's data is untouched, only the new trailing index appears) but
+        // wrong for a moving/sliding window that evicts from the *front* (dropping the
+        // oldest point): `segment_data.len()` shrinks by one, so `reconcile` would pop the
+        // *tail* entity (the newest segment, which should survive) instead of the one that
+        // actually disappeared, and every surviving index's data would shift down by one,
+        // making the value-diff cache see everything as "changed." `PolylineDroppedPoints`
+        // exists to correct exactly that: trimming that many entries from the *front* of
+        // the pools/caches below, before `reconcile` runs, so surviving entities keep their
+        // identity across an eviction instead of just their raw index. Getting this wrong
+        // (a stale, too-large, or simply never-set count) only ever costs a perf
+        // regression, never correctness or a panic -- `segment_data`/`joint_data` are
+        // always recomputed fresh and in full from the *actual current* `PolylinePoints`
+        // below, completely independent of what this says; the drop count only chooses
+        // which already-existing entities get reused instead of respawned.
+        let mut segments: Vec<Entity> = Vec::new();
+        let mut joints: Vec<Entity> = Vec::new();
+        // What each pool entity was last actually written with -- `None` means "currently
+        // hidden" (mirrors the `Opacity(0.0)` branch below). A long, mostly-settled
+        // polyline (e.g. a growing history of points where only the newest segment is
+        // still animating in) would otherwise re-`write_to` every visible entity on every
+        // single reactive fire, even the ones whose data didn't change at all this frame.
+        let mut segment_cache: Vec<Option<(Position<Logical>, Position<Logical>)>> = Vec::new();
+        let mut joint_cache: Vec<Option<Position<Logical>>> = Vec::new();
+        // Cumulative `PolylineDroppedPoints` value as of the last fire -- diffed against
+        // the current one to get this tick's actual front-eviction count, so re-sending
+        // the same total (or never touching the component at all) is always a no-op.
+        let mut last_dropped: usize = 0;
+        tree.react_any::<(PolylinePoints, PolylineStyle, PolylineDrawProgress, PolylineDroppedPoints), _>(
             this,
-            move |trigger: Trigger<Insert, (PolylinePoints, PolylineStyle)>,
+            move |trigger: Trigger<
+                Insert,
+                (PolylinePoints, PolylineStyle, PolylineDrawProgress, PolylineDroppedPoints),
+            >,
                   points_q: Query<&PolylinePoints>,
                   styles: Query<&PolylineStyle>,
+                  progresses: Query<&PolylineDrawProgress>,
+                  drops: Query<&PolylineDroppedPoints>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 let points = points_q.get(e).unwrap().0.clone();
                 let style = *styles.get(e).unwrap();
-                for child in children.drain(..) {
-                    tree.remove(child);
-                }
+                let progress = progresses.get(e).copied().unwrap_or_default().0.clamp(0.0, 1.0);
+                let dropped_total = drops.get(e).copied().unwrap_or_default().0;
+                let newly_dropped = dropped_total.saturating_sub(last_dropped);
+                last_dropped = dropped_total;
                 if points.len() < 2 {
+                    for child in segments.drain(..) {
+                        tree.remove(child);
+                    }
+                    for child in joints.drain(..) {
+                        tree.remove(child);
+                    }
+                    segment_cache.clear();
+                    joint_cache.clear();
+                    last_dropped = 0;
                     return;
                 }
-                let (segments, joints) = match style.dash {
+                // Only meaningful without a dash pattern -- a dash's segment boundaries
+                // don't correspond 1:1 with point count (see `PolylineDroppedPoints`'s own
+                // docs), so there's no safe way to know how many *segments* a given number
+                // of dropped *points* removed from the front. `reconcile`'s ordinary
+                // tail-based logic still produces a fully correct (just unoptimized)
+                // result for that combination.
+                if newly_dropped > 0 && style.dash.is_none() {
+                    let n = newly_dropped.min(segments.len());
+                    for child in segments.drain(..n) {
+                        tree.remove(child);
+                    }
+                    segment_cache.drain(..n.min(segment_cache.len()));
+                    let n = newly_dropped.min(joints.len());
+                    for child in joints.drain(..n) {
+                        tree.remove(child);
+                    }
+                    joint_cache.drain(..n.min(joint_cache.len()));
+                }
+                // Pool size always comes from the *full* path -- drawing in from 0 to 1
+                // never spawns or despawns a single entity after this first reconcile.
+                let (segment_data, joint_data) = match style.dash {
                     None => straight_segments(&points),
                     Some(dash) => dashed_segments(&points, dash),
                 };
-                for (a, b) in segments {
-                    let child = tree.branch(
-                        e,
-                        Line::new(style.weight).color(style.color).at(Location::new().xs(
-                            a.left().px().as_x().with(a.top().px().as_y()),
-                            b.left().px().as_x().with(b.top().px().as_y()),
-                        )).elevate(Elevation::up(1)),
-                    );
-                    children.push(child);
+                // What's actually *visible* right now: the same segments/joints, but
+                // computed from a path truncated to `progress` of the total arc length.
+                // Since both segment functions are deterministic prefix walks over the
+                // points they're given, `visible_segment_data`/`visible_joint_data` are
+                // always exact prefixes of `segment_data`/`joint_data` -- so index `i`
+                // corresponds to the same entity in both, and "beyond the visible prefix"
+                // just means "not drawn yet."
+                let truncated = truncate_path(&points, progress);
+                let (visible_segment_data, visible_joint_data) = if truncated.len() < 2 {
+                    (Vec::new(), Vec::new())
+                } else {
+                    match style.dash {
+                        None => straight_segments(&truncated),
+                        Some(dash) => dashed_segments(&truncated, dash),
+                    }
+                };
+
+                reconcile(&mut tree, e, &mut segments, segment_data.len(), |tree, parent| {
+                    tree.branch(parent, Line::new(1).elevate(Elevation::up(1)))
+                });
+                segment_cache.resize(segments.len(), None);
+                for (i, child) in segments.iter().enumerate() {
+                    let value = visible_segment_data.get(i).copied();
+                    if segment_cache[i] == value {
+                        continue;
+                    }
+                    match value {
+                        Some((a, b)) => {
+                            tree.write_to(
+                                *child,
+                                (
+                                    Line::new_marker(style.weight),
+                                    style.color,
+                                    Opacity::new(1.0),
+                                    Location::new().xs(
+                                        a.left().px().as_x().with(a.top().px().as_y()),
+                                        b.left().px().as_x().with(b.top().px().as_y()),
+                                    ),
+                                ),
+                            );
+                        }
+                        None => tree.write_to(*child, Opacity::new(0.0)),
+                    }
+                    segment_cache[i] = value;
                 }
+
                 // `Line`'s AA fades inward only, from its true edge (0% coverage right at
                 // the geometric boundary, ramping to 100% a full `edge_precision` px in --
                 // see `line.wgsl`), while `Polygon`'s fades symmetrically, centered on its
@@ -170,18 +323,84 @@ impl Sprout for PolylineSprout {
                 // back on a plain (slightly-oversized rather than perceived-perfect) circle.
                 let diameter =
                     (style.weight as f32 - (style.weight as f32 / 2.0).min(1.0)).round();
-                for j in joints {
-                    let child = tree.branch(
-                        e,
-                        Polygon::new().rounding(1.0).color(style.color).at(Location::new().xs(
-                            j.left().px().as_center_x().with(diameter.px().as_width()),
-                            j.top().px().as_center_y().with(diameter.px().as_height()),
-                        )).elevate(Elevation::up(2)),
-                    );
-                    children.push(child);
+
+                reconcile(&mut tree, e, &mut joints, joint_data.len(), |tree, parent| {
+                    tree.branch(parent, Polygon::new().rounding(1.0).elevate(Elevation::up(2)))
+                });
+                joint_cache.resize(joints.len(), None);
+                for (i, child) in joints.iter().enumerate() {
+                    let value = visible_joint_data.get(i).copied();
+                    if joint_cache[i] == value {
+                        continue;
+                    }
+                    match value {
+                        Some(j) => {
+                            tree.write_to(
+                                *child,
+                                (
+                                    style.color,
+                                    Opacity::new(1.0),
+                                    Location::new().xs(
+                                        j.left().px().as_center_x().with(diameter.px().as_width()),
+                                        j.top().px().as_center_y().with(diameter.px().as_height()),
+                                    ),
+                                ),
+                            );
+                        }
+                        None => tree.write_to(*child, Opacity::new(0.0)),
+                    }
+                    joint_cache[i] = value;
                 }
             },
         );
+    }
+}
+
+/// The sub-path of `points` covered by the first `t` (0.0..=1.0) of its total arc length --
+/// full vertices up to wherever `t` lands, then one lerped point ending the visible prefix
+/// exactly on the path (not just at the nearest vertex), so [`PolylineDrawProgress`]'s
+/// draw-in looks continuous rather than jumping vertex to vertex.
+fn truncate_path(points: &[Position<Logical>], t: f32) -> Vec<Position<Logical>> {
+    if points.len() < 2 || t >= 1.0 {
+        return points.to_vec();
+    }
+    let total: f32 = points.windows(2).map(|w| w[0].distance(w[1])).sum();
+    let target = total * t.clamp(0.0, 1.0);
+    let mut traveled = 0.0;
+    let mut out = vec![points[0]];
+    for w in points.windows(2) {
+        let (a, b) = (w[0], w[1]);
+        let len = a.distance(b);
+        if traveled + len >= target {
+            let frac = if len > 0.0 { (target - traveled) / len } else { 0.0 };
+            out.push(lerp(a, b, frac));
+            return out;
+        }
+        traveled += len;
+        out.push(b);
+    }
+    out
+}
+
+/// Grows or shrinks `pool` to exactly `target_len` entities -- spawning via `spawn` (given
+/// only minimal/placeholder data; the caller overwrites every pool member, new or
+/// surviving, with real data in the pass right after calling this) or despawning from the
+/// tail. Entities that already existed at the right index are left completely untouched
+/// here, which is the whole point: a `PolylinePoints` write that doesn't change the
+/// segment/joint count never spawns or despawns anything, only rewrites existing entities'
+/// `Location`/`Color`.
+fn reconcile(
+    tree: &mut Tree,
+    parent: Entity,
+    pool: &mut Vec<Entity>,
+    target_len: usize,
+    mut spawn: impl FnMut(&mut Tree, Entity) -> Entity,
+) {
+    while pool.len() < target_len {
+        pool.push(spawn(tree, parent));
+    }
+    while pool.len() > target_len {
+        tree.remove(pool.pop().unwrap());
     }
 }
 

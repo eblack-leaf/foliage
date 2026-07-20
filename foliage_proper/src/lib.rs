@@ -69,7 +69,10 @@ pub use composite::{
     list::{List, ListItems, ListLayout, ListSprout},
     modal::{CloseModal, Closed, Modal, ModalSprout, ModalStyle},
     pagination::{PageChanged, Pagination, PaginationMode, PaginationSprout, PaginationStyle},
-    polyline::{DashPattern, Polyline, PolylinePoints, PolylineSprout, PolylineStyle},
+    polyline::{
+        DashPattern, Polyline, PolylineDrawProgress, PolylineDroppedPoints, PolylinePoints,
+        PolylineSprout, PolylineStyle,
+    },
     popover::{
         Popover, PopoverClosed, PopoverExpanded, PopoverOpened, PopoverPlacement, PopoverSprout,
         PopoverStyle,
