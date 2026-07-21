@@ -1,5 +1,5 @@
 use crate::Differential;
-use crate::Stem;
+use crate::ash::clip::ClipContext;
 use crate::coordinate::points::Points;
 use crate::foliage::DiffMarkers;
 use crate::ginkgo::ScaleFactor;
@@ -33,7 +33,7 @@ impl Attachment for Line {
         foliage.differential::<LineQuad, LineQuad>();
         foliage.differential::<LineQuad, BlendedOpacity>();
         foliage.differential::<LineQuad, ResolvedElevation>();
-        foliage.differential::<LineQuad, Stem>();
+        foliage.differential::<LineQuad, ClipContext>();
         foliage.differential::<LineQuad, Color>();
     }
 }
@@ -126,7 +126,7 @@ impl EdgePoints {
 #[repr(C)]
 #[derive(Component, Pod, Zeroable, Copy, Clone, Debug, Default, PartialEq)]
 #[require(Differential<LineQuad, LineQuad>)]
-#[require(Differential<LineQuad, Stem>)]
+#[require(Differential<LineQuad, ClipContext>)]
 #[require(Color, Differential<LineQuad, Color>)]
 #[require(Differential<LineQuad, ResolvedElevation>)]
 #[require(Differential<LineQuad, BlendedOpacity>)]

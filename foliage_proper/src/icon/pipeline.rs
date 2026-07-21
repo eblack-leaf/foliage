@@ -6,6 +6,7 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::opacity::BlendedOpacity;
 use crate::texture::Mips;
+use crate::ash::clip::ClipContext;
 use crate::{
     CReprColor, CReprSection, Color, Coordinates, IconMemory, Logical, ResolvedElevation, Section,
     Stem,
@@ -161,7 +162,7 @@ impl Render for Icon {
                 queues.remove_attr::<Icon, Icon>(entity);
                 queues.remove_attr::<Icon, Section<Logical>>(entity);
                 queues.remove_attr::<Icon, ResolvedElevation>(entity);
-                queues.remove_attr::<Icon, Stem>(entity);
+                queues.remove_attr::<Icon, ClipContext>(entity);
                 queues.remove_attr::<Icon, Color>(entity);
                 queues.remove_attr::<Icon, BlendedOpacity>(entity);
             }
@@ -227,11 +228,11 @@ impl Render for Icon {
             group.coordinator.update_elevation(id, elevation);
             group.group.elevations.queue(id, elevation);
         }
-        for (entity, clip) in queues.attribute::<Icon, Stem>() {
+        for (entity, clip) in queues.attribute::<Icon, ClipContext>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
             let id = entity.index().index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
-            group.coordinator.update_clip_context(id, clip);
+            group.coordinator.update_clip_context(id, clip.0);
         }
         for (entity, color) in queues.attribute::<Icon, Color>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();

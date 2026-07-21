@@ -6,6 +6,7 @@ use crate::Differential;
 use crate::EcsExtension;
 use crate::Trigger;
 use crate::alignment::{HorizontalAlignment, VerticalAlignment};
+use crate::ash::clip::ClipContext;
 use crate::color::Color;
 use crate::coordinate::Logical;
 use crate::coordinate::section::Section;
@@ -16,8 +17,8 @@ use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
 use crate::{
-    Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Stem, Tree, Update,
-    Visibility, Write,
+    Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update, Visibility,
+    Write,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
@@ -51,7 +52,7 @@ impl Attachment for Text {
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<Logical>>();
         foliage.differential::<Text, ResolvedElevation>();
-        foliage.differential::<Text, Stem>();
+        foliage.differential::<Text, ClipContext>();
         // ResolvedGlyphs gets its own queuing system, not the generic `differential()` --
         // see `glyph::glyph_differential`'s own doc comment for why.
         foliage
@@ -80,7 +81,7 @@ impl Attachment for Text {
 #[require(Differential<Text, BlendedOpacity>)]
 #[require(Differential<Text, Section<Logical>>)]
 #[require(Differential<Text, ResolvedElevation>)]
-#[require(Differential<Text, Stem>)]
+#[require(Differential<Text, ClipContext>)]
 #[require(Differential<Text, ResolvedGlyphs>)]
 #[require(Differential<Text, ResolvedColors>)]
 #[require(TextBounds, Differential<Text, TextBounds>)]

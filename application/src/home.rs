@@ -517,9 +517,22 @@ pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
     tree.branch(
         root,
         GithubLink::new()
+            // full width (its own 12-column grid needs to match root's own column math
+            // exactly -- see its own doc comment), but only the two rows its content
+            // actually occupies (button/line/desc all sit within row 1-2) -- not the whole
+            // page height. Row spacing is fixed-px (`40.px().gap(8)`, same as root's own),
+            // computed from this entity's own top edge downward, independent of its own
+            // assigned height, so this doesn't affect where its children land. Spanning the
+            // whole page here was the real bug: it made this purely-positional wrapper (no
+            // click handler of its own) a grab candidate for clicks anywhere on the page,
+            // including squarely on top of `options_container`'s and the portfolio button's
+            // own, unrelated content further down -- which used to land on a genuine
+            // elevation tie (all `Elevation::up(1)` off the same `root`) that interaction's
+            // LCA-based `more_in_front` doesn't break consistently. Shrinking the box removes
+            // the overlap entirely, so the tie never arises in the first place.
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
-                0.pct().as_top().with(100.pct().as_bottom()),
+                1.row().as_top().with(2.row().as_bottom()),
             ))
             .elevate(Elevation::up(1)),
     );

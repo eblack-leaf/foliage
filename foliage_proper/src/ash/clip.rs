@@ -107,6 +107,12 @@ impl ClipSection {
             }
         };
         world.commands().entity(this).insert(resolved);
+        let clip_context = if is_marked {
+            ClipContext(Stem::some(this))
+        } else {
+            ClipContext(*world.get::<Stem>(this).unwrap())
+        };
+        world.commands().entity(this).insert(clip_context);
         let deps = world.get::<Branch>(this).unwrap().ids.clone();
         // children inherit this entity's own real bounds, not its (possibly
         // viewport-wide) resolved clip -- a `ClipToViewport` entity isn't restricted by
@@ -126,6 +132,16 @@ impl ClipSection {
 pub(crate) struct InheritedClip(pub(crate) Option<Section<Logical>>);
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 pub(crate) struct ResolvedClip(pub(crate) Section<Logical>);
+/// Which entity's own `ResolvedClip` the render pass should scissor a given entity's rendered
+/// geometry against -- ordinarily the real `Stem` (structural parent), same as every sibling
+/// under that parent (batches them into one scissor-rect span, since an ordinary entity's own
+/// clip never diverges from what its parent already bounds). A `ClipToViewport`-marked entity
+/// is the one case where that's false by design, so it points at itself instead of its parent.
+/// A separate component, not a rewrite of `Stem` itself, because `Stem` is load-bearing
+/// everywhere else (`Branch` traversal, `Elevation::update`, interaction's LCA walk, removal
+/// cascade) -- corrupting it for marked entities would break all of those.
+#[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
+pub(crate) struct ClipContext(pub(crate) Stem);
 
 #[cfg(test)]
 mod tests {

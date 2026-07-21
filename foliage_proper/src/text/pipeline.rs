@@ -8,6 +8,7 @@ use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, VERTICES, Vertex};
+use crate::ash::clip::ClipContext;
 use crate::{CReprColor, CReprSection, Logical, ResolvedElevation, Section, Stem, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
@@ -171,7 +172,7 @@ impl Render for Text {
             // remove group
             if let Some(id) = renderer.resources.entity_to_group.remove(&entity) {
                 queues.remove_attr::<Text, ResolvedElevation>(entity);
-                queues.remove_attr::<Text, Stem>(entity);
+                queues.remove_attr::<Text, ClipContext>(entity);
                 queues.remove_attr::<Text, Section<Logical>>(entity);
                 queues.remove_attr::<Text, TextBounds>(entity);
                 queues.remove_attr::<Text, BlendedOpacity>(entity);
@@ -208,11 +209,11 @@ impl Render for Text {
                 group.update_node = true;
             }
         }
-        for (entity, packet) in queues.attribute::<Text, Stem>() {
+        for (entity, packet) in queues.attribute::<Text, ClipContext>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
-            group.clip_context = packet;
+            group.clip_context = packet.0;
             group.update_node = true;
         }
         for (entity, packet) in queues.attribute::<Text, Section<Logical>>() {

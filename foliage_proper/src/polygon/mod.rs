@@ -1,9 +1,10 @@
 use crate::anim::interpolation::Interpolations;
+use crate::ash::clip::ClipContext;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
     Animate, Attachment, Color, Component, Differential, Foliage, LeafSprout, Logical,
-    ResolvedElevation, Section, Sprout, Stem, Visibility,
+    ResolvedElevation, Section, Sprout, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
@@ -34,7 +35,7 @@ mod pipeline;
 #[require(Color, Differential<Self, Color>)]
 #[require(Differential<Self, ResolvedElevation>)]
 #[require(Differential<Self, BlendedOpacity>)]
-#[require(Differential<Self, Stem>)]
+#[require(Differential<Self, ClipContext>)]
 #[require(Differential<Self, Self>)]
 #[component(on_add = Self::on_add)]
 pub struct Polygon {
@@ -90,7 +91,7 @@ impl Attachment for Polygon {
         foliage.differential::<Self, Self>();
         foliage.differential::<Self, Color>();
         foliage.differential::<Self, ResolvedElevation>();
-        foliage.differential::<Self, Stem>();
+        foliage.differential::<Self, ClipContext>();
         foliage.differential::<Self, BlendedOpacity>();
         foliage.enable_animation::<Self>();
     }

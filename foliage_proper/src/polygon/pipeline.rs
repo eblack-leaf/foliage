@@ -5,6 +5,7 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::polygon::Polygon;
+use crate::ash::clip::ClipContext;
 use crate::{
     CReprColor, CReprSection, Color, Coordinates, Logical, ResolvedElevation, Section, Stem,
 };
@@ -146,7 +147,7 @@ impl Render for Polygon {
                 queues.remove_attr::<Polygon, Section<Logical>>(entity);
                 queues.remove_attr::<Polygon, Polygon>(entity);
                 queues.remove_attr::<Polygon, ResolvedElevation>(entity);
-                queues.remove_attr::<Polygon, Stem>(entity);
+                queues.remove_attr::<Polygon, ClipContext>(entity);
                 queues.remove_attr::<Polygon, Color>(entity);
                 queues.remove_attr::<Polygon, BlendedOpacity>(entity);
             }
@@ -172,9 +173,9 @@ impl Render for Polygon {
                     .c_repr(),
             );
         }
-        for (entity, clip) in queues.attribute::<Polygon, Stem>() {
+        for (entity, clip) in queues.attribute::<Polygon, ClipContext>() {
             let id = entity.index().index() as InstanceId;
-            group.coordinator.update_clip_context(id, clip);
+            group.coordinator.update_clip_context(id, clip.0);
         }
         for (entity, color) in queues.attribute::<Polygon, Color>() {
             let id = entity.index().index() as InstanceId;

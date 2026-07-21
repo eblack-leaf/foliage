@@ -5,9 +5,8 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::panel::{Corner, vertex};
-use crate::{
-    CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section, Stem,
-};
+use crate::ash::clip::ClipContext;
+use crate::{CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section, Stem};
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
@@ -170,7 +169,7 @@ impl Render for Panel {
                 render_group.coordinator.remove(order);
                 queues.remove_attr::<Panel, ResolvedElevation>(r);
                 queues.remove_attr::<Panel, Section<Logical>>(r);
-                queues.remove_attr::<Panel, Stem>(r);
+                queues.remove_attr::<Panel, ClipContext>(r);
                 queues.remove_attr::<Panel, Outline>(r);
                 queues.remove_attr::<Panel, BlendedOpacity>(r);
                 queues.remove_attr::<Panel, Color>(r);
@@ -205,10 +204,10 @@ impl Render for Panel {
                     .c_repr(),
             );
         }
-        for (entity, clip_section) in queues.attribute::<Panel, Stem>() {
+        for (entity, clip_context) in queues.attribute::<Panel, ClipContext>() {
             render_group
                 .coordinator
-                .update_clip_context(entity.index().index() as InstanceId, clip_section);
+                .update_clip_context(entity.index().index() as InstanceId, clip_context.0);
         }
         for (entity, outline) in queues.attribute::<Panel, Outline>() {
             renderer

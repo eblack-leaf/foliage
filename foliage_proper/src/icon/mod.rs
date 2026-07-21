@@ -1,5 +1,5 @@
 mod pipeline;
-use crate::Stem;
+use crate::ash::clip::ClipContext;
 use crate::Trigger;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
@@ -25,7 +25,7 @@ pub type IconId = i32;
 #[derive(Component, Copy, Clone, PartialEq, Default)]
 #[component(on_add = Self::on_add)]
 #[require(Color, Differential<Icon, Color>)]
-#[require(Differential<Icon, Stem>)]
+#[require(Differential<Icon, ClipContext>)]
 #[require(Differential<Icon, Section<Logical>>)]
 #[require(Differential<Icon, Icon>)]
 #[require(Differential<Icon, ResolvedElevation>)]
@@ -43,7 +43,7 @@ impl Attachment for Icon {
         foliage.remove_queue::<Icon>();
         foliage.differential::<Icon, Icon>();
         foliage.differential::<Icon, Section<Logical>>();
-        foliage.differential::<Icon, Stem>();
+        foliage.differential::<Icon, ClipContext>();
         foliage.differential::<Icon, ResolvedElevation>();
         foliage.differential::<Icon, Color>();
         foliage.differential::<Icon, BlendedOpacity>();

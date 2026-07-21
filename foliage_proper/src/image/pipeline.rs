@@ -6,6 +6,7 @@ use crate::ginkgo::Ginkgo;
 use crate::image::{CropAdjustment, Image, ImageWrite};
 use crate::opacity::BlendedOpacity;
 use crate::texture::TextureCoordinates;
+use crate::ash::clip::ClipContext;
 use crate::{
     Area, AssetKey, CReprSection, Logical, Numerical, ResolvedElevation, Section, Stem, texture,
 };
@@ -159,7 +160,7 @@ impl Render for Image {
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Image, group_id, id));
                 queues.remove_attr::<Image, ResolvedElevation>(entity);
-                queues.remove_attr::<Image, Stem>(entity);
+                queues.remove_attr::<Image, ClipContext>(entity);
                 queues.remove_attr::<Image, CropAdjustment>(entity);
                 queues.remove_attr::<Image, BlendedOpacity>(entity);
                 queues.remove_attr::<Image, Section<Logical>>(entity);
@@ -227,11 +228,11 @@ impl Render for Image {
                 group.group.elevations.queue(id, elevation);
             }
         }
-        for (entity, clip) in queues.attribute::<Image, Stem>() {
+        for (entity, clip) in queues.attribute::<Image, ClipContext>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
                 let id = entity.index().index() as InstanceId;
-                group.coordinator.update_clip_context(id, clip);
+                group.coordinator.update_clip_context(id, clip.0);
             }
         }
         for (entity, adjustments) in queues.attribute::<Image, CropAdjustment>() {

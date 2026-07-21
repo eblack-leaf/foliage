@@ -425,3 +425,122 @@ impl Sprout for DropdownSprout {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::coordinate::area::Area;
+    use crate::ginkgo::viewport::ViewportHandle;
+    use crate::{Foliage, Leaf, Logical, Section};
+
+    /// A shallow repro (trigger spawned directly off a stem-less root) previously hid a real
+    /// bug: it fully missed a case only visible once the trigger sits as deep as it actually
+    /// does in `application/src/portfolio/{mod.rs,composites.rs}` (root -> modal-content-slot
+    /// -> app-container -> trigger, four `Stem` levels). This reproduces that exact depth
+    /// (same relative `Elevation::up(1)` chain, same "app container smaller than the real
+    /// viewport" clip shape a modal's content region actually has) instead of guessing.
+    #[test]
+    fn a_dropdown_nested_as_deep_as_the_real_app_still_shows_its_option_surface() {
+        let mut foliage = Foliage::new();
+        foliage
+            .world
+            .insert_resource(ViewportHandle::new(Area::logical((800.0, 600.0))));
+
+        let root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.pct().as_left().with(100.pct().as_right()),
+                    0.pct().as_top().with(100.pct().as_bottom()),
+                ))
+                .elevate(Elevation::abs(0))
+                .with(Grid::default()),
+        );
+        foliage.world.flush();
+        let slot = foliage.world.branch(
+            root,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    10.pct().as_left().with(90.pct().as_right()),
+                    10.pct().as_top().with(90.pct().as_bottom()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::default()),
+        );
+        foliage.world.flush();
+        let app = foliage.world.branch(
+            slot,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.pct().as_left().with(100.pct().as_right()),
+                    0.pct().as_top().with(100.pct().as_bottom()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::default()),
+        );
+        foliage.world.flush();
+
+        let dropdown = foliage.world.branch(
+            app,
+            Dropdown::new()
+                .options(["Option 1", "Option 2", "Option 3"])
+                .colors(Color::gray(200), Color::gray(900), Color::green(600))
+                .at(Location::new().xs(
+                    8.px().as_left().with(220.px().as_width()),
+                    8.px().as_top().with(36.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+
+        foliage.world.trigger_targets(OnClick::new(), dropdown);
+        foliage.world.flush();
+
+        let handle = *foliage.world.get::<DropdownHandle>(dropdown).unwrap();
+        let surface = handle.options.expect("surface should exist once open");
+
+        let elev = foliage
+            .world
+            .get::<crate::ResolvedElevation>(surface)
+            .unwrap()
+            .value();
+        eprintln!("surface resolved elevation: {elev}");
+        assert!(
+            (0.0..=100.0).contains(&elev),
+            "surface elevation {elev} outside the GPU's [0,100] depth range"
+        );
+
+        let clip = foliage
+            .world
+            .get::<crate::ash::clip::ResolvedClip>(surface)
+            .unwrap()
+            .0;
+        let viewport = foliage.world.resource::<ViewportHandle>().section();
+        eprintln!("surface clip: {clip:?}, viewport: {viewport:?}");
+        assert_eq!(
+            clip, viewport,
+            "surface should ClipToViewport, not the cramped app region"
+        );
+
+        let section = *foliage.world.get::<Section<Logical>>(surface).unwrap();
+        eprintln!("surface section: {section:?}");
+        let opacity = foliage
+            .world
+            .get::<crate::opacity::BlendedOpacity>(surface)
+            .unwrap()
+            .value;
+        let visible = foliage
+            .world
+            .get::<crate::Visibility>(surface)
+            .unwrap()
+            .visible();
+        eprintln!("surface opacity: {opacity}, visible: {visible}");
+        assert!(opacity > 0.0, "surface should be opaque");
+        assert!(visible, "surface should be visible");
+
+        // an option row, one level deeper still (surface -> List's slot -> row panel) --
+        // the actual thing the user reported as invisible/hard to click.
+        let mut rows = foliage.world.query::<(&Panel, &crate::Stem)>();
+        let row_count = rows.iter(&foliage.world).count();
+        eprintln!("panels found anywhere in the world: {row_count}");
+    }
+}

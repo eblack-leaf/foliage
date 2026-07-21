@@ -5,6 +5,7 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::line::LineQuad;
 use crate::opacity::BlendedOpacity;
+use crate::ash::clip::ClipContext;
 use crate::{CReprColor, Color, Coordinates, ResolvedElevation, Stem};
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
@@ -140,7 +141,7 @@ impl Render for LineQuad {
                 nodes.remove(RemoveNode::new(PipelineId::Line, 0, id));
                 queues.remove_attr::<LineQuad, LineQuad>(entity);
                 queues.remove_attr::<LineQuad, ResolvedElevation>(entity);
-                queues.remove_attr::<LineQuad, Stem>(entity);
+                queues.remove_attr::<LineQuad, ClipContext>(entity);
                 queues.remove_attr::<LineQuad, Color>(entity);
                 queues.remove_attr::<LineQuad, BlendedOpacity>(entity);
             }
@@ -161,9 +162,9 @@ impl Render for LineQuad {
             group.group.elevations.queue(id, elevation);
             group.coordinator.update_elevation(id, elevation);
         }
-        for (entity, clip) in queues.attribute::<Self, Stem>() {
+        for (entity, clip) in queues.attribute::<Self, ClipContext>() {
             let id = entity.index().index() as InstanceId;
-            group.coordinator.update_clip_context(id, clip);
+            group.coordinator.update_clip_context(id, clip.0);
         }
         for (entity, color) in queues.attribute::<Self, Color>() {
             let id = entity.index().index() as InstanceId;

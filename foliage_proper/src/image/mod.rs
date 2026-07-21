@@ -1,6 +1,7 @@
 mod pipeline;
 
 use crate::Trigger;
+use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, OnRetrieval};
 use crate::foliage::DiffMarkers;
@@ -33,7 +34,7 @@ use wgpu::TextureFormat;
 #[require(Differential<Image, Section<Logical>>)]
 #[require(Differential<Image, BlendedOpacity>)]
 #[require(Differential<Image, ResolvedElevation>)]
-#[require(Differential<Image, Stem>)]
+#[require(Differential<Image, ClipContext>)]
 #[require(CropAdjustment, Differential<Image, CropAdjustment>)]
 pub struct Image {
     pub key: AssetKey,
@@ -90,7 +91,7 @@ impl Attachment for Image {
             .add_systems(Image::update.in_set(DiffMarkers::Finalize));
         foliage.remove_queue::<Image>();
         foliage.differential::<Image, Section<Logical>>();
-        foliage.differential::<Image, Stem>();
+        foliage.differential::<Image, ClipContext>();
         foliage.differential::<Image, BlendedOpacity>();
         foliage.differential::<Image, ResolvedElevation>();
         foliage.differential::<Image, CropAdjustment>();
