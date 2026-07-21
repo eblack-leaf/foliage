@@ -1,9 +1,9 @@
 use crate::Trigger;
 use crate::composite::{Root, SlotFn};
 use crate::{
-    Anchor, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity, Grid, GridExt,
-    InteractionListener, InteractionPropagation, Leaf, LeafSprout, Location, LocationValue,
-    OnClick, Panel, Sprout, Tree, Unfocused, anchor,
+    Anchor, ClipToViewport, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity,
+    Grid, GridExt, InteractionListener, InteractionPropagation, Leaf, LeafSprout, Location,
+    LocationValue, OnClick, Panel, Sprout, Tree, Unfocused, anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -272,15 +272,22 @@ impl Sprout for PopoverSprout {
                     tree.remove(existing);
                 }
                 if open {
-                    // top-level (not branched under `e`): `pct()` in `.extent(..)` needs to
-                    // resolve against the viewport, not this popover's own small trigger-sized
-                    // box -- same reason Dropdown's option list is `tree.leaf(..)` too.
-                    let surface = tree.leaf(
+                    // a genuine `Stem`-child of `e` (the trigger), not a disconnected
+                    // top-level leaf -- `ClipToViewport` (not ancestor clipping) is what lets
+                    // this render past the trigger's own small rect, so it doesn't need to
+                    // escape the tree structurally to do that. Being a real sibling of
+                    // `trigger_slot` (`up(1)`) means `up(2)` here is compared the ordinary
+                    // structural way, not a guessed absolute constant that risked colliding
+                    // with any other composite reaching for the same "float above
+                    // everything" number (Dropdown's own option list used to guess the
+                    // identical `abs(90)`).
+                    let surface = tree.branch(
+                        e,
                         Panel::new()
                             .color(style.background)
                             .at(cfg.placement.location(cfg.extent))
-                            .elevate(Elevation::abs(90))
-                            .with((Anchor::new(e), Grid::default(), Root(e))),
+                            .elevate(Elevation::up(2))
+                            .with((Anchor::new(e), ClipToViewport, Grid::default(), Root(e))),
                     );
                     (cfg.content)(&mut tree, surface);
                     handle.content = Some(surface);

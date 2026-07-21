@@ -149,6 +149,58 @@ impl Default for InteractionPropagation {
         }
     }
 }
+/// Whether `a` should win primary-grab priority over `b`, for two candidates that both
+/// contain the same click point. Comparing their raw `ResolvedElevation`s directly (a flat
+/// float, summed through however many `up(n)`/`down(n)` steps each one's own ancestor chain
+/// happens to use) lets two entities from *completely unrelated* parts of the tree collide
+/// purely by coincidence -- e.g. a composite's own chrome (Carousel's pagination dots) and
+/// arbitrary author content nested a different number of levels deep inside that same
+/// composite's content slot, whose summed depths happened to land on the same number. That
+/// coincidence has nothing to do with which one was actually meant to win.
+///
+/// Instead: walk both entities' `Stem` ancestor chains to their lowest common ancestor, then
+/// compare only the two *direct children of that shared ancestor* each one descends through
+/// -- i.e. compare the two branches' own elevations, not the arbitrary depth either branch
+/// happens to reach. A composite author who gives their own chrome branch a more-in-front
+/// elevation than their content branch (Carousel already does: pagination vs. viewport) gets
+/// that decision honored regardless of how deeply nested the losing branch's own content is
+/// -- the same way a CSS stacking context can never be visually out-ranked by an arbitrarily
+/// high z-index nested inside a different, lower-priority stacking context. If one candidate
+/// is itself an ancestor of the other (no real "branch" to compare -- one directly contains
+/// the other), fall back to comparing their own resolved elevations directly, since that's a
+/// normal, deliberately-relative-to-each-other case, not a coincidence.
+fn more_in_front(
+    a: Entity,
+    b: Entity,
+    stems: &Query<&Stem>,
+    elevations: &Query<&ResolvedElevation>,
+) -> bool {
+    let chain = |mut e: Entity| -> Vec<Entity> {
+        let mut c = vec![e];
+        while let Some(id) = stems.get(e).ok().and_then(|s| s.id) {
+            c.push(id);
+            e = id;
+        }
+        c.reverse(); // root-first
+        c
+    };
+    let (chain_a, chain_b) = (chain(a), chain(b));
+    let mut i = 0;
+    while i < chain_a.len() && i < chain_b.len() && chain_a[i] == chain_b[i] {
+        i += 1;
+    }
+    let (branch_a, branch_b) = if i >= chain_a.len() || i >= chain_b.len() {
+        // one is an ancestor of (or equal to) the other -- no branch split to compare,
+        // compare the two entities' own elevations directly instead.
+        (a, b)
+    } else {
+        (chain_a[i], chain_b[i])
+    };
+    let ea = elevations.get(branch_a).map(|e| e.value()).unwrap_or(f32::MAX);
+    let eb = elevations.get(branch_b).map(|e| e.value()).unwrap_or(f32::MAX);
+    ea <= eb // smaller raw value = more in front, per ResolvedElevation's inverted ordering
+}
+
 pub(crate) fn interactive_elements(
     mut reader: MessageReader<Interaction>,
     all: Query<(
@@ -159,6 +211,7 @@ pub(crate) fn interactive_elements(
         &InteractionPropagation,
         &InteractionShape,
     )>,
+    elevations: Query<&ResolvedElevation>,
     behaviors: Query<&FocusBehavior>,
     mut listeners: Query<&mut InteractionListener>,
     mut current: ResMut<CurrentInteraction>,
@@ -222,8 +275,7 @@ pub(crate) fn interactive_elements(
                 );
             }
             current.past_drag = false;
-            let mut grabbed_elevation = ResolvedElevation::new(101.0);
-            for (entity, section, elevation, clip, propagation, shape) in all.iter() {
+            for (entity, section, _elevation, clip, propagation, shape) in all.iter() {
                 // a disabled entity must not compete for the grab at all -- geometry and
                 // elevation alone used to decide this, so a disabled-but-still-elevated
                 // entity (an app hiding a page-level button behind a modal, say) could win
@@ -234,14 +286,12 @@ pub(crate) fn interactive_elements(
                     continue;
                 }
                 if propagation.grab {
-                    if elevation >= &grabbed_elevation {
-                        if InteractionListener::is_contained(
-                            *shape,
-                            *section,
-                            *clip,
-                            event.position,
-                        ) {
-                            grabbed_elevation = *elevation;
+                    if InteractionListener::is_contained(*shape, *section, *clip, event.position) {
+                        let wins = match current.primary {
+                            None => true,
+                            Some(existing) => more_in_front(entity, existing, &contexts, &elevations),
+                        };
+                        if wins {
                             current.primary.replace(entity);
                         }
                     }
@@ -256,7 +306,7 @@ pub(crate) fn interactive_elements(
                 current.pass_through = current
                     .pass_through
                     .drain(..)
-                    .filter(|ps| all.get(*ps).unwrap().2 >= &grabbed_elevation)
+                    .filter(|ps| more_in_front(*ps, p, &contexts, &elevations))
                     .collect::<Vec<_>>();
                 if !behaviors.get(p).unwrap().0 && event.method != InteractionMethod::ScrollWheel {
                     if let Some(f) = current.focused.replace(p) {
@@ -880,5 +930,107 @@ mod tests {
         assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(b));
         assert!(foliage.world.get::<Marks>(a).unwrap().unfocused);
         assert!(foliage.world.get::<Marks>(b).unwrap().focused);
+    }
+
+    /// Reproduces the exact structure that caused the real Carousel bug: one branch
+    /// (`viewport` -> `slot` -> `deep_decorative`) reaches the same *raw* elevation as a
+    /// completely different branch (`chrome` -> `chrome_child` -> `interactive`) purely
+    /// because the two chains' `up(n)` amounts happen to sum to the same total, in a
+    /// different order. `deep_decorative` has no `InteractionListener` (it's a stand-in for
+    /// Carousel's own page `Text`); `interactive` does (a stand-in for a pagination dot).
+    /// Under the old flat-elevation comparison this was a genuine tie, resolved arbitrarily
+    /// by ECS iteration order -- sometimes the decorative branch won and silently ate the
+    /// click. `chrome`'s own elevation (`up(2)`) is deliberately more in front than
+    /// `viewport`'s (`up(1)`), so under the branch-local comparison this must be
+    /// deterministic every time, regardless of how deep either side's own content nests.
+    #[test]
+    fn a_chrome_branch_beats_deeply_nested_content_in_a_different_branch_despite_a_raw_elevation_tie() {
+        let mut foliage = Foliage::new();
+        let root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::abs(0))
+                .with(Grid::default()),
+        );
+        let viewport = foliage.world.branch(
+            root,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::default()),
+        );
+        let slot = foliage.world.branch(
+            viewport,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::default()),
+        );
+        let deep_decorative = foliage.world.branch(
+            slot,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(2)),
+        );
+        let chrome = foliage.world.branch(
+            root,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    50.px().as_left().with(50.px().as_width()),
+                    50.px().as_top().with(50.px().as_height()),
+                ))
+                .elevate(Elevation::up(2))
+                .with(Grid::default()),
+        );
+        let chrome_child = foliage.world.branch(
+            chrome,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::default()),
+        );
+        let interactive = foliage.world.branch(
+            chrome_child,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(InteractionListener::new()),
+        );
+        foliage.world.flush();
+
+        // sanity: confirm the tie is real before asserting the fix resolves it correctly.
+        let deep_raw = foliage.world.get::<ResolvedElevation>(deep_decorative).unwrap().value();
+        let interactive_raw = foliage.world.get::<ResolvedElevation>(interactive).unwrap().value();
+        assert_eq!(deep_raw, interactive_raw, "sanity: this must actually be a raw-elevation tie for the test to mean anything");
+
+        // both entities occupy the same click point (50, 50) -- inside chrome/interactive's
+        // small box, and also inside viewport/slot/deep_decorative's larger covering box.
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().primary,
+            Some(interactive),
+            "chrome's own branch (up(2)) is more in front than viewport's (up(1)) -- it must \
+             win regardless of how deep either branch's own content nests, not by iteration-\
+             order luck on a coincidental raw-elevation tie"
+        );
     }
 }

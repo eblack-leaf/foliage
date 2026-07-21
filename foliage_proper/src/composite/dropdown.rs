@@ -1,10 +1,10 @@
 use crate::Trigger;
 use crate::composite::Root;
 use crate::{
-    Anchor, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity, FocusBehavior,
-    FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue, InteractionListener,
-    InteractionPropagation, LeafSprout, List, ListItems, Location, OnClick, Outline, Panel,
-    Rounding, Sprout, Text, TextValue, Tree, Unfocused, VerticalAlignment, anchor,
+    Anchor, ClipToViewport, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity,
+    FocusBehavior, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
+    InteractionListener, InteractionPropagation, LeafSprout, List, ListItems, Location, OnClick,
+    Outline, Panel, Rounding, Sprout, Text, TextValue, Tree, Unfocused, VerticalAlignment, anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -20,11 +20,12 @@ use bevy_ecs::system::Query;
 /// trigger + [`List`]; both halves of this widget are public exactly so that's not a fork
 /// of library internals.
 ///
-/// The expanded option surface is a library [`List`] (long option sets scroll for free),
-/// spawned as a TOP-LEVEL leaf anchored below the trigger -- branching it under the root
-/// would clip it to the trigger's own rect (ancestor clipping is unconditional). That makes
-/// it the sanctioned exception to slots-are-branches, torn down explicitly on collapse and
-/// pinned at `Elevation::abs(90)` so it clears whatever context the dropdown sits in.
+/// The expanded option surface is a library [`List`] (long option sets scroll for free), a
+/// genuine `Stem`-child of the trigger -- `ClipToViewport` (not ancestor clipping) is what
+/// lets it render past the trigger's own small rect, so it doesn't need to escape the tree
+/// structurally to do that. Torn down explicitly on collapse, elevated with a plain
+/// `Elevation::up(n)` relative to its real siblings (the trigger's own panel/text/chevron),
+/// not a guessed absolute constant.
 #[derive(Component, Copy, Clone)]
 pub struct Dropdown {}
 impl Dropdown {
@@ -296,6 +297,16 @@ impl Sprout for DropdownSprout {
                 // the option surface: rebuilt fresh on every fire while open, gone while
                 // closed. Rows write (Selected, Expanded(false)) at the root -- selection
                 // and collapse through the same doors as everything else.
+                //
+                // A genuine `Stem`-child of `e` (the trigger), not a disconnected top-level
+                // leaf -- `ClipToViewport` (not ancestor clipping) is what lets it render
+                // outside the trigger's own small rect, so there's no need to escape the
+                // tree structurally to get that. Being a real sibling of `panel`/`text`/
+                // `chevron` means its elevation is just `up(3)` (more in front than any of
+                // them), compared the ordinary structural way against its real siblings --
+                // not a guessed absolute constant that risked colliding with any other
+                // composite reaching for the same "float above everything" number (Popover's
+                // own content surface used to guess the identical `abs(90)`).
                 if let Some(existing) = handle.options.take() {
                     tree.remove(existing);
                 }
@@ -304,7 +315,8 @@ impl Sprout for DropdownSprout {
                     let height =
                         shown as i32 * (config.row_height + config.row_gap) + config.row_gap;
                     let row_options = opts.0.clone();
-                    let surface = tree.leaf(
+                    let surface = tree.branch(
+                        e,
                         List::new()
                             .items(ListItems::new(row_options.len(), move |tree, slot, i| {
                                 let row = tree.branch(
@@ -352,8 +364,14 @@ impl Sprout for DropdownSprout {
                                     .adjust(4)
                                     .with(height.px().as_height()),
                             ))
-                            .elevate(Elevation::abs(90))
-                            .with((Anchor::new(e), style.background, Panel::default(), Root(e))),
+                            .elevate(Elevation::up(3))
+                            .with((
+                                Anchor::new(e),
+                                ClipToViewport,
+                                style.background,
+                                Panel::default(),
+                                Root(e),
+                            )),
                     );
                     handle.options = Some(surface);
                 }

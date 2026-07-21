@@ -112,6 +112,7 @@ pub use interaction::{
     Modifiers, OnClick, PhysicalInputSequence, PhysicalKey, listener::InteractionListener,
     listener::InteractionShape, listener::InteractionState,
 };
+pub use ash::clip::ClipToViewport;
 pub use leaf::{Branch, Leaf, Stem};
 pub use line::{Line, LineSprout};
 pub use opacity::Opacity;

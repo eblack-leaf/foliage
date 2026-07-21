@@ -16,7 +16,6 @@ fn main() {
             .background(Color::gray(800))
             .accent(Color::green(600))
             .rounding(Rounding::None)
-            .outline(3)
             .at(Location::new().xs(
                 20.px().as_left().with(240.px().as_width()),
                 30.px().as_top().with(400.px().as_height()),

@@ -269,3 +269,61 @@ pub(crate) fn extent_check(
         tree.entity(*entity).insert(section);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::TimeDelta;
+
+    #[test]
+    fn the_first_ever_tick_returns_the_base_multiplier() {
+        let (multiplier, updated) = ScrollMomentum::default().tick();
+        assert_eq!(multiplier, ScrollMomentum::BASE);
+        assert!(updated.last_tick.is_some());
+    }
+
+    #[test]
+    fn a_tick_within_the_window_grows_the_multiplier() {
+        let momentum = ScrollMomentum {
+            value: ScrollMomentum::BASE,
+            last_tick: Some(Moment::now() - TimeDelta::from_millis(50)),
+        };
+        let (multiplier, _) = momentum.tick();
+        assert_eq!(multiplier, ScrollMomentum::BASE + ScrollMomentum::GROWTH);
+    }
+
+    #[test]
+    fn a_tick_after_the_window_resets_to_base_regardless_of_prior_value() {
+        let momentum = ScrollMomentum {
+            value: 2.5,
+            last_tick: Some(Moment::now() - TimeDelta::from_millis(200)),
+        };
+        let (multiplier, _) = momentum.tick();
+        assert_eq!(
+            multiplier,
+            ScrollMomentum::BASE,
+            "a pause longer than WINDOW_MS should reset the ramp, not continue from where it left off"
+        );
+    }
+
+    #[test]
+    fn growth_is_capped_at_max() {
+        let momentum = ScrollMomentum {
+            value: ScrollMomentum::MAX - 0.05,
+            last_tick: Some(Moment::now() - TimeDelta::from_millis(50)),
+        };
+        let (multiplier, _) = momentum.tick();
+        assert_eq!(multiplier, ScrollMomentum::MAX, "growth should clamp at MAX, not overshoot it");
+    }
+
+    #[test]
+    fn repeated_fast_ticks_accumulate_growth_across_calls() {
+        let mut momentum = ScrollMomentum::default();
+        let (first, updated) = momentum.tick();
+        momentum = updated;
+        // simulate the next tick arriving well within the window, without a real sleep
+        momentum.last_tick = Some(Moment::now() - TimeDelta::from_millis(50));
+        let (second, _) = momentum.tick();
+        assert!(second > first, "a second fast tick should ramp higher than the first");
+    }
+}
