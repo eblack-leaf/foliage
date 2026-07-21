@@ -507,3 +507,378 @@ pub struct Focused {}
 #[foliage_macros::targeted_event]
 #[derive(Copy, Debug)]
 pub struct Unfocused {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Elevation, Grid, GridExt, Sprout};
+    use crate::{Leaf, Location, Trigger};
+
+    fn point(x: f32, y: f32) -> Position<Logical> {
+        Position::logical((x, y))
+    }
+
+    /// Queues an `Interaction` and runs the `main` schedule once -- `interactive_elements`
+    /// is a `main`-schedule system driven by a queued `Message`, not an observer, so unlike
+    /// every other test in this suite, a bare `world.flush()` never invokes it.
+    fn send(foliage: &mut Foliage, phase: InteractionPhase, pos: Position<Logical>, method: InteractionMethod) {
+        foliage.queue(Interaction::new(phase, pos, method));
+        foliage.main.run(&mut foliage.world);
+    }
+
+    #[derive(Component, Default)]
+    struct Marks {
+        engaged: bool,
+        dragged: bool,
+        disengaged: bool,
+        clicked: bool,
+        focused: bool,
+        unfocused: bool,
+    }
+    fn mark_engaged(trigger: Trigger<Engaged>, mut q: Query<&mut Marks>) {
+        if let Ok(mut m) = q.get_mut(trigger.event_target()) {
+            m.engaged = true;
+        }
+    }
+    fn mark_dragged(trigger: Trigger<Dragged>, mut q: Query<&mut Marks>) {
+        if let Ok(mut m) = q.get_mut(trigger.event_target()) {
+            m.dragged = true;
+        }
+    }
+    fn mark_disengaged(trigger: Trigger<Disengaged>, mut q: Query<&mut Marks>) {
+        if let Ok(mut m) = q.get_mut(trigger.event_target()) {
+            m.disengaged = true;
+        }
+    }
+    fn mark_clicked(trigger: Trigger<OnClick>, mut q: Query<&mut Marks>) {
+        if let Ok(mut m) = q.get_mut(trigger.event_target()) {
+            m.clicked = true;
+        }
+    }
+    fn mark_focused(trigger: Trigger<Focused>, mut q: Query<&mut Marks>) {
+        if let Ok(mut m) = q.get_mut(trigger.event_target()) {
+            m.focused = true;
+        }
+    }
+    fn mark_unfocused(trigger: Trigger<Unfocused>, mut q: Query<&mut Marks>) {
+        if let Ok(mut m) = q.get_mut(trigger.event_target()) {
+            m.unfocused = true;
+        }
+    }
+
+    fn spawn_grabbable(foliage: &mut Foliage, left: f32, top: f32, w: f32, h: f32) -> Entity {
+        let e = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    left.px().as_left().with(w.px().as_width()),
+                    top.px().as_top().with(h.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((InteractionListener::new(), Marks::default())),
+        );
+        foliage.world.flush();
+        foliage
+            .world
+            .entity_mut(e)
+            .observe(mark_engaged)
+            .observe(mark_dragged)
+            .observe(mark_disengaged)
+            .observe(mark_clicked)
+            .observe(mark_focused)
+            .observe(mark_unfocused);
+        e
+    }
+
+    #[test]
+    fn starting_an_interaction_over_a_leaf_grabs_it_as_the_primary() {
+        let mut foliage = Foliage::new();
+        let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+
+        assert_eq!(foliage.world.resource::<CurrentInteraction>().primary, Some(leaf));
+    }
+
+    #[test]
+    fn starting_an_interaction_away_from_everything_grabs_nothing() {
+        let mut foliage = Foliage::new();
+        spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(500.0, 500.0), InteractionMethod::Mouse);
+
+        assert_eq!(foliage.world.resource::<CurrentInteraction>().primary, None);
+    }
+
+    #[test]
+    fn the_higher_elevation_of_two_overlapping_leaves_wins_the_grab() {
+        let mut foliage = Foliage::new();
+        let back = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        let front = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(2))
+                .with(InteractionListener::new()),
+        );
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+
+        let primary = foliage.world.resource::<CurrentInteraction>().primary;
+        assert_eq!(primary, Some(front), "the more-in-front (up(2)) entity should win over up(1) at the same point");
+        assert_ne!(primary, Some(back));
+    }
+
+    #[test]
+    fn a_disabled_entity_does_not_compete_for_the_grab_even_when_sitting_on_top() {
+        // the exact scenario `interactive_elements`' own comment documents: an app hiding a
+        // page-level button behind a modal shouldn't let the (disabled, but still elevated)
+        // button silently eat clicks meant for whatever's actually beneath it.
+        let mut foliage = Foliage::new();
+        let underneath = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        let on_top_disabled = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(2))
+                .with(InteractionListener::new()),
+        );
+        foliage.world.flush();
+        foliage.world.trigger_targets(crate::Disable::new(), on_top_disabled);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().primary,
+            Some(underneath),
+            "the disabled entity sits on top but must be skipped entirely for grab purposes"
+        );
+    }
+
+    #[test]
+    fn engaged_fires_on_start_and_disengaged_fires_on_end_for_the_grabbed_entity() {
+        let mut foliage = Foliage::new();
+        let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        assert!(foliage.world.get::<Marks>(leaf).unwrap().engaged);
+        assert!(!foliage.world.get::<Marks>(leaf).unwrap().disengaged);
+
+        send(&mut foliage, InteractionPhase::End, point(50.0, 50.0), InteractionMethod::Mouse);
+        assert!(foliage.world.get::<Marks>(leaf).unwrap().disengaged);
+    }
+
+    #[test]
+    fn releasing_inside_the_grabbed_entitys_own_bounds_fires_onclick() {
+        let mut foliage = Foliage::new();
+        let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(&mut foliage, InteractionPhase::End, point(55.0, 55.0), InteractionMethod::Mouse);
+
+        assert!(foliage.world.get::<Marks>(leaf).unwrap().clicked);
+    }
+
+    #[test]
+    fn releasing_outside_the_grabbed_entitys_own_bounds_does_not_fire_onclick() {
+        // the grabbed entity stays primary for the whole gesture (it doesn't get dropped
+        // just because the pointer wandered off it) -- but OnClick specifically requires
+        // the release point to still be within its own bounds, e.g. dragging off a button
+        // before releasing shouldn't fire its click.
+        let mut foliage = Foliage::new();
+        let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(&mut foliage, InteractionPhase::End, point(500.0, 500.0), InteractionMethod::Mouse);
+
+        assert!(!foliage.world.get::<Marks>(leaf).unwrap().clicked);
+        assert!(foliage.world.get::<Marks>(leaf).unwrap().disengaged, "Disengaged still fires regardless");
+    }
+
+    #[test]
+    fn a_small_move_stays_under_the_drag_threshold_but_still_fires_dragged() {
+        // Dragged fires on every Moved event for the primary entity, unconditionally -- it's
+        // only the actual View-pan that's gated behind crossing DRAG_THRESHOLD (`past_drag`).
+        // A composite that wants "moved at all" (a custom drag handle, say) and one that
+        // wants "moved enough to count as a real drag" (auto-pan) are reading two different
+        // signals here, not the same one at two different sensitivities.
+        let mut foliage = Foliage::new();
+        let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 200.0, 200.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(50.0 + InteractionListener::DRAG_THRESHOLD - 1.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(!foliage.world.resource::<CurrentInteraction>().past_drag, "under the threshold");
+        assert!(foliage.world.get::<Marks>(leaf).unwrap().dragged, "but Dragged itself isn't threshold-gated");
+    }
+
+    #[test]
+    fn crossing_the_drag_threshold_flips_past_drag() {
+        let mut foliage = Foliage::new();
+        spawn_grabbable(&mut foliage, 0.0, 0.0, 200.0, 200.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        assert!(!foliage.world.resource::<CurrentInteraction>().past_drag, "sanity: not yet");
+
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(50.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        assert!(foliage.world.resource::<CurrentInteraction>().past_drag);
+    }
+
+    #[test]
+    fn dragging_a_view_less_child_walks_up_to_pan_the_nearest_ancestor_view() {
+        let mut foliage = Foliage::new();
+        let parent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((View::new(), Grid::default())),
+        );
+        let child = foliage.world.branch(
+            parent,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(InteractionListener::new()),
+        );
+        foliage.world.flush();
+        assert_eq!(foliage.world.get::<ViewAdjustment>(parent).unwrap().0, Position::default());
+
+        send(&mut foliage, InteractionPhase::Start, point(25.0, 25.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        send(&mut foliage, InteractionPhase::Moved, point(80.0, 25.0), InteractionMethod::Mouse);
+
+        assert_ne!(
+            foliage.world.get::<ViewAdjustment>(parent).unwrap().0,
+            Position::default(),
+            "the child has no View of its own -- the drag should have walked up its Stem \
+             chain and panned its ancestor View instead"
+        );
+        assert_eq!(
+            foliage.world.get::<ViewAdjustment>(child).unwrap_or(&ViewAdjustment::default()).0,
+            Position::default(),
+            "the child itself isn't a View -- nothing should have been written on it directly"
+        );
+    }
+
+    #[test]
+    fn disable_drag_on_the_grabbed_entity_blocks_panning_any_ancestor_view() {
+        let mut foliage = Foliage::new();
+        let parent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((View::new(), Grid::default())),
+        );
+        let child = foliage.world.branch(
+            parent,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((InteractionListener::new(), InteractionPropagation::grab().disable_drag())),
+        );
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(25.0, 25.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        send(&mut foliage, InteractionPhase::Moved, point(80.0, 25.0), InteractionMethod::Mouse);
+
+        assert_eq!(
+            foliage.world.get::<ViewAdjustment>(parent).unwrap().0,
+            Position::default(),
+            "the grabbed entity's own disable_drag should have suppressed the pan entirely, \
+             mirroring how a slider knob or the text-input cursor keep their own drag local"
+        );
+    }
+
+    #[test]
+    fn starting_on_a_focusable_leaf_sets_it_as_focused() {
+        let mut foliage = Foliage::new();
+        let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+
+        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(leaf));
+        assert!(foliage.world.get::<Marks>(leaf).unwrap().focused);
+    }
+
+    #[test]
+    fn starting_on_a_focus_ignoring_leaf_does_not_change_focus() {
+        let mut foliage = Foliage::new();
+        let leaf = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((InteractionListener::new(), FocusBehavior::ignore())),
+        );
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+
+        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, None);
+    }
+
+    #[test]
+    fn starting_on_a_new_entity_unfocuses_the_previous_one() {
+        let mut foliage = Foliage::new();
+        let a = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        let b = spawn_grabbable(&mut foliage, 200.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(a));
+
+        send(&mut foliage, InteractionPhase::Start, point(250.0, 50.0), InteractionMethod::Mouse);
+
+        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(b));
+        assert!(foliage.world.get::<Marks>(a).unwrap().unfocused);
+        assert!(foliage.world.get::<Marks>(b).unwrap().focused);
+    }
+}

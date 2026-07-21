@@ -7,7 +7,7 @@
 //! `Section<Logical>`) -- the same harness `harness_smoke.rs` already proved settles fully
 //! headless with no schedule run required.
 
-use foliage_proper::{EcsExtension, Elevation, Foliage, Grid, GridExt, Leaf, Location, Logical, Section, Sprout};
+use foliage_proper::{EcsExtension, Elevation, Foliage, Grid, GridExt, Layout, Leaf, Location, Logical, Section, Sprout};
 
 fn section_of(foliage: &mut Foliage, entity: foliage_proper::Entity) -> Section<Logical> {
     *foliage
@@ -124,4 +124,94 @@ fn column_anchors_split_the_parents_grid_evenly() {
     let child_section = section_of(&mut foliage, child);
     assert_eq!(child_section.left(), 100.0);
     assert_eq!(child_section.width(), 100.0);
+}
+
+#[test]
+fn grids_nested_two_levels_deep_resolve_relative_to_their_own_immediate_parent() {
+    // only one level of parent-Grid nesting had ever been exercised -- a bug in how a
+    // child's resolved Section feeds into ITS OWN Grid for further resolution (as opposed
+    // to always resolving against some outer/root Grid) wouldn't have been caught.
+    let mut foliage = Foliage::new();
+    let outer = foliage.world.leaf(
+        Leaf::sprout()
+            .at(Location::new().xs(
+                0.px().as_left().with(400.px().as_width()),
+                0.px().as_top().with(200.px().as_height()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Grid::new(2.col().gap(0), 1.row().gap(0))),
+    );
+    // left half of outer's 400-wide grid: [0, 200)
+    let middle = foliage.world.branch(
+        outer,
+        Leaf::sprout()
+            .at(Location::new().xs(
+                1.col().as_left().with(1.col().as_right()),
+                1.row().as_top().with(1.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Grid::new(2.col().gap(0), 1.row().gap(0))),
+    );
+    // right half of middle's OWN 200-wide grid: [100, 200) relative to middle, i.e. [300, 400)
+    // in absolute terms -- only correct if resolution used middle's resolved Section (not
+    // outer's) as the basis for this Grid.
+    let innermost = foliage.world.branch(
+        middle,
+        Leaf::sprout()
+            .at(Location::new().xs(
+                2.col().as_left().with(2.col().as_right()),
+                1.row().as_top().with(1.row().as_bottom()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    foliage.world.flush();
+
+    let middle_section = section_of(&mut foliage, middle);
+    assert_eq!(middle_section.left(), 0.0);
+    assert_eq!(middle_section.width(), 200.0);
+
+    let innermost_section = section_of(&mut foliage, innermost);
+    assert_eq!(innermost_section.left(), 100.0, "middle's own left(0) + its second-half column start(100)");
+    assert_eq!(innermost_section.width(), 100.0);
+}
+
+#[test]
+fn a_non_xs_layout_falls_back_to_the_nearest_smaller_configured_breakpoint() {
+    let mut foliage = Foliage::new();
+    foliage.world.insert_resource(Layout::Md);
+    let leaf = foliage.world.leaf(
+        Leaf::sprout()
+            .at(Location::new().xs(
+                10.px().as_left().with(60.px().as_width()),
+                10.px().as_top().with(60.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+    foliage.world.flush();
+
+    let section = section_of(&mut foliage, leaf);
+    assert_eq!(section.width(), 60.0, "only xs is configured -- an active Md layout should fall back to it");
+}
+
+#[test]
+fn a_specific_breakpoint_config_wins_over_the_fallback_when_it_is_the_active_layout() {
+    let mut foliage = Foliage::new();
+    foliage.world.insert_resource(Layout::Md);
+    let leaf = foliage.world.leaf(
+        Leaf::sprout()
+            .at(Location::new()
+                .xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                )
+                .md(
+                    0.px().as_left().with(150.px().as_width()),
+                    0.px().as_top().with(150.px().as_height()),
+                ))
+            .elevate(Elevation::up(1)),
+    );
+    foliage.world.flush();
+
+    let section = section_of(&mut foliage, leaf);
+    assert_eq!(section.width(), 150.0, "Md is explicitly configured and active -- it should win over the xs fallback");
 }

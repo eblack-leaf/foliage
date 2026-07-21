@@ -84,10 +84,16 @@ pub struct PageChanged {
 }
 
 /// Private child registry: the patch reaction and click handlers need the stable slot
-/// entities the structure reaction built.
+/// entities the structure reaction built. Each slot is (the entity to despawn on rebuild,
+/// the entity the patch reaction recolors/retexts) -- for `Dots` these differ (the outer,
+/// invisible hit-region vs. the inner visual pip it parents); for `Numbered` one text
+/// entity plays both roles. Removing only the recolor target and never its hit-region
+/// parent used to leak an orphaned `InteractionListener` entity per slot on every
+/// structural rebuild after the first (count or style change) -- caught by a test that
+/// rebuilt twice and found the earlier hit-regions still hanging around, un-removed.
 #[derive(Component, Clone)]
 pub(crate) struct PaginationHandle {
-    slots: Vec<Entity>,
+    slots: Vec<(Entity, Entity)>,
     step: Option<(Entity, Entity)>,
 }
 impl PaginationHandle {
@@ -173,8 +179,8 @@ impl Sprout for PaginationSprout {
                 let current = pages.get(e).unwrap().0.min(count.saturating_sub(1));
                 let style = *styles.get(e).unwrap();
                 let mut handle = handles.get_mut(e).unwrap();
-                for slot in handle.slots.drain(..) {
-                    tree.remove(slot);
+                for (root, _) in handle.slots.drain(..) {
+                    tree.remove(root);
                 }
                 // step buttons: exist only while icons are configured; circle = the icon's
                 // registered footprint + breathing room, never a fixed size
@@ -353,7 +359,7 @@ impl Sprout for PaginationSprout {
                             tree.on_click(hit, move |_: Trigger<OnClick>, mut tree: Tree| {
                                 tree.write_to(e, PageIndex(s));
                             });
-                            handle.slots.push(dot);
+                            handle.slots.push((hit, dot));
                         }
                         PaginationMode::Numbered => {
                             let number = tree.branch(
@@ -392,7 +398,7 @@ impl Sprout for PaginationSprout {
                                     tree.write_to(e, PageIndex(ws + s));
                                 },
                             );
-                            handle.slots.push(number);
+                            handle.slots.push((number, number));
                         }
                     }
                 }
@@ -428,7 +434,7 @@ impl Sprout for PaginationSprout {
                 }
                 match style.mode {
                     PaginationMode::Dots => {
-                        for (s, slot) in handle.slots.iter().enumerate() {
+                        for (s, (_, slot)) in handle.slots.iter().enumerate() {
                             tree.write_to(
                                 *slot,
                                 if s == current {
@@ -441,7 +447,7 @@ impl Sprout for PaginationSprout {
                     }
                     PaginationMode::Numbered => {
                         let ws = window_start(current, count, handle.slots.len());
-                        for (s, slot) in handle.slots.iter().enumerate() {
+                        for (s, (_, slot)) in handle.slots.iter().enumerate() {
                             tree.write_to(
                                 *slot,
                                 (

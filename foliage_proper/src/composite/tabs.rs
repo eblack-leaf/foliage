@@ -180,6 +180,12 @@ impl Sprout for TabsSprout {
                     .0
                     .min(tabs_pages.labels.len().saturating_sub(1));
                 let mut handle = handles.get_mut(e).unwrap();
+                // kept in sync with the actual label count on every rebuild -- otherwise a
+                // `TabsPages` rewrite to a different length leaves `PageCount` stale from
+                // spawn, and the PATCH reaction below clamps `PageIndex` against that wrong
+                // bound (Carousel's own `CarouselPages` reaction already does this same
+                // write for the identical reason).
+                tree.write_to(e, PageCount(tabs_pages.labels.len()));
                 tree.write_to(
                     handle.header,
                     (
