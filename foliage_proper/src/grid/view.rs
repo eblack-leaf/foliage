@@ -1,3 +1,4 @@
+use crate::ash::clip::ClipToViewport;
 use crate::{Component, Logical, Moment, Position, Section, Stem, Tree};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref};
@@ -127,6 +128,7 @@ pub(crate) fn extent_check(
     propagations: Query<&OverscrollPropagation>,
     contexts: Query<(Entity, Ref<Stem>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
+    clip_to_viewport: Query<&ClipToViewport>,
     mut tree: Tree,
 ) {
     let mut to_check = HashSet::new();
@@ -171,6 +173,17 @@ pub(crate) fn extent_check(
     for (entity, context) in contexts.iter() {
         if let Some(id) = context.id {
             if to_check.contains(&id) {
+                // a `ClipToViewport` child is a floating overlay, not really "contained
+                // scrollable content" of its structural parent (same reasoning as why it
+                // already escapes the parent's own clip instead of intersecting with it) --
+                // without this, a small trigger entity that merely needs a `Grid` for its own
+                // unrelated layout (hence a `View`, via `Grid`'s own requirement) would have
+                // its View extent inflated by wherever its open overlay child currently
+                // renders, falsely reporting scrollable room it was never meant to have
+                // (concretely: Dropdown's trigger vs. its own option-list surface).
+                if clip_to_viewport.get(entity).is_ok() {
+                    continue;
+                }
                 if let Ok(mut view) = views.get_mut(id) {
                     if let Ok((_, section)) = sections.get(entity) {
                         let mut relative = *section;
