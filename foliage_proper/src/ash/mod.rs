@@ -1,18 +1,21 @@
 use crate::ash::clip::{ClipSection, ResolvedClip};
 use crate::ash::differential::RenderQueueHandle;
+use crate::coordinate::elevation::StackKey;
 use crate::foliage::Foliage;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::ginkgo::{Ginkgo, ScaleFactor};
 use crate::image::Image;
 use crate::line::LineQuad;
 use crate::polygon::Polygon;
-use crate::{Attachment, Color, Icon, Panel, Stem, Text};
+use crate::willow::NearFarDescriptor;
+use crate::{Attachment, Color, Icon, Panel, ResolvedElevation, Stem, Text};
+use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::IntoScheduleConfigs;
 use bevy_ecs::world::World;
 use node::Node;
 use render::{ContiguousSpan, PipelineId, Render, Renderer};
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use wgpu::{CommandEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor};
 
 pub(crate) mod clip;
@@ -42,6 +45,15 @@ pub(crate) struct Ash {
     pub(crate) line: Option<Renderer<LineQuad>>,
     pub(crate) polygon: Option<Renderer<Polygon>>,
     pub(crate) clip: HashMap<Stem, ClipSection>,
+    /// entities with a `StackKey`, sorted ascending by it (`StackKey`'s own `Ord`: greater =
+    /// more in front, so this list runs least-in-front-first, most-in-front-last). Maintained
+    /// incrementally by `assign_elevations` -- a gapped/fractional-index scheme, so a changed
+    /// or newly-inserted entity only ever touches its own `ResolvedElevation` plus its two
+    /// immediate neighbors', never the whole list (except the rare renormalize fallback).
+    pub(crate) elevation_order: Vec<Entity>,
+    /// last-seen `StackKey` per entity, to detect which entities actually need repositioning
+    /// this frame without re-deriving everyone's position from scratch.
+    pub(crate) stack_key_cache: HashMap<Entity, StackKey>,
 }
 impl Default for Ash {
     fn default() -> Self {
@@ -61,6 +73,8 @@ impl Ash {
             line: None,
             polygon: None,
             clip: Default::default(),
+            elevation_order: vec![],
+            stack_key_cache: HashMap::new(),
         }
     }
     pub(crate) fn initialize(&mut self, ginkgo: &Ginkgo) {
@@ -71,7 +85,93 @@ impl Ash {
         self.line.replace(LineQuad::renderer(ginkgo));
         self.polygon.replace(Polygon::renderer(ginkgo));
     }
+    /// Keeps `ResolvedElevation` (the GPU-facing f32 every pipeline already consumes,
+    /// unchanged) consistent with `StackKey`'s tree-structured ordering, via a gapped/
+    /// fractional-index scheme: a changed or newly-inserted entity is placed between its new
+    /// `StackKey`-sorted neighbors' *already-assigned* values, touching only itself (plus,
+    /// rarely, a full renormalize if a gap's been bisected too many times to keep meaningful
+    /// float precision). Must run *before* `RenderQueueHandle::new(world)` below -- the six
+    /// pipelines' own `Render::prepare` calls drain their `ResolvedElevation` differential
+    /// through `queues`, which holds `world` mutably for the rest of this function.
+    fn assign_elevations(&mut self, world: &mut World) {
+        const EPSILON: f32 = 1e-4;
+        let nf = NearFarDescriptor::default();
+        let initial_gap = (nf.far.value() - nf.near.value()) / 64.0;
+
+        let current: Vec<(Entity, StackKey)> = {
+            let mut q = world.query::<(Entity, &StackKey)>();
+            q.iter(world).map(|(e, k)| (e, *k)).collect()
+        };
+        let alive: HashSet<Entity> = current.iter().map(|(e, _)| *e).collect();
+        self.elevation_order.retain(|e| alive.contains(e));
+        self.stack_key_cache.retain(|e, _| alive.contains(e));
+
+        let dirty: Vec<(Entity, StackKey)> = current
+            .into_iter()
+            .filter(|(e, k)| self.stack_key_cache.get(e) != Some(k))
+            .collect();
+        if dirty.is_empty() {
+            return;
+        }
+        for (e, _) in &dirty {
+            if let Some(pos) = self.elevation_order.iter().position(|x| x == e) {
+                self.elevation_order.remove(pos);
+            }
+        }
+        for (e, k) in &dirty {
+            self.stack_key_cache.insert(*e, *k);
+        }
+        for (e, k) in dirty {
+            let pos = self
+                .elevation_order
+                .binary_search_by(|probe| {
+                    (*world.get::<StackKey>(*probe).unwrap()).cmp(&k)
+                })
+                .unwrap_or_else(|i| i);
+            self.elevation_order.insert(pos, e);
+            let left = pos.checked_sub(1).and_then(|i| self.elevation_order.get(i)).copied();
+            let right = self.elevation_order.get(pos + 1).copied();
+            let left_v = left.and_then(|le| world.get::<ResolvedElevation>(le)).map(|r| r.value());
+            let right_v = right.and_then(|re| world.get::<ResolvedElevation>(re)).map(|r| r.value());
+            // `elevation_order` runs least-in-front-first: `left` (lower index, lower
+            // StackKey) must end up with a *larger* raw value than `right` (higher index,
+            // higher StackKey), matching the existing "smaller raw = more in front" convention.
+            let new_value = match (left_v, right_v) {
+                (Some(l), Some(r)) => (l + r) / 2.0,
+                (Some(l), None) => l - initial_gap,
+                (None, Some(r)) => r + initial_gap,
+                (None, None) => (nf.near.value() + nf.far.value()) / 2.0,
+            };
+            let too_close = left_v.map(|l| (l - new_value).abs() < EPSILON).unwrap_or(false)
+                || right_v.map(|r| (r - new_value).abs() < EPSILON).unwrap_or(false);
+            if too_close {
+                self.renormalize(world, &nf);
+            } else {
+                world.entity_mut(e).insert(ResolvedElevation::new(
+                    new_value.clamp(nf.near.value(), nf.far.value()),
+                ));
+            }
+        }
+    }
+    /// Rare fallback: a gap between two `StackKey`-adjacent entities has been bisected so many
+    /// times the midpoint would lose meaningful float precision. Re-spaces the *whole* order
+    /// evenly across `[near, far]` -- correctness-preserving, not performance-sensitive, since
+    /// it only triggers after repeated insertions into the same tiny gap, not on ordinary
+    /// changes (which stay local to the changed entity's own two neighbors).
+    fn renormalize(&mut self, world: &mut World, nf: &NearFarDescriptor) {
+        let n = self.elevation_order.len();
+        if n == 0 {
+            return;
+        }
+        let span = nf.far.value() - nf.near.value();
+        for (i, e) in self.elevation_order.iter().enumerate() {
+            let t = if n == 1 { 0.5 } else { i as f32 / (n - 1) as f32 };
+            let value = nf.far.value() - t * span;
+            world.entity_mut(*e).insert(ResolvedElevation::new(value));
+        }
+    }
     pub(crate) fn prepare(&mut self, world: &mut World, ginkgo: &Ginkgo) {
+        self.assign_elevations(world);
         let mut queues = RenderQueueHandle::new(world);
         for (entity, clip) in queues.attribute::<(), ResolvedClip>() {
             self.clip.insert(Stem::some(entity), ClipSection(clip.0));
@@ -133,27 +233,14 @@ impl Ash {
         for node in to_add {
             self.nodes.push(node);
         }
-        self.nodes.sort_by(
-            |lhs, rhs| match lhs.elevation.0.total_cmp(&rhs.elevation.0) {
-                Ordering::Less => Ordering::Greater,
-                Ordering::Equal => match lhs.pipeline.cmp(&rhs.pipeline) {
-                    Ordering::Less => Ordering::Less,
-                    Ordering::Equal => match lhs.group.cmp(&rhs.group) {
-                        Ordering::Less => Ordering::Less,
-                        Ordering::Equal => {
-                            match lhs.clip_context.partial_cmp(&rhs.clip_context).unwrap() {
-                                Ordering::Less => Ordering::Less,
-                                Ordering::Equal => lhs.order.cmp(&rhs.order),
-                                Ordering::Greater => Ordering::Greater,
-                            }
-                        }
-                        Ordering::Greater => Ordering::Greater,
-                    },
-                    Ordering::Greater => Ordering::Greater,
-                },
-                Ordering::Greater => Ordering::Less,
-            },
-        );
+        self.nodes.sort_by(|lhs, rhs| {
+            lhs.elevation
+                .front_to_back(&rhs.elevation)
+                .then_with(|| lhs.pipeline.cmp(&rhs.pipeline))
+                .then_with(|| lhs.group.cmp(&rhs.group))
+                .then_with(|| lhs.clip_context.partial_cmp(&rhs.clip_context).unwrap())
+                .then_with(|| lhs.order.cmp(&rhs.order))
+        });
         self.contiguous.clear();
         let mut contiguous = 1;
         let mut range_start = None;
@@ -247,5 +334,108 @@ impl Ash {
                 .submit(std::iter::once(encoder.finish()));
             ginkgo.context().queue.present(surface_texture);
         }
+    }
+}
+
+#[cfg(test)]
+mod elevation_assignment_tests {
+    use super::*;
+    use crate::{Elevation, EcsExtension, Foliage, Leaf, Location, Sprout};
+
+    fn resolved_of(world: &mut World, e: Entity) -> f32 {
+        world.get::<ResolvedElevation>(e).unwrap().value()
+    }
+
+    /// `assign_elevations` doesn't need a real `Ginkgo`/GPU/window -- it's pure ECS logic
+    /// over `StackKey`/`ResolvedElevation`, so this exercises it directly rather than the
+    /// full render `prepare()` path.
+    #[test]
+    fn resulting_resolved_elevation_order_agrees_with_stack_key_order() {
+        let mut foliage = Foliage::new();
+        let root = foliage
+            .world
+            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let a = foliage.world.branch(
+            root,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+        );
+        let b = foliage.world.branch(
+            root,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(2)),
+        );
+        let c = foliage
+            .world
+            .branch(a, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+        foliage.world.flush();
+
+        let mut ash = Ash::new();
+        ash.assign_elevations(&mut foliage.world);
+
+        let (ra, rb, rc) = (
+            resolved_of(&mut foliage.world, a),
+            resolved_of(&mut foliage.world, b),
+            resolved_of(&mut foliage.world, c),
+        );
+        // b (up(2)) is more in front than a (up(1)) -- smaller raw value.
+        assert!(rb < ra, "up(2) sibling should resolve more in front (smaller raw) than up(1)");
+        // c (up(1) from a) is more in front than a itself.
+        assert!(rc < ra, "a's own child should resolve more in front than a itself");
+    }
+
+    /// The actual point of the gapped/fractional-index scheme: inserting a new entity between
+    /// two already-assigned ones must touch only the new entity's own `ResolvedElevation`,
+    /// never its neighbors' -- not a full re-rank of everyone.
+    #[test]
+    fn inserting_between_two_existing_entities_touches_only_the_new_entity() {
+        let mut foliage = Foliage::new();
+        let root = foliage
+            .world
+            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let low = foliage.world.branch(
+            root,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+        );
+        let high = foliage.world.branch(
+            root,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(5)),
+        );
+        foliage.world.flush();
+
+        let mut ash = Ash::new();
+        ash.assign_elevations(&mut foliage.world);
+        let (low_before, high_before) = (
+            resolved_of(&mut foliage.world, low),
+            resolved_of(&mut foliage.world, high),
+        );
+
+        // a second call with nothing changed must be a total no-op.
+        ash.assign_elevations(&mut foliage.world);
+        assert_eq!(resolved_of(&mut foliage.world, low), low_before);
+        assert_eq!(resolved_of(&mut foliage.world, high), high_before);
+
+        // now insert a new sibling that lands strictly between `low` and `high`.
+        let middle = foliage.world.branch(
+            root,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(3)),
+        );
+        foliage.world.flush();
+        ash.assign_elevations(&mut foliage.world);
+
+        assert_eq!(
+            resolved_of(&mut foliage.world, low),
+            low_before,
+            "low's own resolved elevation must not change just because a new sibling was inserted"
+        );
+        assert_eq!(
+            resolved_of(&mut foliage.world, high),
+            high_before,
+            "high's own resolved elevation must not change just because a new sibling was inserted"
+        );
+        let middle_v = resolved_of(&mut foliage.world, middle);
+        assert!(
+            middle_v < low_before && middle_v > high_before,
+            "middle (up(3)) should land strictly between low (up(1)) and high (up(5)) -- \
+             low={low_before}, middle={middle_v}, high={high_before}"
+        );
     }
 }

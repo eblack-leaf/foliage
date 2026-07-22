@@ -12,11 +12,10 @@ mod adapter;
 pub(crate) mod listener;
 
 use crate::ash::clip::ResolvedClip;
+use crate::coordinate::elevation::StackKey;
 use crate::foliage::{Foliage, MainMarkers};
 use crate::grid::view::{ScrollMomentum, ViewAdjustment};
-use crate::{
-    Attachment, Component, InteractionShape, ResolvedElevation, Section, Stem, Tree, View,
-};
+use crate::{Attachment, Component, InteractionShape, ResolvedElevation, Section, Stem, Tree, View};
 pub use adapter::{InputSequence, Key, Modifiers, PhysicalInputSequence, PhysicalKey};
 pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
 use listener::InteractionListener;
@@ -149,58 +148,6 @@ impl Default for InteractionPropagation {
         }
     }
 }
-/// Whether `a` should win primary-grab priority over `b`, for two candidates that both
-/// contain the same click point. Comparing their raw `ResolvedElevation`s directly (a flat
-/// float, summed through however many `up(n)`/`down(n)` steps each one's own ancestor chain
-/// happens to use) lets two entities from *completely unrelated* parts of the tree collide
-/// purely by coincidence -- e.g. a composite's own chrome (Carousel's pagination dots) and
-/// arbitrary author content nested a different number of levels deep inside that same
-/// composite's content slot, whose summed depths happened to land on the same number. That
-/// coincidence has nothing to do with which one was actually meant to win.
-///
-/// Instead: walk both entities' `Stem` ancestor chains to their lowest common ancestor, then
-/// compare only the two *direct children of that shared ancestor* each one descends through
-/// -- i.e. compare the two branches' own elevations, not the arbitrary depth either branch
-/// happens to reach. A composite author who gives their own chrome branch a more-in-front
-/// elevation than their content branch (Carousel already does: pagination vs. viewport) gets
-/// that decision honored regardless of how deeply nested the losing branch's own content is
-/// -- the same way a CSS stacking context can never be visually out-ranked by an arbitrarily
-/// high z-index nested inside a different, lower-priority stacking context. If one candidate
-/// is itself an ancestor of the other (no real "branch" to compare -- one directly contains
-/// the other), fall back to comparing their own resolved elevations directly, since that's a
-/// normal, deliberately-relative-to-each-other case, not a coincidence.
-fn more_in_front(
-    a: Entity,
-    b: Entity,
-    stems: &Query<&Stem>,
-    elevations: &Query<&ResolvedElevation>,
-) -> bool {
-    let chain = |mut e: Entity| -> Vec<Entity> {
-        let mut c = vec![e];
-        while let Some(id) = stems.get(e).ok().and_then(|s| s.id) {
-            c.push(id);
-            e = id;
-        }
-        c.reverse(); // root-first
-        c
-    };
-    let (chain_a, chain_b) = (chain(a), chain(b));
-    let mut i = 0;
-    while i < chain_a.len() && i < chain_b.len() && chain_a[i] == chain_b[i] {
-        i += 1;
-    }
-    let (branch_a, branch_b) = if i >= chain_a.len() || i >= chain_b.len() {
-        // one is an ancestor of (or equal to) the other -- no branch split to compare,
-        // compare the two entities' own elevations directly instead.
-        (a, b)
-    } else {
-        (chain_a[i], chain_b[i])
-    };
-    let ea = elevations.get(branch_a).map(|e| e.value()).unwrap_or(f32::MAX);
-    let eb = elevations.get(branch_b).map(|e| e.value()).unwrap_or(f32::MAX);
-    ea <= eb // smaller raw value = more in front, per ResolvedElevation's inverted ordering
-}
-
 pub(crate) fn interactive_elements(
     mut reader: MessageReader<Interaction>,
     all: Query<(
@@ -211,7 +158,7 @@ pub(crate) fn interactive_elements(
         &InteractionPropagation,
         &InteractionShape,
     )>,
-    elevations: Query<&ResolvedElevation>,
+    stack_keys: Query<&StackKey>,
     behaviors: Query<&FocusBehavior>,
     mut listeners: Query<&mut InteractionListener>,
     mut current: ResMut<CurrentInteraction>,
@@ -289,7 +236,9 @@ pub(crate) fn interactive_elements(
                     if InteractionListener::is_contained(*shape, *section, *clip, event.position) {
                         let wins = match current.primary {
                             None => true,
-                            Some(existing) => more_in_front(entity, existing, &contexts, &elevations),
+                            Some(existing) => {
+                                stack_keys.get(entity).unwrap() >= stack_keys.get(existing).unwrap()
+                            }
                         };
                         if wins {
                             current.primary.replace(entity);
@@ -306,33 +255,8 @@ pub(crate) fn interactive_elements(
                 current.pass_through = current
                     .pass_through
                     .drain(..)
-                    .filter(|ps| more_in_front(*ps, p, &contexts, &elevations))
+                    .filter(|ps| stack_keys.get(*ps).unwrap() >= stack_keys.get(p).unwrap())
                     .collect::<Vec<_>>();
-                if !behaviors.get(p).unwrap().0 && event.method != InteractionMethod::ScrollWheel {
-                    if let Some(f) = current.focused.replace(p) {
-                        if f != p {
-                            tree.trigger_targets(
-                                Focused {
-                                    entity: Entity::PLACEHOLDER,
-                                },
-                                p,
-                            );
-                            tree.trigger_targets(
-                                Unfocused {
-                                    entity: Entity::PLACEHOLDER,
-                                },
-                                f,
-                            );
-                        }
-                    } else {
-                        tree.trigger_targets(
-                            Focused {
-                                entity: Entity::PLACEHOLDER,
-                            },
-                            p,
-                        );
-                    }
-                }
                 if let Ok(mut listener) = listeners.get_mut(p) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(
@@ -345,14 +269,35 @@ pub(crate) fn interactive_elements(
                 }
                 current.click = Click::new(event.position);
                 current.last_drag = event.position;
-            } else {
-                if let Some(f) = current.focused.take() {
-                    tree.trigger_targets(
-                        Unfocused {
-                            entity: Entity::PLACEHOLDER,
-                        },
-                        f,
-                    );
+            }
+            // Focus reconciliation for a non-scroll press: move focus to the grabbed primary if
+            // it can take focus, otherwise *clear* focus. Pressing a focus-ignoring element
+            // (e.g. Pagination's dots, all `FocusBehavior::ignore()`) or empty space is still
+            // "pressing away" from whatever was focused and must blur it -- that's what lets a
+            // Dropdown/Popover close when you click outside it onto non-focusable content. Scroll
+            // never changes focus at all, so an open overlay stays open while you scroll past it.
+            if event.method != InteractionMethod::ScrollWheel {
+                let new_focus = current
+                    .primary
+                    .filter(|p| !behaviors.get(*p).map(|b| b.0).unwrap_or(false));
+                if current.focused != new_focus {
+                    if let Some(old) = current.focused {
+                        tree.trigger_targets(
+                            Unfocused {
+                                entity: Entity::PLACEHOLDER,
+                            },
+                            old,
+                        );
+                    }
+                    if let Some(nf) = new_focus {
+                        tree.trigger_targets(
+                            Focused {
+                                entity: Entity::PLACEHOLDER,
+                            },
+                            nf,
+                        );
+                    }
+                    current.focused = new_focus;
                 }
             }
             for ps in current.pass_through.iter() {
@@ -897,7 +842,7 @@ mod tests {
     }
 
     #[test]
-    fn starting_on_a_focus_ignoring_leaf_does_not_change_focus() {
+    fn a_focus_ignoring_leaf_never_takes_focus_itself() {
         let mut foliage = Foliage::new();
         let leaf = foliage.world.leaf(
             Leaf::sprout()
@@ -913,6 +858,56 @@ mod tests {
         send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
 
         assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, None);
+    }
+
+    #[test]
+    fn pressing_a_focus_ignoring_leaf_blurs_a_previously_focused_one() {
+        // pressing a `FocusBehavior::ignore()` element (Pagination's dots, say) doesn't take
+        // focus itself, but it IS "pressing away" from whatever was focused, so it must blur it.
+        // This is exactly what lets an open Dropdown/Popover close when you click outside it onto
+        // non-focusable content.
+        let mut foliage = Foliage::new();
+        let focusable = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        let ignoring = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    200.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((InteractionListener::new(), FocusBehavior::ignore())),
+        );
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(focusable));
+
+        send(&mut foliage, InteractionPhase::Start, point(250.0, 50.0), InteractionMethod::Mouse);
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().focused,
+            None,
+            "pressing the focus-ignoring leaf should have cleared focus, not left it on the old one"
+        );
+        assert!(foliage.world.get::<Marks>(focusable).unwrap().unfocused);
+        let _ = ignoring;
+    }
+
+    #[test]
+    fn scrolling_does_not_change_focus() {
+        // an open overlay must stay open while you scroll past it -- scroll never blurs.
+        let mut foliage = Foliage::new();
+        let focusable = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(focusable));
+
+        send(&mut foliage, InteractionPhase::Start, point(500.0, 500.0), InteractionMethod::ScrollWheel);
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().focused,
+            Some(focusable),
+            "a scroll should not blur the focused entity"
+        );
     }
 
     #[test]

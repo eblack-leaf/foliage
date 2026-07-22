@@ -137,16 +137,12 @@ impl InstanceCoordinator {
             return swaps;
         }
         self.needs_sort = false;
-        self.instances
-            .sort_by(|a, b| match a.elevation.0.total_cmp(&b.elevation.0) {
-                Ordering::Less => Ordering::Greater,
-                Ordering::Equal => match a.clip_context.partial_cmp(&b.clip_context).unwrap() {
-                    Ordering::Less => Ordering::Less,
-                    Ordering::Equal => Ordering::Equal,
-                    Ordering::Greater => Ordering::Greater,
-                },
-                Ordering::Greater => Ordering::Less,
-            });
+        self.instances.sort_by(|a, b| {
+            match a.elevation.front_to_back(&b.elevation) {
+                Ordering::Equal => a.clip_context.partial_cmp(&b.clip_context).unwrap(),
+                ord => ord,
+            }
+        });
         let old_orders = self
             .cache
             .iter()

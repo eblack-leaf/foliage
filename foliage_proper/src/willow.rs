@@ -37,7 +37,11 @@ impl NearFarDescriptor {
 
 impl Default for NearFarDescriptor {
     fn default() -> Self {
-        Self::new(ResolvedElevation(0f32), ResolvedElevation(100f32))
+        // purely internal headroom for `ash::assign_elevations`'s gapped/fractional-index
+        // scheme (more room between adjacent entities before a gap needs renormalizing) --
+        // not an author-facing budget. Nothing outside that scheme ever reads a specific
+        // `ResolvedElevation` value directly, so this is free to widen with no migration cost.
+        Self::new(ResolvedElevation(0f32), ResolvedElevation(300f32))
     }
 }
 
