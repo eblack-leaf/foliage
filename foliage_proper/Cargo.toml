@@ -1,7 +1,12 @@
 [package]
 name = "foliage_proper"
-version = "0.7.0"
+version = "1.0.0"
 edition = "2024"
+description = "The foliage UI engine: bevy_ecs component model, wgpu rendering backend, and composite widget library."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/eblack-leaf/foliage"
+homepage = "https://eblack-leaf.github.io/foliage/"
+documentation = "https://eblack-leaf.github.io/foliage/book/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

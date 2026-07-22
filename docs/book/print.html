@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-2224a7dc.js";
+            window.path_to_searchindex_js = "searchindex-6cd55966.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-bd03f8e0.js"></script>
+        <script src="toc-a847c643.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,399 +175,1283 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="foliage"><a class="header" href="#foliage">Foliage</a></h1>
-<p><code>Foliage</code> is a cross-platform UI written in <code>Rust</code>. It can target <code>Linux | Windows | MacOS</code>
-natively, <code>Web</code> via <code>WebAssembly</code> and <code>Android</code> (via <code>cargo-ndk</code>). It leverages <code>wgpu.rs</code> and
-<code>winit</code> for native rendering on (almost) every platform.</p>
-<p>This book documents how to <em>use</em> a widget as an end user of the library, and how to <em>author</em>
-one — the same tool builds both foliage’s own widgets (<code>Button</code>, <code>TextInput</code>, …) and your own.</p>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p>Foliage is a cross-platform UI framework built on one idea: <strong>a widget is an entity</strong>.
+Not a widget tree of custom types with their own lifecycle rules, and not a retained
+scene graph bolted onto a game engine’s ECS as an afterthought – literally one
+<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a> <code>Entity</code>, carrying plain components,
+observed by plain systems. <code>Button</code> isn’t a special case the framework understands;
+it’s a config struct that spawns three ordinary entities (its own root, a <code>Panel</code>, a
+<code>Text</code>) and wires a couple of reactions between them, using exactly the same tools an
+application author has.</p>
+<p>This book builds that idea up from nothing, in the order a from-scratch implementation
+would actually need it, rather than starting from a finished API and describing its
+shape. Each chapter exists because the previous one runs into a problem it can’t solve
+alone:</p>
 <ul>
-<li><a href="#the-contract">The Contract</a> — the four verbs every widget speaks, end to end.</li>
-<li><a href="#the-primitives">The Primitives</a> — the visual/positioning/animation vocabulary
-(<code>Panel</code>/<code>Text</code>/<code>Icon</code>/<code>Image</code>, <code>Location</code>/<code>Grid</code>/<code>Elevation</code>, <code>Animation</code>/<code>Sequence</code>) that
-authoring composes, before authoring itself is introduced.</li>
-<li><a href="#authoring-a-widget">Authoring a Widget</a> — the <code>Sprout</code> trait, and why <code>build</code> is static while
-everything data-dependent goes through <code>react</code>.</li>
-<li><a href="#reacting-to-data">Reacting to Data</a> — <code>react</code>, <code>react_any</code>, and <code>forward</code>.</li>
-<li><a href="#a-complete-example-button">A Complete Example</a> — the real, shipped <code>Button</code> widget, walked through.</li>
+<li>An <code>Entity</code> by itself has no position, no parent, no draw order, and can’t receive
+input – <a href="#every-widget-is-an-entity-leaf"><strong>Leaf</strong></a> is the fixed set of components every on-screen entity
+needs, and why each one is there.</li>
+<li>Something has to turn a config struct into a spawned entity without letting authors
+forget the required pieces – <a href="#spawning-sprout-and-ecsextension"><strong>Sprout</strong></a> is that builder, and
+<a href="#acting-on-entities-tree-and-graft"><strong>Tree</strong></a> is how you act on an entity after it exists.</li>
+<li>ECS state changes every tick; re-uploading everything to the GPU every tick would be
+wasteful – <a href="#from-change-to-pixels-differential"><strong>Differential</strong></a> is the change-tracking layer that
+makes only-what-changed cheap.</li>
+<li>Something has to own the window, the GPU device, and the frame loop that ties input,
+ECS updates, and rendering together – <a href="#the-app-foliage-and-its-schedules"><strong>Foliage</strong></a>,
+<a href="#the-render-backend-ash"><strong>Ash</strong></a>, <a href="#the-gpu-wrapper-ginkgo"><strong>Ginkgo</strong></a>, <a href="#the-window-willow"><strong>Willow</strong></a>, and
+<a href="#the-event-loop-photosynthesis"><strong>Photosynthesis</strong></a> are that machinery.</li>
+<li>With the machinery in place, the actual rendering primitives (<code>Panel</code>, <code>Text</code>,
+<code>Icon</code>, …) and the composites built from them (<code>Button</code>, <code>Dropdown</code>, <code>Router</code>, …)
+are just ordinary uses of everything above – the <a href="#the-slot-convention"><strong>Composites</strong></a>
+section, ending with <a href="#building-button-from-scratch">building <code>Button</code> from scratch</a>, is
+where every earlier chapter’s concept gets used together.</li>
 </ul>
+<p>If you only want to <em>use</em> foliage, the <a href="https://github.com/eblack-leaf/foliage">README</a>
+has a short version of this same arc. This book is the depth version – for
+understanding why the API is shaped the way it is, not just what to call.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="the-contract"><a class="header" href="#the-contract">The Contract</a></h1>
-<p>If you’re using a widget — foliage’s own, or one someone else authored the same way — there
-are exactly four verbs, and they cover everything:</p>
+<h1 id="every-widget-is-an-entity-leaf"><a class="header" href="#every-widget-is-an-entity-leaf">Every Widget Is an Entity: Leaf</a></h1>
+<p>Start from nothing: a bare <code>bevy_ecs::Entity</code> with no components. It has no position, so
+nothing can lay it out. It has no parent, so nothing knows it belongs to a screen. It has
+no draw order, so a renderer wouldn’t know when to draw it relative to anything else. It
+can’t be hidden, faded, or clipped, and it can’t receive a click. None of that is
+optional for something that’s going to appear on screen – so <code>Leaf</code> bundles exactly
+that set of requirements onto every entity that needs them, via <code>bevy_ecs</code>’s
+<code>#[require(...)]</code>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>let s = tree.leaf(Slider::new().value(0.5).at(/* .. */).elevate(/* .. */)); // spawn
-tree.write_to(s, SliderValue(0.25));                                       // update
-tree.subscribe(s, |t: Trigger&lt;ValueChanged&gt;, ..| { /* .. */ });            // listen
-tree.remove(s);
-tree.enable(s);
-tree.disable(s);                                                           // lifecycle
+</span>// foliage_proper/src/leaf.rs
+#[derive(Component)]
+#[require(Stem, Branch)]
+#[require(Opacity, Visibility, ClipSection)]
+#[require(Section&lt;Logical&gt;, Elevation, InteractionShape, InteractionPropagation, FocusBehavior)]
+#[component(on_add = Self::on_add)]
+#[component(on_remove = Self::on_remove)]
+pub struct Leaf {}
 <span class="boring">}</span></code></pre>
-<p><strong>A widget is one entity.</strong> <code>tree.leaf(spec)</code> (a root, no parent) or <code>tree.branch(parent, spec)</code>
-(a child) returns a single <code>Entity</code> — never a handle struct, a tuple of entities, or anything
-that leaks knowledge of what the widget spawned internally. Whatever it built underneath is
-private. <code>remove</code> cascades through every descendant automatically (stems form a tree; removing
-a stem removes everything grown from it) — there’s nothing to manually tear down.</p>
-<p><strong>Update by writing a component the widget defined</strong>, not by calling a method on it. A slider’s
-whole public surface is <code>SliderValue</code> — dragging it and calling <code>tree.write_to(s, SliderValue(v))</code>
-from outside run through the exact same code path, so there’s no “initial state” special case
-separate from “later update.”</p>
-<p><strong>Listen via <code>tree.subscribe</code></strong>, watching for the widget’s own event type (<code>ValueChanged</code>,
-<code>SelectionChanged</code>, …) — never a child entity’s raw component writes, since children aren’t
-something a caller can name.</p>
-<p>That’s the whole end-user-facing surface. Before getting to how a widget <em>is</em> built this way,
-<a href="#the-primitives">The Primitives</a> covers what’s already available to build with.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="the-primitives"><a class="header" href="#the-primitives">The Primitives</a></h1>
-<p>Before authoring anything, it helps to know what’s already in the box — the vocabulary
-<code>Authoring a Widget</code> assumes you recognize when it composes <code>Panel</code>/<code>Icon</code>/<code>Text</code>/<code>Grid</code>/
-<code>Location</code>/<code>Elevation</code> without re-explaining any of them.</p>
-<h2 id="the-visual-primitives"><a class="header" href="#the-visual-primitives">The visual primitives</a></h2>
-<p>Each of these is itself a <code>Sprout</code> — spawned the same way as anything you’d author yourself
-(<code>tree.leaf(...)</code>/<code>tree.branch(parent, ...)</code>), just with an empty <code>build</code> (see
-<a href="#authoring-a-widget">Authoring a Widget</a>): they have nothing to build underneath, they <em>are</em> the
-leaf content.</p>
+<p>Each piece solves one of the problems above:</p>
 <ul>
-<li><strong><code>Panel</code></strong> — a rectangle: <code>Panel::new().color(Color::gray(800)).rounding(Rounding::Md) .outline(2)</code>. The generic surface almost everything else sits on top of.</li>
-<li><strong><code>Text</code></strong> — <code>Text::new("label")</code>, with <code>.size(FontSize::new(16))</code>. Content updates through
-<code>TextValue</code>, the same value component <code>Button</code> forwards internally.</li>
-<li><strong><code>Icon</code></strong> — <code>Icon::new(id)</code>, where <code>id</code> comes from an <code>#[icon_handle]</code>-generated enum (see
-the icon pipeline — <code>foliage_icons</code> rasterizes SVGs ahead of time into a fixed-size mip chain,
-not a runtime vector renderer). Content updates through <code>IconValue</code>.</li>
-<li><strong><code>Image</code></strong> — <code>Image::new(key)</code> where <code>key: AssetKey</code> comes from <code>load_asset!</code>/<code>Keyring</code>.
-<code>.view(ImageView::Aspect | Stretch | Crop)</code> controls how the source bitmap fills its <code>Location</code>
-— <code>Aspect</code> preserves aspect ratio and centers, <code>Stretch</code> fills exactly, <code>Crop</code> fills and clips.</li>
-<li><strong><code>Line</code></strong>/<strong><code>Shape</code></strong> — a line segment between two points (<code>Line::new(weight)</code>, positioned via
-<code>Location</code>’s point-pair form rather than a rect) — used for the connective/underline marks
-you’ll see in composite widgets like <code>Slider</code>.</li>
+<li><strong><code>Stem</code>/<code>Branch</code></strong> – explicit, ECS-visible parent/child. Not “which entity happens
+to be near this one in a tree structure kept elsewhere” – an actual component, so any
+system can query “what’s my parent” or “what are my children” without a side table.</li>
+<li><strong><code>Opacity</code>/<code>Visibility</code>/<code>ClipSection</code></strong> – fade, show/hide, and the ancestor-derived
+region an entity is allowed to draw within. All three are things any renderable entity
+needs regardless of what it renders.</li>
+<li><strong><code>Section&lt;Logical&gt;</code>/<code>Elevation</code></strong> – where an entity is (position + size, in
+logical/DPI-independent units) and how far forward or back it draws relative to
+siblings.</li>
+<li><strong><code>InteractionShape</code>/<code>InteractionPropagation</code>/<code>FocusBehavior</code></strong> – the hit-testing
+shape, whether a click passes through to something behind it, and how focus behaves –
+present on every leaf whether or not it ever actually receives input, so the
+interaction system doesn’t need to special-case entities that opted out.</li>
 </ul>
-<h2 id="the-composites"><a class="header" href="#the-composites">The composites</a></h2>
-<p>Everything in <code>foliage_proper/src/composite/</code> is authored with the same <code>Sprout</code> trait as
-<a href="#a-complete-example-button">A Complete Example</a> — no library-only magic, each one a second example you can
-read. The contract per widget is uniform: value component(s) in via <code>write_to</code>, a
-<code>#[targeted_event]</code> out via <code>subscribe</code>.</p>
-<ul>
-<li><strong><code>Button</code></strong> — <code>ButtonStyle</code>/<code>TextValue</code>/<code>IconValue</code> in, <code>OnClick</code> out.</li>
-<li><strong><code>TextInput</code></strong> — <code>TextValue</code>/<code>TextInputStyle</code>/<code>HintText</code> in, <code>TextChanged</code> out
-(<code>composite/text_input/</code> — the deep-end example: cursor, selection, keybindings).</li>
-<li><strong><code>Slider</code></strong> — <code>Progress</code> (0..=1) in, <code>ProgressChanged</code> out. Drag, tap-to-seek, and
-programmatic writes share the one <code>Progress</code> door; <code>.interactive(false)</code> is the
-display-only progress bar.</li>
-<li><strong><code>Toggle</code></strong> — <code>ToggleState</code> in, <code>Toggled</code> out.</li>
-<li><strong><code>Pagination</code></strong> — <code>PageIndex</code>/<code>PageCount</code> in, <code>PageChanged</code> out. <code>Dots</code> or <code>Numbered</code>
-(with <code>…</code> collapse); prev/next step buttons exist only when <code>.step_icons(..)</code> supplies
-icons — the library ships none.</li>
-<li><strong><code>List</code></strong> — <code>ListItems</code>/<code>ListLayout</code> in, rows out as YOUR content (see the slot
-convention below). Scrolling and clipping come free from <code>View</code>.</li>
-<li><strong><code>Dropdown</code></strong> — <code>DropdownOptions</code>/<code>Selected</code> in, <code>SelectionChanged</code> out. Options are
-deliberately plain strings; rich rows = compose your own trigger + <code>List</code>.</li>
-<li><strong><code>Carousel</code></strong> — <code>CarouselPages</code>/<code>PageIndex</code> in, <code>PageChanged</code> out (the same event
-Pagination defines); swipe + optional embedded dot strip.</li>
-<li><strong><code>Modal</code></strong> — full-screen overlay hosting your content, growing from an optional anchor
-entity; <code>Closed</code> out, <code>CloseModal</code> in for programmatic closes.</li>
-</ul>
-<p><strong>The slot convention</strong> (<code>SlotFn</code>/<code>IndexedSlotFn</code>, <code>composite/mod.rs</code>): content-hosting
-composites (List rows, Carousel pages, Modal body) never define what your content <em>is</em> —
-you hand them a closure, they hand it a positioned <strong>slot</strong> entity, and you <code>tree.branch</code>
-whatever you want under it with full <code>Location</code>/<code>Grid</code>/<code>Anchor</code> freedom. The closure lives
-in the widget’s config component, so rewriting that config via <code>write_to</code> re-runs it —
-config writes ARE the re-render API, the same <code>react</code> door as every value.</p>
-<h2 id="positioning"><a class="header" href="#positioning">Positioning</a></h2>
-<p>Every spawnable carries these through <code>LeafSprout</code> (<code>.at()</code>/<code>.elevate()</code>/<code>.with()</code> — see
-<a href="#authoring-a-widget">Authoring a Widget</a> for where these live in the <code>Sprout</code> trait):</p>
-<ul>
-<li><strong><code>Location</code></strong> — where an entity sits, described per breakpoint (<code>.xs(...)</code>, <code>.sm(...)</code>, …
-falling back to the next-smallest defined one). A <code>Location</code> expression is a pair of
-horizontal/vertical descriptors built from anchors like <code>0.pct().as_left()</code>,
-<code>1.col().as_left()</code>, <code>16.px().as_top()</code>, each <code>.with(...)</code> a matching far edge
-(<code>.as_right()</code>/<code>.as_bottom()</code>) or a size (<code>.as_width()</code>/<code>.as_height()</code>).</li>
-<li><strong><code>Grid</code></strong> — <code>Grid::new(columns, rows)</code> on a parent, e.g. <code>12.col().gap(8)</code> /
-<code>40.px().gap(8)</code>, is what makes a child’s <code>1.col()</code>/<code>(i+1).row()</code> in the child’s own
-<code>Location</code> resolve to real pixels — a child’s <code>Location</code> resolves against its <code>Stem</code>’s
-(parent’s) <code>Grid</code>, or the viewport if it has no parent (see <code>tree.leaf</code> vs <code>tree.branch</code>,
-<a href="#the-contract">The Contract</a>).</li>
-<li><strong><code>Anchor</code></strong> — positions an entity relative to <em>another specific entity</em> (not its parent’s
-grid) — how a modal’s backdrop tracks whatever it opened from, or a line tracks the button
-it’s annotating.</li>
-<li><strong><code>Elevation</code></strong> — z-ordering/layering, not physical size. <code>.elevate(Elevation::abs(n))</code> sets
-an absolute layer; <code>.elevate(Elevation::up(n))</code> sets it relative to the parent’s layer — the
-mandatory argument every <code>Sprout</code> requires before spawning (skipping it is a compile-reachable
-panic on purpose, see <code>tree.rs</code>’s <code>Sow::grow</code>).</li>
-</ul>
-<h2 id="styling"><a class="header" href="#styling">Styling</a></h2>
-<p><code>Color::gray(l)</code> / <code>Color::red(l)</code> / etc. take a luminance value, not raw RGB — the palette is
-closed and thematic rather than arbitrary hex. <code>Opacity</code>, <code>Rounding</code>, <code>Outline</code> are ordinary
-components any visual primitive accepts via <code>.with(...)</code> or a dedicated builder method
-(<code>Panel::new().rounding(Rounding::Full).outline(2)</code>), and (per <code>Outline</code>/<code>Opacity</code>’s
-<code>Attachment::attach</code>) are themselves animatable — see below.</p>
-<h2 id="animation"><a class="header" href="#animation">Animation</a></h2>
-<ul>
-<li><strong><code>Animation&lt;C&gt;</code></strong> — <code>Animation::new(end_value).targeting(entity).start(ms).finish(ms) .eased(Ease::EMPHASIS)</code> — interpolates a single component on one entity over a time range.
-Any <code>Animate</code>-implementing component can be animated this way (<code>Location</code>, <code>Opacity</code>,
-<code>Outline</code>, … — the ones already wired via <code>enable_animation::&lt;C&gt;()</code> in their own
-<code>Attachment::attach</code>).</li>
-<li><strong><code>Sequence</code></strong> — <code>Sequence::new(tree).animate(...).animate(...).end(|trigger: Trigger&lt;OnEnd&gt;, tree: Tree| { .. })</code> — batches animations that share a starting reference point (each
-animation’s own <code>start</code>/<code>finish</code> are offsets <em>within</em> the sequence, not wall-clock times),
-with <code>.end(...)</code> firing once every animation in the sequence has finished — the usual place to
-do cleanup (<code>tree.remove(...)</code>) after a close/exit animation completes.</li>
-</ul>
-<p>With this vocabulary in hand, <a href="#authoring-a-widget">Authoring a Widget</a> is just: which of these
-you spawn as children, and how <code>react</code> wires their values to your own widget’s config.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="authoring-a-widget"><a class="header" href="#authoring-a-widget">Authoring a Widget</a></h1>
-<p>One trait builds every widget in foliage — primitives (<code>Panel</code>, <code>Text</code>, <code>Icon</code>), library
-composites (<code>Button</code>, <code>TextInput</code>), and your own, with no distinction between them:</p>
+<p>Every one of these is required, not optional-with-a-default-if-forgotten: an entity
+missing any of them isn’t a valid on-screen thing, so <code>Leaf</code> doesn’t let you spawn one
+without them.</p>
+<h2 id="leaf-attaches-itself-not-the-other-way-around"><a class="header" href="#leaf-attaches-itself-not-the-other-way-around">Leaf attaches itself, not the other way around</a></h2>
+<p>You might expect a rendering primitive like <code>Panel</code> to declare <code>#[require(Leaf, ...)]</code>
+– but it doesn’t. Grep <code>foliage_proper/src/panel/mod.rs</code> and <code>text/mod.rs</code> and neither
+one mentions <code>Leaf</code> at all. Instead, <code>Leaf</code> is unioned onto <em>every</em> entity at the moment
+it’s spawned, by the one path that’s allowed to spawn anything:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>pub trait Sprout: Sized {
-    /// the position/hierarchy/elevation seed every spawnable shares
+</span>// foliage_proper/src/tree.rs
+impl Sow for Tree&lt;'_, '_&gt; {
+    fn sow&lt;B: Bundle&gt;(&amp;mut self, b: B) -&gt; Entity {
+        let entity = self.spawn((Leaf::new(), b)).id();
+        entity
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>So <code>Panel</code>, <code>Text</code>, <code>Button</code>, and every other widget are components that describe <em>what</em>
+an entity is, while <code>Leaf</code> is inserted alongside them, unconditionally, describing what
+<em>any</em> on-screen entity needs regardless of what it is. This is why <code>Leaf</code>’s own
+<code>on_add</code>/<code>on_remove</code> hooks (registering <code>anim_opacity</code>/<code>anim_elevation</code>/<code>anim_location</code>
+observers, and cleaning up <code>CurrentInteraction</code> state on removal) run for literally every
+widget in the framework, without each widget type needing to remember to register them
+itself.</p>
+<p>The next chapter, <a href="#spawning-sprout-and-ecsextension">Spawning</a>, covers exactly how <code>sow</code> gets called, and
+why an entity can’t be spawned any other way.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="spawning-sprout-and-ecsextension"><a class="header" href="#spawning-sprout-and-ecsextension">Spawning: Sprout and EcsExtension</a></h1>
+<p>If any code could call <code>world.spawn((Panel::new_marker(), Color::default(), ...))</code>
+directly, two things could go wrong silently: the author could forget <code>Leaf</code> (and get an
+entity nothing can position or draw), or forget to set an explicit draw order. Neither
+should be possible to get wrong by omission – so foliage funnels every widget spawn
+through one narrow door.</p>
+<h2 id="sprout-config-now-entity-later"><a class="header" href="#sprout-config-now-entity-later"><code>Sprout</code>: config now, entity later</a></h2>
+<p>A widget’s public API is a config <em>builder</em>, not a spawn call. <code>Button::new()</code> doesn’t
+create an entity – it returns a <code>ButtonSprout</code>, a plain struct you configure with
+<code>.text(..)</code>, <code>.colors(..)</code>, and so on, which only becomes a real entity once handed to
+<code>tree.leaf(..)</code> or <code>tree.branch(..)</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/author.rs
+pub trait Sprout: Sized {
     fn seed(&amp;mut self) -&gt; &amp;mut LeafSprout;
     /// config -&gt; components on the root entity. This IS the widget's public API.
     fn root(self) -&gt; impl Bundle;
-    /// private, static skeleton. Default empty == a primitive.
+    /// private static skeleton + reaction registration. Default empty == a primitive.
     fn build&lt;T: EcsExtension&gt;(this: Entity, tree: &amp;mut T) {}
-    // provided: .at(location) .elevate(elevation) .with(extra_components)
+    fn at(mut self, location: Location) -&gt; Self { .. }
+    fn elevate(mut self, e: Elevation) -&gt; Self { .. }
+    fn with&lt;X: Bundle&gt;(self, extra: X) -&gt; With&lt;Self, X&gt; { .. }
 }
 <span class="boring">}</span></code></pre>
-<ul>
-<li><strong><code>seed</code></strong> exposes the location/stem/elevation every widget carries, so <code>.at()</code>/<code>.elevate()</code>
-work uniformly across every <code>Sprout</code> type without each one re-implementing them.</li>
-<li><strong><code>root</code></strong> turns your builder’s config into the bundle inserted on the root entity — this
-bundle <em>is</em> the widget’s public API surface (a <code>Slider</code>’s <code>root()</code> includes <code>SliderValue</code>;
-writing to that component later is how callers update it).</li>
-<li><strong><code>build</code></strong> is the <em>private, config-independent</em> skeleton: whatever children a widget spawns
-every single time, regardless of what it was configured with. Default is empty, which is
-exactly what makes a primitive (<code>Panel</code>, <code>Text</code>) a primitive — it has nothing to build.</li>
-</ul>
-<p>A spec (anything implementing <code>Sprout</code>) becomes a spawned entity through exactly two entry
-points, and no others:</p>
+<p>Every <code>Sprout</code> embeds a <code>LeafSprout</code> – position, parent, and elevation:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>tree.leaf(spec)             // root — no parent
-tree.branch(parent, spec)   // child — parent is a required argument, so nothing spawns orphaned
+</span>// foliage_proper/src/author.rs
+pub struct LeafSprout {
+    pub(crate) location: Location,
+    pub(crate) stem: Stem,
+    pub(crate) elevation: Option&lt;Elevation&gt;,
+}
 <span class="boring">}</span></code></pre>
-<p>Both are on <code>EcsExtension</code>, the trait every tree handle (<code>Tree</code>, <code>DeferredWorld</code>, <code>World</code>)
-implements. There is no lower-level spawn path available outside the library — the machinery
-that actually turns a <code>Sprout</code> into an entity is <code>pub(crate)</code>, reachable only through these two
-methods, so an <code>.elevate(...)</code> can’t be skipped and a child can’t forget its stem.</p>
-<h2 id="why-build-is-static-and-everything-data-dependent-goes-through-react"><a class="header" href="#why-build-is-static-and-everything-data-dependent-goes-through-react">Why <code>build</code> is static, and everything data-dependent goes through <code>react</code></a></h2>
-<p>The rule, stated plainly:</p>
+<p><code>elevation</code> is deliberately <code>Option</code> with <strong>no default</strong>, per its own doc comment:</p>
 <blockquote>
-<p><code>build</code> = the config-independent skeleton, nothing else.
-<code>react</code> = everything data-dependent — values <strong>and</strong> structure.</p>
+<p>an unset <code>Elevation</code> silently picking <em>some</em> layer (front, back, or “one above
+whatever the parent is this moment”) is exactly the kind of surprise that’s cost real
+debugging time in this codebase… Leaving it unset is a hard requirement to specify
+it, not a soft default to fall back on.</p>
 </blockquote>
-<p>This isn’t a style preference — it closes a real bug class that existed in an earlier iteration
-of this authoring model. That version built a widget’s children from <code>#[require(...)]</code>-triggered
-component hooks, which meant construction happened lazily, keyed to whichever component the
-hook was attached to. A <code>Dropdown</code> writing its own <code>Expanded</code> state <em>before</em> its child rows had
-been hook-constructed would silently do nothing — the poke landed before the thing it was meant
-to affect existed. The bug tracked hook registration order, which is exactly the kind of thing
-that’s easy to get right once and quietly break months later.</p>
-<p>The current model makes that class of bug unrepresentable rather than merely rare: <code>build</code>
-spawns every static child and registers every reaction <em>before</em> <code>tree.leaf</code>/<code>tree.branch</code>
-returns control to the caller. There is no window where a caller can hold a live <code>Entity</code> for a
-widget whose reactions aren’t registered yet — so “poke before construction” simply can’t happen.
-The next chapter, <a href="#reacting-to-data">Reacting to Data</a>, covers the mechanism that makes this true:
-reactions fire once immediately at registration (with the value already present), then again on
-every later write, so initial state and every subsequent update share one code path.</p>
-<p>A dropdown’s option rows, a hand’s cards, a segmented control’s buttons — dynamic children
-driven by external data are not a special “dynamic widget” feature. They go through the same
-door a button’s colors go through: a <code>react</code> on whatever component carries the data, spawning
-or despawning children as its body sees fit. Reconciliation policy (respawn-everything, pool and
-reuse, respawn-by-key) is author code, not library policy — nothing in <code>Sprout</code> cares which one
-you pick.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="reacting-to-data"><a class="header" href="#reacting-to-data">Reacting to Data</a></h1>
-<p><code>react</code>, <code>react_any</code>, and <code>forward</code> are the one door in <code>Sprout::build</code> for everything that
-depends on config or later writes — both <em>values</em> (a button’s colors) and <em>structure</em> (a
-dropdown’s option rows). All three are on <code>EcsExtension</code>, called from inside <code>build</code>.</p>
-<h2 id="react"><a class="header" href="#react"><code>react</code></a></h2>
+<p><code>root()</code> and <code>build()</code> split a widget’s spawn into two concerns: <code>root()</code> is <em>what
+this entity is</em> – every config field folded into one bundle, inserted once, at spawn.
+<code>build()</code> is <em>what this entity needs around it</em> – a config-independent skeleton of
+child entities and reactions, grown via <code>EcsExtension::branch</code>. A primitive like <code>Panel</code>
+has nothing to build (the default empty <code>build</code> is correct); a composite like <code>Button</code>
+uses it to spawn its <code>Panel</code>/<code>Text</code>/<code>Icon</code> children.</p>
+<h2 id="ecsextensionleafbranch-the-only-way-in"><a class="header" href="#ecsextensionleafbranch-the-only-way-in"><code>EcsExtension::leaf</code>/<code>branch</code>: the only way in</a></h2>
+<p><code>Sprout</code> alone can’t spawn anything – <code>root</code>/<code>build</code> are just data and a private
+<code>Sow::grow</code> is the only thing that turns them into an entity, and <code>Sow</code> is
+<code>pub(crate)</code> on purpose:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn react&lt;C: Component + Clone, M&gt;(&amp;mut self, entity: Entity, observer: impl IntoEntityObserver&lt;M&gt;)
-<span class="boring">}</span></code></pre>
-<p>Registers <code>observer</code> — a plain bevy entity-observer watching <code>Trigger&lt;Insert, C&gt;</code>, with full
-<code>SystemParam</code> freedom — on <code>entity</code>, then immediately re-inserts <code>entity</code>’s current value of <code>C</code>
-so the observer fires once right away. <strong>Initial state and every later <code>write_to</code> run through
-the exact same code path</strong> — there’s no separate “apply the initial config” step to keep in
-sync with the update path, because there is no separate update path.</p>
-<p>From the real <code>Button</code> widget (<code>foliage_proper/src/composite/button.rs</code>):</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// NOT a pure copy -- the text's width Location depends on the value -- so this stays an
-// explicit react rather than a forward.
-tree.react::&lt;TextValue, _&gt;(
-    this,
-    move |trigger: Trigger&lt;Insert, TextValue&gt;, values: Query&lt;&amp;TextValue&gt;, mut tree: Tree| {
-        let value = values.get(trigger.event_target()).unwrap().0.clone();
-        let width = value.len();
-        tree.entity(text).insert((
-            TextValue(value),
-            Location::new().xs(/* width-dependent position */),
+</span>// foliage_proper/src/tree.rs
+pub(crate) trait Sow {
+    fn sow&lt;B: Bundle&gt;(&amp;mut self, b: B) -&gt; Entity;
+    fn grow&lt;S: Sprout&gt;(&amp;mut self, mut spec: S, parent: Option&lt;Entity&gt;) -&gt; Entity
+    where
+        Self: EcsExtension + Sized,
+    {
+        if let Some(parent) = parent {
+            spec.seed().stem = Stem::some(parent);
+        }
+        let leaf = core::mem::take(spec.seed());
+        let this = self.sow((
+            leaf.location,
+            leaf.stem,
+            leaf.elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            spec.root(),
         ));
-    },
-);
+        S::build(this, self);
+        this
+    }
+}
 <span class="boring">}</span></code></pre>
-<h2 id="react_any"><a class="header" href="#react_any"><code>react_any</code></a></h2>
+<p>That <code>.expect(...)</code> is where an un-elevated widget actually fails – loudly, at spawn
+time, rather than silently picking a layer. <code>leaf</code>/<code>branch</code> are the only public entry
+points that reach <code>grow</code>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>fn react_any&lt;CS: Refire, M&gt;(&amp;mut self, entity: Entity, observer: impl IntoEntityObserver&lt;M&gt;)
+</span>// foliage_proper/src/tree.rs (EcsExtension)
+fn leaf&lt;S: Sprout&gt;(&amp;mut self, spec: S) -&gt; Entity { self.grow(spec, None) }
+fn branch&lt;S: Sprout&gt;(&amp;mut self, parent: Entity, spec: S) -&gt; Entity { self.grow(spec, Some(parent)) }
 <span class="boring">}</span></code></pre>
-<p>The same idea over a <strong>tuple</strong> of components (<code>Refire</code> is implemented for tuples of arity 1–4):
-the observer watches <code>Trigger&lt;Insert, (A, B)&gt;</code> and fires when <em>either</em> member is written — one
-registration, one body, for state that’s derived from more than one input. <code>Button</code>’s appearance
-depends on both its config (<code>ButtonStyle</code>) and its interaction state (<code>Engagement</code>), and either
-one changing needs the same restyle:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>tree.react_any::&lt;(ButtonStyle, Engagement), _&gt;(
-    this,
-    move |trigger: Trigger&lt;Insert, (ButtonStyle, Engagement)&gt;,
-          styles: Query&lt;&amp;ButtonStyle&gt;,
-          engagement: Query&lt;&amp;Engagement&gt;,
-          mut tree: Tree| {
-        let e = trigger.event_target();
-        restyle(&amp;mut tree, e, panel, icon, text, *styles.get(e).unwrap(), engagement.get(e).unwrap().0);
-    },
-);
-<span class="boring">}</span></code></pre>
-<p>The re-fire at registration time only needs to insert <em>one</em> present member to trigger the
-observer once — reaction bodies always read the full current state of everything they depend
-on, so firing on whichever component happens to exist first is sufficient.</p>
-<p><code>react</code>/<code>react_any</code> are two separate methods rather than one generic-over-<code>Component</code>-or-tuple
-method because a blanket <code>Refire</code> impl over any <code>C: Component</code> would collide with the tuple
-impls under Rust’s coherence rules (a foreign crate could in principle implement <code>Component</code> for
-a tuple type). The two-method split is the price of that safety.</p>
-<h2 id="forward"><a class="header" href="#forward"><code>forward</code></a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn forward&lt;C: Component + Clone&gt;(&amp;mut self, source: Entity, target: Entity)
-<span class="boring">}</span></code></pre>
-<p>The pure-copy specialization: <code>source</code>’s current (and every future) value of <code>C</code> is copied
-verbatim onto <code>target</code>, nothing else computed. <code>Button</code> uses it for its icon and font size,
-which its child <code>Icon</code>/<code>Text</code> entities consume unchanged:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>tree.forward::&lt;IconValue&gt;(this, icon);
-tree.forward::&lt;FontSize&gt;(this, text);
-<span class="boring">}</span></code></pre>
-<p>The boundary between <code>forward</code> and an explicit <code>react</code> is deliberately visible: the moment a
-value needs <em>any</em> extra computation on the way to a child (like <code>TextValue</code>’s width-dependent
-<code>Location</code> above), it stops being a pure copy and becomes a plain <code>react</code> instead. <code>forward</code> only
-ever exists for the case where “copy this component to that entity” is the entire behavior.</p>
+<p><code>leaf</code> spawns a root (no parent – a screen, a one-off widget); <code>branch</code> spawns a child,
+with <code>parent</code> as a required argument so a child can’t be spawned orphaned by forgetting a
+chained call. Both are implemented once for <code>Tree</code> (<code>Commands</code>), <code>DeferredWorld</code>, and
+<code>World</code>, so the same calls work whether you’re in a system, an observer, or app setup.</p>
+<p>An external crate can implement <code>Sprout</code> for its own widget types (as
+<code>application</code>-style code does), but it can never call <code>Sow::grow</code> directly – there’s no
+path from a <code>Sprout</code> impl to a spawned entity that skips the mandatory <code>.elevate(...)</code> or
+hand-rolls a parent link. That’s the whole point of keeping <code>Sow</code> private.</p>
+<p><code>LeafSprout</code> itself implements <code>Sprout</code> – the “no named marker component” case, for a
+child with no reusable type of its own (a bare interaction hit-area). Its <code>root()</code>
+returns an empty bundle; any marker it needs is attached via <code>.with(...)</code>, the same as
+every other extra component – which is what makes <code>branch</code> uniform for <em>every</em> child
+instead of needing a raw, un-typed spawn path.</p>
+<p>Once an entity exists, acting on it further – <code>on_click</code>, <code>animate</code>, more components –
+is <a href="#acting-on-entities-tree-and-graft">Tree and Graft’s</a> job, not <code>Sprout</code>’s.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="a-complete-example-button"><a class="header" href="#a-complete-example-button">A Complete Example: <code>Button</code></a></h1>
-<p>The full source is <code>foliage_proper/src/composite/button.rs</code> — this walks through it in order.
-It’s the reference to diff your own widget against; nothing here is simplified for the book.</p>
-<h2 id="the-public-face"><a class="header" href="#the-public-face">The public face</a></h2>
+<h1 id="acting-on-entities-tree-and-graft"><a class="header" href="#acting-on-entities-tree-and-graft">Acting on Entities: Tree and Graft</a></h1>
+<p><a href="#spawning-sprout-and-ecsextension">Spawning</a> covers how an entity comes into existence. Most of what a
+widget actually <em>does</em> – restyling on state changes, running an animation, responding
+to a click – happens after that, against an entity that already exists. <code>Tree</code> (a type
+alias for <code>bevy_ecs::system::Commands</code>) is where that work goes.</p>
+<h2 id="reactreact_anyforward-one-door-for-values-and-structure"><a class="header" href="#reactreact_anyforward-one-door-for-values-and-structure"><code>react</code>/<code>react_any</code>/<code>forward</code>: one door for values and structure</a></h2>
+<p>A composite’s appearance almost always depends on more than one input at once (<code>Button</code>
+restyles on <code>ButtonStyle</code>, <code>Engagement</code>, <em>and</em> <code>IconValue</code> together). Registering a
+separate observer per field, and hand-calling each one once at spawn to establish
+initial state, would mean two code paths for “value changed” and “value set for the
+first time.” <code>EcsExtension::react</code> collapses that into one:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[derive(Component, Copy, Clone)]
+</span>// foliage_proper/src/tree.rs
+fn react&lt;C: Component + Clone, M&gt;(&amp;mut self, entity: Entity, observer: impl IntoEntityObserver&lt;M&gt;) {
+    self.subscribe(entity, observer);
+    self.refire::&lt;(C,)&gt;(entity);
+}
+<span class="boring">}</span></code></pre>
+<p>It subscribes the observer to <code>Trigger&lt;Insert, C&gt;</code>, then immediately re-inserts the
+entity’s current value of <code>C</code> so the observer fires once against real data – the same
+code path handles “just spawned” and “written to later.” <code>react_any</code> is the same idea
+over a tuple of components (fires if <em>any</em> member changes); <code>forward</code> is the pure-copy
+special case (<code>source</code>’s value of <code>C</code> copied to <code>target</code>, verbatim, on every write) –
+anything that isn’t a pure copy (like <code>Button</code>’s text, whose <em>position</em> also depends on
+the string’s length) stays an explicit <code>react</code> instead, so the distinction between “just
+copied” and “actually computed” stays visible in the code rather than hidden behind one
+generic mechanism.</p>
+<h2 id="graft-chaining-onto-a-just-spawned-entity"><a class="header" href="#graft-chaining-onto-a-just-spawned-entity"><code>Graft</code>: chaining onto a just-spawned entity</a></h2>
+<p>Rather than a separate pass over previously-spawned entities elsewhere in a function,
+<code>Graft</code> lets you attach behavior right where an entity was created:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/tree.rs
+pub struct Graft&lt;'t, T: EcsExtension + ?Sized&gt; { entity: Entity, tree: &amp;'t mut T }
+impl&lt;'t, T: EcsExtension + ?Sized&gt; Graft&lt;'t, T&gt; {
+    pub fn on_click&lt;M&gt;(self, o: impl IntoEntityObserver&lt;M&gt;) -&gt; Self { .. }
+    pub fn animate&lt;A: Animate&gt;(self, anim: Animation&lt;A&gt;) -&gt; Self { .. }
+    pub fn write&lt;B: Bundle&gt;(self, b: B) -&gt; Self { .. }
+    pub fn enable(self) -&gt; Self { .. }
+    pub fn disable(self) -&gt; Self { .. }
+}
+<span class="boring">}</span></code></pre>
+<p>Used as <code>tree.graft(e).on_click(...).animate(...)</code>. Each method returns <code>Self</code>, so calls
+chain, and <code>Graft</code> converts back to <code>Entity</code> via <code>From</code> when you need the id back out.</p>
+<h2 id="sequence-chaining-animations-without-repeating-the-wiring"><a class="header" href="#sequence-chaining-animations-without-repeating-the-wiring"><code>Sequence</code>: chaining animations without repeating the wiring</a></h2>
+<p><code>Sequence::new(tree).animate(a1).animate(a2).end(on_finish)</code> removes the
+per-line <code>tree.animate(...).during(seq)</code> boilerplate for grouping several animations
+under one sequence marker – it doesn’t compute or infer timing (animations in a
+sequence can still freely overlap), it only removes the repeated wrapper.</p>
+<h2 id="intotargets-and-targetedevent"><a class="header" href="#intotargets-and-targetedevent"><code>IntoTargets</code> and <code>TargetedEvent</code></a></h2>
+<p><code>send_to</code>/<code>remove</code>/<code>enable</code>/<code>disable</code> all accept anything implementing <code>IntoTargets</code>
+(<code>Entity</code>, <code>Vec&lt;Entity&gt;</code>, <code>[Entity; N]</code>) so a single entity or a batch can be targeted
+without allocating for the common single-entity case. <code>TargetedEvent</code> is how an event
+carries its own destination – since bevy 0.19 removed <code>trigger_targets</code>, an
+<code>EntityEvent</code> now carries its target inside itself, and foliage’s targeted events store
+an <code>entity</code> field that <code>send_to</code> rewrites per target before triggering. The
+<code>#[targeted_event]</code> macro attribute generates this scaffolding (the field, the <code>Event</code>/
+<code>EntityEvent</code> impls, a <code>new(..)</code> constructor) so authors never write
+<code>Entity::PLACEHOLDER</code> by hand.</p>
+<p>All of this – <code>leaf</code>/<code>branch</code> from the <a href="#spawning-sprout-and-ecsextension">previous chapter</a>, plus <code>react</code>/
+<code>graft</code>/<code>sequence</code> here – is implemented once on <code>Tree</code>, <code>DeferredWorld</code>, and <code>World</code>
+via the shared <code>EcsExtension</code> trait, so the same calls work in a system, an observer, or
+app setup code.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="from-change-to-pixels-differential"><a class="header" href="#from-change-to-pixels-differential">From Change to Pixels: Differential</a></h1>
+<p>Widget state lives in ordinary ECS components – a <code>Panel</code>’s <code>Color</code>, its <code>Section</code>, its
+<code>Outline</code>. Every tick, some of these change; most don’t. If every renderable attribute on
+every entity were re-uploaded to the GPU on every tick regardless, cost would scale with
+total UI size instead of with how much actually changed. <code>Differential</code> is the layer that
+prevents that.</p>
+<h2 id="the-cache"><a class="header" href="#the-cache">The cache</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ash/differential.rs
+pub(crate) struct Differential&lt;R, RP&gt; {
+    pub(crate) cache: Option&lt;RP&gt;,
+    _phantom: PhantomData&lt;R&gt;,
+}
+impl&lt;R, RP: PartialEq&gt; Differential&lt;R, RP&gt; {
+    pub(crate) fn different(&amp;mut self, packet: RP) -&gt; bool {
+        let mut different = false;
+        if let Some(cached) = self.cache.as_ref() {
+            if cached != &amp;packet { different = true; }
+        } else {
+            different = true;
+        }
+        self.cache.replace(packet);
+        different
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>R</code> is the renderer/pipeline the value belongs to (<code>Panel</code>, <code>Text</code>, …); <code>RP</code> is the
+specific attribute type (<code>Color</code>, <code>Section&lt;Logical&gt;</code>, …). Each renderable component
+<code>#[require]</code>s one <code>Differential&lt;Self, X&gt;</code> per attribute it cares about – e.g. <code>Panel</code>
+requires <code>Differential&lt;Self, Color&gt;</code>, <code>Differential&lt;Self, ResolvedElevation&gt;</code>,
+<code>Differential&lt;Self, ClipContext&gt;</code>, and so on (<code>panel/mod.rs:26-32</code>).</p>
+<h2 id="the-system-cached_differential"><a class="header" href="#the-system-cached_differential">The system: <code>cached_differential</code></a></h2>
+<p>One generic system, instantiated per <code>(R, RP)</code> pair, does the actual comparison:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ash/differential.rs (abridged)
+pub(crate) fn cached_differential&lt;R, RP&gt;(
+    mut values: ParamSet&lt;(Query&lt;(Entity, &amp;RP), (Changed&lt;RP&gt;, With&lt;Differential&lt;R, RP&gt;&gt;)&gt;, Query&lt;&amp;RP&gt;)&gt;,
+    mut caches: Query&lt;&amp;mut Differential&lt;R, RP&gt;&gt;,
+    mut visibility: ParamSet&lt;(Query&lt;&amp;ResolvedVisibility&gt;, Query&lt;Entity, (Changed&lt;ResolvedVisibility&gt;, With&lt;Differential&lt;R, RP&gt;&gt;)&gt;)&gt;,
+    mut queue: ResMut&lt;RenderQueue&lt;R, RP&gt;&gt;,
+) {
+    // visibility just turned on: re-send the current value, even if it didn't itself change
+    // (an entity mid-teardown can be missing its attribute or cache in the same frame its
+    // visibility changes -- skipped, not treated as an error)
+    ...
+    // value actually changed *and* is visible: compare against cache, queue if different
+    ...
+}
+<span class="boring">}</span></code></pre>
+<p>Two cases matter here, and the doc comment on the function spells out why both exist:
+a value that changed while invisible shouldn’t be sent (nothing to draw), but a value
+that <em>didn’t</em> change while visibility flips back on still needs to be re-sent once,
+because the renderer may have dropped it while it was hidden.</p>
+<h2 id="registration"><a class="header" href="#registration">Registration</a></h2>
+<p><code>Foliage::differential::&lt;R, RT&gt;()</code> is what wires a type pair into this system:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/foliage.rs
+pub(crate) fn differential&lt;R, RT&gt;(&amp;mut self) {
+    self.world.insert_resource(RenderQueue::&lt;R, RT&gt;::new());
+    self.diff.add_systems(cached_differential::&lt;R, RT&gt;.in_set(DiffMarkers::Extract));
+}
+<span class="boring">}</span></code></pre>
+<p>Every widget type that has render-relevant fields calls this once per field during its
+own <code>Attachment::attach</code> (see <code>Panel::attach</code> in <a href="#panel">Panel</a> for a concrete
+example) – there’s no central registry of “everything renderable”; each type declares
+its own differentials.</p>
+<h2 id="the-drain-renderqueuehandle"><a class="header" href="#the-drain-renderqueuehandle">The drain: <code>RenderQueueHandle</code></a></h2>
+<p>The <code>Extract</code> phase (see <a href="#the-app-foliage-and-its-schedules">The App</a> for where that fits among the schedules)
+populates a <code>RenderQueue&lt;R, RP&gt; { queue: HashMap&lt;Entity, RP&gt; }</code> resource per pair. On the
+render side, <a href="#the-render-backend-ash"><code>Ash::prepare</code></a> drains each one exactly once per frame via
+<code>RenderQueueHandle::attribute::&lt;R, RP&gt;()</code>, which takes the whole map and clears it –
+whatever wasn’t queued this frame simply isn’t touched, which is the entire performance
+argument: cost is proportional to what changed, not to what exists.</p>
+<p>This is the seam between ECS state (this chapter) and the actual rendering backend –
+<a href="#the-render-backend-ash">Ash</a>, <a href="#the-gpu-wrapper-ginkgo">Ginkgo</a>, and <a href="#the-event-loop-photosynthesis">Photosynthesis</a> cover
+what happens on the other side of that drain.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-app-foliage-and-its-schedules"><a class="header" href="#the-app-foliage-and-its-schedules">The App: Foliage and Its Schedules</a></h1>
+<p>Something has to own the pieces that don’t belong to any one widget: the ECS <code>World</code>
+itself, the window, the GPU device, and the ordering that ties a tick together. That’s
+<code>Foliage</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/foliage.rs
+pub struct Foliage {
+    pub world: World,
+    pub(crate) main: Schedule,
+    pub user: Schedule,
+    pub(crate) diff: Schedule,
+    pub(crate) willow: Willow,
+    pub(crate) ginkgo: Ginkgo,
+    pub(crate) ash: Ash,
+    ...
+}
+<span class="boring">}</span></code></pre>
+<h2 id="three-schedules-run-in-order-every-tick"><a class="header" href="#three-schedules-run-in-order-every-tick">Three schedules, run in order, every tick</a></h2>
+<p><code>main</code> is the library’s own systems (input translation, animation stepping); <code>user</code> is
+app code, added via <code>foliage.user.add_systems(...)</code>; <code>diff</code> is where
+<a href="#from-change-to-pixels-differential">differential</a> extraction happens. <a href="#the-event-loop-photosynthesis">Photosynthesis</a>
+runs all three, in that fixed order, once per tick:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/photosynthesis.rs
+self.main.run(&amp;mut self.world);
+self.user.run(&amp;mut self.world);
+self.diff.run(&amp;mut self.world);
+<span class="boring">}</span></code></pre>
+<p><code>main</code> and <code>diff</code> are each internally ordered by a <code>SystemSet</code> enum, chained so each
+phase fully completes (with an <code>ApplyDeferred</code> flush between phases) before the next
+starts:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/foliage.rs
+pub(crate) enum MainMarkers { External, Animation, Process }
+pub(crate) enum DiffMarkers { Prepare, Finalize, Extract }
+<span class="boring">}</span></code></pre>
+<p>Ordering <code>user</code> strictly between <code>main</code> and <code>diff</code> means: library input-handling runs
+first, then app code sees a settled world to react to, then differential extraction sees
+<em>everything</em> that changed that tick – library and app writes alike – in one pass.</p>
+<h2 id="foliagenew-every-subsystem-attaches-itself"><a class="header" href="#foliagenew-every-subsystem-attaches-itself"><code>Foliage::new()</code>: every subsystem attaches itself</a></h2>
+<p>Nothing in <code>Foliage::new()</code> special-cases any one widget type. Every subsystem
+implements <code>Attachment</code> and registers itself:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/foliage.rs
+Disable::attach(&amp;mut foliage);
+Enable::attach(&amp;mut foliage);
+Panel::attach(&amp;mut foliage);
+Line::attach(&amp;mut foliage);
+...
+Ash::attach(&amp;mut foliage);
+Text::attach(&amp;mut foliage);
+Asset::attach(&amp;mut foliage);
+...
+<span class="boring">}</span></code></pre>
+<p><code>Panel::attach</code>, for instance, is exactly where <code>Panel</code>’s <a href="#from-change-to-pixels-differential"><code>differential</code></a>
+registrations for <code>Section&lt;Logical&gt;</code>, <code>BlendedOpacity</code>, <code>Color</code>, <code>Outline</code>,
+<code>ResolvedElevation</code>, and <code>ClipContext</code> all happen (<code>panel/mod.rs:159-173</code>) – see
+<a href="#panel">Panel</a>. This is why adding a new renderable field to an existing widget
+never requires touching <code>foliage.rs</code> itself: <code>attach</code> is the widget’s own responsibility.</p>
+<h2 id="running-the-app"><a class="header" href="#running-the-app">Running the app</a></h2>
+<p><code>foliage.photosynthesize()</code> hands control to a <code>winit::EventLoop</code> and never returns
+(on native) – see <a href="#the-event-loop-photosynthesis">Photosynthesis</a> for what happens inside that
+loop. <code>foliage.desktop_size(..)</code> and asset-loading calls (<code>store</code>, <code>load_asset</code>) are set
+up before that call; <code>foliage.user.add_systems(..)</code> is how app code adds its own
+per-tick systems.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-render-backend-ash"><a class="header" href="#the-render-backend-ash">The Render Backend: Ash</a></h1>
+<p><a href="#from-change-to-pixels-differential">Differential</a> queues changed attribute values per <code>(pipeline, attribute)</code> pair, once per frame. Something has to drain all of those, resolve draw
+order across entities from potentially different pipelines, and turn the result into
+actual <code>wgpu</code> draw calls. That’s <code>Ash</code>.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ash/mod.rs
+pub(crate) struct Ash {
+    pub(crate) nodes: Vec&lt;Node&gt;,
+    pub(crate) contiguous: Vec&lt;ContiguousSpan&gt;,
+    pub(crate) text: Option&lt;Renderer&lt;Text&gt;&gt;,
+    pub(crate) panel: Option&lt;Renderer&lt;Panel&gt;&gt;,
+    pub(crate) image: Option&lt;Renderer&lt;Image&gt;&gt;,
+    pub(crate) icon: Option&lt;Renderer&lt;Icon&gt;&gt;,
+    pub(crate) line: Option&lt;Renderer&lt;LineQuad&gt;&gt;,
+    pub(crate) polygon: Option&lt;Renderer&lt;Polygon&gt;&gt;,
+    pub(crate) elevation_order: Vec&lt;Entity&gt;,
+    pub(crate) stack_key_cache: HashMap&lt;Entity, StackKey&gt;,
+    ...
+}
+<span class="boring">}</span></code></pre>
+<p>Six renderers, one per primitive pipeline – every rendering primitive in the crate goes
+through exactly one of these.</p>
+<h2 id="assign_elevations-symbolic-order-to-real-depth"><a class="header" href="#assign_elevations-symbolic-order-to-real-depth"><code>assign_elevations</code>: symbolic order to real depth</a></h2>
+<p>Authors write <code>Elevation::up(1)</code>/<code>Elevation::abs(0)</code> – relative or absolute, symbolic
+ordering, never a raw depth number. Something has to turn that into an actual
+<code>ResolvedElevation</code> f32 the GPU can sort by, and it has to do it incrementally: a UI with
+hundreds of entities can’t afford to re-derive everyone’s depth every time one entity’s
+<code>Elevation</code> changes. <code>assign_elevations</code> is a gapped/fractional-index scheme – a changed
+or newly-inserted entity is placed <em>between</em> its <code>StackKey</code>-sorted neighbors’ already-assigned
+values, touching only itself:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ash/mod.rs (abridged)
+let new_value = match (left_v, right_v) {
+    (Some(l), Some(r)) =&gt; (l + r) / 2.0,
+    (Some(l), None) =&gt; l - initial_gap,
+    (None, Some(r)) =&gt; r + initial_gap,
+    (None, None) =&gt; (nf.near.value() + nf.far.value()) / 2.0,
+};
+<span class="boring">}</span></code></pre>
+<p>Two edge cases force a full <code>renormalize</code> instead: a gap bisected so many times the
+midpoint loses meaningful float precision, or a value landing exactly on the
+<a href="#the-window-willow">near/far</a> boundary. The boundary case has a real bug behind it, documented
+in the source: repeatedly inserting new frontmost content (an overlay opening in front of
+existing forward chrome, repeatedly) marches the frontmost value down toward <code>near</code>; once
+it <em>reaches</em> <code>near</code>, the next insertion’s <code>near - gap</code> used to clamp straight back to
+<code>near</code> – an identical depth to whatever was already there, resolved by non-deterministic
+draw order. That’s documented as the literal cause of “popover text sometimes renders
+behind its own panel.” Re-spacing on boundary contact keeps every depth distinct instead.</p>
+<h2 id="prepare-draining-the-queues-into-nodes"><a class="header" href="#prepare-draining-the-queues-into-nodes"><code>prepare</code>: draining the queues into nodes</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ash/mod.rs (abridged)
+pub(crate) fn prepare(&amp;mut self, world: &amp;mut World, ginkgo: &amp;Ginkgo) {
+    self.assign_elevations(world); // must run first -- prepare below reads ResolvedElevation
+    let mut queues = RenderQueueHandle::new(world);
+    let text_nodes = Render::prepare(self.text.as_mut().unwrap(), &amp;mut queues, ginkgo);
+    let panel_nodes = Render::prepare(self.panel.as_mut().unwrap(), &amp;mut queues, ginkgo);
+    // ... image, icon, line, polygon, same shape
+}
+<span class="boring">}</span></code></pre>
+<p>Each pipeline’s <code>Render::prepare</code> drains its own <a href="#from-change-to-pixels-differential"><code>Differential</code></a>
+queues via <code>RenderQueueHandle::attribute::&lt;R, RP&gt;()</code> and returns the <code>Node</code>s that need
+updating. <code>Ash</code> merges those into its own <code>nodes</code> list (replacing by <code>(pipeline, group, instance_id)</code> identity, not blind appending), sorts by elevation then pipeline/group/clip
+context/order, and groups adjacent same-pipeline/same-clip nodes into <code>ContiguousSpan</code>s –
+the actual draw-call granularity.</p>
+<h2 id="render-one-pass-one-scissor-rect-per-span"><a class="header" href="#render-one-pass-one-scissor-rect-per-span"><code>render</code>: one pass, one scissor rect per span</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ash/mod.rs (abridged)
+for span in self.contiguous.iter() {
+    let mut section = ginkgo.viewport().section();
+    if let Some(clip) = self.clip.get(&amp;span.clip_context) { section = section.intersection(...); }
+    rpass.set_scissor_rect(...);
+    match span.pipeline {
+        PipelineId::Text =&gt; Render::render(self.text.as_mut().unwrap(), &amp;mut rpass, parameters),
+        PipelineId::Panel =&gt; Render::render(self.panel.as_mut().unwrap(), &amp;mut rpass, parameters),
+        // ...
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>Clip is resolved per span from a <code>HashMap&lt;Stem, ClipSection&gt;</code> built earlier in <code>prepare</code>
+from the <code>((), ResolvedClip)</code> differential – <code>Ash::attach</code> registers that one directly
+(<code>foliage.differential::&lt;(), ResolvedClip&gt;()</code>), since clip isn’t owned by any one
+pipeline the way <code>Color</code>/<code>Section</code> are owned by their widget type.</p>
+<p>This is the last stop before pixels – <a href="#the-gpu-wrapper-ginkgo">Ginkgo</a> is what <code>Render::prepare</code>/
+<code>render</code> actually call into for buffers, pipelines, and the render pass itself.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-gpu-wrapper-ginkgo"><a class="header" href="#the-gpu-wrapper-ginkgo">The GPU Wrapper: Ginkgo</a></h1>
+<p>Every rendering primitive needs to create buffers, textures, pipelines, and bind groups
+against a GPU device – and needs to do it the same way regardless of which primitive is
+asking. <code>Ginkgo</code> is that shared surface over <code>wgpu</code>, so pipeline code (<code>Panel</code>’s,
+<code>Text</code>’s, …) never touches <code>wgpu::Device</code>/<code>wgpu::Queue</code> directly.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ginkgo/mod.rs
+pub(crate) struct Ginkgo {
+    context: Option&lt;GraphicContext&gt;,
+    configuration: Option&lt;ViewConfiguration&gt;,
+    viewport: Option&lt;Viewport&gt;,
+}
+pub(crate) struct GraphicContext {
+    pub(crate) surface: Option&lt;wgpu::Surface&lt;'static&gt;&gt;,
+    pub(crate) instance: wgpu::Instance,
+    pub(crate) adapter: wgpu::Adapter,
+    pub(crate) device: wgpu::Device,
+    pub(crate) queue: wgpu::Queue,
+    pub(crate) surface_format: TextureFormat,
+}
+<span class="boring">}</span></code></pre>
+<p>Both <code>context</code> and <code>configuration</code> start <code>None</code> – there’s no GPU device until the
+window actually exists (see <a href="#the-event-loop-photosynthesis">Photosynthesis</a>’s <code>resumed</code> handler,
+which is what calls <code>acquire_context</code>).</p>
+<h2 id="acquiring-the-device"><a class="header" href="#acquiring-the-device">Acquiring the device</a></h2>
+<p><code>acquire_context</code> (async, since requesting an adapter/device is) creates a <code>wgpu::Instance</code>
+across <code>VULKAN | METAL | DX12 | GL</code>, requests an adapter compatible with the window’s
+surface, then requests a device. On Android and wasm it deliberately requests
+<code>Limits::downlevel_webgl2_defaults()</code> instead of <code>Limits::default()</code> – a real
+constraint of those backends, not an oversight:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ginkgo/mod.rs
+cfg_if::cfg_if! {
+    if #[cfg(any(target_os = "android", target_family = "wasm"))] {
+        let limits = Limits::downlevel_webgl2_defaults();
+    } else {
+        let limits = Limits::default();
+    }
+}
+<span class="boring">}</span></code></pre>
+<h2 id="configuring-the-view"><a class="header" href="#configuring-the-view">Configuring the view</a></h2>
+<p><code>configure_view</code> builds the <code>SurfaceConfiguration</code> (format, size, <code>PresentMode::Fifo</code>)
+plus MSAA and depth targets, and re-runs on resize/scale-factor-change (see
+<code>photosynthesis.rs</code>’s <code>WindowEvent::Resized</code>/<code>ScaleFactorChanged</code> handling). <code>create_texture</code>
+is a representative example of Ginkgo defending against a real cross-platform gap rather
+than trusting <code>wgpu</code> to fail helpfully:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ginkgo/mod.rs
+let max_dimension = self.context().device.limits().max_texture_dimension_2d;
+assert!(
+    width &lt;= max_dimension &amp;&amp; height &lt;= max_dimension,
+    "texture {width}x{height} exceeds this device's max_texture_dimension_2d \
+     ({max_dimension}) -- likely fine on native, too large on wasm/WebGL2"
+);
+<span class="boring">}</span></code></pre>
+<p>wasm/WebGL2’s texture-size ceiling is well below native’s, so a texture that’s fine on
+desktop can silently be invalid in the browser; this turns that into a clear panic
+message at the point of creation instead of a confusing low-level <code>wgpu</code> validation
+error surfacing somewhere else.</p>
+<h2 id="what-pipelines-actually-call"><a class="header" href="#what-pipelines-actually-call">What pipelines actually call</a></h2>
+<p>The rest of <code>Ginkgo</code> is small, composable helpers pipeline code builds on: <code>create_vertex_buffer</code>,
+<code>create_pipeline</code>, <code>create_bind_group</code>(<code>_layout</code>), <code>create_sampler</code>, <code>write_texture</code>,
+<code>color_attachment</code>/<code>depth_stencil_attachment</code> (used by <a href="#the-render-backend-ash"><code>Ash::render</code></a> to open
+the actual render pass), and <code>alpha_color_target_state</code>/<code>msaa_state</code>/<code>depth_stencil_state</code>
+for pipeline descriptors. None of this is widget-specific – it’s the same handful of
+calls every one of the six render pipelines (<code>Text</code>, <code>Panel</code>, <code>Image</code>, <code>Icon</code>, <code>Line</code>,
+<code>Polygon</code>) goes through.</p>
+<p><code>ScaleFactor</code> also lives here – a small <code>Resource</code> (rounded DPI scale) that every
+logical-to-physical coordinate conversion in the crate reads.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-window-willow"><a class="header" href="#the-window-willow">The Window: Willow</a></h1>
+<p>Before there’s a GPU surface, there has to be a window to put it in. <code>Willow</code> owns that
+one responsibility – it doesn’t know about rendering at all, only about the OS window
+and its requested size/title/limits:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/willow.rs
+pub(crate) struct Willow {
+    pub(crate) handle: WindowHandle,
+    pub(crate) min_size: Option&lt;Area&lt;Physical&gt;&gt;,
+    pub(crate) requested_size: Option&lt;Area&lt;Physical&gt;&gt;,
+    pub(crate) title: Option&lt;String&gt;,
+    pub(crate) max_size: Option&lt;Area&lt;Physical&gt;&gt;,
+    pub(crate) resizable: Option&lt;bool&gt;,
+    pub(crate) starting_position: Option&lt;Position&lt;Numerical&gt;&gt;,
+    pub(crate) near_far: Option&lt;NearFarDescriptor&gt;,
+}
+<span class="boring">}</span></code></pre>
+<h2 id="connecting"><a class="header" href="#connecting">Connecting</a></h2>
+<p><code>connect(event_loop)</code> is where the actual <code>winit::window::Window</code> gets created, once a
+<code>winit::event_loop::ActiveEventLoop</code> exists to create it from (see
+<a href="#the-event-loop-photosynthesis">Photosynthesis</a>’s <code>resumed</code>, the only place this is called). On
+wasm, it does one extra thing native platforms don’t need: appending the window’s canvas
+into the DOM itself, since a <code>winit</code> window on the web <em>is</em> a canvas element that has to
+be attached somewhere:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/willow.rs
+#[cfg(target_family = "wasm")]
+{
+    use winit::platform::web::WindowExtWebSys;
+    window.set_prevent_default(true);
+    let canvas = window.canvas().expect("window-canvas");
+    canvas.style().set_css_text("height: 100%; width: 100%;");
+    web_sys::window().and_then(|win| win.document()).and_then(|doc| doc.body())
+        .and_then(|body| body.append_child(&amp;canvas).ok())
+        .expect("append-canvas");
+}
+<span class="boring">}</span></code></pre>
+<h2 id="nearfardescriptor-internal-depth-headroom-not-an-author-facing-budget"><a class="header" href="#nearfardescriptor-internal-depth-headroom-not-an-author-facing-budget"><code>NearFarDescriptor</code>: internal depth headroom, not an author-facing budget</a></h2>
+<p><code>Willow</code> also carries <code>NearFarDescriptor { near, far }</code> – the <code>[near, far]</code>
+<code>ResolvedElevation</code> range <a href="#the-render-backend-ash"><code>Ash::assign_elevations</code></a> spaces entities across.
+Its own doc comment is explicit about what it is and isn’t:</p>
+<blockquote>
+<p>purely internal headroom for <code>ash::assign_elevations</code>’s gapped/fractional-index scheme
+(more room between adjacent entities before a gap needs renormalizing) – not an
+author-facing budget. Nothing outside that scheme ever reads a specific
+<code>ResolvedElevation</code> value directly, so this is free to widen with no migration cost.</p>
+</blockquote>
+<p>In other words: authors work with <code>Elevation::up(n)</code>/<code>abs(n)</code> (relative, symbolic
+ordering), never with a raw depth number – <code>NearFarDescriptor</code>’s actual <code>(0.0, 300.0)</code>
+default is an implementation detail of how that symbolic ordering gets mapped onto real
+floats, free to change without breaking anything an author wrote.</p>
+<p>Willow feeds <code>Ginkgo</code> (surface creation, size queries) and is itself driven only by
+<a href="#the-event-loop-photosynthesis">Photosynthesis</a> – it has no update loop of its own.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-event-loop-photosynthesis"><a class="header" href="#the-event-loop-photosynthesis">The Event Loop: Photosynthesis</a></h1>
+<p>Everything so far – <a href="#every-widget-is-an-entity-leaf">Leaf</a>, <a href="#spawning-sprout-and-ecsextension">Sprout</a>, <a href="#from-change-to-pixels-differential">Differential</a>,
+<a href="#the-render-backend-ash">Ash</a>, <a href="#the-gpu-wrapper-ginkgo">Ginkgo</a>, <a href="#the-window-willow">Willow</a> – is inert without
+something driving it, tick after tick, in response to real input. <code>photosynthesis.rs</code>
+implements <code>winit::ApplicationHandler</code> for <code>Foliage</code>; it’s the crate’s actual entry
+point once <code>foliage.photosynthesize()</code> (see <a href="#the-app-foliage-and-its-schedules">The App</a>) hands control to
+<code>winit</code>.</p>
+<h2 id="booting-resumed"><a class="header" href="#booting-resumed">Booting: <code>resumed</code></a></h2>
+<p>The first <code>resumed</code> call is where the window and GPU device actually get created –
+deferred this late (rather than in <code>Foliage::new()</code>) because <code>winit</code> doesn’t hand out an
+<code>ActiveEventLoop</code> to create a window from until then:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/photosynthesis.rs
+fn resumed(&amp;mut self, event_loop: &amp;ActiveEventLoop) {
+    if !self.ginkgo.acquired() {
+        self.willow.connect(event_loop);
+        pollster::block_on(self.ginkgo.acquire_context(&amp;self.willow));
+        self.finish_boot();
+    } else {
+        // returning from suspend (mobile/web): reconnect the surface, don't recreate the device
+        self.ginkgo.recreate_surface(&amp;self.willow);
+        ...
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>On wasm, device acquisition is async for real (no <code>pollster::block_on</code> available), so it
+spawns a local future and boots once a channel receives the finished <code>Ginkgo</code> –
+<code>about_to_wait</code> drains a queued backlog of window events once that boot completes, so
+nothing that arrived during the async wait is lost.</p>
+<h2 id="every-tick-main--user--diff"><a class="header" href="#every-tick-main--user--diff">Every tick: <code>main</code> → <code>user</code> → <code>diff</code></a></h2>
+<p><code>about_to_wait</code> is where a tick actually runs, gated by <code>tick_pending</code> – a flag that’s
+true from the moment a redraw is requested until it actually paints:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/photosynthesis.rs
+if !self.tick_pending {
+    self.main.run(&amp;mut self.world);
+    self.user.run(&amp;mut self.world);
+    self.diff.run(&amp;mut self.world);
+    self.willow.window().request_redraw();
+    self.ash.drawn = false;
+    self.tick_pending = true;
+}
+<span class="boring">}</span></code></pre>
+<p>The gate exists because <code>about_to_wait</code> isn’t 1:1 with real paint frames – high-frequency
+input (mouse move, and especially web, where each DOM event tends to pump its own cycle
+rather than batching like native OS queues do) can fire it many times before the next
+<code>RedrawRequested</code>. Without the gate, each of those would re-run all three schedules and
+request another redraw, stacking up generations of ECS churn (entity spawns/despawns from
+reactive rebuilds) that never individually get painted – only the last should exist by
+the time a paint actually happens.</p>
+<h2 id="input-process_event"><a class="header" href="#input-process_event">Input: <code>process_event</code></a></h2>
+<p>Every <code>winit::WindowEvent</code> (keyboard, mouse, touch, scroll, resize, IME) is translated
+here into foliage’s own event types and written into the ECS – <code>KeyboardInput</code> goes
+through a <code>KeyboardAdapter</code> resource and gets <code>world.trigger(..)</code>’d; <code>CursorMoved</code>/
+<code>MouseInput</code>/<code>Touch</code> go through their own adapters and become <code>Interaction</code> messages.
+This is the boundary between “OS event” and “ECS event” – nothing past this function
+knows <code>winit</code> exists.</p>
+<h2 id="painting-redrawrequested"><a class="header" href="#painting-redrawrequested">Painting: <code>RedrawRequested</code></a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/photosynthesis.rs
+WindowEvent::RedrawRequested =&gt; {
+    if !self.ash.drawn &amp;&amp; self.ran_at_least_once &amp;&amp; !self.suspended {
+        self.ash.prepare(&amp;mut self.world, &amp;self.ginkgo);
+        self.ash.render(&amp;self.ginkgo);
+        self.ash.drawn = true;
+        self.tick_pending = false;
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>ash.prepare</code> is where <a href="#from-change-to-pixels-differential">differential</a> queues actually get drained
+into GPU-ready node lists; <code>ash.render</code> is where those get submitted through <code>ginkgo</code>.
+Both are covered in <a href="#the-render-backend-ash">Ash</a>. <code>tick_pending</code> clears here, closing the loop the
+previous section describes.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="coordinates-position-area-section-elevation"><a class="header" href="#coordinates-position-area-section-elevation">Coordinates: Position, Area, Section, Elevation</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="layout-grid-location-anchor"><a class="header" href="#layout-grid-location-anchor">Layout: Grid, Location, Anchor</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="interaction-and-focus"><a class="header" href="#interaction-and-focus">Interaction and Focus</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="animation"><a class="header" href="#animation">Animation</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="color"><a class="header" href="#color">Color</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="ops-named-keyring-update-write"><a class="header" href="#ops-named-keyring-update-write">Ops: Named, Keyring, Update, Write</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="lifecycle-disable-enable-remove-visibility-opacity"><a class="header" href="#lifecycle-disable-enable-remove-visibility-opacity">Lifecycle: Disable, Enable, Remove, Visibility, Opacity</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="panel"><a class="header" href="#panel">Panel</a></h1>
+<p><code>Panel</code> is the filled/outlined/rounded rectangle primitive – the thing most composites
+(<code>Button</code>, <code>Checkbox</code>, <code>Modal</code>’s backdrop, …) actually draw as their visible surface.
+It’s a normal rendering primitive in the sense <a href="#every-widget-is-an-entity-leaf">Leaf</a> describes: it does
+<strong>not</strong> <code>#[require(Leaf, ...)]</code> – <code>Leaf</code> gets unioned in at spawn time regardless of
+what’s being spawned. What <code>Panel</code> <em>does</em> require is its own render-relevant state, plus
+one <code>Differential</code> per attribute a change to it should be able to trigger a redraw for:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/panel/mod.rs
+#[derive(Component, Copy, Clone, Default, PartialEq)]
+#[require(Rounding, Side, Color, Outline)]
+#[require(Differential&lt;Self, ResolvedElevation&gt;)]
+#[require(Differential&lt;Self, Color&gt;)]
+#[require(Differential&lt;Self, Panel&gt;)]
+#[require(Differential&lt;Self, Outline&gt;)]
+#[require(Differential&lt;Self, Section&lt;Logical&gt;&gt;)]
+#[require(Differential&lt;Self, BlendedOpacity&gt;)]
+#[require(Differential&lt;Self, ClipContext&gt;)]
+pub struct Panel {
+    pub(crate) corner_i: Corner,
+    pub(crate) corner_ii: Corner,
+    pub(crate) corner_iii: Corner,
+    pub(crate) corner_iv: Corner,
+}
+<span class="boring">}</span></code></pre>
+<p><code>Panel</code> itself just holds four <code>Corner</code>s (a signed-distance-style radius/inset per
+corner) – it doesn’t store color, rounding amount, or outline width directly; those are
+separate components (<code>Color</code>, <code>Rounding</code>, <code>Side</code>, <code>Outline</code>) it <code>#[require]</code>s, each
+tracked by its own <code>Differential</code>.</p>
+<h2 id="registering-with-the-backend-attachment"><a class="header" href="#registering-with-the-backend-attachment">Registering with the backend: <code>Attachment</code></a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/panel/mod.rs
+impl Attachment for Panel {
+    fn attach(foliage: &amp;mut Foliage) {
+        foliage.define(Panel::update);
+        foliage.define(Outline::update_anim);
+        foliage.remove_queue::&lt;Self&gt;();
+        foliage.differential::&lt;Self, Section&lt;Logical&gt;&gt;();
+        foliage.differential::&lt;Self, BlendedOpacity&gt;();
+        foliage.differential::&lt;Self, Panel&gt;();
+        foliage.differential::&lt;Self, Color&gt;();
+        foliage.differential::&lt;Self, Outline&gt;();
+        foliage.differential::&lt;Self, ResolvedElevation&gt;();
+        foliage.differential::&lt;Self, ClipContext&gt;();
+        foliage.enable_animation::&lt;Outline&gt;();
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>This is called once from <a href="#the-app-foliage-and-its-schedules"><code>Foliage::new()</code></a>, and it’s the only place <code>Panel</code>’s
+<a href="#from-change-to-pixels-differential">differential</a> registrations happen – nothing in <code>foliage.rs</code> itself
+knows <code>Panel</code> has seven trackable attributes.</p>
+<h2 id="corner-geometry-computed-not-authored"><a class="header" href="#corner-geometry-computed-not-authored"><code>Corner</code> geometry: computed, not authored</a></h2>
+<p>Authors set <code>Rounding</code>/<code>Side</code>/<code>Outline</code>; <code>Panel::update</code> (an observer on
+<code>Update&lt;Panel&gt;</code>, triggered whenever <code>Section</code>, <code>Rounding</code>, <code>Side</code>, or <code>Outline</code> changes)
+computes the actual per-corner geometry the shader consumes:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/panel/mod.rs (abridged)
+let depth = match rounding {
+    Rounding::None =&gt; 0.0,
+    Rounding::Xs =&gt; 0.1 * min,
+    Rounding::Sm =&gt; 0.3 * min,
+    ...
+    Rounding::Full =&gt; 1.0 * min,
+};
+<span class="boring">}</span></code></pre>
+<p><code>Side</code> composes independently of <code>Rounding</code>’s amount – a segmented control’s middle
+segment wants <code>Side::none()</code> (square all around) while its first segment wants
+<code>Side::left()</code>, sharing one <code>Rounding</code> value between them. <code>Rounding::Full</code> also drives
+<code>InteractionShape</code> automatically (<code>Rounding::on_insert</code>): a fully-rounded panel becomes a
+circular hit-test region, not a rectangular one clipped to look round.</p>
+<h2 id="panelsprout-the-author-facing-builder"><a class="header" href="#panelsprout-the-author-facing-builder"><code>PanelSprout</code>: the author-facing builder</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/panel/mod.rs
+pub struct PanelSprout {
+    leaf: crate::LeafSprout,
+    color: Option&lt;Color&gt;,
+    rounding: Option&lt;Rounding&gt;,
+    side: Option&lt;Side&gt;,
+    outline: Option&lt;i32&gt;,
+}
+impl crate::Sprout for PanelSprout {
+    fn root(self) -&gt; impl Bundle {
+        (Panel::new_marker(), self.color.unwrap_or_default(), self.rounding.unwrap_or_default(),
+         self.side.unwrap_or_default(), self.outline.map(Outline::new).unwrap_or_default())
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>Panel::new()</code> returns this; <code>.color(..)</code>/<code>.rounding(..)</code>/<code>.side(..)</code>/<code>.outline(..)</code> set
+its optional fields, and <code>root()</code> folds them into one bundle at spawn time – the same
+<code>Sprout</code> shape every primitive and composite in the crate follows (see
+<a href="#spawning-sprout-and-ecsextension">Spawning</a>). <code>build()</code> is left at its default empty implementation:
+<code>Panel</code> is a primitive, it has no children.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="text"><a class="header" href="#text">Text</a></h1>
+<p><code>Text</code> follows the same shape <a href="#panel">Panel</a> does – a rendering primitive with no
+<code>#[require(Leaf)]</code> of its own, a pile of <code>Differential</code>-tracked attributes, and an
+<code>Attachment</code> that registers them – but it’s noticeably larger, because rendering text
+well involves more moving parts than filling a rounded rectangle: glyph layout, a
+monospaced-font metric table, per-character color runs, and content-driven sizing.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/text/mod.rs
+#[derive(Component, Clone, PartialEq, Default, Debug)]
+#[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
+#[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, TextContentHeight, TextContentWidth)]
+#[require(UniqueCharacters, Differential&lt;Text, UniqueCharacters&gt;)]
+#[require(Differential&lt;Text, ResolvedFontSize&gt;)]
+#[require(Differential&lt;Text, BlendedOpacity&gt;)]
+#[require(Differential&lt;Text, Section&lt;Logical&gt;&gt;)]
+#[require(Differential&lt;Text, ResolvedElevation&gt;)]
+#[require(Differential&lt;Text, ClipContext&gt;)]
+#[require(Differential&lt;Text, ResolvedGlyphs&gt;)]
+#[require(Differential&lt;Text, ResolvedColors&gt;)]
+#[require(TextBounds, Differential&lt;Text, TextBounds&gt;)]
+pub struct Text {
+    pub value: String,
+}
+<span class="boring">}</span></code></pre>
+<p><code>value</code> is the only field on <code>Text</code> itself; everything else that determines how it looks
+– font size, alignment, resolved glyph positions, resolved per-glyph colors, content
+bounds – is a separate required component, each with its own <code>Differential</code> if it’s
+something the renderer needs to know about when it changes.</p>
+<h2 id="registering-more-systems-than-panel-same-idea"><a class="header" href="#registering-more-systems-than-panel-same-idea">Registering: more systems than <code>Panel</code>, same idea</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/text/mod.rs
+impl Attachment for Text {
+    fn attach(foliage: &amp;mut Foliage) {
+        foliage.world.insert_resource(MonospacedFont::new(Text::OPT_SCALE));
+        foliage.define(Text::update);
+        foliage.define(Text::apply_text_value);
+        foliage.define(Text::responsive_font_size);
+        foliage.diff.add_systems(
+            (Text::resolve_glyphs, Text::resolve_colors).chain().in_set(DiffMarkers::Finalize),
+        );
+        foliage.remove_queue::&lt;Text&gt;();
+        foliage.differential::&lt;Text, ResolvedFontSize&gt;();
+        foliage.differential::&lt;Text, BlendedOpacity&gt;();
+        // ...
+        foliage.differential::&lt;Text, ResolvedGlyphs&gt;();
+        foliage.differential::&lt;Text, ResolvedColors&gt;();
+        foliage.differential::&lt;Text, UniqueCharacters&gt;();
+        foliage.differential::&lt;Text, TextBounds&gt;();
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>Two things worth noticing against <a href="#the-app-foliage-and-its-schedules">The App</a>’s <code>DiffMarkers::{Prepare, Finalize, Extract}</code> ordering: <code>resolve_glyphs</code>/<code>resolve_colors</code> run in <code>Finalize</code>,
+<em>before</em> the <code>Extract</code> phase where every <code>cached_differential</code> system runs – glyph
+layout has to be settled before anything downstream diffs it. And <code>ResolvedGlyphs</code>
+doesn’t use the generic <code>foliage.differential::&lt;Text, ResolvedGlyphs&gt;()</code> helper at all –
+it gets its own dedicated queuing system (<code>glyph::glyph_differential</code>), because glyph
+data has update semantics the generic <code>PartialEq</code>-cache comparison doesn’t fit (see that
+function’s own doc comment in <code>text/glyph.rs</code> for the specific reason).</p>
+<h2 id="textsprout"><a class="header" href="#textsprout"><code>TextSprout</code></a></h2>
+<p>Same builder shape as every other primitive:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/text/mod.rs
+pub struct TextSprout {
+    leaf: crate::LeafSprout,
+    value: String,
+    size: Option&lt;FontSize&gt;,
+    color: Option&lt;Color&gt;,
+}
+<span class="boring">}</span></code></pre>
+<p><code>Text::new("...")</code> seeds <code>value</code>; <code>.size(..)</code>/<code>.color(..)</code> are the optional builder
+methods. Like <code>Panel</code>, <code>Text</code> has no <code>build()</code> of its own – it’s a primitive, not a
+composite – but unlike most other primitives, <code>Text</code>’s <em>content</em> itself can drive
+layout (a <code>Button</code>’s text width depends on the string it holds, which is exactly why
+<a href="#building-button-from-scratch">Button’s own reaction</a> to <code>TextValue</code> stays an explicit <code>react</code>
+rather than a <code>forward</code>).</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="icon"><a class="header" href="#icon">Icon</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="image"><a class="header" href="#image">Image</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="polygon"><a class="header" href="#polygon">Polygon</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="line"><a class="header" href="#line">Line</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="texture"><a class="header" href="#texture">Texture</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="assets"><a class="header" href="#assets">Assets</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="clipboard"><a class="header" href="#clipboard">Clipboard</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="time"><a class="header" href="#time">Time</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="virtual-keyboard"><a class="header" href="#virtual-keyboard">Virtual Keyboard</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="web-extensions"><a class="header" href="#web-extensions">Web Extensions</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="attachment"><a class="header" href="#attachment">Attachment</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-slot-convention"><a class="header" href="#the-slot-convention">The Slot Convention</a></h1>
+<p>Every composite in the crate – <code>Modal</code>, <code>List</code>, <code>Dropdown</code>, <code>Carousel</code>, and so on –
+needs to host arbitrary author content without baking in what that content is. A
+<code>Modal</code> doesn’t know or care whether its body is a form, an image, or another composite;
+it only needs a place to put whatever the author gives it, positioned and parented
+correctly, and torn down correctly when the modal closes. That’s <code>SlotFn</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/mod.rs
+pub type SlotFn = Arc&lt;dyn Fn(&amp;mut Tree, Entity) -&gt; Entity + Send + Sync&gt;;
+pub type IndexedSlotFn = Arc&lt;dyn Fn(&amp;mut Tree, Entity, usize) + Send + Sync&gt;;
+<span class="boring">}</span></code></pre>
+<p>The composite calls the closure with a transient <strong>slot</strong> entity – a private, positioned
+<code>Grid::default()</code> child it just spawned – and the author branches whatever they want
+under it with full <code>Location</code>/<code>Grid</code>/<code>Anchor</code> freedom, returning their content root (see
+<code>Modal</code>‘s <code>.content(|tree, slot| { ... })</code> in the <a href="#router">Router</a> and
+<a href="#building-button-from-scratch">Button</a> chapters’ sibling examples, or <code>examples/modal.rs</code> for a
+complete one). The closure is <code>Fn</code>, not <code>FnOnce</code>, and it lives inside the widget’s own
+config component – so rewriting that config via <code>tree.write_to</code> re-runs the closure
+against a fresh slot. Config writes <em>are</em> the re-render API here, the same door
+<a href="#acting-on-entities-tree-and-graft"><code>react</code></a> opens for every other value in the crate. <code>IndexedSlotFn</code> is the
+collection variant (<code>List</code> rows, <code>Carousel</code> pages) – called once per index with that
+index’s own slot, no return value, since collection slots are torn down wholesale by the
+composite rather than individually removed the way a <code>Modal</code>’s single slot is on close.</p>
+<p>Slots carry no interaction opinions of their own – author content under a slot may be
+interactive or not, the composite doesn’t decide that for you.</p>
+<h2 id="shared-value-channels"><a class="header" href="#shared-value-channels">Shared value channels</a></h2>
+<p>A handful of components exist purely as a public write-target, so any composite that
+carries the same <em>kind</em> of state exposes the same API an author already knows:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/mod.rs
+pub struct TextValue(pub String);   // write it to a Text entity, or a root that forwards it (Button, TextInput)
+pub struct IconValue(pub IconId);   // same contract, for icons
+pub struct Progress(pub f32);       // 0.0..=1.0, e.g. Slider
+pub struct PageIndex(pub usize);    // current page, e.g. Pagination, Carousel
+pub struct PageCount(pub usize);    // the other half of PageIndex
+<span class="boring">}</span></code></pre>
+<p><code>tree.write_to(button_entity, TextValue("new label".into()))</code> works identically whether
+<code>button_entity</code> is a <code>Button</code>, a <code>TextInput</code>, or anything else that forwards <code>TextValue</code>
+onward – the composite’s root is the API, regardless of what’s actually rendering it.</p>
+<h2 id="root-descendant-to-root-lookup"><a class="header" href="#root-descendant-to-root-lookup"><code>Root</code>: descendant-to-root lookup</a></h2>
+<p>A reactive system running on a composite’s <em>descendant</em> (a slot’s content, an option
+row) often can’t resolve widget-level state locally and needs to route back up to the
+composite’s root entity:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/mod.rs
+pub struct Root(pub Entity);
+impl Root {
+    pub fn resolve(entity: Entity, roots: &amp;Query&lt;&amp;Root&gt;) -&gt; Entity {
+        roots.get(entity).map(|r| r.0).unwrap_or(entity)
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>Root::resolve</code> walks the pointer if present, otherwise returns the entity itself –
+used, for instance, by a <code>Modal</code>’s “Close” button (spawned inside the slot) to find its
+way back to the modal root it needs to trigger <code>CloseModal</code> against.</p>
+<p><a href="#building-button-from-scratch">Building <code>Button</code> From Scratch</a> is the next chapter, and puts
+all of this – <code>Sprout</code>, <code>react</code>, value channels – to work in one worked example.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="building-button-from-scratch"><a class="header" href="#building-button-from-scratch">Building Button From Scratch</a></h1>
+<p>Every earlier chapter exists to make this one possible. <code>Button</code> isn’t special-cased
+anywhere in the crate – it’s <code>Panel</code> + <code>Text</code> + an optional <code>Icon</code>, composed under one
+root entity using exactly the tools covered so far: <a href="#spawning-sprout-and-ecsextension"><code>Sprout</code></a> for the
+config API, <a href="#spawning-sprout-and-ecsextension"><code>tree.branch</code></a> to spawn its children,
+<a href="#acting-on-entities-tree-and-graft"><code>react</code>/<code>react_any</code>/<code>forward</code></a> to keep them in sync, and the
+<a href="#the-slot-convention"><code>TextValue</code>/<code>IconValue</code></a> channels other composites use too.</p>
+<h2 id="the-public-shape-one-entity-config-in-onclick-out"><a class="header" href="#the-public-shape-one-entity-config-in-onclick-out">The public shape: one entity, config in, <code>OnClick</code> out</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/button.rs
 pub struct Button {}
-
-#[derive(Component, Copy, Clone, Default)]
 pub struct ButtonStyle {
-    pub foreground: Color,
-    pub background: Color,
+    pub foreground: Color, // content color at rest; fill color while engaged, or always when outlined
+    pub background: Color, // fill color at rest when un-outlined; content color while engaged
     pub outline: Outline,
     pub rounding: Rounding,
 }
-
-#[derive(Component, Copy, Clone, Default)]
-pub struct Engagement(pub bool);
+pub struct Engagement(pub bool); // interaction state as a component, same reaction door as config
 <span class="boring">}</span></code></pre>
-<p><code>Button {}</code> itself carries no data — it’s a marker. The whole appearance pokes in one write:
-<code>tree.write_to(btn, ButtonStyle { .. })</code>. <code>Engagement</code> is interaction state (pressed/not)
-represented as an ordinary component, so engage/disengage restyling runs through the <em>same</em>
-reaction door as a config change — not a separate hand-called code path.</p>
-<h2 id="the-builder-and-root"><a class="header" href="#the-builder-and-root">The builder and <code>root</code></a></h2>
+<p><code>ButtonStyle</code> is the whole appearance, poked at once (<code>tree.write_to(btn, ButtonStyle { .. })</code>); <code>Engagement</code> is engaged/disengaged as a plain component rather than a special
+case, so an engage/disengage restyle and a config restyle go through the <em>same</em>
+reaction.</p>
+<h2 id="build-the-static-skeleton"><a class="header" href="#build-the-static-skeleton"><code>build()</code>: the static skeleton</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>#[derive(Default)]
-pub struct ButtonSprout {
-    leaf: LeafSprout,
-    icon: Option&lt;IconId&gt;,
-    text: Option&lt;String&gt;,
-    colors: Option&lt;(Color, Color)&gt;,
-    rounding: Option&lt;Rounding&gt;,
-    outline: Option&lt;i32&gt;,
-}
-impl Sprout for ButtonSprout {
-    fn seed(&amp;mut self) -&gt; &amp;mut LeafSprout {
-        &amp;mut self.leaf
-    }
-    fn root(self) -&gt; impl Bundle {
-        let (foreground, background) = self.colors.unwrap_or_default();
-        (
-            Button {},
-            ButtonStyle { foreground, background, outline: /* .. */, rounding: /* .. */ },
-            TextValue(self.text.unwrap_or_default()),
-            IconValue(self.icon.unwrap_or_default()),
-            FontSize::default(),
-            Engagement(false),
-            InteractionListener::new(),
-            Grid::new(1.col().gap(4), 1.row().gap(4)),
-        )
-    }
-    fn build&lt;T: EcsExtension&gt;(this: Entity, tree: &amp;mut T) { /* next section */ }
-}
-<span class="boring">}</span></code></pre>
-<p><code>ButtonSprout</code>’s own builder methods (<code>.icon(..)</code>, <code>.text(..)</code>, <code>.colors(..)</code>, <code>.rounding(..)</code>,
-<code>.outline(..)</code>) just set these <code>Option</code> fields; <code>root()</code> folds everything into the one bundle
-inserted at spawn. <code>TextValue</code>/<code>IconValue</code> are the <em>same</em> value components <code>Text</code>/<code>Icon</code>
-primitives use — Button doesn’t invent its own vocabulary for content it’s just forwarding.</p>
-<h2 id="build-the-static-skeleton"><a class="header" href="#build-the-static-skeleton"><code>build</code>: the static skeleton</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>fn build&lt;T: EcsExtension&gt;(this: Entity, tree: &amp;mut T) {
-    let panel = tree.branch(this, Panel::new().elevate(Elevation::up(1)).at(/* fills parent */)
-        .with((InteractionPropagation::pass_through(), FocusBehavior::ignore())));
-    let icon = tree.branch(this, Icon::new(0).elevate(Elevation::up(2))
+</span>// foliage_proper/src/composite/button.rs (abridged)
+fn build&lt;T: EcsExtension&gt;(this: Entity, tree: &amp;mut T) {
+    let panel = tree.branch(this, Panel::new().elevate(Elevation::up(1))
+        .at(Location::new().xs(1.col().as_left().with(1.col().as_right()), 1.row().as_top().with(1.row().as_bottom())))
         .with((InteractionPropagation::pass_through(), FocusBehavior::ignore())));
     let text = tree.branch(this, Text::new("").elevate(Elevation::up(2))
         .with((HorizontalAlignment::Left, VerticalAlignment::Middle,
                InteractionPropagation::pass_through(), FocusBehavior::ignore())));
-    // .. reactions, next section
+    ...
 }
 <span class="boring">}</span></code></pre>
-<p>Every button, regardless of config, gets exactly one panel + one icon + one text child. None of
-these spawns reference <code>self</code>’s config at all — notice <code>Icon::new(0)</code> and <code>Text::new("")</code>, both
-placeholders. That’s the point: <strong>nothing here is config-dependent</strong>, so it belongs in <code>build</code>.
-Real icon/text/colors/rounding all arrive through the reactions below, which fire once
-immediately with the real values, in the same command batch as these spawns.</p>
-<h2 id="build-the-reactions"><a class="header" href="#build-the-reactions"><code>build</code>: the reactions</a></h2>
+<p><code>panel</code> fills the button’s whole box (<code>1.col()</code>/<code>1.row()</code> – one full grid cell) one
+elevation layer up; <code>text</code> sits two layers up, above the panel. Both pass interaction
+through and ignore focus themselves – only the button’s own root should actually receive
+clicks and focus, not its rendering children. Note this is <code>build()</code>, not <code>root()</code>: it’s
+the config-<em>independent</em> skeleton – these two <code>tree.branch</code> calls run once, regardless
+of what the button was configured with. The icon child is the one exception: it’s
+<strong>not</strong> spawned here at all when no icon was configured, only lazily inside the first
+reaction below.</p>
+<h2 id="the-one-reaction-that-drives-every-visual-state"><a class="header" href="#the-one-reaction-that-drives-every-visual-state">The one reaction that drives every visual state</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// one restyle for every appearance input, engage-state included
-tree.react_any::&lt;(ButtonStyle, Engagement), _&gt;(this, move |trigger, styles, engagement, mut tree| {
+</span>// foliage_proper/src/composite/button.rs (abridged)
+tree.react_any::&lt;(ButtonStyle, Engagement, IconValue), _&gt;(this, move |trigger, styles, engagement, icon_values, has_icon, font_sizes, insets, mut tree| {
     let e = trigger.event_target();
-    restyle(&amp;mut tree, e, panel, icon, text, *styles.get(e).unwrap(), engagement.get(e).unwrap().0);
+    if icon.is_none() &amp;&amp; has_icon.get(e).unwrap().0 {
+        icon = Some(tree.branch(e, Icon::new(0).elevate(Elevation::up(2)).with((..))));
+    }
+    // ... compute icon_size, icon_inset ...
+    restyle(&amp;mut tree, e, panel, icon, text, *styles.get(e).unwrap(), engagement.get(e).unwrap().0, icon_size, icon_inset);
 });
-
-// event -&gt; state bridges: interaction events funnel into the same reaction door
-tree.subscribe(this, |trigger: Trigger&lt;Engaged&gt;, mut tree: Tree| {
+<span class="boring">}</span></code></pre>
+<p>One <code>react_any</code> over <code>(ButtonStyle, Engagement, IconValue)</code> covers every input that can
+change the button’s appearance – because <code>restyle</code> (a plain function, not a system)
+reads all of them together and recomputes the whole look each time, there’s no
+combinatorial explosion of “which subset changed” cases to handle. <code>restyle</code> itself
+decides: content color is foreground at rest, background when engaged; the panel’s fill
+inverts the same way when there’s no outline, or stays foreground with just the outline
+toggling when there is one. This runs once at spawn (via <code>react_any</code>’s build-time
+re-fire, see <a href="#acting-on-entities-tree-and-graft">Tree and Graft</a>) and again on every later write – there is no
+separate “apply initial style” step.</p>
+<p>Interaction events feed the same door, not a separate one:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>tree.subscribe(this, |trigger: Trigger&lt;Engaged&gt;, mut tree: Tree| {
     tree.entity(trigger.event_target()).insert(Engagement(true));
 });
-tree.subscribe(this, |trigger: Trigger&lt;Disengaged&gt;, mut tree: Tree| {
-    tree.entity(trigger.event_target()).insert(Engagement(false));
-});
-
-// NOT a pure copy -- the text's width Location depends on the value
-tree.react::&lt;TextValue, _&gt;(this, move |trigger, values, mut tree| { /* .. */ });
-
-// pure copies
-tree.forward::&lt;IconValue&gt;(this, icon);
-tree.forward::&lt;FontSize&gt;(this, text);
 <span class="boring">}</span></code></pre>
-<p>Five reactions, zero hand-called “apply this at construction time” step — the <code>react_any</code> fires
-once at registration with <code>ButtonStyle</code>’s real spawn-time value, so there’s no separate initial
-styling pass to keep in sync with later writes. <code>Engaged</code>/<code>Disengaged</code> (interaction events) don’t
-touch rendering directly; they write <code>Engagement</code>, which the same restyle reaction already
-watches — one restyle function, reachable from every input that can change how a button looks.</p>
-<p>See <a href="#reacting-to-data">Reacting to Data</a> for what <code>react</code>/<code>react_any</code>/<code>forward</code> actually do
-underneath, and <a href="#authoring-a-widget">Authoring a Widget</a> for why this split between a static <code>build</code>
-and reactive <code>react</code> calls exists in the first place.</p>
+<p>An <code>Engaged</code> event doesn’t restyle anything itself – it just writes <code>Engagement(true)</code>,
+which the <code>react_any</code> above picks up like any other config change.</p>
+<h2 id="text-is-a-react-not-a-forward"><a class="header" href="#text-is-a-react-not-a-forward">Text is a <code>react</code>, not a <code>forward</code></a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/button.rs (abridged)
+tree.react::&lt;TextValue, _&gt;(this, move |trigger, values, has_icon, font_sizes, mut tree| {
+    let value = values.get(e).unwrap().0.clone();
+    let width = value.len();
+    let center_adjust = if has_icon.get(e).unwrap().0 { (icon_width + 8) / 2 } else { 0 };
+    tree.entity(text).insert((TextValue(value), Location::new().xs(/* centered, width-dependent */)));
+});
+tree.forward::&lt;FontSize&gt;(this, text); // pure copy -- FontSize doesn't drive layout on its own
+<span class="boring">}</span></code></pre>
+<p>This is the concrete case <a href="#acting-on-entities-tree-and-graft">Tree and Graft</a> points to for why <code>forward</code> and
+<code>react</code> stay separate mechanisms: <code>FontSize</code> really is a pure copy from root to <code>text</code>,
+so <code>forward</code> is correct and simplest. <code>TextValue</code> is <em>not</em> a pure copy – the text’s
+<code>Location</code> (centered, shifted to make room for an icon, sized to the string’s length) is
+computed from the value, not copied alongside it – so it stays an explicit <code>react</code>. The
+distinction is visible in the code on purpose rather than hidden behind one generic
+“sync this field” mechanism.</p>
+<h2 id="using-it"><a class="header" href="#using-it">Using it</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage/examples/controls.rs
+foliage.world.leaf(
+    Button::new()
+        .text("Button")
+        .rounding(Rounding::Sm)
+        .colors(Color::gray(900), Color::green(500))
+        .at(Location::new().xs(
+            8.px().as_left().with(160.px().as_width()),
+            t.px().as_top().with(b.px().as_bottom()),
+        ))
+        .elevate(Elevation::up(1)),
+);
+<span class="boring">}</span></code></pre>
+<p>Everything above – the panel and text children, the icon spawned lazily if configured,
+the restyle-on-any-change reaction, the width-aware text positioning – runs
+automatically the moment this spawns and again on every later <code>tree.write_to(button, ButtonStyle { .. })</code>. From the outside, <code>Button</code> looks like any other widget in the
+<a href="https://github.com/eblack-leaf/foliage#getting-started">Getting Started</a> example –
+because it is one. The only thing that changes composite to composite is what <code>build()</code>
+spawns and what <code>react</code>/<code>react_any</code> do with it.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="carousel"><a class="header" href="#carousel">Carousel</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="checkbox"><a class="header" href="#checkbox">Checkbox</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="dropdown"><a class="header" href="#dropdown">Dropdown</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="list"><a class="header" href="#list">List</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="modal"><a class="header" href="#modal">Modal</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="pagination"><a class="header" href="#pagination">Pagination</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="polyline"><a class="header" href="#polyline">Polyline</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="popover"><a class="header" href="#popover">Popover</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="radiogroup"><a class="header" href="#radiogroup">RadioGroup</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="router"><a class="header" href="#router">Router</a></h1>
+<p><code>Router</code> is destructive, element-level scene switching – the exact opposite of
+<a href="#the-slot-convention"><code>Tabs</code></a>’ content lifecycle. <code>Tabs</code> builds every page once and
+toggles <code>Visibility</code>; <code>Router</code> keeps exactly <strong>one</strong> route’s content alive at a time –
+navigating tears the current scene’s subtree down (<code>tree.remove</code>) and runs the next
+route’s builder against a fresh, full-size slot. Hidden scenes never exist under a
+router: nothing ticks, nothing accumulates, and a route entered twice is built from
+nothing both times, so it can never depend on residue from its last visit.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/router.rs
+pub type RouteFn = fn(&amp;mut Tree, Entity);
+<span class="boring">}</span></code></pre>
+<p><code>RouteFn</code> is deliberately a bare <code>fn</code>, not a closure: a bare <code>fn</code> cannot capture, so a
+scene can never accidentally close over another scene’s live entities – the mistake
+that would make destructive switching unsafe becomes a compile error instead of a
+runtime surprise. Everything a scene needs beyond its slot arrives through <code>Resource</code>s
+(asset keyrings, app state), which by definition outlive any one scene.</p>
+<p>One entity carries the whole widget: <code>RouterRoutes</code> + <a href="#the-slot-convention"><code>PageIndex</code></a>
+in, <a href="#the-slot-convention"><code>PageCount</code></a> maintained, <code>PageChanged</code> out – the same
+paging vocabulary <code>Tabs</code>/<code>Carousel</code>/<code>Pagination</code> already share, so any of those (a bottom
+nav bar, a stepper) can drive a <code>Router</code> by forwarding an index. Navigation is
+<code>tree.write_to(router, PageIndex(i))</code>; there is no richer protocol than that. <code>Router</code>
+renders nothing of its own and has no style vocabulary – like <code>List</code>/<code>Carousel</code>/<code>Tabs</code>,
+the author builds and owns every scene; the widget only owns which one currently exists.
+Anything that must survive a switch (persistent chrome, shared state) has to live outside
+the router’s subtree or in a <code>Resource</code>, never inside a scene.</p>
+<h2 id="no-urlbrowser-history-integration--decided-not-pending"><a class="header" href="#no-urlbrowser-history-integration--decided-not-pending">No URL/browser-history integration – decided, not pending</a></h2>
+<p>This is the one composite in the crate with a documented, deliberately-rejected design,
+directly in its own source (<code>composite/router.rs:38-47</code>):</p>
+<blockquote>
+<p>A full design was worked through (opt-in sync, per-route slug blessing, typed URL
+params as the only scene-input channel) and rejected: a deep link makes any route
+someone’s FIRST scene, entered by a user-generated URL rather than an authored call
+site, so a route whose scene reads a navigation-coupled <code>Resource</code> cold-boots against
+defaults – and no declared contract survives indirect circumvention, it just relocates
+the footgun. In-session navigation has no such class: every <code>PageIndex</code> write is a call
+site the author wrote, orderings are enforced by where navigation UI exists, and
+mistakes render visibly in development. The invariant is “top-level browser entry only”:
+the app always boots at its root.</p>
+</blockquote>
+<p>The distinction that makes this a real design decision rather than a missing feature: an
+in-session <code>tree.write_to(router, PageIndex(i))</code> is always a call site the author put
+somewhere reachable only after whatever setup that route depends on has already run. A
+URL-driven deep link has no such guarantee – it can land a user on any route with none of
+the app’s own setup having happened first, and there’s no way to declare “this route
+requires X” that a raw URL can’t simply bypass. If you’re looking at this file wondering
+whether to add URL sync (composite-integrated or app-side): this was already considered
+and the conclusion was no, for the reason above, not because nobody got to it.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="segmentedcontrol"><a class="header" href="#segmentedcontrol">SegmentedControl</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="slider"><a class="header" href="#slider">Slider</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="tabs"><a class="header" href="#tabs">Tabs</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="textinput"><a class="header" href="#textinput">TextInput</a></h1>
+<p><code>TextInput</code> is the crate’s most involved composite – editable text needs a cursor, a
+selection range, click-to-place, keyboard navigation, scrolling a viewport that’s smaller
+than the content, and IME composition support, on top of everything <code>Text</code> itself
+already handles. Its config lives in <code>foliage_proper/src/composite/text_input/mod.rs</code>,
+alongside two submodules: <code>action</code> (the <code>InputAction</code>/<code>TextInputAction</code> vocabulary) and
+<code>keybindings</code> (the actual key-to-action table, <code>KeyBindings</code>).</p>
+<p>All cursor and selection offsets are <strong>byte offsets</strong> into the underlying <code>String</code>
+(matching <code>fontdue</code>’s own <code>byte_offset</code>), not character indices – every mutation moves
+between offsets via <code>prev_boundary</code>/<code>next_boundary</code> helpers rather than <code>± 1</code>, because a
+plain <code>± 1</code> on a byte offset would panic <code>String::remove</code>/slicing the moment the content
+contains a multi-byte character.</p>
+<h2 id="known-gaps"><a class="header" href="#known-gaps">Known gaps</a></h2>
+<p>Three specific, scoped-but-not-implemented gaps exist in the current selection/scroll
+handling, each documented in place as a <code>TODO</code> rather than silently absent:</p>
+<p><strong>Shift+Click doesn’t extend an existing selection.</strong> Every click unconditionally
+restarts the selection at the click point:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/text_input/mod.rs:611-613
+// TODO: every click unconditionally restarts the selection here, even Shift+Click --
+// some editors instead extend the existing selection to the click point when Shift
+// is held. Not implemented; scoping only, not clear this is wanted yet.
+<span class="boring">}</span></code></pre>
+<p><strong>Resizing the box while scrolled doesn’t preserve scroll position.</strong> Growing the box
+after scrolling away from the cursor snaps the view back toward the cursor instead of
+leaving the user’s manual scroll position alone – and the root cause isn’t even
+pinned down yet between two candidates:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/text_input/mod.rs:694-697
+// TODO: scroll up away from the cursor (cursor sitting at/below the bottom of view), then
+// resize the box bigger -- the resulting rewrap drops `view.offset` back toward the
+// cursor instead of leaving the user's manual scroll position alone. Two candidate
+// causes, not yet distinguished by an actual trace...
+<span class="boring">}</span></code></pre>
+<p><strong>Drag-selecting near the box’s edges doesn’t auto-scroll.</strong> Drag-selection only ever
+sees whatever’s currently visible – it calls <code>extend_range</code> directly rather than through
+the <code>move_cursor</code>/<code>extend_and_reselect</code> path keyboard navigation uses, which is the path
+that already has scroll-into-view logic:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/text_input/mod.rs:1044-1049
+// TODO: no auto-scroll while dragging near the box's edges -- drag-selection is only
+// ever in view of whatever's currently visible... Reusing that math but driven
+// continuously while the pointer sits near the boundary (not just once per keystroke)
+// is the likely shape of the fix, not built yet -- scoping only.
+<span class="boring">}</span></code></pre>
+<p>None of these are silent – normal typing, arrow-key navigation, click-to-place, and
+programmatic scroll-into-view on edit all work and already account for multi-byte
+characters correctly. The gaps are specifically: extending (not just replacing) a
+selection via Shift+Click, scroll-position stability across a resize, and continuous
+auto-scroll during a drag that leaves the visible box.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="toggle"><a class="header" href="#toggle">Toggle</a></h1>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="platform-notes"><a class="header" href="#platform-notes">Platform Notes</a></h1>
+<h2 id="linux-windows-macos"><a class="header" href="#linux-windows-macos">Linux, Windows, macOS</a></h2>
+<p>Native, via <code>winit</code> + <code>wgpu</code>. CI (<code>.github/workflows/ci.yml</code>, <code>native</code> job) runs <code>cargo test --workspace</code>, <code>cargo build --examples -p foliage</code>, and <code>cargo check -p application</code>
+on all three operating systems on every push/PR.</p>
+<h2 id="web-wasm"><a class="header" href="#web-wasm">Web (WASM)</a></h2>
+<p>Compiles against <code>wasm32-unknown-unknown</code>; CI checks <code>cargo check -p foliage_proper -p foliage --target wasm32-unknown-unknown</code> build-only, since there’s no headless browser
+in CI to execute a WASM test binary against, and the crate’s real test suite is already
+native/headless (<code>Foliage::new()</code> never touches <code>wgpu</code>/<code>winit</code> either way, so the tests
+that matter don’t need a browser).</p>
+<p>A handful of code paths are wasm-specific by necessity, not by choice: <a href="../willow.html"><code>Willow::connect</code></a>
+appends the window’s canvas into the DOM itself, since a <code>winit</code> window on the web <em>is</em>
+a canvas element; <a href="../ginkgo.html"><code>Ginkgo::acquire_context</code></a> requests
+<code>Limits::downlevel_webgl2_defaults()</code> instead of <code>Limits::default()</code>, a real
+capability ceiling of WebGL2 relative to native backends; and device acquisition in
+<a href="../photosynthesis.html">Photosynthesis</a>’s <code>resumed</code> handler is async-via-channel rather
+than <code>pollster::block_on</code>, since blocking isn’t available on the web.</p>
+<h2 id="android"><a class="header" href="#android">Android</a></h2>
+<p>Real code exists for this target – <code>AndroidConnection</code>, <code>cfg(target_os = "android")</code>
+branches (including the same <code>downlevel_webgl2_defaults()</code> limits path WASM uses, since
+mobile GPU drivers share that ceiling), and <code>winit</code>’s android-game-activity feature are
+all already in the tree. What’s missing is an actual app project wired up to build and
+run against them end to end, and the Android SDK’s own interactive license-acceptance
+step (doable in CI via <code>android-actions/setup-android</code> + <code>yes | sdkmanager --licenses</code>,
+but real setup work for a target that isn’t finished being wired up locally either) –
+so there’s no Android job in CI yet. This is unfinished integration work, not an
+unsolved technical problem.</p>
+<h2 id="ios"><a class="header" href="#ios">iOS</a></h2>
+<p>No toolchain is currently available to compile or run against an iOS target. The one
+<code>cfg(not(target_os = "ios"))</code> branch in the crate (in <a href="../willow.html"><code>Willow::connect</code></a>,
+gating the desktop-only <code>.with_inner_size(..)</code> window attribute) has no iOS-specific
+implementation behind it – it’s a single exclusion, not a maintained alternate path. A
+native macOS build already compiles the same shared source an <code>aarch64-apple-ios</code>
+cross-compile would exercise, so an iOS-specific CI check wouldn’t currently catch
+anything the macOS job doesn’t already cover. In short: likely possible, given the
+shared codebase already compiles cleanly for every other native target, but genuinely
+unverified rather than confirmed working.</p>
+<h2 id="textinput-gaps"><a class="header" href="#textinput-gaps"><code>TextInput</code> gaps</a></h2>
+<p>See <a href="#textinput">TextInput</a> for the three specific, scoped-but-not-yet-implemented
+selection/scroll gaps (Shift+Click range-extend, scroll-position stability across a
+resize, and auto-scroll during an edge-adjacent drag).</p>
+<h2 id="routers-no-url-history-design"><a class="header" href="#routers-no-url-history-design">Router’s no-URL-history design</a></h2>
+<p>See <a href="#router">Router</a> – not a gap, a deliberate, documented rejection of
+URL/browser-history sync after a full design was worked through.</p>
 
                     </main>
 

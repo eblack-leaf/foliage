@@ -1,8 +1,12 @@
 [package]
 name = "foliage_icons"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 description = "SVG -> foliage .icon MSDF format generator, plus registration codegen"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/eblack-leaf/foliage"
+homepage = "https://eblack-leaf.github.io/foliage/"
+documentation = "https://eblack-leaf.github.io/foliage/book/"
 
 [[bin]]
 name = "foliage_icons"
