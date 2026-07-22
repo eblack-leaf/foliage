@@ -453,59 +453,49 @@ mod elevation_assignment_tests {
         );
     }
 
-    /// The "sometimes invisible" regression: a crowded front tier (many entities all pushing
-    /// toward `near`, like an overlay panel + its text plus other forward chrome) must never
-    /// leave two entities on the *same* depth. Equal depth is resolved by draw order, which is
-    /// nondeterministic -- which is exactly why the popover text sometimes rendered behind its
-    /// own panel. Assert every assigned `ResolvedElevation` is distinct.
+    /// The "sometimes invisible" regression, made deterministic: front content added
+    /// incrementally (each new entity more in front than the last -- exactly what an overlay
+    /// opening in front of existing forward chrome does, repeatedly) marches the frontmost
+    /// assigned value down toward `near`. Once it reaches `near`, the *next* front insertion
+    /// computes `near - gap`, which the old code clamped straight back to `near` -- an
+    /// identical depth to the entity already sitting there, resolved by nondeterministic draw
+    /// order (this is why the popover text "sometimes" rendered behind its own panel). Every
+    /// assigned depth must stay distinct. Enough iterations to march past `near` and force the
+    /// boundary case.
     #[test]
-    fn a_crowded_front_tier_never_assigns_two_entities_the_same_depth() {
-        use crate::ClipToViewport;
-
+    fn incrementally_added_front_content_never_collides_at_the_near_boundary() {
         let mut foliage = Foliage::new();
-        let root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0))
-                .with(crate::Grid::default()),
-        );
-        // a stack of forward chrome (abs pushes toward the front), plus an overlay subtree
-        // (front tier) with its own nested content -- all clustered at the front where the
-        // boundary-clamp collision used to happen.
-        for e in [95, 90, 85, 80] {
-            foliage
-                .world
-                .branch(root, Leaf::sprout().at(Location::new()).elevate(Elevation::abs(e)));
-        }
-        let overlay = foliage.world.branch(
-            root,
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(2))
-                .with((ClipToViewport, crate::Grid::default())),
-        );
-        for _ in 0..6 {
-            foliage
-                .world
-                .branch(overlay, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
-        }
+        let root = foliage
+            .world
+            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
         foliage.world.flush();
 
         let mut ash = Ash::new();
         ash.assign_elevations(&mut foliage.world);
 
-        let mut values: Vec<f32> = {
-            let mut q = foliage.world.query::<&ResolvedElevation>();
-            q.iter(&foliage.world).map(|r| r.value()).collect()
-        };
-        values.sort_by(|a, b| a.total_cmp(b));
-        for pair in values.windows(2) {
-            assert_ne!(
-                pair[0], pair[1],
-                "two entities were assigned the identical depth {} -- a nondeterministic \
-                 draw-order tie, all assigned values: {values:?}",
-                pair[0]
+        // add ~80 progressively-more-front siblings, one assign pass each, so each is the new
+        // frontmost when it's placed -- marching the front value down through `near`.
+        for i in 1..=80 {
+            foliage.world.branch(
+                root,
+                Leaf::sprout().at(Location::new()).elevate(Elevation::up(i)),
             );
+            foliage.world.flush();
+            ash.assign_elevations(&mut foliage.world);
+
+            let mut values: Vec<f32> = {
+                let mut q = foliage.world.query::<&ResolvedElevation>();
+                q.iter(&foliage.world).map(|r| r.value()).collect()
+            };
+            values.sort_by(|a, b| a.total_cmp(b));
+            for pair in values.windows(2) {
+                assert_ne!(
+                    pair[0], pair[1],
+                    "after adding up({i}), two entities share depth {} -- a nondeterministic \
+                     draw-order tie: {values:?}",
+                    pair[0]
+                );
+            }
         }
     }
 }
