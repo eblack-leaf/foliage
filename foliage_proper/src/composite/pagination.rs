@@ -158,6 +158,10 @@ impl Sprout for PaginationSprout {
         let strip = tree.branch(
             this,
             Leaf::sprout()
+                .at(Location::new().xs(
+                    0.pct().as_left().with(100.pct().as_right()),
+                    0.pct().as_top().with(100.pct().as_bottom()),
+                ))
                 .elevate(Elevation::up(1))
                 .with(Grid::default()),
         );
@@ -172,7 +176,6 @@ impl Sprout for PaginationSprout {
                   styles: Query<&PaginationStyle>,
                   pages: Query<&PageIndex>,
                   mut handles: Query<&mut PaginationHandle>,
-                  render_sizes: bevy_ecs::system::Res<crate::IconRenderSizes>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 let count = counts.get(e).unwrap().0;
@@ -182,22 +185,35 @@ impl Sprout for PaginationSprout {
                 for (root, _) in handle.slots.drain(..) {
                     tree.remove(root);
                 }
-                // step buttons: exist only while icons are configured; circle = the icon's
-                // registered footprint + breathing room, never a fixed size
+                // The strip is one grid row; the step buttons (when configured) are its first
+                // and last columns, the indicators the columns between. Every element -- step
+                // buttons included -- is sized by its own grid cell, so nothing here computes a
+                // pixel size. A step button is just a `Button`: it lays out its own icon, and
+                // `AspectRatio(1.0)` squares the button to a circle within its cell.
+                let shown = match style.mode {
+                    PaginationMode::Dots => count,
+                    PaginationMode::Numbered => count.min(NUMBERED_SLOTS),
+                };
+                let has_steps = style.step_icons.is_some();
+                let lead = if has_steps { 1 } else { 0 };
+                let cols = shown + if has_steps { 2 } else { 0 };
+                tree.write_to(strip, Grid::new(cols.max(1).col(), 1.row()));
                 match (style.step_icons, handle.step) {
                     (Some((prev_icon, next_icon)), existing) => {
                         let (prev, next) = existing.unwrap_or_else(|| {
                             let prev = tree.branch(
-                                e,
+                                strip,
                                 Button::new()
                                     .rounding(Rounding::Full)
-                                    .elevate(Elevation::up(1)),
+                                    .elevate(Elevation::up(1))
+                                    .with(crate::AspectRatio::new().xs(1.0)),
                             );
                             let next = tree.branch(
-                                e,
+                                strip,
                                 Button::new()
                                     .rounding(Rounding::Full)
-                                    .elevate(Elevation::up(1)),
+                                    .elevate(Elevation::up(1))
+                                    .with(crate::AspectRatio::new().xs(1.0)),
                             );
                             tree.on_click(
                                 prev,
@@ -232,19 +248,17 @@ impl Sprout for PaginationSprout {
                             outline: Outline::default(),
                             rounding: Rounding::Full,
                         };
-                        let pad = 14;
-                        let psz = render_sizes.get(prev_icon);
-                        let nsz = render_sizes.get(next_icon);
-                        let (pw, ph) = (psz.a() as i32 + pad, psz.b() as i32 + pad);
-                        let (nw, nh) = (nsz.a() as i32 + pad, nsz.b() as i32 + pad);
+                        // just place the buttons in the first and last grid columns (their
+                        // size is the cell; the button lays out its own icon). IconValue/style
+                        // are config, not layout -- so those alone stay in the reaction.
                         tree.write_to(
                             prev,
                             (
                                 IconValue(prev_icon),
                                 button_style,
                                 Location::new().xs(
-                                    0.pct().as_left().with(pw.px().as_width()),
-                                    50.pct().as_center_y().with(ph.px().as_height()),
+                                    1.col().as_left().with(1.col().as_right()),
+                                    1.row().as_top().with(1.row().as_bottom()),
                                 ),
                             ),
                         );
@@ -254,8 +268,8 @@ impl Sprout for PaginationSprout {
                                 IconValue(next_icon),
                                 button_style,
                                 Location::new().xs(
-                                    100.pct().as_right().with(nw.px().as_width()),
-                                    50.pct().as_center_y().with(nh.px().as_height()),
+                                    cols.col().as_left().with(cols.col().as_right()),
+                                    1.row().as_top().with(1.row().as_bottom()),
                                 ),
                             ),
                         );
@@ -269,44 +283,13 @@ impl Sprout for PaginationSprout {
                         } else {
                             tree.enable(next);
                         }
-                        let inset = pw.max(nw) + 8;
-                        tree.write_to(
-                            strip,
-                            Location::new().xs(
-                                0.pct()
-                                    .as_left()
-                                    .adjust(inset)
-                                    .with(100.pct().as_right().adjust(-inset)),
-                                0.pct().as_top().with(100.pct().as_bottom()),
-                            ),
-                        );
                     }
                     (None, Some((prev, next))) => {
                         tree.remove([prev, next]);
                         handle.step = None;
-                        tree.write_to(
-                            strip,
-                            Location::new().xs(
-                                0.pct().as_left().with(100.pct().as_right()),
-                                0.pct().as_top().with(100.pct().as_bottom()),
-                            ),
-                        );
                     }
-                    (None, None) => {
-                        tree.write_to(
-                            strip,
-                            Location::new().xs(
-                                0.pct().as_left().with(100.pct().as_right()),
-                                0.pct().as_top().with(100.pct().as_bottom()),
-                            ),
-                        );
-                    }
+                    (None, None) => {}
                 }
-                let shown = match style.mode {
-                    PaginationMode::Dots => count,
-                    PaginationMode::Numbered => count.min(NUMBERED_SLOTS),
-                };
-                tree.write_to(strip, Grid::new(shown.max(1).col(), 1.row()));
                 let ws = window_start(current, count, shown);
                 for s in 0..shown {
                     match style.mode {
@@ -324,7 +307,7 @@ impl Sprout for PaginationSprout {
                                 Panel::new()
                                     .color(transparent)
                                     .at(Location::new().xs(
-                                        (s + 1)
+                                        (s + 1 + lead)
                                             .col()
                                             .as_center_x()
                                             .with(dot_w.max(24).px().as_width()),
@@ -371,7 +354,10 @@ impl Sprout for PaginationSprout {
                                         style.inactive
                                     })
                                     .at(Location::new().xs(
-                                        (s + 1).col().as_left().with((s + 1).col().as_right()),
+                                        (s + 1 + lead)
+                                            .col()
+                                            .as_left()
+                                            .with((s + 1 + lead).col().as_right()),
                                         1.row().as_top().with(1.row().as_bottom()),
                                     ))
                                     .elevate(Elevation::up(1))

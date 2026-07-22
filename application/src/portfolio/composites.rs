@@ -547,6 +547,37 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
             .elevate(Elevation::up(1)),
     );
 
+    // Icon -- one 48px MTSDF field per icon serves every on-screen size, so these rows exist
+    // to eyeball the scaling quality: chasms at stroke intersections, wobbly curves, and
+    // rounded-off corners are the field's failure modes, and they're most visible well above
+    // the field's own resolution. Icons chosen for maximum failure visibility: x (crossing
+    // strokes), box (Y-junctions), github (dense curves + junctions), search (a true circle,
+    // where any polygonization would show). Bottom-aligned so the size progression reads.
+    let inspect = [
+        ("Icon (x)", IconHandles::X),
+        ("Icon (box)", IconHandles::Box),
+        ("Icon (github)", IconHandles::Github),
+        ("Icon (search)", IconHandles::Search),
+    ];
+    let sizes = [16, 24, 48, 96, 144];
+    for (label, handle) in inspect {
+        let (_top, bottom) = section(tree, app, &mut cursor, label, 144);
+        let mut left = 8;
+        for size in sizes {
+            tree.branch(
+                app,
+                Icon::new(handle)
+                    .color(Color::gray(200))
+                    .at(Location::new().xs(
+                        left.px().as_left().with(size.px().as_width()),
+                        (bottom - size).px().as_top().with(bottom.px().as_bottom()),
+                    ))
+                    .elevate(Elevation::up(1)),
+            );
+            left += size + 16;
+        }
+    }
+
     cursor += 40;
     let _spacer = tree.branch(
         app,

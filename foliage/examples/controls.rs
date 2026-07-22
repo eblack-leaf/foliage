@@ -6,8 +6,8 @@
 //! `Checkbox` here has no `.check_icon(..)` -- it's genuinely optional (unlike it used to
 //! be): the box's own fill-vs-outline switch already carries checked/unchecked on its own,
 //! so this renders as a plain filled/outlined box with no glyph. A real check mark would
-//! still need a registered `Icon::memory_sized` backed by actual `foliage_icons`-processed
-//! `.icon` byte data -- out of scope for this general-composites example.
+//! still need a registered `Icon::msdf` backed by an actual `foliage_icons`-processed `.icon`
+//! MTSDF field -- out of scope for this general-composites example.
 
 use foliage::{
     Button, Checkbox, Color, EcsExtension, Elevation, Foliage, GridExt, Location, RadioGroup,

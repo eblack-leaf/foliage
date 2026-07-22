@@ -5,7 +5,6 @@ use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, R
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::opacity::BlendedOpacity;
-use crate::texture::Mips;
 use crate::ash::clip::ClipContext;
 use crate::{
     CReprColor, CReprSection, Color, Coordinates, IconMemory, Logical, ResolvedElevation, Section,
@@ -29,24 +28,20 @@ pub(crate) struct Group {
     sections: InstanceBuffer<CReprSection>,
     elevations: InstanceBuffer<ResolvedElevation>,
     colors: InstanceBuffer<CReprColor>,
-    mips: InstanceBuffer<Mips>,
+    px_ranges: InstanceBuffer<ScreenPxRange>,
     opacities: InstanceBuffer<BlendedOpacity>,
-    mip_count: u32,
+    /// The MTSDF field resolution and its baked distance spread -- together they convert an
+    /// instance's on-screen pixel size into the shader's `screen_px_range` (how many screen
+    /// pixels the field's distance range covers at this size), which sets the smoothstep width.
+    field_size: f32,
+    px_range: f32,
 }
-/// Picks the sharpest mip level that still covers `scale_factor`, in a chain where level 0
-/// is the largest/mip-0 (`base`) and each subsequent level is exactly half the previous
-/// (`base >> level`, the shape wgpu's texture upload requires) -- generalizes what was a
-/// hardcoded 3-level 96/48/24 threshold ladder to any `mip_count`.
-fn mip_level_for_scale(mip_count: u32, scale_factor: f32) -> f32 {
-    let rounded = scale_factor.round().max(1.0) as u32;
-    let mut level = mip_count.saturating_sub(1);
-    let mut covered = 1u32;
-    while covered < rounded && level > 0 {
-        level -= 1;
-        covered <<= 1;
-    }
-    level as f32
-}
+/// Per-instance: how many screen pixels the field's `px_range` covers at this instance's
+/// current on-screen size -- `(on_screen_min_dim / field_size) * px_range`. The shader
+/// multiplies the (median − 0.5) distance by this to get crisp, size-correct edges.
+#[repr(C)]
+#[derive(Pod, Zeroable, Copy, Clone, Default)]
+pub(crate) struct ScreenPxRange(f32);
 impl Render for Icon {
     type Group = Group;
     type Resources = Resources;
@@ -62,10 +57,10 @@ impl Render for Icon {
                     .uniform_entry(),
                 Ginkgo::bind_group_layout_entry(1)
                     .at_stages(ShaderStages::FRAGMENT)
-                    .sampler_entry(false),
+                    .sampler_entry(true),
             ],
         });
-        let sampler = ginkgo.create_sampler(false);
+        let sampler = ginkgo.create_sampler(true);
         let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
             label: Some("icon-bind-group"),
             layout: &bind_group_layout,
@@ -80,7 +75,7 @@ impl Render for Icon {
                 .at_stages(ShaderStages::FRAGMENT)
                 .texture_entry(
                     TextureViewDimension::D2,
-                    TextureSampleType::Float { filterable: false },
+                    TextureSampleType::Float { filterable: true },
                 )],
         });
         let pipeline_layout = ginkgo.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -112,7 +107,7 @@ impl Render for Icon {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![3 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<Mips>(
+                    Ginkgo::vertex_buffer_layout::<ScreenPxRange>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![4 => Float32],
                     ),
@@ -169,9 +164,9 @@ impl Render for Icon {
         }
         for (_, mem) in queues.attribute::<Icon, IconMemory>() {
             let (_, view) = ginkgo.create_texture(
-                TextureFormat::R8Unorm,
-                mem.texture_scale,
-                mem.mip_count,
+                TextureFormat::Rgba8Unorm,
+                Coordinates::new(mem.field_size as f32, mem.field_size as f32),
+                1,
                 mem.resolved_bytes(),
             );
             let group = Group {
@@ -183,9 +178,10 @@ impl Render for Icon {
                 sections: InstanceBuffer::new(ginkgo, 1),
                 elevations: InstanceBuffer::new(ginkgo, 1),
                 colors: InstanceBuffer::new(ginkgo, 1),
-                mips: InstanceBuffer::new(ginkgo, 1),
+                px_ranges: InstanceBuffer::new(ginkgo, 1),
                 opacities: InstanceBuffer::new(ginkgo, 1),
-                mip_count: mem.mip_count,
+                field_size: mem.field_size as f32,
+                px_range: mem.px_range,
             };
             renderer.groups.insert(mem.id, RenderGroup::new(group));
         }
@@ -214,12 +210,14 @@ impl Render for Icon {
             let id = entity.index().index() as InstanceId;
             let group = renderer.groups.get_mut(gid).unwrap();
             let sf = ginkgo.configuration().scale_factor;
-            group
-                .group
-                .sections
-                .queue(id, section.to_physical(sf.value()).rounded().c_repr());
-            let level = mip_level_for_scale(group.group.mip_count, sf.value());
-            group.group.mips.queue(id, Mips(level));
+            let physical = section.to_physical(sf.value()).rounded();
+            group.group.sections.queue(id, physical.c_repr());
+            // screen_px_range = how many screen pixels the field's `px_range` spans at this
+            // instance's on-screen size. Using the smaller dimension keeps edges crisp when a
+            // (square) icon is placed in a non-square box.
+            let on_screen = physical.width().min(physical.height()).max(1.0);
+            let screen_px_range = (on_screen / group.group.field_size) * group.group.px_range;
+            group.group.px_ranges.queue(id, ScreenPxRange(screen_px_range));
         }
         for (entity, elevation) in queues.attribute::<Icon, ResolvedElevation>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -251,14 +249,14 @@ impl Render for Icon {
                 group.group.sections.grow(ginkgo, n);
                 group.group.elevations.grow(ginkgo, n);
                 group.group.colors.grow(ginkgo, n);
-                group.group.mips.grow(ginkgo, n);
+                group.group.px_ranges.grow(ginkgo, n);
                 group.group.opacities.grow(ginkgo, n);
             }
             for swap in group.coordinator.sort() {
                 group.group.sections.swap(swap);
                 group.group.elevations.swap(swap);
                 group.group.colors.swap(swap);
-                group.group.mips.swap(swap);
+                group.group.px_ranges.swap(swap);
                 group.group.opacities.swap(swap);
             }
             for (id, data) in group.group.sections.queued() {
@@ -273,9 +271,9 @@ impl Render for Icon {
                 let order = group.coordinator.order(id);
                 group.group.colors.write_cpu(order, data);
             }
-            for (id, data) in group.group.mips.queued() {
+            for (id, data) in group.group.px_ranges.queued() {
                 let order = group.coordinator.order(id);
-                group.group.mips.write_cpu(order, data);
+                group.group.px_ranges.write_cpu(order, data);
             }
             for (id, data) in group.group.opacities.queued() {
                 let order = group.coordinator.order(id);
@@ -284,7 +282,7 @@ impl Render for Icon {
             group.group.sections.write_gpu(ginkgo);
             group.group.elevations.write_gpu(ginkgo);
             group.group.colors.write_gpu(ginkgo);
-            group.group.mips.write_gpu(ginkgo);
+            group.group.px_ranges.write_gpu(ginkgo);
             group.group.opacities.write_gpu(ginkgo);
             for node in group.coordinator.updated_nodes(PipelineId::Icon, *gid) {
                 nodes.update(node);
@@ -302,7 +300,7 @@ impl Render for Icon {
         render_pass.set_vertex_buffer(1, group.group.sections.buffer.slice(..));
         render_pass.set_vertex_buffer(2, group.group.elevations.buffer.slice(..));
         render_pass.set_vertex_buffer(3, group.group.colors.buffer.slice(..));
-        render_pass.set_vertex_buffer(4, group.group.mips.buffer.slice(..));
+        render_pass.set_vertex_buffer(4, group.group.px_ranges.buffer.slice(..));
         render_pass.set_vertex_buffer(5, group.group.opacities.buffer.slice(..));
         render_pass.draw(0..VERTICES.len() as u32, parameters.range);
     }

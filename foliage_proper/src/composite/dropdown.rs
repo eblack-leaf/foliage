@@ -217,13 +217,16 @@ impl Sprout for DropdownSprout {
                   configs: Query<&DropdownConfig>,
                   selected: Query<&Selected>,
                   mut handles: Query<&mut DropdownHandle>,
-                  render_sizes: Res<crate::IconRenderSizes>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 let open = expanded.get(e).unwrap().0;
                 let opts = options.get(e).unwrap().clone();
                 let style = *styles.get(e).unwrap();
                 let config = *configs.get(e).unwrap();
+                // chevron sized from the dropdown's own configured row height (geometry the
+                // author handed it), not a per-icon footprint or a magic px -- half the row
+                // height reads well; the (square) MTSDF glyph fits its box via AspectRatio.
+                let chevron_side = (config.row_height as f32 * 0.5).round() as i32;
                 let current = selected
                     .get(e)
                     .unwrap()
@@ -236,7 +239,7 @@ impl Sprout for DropdownSprout {
                 // exists -- never a guessed constant, since the chevron's size is itself
                 // fully configurable per icon.
                 let text_right_inset = match config.chevron {
-                    Some(icon) => -(8 + render_sizes.get(icon).a() as i32 + 4),
+                    Some(_) => -(8 + chevron_side + 4),
                     None => -12,
                 };
                 tree.write_to(
@@ -255,23 +258,20 @@ impl Sprout for DropdownSprout {
                 // chevron exists only while configured -- no defunct hidden entity. Its box
                 // is exactly the icon's registered footprint (the clip region derives from
                 // the box), right edge inset 8px, centered vertically.
-                let chevron_location = |icon| {
-                    let size = render_sizes.get(icon);
+                let chevron_location = || {
                     Location::new().xs(
                         100.pct()
                             .as_right()
                             .adjust(-8)
-                            .with((size.a() as i32).px().as_width()),
-                        50.pct()
-                            .as_center_y()
-                            .with((size.b() as i32).px().as_height()),
+                            .with(chevron_side.px().as_width()),
+                        50.pct().as_center_y().with(chevron_side.px().as_height()),
                     )
                 };
                 match (config.chevron, handle.chevron) {
                     (Some(icon), Some(existing)) => {
                         tree.write_to(
                             existing,
-                            (IconValue(icon), style.foreground, chevron_location(icon)),
+                            (IconValue(icon), style.foreground, chevron_location()),
                         );
                     }
                     (Some(icon), None) => {
@@ -279,7 +279,7 @@ impl Sprout for DropdownSprout {
                             e,
                             Icon::new(icon)
                                 .color(style.foreground)
-                                .at(chevron_location(icon))
+                                .at(chevron_location())
                                 .elevate(Elevation::up(2))
                                 .with((
                                     InteractionPropagation::pass_through(),

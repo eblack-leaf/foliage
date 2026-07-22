@@ -56,6 +56,7 @@ fn restyle(
     style: ButtonStyle,
     engaged: bool,
     icon_size: Coordinates,
+    icon_inset: f32,
 ) {
     let content = if engaged {
         style.background
@@ -84,18 +85,26 @@ fn restyle(
             },
         );
     }
-    // Full: the whole button is the icon's alignment region (see `Icon::align_render_size`),
-    // centered. Anchored: the box is exactly the icon's registered footprint, its right
-    // edge 8px left of the text -- exact size because the clip region derives from the box.
+    // The icon is a resolution-independent MTSDF glyph, square-constrained (`AspectRatio(1.0)`
+    // on every icon), so its size is entirely the box we give it.
     let (icon_location, icon_anchor, icon_alignment) = match style.rounding {
-        Rounding::Full => (
-            Location::new().xs(
-                0.pct().as_left().with(100.pct().as_right()),
-                0.pct().as_top().with(100.pct().as_bottom()),
-            ),
-            Anchor::default(),
-            (HorizontalAlignment::Center, VerticalAlignment::Middle),
-        ),
+        // Icon-only (no text): fill `1 - icon_inset` of the button's *own* box, centered.
+        // Default inset 0.5 -> the glyph fills half the button, the Material icon-button ratio
+        // (24dp icon in a 48dp target); the rest is touch margin. Sized from the button's own
+        // geometry, so it scales with whatever box the author gave -- no text height (a
+        // meaningless default here) and no magic px.
+        Rounding::Full => {
+            let fill = ((1.0 - icon_inset) * 100.0).round() as i32;
+            let margin = ((100 - fill) / 2).clamp(0, 50);
+            (
+                Location::new().xs(
+                    margin.pct().as_left().with((100 - margin).pct().as_right()),
+                    margin.pct().as_top().with((100 - margin).pct().as_bottom()),
+                ),
+                Anchor::default(),
+                (HorizontalAlignment::Center, VerticalAlignment::Middle),
+            )
+        }
         _ => (
             Location::new().xs(
                 anchor()
@@ -136,6 +145,18 @@ fn restyle(
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct ButtonHasIcon(pub(crate) bool);
 
+/// Fraction of an icon-only (`Rounding::Full`) button's box left as touch margin -- the glyph
+/// fills `1 - inset`, centered. Default `0.5` is the Material icon-button ratio (24dp icon in a
+/// 48dp target). Only consulted for icon-only buttons; icon+text buttons size the icon to the
+/// text height instead.
+#[derive(Component, Copy, Clone)]
+pub(crate) struct ButtonIconInset(pub(crate) f32);
+impl Default for ButtonIconInset {
+    fn default() -> Self {
+        Self(0.5)
+    }
+}
+
 #[derive(Default)]
 pub struct ButtonSprout {
     leaf: LeafSprout,
@@ -144,6 +165,7 @@ pub struct ButtonSprout {
     colors: Option<(Color, Color)>,
     rounding: Option<Rounding>,
     outline: Option<i32>,
+    icon_inset: Option<f32>,
 }
 impl Sprout for ButtonSprout {
     fn seed(&mut self) -> &mut LeafSprout {
@@ -162,6 +184,7 @@ impl Sprout for ButtonSprout {
             TextValue(self.text.unwrap_or_default()),
             IconValue(self.icon.unwrap_or_default()),
             ButtonHasIcon(self.icon.is_some()),
+            self.icon_inset.map(ButtonIconInset).unwrap_or_default(),
             FontSize::default(),
             Engagement(false),
             InteractionListener::new(),
@@ -208,7 +231,8 @@ impl Sprout for ButtonSprout {
                   engagement: Query<&Engagement>,
                   icon_values: Query<&IconValue>,
                   has_icon: Query<&ButtonHasIcon>,
-                  render_sizes: bevy_ecs::system::Res<crate::IconRenderSizes>,
+                  font_sizes: Query<&FontSize>,
+                  insets: Query<&ButtonIconInset>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 if icon.is_none() && has_icon.get(e).unwrap().0 {
@@ -225,10 +249,16 @@ impl Sprout for ButtonSprout {
                     tree.write_to(icon, IconValue(value)); // was `tree.forward::<IconValue>` --
                     // folded in here since the icon entity isn't known until this reaction's
                     // first fire, too late for `forward`'s own fixed-target registration.
-                    render_sizes.get(value)
+                    // For an icon+text button the icon matches the text height -- coherent with
+                    // the label, sized from geometry the author handed the button (its
+                    // FontSize), not a per-icon footprint or a magic constant. (Icon-only
+                    // buttons ignore this and use `icon_inset` instead -- see `restyle`.)
+                    let side = font_sizes.get(e).map(|f| f.xs).unwrap_or(16) as f32;
+                    Coordinates::new(side, side)
                 } else {
                     Coordinates::default()
                 };
+                let icon_inset = insets.get(e).map(|i| i.0).unwrap_or(0.5);
                 restyle(
                     &mut tree,
                     e,
@@ -238,6 +268,7 @@ impl Sprout for ButtonSprout {
                     *styles.get(e).unwrap(),
                     engagement.get(e).unwrap().0,
                     icon_size,
+                    icon_inset,
                 );
             },
         );
@@ -256,20 +287,17 @@ impl Sprout for ButtonSprout {
             this,
             move |trigger: Trigger<Insert, TextValue>,
                   values: Query<&TextValue>,
-                  icon_values: Query<&IconValue>,
                   has_icon: Query<&ButtonHasIcon>,
-                  render_sizes: bevy_ecs::system::Res<crate::IconRenderSizes>,
+                  font_sizes: Query<&FontSize>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 let value = values.get(e).unwrap().0.clone();
                 let width = value.len();
-                // shift text right by half the icon's own real footprint + its 8px gap (see
-                // `icon_location` above), so icon+gap+text reads as one centered block --
-                // never a guessed offset, since the icon's size is itself configurable. No
-                // icon configured at all -> no footprint and no gap to make room for -> no
-                // shift, text lands perfectly centered instead of off by half a phantom gap.
+                // shift text right by half the icon's size (its text-matching height) + its 8px
+                // gap (see `icon_location`), so icon+gap+text reads as one centered block. No
+                // icon configured -> no gap to make room for -> no shift, text lands centered.
                 let center_adjust = if has_icon.get(e).unwrap().0 {
-                    let icon_width = render_sizes.get(icon_values.get(e).unwrap().0).a() as i32;
+                    let icon_width = font_sizes.get(e).map(|f| f.xs).unwrap_or(16) as i32;
                     (icon_width + 8) / 2
                 } else {
                     0
@@ -293,6 +321,14 @@ impl Sprout for ButtonSprout {
 impl ButtonSprout {
     pub fn icon(mut self, icon: IconId) -> Self {
         self.icon = Some(icon);
+        self
+    }
+    /// For an icon-only (`Rounding::Full`) button: the fraction of the button's box left as
+    /// touch margin, so the glyph fills `1 - inset`, centered. Default `0.5` (Material's
+    /// 24dp-icon-in-48dp-target ratio). Ignored when the button also has text (the icon then
+    /// matches the text height).
+    pub fn icon_inset(mut self, inset: f32) -> Self {
+        self.icon_inset = Some(inset.clamp(0.0, 1.0));
         self
     }
     pub fn text(mut self, text: impl Into<String>) -> Self {

@@ -103,7 +103,7 @@ pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationV
 pub use grid::{
     AspectRatio, Grid, Layout, Location, View, anchor, text_content, view::OverscrollPropagation,
 };
-pub use icon::{Icon, IconId, IconMemory, IconRenderSizes, IconSprout};
+pub use icon::{Icon, IconId, IconMemory, IconSprout};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
 pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
