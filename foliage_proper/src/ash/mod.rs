@@ -45,11 +45,12 @@ pub(crate) struct Ash {
     pub(crate) line: Option<Renderer<LineQuad>>,
     pub(crate) polygon: Option<Renderer<Polygon>>,
     pub(crate) clip: HashMap<Stem, ClipSection>,
-    /// entities with a `StackKey`, sorted ascending by it (`StackKey`'s own `Ord`: greater =
-    /// more in front, so this list runs least-in-front-first, most-in-front-last). Maintained
-    /// incrementally by `assign_elevations` -- a gapped/fractional-index scheme, so a changed
-    /// or newly-inserted entity only ever touches its own `ResolvedElevation` plus its two
-    /// immediate neighbors', never the whole list (except the rare renormalize fallback).
+    /// entities with a `StackKey`, sorted least-in-front-first by `(StackKey, entity id)`
+    /// (`StackKey`'s own `Ord`: greater = more in front; the entity-id tiebreak gives genuine
+    /// `StackKey` ties a stable, deterministic order). Maintained incrementally by
+    /// `assign_elevations` -- a gapped/fractional-index scheme, so a changed or newly-inserted
+    /// entity only ever touches its own `ResolvedElevation` plus its two immediate neighbors',
+    /// never the whole list (except the rare renormalize fallback).
     pub(crate) elevation_order: Vec<Entity>,
     /// last-seen `StackKey` per entity, to detect which entities actually need repositioning
     /// this frame without re-deriving everyone's position from scratch.
@@ -122,10 +123,16 @@ impl Ash {
             self.stack_key_cache.insert(*e, *k);
         }
         for (e, k) in dirty {
+            // Order by `StackKey`, then break genuine `StackKey` ties by entity id -- a stable,
+            // total order, so two entities the author gave the *same* elevation (no defined
+            // relative order) always resolve the same way run-to-run instead of flickering by
+            // whatever draw order the GPU happened to pick.
             let pos = self
                 .elevation_order
                 .binary_search_by(|probe| {
-                    (*world.get::<StackKey>(*probe).unwrap()).cmp(&k)
+                    (*world.get::<StackKey>(*probe).unwrap())
+                        .cmp(&k)
+                        .then_with(|| probe.cmp(&e))
                 })
                 .unwrap_or_else(|i| i);
             self.elevation_order.insert(pos, e);
@@ -144,12 +151,19 @@ impl Ash {
             };
             let too_close = left_v.map(|l| (l - new_value).abs() < EPSILON).unwrap_or(false)
                 || right_v.map(|r| (r - new_value).abs() < EPSILON).unwrap_or(false);
-            if too_close {
+            // Boundary case: a front/back insertion that runs off the end of `[near, far]` has
+            // no room to sit *distinctly* -- clamping it would land it on `near` (or `far`)
+            // exactly alongside anything else already pinned there, an equal depth the GPU
+            // resolves by draw order (nondeterministic). This is the crowded-front-tier case
+            // (overlay panel + its text both pushing toward `near`) that made the popover text
+            // "sometimes" vanish behind its panel. Re-space everyone instead, which restores
+            // room and keeps every value strictly distinct.
+            let hits_boundary =
+                new_value <= nf.near.value() || new_value >= nf.far.value();
+            if too_close || hits_boundary {
                 self.renormalize(world, &nf);
             } else {
-                world.entity_mut(e).insert(ResolvedElevation::new(
-                    new_value.clamp(nf.near.value(), nf.far.value()),
-                ));
+                world.entity_mut(e).insert(ResolvedElevation::new(new_value));
             }
         }
     }
@@ -437,5 +451,61 @@ mod elevation_assignment_tests {
             "middle (up(3)) should land strictly between low (up(1)) and high (up(5)) -- \
              low={low_before}, middle={middle_v}, high={high_before}"
         );
+    }
+
+    /// The "sometimes invisible" regression: a crowded front tier (many entities all pushing
+    /// toward `near`, like an overlay panel + its text plus other forward chrome) must never
+    /// leave two entities on the *same* depth. Equal depth is resolved by draw order, which is
+    /// nondeterministic -- which is exactly why the popover text sometimes rendered behind its
+    /// own panel. Assert every assigned `ResolvedElevation` is distinct.
+    #[test]
+    fn a_crowded_front_tier_never_assigns_two_entities_the_same_depth() {
+        use crate::ClipToViewport;
+
+        let mut foliage = Foliage::new();
+        let root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0))
+                .with(crate::Grid::default()),
+        );
+        // a stack of forward chrome (abs pushes toward the front), plus an overlay subtree
+        // (front tier) with its own nested content -- all clustered at the front where the
+        // boundary-clamp collision used to happen.
+        for e in [95, 90, 85, 80] {
+            foliage
+                .world
+                .branch(root, Leaf::sprout().at(Location::new()).elevate(Elevation::abs(e)));
+        }
+        let overlay = foliage.world.branch(
+            root,
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::up(2))
+                .with((ClipToViewport, crate::Grid::default())),
+        );
+        for _ in 0..6 {
+            foliage
+                .world
+                .branch(overlay, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+        }
+        foliage.world.flush();
+
+        let mut ash = Ash::new();
+        ash.assign_elevations(&mut foliage.world);
+
+        let mut values: Vec<f32> = {
+            let mut q = foliage.world.query::<&ResolvedElevation>();
+            q.iter(&foliage.world).map(|r| r.value()).collect()
+        };
+        values.sort_by(|a, b| a.total_cmp(b));
+        for pair in values.windows(2) {
+            assert_ne!(
+                pair[0], pair[1],
+                "two entities were assigned the identical depth {} -- a nondeterministic \
+                 draw-order tie, all assigned values: {values:?}",
+                pair[0]
+            );
+        }
     }
 }
