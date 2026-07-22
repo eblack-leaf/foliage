@@ -3,11 +3,12 @@
 //! `application/src/portfolio/composites.rs`. Run with
 //! `cargo run --example controls -p foliage`.
 //!
-//! `Checkbox` here has no `.check_icon(..)` -- it's genuinely optional (unlike it used to
-//! be): the box's own fill-vs-outline switch already carries checked/unchecked on its own,
-//! so this renders as a plain filled/outlined box with no glyph. A real check mark would
-//! still need a registered `Icon::msdf` backed by an actual `foliage_icons`-processed `.icon`
-//! MTSDF field -- out of scope for this general-composites example.
+//! `Checkbox` and `Toggle` here have no `.check_icon(..)` -- it's genuinely optional on
+//! both: the box's fill-vs-outline switch and the track's own outline-vs-fill switch already
+//! carry checked/on-off on their own, so these render as a plain filled/outlined box and a
+//! plain track+knob with no glyph. A real check mark would still need a registered
+//! `Icon::msdf` backed by an actual `foliage_icons`-processed `.icon` MTSDF field -- out of
+//! scope for this general-composites example.
 
 use foliage::{
     Button, Checkbox, Color, EcsExtension, Elevation, Foliage, GridExt, Location, RadioGroup,
@@ -42,7 +43,12 @@ fn main() {
     foliage.world.leaf(
         Toggle::new()
             .on(true)
-            .colors(Color::green(500), Color::gray(700), Color::gray(200))
+            .colors(
+                Color::green(500),
+                Color::gray(700),
+                Color::default(),
+                Color::gray(200),
+            )
             .at(Location::new().xs(
                 8.px().as_left().with(40.px().as_width()),
                 t.px().as_top().with(b.px().as_bottom()),

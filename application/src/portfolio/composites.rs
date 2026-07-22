@@ -133,7 +133,13 @@ pub(crate) fn build(tree: &mut Tree, app: Entity, _artwork: [AssetKey; 3]) {
         app,
         Toggle::new()
             .on(true)
-            .colors(Color::green(500), Color::gray(700), Color::gray(200))
+            .check_icon(IconHandles::Check)
+            .colors(
+                Color::green(500),
+                Color::gray(700),
+                Color::default(),
+                Color::gray(200),
+            )
             .at(Location::new().xs(
                 8.px().as_left().with(40.px().as_width()),
                 top.px().as_top().with(bottom.px().as_bottom()),
