@@ -13,6 +13,7 @@ pub(crate) mod pagination;
 pub(crate) mod polyline;
 pub(crate) mod popover;
 pub(crate) mod radio_group;
+pub(crate) mod router;
 pub(crate) mod segmented_control;
 pub(crate) mod slider;
 pub(crate) mod tabs;

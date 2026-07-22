@@ -83,6 +83,7 @@ pub use composite::{
     radio_group::{
         RadioChanged, RadioGroup, RadioGroupSprout, RadioOptions, RadioSelected, RadioStyle,
     },
+    router::{RouteFn, Router, RouterRoutes, RouterSprout},
     segmented_control::{
         SegmentChanged, SegmentedControl, SegmentedControlSprout, SegmentedOptions,
         SegmentedSelected, SegmentedStyle,
