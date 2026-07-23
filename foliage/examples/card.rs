@@ -37,7 +37,7 @@ fn main() {
                     centered_text("Card Title", Color::gray(200), 16).at(Location::new().xs(
                         0.pct().as_left().with(100.pct().as_right()),
                         0.pct().as_top().with(100.pct().as_bottom()),
-                    )),
+                    )).elevate(Elevation::up(1)),
                 )
             })
             .desc(|tree: &mut Tree, slot: Entity| {
@@ -48,7 +48,7 @@ fn main() {
                             0.pct().as_left().with(100.pct().as_right()),
                             0.pct().as_top().with(100.pct().as_bottom()),
                         ),
-                    ),
+                    ).elevate(Elevation::up(1)),
                 )
             })
             .colors(Color::gray(800))
