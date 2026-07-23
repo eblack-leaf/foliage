@@ -95,10 +95,9 @@ let music_player = bundled_asset!(foliage, "assets/music-player.png", asset_url)
 `$path` is written once; on native it's embedded via `include_bytes!($path)`, and on wasm
 it's fed through the caller's own hosting-convention function (`asset_url` here -- an
 ordinary `fn(&str) -> String`, app-defined, since [`foliage_proper` makes no assumption
-about where an app's assets are hosted](./web-ext.md)) as `asset_url($path)`. Passing the
-*function*, not the pre-applied result, is what removes the duplication: the same literal
-path can no longer drift between the two platform branches by a typo or a rename that
-only touches one of them.
+about where an app's assets are hosted](./web-ext.md)) as `asset_url($path)`. The literal
+path exists in exactly one place in the caller's code, feeding both platform branches
+from that one value.
 
 For the rarer case where the native embed path and the wasm URL genuinely don't
 correspond to the same relative path (a CDN, content-hashed filenames, any hosting layout

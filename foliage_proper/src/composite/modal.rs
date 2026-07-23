@@ -1,9 +1,9 @@
 use crate::Trigger;
 use crate::composite::SlotFn;
 use crate::{
-    Anchor, Animation, Button, ButtonStyle, Color, Component, Ease, EcsExtension, Elevation,
-    Entity, Grid, GridExt, IconId, IconValue, Leaf, LeafSprout, Location, OnClick, OnEnd, Opacity,
-    Outline, Panel, Rounding, Sequence, Sprout, Tree, anchor,
+    Anchor, Button, ButtonStyle, Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt,
+    IconId, IconValue, Leaf, LeafSprout, Location, OnClick, Opacity, Outline, Panel, Rounding,
+    Sprout, Tree,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -12,16 +12,15 @@ use bevy_ecs::system::Query;
 use std::sync::Arc;
 
 /// A modal is one entity -- itself the full-screen backdrop panel -- holding author content
-/// via the slot convention (see [`crate::composite::SlotFn`]), animating open from an
-/// optional anchor entity (or fading/scaling from center without one), and closing back the
-/// same way. Components in ([`ModalStyle`]; the content/anchor/icon config is spawn-time),
-/// [`Closed`] out, [`CloseModal`] in -- the close button (present only when
+/// via the slot convention (see [`crate::composite::SlotFn`]). Opens and closes instantly,
+/// no animation of its own. Components in ([`ModalStyle`]; the content/anchor/icon config is
+/// spawn-time), [`Closed`] out, [`CloseModal`] in -- the close button (present only when
 /// `.close_icon(..)` supplies one; the library ships no icons) and programmatic closes share
-/// one animation path.
+/// one close path.
 ///
-/// The modal owns its root `Location` (it IS the overlay rect, animated between anchor and
-/// full-screen) -- `.at()` on the sprout is meaningless here. `.elevate()` is the author's:
-/// overlays need to know what they're over.
+/// The modal owns its root `Location` (it IS the full-screen overlay rect) -- `.at()` on the
+/// sprout is meaningless here. `.elevate()` is the author's: overlays need to know what
+/// they're over.
 #[derive(Component, Copy, Clone)]
 pub struct Modal {}
 impl Modal {
@@ -47,16 +46,14 @@ pub struct ModalStyle {
     pub accent: Color,
 }
 
-/// Emitted at the modal root the moment closing BEGINS (not when it finishes) -- the
-/// caller's own restore animations are meant to run in parallel with the close animation,
-/// not queue behind it.
+/// Emitted at the modal root the instant it starts closing, immediately before the entity
+/// (and everything Stem-parented under it) is removed.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct Closed {}
 
 /// Public close command: `tree.trigger_targets(CloseModal::new(), modal)` runs the exact
-/// close path the close button does -- same animation, same [`Closed`] timing, same
-/// self-removal.
+/// close path the close button does -- same [`Closed`] event, same immediate removal.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct CloseModal {}
@@ -77,40 +74,11 @@ pub(crate) struct ModalHandle {
     terminate: Option<Entity>,
 }
 
-/// The padded near-full-screen rect both open and close animations pass through.
-fn padded_location() -> Location {
-    Location::new().xs(
-        0.pct()
-            .as_left()
-            .adjust(24)
-            .with(100.pct().as_right().adjust(-24))
-            .max(450.0),
-        0.pct()
-            .as_top()
-            .adjust(36)
-            .with(100.pct().as_bottom().adjust(-36)),
-    )
-}
 fn full_location() -> Location {
     Location::new().xs(
         0.pct().as_left().with(100.pct().as_right()),
         0.pct().as_top().with(100.pct().as_bottom()),
     )
-}
-/// Where the modal rect starts (open) and returns to (close): the anchor's own rect when
-/// one was given, a centered reduced box otherwise.
-fn origin_location(anchored: bool) -> Location {
-    if anchored {
-        Location::new().xs(
-            anchor().left().as_left().with(anchor().right().as_right()),
-            anchor().top().as_top().with(anchor().bottom().as_bottom()),
-        )
-    } else {
-        Location::new().xs(
-            50.pct().as_center_x().with(60.pct().as_width()),
-            50.pct().as_center_y().with(60.pct().as_height()),
-        )
-    }
 }
 
 pub struct ModalSprout {
@@ -196,10 +164,7 @@ impl Sprout for ModalSprout {
                 if let Some(a) = cfg.anchor_to {
                     tree.write_to(e, Anchor::new(a));
                 }
-                tree.write_to(
-                    e,
-                    (origin_location(cfg.anchor_to.is_some()), style.backdrop),
-                );
+                tree.write_to(e, (full_location(), style.backdrop, Opacity::new(1.0)));
                 let slot = tree.branch(
                     e,
                     Leaf::sprout()
@@ -234,26 +199,6 @@ impl Sprout for ModalSprout {
                         terminate,
                     },
                 );
-                Sequence::new(&mut tree)
-                    .animate(
-                        Animation::new(Opacity::new(1.0))
-                            .targeting(e)
-                            .start(0)
-                            .finish(200),
-                    )
-                    .animate(
-                        Animation::new(padded_location())
-                            .targeting(e)
-                            .start(0)
-                            .finish(750)
-                            .eased(Ease::INWARD),
-                    )
-                    .animate(
-                        Animation::new(full_location())
-                            .targeting(e)
-                            .start(1000)
-                            .finish(1500),
-                    );
             },
         );
         // later style pokes; the config reaction handles first application (its handle may
@@ -287,56 +232,16 @@ impl Sprout for ModalSprout {
             },
         );
         // the one close path: close button and programmatic CloseModal both land here.
+        // Closes instantly -- no animation. Closed fires before the removal, so an
+        // observer can still read the modal's state one last time if it needs to.
         tree.subscribe(
             this,
-            move |trigger: Trigger<CloseModal>,
-                  handles: Query<&ModalHandle>,
-                  configs: Query<&ModalConfig>,
-                  mut tree: Tree| {
+            move |trigger: Trigger<CloseModal>, mut tree: Tree| {
                 let e = trigger.event_target();
-                let handle = *handles.get(e).unwrap();
-                let anchored = configs.get(e).unwrap().anchor_to.is_some();
-                // content goes immediately -- the shrinking backdrop shouldn't show a
-                // squeezed layout reflowing inside it.
-                tree.remove(handle.content);
-                if let Some(t) = handle.terminate {
-                    tree.disable(t);
-                }
-                // fired now, not in .end() -- the caller's own restore animations run in
-                // parallel with this close animation, matching the open choreography.
                 tree.trigger_targets(Closed::new(), e);
-                let mut seq = Sequence::new(&mut tree).animate(
-                    Animation::new(padded_location())
-                        .targeting(e)
-                        .start(0)
-                        .finish(500)
-                        .eased(Ease::INWARD),
-                );
-                if let Some(t) = handle.terminate {
-                    seq = seq.animate(
-                        Animation::new(Opacity::new(0.0))
-                            .targeting(t)
-                            .start(0)
-                            .finish(500),
-                    );
-                }
-                seq.animate(
-                    Animation::new(origin_location(anchored))
-                        .targeting(e)
-                        .start(750)
-                        .finish(1250),
-                )
-                .animate(
-                    Animation::new(Opacity::new(0.0))
-                        .targeting(e)
-                        .start(1050)
-                        .finish(1250),
-                )
-                .end(move |_: Trigger<OnEnd>, mut tree: Tree| {
-                    // children (slot remnants, terminate) are Stem-parented -- one remove
-                    // cascades the lot.
-                    tree.remove(e);
-                });
+                // children (slot content, terminate button) are Stem-parented -- one
+                // remove cascades the lot.
+                tree.remove(e);
             },
         );
     }

@@ -51,10 +51,8 @@ onward -- the composite's root is the API, regardless of what's actually renderi
 A reactive system running on a composite's *descendant* (a slot's content, an option
 row) often can't resolve widget-level state locally and needs to route back up to the
 composite's root entity. Every composite already carries its own marker component on
-that root (`Modal`, `Dropdown`, `TextInput`, ...) -- so rather than a separate pointer
-component pointing back to it (one more thing to keep in sync, and nothing stops it
-drifting out of date if the structure around it changes), [`Stem`](./leaf.md) itself
-provides the walk:
+that root (`Modal`, `Dropdown`, `TextInput`, ...), so [`Stem`](./leaf.md) itself can
+provide the walk directly, derived from the real structure:
 
 ```rust
 // foliage_proper/src/leaf.rs

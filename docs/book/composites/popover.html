@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-32a1d561.js";
+            window.path_to_searchindex_js = "../searchindex-1f6144a4.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-a847c643.js"></script>
@@ -175,6 +175,69 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="popover"><a class="header" href="#popover">Popover</a></h1>
+<p><code>Popover</code> generalizes <code>Dropdown</code>’s click/expand/click-away shape from a fixed string list
+to <em>arbitrary author content</em>, via the <a href="../composites-overview.html">slot convention</a> for
+both halves: what’s always visible (the trigger) and what shows while expanded (the
+content).</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/popover.rs
+pub struct Popover {}
+pub enum PopoverPlacement { Below, Above, Left, Right }
+pub struct PopoverExpanded(pub bool); // Toggle's persistent-state pattern
+<span class="boring">}</span></code></pre>
+<h2 id="placement-the-real-relationship-not-a-guess"><a class="header" href="#placement-the-real-relationship-not-a-guess">Placement: the real relationship, not a guess</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/popover.rs
+PopoverPlacement::Below =&gt; Location::new().xs(
+    anchor().left().as_left().with(anchor().right().as_right()), // matches the trigger's real width
+    anchor().bottom().as_top().adjust(GAP).with(extent.as_height()), // author's own extent
+),
+<span class="boring">}</span></code></pre>
+<p>The doc comment is precise about what <code>Popover</code> actually adds over hand-rolled
+<code>anchor()</code> math: the axis <em>across</em> the trigger (width for Below/Above, height for
+Left/Right) always matches the trigger’s real, resolved size – the same relationship
+<a href="./dropdown.html">Dropdown</a>’s option list already uses for its own trigger-width match,
+not an independent guess. Only the axis <em>away</em> from the trigger is the author’s call, via
+<code>.extent(..)</code>, because nothing in the framework knows arbitrary content’s own size but
+the author who built it – there’s no general “size to fit children” mechanism (only
+<code>Text</code>/<code>TextInput</code> have a real auto-size path, via font-shaping measurement).</p>
+<h2 id="content-is-rebuilt-fresh-every-time-it-opens"><a class="header" href="#content-is-rebuilt-fresh-every-time-it-opens">Content is rebuilt fresh every time it opens</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/popover.rs (abridged)
+if let Some(existing) = handle.content.take() { tree.remove(existing); }
+if open {
+    let surface = tree.branch(e, Panel::new()..elevate(Elevation::up(2))
+        .with((Anchor::new(e), ClipToViewport, Grid::default())));
+    (cfg.content)(&amp;mut tree, surface);
+    handle.content = Some(surface);
+}
+<span class="boring">}</span></code></pre>
+<p>Unlike <code>Dropdown</code>’s <code>List</code> (patched on selection, only rebuilt on structural change),
+<code>Popover</code>’s content has no cheaper “just recolor it” patch path in general – arbitrary
+author content can’t be assumed to support in-place updates the way a fixed row shape
+can. So it’s matched to <a href="./modal.html">Modal</a>’s content lifecycle instead: torn down and
+rebuilt fresh every time it opens, not patched.</p>
+<h2 id="real-siblings-not-an-absolute-constant"><a class="header" href="#real-siblings-not-an-absolute-constant">Real siblings, not an absolute constant</a></h2>
+<p>The content surface is <code>up(2)</code> relative to the <em>trigger slot</em> (<code>up(1)</code>) – an ordinary
+structural comparison against a real sibling, not an absolute <code>Elevation</code> value chosen to
+“float above everything.” See <a href="../coordinate.html">Coordinates</a>’s <code>StackKey</code> chapter for
+the mechanism (<code>FRONT_TIER</code>) that makes a structural, relative elevation comparison like
+this one reliable regardless of how deep either side is nested – two entities in
+different branches only ever compare at the first ancestor level where their branches
+actually diverge.</p>
+<h2 id="click-away-the-same-stemascend_to-shape-dropdown-uses"><a class="header" href="#click-away-the-same-stemascend_to-shape-dropdown-uses">Click-away, the same <code>Stem::ascend_to</code> shape <code>Dropdown</code> uses</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if f == e || Some(f) == handle.content || Stem::ascend_to::&lt;Popover&gt;(f, &amp;stems, &amp;popovers) == e {
+    return;
+}
+<span class="boring">}</span></code></pre>
+<p>Identical mechanism to <a href="./dropdown.html">Dropdown</a>’s own click-away check – the content
+surface is a genuine <code>Stem</code>-descendant of the popover root, so the walk finds its way
+back to <code>this</code> from the real structure directly.</p>
 
                     </main>
 

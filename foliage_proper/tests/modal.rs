@@ -1,9 +1,6 @@
-//! `Modal` (`composite/modal.rs`) has no tests at all. Its open/close choreography is
-//! animated (`Sequence`/`Animation`, driven by real `Time`) so the animations themselves
-//! can't be asserted on headlessly -- what's testable synchronously is the immediate,
-//! non-animated part of `CloseModal`'s handler: content removal and the `Closed` event,
-//! both fired at the *start* of closing, not deferred to the animation's end (by design,
-//! per the module doc comment, so a caller's own restore animation can run in parallel).
+//! `Modal` (`composite/modal.rs`) opens and closes instantly -- no animation of its own.
+//! `CloseModal` fires `Closed` and removes the whole modal subtree in the same command
+//! batch.
 
 use bevy_ecs::observer::On;
 use bevy_ecs::system::ResMut;
@@ -71,18 +68,15 @@ fn close_modal_fires_closed_immediately_and_removes_content_right_away() {
     foliage.world.trigger_targets(CloseModal::new(), modal);
     foliage.world.flush();
 
-    assert!(foliage.world.resource::<Fired>().0, "Closed should fire the moment closing begins, not at the animation's end");
+    assert!(foliage.world.resource::<Fired>().0, "Closed should fire when CloseModal is triggered");
     assert!(
         children_of(&mut foliage, slot).is_empty(),
-        "content is removed immediately -- it shouldn't be visible reflowing while the backdrop shrinks"
+        "content is removed as part of closing"
     );
 }
 
 #[test]
-fn the_modal_root_itself_survives_until_the_close_animation_finishes() {
-    // `tree.remove(e)` only happens in the close Sequence's `.end(..)` callback, which
-    // needs real elapsed Time to ever run -- so immediately after triggering CloseModal
-    // (headless, no schedule ticks), the root entity itself must still exist.
+fn closing_removes_the_modal_root_itself_immediately() {
     let mut foliage = Foliage::new();
     let modal = spawn(&mut foliage);
     foliage.world.flush();
@@ -90,5 +84,8 @@ fn the_modal_root_itself_survives_until_the_close_animation_finishes() {
     foliage.world.trigger_targets(CloseModal::new(), modal);
     foliage.world.flush();
 
-    assert!(foliage.world.get_entity(modal).is_ok());
+    assert!(
+        foliage.world.get_entity(modal).is_err(),
+        "closing is instant -- the root entity should be gone in the same command batch, not deferred"
+    );
 }

@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-32a1d561.js";
+            window.path_to_searchindex_js = "searchindex-1f6144a4.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -1906,10 +1906,9 @@ let music_player = bundled_asset!(foliage, "assets/music-player.png", asset_url)
 <p><code>$path</code> is written once; on native it’s embedded via <code>include_bytes!($path)</code>, and on wasm
 it’s fed through the caller’s own hosting-convention function (<code>asset_url</code> here – an
 ordinary <code>fn(&amp;str) -&gt; String</code>, app-defined, since <a href="#web-extensions"><code>foliage_proper</code> makes no assumption
-about where an app’s assets are hosted</a>) as <code>asset_url($path)</code>. Passing the
-<em>function</em>, not the pre-applied result, is what removes the duplication: the same literal
-path can no longer drift between the two platform branches by a typo or a rename that
-only touches one of them.</p>
+about where an app’s assets are hosted</a>) as <code>asset_url($path)</code>. The literal
+path exists in exactly one place in the caller’s code, feeding both platform branches
+from that one value.</p>
 <p>For the rarer case where the native embed path and the wasm URL genuinely don’t
 correspond to the same relative path (a CDN, content-hashed filenames, any hosting layout
 that doesn’t mirror the source tree), a second form takes the URL directly instead of
@@ -2163,10 +2162,8 @@ onward – the composite’s root is the API, regardless of what’s actually re
 <p>A reactive system running on a composite’s <em>descendant</em> (a slot’s content, an option
 row) often can’t resolve widget-level state locally and needs to route back up to the
 composite’s root entity. Every composite already carries its own marker component on
-that root (<code>Modal</code>, <code>Dropdown</code>, <code>TextInput</code>, …) – so rather than a separate pointer
-component pointing back to it (one more thing to keep in sync, and nothing stops it
-drifting out of date if the structure around it changes), <a href="#every-widget-is-an-entity-leaf"><code>Stem</code></a> itself
-provides the walk:</p>
+that root (<code>Modal</code>, <code>Dropdown</code>, <code>TextInput</code>, …), so <a href="#every-widget-is-an-entity-leaf"><code>Stem</code></a> itself can
+provide the walk directly, derived from the real structure:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/leaf.rs
@@ -2313,22 +2310,455 @@ because it is one. The only thing that changes composite to composite is what <c
 spawns and what <code>react</code>/<code>react_any</code> do with it.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="carousel"><a class="header" href="#carousel">Carousel</a></h1>
+<p><code>Carousel</code> shares <a href="#the-slot-convention"><code>PageIndex</code></a>/<code>PageCount</code> with
+<a href="#tabs">Tabs</a> and <a href="#pagination">Pagination</a> – swipe, an optional embedded
+<code>Pagination</code> strip, and a programmatic write all move the same value:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/carousel.rs
+pub struct Carousel {}
+pub struct CarouselPages { pub count: usize, pub(crate) builder: IndexedSlotFn }
+<span class="boring">}</span></code></pre>
+<p>Pages are author content via the <a href="#the-slot-convention">slot convention</a>: every
+page gets a viewport-sized slot laid out side-by-side, and the whole strip slides on a
+page change.</p>
+<h2 id="every-page-exists-at-once-sliding-just-repositions"><a class="header" href="#every-page-exists-at-once-sliding-just-repositions">Every page exists at once; sliding just repositions</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/carousel.rs
+fn slot_location(slot_index: usize, current: usize) -&gt; Location {
+    let offset = (slot_index as i64 - current as i64) * 100;
+    Location::new().xs((offset as i32).pct().as_left().with(((offset + 100) as i32).pct().as_right()), ...)
+}
+<span class="boring">}</span></code></pre>
+<p><code>slot_location</code> is a pure function of a slot’s index <em>relative to the current page</em> –
+every page slot is spawned once (in the structure reaction, on <code>CarouselPages</code>/count
+change) and simply repositioned by percentage offset when <code>PageIndex</code> changes, not torn
+down and rebuilt. This is the opposite lifecycle from <a href="#list">List</a> (which destroys
+and rebuilds rows on every <code>ListItems</code> write) and <a href="#router">Router</a>
+(destroys and rebuilds the whole scene on navigate) – <code>Carousel</code> is closer to
+<a href="#tabs">Tabs</a>’s “build once, then just toggle/reposition” shape, just repositioning
+instead of toggling <code>Visibility</code>.</p>
+<h2 id="the-viewport-blocks-its-own-drag-panning-on-purpose"><a class="header" href="#the-viewport-blocks-its-own-drag-panning-on-purpose">The viewport blocks its own drag-panning on purpose</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/carousel.rs
+let viewport = tree.branch(this, Leaf::sprout().at(..).elevate(Elevation::up(1))
+    .with((Grid::default(), InteractionPropagation::grab().disable_drag())));
+<span class="boring">}</span></code></pre>
+<p><code>disable_drag()</code> (see <a href="#interaction-and-focus">Interaction</a>) stops the viewport’s own implicit
+<code>View</code> from accepting a raw drag-pan directly – paging is driven entirely by a
+<code>Disengaged</code> subscribe that measures the drag distance and decides whether to advance,
+not by the generic view-panning every <code>Grid</code>-bearing entity gets by default. Without
+this, a stray per-tick drag delta landing on the viewport’s own offset would fight the
+animated <code>slot_location</code> transition and desync the strip from where paging thinks it put
+it.</p>
+<h2 id="the-embedded-pagination-is-optional-and-genuinely-just-pagination"><a class="header" href="#the-embedded-pagination-is-optional-and-genuinely-just-pagination">The embedded <code>Pagination</code> is optional, and genuinely just <code>Pagination</code></a></h2>
+<p><code>.pagination(mode)</code> embeds a real <a href="#pagination"><code>Pagination</code></a> pinned bottom-center –
+not a carousel-specific reimplementation of dots. <code>Carousel</code> keeps it in sync purely by
+writing <code>PageIndex</code> back to it whenever its own page changes, relying on the fact that
+<code>Pagination</code>’s own <code>PageIndex</code> reaction only ever <em>patches</em> stable indicator entities
+(see <a href="#pagination">Pagination</a>), never rebuilds – which is exactly what makes that
+write-back safe to do on every single page change without risking a rebuild loop.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="checkbox"><a class="header" href="#checkbox">Checkbox</a></h1>
+<p><code>Checkbox</code> follows a different shape than <a href="#building-button-from-scratch">Button</a>: there’s no
+<a href="#building-button-from-scratch"><code>Engagement</code></a> (momentary, press-driven) here at all – checked
+state is <em>persistent</em>, so a click just flips one component and lets the same reaction
+that draws initial state redraw the new one:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/checkbox.rs
+pub struct Checkbox {}
+pub struct CheckboxState(pub bool); // the public value channel
+pub struct CheckboxStyle { pub outline: Color, pub fill: Color, pub check: Color, pub rounding: Rounding }
+<span class="boring">}</span></code></pre>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>tree.on_click(this, |trigger, states: Query&lt;&amp;CheckboxState&gt;, mut tree: Tree| {
+    let e = trigger.event_target();
+    tree.write_to(e, CheckboxState(!states.get(e).unwrap().0));
+});
+<span class="boring">}</span></code></pre>
+<p>One write. Nothing about drawing happens in the click handler at all – that’s the
+<code>react_any::&lt;(CheckboxState, CheckboxStyle), _&gt;</code> reaction’s job, which runs identically
+whether the state changed via this click, a programmatic <code>tree.write_to(cb, CheckboxState(true))</code>,
+or the reaction’s own build-time re-fire.</p>
+<h2 id="state-is-the-visual-via-panels-own-exclusivity"><a class="header" href="#state-is-the-visual-via-panels-own-exclusivity">State <em>is</em> the visual, via <code>Panel</code>’s own exclusivity</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/checkbox.rs (the restyle reaction, abridged)
+if on {
+    tree.write_to(panel, (style.fill, Outline::default(), style.rounding));
+} else {
+    tree.write_to(panel, (style.outline, Outline::new(2), style.rounding));
+}
+<span class="boring">}</span></code></pre>
+<p><code>Outline::default()</code> is <code>-1</code> (solid fill, no stroke); a positive value is stroke-only.
+Checked and unchecked aren’t two different components or a conditional render path –
+they’re just two different values fed into <a href="#panel"><code>Panel</code></a>’s existing
+fill-vs-outline switch. The doc comment on <code>Checkbox</code> is explicit that the optional
+<code>.check_icon(..)</code> glyph is deliberately <em>not</em> load-bearing: the box’s own fill/outline
+state already carries checked-vs-unchecked on its own, so a caller who skips
+<code>.check_icon(..)</code> gets a plain, still-legible filled/outlined box with no icon child
+spawned at all – not a defunct hidden one.</p>
+<h2 id="structural-config-vs-style-spawned-lazily"><a class="header" href="#structural-config-vs-style-spawned-lazily">Structural config vs. style, spawned lazily</a></h2>
+<p><code>CheckboxConfig { check_icon: Option&lt;IconId&gt; }</code> is separate from <code>CheckboxStyle</code>
+specifically so a pure color/rounding restyle never re-evaluates whether an icon needs
+spawning. Its own <code>react::&lt;CheckboxConfig, _&gt;</code> runs once (registered <em>before</em> the style
+reaction, so its <code>CheckboxHandle</code> write lands first) and spawns the icon child only if
+one was configured – the same “config reaction registered before the style reaction”
+ordering <a href="#toggle">Toggle</a> uses for its own knob-glyph.</p>
+<p><code>Checked</code> fires from its own <code>react::&lt;CheckboxState, _&gt;</code>, kept deliberately separate from
+the restyle reaction – so a <code>CheckboxStyle</code>-only write (recoloring, say) never
+misannounces a state change that didn’t happen.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="dropdown"><a class="header" href="#dropdown">Dropdown</a></h1>
+<p><code>Dropdown</code>’s options are deliberately just strings – the doc comment calls this “the 90%
+case, kept to one honest builder call.” Authors needing rich option rows compose their
+own trigger + a real <a href="#list"><code>List</code></a> directly; both halves of <code>Dropdown</code> are public
+exactly so that’s a supported path, not a fork of library internals.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/dropdown.rs
+pub struct Dropdown {}
+pub struct DropdownOptions(pub Vec&lt;String&gt;);
+pub struct Selected(pub usize);   // the public value channel
+pub struct Expanded(pub bool);    // open/closed, Button's Engagement pattern
+<span class="boring">}</span></code></pre>
+<h2 id="the-option-surface-is-a-real-list-floated-above-everything"><a class="header" href="#the-option-surface-is-a-real-list-floated-above-everything">The option surface is a real <code>List</code>, floated above everything</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/dropdown.rs (abridged)
+let surface = tree.branch(e, List::new()
+    .items(ListItems::new(row_options.len(), move |tree, slot, i| { .. }))
+    .row_height(config.row_height).gap(config.row_gap)
+    .at(..)
+    .elevate(Elevation::up(3))
+    .with((Anchor::new(e), ClipToViewport, style.background, Panel::default())));
+<span class="boring">}</span></code></pre>
+<p>Not a bespoke list reimplementation – a genuine <a href="#list"><code>List</code></a>, given its own rows
+via the same <code>ListItems</code> closure convention every <code>List</code> uses, sized to the trigger’s
+own real width via <a href="#layout-grid-location-anchor"><code>Anchor::new(e)</code></a> (the same real anchor-to-trigger
+relationship <a href="#popover">Popover</a> uses for its own content surface). <code>ClipToViewport</code>
+is what lets the option list render past the trigger’s own small rect without escaping
+the tree structurally – see <a href="#coordinates-position-area-section-elevation">Coordinates</a>’s <code>StackKey</code> <code>FRONT_TIER</code>
+for why that’s a real dedicated stacking tier, not just a large <code>Elevation</code> number.</p>
+<h2 id="click-away-real-stem-descendants-walked-back-to-the-root"><a class="header" href="#click-away-real-stem-descendants-walked-back-to-the-root">Click-away: real <code>Stem</code>-descendants, walked back to the root</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/dropdown.rs (abridged)
+if f == e || Some(f) == handle.options || Stem::ascend_to::&lt;Dropdown&gt;(f, &amp;stems, &amp;dropdowns) == e {
+    return; // focus landed inside our own trigger or option surface -- don't collapse
+}
+<span class="boring">}</span></code></pre>
+<p>The option rows are genuine <code>Stem</code>-descendants of the dropdown root (through the nested
+<code>List</code>), so resolving “did focus land somewhere inside us” is a direct
+<a href="#the-slot-convention"><code>Stem::ascend_to</code></a> walk, derived straight from that real
+structure.</p>
+<h2 id="structural-config-separate-from-style-forwarded-to-the-list-underneath"><a class="header" href="#structural-config-separate-from-style-forwarded-to-the-list-underneath">Structural config, separate from style, forwarded to the <code>List</code> underneath</a></h2>
+<p><code>DropdownConfig</code> (chevron icon, <code>max_visible</code>, row height/gap) is a separate component
+from <code>DropdownStyle</code> (colors) for the same reason every other composite in this catalog
+splits the two: restyling shouldn’t re-evaluate structure, and <code>max_visible</code>/row sizing
+are forwarded straight through to the <code>List</code>’s own config, not reimplemented.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="list"><a class="header" href="#list">List</a></h1>
+<p><code>List</code> owns exactly two things: the scroll viewport, and uniform row layout. What a row
+<em>is</em> – visuals, interaction, selection semantics – belongs entirely to the author’s own
+closure, via the <a href="#the-slot-convention">slot convention</a>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/list.rs
+pub struct List {}
+<span class="boring">}</span></code></pre>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/list.rs (build, abridged)
+tree.react_any::&lt;(ListItems, ListLayout), _&gt;(this, move |trigger, items, layouts, mut tree| {
+    for slot in slots.drain(..) { tree.remove(slot); }
+    tree.write_to(e, Grid::new(1.col().gap(layout.gap), layout.row_height.px().gap(layout.gap)));
+    for i in 0..items.count {
+        let slot = tree.branch(e, Leaf::sprout().at(..).elevate(Elevation::up(1)).with(Grid::default()));
+        (items.builder)(&amp;mut tree, slot, i);
+        slots.push(slot);
+    }
+});
+<span class="boring">}</span></code></pre>
+<p>Rewriting <code>ListItems</code> via <code>tree.write_to</code> is the entire re-render API: every prior row is
+torn down and the closure runs again per index, tracked by a captured <code>Vec&lt;Entity&gt;</code> (the
+“ProjectCard-image pattern” this book’s other composite chapters refer back to). There’s
+no virtualization – the doc comment is explicit that <code>count</code> is expected to be O(dozens),
+not thousands; a list that size doesn’t need windowing to stay cheap.</p>
+<h2 id="view--a-listener-scrolling-and-ancestor-clipping-for-free"><a class="header" href="#view--a-listener-scrolling-and-ancestor-clipping-for-free"><code>View</code> + a listener: scrolling and ancestor clipping, for free</a></h2>
+<p><code>List</code>’s own root carries a real <code>InteractionListener</code> and requires <code>View</code>
+(via <a href="#layout-grid-location-anchor">Grid</a>, since <code>Grid</code> requires <code>View</code>) – which is what gives the whole
+widget wheel/touch scrolling and ancestor clipping (content past the visible rows simply
+doesn’t render) without <code>List</code> implementing either one itself. This is the same <code>View</code>
+mechanism <a href="#interaction-and-focus">Interaction</a>’s ancestor-walk targets when a drag or scroll
+needs to find the nearest scrollable <code>View</code> above whatever was actually grabbed.</p>
+<h2 id="teardown-is-one-remove"><a class="header" href="#teardown-is-one-remove">Teardown is one <code>Remove</code></a></h2>
+<p>Removal cascades through each row’s own <code>Stem</code> children automatically (see
+<a href="#lifecycle-disable-enable-remove-visibility-opacity">Lifecycle</a>’s <code>Remove</code> cascade) – so <code>List</code> doesn’t need special
+teardown logic of its own for author content, however deep a row’s own subtree goes.
+<a href="#dropdown">Dropdown</a>’s option surface is a real <code>List</code> underneath, branched in as a
+child rather than a second implementation of row-building – see
+<a href="#dropdown">Dropdown</a> for how that composition actually works.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="modal"><a class="header" href="#modal">Modal</a></h1>
+<p>Unlike every other composite in this catalog, <code>Modal</code>’s root entity <em>is</em> its own visual
+surface – the doc comment is explicit: “the modal owns its root <code>Location</code> (it IS the
+overlay rect…) – <code>.at()</code> on the sprout is meaningless here.”</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/modal.rs
+fn root(self) -&gt; impl Bundle {
+    (
+        Modal {}, ModalConfig { .. }, self.style,
+        Panel::default(), // the root entity IS the backdrop panel
+        Grid::default(),
+    )
+}
+<span class="boring">}</span></code></pre>
+<p>Making the one public entity the visual overlay itself (rather than a container holding
+a separate backdrop child) means teardown is a single <code>tree.remove(this)</code>, and opening is
+a single write of final state:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/modal.rs (config reaction, abridged)
+tree.write_to(e, (full_location(), style.backdrop, Opacity::new(1.0)));
+<span class="boring">}</span></code></pre>
+<p><code>Modal</code> opens and closes instantly – there’s no animation of its own. <code>full_location()</code>
+is a full-bleed, edge-to-edge rect; anything padded or centered is the author’s own
+<code>.content(..)</code> closure’s job to lay out inside that space.</p>
+<h2 id="one-close-path-one-immediate-removal"><a class="header" href="#one-close-path-one-immediate-removal">One close path, one immediate removal</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/modal.rs
+tree.subscribe(this, move |trigger: Trigger&lt;CloseModal&gt;, mut tree: Tree| {
+    let e = trigger.event_target();
+    tree.trigger_targets(Closed::new(), e);
+    tree.remove(e); // children (slot content, terminate button) are Stem-parented -- one remove cascades the lot
+});
+<span class="boring">}</span></code></pre>
+<p>The close button (present only when <code>.close_icon(..)</code> supplies one – the library ships
+none) and a programmatic <code>tree.trigger_targets(CloseModal::new(), modal)</code> both land on
+this exact handler – there’s no separate “close via button” code path to keep in sync
+with “close via API.” <code>Closed</code> fires, then the whole modal subtree is gone in the same
+command batch.</p>
+<h2 id="anchor_to-currently-has-no-visible-effect"><a class="header" href="#anchor_to-currently-has-no-visible-effect"><code>.anchor_to(..)</code> currently has no visible effect</a></h2>
+<p><code>ModalSprout::anchor_to(entity)</code> sets an <code>Anchor</code> component on the modal root. Nothing in
+<code>Modal</code> currently reads it – <code>full_location()</code> doesn’t reference it, and nothing else in
+<code>build()</code> does either. This is an open item, not a documented feature: an author calling
+<code>.anchor_to(..)</code> today gets no observable behavior difference from not calling it at all.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="pagination"><a class="header" href="#pagination">Pagination</a></h1>
+<p><code>Pagination</code> shares <a href="#the-slot-convention"><code>PageIndex</code></a>/<code>PageCount</code> with
+<a href="#tabs">Tabs</a> and <a href="#carousel">Carousel</a> – one paging vocabulary, so any of the
+three can drive (or be driven by) the others by writing the same component type.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/pagination.rs
+pub struct Pagination {}
+pub enum PaginationMode {
+    Dots,     // one dot per page -- the carousel indicator
+    Numbered, // at most 5 numbered pips, a sliding window centered on the current page
+}
+<span class="boring">}</span></code></pre>
+<h2 id="structure-vs-patch-two-reactions-two-very-different-costs"><a class="header" href="#structure-vs-patch-two-reactions-two-very-different-costs">Structure vs. patch: two reactions, two very different costs</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/pagination.rs
+tree.react_any::&lt;(PageCount, PaginationStyle), _&gt;(this, move |trigger, counts, styles, pages, mut handles, mut tree| {
+    // STRUCTURE: tear down and rebuild every indicator slot
+});
+tree.react::&lt;PageIndex, _&gt;(this, move |trigger, pages, counts, styles, handles, mut tree| {
+    // PATCH: recolor/retext the stable slots the structure reaction already built
+});
+<span class="boring">}</span></code></pre>
+<p>The doc comment is explicit about why this split exists: indicator entities are built
+once per <em>structural</em> change (page count or style) and only ever patched – recolored,
+relabeled – on a page change. This matters for exactly the case
+<a href="#carousel">Carousel</a> creates: it keeps an embedded <code>Pagination</code> in sync by writing
+<code>PageIndex</code> back to it on every swipe, and if that write triggered a full rebuild, the
+resulting teardown could re-enter and fight the very page change that triggered it.
+Because a page change only ever patches, that event cycle is always safe.</p>
+<h2 id="numbered-mode-a-sliding-window-computed-the-same-way-everywhere"><a class="header" href="#numbered-mode-a-sliding-window-computed-the-same-way-everywhere"><code>Numbered</code> mode: a sliding window, computed the same way everywhere</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/pagination.rs
+fn window_start(current: usize, count: usize, shown: usize) -&gt; usize {
+    current.saturating_sub(shown / 2).min(count.saturating_sub(shown))
+}
+<span class="boring">}</span></code></pre>
+<p>A pure function, deliberately – the doc comment notes it exists so the build pass, the
+patch pass, and every individual pip’s click handler all agree on which page a given
+slot number represents <em>by construction</em>, rather than three separately-maintained
+calculations that could drift out of sync.</p>
+<h2 id="both-entities-per-slot-are-tracked-and-both-get-removed"><a class="header" href="#both-entities-per-slot-are-tracked-and-both-get-removed">Both entities per slot are tracked, and both get removed</a></h2>
+<p><code>PaginationHandle</code> stores <code>(Entity, Entity)</code> per slot – for <code>Dots</code> these are two
+different entities: an invisible, generously-sized hit region, and the small visible pip
+parented inside it, because a 4px-tall bar is a real bar to look at but not a real click
+target. A structural rebuild removes the hit-region root for every slot, which cascades
+to the pip parented inside it (see <a href="#lifecycle-disable-enable-remove-visibility-opacity">Lifecycle</a>’s <code>Remove</code>) – tracking
+just the recolor target instead would leave the hit-region itself, and its
+<code>InteractionListener</code>, behind.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="polyline"><a class="header" href="#polyline">Polyline</a></h1>
+<p><code>Polyline</code> has no rendering pipeline of its own – it’s built entirely from two existing
+primitives, <a href="#line"><code>Line</code></a> and <a href="#polygon"><code>Polygon</code></a>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/polyline.rs
+pub struct Polyline {}
+pub struct PolylinePoints(pub Vec&lt;Position&lt;Logical&gt;&gt;);  // the vertex chain, rewritten as one unit
+<span class="boring">}</span></code></pre>
+<p>A <code>Line</code> segment already draws an antialiased quad; a full-<code>rounding</code> <code>Polygon</code> already
+draws a true circle regardless of side count (see <a href="#polygon">Polygon</a>). A polyline
+is just the composition: one <code>Line</code> per pair of consecutive points, plus one round
+<code>Polygon</code> “joint” at every interior vertex.</p>
+<h2 id="why-joints-exist"><a class="header" href="#why-joints-exist">Why joints exist</a></h2>
+<p>The doc comment is precise about the actual geometric problem: <code>Line</code>’s end caps are
+square (each segment is an independent quad), so two segments meeting at an angle leave
+a wedge-shaped gap on the outer side of the turn. A circle of diameter equal to the line
+weight, centered exactly on the shared vertex, covers that gap exactly – the standard
+round-join technique, correct because each segment’s near corners sit precisely
+<code>weight / 2</code> from the vertex, which is exactly the circle’s own radius.</p>
+<h2 id="draw-in-without-spawning-or-despawning-anything"><a class="header" href="#draw-in-without-spawning-or-despawning-anything">Draw-in, without spawning or despawning anything</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/polyline.rs
+pub struct PolylineDrawProgress(pub f32); // 0.0..=1.0 of the path, by arc length
+<span class="boring">}</span></code></pre>
+<p>The doc comment spells out the actual design constraint this satisfies: the full point
+list always determines segment/joint <em>count</em> – and therefore the whole entity pool –
+completely independent of <code>PolylineDrawProgress</code>. So animating progress from 0 to 1 (a
+“draw the line in” effect) never spawns or despawns a single entity after the first
+frame; it only ever changes how much of each already-existing segment is visible.
+Defaults to <code>1.0</code> (fully drawn), so ignoring this entirely reproduces the plain,
+already-drawn polyline.</p>
+<h2 id="a-sliding-windows-own-bookkeeping"><a class="header" href="#a-sliding-windows-own-bookkeeping">A sliding window’s own bookkeeping</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>pub struct PolylineDroppedPoints(pub usize);
+<span class="boring">}</span></code></pre>
+<p>For a caller trimming old points off the <em>front</em> of a live-updating line (a scrolling
+chart, a trail that only keeps the last N points) – <code>PolylineDroppedPoints</code> is the
+running total ever dropped, written alongside the shrunk <code>PolylinePoints</code> on the same
+tick. It’s cumulative, not a per-write delta: <code>Polyline</code> tracks its own last-seen total
+internally and diffs against it, so re-sending the same total, or never touching this at
+all (it defaults to <code>0</code>), is always a safe no-op. It’s only meaningful without a <code>dash</code>
+pattern active – a dash’s segment boundaries don’t correspond 1:1 with point count, so
+with one active, this is read but not acted on.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="popover"><a class="header" href="#popover">Popover</a></h1>
+<p><code>Popover</code> generalizes <code>Dropdown</code>’s click/expand/click-away shape from a fixed string list
+to <em>arbitrary author content</em>, via the <a href="#the-slot-convention">slot convention</a> for
+both halves: what’s always visible (the trigger) and what shows while expanded (the
+content).</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/popover.rs
+pub struct Popover {}
+pub enum PopoverPlacement { Below, Above, Left, Right }
+pub struct PopoverExpanded(pub bool); // Toggle's persistent-state pattern
+<span class="boring">}</span></code></pre>
+<h2 id="placement-the-real-relationship-not-a-guess"><a class="header" href="#placement-the-real-relationship-not-a-guess">Placement: the real relationship, not a guess</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/popover.rs
+PopoverPlacement::Below =&gt; Location::new().xs(
+    anchor().left().as_left().with(anchor().right().as_right()), // matches the trigger's real width
+    anchor().bottom().as_top().adjust(GAP).with(extent.as_height()), // author's own extent
+),
+<span class="boring">}</span></code></pre>
+<p>The doc comment is precise about what <code>Popover</code> actually adds over hand-rolled
+<code>anchor()</code> math: the axis <em>across</em> the trigger (width for Below/Above, height for
+Left/Right) always matches the trigger’s real, resolved size – the same relationship
+<a href="#dropdown">Dropdown</a>’s option list already uses for its own trigger-width match,
+not an independent guess. Only the axis <em>away</em> from the trigger is the author’s call, via
+<code>.extent(..)</code>, because nothing in the framework knows arbitrary content’s own size but
+the author who built it – there’s no general “size to fit children” mechanism (only
+<code>Text</code>/<code>TextInput</code> have a real auto-size path, via font-shaping measurement).</p>
+<h2 id="content-is-rebuilt-fresh-every-time-it-opens"><a class="header" href="#content-is-rebuilt-fresh-every-time-it-opens">Content is rebuilt fresh every time it opens</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/popover.rs (abridged)
+if let Some(existing) = handle.content.take() { tree.remove(existing); }
+if open {
+    let surface = tree.branch(e, Panel::new()..elevate(Elevation::up(2))
+        .with((Anchor::new(e), ClipToViewport, Grid::default())));
+    (cfg.content)(&amp;mut tree, surface);
+    handle.content = Some(surface);
+}
+<span class="boring">}</span></code></pre>
+<p>Unlike <code>Dropdown</code>’s <code>List</code> (patched on selection, only rebuilt on structural change),
+<code>Popover</code>’s content has no cheaper “just recolor it” patch path in general – arbitrary
+author content can’t be assumed to support in-place updates the way a fixed row shape
+can. So it’s matched to <a href="#modal">Modal</a>’s content lifecycle instead: torn down and
+rebuilt fresh every time it opens, not patched.</p>
+<h2 id="real-siblings-not-an-absolute-constant"><a class="header" href="#real-siblings-not-an-absolute-constant">Real siblings, not an absolute constant</a></h2>
+<p>The content surface is <code>up(2)</code> relative to the <em>trigger slot</em> (<code>up(1)</code>) – an ordinary
+structural comparison against a real sibling, not an absolute <code>Elevation</code> value chosen to
+“float above everything.” See <a href="#coordinates-position-area-section-elevation">Coordinates</a>’s <code>StackKey</code> chapter for
+the mechanism (<code>FRONT_TIER</code>) that makes a structural, relative elevation comparison like
+this one reliable regardless of how deep either side is nested – two entities in
+different branches only ever compare at the first ancestor level where their branches
+actually diverge.</p>
+<h2 id="click-away-the-same-stemascend_to-shape-dropdown-uses"><a class="header" href="#click-away-the-same-stemascend_to-shape-dropdown-uses">Click-away, the same <code>Stem::ascend_to</code> shape <code>Dropdown</code> uses</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if f == e || Some(f) == handle.content || Stem::ascend_to::&lt;Popover&gt;(f, &amp;stems, &amp;popovers) == e {
+    return;
+}
+<span class="boring">}</span></code></pre>
+<p>Identical mechanism to <a href="#dropdown">Dropdown</a>’s own click-away check – the content
+surface is a genuine <code>Stem</code>-descendant of the popover root, so the walk finds its way
+back to <code>this</code> from the real structure directly.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="radiogroup"><a class="header" href="#radiogroup">RadioGroup</a></h1>
+<p>There is deliberately no standalone single-radio-button widget in this crate. The doc
+comment on <code>RadioGroup</code> says why directly: exclusivity (“picking one deselects the rest”)
+has to be owned by <em>something</em>, and a lone radio button with no group to be exclusive
+within isn’t a meaningful thing to build in the first place – so the group, not the
+button, is the composite.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/radio_group.rs
+pub struct RadioGroup {}
+pub struct RadioOptions(pub Vec&lt;String&gt;);  // the label set, rewritten as one unit
+pub struct RadioSelected(pub usize);       // the one public value channel
+<span class="boring">}</span></code></pre>
+<h2 id="structure-and-patch-kept-deliberately-separate"><a class="header" href="#structure-and-patch-kept-deliberately-separate">Structure and patch, kept deliberately separate</a></h2>
+<p><code>RadioGroup</code> follows the same two-reaction split <a href="#pagination">Pagination</a> and
+<a href="#segmentedcontrol">SegmentedControl</a> both use: one reaction rebuilds row entities,
+a <em>different</em> one just recolors them, and only the first kind of change ever spawns or
+despawns anything:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/radio_group.rs
+tree.react_any::&lt;(RadioOptions, RadioStyle), _&gt;(this, move |trigger, options, styles, selected, mut handles, mut tree| {
+    // tear down every (circle, label) pair, rebuild the full row set from scratch
+});
+<span class="boring">}</span></code></pre>
+<p>Changing <em>which</em> option is selected never runs this – only changing the option set
+itself or restyling does. A row is two entities, a circle and a label, each independently
+clickable (<code>tree.on_click</code> on both, same handler: <code>tree.write_to(e, RadioSelected(i))</code>)
+– the label is included on purpose, as the doc comment on the click wiring notes, since
+it’s the bigger, more natural tap target than the circle alone.</p>
+<h2 id="selection-is-a-plain-write-same-door-as-every-other-value-channel"><a class="header" href="#selection-is-a-plain-write-same-door-as-every-other-value-channel">Selection is a plain write, same door as every other value channel</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>tree.on_click(circle, move |_: Trigger&lt;OnClick&gt;, mut tree: Tree| {
+    tree.write_to(e, RadioSelected(i));
+});
+<span class="boring">}</span></code></pre>
+<p>Clicking any row just writes <code>RadioSelected(i)</code> to the group root – exclusivity itself
+isn’t computed by comparing against the old value; it falls out for free because
+whichever row’s index matches the new <code>RadioSelected</code> reads as active and every other row
+reads as inactive, the next time colors are derived. <code>RadioChanged</code> fires from its own
+<code>react::&lt;RadioSelected, _&gt;</code>, the same “state change gets its own event door, separate
+from the restyle reaction” pattern every other composite with a persistent value channel
+follows – see <a href="#checkbox">Checkbox</a>’s <code>Checked</code> for the identical shape.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="router"><a class="header" href="#router">Router</a></h1>
 <p><code>Router</code> is destructive, element-level scene switching – the exact opposite of
@@ -2381,10 +2811,155 @@ whether to add URL sync (composite-integrated or app-side): this was already con
 and the conclusion was no, for the reason above, not because nobody got to it.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="segmentedcontrol"><a class="header" href="#segmentedcontrol">SegmentedControl</a></h1>
+<p>The same exclusive-option shape as <a href="#radiogroup">RadioGroup</a>, rendered as one
+inline joined strip instead of a stacked list of circle+label rows – “the same shape as
+<code>Pagination</code>’s <code>Numbered</code> mode,” per its own doc comment, “just labeled by the author
+instead of page numbers, and with no paging concept at all.”</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/segmented_control.rs
+pub struct SegmentedControl {}
+pub struct SegmentedOptions(pub Vec&lt;String&gt;);
+pub struct SegmentedSelected(pub usize);
+pub struct SegmentedStyle {
+    pub active: Color, pub inactive: Color, pub foreground: Color, pub rounding: Rounding,
+    pub first_end: Side,  // defaults Side::left() -- a full capsule end
+    pub last_end: Side,   // defaults Side::right()
+}
+<span class="boring">}</span></code></pre>
+<h2 id="one-strip-not-a-row-of-separate-pills"><a class="header" href="#one-strip-not-a-row-of-separate-pills">One strip, not a row of separate pills</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/segmented_control.rs (abridged)
+let side = if last == 0 { solo } else if i == 0 { first_end } else if i == last { last_end } else { Side::none() };
+<span class="boring">}</span></code></pre>
+<p>Only the two outer segments ever round, each independently shaped via <code>first_end</code>/
+<code>last_end</code> (<a href="#panel">Panel</a>’s <code>Side</code>, see <a href="#panel">Panel</a> for how <code>Side</code>
+composes independently of <code>Rounding</code>’s amount); every seam in between stays flat
+(<code>Side::none()</code>), so the whole thing reads as one continuous bar rather than a row of
+touching rounded rectangles. A single-segment control unions <code>first_end</code>/<code>last_end</code>
+together (<code>solo</code>), so the default pair still produces a full capsule rather than two
+half-capsules fighting for the same segment.</p>
+<h2 id="structurepatch-split--identical-shape-to-radiogroup-and-pagination"><a class="header" href="#structurepatch-split--identical-shape-to-radiogroup-and-pagination">Structure/patch split – identical shape to RadioGroup and Pagination</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/segmented_control.rs
+tree.react_any::&lt;(SegmentedOptions, SegmentedStyle), _&gt;(this, move |trigger, options, styles, selected, mut handles, mut tree| {
+    // full rebuild -- option set or style changed
+});
+<span class="boring">}</span></code></pre>
+<p>Same reasoning as <a href="#radiogroup">RadioGroup</a> and <a href="#pagination">Pagination</a>:
+changing which segment is selected never touches this reaction, only the option set or
+style does, so a plain selection change (<code>tree.write_to(control, SegmentedSelected(i))</code>)
+is a cheap recolor against stable entities, not a teardown-and-rebuild.
+<a href="#tabs">Tabs</a>’s header row is a real <code>SegmentedControl</code>, branched in as a child, not
+a second implementation of this same row-of-exclusive-options behavior.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="slider"><a class="header" href="#slider">Slider</a></h1>
+<p>Drag, tap-to-seek, and a programmatic write all funnel through one door – the shared
+<a href="#the-slot-convention"><code>Progress</code></a> value channel – so nothing downstream can tell
+which one moved it, and doesn’t need to:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/slider.rs
+pub struct Slider {}
+pub struct SliderStyle { pub track: Color, pub fill: Color, pub weight: i32, pub knob_size: i32 }
+pub struct SliderBehavior { pub interactive: bool } // separate from style on purpose
+<span class="boring">}</span></code></pre>
+<p><code>SliderBehavior</code> is deliberately its own component, not a <code>SliderStyle</code> field – the doc
+comment explains why: flipping <code>.interactive(false)</code> at runtime (a media player locking
+its timeline while buffering, say) shouldn’t require re-stating every color just to
+change one behavior flag.</p>
+<h2 id="drag-and-tap-to-seek-compute-the-same-percentage"><a class="header" href="#drag-and-tap-to-seek-compute-the-same-percentage">Drag and tap-to-seek compute the same percentage</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/slider.rs (drag handler, abridged)
+let bounds = sections.get(this).unwrap();
+let pct = ((interaction.click().current.left() - bounds.left()) / bounds.width()).clamp(0.0, 1.0);
+tree.write_to(this, Progress(pct));
+<span class="boring">}</span></code></pre>
+<p>Both the drag observer (subscribed on the knob) and the tap-to-seek <code>on_click</code> (on the
+root, anywhere along the track) reduce to this same cursor-position-to-percentage
+computation, each writing <code>Progress</code> – neither one touches geometry directly; that’s
+the render reaction’s job entirely.</p>
+<h2 id="the-knob-inset-correction"><a class="header" href="#the-knob-inset-correction">The knob-inset correction</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/slider.rs (abridged)
+let inset = styles.get(e).unwrap().knob_size as f32 / 2.0;
+let correction = (inset * (1.0 - 2.0 * value)) as i32;
+<span class="boring">}</span></code></pre>
+<p>The knob is anchored to the <em>fill</em> line’s own endpoint with no inset of its own, so
+without this correction it would clip past the track’s edges at the extremes (half the
+knob rendering outside the parent rect at <code>value == 0.0</code> or <code>1.0</code>). Rather than mapping
+<code>value</code> onto a narrower <code>(inset, track_width - inset)</code> range, the doc comment explains
+the crate takes the closed-form equivalent: a percentage position plus a pixel correction
+that shrinks linearly from <code>+half-knob</code> at zero to <code>-half-knob</code> at one, vanishing exactly
+at the midpoint – because percentage and pixel units can’t otherwise be combined into
+one <code>Location</code> value directly.</p>
+<h2 id="disabling-cascades-to-the-knob-for-free"><a class="header" href="#disabling-cascades-to-the-knob-for-free">Disabling cascades to the knob for free</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>if behaviors.get(e).unwrap().interactive {
+    tree.enable(e);
+    tree.write_to(knob, Visibility::new(true));
+} else {
+    tree.disable(e);
+    tree.write_to(knob, Visibility::new(false));
+}
+<span class="boring">}</span></code></pre>
+<p><code>tree.disable(e)</code> disables at the <em>root</em>; the <a href="#interaction-and-focus"><code>INHERIT_ENABLED</code> cascade</a>
+reaches the knob’s own listener too, so re-enabling later restores both without the
+slider needing to track and re-enable each interactive child individually. A
+non-interactive slider swallows no clicks – everything underneath it is genuinely
+disabled, not just visually dimmed.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="tabs"><a class="header" href="#tabs">Tabs</a></h1>
+<p><code>Tabs</code> is composed almost entirely from two other composites rather than implementing
+its own header or paging logic: the header row <em>is</em> a real <a href="#segmentedcontrol"><code>SegmentedControl</code></a>,
+branched in as a child, and the paging vocabulary is the same <code>PageIndex</code>/<code>PageCount</code>/
+<code>PageChanged</code> shape <a href="#carousel">Carousel</a> and <a href="#pagination">Pagination</a> share.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/tabs.rs
+pub struct Tabs {}
+pub struct TabsPages { pub labels: Vec&lt;String&gt;, pub(crate) builder: IndexedSlotFn }
+<span class="boring">}</span></code></pre>
+<h2 id="built-once-shown-by-visibility--never-rebuilt-on-switch"><a class="header" href="#built-once-shown-by-visibility--never-rebuilt-on-switch">Built once, shown by <code>Visibility</code> – never rebuilt on switch</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/tabs.rs (abridged)
+for i in 0..tabs_pages.labels.len() {
+    let slot = tree.branch(e, Leaf::sprout().at(..).elevate(Elevation::up(1))
+        .with((Grid::default(), Visibility::new(i == current))));
+    (tabs_pages.builder)(&amp;mut tree, slot, i);
+    handle.content_slots.push(slot);
+}
+<span class="boring">}</span></code></pre>
+<p>Every tab’s content slot is built exactly once, when the label set or style changes; the
+author’s builder closure runs once per tab, full stop. Switching tabs later is a separate,
+much cheaper reaction that only ever toggles <code>Visibility</code> on the already-existing slots
+– it never re-runs the author’s content builder. The module doc comment draws the
+contrast directly against <code>Carousel</code>’s own lifecycle: <code>Carousel</code> builds every page once
+too, but <em>repositions</em> them to slide; <code>Tabs</code> builds every page once and <em>hides</em> all but
+one. Both are “build once” composites, just with a different visual effect layered on
+top of the same underlying shape – neither is <code>List</code>’s or <code>Router</code>’s
+destroy-and-rebuild-on-change lifecycle.</p>
+<h2 id="element-level-not-engine-level"><a class="header" href="#element-level-not-engine-level">Element-level, not engine-level</a></h2>
+<p>Per the module doc comment: like <code>List</code>/<code>Carousel</code>, tab content lifecycle is the
+author’s own to manage – each tab’s builder closure owns whatever state that tab needs,
+and <code>Tabs</code> itself only ever owns <em>which one is currently shown</em>. Nothing here decides
+when a tab’s own internal state resets or persists; that’s entirely a property of what
+the author’s closure actually does when it’s called.</p>
+<h2 id="the-header-forwards-colorrounding-drives-pageindex-directly"><a class="header" href="#the-header-forwards-colorrounding-drives-pageindex-directly">The header forwards color/rounding, drives <code>PageIndex</code> directly</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// TabsStyle forwards active/inactive/foreground/rounding straight to the header SegmentedControl
+<span class="boring">}</span></code></pre>
+<p>Selecting a header segment writes the same <code>PageIndex</code> a swipe or a programmatic write
+would – the header doesn’t have its own separate “which tab is active” state to keep in
+sync with the content area’s; there’s only ever one <code>PageIndex</code>, and both the header and
+the content-visibility reaction read it.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="textinput"><a class="header" href="#textinput">TextInput</a></h1>
 <p><code>TextInput</code> is the crate’s most involved composite – editable text needs a cursor, a
@@ -2429,6 +3004,66 @@ just replacing) a selection via Shift+Click, and continuous auto-scroll during a
 that leaves the visible box.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="toggle"><a class="header" href="#toggle">Toggle</a></h1>
+<p>Same persistent-state shape as <a href="#checkbox">Checkbox</a> – one <code>ToggleState(bool)</code>,
+flipped by a click or a programmatic write, redrawn by one reaction regardless of which
+– but with an animated knob instead of an instant redraw, and Material 3’s specific
+track/knob sizing behavior:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/toggle.rs
+fn knob_location(on: bool) -&gt; Location {
+    if on {
+        // half-track-width pill, inset 4px from the track's own edges
+        Location::new().xs(50.pct().as_left().adjust(2).with(100.pct().as_right().adjust(-4)), ...)
+    } else {
+        // roughly half that diameter, centered in the track's left portion
+        Location::new().xs(12.5.pct().as_left().with(37.5.pct().as_right()), ...)
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>The doc comment on this function explains a real, tested design choice: the knob doesn’t
+just slide left/right at a fixed size – it visibly <em>shrinks</em> while off, the same size
+drop Material’s own switch uses to keep the empty state reading as genuinely smaller,
+not just “the same knob, slid over.” Both states use pure percentage anchors (no fixed
+pixel insets) specifically so the shrink scales with the track’s own height instead of
+being crushed at whatever small track size a real app actually uses.</p>
+<h2 id="sliding-not-snapping"><a class="header" href="#sliding-not-snapping">Sliding, not snapping</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/toggle.rs (abridged)
+if place_directly {
+    tree.write_to(knob, knob_location(on)); // first fire: nothing to slide from yet
+    place_directly = false;
+} else {
+    Sequence::new(&amp;mut tree).animate(
+        Animation::new(knob_location(on)).targeting(knob).start(0).finish(150).eased(Ease::EMPHASIS),
+    );
+}
+<span class="boring">}</span></code></pre>
+<p>A captured <code>place_directly</code> flag (the same “first fire is special” pattern the crate
+calls out elsewhere as the ProjectCard-image pattern) distinguishes initial placement
+from every later toggle: the very first fire has no prior knob position to slide from,
+so it writes the target <code>Location</code> directly; every subsequent state flip animates to it
+instead of snapping.</p>
+<h2 id="track-exclusivity-mirrors-checkbox-exactly"><a class="header" href="#track-exclusivity-mirrors-checkbox-exactly">Track exclusivity mirrors <code>Checkbox</code> exactly</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/toggle.rs
+if on {
+    tree.write_to(track, (style.on_fill, Outline::default()));
+    tree.write_to(knob, style.knob_on);
+} else {
+    tree.write_to(track, (style.off_outline, Outline::new(2)));
+    tree.write_to(knob, style.knob_off);
+}
+<span class="boring">}</span></code></pre>
+<p>The same <a href="#panel"><code>Panel</code></a> fill-vs-outline switch <a href="#checkbox">Checkbox</a> uses for
+its box carries <code>Toggle</code>’s track state: solid fill while on, stroke-only (whatever’s
+behind the track shows through) while off. The optional check-icon glyph on the knob
+follows the same “structural config, spawned lazily, registered before the style
+reaction” pattern <code>Checkbox</code> uses too – parented to the <em>knob</em> itself here, specifically
+so the icon’s position rides along with the knob’s own slide for free rather than being
+repositioned by a second, separate reaction.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="platform-notes"><a class="header" href="#platform-notes">Platform Notes</a></h1>
 <h2 id="linux-windows-macos"><a class="header" href="#linux-windows-macos">Linux, Windows, macOS</a></h2>
