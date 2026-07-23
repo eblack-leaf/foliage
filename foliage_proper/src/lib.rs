@@ -62,7 +62,7 @@ pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{IconValue, IndexedSlotFn, PageCount, PageIndex, Progress, SlotFn, TextValue};
 pub use composite::{
     button::{Button, ButtonSprout, ButtonStyle, Engagement},
-    card::{Card, CardSprout, CardStyle, CloseCard, Closed},
+    card::{Card, CardSprout, CardStyle},
     carousel::{Carousel, CarouselConfig, CarouselPages, CarouselSprout, CarouselStyle},
     checkbox::{Checkbox, CheckboxSprout, CheckboxState, CheckboxStyle, Checked},
     dropdown::{

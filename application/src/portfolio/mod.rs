@@ -4,9 +4,9 @@ pub(crate) mod music_player;
 use crate::icons::IconHandles;
 use crate::widgets::{Launch, ProjectCard, icon_button};
 use foliage::{
-    Anchor, Animation, Closed, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt,
-    Keyring, Leaf, Location, Card, OnClick, OnEnd, Opacity, Panel, Query, Res, Rounding, Sequence,
-    Sprout, Tree, Trigger, anchor,
+    Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt, Keyring, Leaf,
+    Location, Card, OnClick, OnEnd, Opacity, Panel, Query, Res, Rounding, Sequence, Sprout, Tree,
+    Trigger, anchor,
 };
 
 /// The panel each modal's content lives in, plus injecting that content -- isolated here so
@@ -191,13 +191,12 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
             let open_modal = move |trigger: Trigger<Launch>, mut tree: Tree| {
                 tree.disable([root, back]);
                 fade_page_chrome_out(&mut tree, root, back);
-                let modal = tree.leaf(
+                tree.leaf(
                     Card::new()
                         .main(move |tree: &mut Tree, slot: Entity| {
                             spawn_modal_content(tree, slot, i, album_cover, artwork)
                         })
-                        .close_icon(IconHandles::X.into())
-                        .colors(Color::gray(800), Color::gray(200), Color::orange(800))
+                        .colors(Color::gray(800))
                         .at(Location::new().xs(
                             anchor().left().as_left().with(anchor().right().as_right()),
                             anchor().top().as_top().with(anchor().bottom().as_bottom()),
@@ -205,9 +204,6 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                         .with(Anchor::new(card_root))
                         .elevate(Elevation::abs(50)),
                 );
-                tree.subscribe(modal, move |_: Trigger<Closed>, mut tree: Tree| {
-                    fade_page_chrome_in(&mut tree, root, back);
-                });
             };
             tree.subscribe(card_root, open_modal);
             card_root

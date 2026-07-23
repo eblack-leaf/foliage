@@ -1,21 +1,15 @@
-//! `Card` (`composite/card.rs`) opens and closes instantly -- no animation of its own.
-//! `CloseCard` fires `Closed` and removes the whole card subtree in the same command
-//! batch. `main` occupies the top two-thirds; `header`/`desc` (both optional) share the
-//! bottom third as their own two-row grouping, header above desc.
+//! `Card` (`composite/card.rs`): `main` occupies the top two-thirds; `header`/`desc`
+//! (both optional) share the bottom third as their own two-row grouping, header above
+//! desc.
 //!
 //! Geometry (main's actual height ratio, header-above-desc ordering) is verified in
 //! `composite/card.rs`'s own internal `#[cfg(test)]` module instead of here: a root-level
 //! `Card` positions itself with `.pct()` against the viewport when unanchored, and
 //! `ViewportHandle` is crate-internal (`ginkgo` is a private module, not re-exported) --
 //! unreachable from this external integration-test crate, so there's no way to set up a
-//! resolvable viewport from out here. This file only checks structure and lifecycle.
+//! resolvable viewport from out here. This file only checks structure.
 
-use bevy_ecs::observer::On;
-use bevy_ecs::system::ResMut;
-use foliage_proper::{
-    Card, CloseCard, Closed, EcsExtension, Elevation, Entity, Foliage, GridExt, Leaf, Location,
-    Resource, Sprout, Stem,
-};
+use foliage_proper::{Card, EcsExtension, Elevation, Entity, Foliage, GridExt, Leaf, Location, Sprout, Stem};
 
 fn children_of(foliage: &mut Foliage, parent: Entity) -> Vec<Entity> {
     let mut q = foliage.world.query::<(Entity, &Stem)>();
@@ -111,28 +105,24 @@ fn header_and_desc_together_add_exactly_one_bottom_third_container() {
 }
 
 #[test]
-fn close_card_fires_closed_and_removes_the_whole_subtree_immediately() {
+fn removing_a_card_removes_its_whole_subtree() {
     let mut foliage = Foliage::new();
-    let card = spawn_main_only(&mut foliage);
+    let card = spawn_with_header_and_desc(&mut foliage);
+    foliage.world.flush();
+    let children = children_of(&mut foliage, card);
+    assert!(!children.is_empty(), "sanity: the card should have real children before removal");
+
+    foliage.world.remove(card);
     foliage.world.flush();
 
-    #[derive(Resource, Default)]
-    struct Fired(bool);
-    fn mark(_trigger: On<Closed>, mut r: ResMut<Fired>) {
-        r.0 = true;
-    }
-    foliage.world.insert_resource(Fired::default());
-    foliage.world.add_observer(mark);
-
-    foliage.world.trigger_targets(CloseCard::new(), card);
-    foliage.world.flush();
-
-    assert!(
-        foliage.world.resource::<Fired>().0,
-        "Closed should fire when CloseCard is triggered"
-    );
     assert!(
         foliage.world.get_entity(card).is_err(),
-        "closing is instant -- the root entity should be gone in the same command batch, not deferred"
+        "the card root should be gone"
     );
+    for child in children {
+        assert!(
+            foliage.world.get_entity(child).is_err(),
+            "every Stem-child (main/header/desc slots) should be gone too, via the general Remove cascade"
+        );
+    }
 }

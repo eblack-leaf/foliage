@@ -1,8 +1,8 @@
 use crate::Trigger;
 use crate::composite::SlotFn;
 use crate::{
-    Button, ButtonStyle, Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt, IconId,
-    IconValue, Leaf, LeafSprout, Location, OnClick, Outline, Panel, Rounding, Sprout, Tree,
+    Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt, Leaf, LeafSprout, Location,
+    Panel, Sprout, Tree,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -13,14 +13,16 @@ use std::sync::Arc;
 /// A card is one entity -- itself the backdrop panel -- holding up to three regions of
 /// author content via the slot convention: `main` (required, the top two-thirds), and an
 /// optional `header`/`desc` pair sharing the bottom third as their own two-row grouping
-/// (header above desc). Opens and closes instantly, no animation of its own.
+/// (header above desc).
 ///
-/// Positioned the ordinary way, via `.at(..)` -- a card has no special-cased placement of
-/// its own. To rest one card over another entity's rect, use the same general mechanism
-/// any entity uses to position itself relative to another: `.at(Location::new().xs(
-/// anchor().left().as_left().with(anchor().right().as_right()), ..)).with(Anchor::new(target))`
-/// (see [`Anchor`](crate::Anchor)) -- there is no card-specific `anchor_to` shortcut for
-/// this, since the general mechanism already covers it.
+/// Positioned via `.at(..)`. To rest one card over another entity's rect, use the same
+/// general mechanism any entity uses to position itself relative to another --
+/// `.with(Anchor::new(target))` plus an `anchor()`-relative `Location` (see
+/// [`Dropdown`](crate::Dropdown)'s option surface for this exact pattern).
+///
+/// Has no close/remove mechanism of its own -- `tree.remove(card)` is the same general
+/// removal every entity uses (see [`Remove`](crate::composite::mod)'s cascade through
+/// `Stem` children).
 #[derive(Component, Copy, Clone)]
 pub struct Card {}
 impl Card {
@@ -30,7 +32,6 @@ impl Card {
             main: None,
             header: None,
             desc: None,
-            close_icon: None,
             style: CardStyle::default(),
         }
     }
@@ -39,32 +40,14 @@ impl Card {
 /// Card's OWN config vocabulary, poked as one unit.
 #[derive(Component, Copy, Clone, Default)]
 pub struct CardStyle {
-    /// the overlay panel's fill
     pub backdrop: Color,
-    /// close-button icon color
-    pub foreground: Color,
-    /// close-button fill
-    pub accent: Color,
 }
-
-/// Emitted at the card root the instant it starts closing, immediately before the entity
-/// (and everything Stem-parented under it) is removed.
-#[foliage_macros::targeted_event]
-#[derive(Copy)]
-pub struct Closed {}
-
-/// Public close command: `tree.trigger_targets(CloseCard::new(), card)` runs the exact
-/// close path the close button does -- same [`Closed`] event, same immediate removal.
-#[foliage_macros::targeted_event]
-#[derive(Copy)]
-pub struct CloseCard {}
 
 #[derive(Component, Clone)]
 pub(crate) struct CardConfig {
     main: SlotFn,
     header: Option<SlotFn>,
     desc: Option<SlotFn>,
-    close_icon: Option<IconId>,
 }
 
 /// Private child registry: the rebuild path (a config rewrite) needs these ids to tear the
@@ -74,7 +57,6 @@ pub(crate) struct CardHandle {
     main_slot: Entity,
     header_slot: Option<Entity>,
     desc_slot: Option<Entity>,
-    terminate: Option<Entity>,
 }
 
 pub struct CardSprout {
@@ -82,7 +64,6 @@ pub struct CardSprout {
     main: Option<SlotFn>,
     header: Option<SlotFn>,
     desc: Option<SlotFn>,
-    close_icon: Option<IconId>,
     style: CardStyle,
 }
 impl CardSprout {
@@ -112,17 +93,8 @@ impl CardSprout {
         self.desc = Some(Arc::new(f));
         self
     }
-    /// Without one there is no close button -- close via [`CloseCard`].
-    pub fn close_icon(mut self, icon: IconId) -> Self {
-        self.close_icon = Some(icon);
-        self
-    }
-    pub fn colors(mut self, backdrop: Color, foreground: Color, accent: Color) -> Self {
-        self.style = CardStyle {
-            backdrop,
-            foreground,
-            accent,
-        };
+    pub fn colors(mut self, backdrop: Color) -> Self {
+        self.style = CardStyle { backdrop };
         self
     }
 }
@@ -137,7 +109,6 @@ impl Sprout for CardSprout {
                 main: self.main.expect("CardSprout::main(..) is required"),
                 header: self.header,
                 desc: self.desc,
-                close_icon: self.close_icon,
             },
             self.style,
             Panel::default(),
@@ -163,9 +134,6 @@ impl Sprout for CardSprout {
                     }
                     if let Some(s) = prior.desc_slot {
                         tree.remove(s);
-                    }
-                    if let Some(t) = prior.terminate {
-                        tree.remove(t);
                     }
                 }
                 tree.write_to(e, style.backdrop);
@@ -228,35 +196,12 @@ impl Sprout for CardSprout {
                     (None, None)
                 };
 
-                let terminate = cfg.close_icon.map(|icon| {
-                    // up(2): a real structural comparison against its actual siblings
-                    // (main_slot/bottom_third, both up(1)) -- StackKey only ever compares
-                    // within the same parent, so this needs to beat them locally, not
-                    // "win" some guessed absolute number.
-                    let terminate = tree.branch(
-                        e,
-                        Button::new()
-                            .rounding(Rounding::Full)
-                            .icon(icon)
-                            .colors(style.foreground, style.accent)
-                            .at(Location::new().xs(
-                                16.px().as_left().with(40.px().as_width()),
-                                16.px().as_top().with(40.px().as_height()),
-                            ))
-                            .elevate(Elevation::up(2)),
-                    );
-                    tree.on_click(terminate, move |_: Trigger<OnClick>, mut tree: Tree| {
-                        tree.trigger_targets(CloseCard::new(), e);
-                    });
-                    terminate
-                });
                 tree.write_to(
                     e,
                     CardHandle {
                         main_slot,
                         header_slot,
                         desc_slot,
-                        terminate,
                     },
                 );
             },
@@ -265,42 +210,12 @@ impl Sprout for CardSprout {
         // not be visible to this reaction's own first fire in the same command batch).
         tree.react::<CardStyle, _>(
             this,
-            move |trigger: Trigger<Insert, CardStyle>,
-                  styles: Query<&CardStyle>,
-                  handles: Query<&CardHandle>,
-                  configs: Query<&CardConfig>,
-                  mut tree: Tree| {
+            move |trigger: Trigger<Insert, CardStyle>, styles: Query<&CardStyle>, mut tree: Tree| {
                 let e = trigger.event_target();
                 let style = *styles.get(e).unwrap();
                 tree.write_to(e, style.backdrop);
-                if let (Ok(handle), Ok(cfg)) = (handles.get(e), configs.get(e)) {
-                    if let (Some(t), Some(icon)) = (handle.terminate, cfg.close_icon) {
-                        tree.write_to(
-                            t,
-                            (
-                                IconValue(icon),
-                                ButtonStyle {
-                                    foreground: style.foreground,
-                                    background: style.accent,
-                                    outline: Outline::default(),
-                                    rounding: Rounding::Full,
-                                },
-                            ),
-                        );
-                    }
-                }
             },
         );
-        // the one close path: close button and programmatic CloseCard both land here.
-        // Closes instantly -- no animation. Closed fires before the removal, so an
-        // observer can still read the card's state one last time if it needs to.
-        tree.subscribe(this, move |trigger: Trigger<CloseCard>, mut tree: Tree| {
-            let e = trigger.event_target();
-            tree.trigger_targets(Closed::new(), e);
-            // children (slot content, terminate button) are Stem-parented -- one remove
-            // cascades the lot.
-            tree.remove(e);
-        });
     }
 }
 

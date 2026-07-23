@@ -88,54 +88,28 @@ same command batch.
 
 ```rust
 // foliage/examples/card.rs
-tree.leaf(
+foliage.world.leaf(
     Card::new()
         .main(|tree: &mut Tree, slot: Entity| {
-            let close = tree.branch(
-                slot,
-                centered_text("Close", Color::orange(400), 16)
-                    .at(Location::new().xs(
-                        0.pct().as_left().with(100.pct().as_right()),
-                        40.pct().as_top().with(60.pct().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1))
-                    .with(InteractionListener::new()),
-            );
-            tree.on_click(close, close_on_click);
-            close
+            tree.branch(slot, Panel::new().color(Color::gray(700))
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
+                .elevate(Elevation::up(1)))
         })
         .header(|tree: &mut Tree, slot: Entity| {
             tree.branch(slot, centered_text("Card Title", Color::gray(200), 16)
-                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
-                .elevate(Elevation::up(1)))
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom()))))
         })
         .desc(|tree: &mut Tree, slot: Entity| {
             tree.branch(slot, centered_text("A short description of this card.", Color::gray(400), 12)
-                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
-                .elevate(Elevation::up(1)))
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom()))))
         })
         .colors(Color::gray(800), Color::gray(200), Color::orange(800))
         .at(Location::new().xs(
-            50.pct().as_center_x().with(60.pct().as_width()),
-            50.pct().as_center_y().with(60.pct().as_height()),
+            10.pct().as_left().with(90.pct().as_right()),
+            10.pct().as_top().with(90.pct().as_bottom()),
         ))
-        .elevate(Elevation::abs(50)),
+        .elevate(Elevation::up(1)),
 );
-```
-
-No `.close_icon(..)` here (the example has no registered icon bytes to give it), so
-closing goes through a plain clickable "Close" label inside `main` instead -- the same
-pattern `.close_icon(..)` uses internally: give it its own `InteractionListener`, and
-resolve back to the card root via `Stem::ascend_to::<Card>(..)` (see
-[composites-overview](../composites-overview.md)), which walks the real `Stem` chain up
-to whichever ancestor carries `Card`:
-
-```rust
-// foliage/examples/card.rs
-fn close_on_click(trigger: Trigger<OnClick>, stems: Query<&Stem>, cards: Query<&Card>, mut tree: Tree) {
-    let card = Stem::ascend_to::<Card>(trigger.event_target(), &stems, &cards);
-    tree.trigger_targets(CloseCard::new(), card);
-}
 ```
 
 Run with `cargo run --example card -p foliage`.
