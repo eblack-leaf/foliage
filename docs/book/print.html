@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
+            window.path_to_searchindex_js = "searchindex-32a1d561.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -1520,26 +1520,603 @@ layout (a <code>Button</code>’s text width depends on the string it holds, whi
 rather than a <code>forward</code>).</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="icon"><a class="header" href="#icon">Icon</a></h1>
+<p>An icon needs to render crisply at any size an author gives it – a <code>Button</code>’s icon might
+be 16px or 48px depending on the surrounding text, and a raster image would blur or
+pixelate at the wrong end of that range. <code>Icon</code> renders MTSDF (multi-channel signed
+distance field) fields instead of raster bitmaps, which is what makes it
+resolution-independent: one baked field serves every on-screen size.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/icon/mod.rs
+pub type IconId = i32;
+#[derive(Component, Copy, Clone, PartialEq, Default)]
+#[require(Color, Differential&lt;Icon, Color&gt;)]
+#[require(Differential&lt;Icon, ClipContext&gt;)]
+#[require(Differential&lt;Icon, Section&lt;Logical&gt;&gt;)]
+#[require(Differential&lt;Icon, Icon&gt;)]
+#[require(Differential&lt;Icon, ResolvedElevation&gt;)]
+#[require(Differential&lt;Icon, BlendedOpacity&gt;)]
+pub struct Icon {
+    pub id: IconId,
+}
+<span class="boring">}</span></code></pre>
+<p>The same shape every primitive follows – required color/differentials, no <code>Leaf</code>
+mentioned (see <a href="#every-widget-is-an-entity-leaf">Leaf</a> for why). <code>id</code> is a plain <code>i32</code>, not a string or enum:
+icons are registered by id up front (typically generated code from <code>foliage_icons</code>, the
+separate SVG-to-MTSDF CLI tool in this workspace), and referenced by that id afterward.</p>
+<h2 id="registering-a-field"><a class="header" href="#registering-a-field">Registering a field</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/icon/mod.rs
+pub fn msdf&lt;ID: Into&lt;IconId&gt;, M: AsRef&lt;[u8]&gt;&gt;(mem: ID, bytes: M, field_size: u32, px_range: f32) -&gt; IconMemory
+pub fn msdf_from_asset&lt;ID: Into&lt;IconId&gt;&gt;(mem: ID, key: AssetKey, field_size: u32, px_range: f32) -&gt; IconMemory
+<span class="boring">}</span></code></pre>
+<p><code>Icon::msdf</code> takes the field bytes directly, already in hand (<code>IconSource::Ready</code>) –
+the common case, typically <code>include_bytes!</code> from <code>foliage_icons</code>-generated code.
+<code>msdf_from_asset</code> instead stores an <a href="#assets"><code>AssetKey</code></a> (<code>IconSource::Pending</code>), so
+<strong>icons genuinely can be dynamic assets</strong>, resolved through the exact same
+<code>AssetLoader</code>/<code>AssetRetrieval</code>/<code>OnRetrieval</code> machinery <code>Image</code> uses – not a separate,
+icon-specific loading path:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/icon/mod.rs (IconMemory::on_add, abridged)
+let ready = match &amp;value.source {
+    IconSource::Ready(bytes) =&gt; Some(bytes.clone()),
+    IconSource::Pending(key) =&gt; world.get_resource::&lt;AssetLoader&gt;().unwrap().retrieve(*key).map(|a| a.data),
+};
+if let Some(bytes) = ready {
+    // already resolved (e.g. Bytes-sourced and loaded before this ran) -- queue immediately
+} else if let IconSource::Pending(key) = value.source {
+    // not resolved yet -- register AssetRetrieval and wait for OnRetrieval, same as Image
+    world.commands().entity(this).insert(AssetRetrieval::new(key)).observe(Self::on_retrieved);
+}
+<span class="boring">}</span></code></pre>
+<p>Either way, only a <em>resolved</em> <code>IconMemory</code> (<code>IconSource::Ready</code>) ever reaches the render
+queue – <code>resolved_bytes()</code> treats hitting <code>Pending</code> there as
+<code>unreachable!("IconMemory reaches the render queue only once bytes are resolved")</code>, a
+real invariant enforced by construction, not just documented. <code>field_size</code> is the baked
+field’s resolution; <code>px_range</code> is the distance-field’s falloff range in pixels, which
+controls how sharp vs. soft the rendered edge looks regardless of on-screen size.</p>
+<h2 id="the-public-value-channel"><a class="header" href="#the-public-value-channel">The public value channel</a></h2>
+<p>An icon entity’s actual glyph is driven by <a href="#the-slot-convention"><code>IconValue</code></a>, the
+same shared value-channel convention <code>TextValue</code> follows:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/icon/mod.rs
+fn apply_icon_value(
+    trigger: Trigger&lt;Insert, crate::IconValue&gt;,
+    values: Query&lt;&amp;crate::IconValue&gt;,
+    icons: Query&lt;(), With&lt;Icon&gt;&gt;,
+    mut tree: crate::Tree,
+) {
+    let this = trigger.event_target();
+    if icons.contains(this) {
+        // ...applies the write to Icon::id
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>The <code>With&lt;Icon&gt;</code> filter matters: <code>IconValue</code> is also carried by entities that merely use
+it as <em>config</em> rather than render it directly – a <code>Button</code> root holds <code>IconValue</code> and
+forwards it to its own lazily-spawned <code>Icon</code> child (see <a href="#building-button-from-scratch">Button</a>) –
+so this observer has to skip those and only act where an <code>Icon</code> component is actually
+present to update.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="image"><a class="header" href="#image">Image</a></h1>
+<p>Unlike every other primitive, <code>Image</code> doesn’t own its own pixel data directly – it
+points at an <a href="#assets"><code>AssetKey</code></a>, and the GPU texture identity is derived from that
+key internally (the doc comment on the struct is explicit: “there is no separate memory
+id to hand-assign or keep in sync with anything”):</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/image/mod.rs
+#[derive(Component, Copy, Clone, PartialEq)]
+#[require(ImageView, ImageMetrics)]
+#[require(Differential&lt;Image, Section&lt;Logical&gt;&gt;)]
+#[require(Differential&lt;Image, BlendedOpacity&gt;)]
+#[require(Differential&lt;Image, ResolvedElevation&gt;)]
+#[require(Differential&lt;Image, ClipContext&gt;)]
+#[require(CropAdjustment, Differential&lt;Image, CropAdjustment&gt;)]
+pub struct Image {
+    pub key: AssetKey,
+}
+<span class="boring">}</span></code></pre>
+<p>Loading is decoupled from spawning: <code>Image::new(key)</code> can be given a key before its
+bytes have actually arrived (a network fetch on wasm still in flight, say) – the entity
+exists immediately and starts rendering once <code>AssetRetrieval</code>/<code>OnRetrieval</code> (see
+<a href="#assets">Assets</a>) resolve the key behind it.</p>
+<h2 id="imageview-how-the-images-box-and-its-aspect-ratio-relate"><a class="header" href="#imageview-how-the-images-box-and-its-aspect-ratio-relate"><code>ImageView</code>: how the image’s box and its aspect ratio relate</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/image/mod.rs
+pub enum ImageView {
+    Aspect,   // box adopts the image's real aspect ratio
+    Crop,     // box is authored freely; image is cropped to fill it
+    Stretch,  // box is authored freely; image stretches to fill it, ignoring its own ratio
+}
+<span class="boring">}</span></code></pre>
+<p><code>Aspect</code> (the default) is what most authored images want: give it a box on one axis and
+let the image’s own width:height ratio determine the other, via
+<a href="#layout-grid-location-anchor"><code>AspectRatio</code></a> – <code>ImageView::on_insert</code> computes and inserts that ratio
+directly from <code>ImageMetrics.extent</code> (the image’s real decoded pixel dimensions). <code>Crop</code>
+and <code>Stretch</code> both hand full box control back to the author’s own <code>Location</code>; the
+difference is only what happens to content that doesn’t match the box’s own ratio –
+<code>CropAdjustment</code> (a <code>Section&lt;Numerical&gt;</code> offset into the source texture) versus a
+straight non-uniform stretch.</p>
+<h2 id="registration-1"><a class="header" href="#registration-1">Registration</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/image/mod.rs
+impl Attachment for Image {
+    fn attach(foliage: &amp;mut Foliage) {
+        foliage.world.insert_resource(RenderQueue::&lt;Image, ImageWrite&gt;::new());
+        foliage.diff.add_systems(Image::update.in_set(DiffMarkers::Finalize));
+        foliage.remove_queue::&lt;Image&gt;();
+        foliage.differential::&lt;Image, Section&lt;Logical&gt;&gt;();
+        // ClipContext, BlendedOpacity, ResolvedElevation, CropAdjustment
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>Image::update</code> runs in <code>Finalize</code> (see <a href="#the-app-foliage-and-its-schedules">The App</a>’s <code>DiffMarkers</code> ordering),
+before <code>Extract</code> drains the differentials – the asset resolution and crop/stretch math
+have to settle before anything downstream diffs the result, the same reasoning
+<a href="#text">Text</a>’s glyph-resolution ordering follows.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="polygon"><a class="header" href="#polygon">Polygon</a></h1>
+<p><code>Polygon</code> is the “expressive shape” primitive – a regular N-sided shape with uniform
+corner rounding, where the whole point is that <code>sides</code>/<code>rounding</code>/<code>rotation</code> are plain
+animatable scalars:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/polygon/mod.rs
+#[repr(C)]
+#[derive(Component, Pod, Zeroable, Copy, Clone, Debug, PartialEq)]
+#[require(Differential&lt;Self, Section&lt;Logical&gt;&gt;)]
+#[require(Color, Differential&lt;Self, Color&gt;)]
+#[require(Differential&lt;Self, ResolvedElevation&gt;)]
+#[require(Differential&lt;Self, BlendedOpacity&gt;)]
+#[require(Differential&lt;Self, ClipContext&gt;)]
+#[require(Differential&lt;Self, Self&gt;)]
+pub struct Polygon {
+    pub sides: f32,
+    pub rounding: f32,
+    pub rotation: f32,
+}
+impl Default for Polygon {
+    fn default() -&gt; Self { Self { sides: 3.0, rounding: 0.0, rotation: 0.0 } }
+}
+<span class="boring">}</span></code></pre>
+<p>Because those three fields are just <code>f32</code>s, morphing circle↔hexagon↔triangle or
+sharp↔round corners is <em>exactly</em> interpolating them – the same <a href="#animation"><code>Animate</code></a>
+mechanism already driving <code>Color</code>/<code>Location</code>, with no bespoke shape-tweening system:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/polygon/mod.rs
+impl Animate for Polygon {
+    fn interpolations(start: &amp;Self, end: &amp;Self) -&gt; Interpolations {
+        Interpolations::new().with(start.sides, end.sides).with(start.rounding, end.rounding).with(start.rotation, end.rotation)
+    }
+    // apply(..) writes each back symmetrically
+}
+<span class="boring">}</span></code></pre>
+<p>Side-count changes are a distance-field blend in the shader (<code>polygon.wgsl</code>), not a
+vertex-matched morph – cheap, and every rounded endpoint already lacks the acute
+unrounded corner that would make a blend look visually wrong mid-transition.</p>
+<h2 id="deliberately-not-panel"><a class="header" href="#deliberately-not-panel">Deliberately not <code>Panel</code></a></h2>
+<p>The doc comment on <code>Polygon</code> is explicit about why this isn’t folded into
+<a href="#panel"><code>Panel</code></a>: <code>Panel</code> owns arbitrary-aspect rectangles with independent
+per-corner radii and borders, and is used everywhere already; a regular polygon’s
+rounded corners only stay circular if the shape stays roughly square, so <code>Polygon</code>
+doesn’t generalize to <code>Panel</code>’s job and isn’t trying to. It’s placed like <code>Panel</code>/<code>Icon</code>
+– a bounding box via <code>.at(Location::new().xs(..))</code> – not like <code>Line</code>’s point-to-point
+mode.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="line"><a class="header" href="#line">Line</a></h1>
+<p>Every other primitive is positioned with a <code>Location</code> box (<code>.at(Location::new().xs(..))</code>).
+<code>Line</code> is the exception – it’s defined by two points, not a box:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/line/mod.rs
+#[derive(Component, Copy, Clone)]
+#[require(LineQuad)]
+pub struct Line {
+    pub weight: i32,
+}
+<span class="boring">}</span></code></pre>
+<p><code>Points&lt;Logical&gt;</code> (two <code>Position&lt;Logical&gt;</code>s, see <a href="#coordinates-position-area-section-elevation">Coordinates</a>) is what
+an author actually writes; <code>Line</code>/<code>weight</code> just says how thick to draw the segment
+between them. <code>LineQuad</code> is the derived, GPU-facing representation neither the author
+nor <code>Line</code> itself computes directly:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/line/mod.rs
+pub(crate) fn distill_descriptor(
+    mut lines: Query&lt;(&amp;Points&lt;Logical&gt;, &amp;Line, &amp;mut LineQuad), Or&lt;(Changed&lt;Line&gt;, Changed&lt;Points&lt;Logical&gt;&gt;)&gt;&gt;,
+    scale_factor: Res&lt;ScaleFactor&gt;,
+) {
+    // turns two points + a weight into four corner positions (a thin quad,
+    // perpendicular-offset from the line's own slope by half the weight)
+}
+<span class="boring">}</span></code></pre>
+<p>Given two points and a weight, <code>distill_descriptor</code> computes the perpendicular normal to
+the line’s slope, offsets each endpoint by half the weight along that normal, and
+produces the four corners of a thin quad – converted to physical pixels via
+<a href="#the-gpu-wrapper-ginkgo"><code>ScaleFactor</code></a> at the same point every other logical-to-physical crossing
+happens. This only re-runs when <code>Line</code> or <code>Points&lt;Logical&gt;</code> actually changes
+(<code>Or&lt;(Changed&lt;Line&gt;, Changed&lt;Points&lt;Logical&gt;&gt;)&gt;</code>), not every frame.</p>
+<h2 id="registration-2"><a class="header" href="#registration-2">Registration</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/line/mod.rs
+impl Attachment for Line {
+    fn attach(foliage: &amp;mut Foliage) {
+        foliage.diff.add_systems(Line::distill_descriptor.in_set(DiffMarkers::Finalize));
+        foliage.remove_queue::&lt;LineQuad&gt;();
+        foliage.differential::&lt;LineQuad, LineQuad&gt;();
+        // BlendedOpacity, ResolvedElevation, ClipContext, Color
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>Notice the differentials are registered against <code>LineQuad</code>, not <code>Line</code> – the GPU only
+ever needs the <em>derived</em> quad geometry, never the raw two-point/weight description, so
+that’s what’s tracked and queued for the renderer, exactly the same “derive once,
+diff the derived form” shape <a href="#text">Text</a>’s <code>ResolvedGlyphs</code> follows relative to
+the author’s raw <code>value</code> string.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="texture"><a class="header" href="#texture">Texture</a></h1>
+<p>Every raster-backed primitive (<a href="#image">Image</a>, <a href="#icon">Icon</a>, and glyph
+rendering behind <a href="#text">Text</a>) needs GPU texture memory, and none of them want to
+own a whole dedicated texture per instance – a screen with fifty icons shouldn’t mean
+fifty separate GPU textures and fifty draw calls. <code>TextureAtlas</code> is the shared packing
+structure underneath all three.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/texture.rs
+pub(crate) struct TextureAtlas&lt;Key: Hash + Clone, Referrer: Hash + Clone, TexelData: ...&gt; {
+    texture: Texture,
+    view: TextureView,
+    partitions: HashMap&lt;Key, PartitionInfo&gt;,
+    possible_locations: HashSet&lt;AtlasLocation&gt;,
+    block_size: Coordinates,
+    references: HashMap&lt;Key, HashSet&lt;Referrer&gt;&gt;,
+    entries: HashMap&lt;Key, AtlasEntry&lt;TexelData&gt;&gt;,
+    ...
+}
+<span class="boring">}</span></code></pre>
+<p>One real <code>wgpu::Texture</code>, subdivided into a grid of fixed-size <code>block_size</code> cells. <code>Key</code>
+identifies <em>what</em> is stored (an icon id, a glyph key, an image asset key); <code>Referrer</code>
+identifies <em>who’s currently using it</em> (an entity), tracked separately via <code>references</code>
+so an atlas slot is only actually freed once nothing refers to it anymore
+(<code>remove_reference</code> calls <code>remove_entry</code> only when the reference set empties).</p>
+<h2 id="reference-counting-not-per-entity-textures"><a class="header" href="#reference-counting-not-per-entity-textures">Reference counting, not per-entity textures</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/texture.rs
+pub(crate) fn add_reference(&amp;mut self, key: Key, referrer: Referrer)
+pub(crate) fn remove_reference(&amp;mut self, key: Key, referrer: Referrer) {
+    self.references.get_mut(&amp;key).unwrap().remove(&amp;referrer);
+    if self.references.get(&amp;key).unwrap().is_empty() {
+        self.remove_entry(key);
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>Two <code>Text</code> entities rendering the same glyph, or two <code>Icon</code> entities using the same
+icon id, share one atlas slot – the second reference doesn’t re-upload the same texel
+data, it just adds itself to that key’s <code>references</code> set. This is what keeps a UI with
+many repeated icons/glyphs cheap on GPU memory regardless of how many entities render
+them.</p>
+<h2 id="growing-without-losing-existing-entries"><a class="header" href="#growing-without-losing-existing-entries">Growing without losing existing entries</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/texture.rs
+pub(crate) fn resolve(&amp;mut self, ginkgo: &amp;Ginkgo) -&gt; (HashSet&lt;Key&gt;, bool) {
+    // if new entries exceed remaining capacity: allocate a bigger backing texture,
+    // re-pack, and report every already-partitioned key as `changed`
+}
+<span class="boring">}</span></code></pre>
+<p>When the atlas runs out of room, <code>resolve</code> allocates a new, larger backing texture and
+re-derives every existing entry’s texture coordinates against it – returning the full
+set of keys whose coordinates just moved, so whatever’s referencing them (a <code>Differential</code>
+queue entry per glyph/icon) can re-queue with the updated coordinates rather than
+silently rendering from stale, now-wrong UV offsets.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="assets"><a class="header" href="#assets">Assets</a></h1>
+<p><a href="#image">Image</a> and <a href="#icon">Icon</a> (via <code>msdf_from_asset</code>) both need the same
+thing: bytes that might already be in hand, or might need to be fetched first, without
+the caller having to wait or branch on which case they’re in. <code>AssetKey</code> is what makes
+that possible – a plain, immediately-usable handle, generated <em>before</em> the bytes exist:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/asset.rs
+pub type AssetKey = u128;
+impl AssetLoader {
+    pub fn generate_key() -&gt; AssetKey { Uuid::new_v4().as_u128() }
+}
+pub enum AssetSource {
+    Bytes(Vec&lt;u8&gt;),
+    #[cfg(any(target_family = "wasm", feature = "remote-assets"))]
+    Url(String),
+}
+<span class="boring">}</span></code></pre>
+<p><code>foliage.load_asset(AssetSource::Bytes(data))</code> or <code>::Url(url)</code> returns a key
+immediately – <code>Image::new(key)</code> can be spawned that same tick, before a <code>Url</code> fetch has
+even started, because loading is decoupled from rendering: the entity exists and starts
+rendering once the key resolves behind it, not before.</p>
+<p><code>Url</code> only <em>exists</em> as a variant on wasm (the browser’s fetch is unconditional there) or
+when the <code>remote-assets</code> Cargo feature is enabled on native (<code>default = ["remote-assets"]</code>
+in <code>foliage_proper/Cargo.toml</code> – an app that only ever loads bundled <code>Bytes</code> assets can
+disable it to shed the <code>reqwest</code>/<code>rustls</code> dependency tree entirely). The cfg is on the
+variant itself, not a runtime check: an app that disables the feature and still tries to
+construct <code>AssetSource::Url(..)</code> on native gets a compile error at that call site,
+not a panic discovered later at runtime.</p>
+<h2 id="loading-fire-and-arrives-later-on-every-platform"><a class="header" href="#loading-fire-and-arrives-later-on-every-platform">Loading: fire-and-arrives-later on every platform</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/asset.rs (handle_load_asset, abridged)
+AssetSource::Bytes(bytes) =&gt; { asset_loader.assets.insert(key, Asset::new(bytes.clone())); }
+#[cfg(target_family = "wasm")]
+AssetSource::Url(url) =&gt; {
+    // queue_fetch + wasm_bindgen_futures::spawn_local -- fetch() in the browser
+}
+#[cfg(all(not(target_family = "wasm"), feature = "remote-assets"))]
+AssetSource::Url(url) =&gt; {
+    // queue_fetch + a dedicated std::thread -- see below for why a thread, not async
+}
+<span class="boring">}</span></code></pre>
+<p><code>Bytes</code> resolves synchronously, same tick. <code>Url</code> never blocks the caller on either
+platform: on native, the doc comment on this exact branch explains the thread instead of
+an async task – <code>reqwest</code>’s non-wasm backend needs an ambient Tokio runtime regardless
+of how its future is polled, and <code>reqwest::blocking</code> is the one supported way to make
+the call without the caller managing a runtime, so it runs on its own OS thread instead
+of blocking anything else. Both platforms hand their result back through the same
+<code>futures_channel::oneshot</code> pattern, drained once per tick by <code>await_assets</code>.</p>
+<h2 id="retrieval-poll-a-component-get-a-targeted-event-back"><a class="header" href="#retrieval-poll-a-component-get-a-targeted-event-back">Retrieval: poll a component, get a targeted event back</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/asset.rs
+pub(crate) fn on_retrieve(retrievers: Query&lt;(Entity, &amp;AssetRetrieval)&gt;, mut cmd: Commands, asset_loader: Res&lt;AssetLoader&gt;) {
+    for (entity, on_retrieve) in retrievers.iter() {
+        if asset_loader.assets.contains_key(&amp;on_retrieve.key) {
+            cmd.entity(entity).remove::&lt;AssetRetrieval&gt;();
+            cmd.trigger(OnRetrieval { entity, key: on_retrieve.key });
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>An entity waiting on a key attaches <code>AssetRetrieval::new(key)</code> to itself and observes
+<code>OnRetrieval</code>; <code>on_retrieve</code> runs every tick, checking whether the key has resolved yet
+and firing the event (then removing the marker, so it only ever fires once) the moment
+it has. <code>asset_retrieval(closure)</code> wraps this into a ready-made observer for the common
+case of “give me the raw bytes once they land.” Both <a href="#image">Image</a> and
+<a href="#icon">Icon</a>’s <code>msdf_from_asset</code> path use exactly this – no separate, per-primitive
+loading logic.</p>
+<h2 id="bundled_asset-the-common-case-without-repeating-yourself"><a class="header" href="#bundled_asset-the-common-case-without-repeating-yourself"><code>bundled_asset!</code>: the common case, without repeating yourself</a></h2>
+<p>Most assets aren’t dynamically-URL’d at all – they’re compiled into the native binary
+and served as static files alongside the wasm build, at the same relative path both ways
+(a build step mirrors the source <code>assets/</code> directory into the served dist output). The
+macro exists so that common shape doesn’t require restating the same path twice:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// application/src/main.rs
+#[cfg(target_family = "wasm")]
+fn asset_url(path: &amp;str) -&gt; String {
+    format!("{}/foliage/{path}", Foliage::window_origin())
+}
+let music_player = bundled_asset!(foliage, "assets/music-player.png", asset_url);
+<span class="boring">}</span></code></pre>
+<p><code>$path</code> is written once; on native it’s embedded via <code>include_bytes!($path)</code>, and on wasm
+it’s fed through the caller’s own hosting-convention function (<code>asset_url</code> here – an
+ordinary <code>fn(&amp;str) -&gt; String</code>, app-defined, since <a href="#web-extensions"><code>foliage_proper</code> makes no assumption
+about where an app’s assets are hosted</a>) as <code>asset_url($path)</code>. Passing the
+<em>function</em>, not the pre-applied result, is what removes the duplication: the same literal
+path can no longer drift between the two platform branches by a typo or a rename that
+only touches one of them.</p>
+<p>For the rarer case where the native embed path and the wasm URL genuinely don’t
+correspond to the same relative path (a CDN, content-hashed filenames, any hosting layout
+that doesn’t mirror the source tree), a second form takes the URL directly instead of
+deriving it from <code>$path</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>bundled_asset!(foliage, "assets/logo.png", url: "https://cdn.example.com/v2/branding/a1b2c3.png".to_string())
+<span class="boring">}</span></code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="clipboard"><a class="header" href="#clipboard">Clipboard</a></h1>
+<p>A small <code>Resource</code>, and an honest one about where native and web genuinely differ rather
+than papering over it:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/clipboard.rs
+pub struct Clipboard {
+    local: String,
+    #[cfg(not(target_family = "wasm"))]
+    provider: Option&lt;copypasta::ClipboardContext&gt;,
+}
+<span class="boring">}</span></code></pre>
+<p>Native reads and writes both go through the real system clipboard (<code>copypasta</code>). On the
+web, <code>write</code> is real too (<code>navigator.clipboard.writeText</code>, inside a user gesture, which
+<code>OnClick</code>/<code>Engaged</code> handlers already run within) – but <code>read</code> can only ever return
+<code>local</code>, the app’s own in-session mirror, not the OS clipboard. The doc comment on the
+struct explains why plainly: <code>navigator.clipboard.readText()</code> is async and
+permission-gated, and cannot resolve inside a synchronous observer. Pasting content that
+was copied <em>outside</em> the app is genuinely out of scope on the web build – copying
+within the app still round-trips correctly through <code>local</code>, since <code>write</code> updates it
+too. The same doc comment notes a real future path if that gap ever needs closing: paste
+events on the hidden virtual-keyboard inputs <a href="#virtual-keyboard">Virtual Keyboard</a>
+already maintains for IME/soft-keyboard support.</p>
+<p><code>tree_input.rs</code>/<code>TextInput</code> reads and writes through this <code>Resource</code> directly for
+copy/cut/paste – there’s no widget-specific clipboard handling anywhere else in the
+crate.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="time"><a class="header" href="#time">Time</a></h1>
+<p>Every animation (<a href="#animation">Animation</a>) and every <code>Timer</code> needs a per-tick delta that’s
+resilient to real-world scheduling hiccups – a debugger pause, a backgrounded browser
+tab, a dropped frame – without every consumer having to defend against a giant delta
+individually.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/time.rs
+pub struct Time { total: TimeDelta, last: Moment, frame_diff: TimeDelta, ... }
+impl Time {
+    pub(crate) const TIME_SKIP_RESISTANCE_FACTOR: u64 = 33; // ms
+    pub(crate) fn update(&amp;mut self) {
+        let now = Moment::now();
+        self.frame_diff = (now - self.last).min(TimeDelta::from_millis(Self::TIME_SKIP_RESISTANCE_FACTOR));
+        self.total += self.frame_diff;
+        self.last = now;
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>frame_diff</code> is clamped to 33ms regardless of how much real wall-clock time actually
+passed – a full second of stall clamps down to one frame’s worth, rather than being
+passed straight through and causing every running animation to jump instantly to wherever
+that much real elapsed time would have carried it. The crate’s own test
+(<code>frame_diff_after_a_large_gap_is_clamped_to_the_skip_resistance_factor</code>) simulates
+exactly this: fast-forwarding <code>last</code> by a full second and asserting the resulting
+<code>frame_diff</code> still respects the clamp, deterministically – not by actually sleeping
+real time in the test.</p>
+<h2 id="timer-a-self-despawning-entity-not-a-callback"><a class="header" href="#timer-a-self-despawning-entity-not-a-callback"><code>Timer</code>: a self-despawning entity, not a callback</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/time.rs
+pub(crate) fn timers(time: Res&lt;Time&gt;, mut timers: Query&lt;(Entity, &amp;mut Timer)&gt;, mut cmd: Commands) {
+    for (entity, mut timer) in timers.iter_mut() {
+        timer.time_left = timer.time_left.checked_sub(time.frame_diff()).unwrap_or_default();
+        if timer.time_left.is_zero() {
+            cmd.trigger_targets(OnEnd { entity: Entity::PLACEHOLDER }, entity);
+            cmd.entity(entity).despawn();
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>tree.timer(ms, observer)</code> (an <a href="#acting-on-entities-tree-and-graft"><code>EcsExtension</code></a> method) spawns a bare <code>Timer</code>
+entity and observes <code>OnEnd</code> on it – when the countdown reaches zero, <code>OnEnd</code> fires
+<em>before</em> the entity despawns (verified by its own test,
+<code>a_timer_reaching_zero_triggers_on_end_before_despawning</code>), then the entity is gone. No
+handle to cancel or a separate scheduler resource to manage – the timer entity <em>is</em> the
+whole lifecycle, and removing it (<code>tree.remove(timer_entity)</code>) before it fires is
+cancellation, the same <a href="#lifecycle-disable-enable-remove-visibility-opacity">Remove</a> mechanism every other teardown uses.</p>
+<h2 id="momenttimedelta-not-stdtime"><a class="header" href="#momenttimedelta-not-stdtime"><code>Moment</code>/<code>TimeDelta</code>: not <code>std::time</code></a></h2>
+<p>Both are <code>web_time</code> types, not <code>std::time::Instant</code>/<code>Duration</code> – <code>std::time::Instant</code>
+doesn’t exist on <code>wasm32-unknown-unknown</code> (there’s no OS clock syscall to back it), so
+<code>web_time</code> provides the same API backed by the browser’s <code>performance.now()</code> there and
+plain <code>std::time</code> natively, letting the rest of the crate use one type across every
+platform without its own <code>cfg</code> branch per call site.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="virtual-keyboard"><a class="header" href="#virtual-keyboard">Virtual Keyboard</a></h1>
+<p>Touch platforms have no physical keyboard to intercept – summoning the OS/browser’s
+soft keyboard requires giving <em>real</em> DOM/OS focus to some native text input, which
+creates a real conflict: doing that moves keyboard focus away from the canvas <code>winit</code>
+listens on, so control keys (Enter, Backspace, arrows) would be consumed by the
+browser’s own native editing behavior on that hidden trigger input instead of ever
+reaching the app.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/virtual_keyboard.rs
+#[cfg(target_family = "wasm")]
+pub(crate) enum PendingInput {
+    Text(String),           // from the hidden input's native `input` event
+    Key(crate::Key, crate::Modifiers), // from its `keydown` event, captured separately
+}
+<span class="boring">}</span></code></pre>
+<p>The doc comment on <code>PendingInput</code> spells out exactly why committed text and control keys
+need two separate capture paths rather than one: text composition (including IME) comes
+through the hidden input’s own <code>input</code> event, but control keys have to be caught on
+<code>keydown</code> <em>before</em> the browser’s native editing behavior consumes them on that same
+hidden input.</p>
+<h2 id="virtualinputqueue-single-threaded-on-purpose"><a class="header" href="#virtualinputqueue-single-threaded-on-purpose"><code>VirtualInputQueue</code>: single-threaded on purpose</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/virtual_keyboard.rs
+#[cfg(target_family = "wasm")]
+pub(crate) struct VirtualInputQueue(Rc&lt;RefCell&lt;VecDeque&lt;PendingInput&gt;&gt;&gt;);
+<span class="boring">}</span></code></pre>
+<p>A <code>NonSend</code> resource, not a regular one – its own doc comment explains why a plain
+<code>Rc&lt;RefCell&lt;_&gt;&gt;</code> is correct here rather than <code>Arc&lt;Mutex&lt;_&gt;&gt;</code>: wasm32 in the browser is
+single-threaded, so the DOM closures that push into this queue and the ECS system that
+drains it never actually run concurrently, and reaching for thread-safe types would be
+unearned ceremony for a platform that structurally can’t race.</p>
+<p><code>map_control_key</code> mirrors the native <code>From&lt;WinitKey&gt; for Key</code> conversion
+(<code>interaction/adapter.rs</code>) deliberately – the same browser <code>KeyboardEvent.key</code> strings
+map onto the same <code>crate::Key</code> variants a physical keyboard produces, so the rest of the
+interaction pipeline (<a href="#interaction-and-focus">Interaction</a>) never needs to know whether a
+given key event came from a real keyboard or this virtual path.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="web-extensions"><a class="header" href="#web-extensions">Web Extensions</a></h1>
+<p>A handful of things a real deployed web app needs that have no native equivalent at all
+– navigating the browser away, triggering a file download, showing a video/document
+overlay. All web-only (<code>#[cfg(target_family = "wasm")]</code> bodies, no-ops elsewhere), and
+all built the same way: synthesize a real DOM element, click it, remove it.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/web_ext.rs
+pub struct HrefLink { href: String }
+impl HrefLink {
+    pub fn navigate(&amp;self) {
+        // create a real &lt;a href=...&gt; element, .click() it, then remove it from the DOM
+    }
+}
+<span class="boring">}</span></code></pre>
+<p>This is the mechanism the live demo app actually uses to link back to the repository and
+to this book from inside itself – <code>HrefLink::new(url).navigate()</code> behind a button’s
+<code>on_click</code>. There’s no <code>window.location</code> assignment anywhere in this file; going through
+a real, momentarily-inserted anchor element is what lets the browser’s own navigation
+handling (new-tab modifiers, referrer policy, whatever the user’s browser does with a
+normal link click) apply exactly as it would to a hand-written <code>&lt;a&gt;</code> tag, instead of
+this crate reimplementing that behavior.</p>
+<h2 id="extensions-download-video-and-document-overlays"><a class="header" href="#extensions-download-video-and-document-overlays"><code>Extensions</code>: download, video, and document overlays</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/web_ext.rs
+impl Extensions {
+    pub fn download(href: &amp;str) { .. }      // &lt;a download&gt; click-and-remove, same pattern
+    pub fn web_video(src: &amp;str, ty: &amp;str) { .. }    // &lt;video&gt; inside a full-screen overlay div
+    pub fn web_document(src: &amp;str) { .. }   // &lt;iframe&gt; inside the same overlay
+    pub fn native_video(src: &amp;str) { open::that(src) }     // native: hand off to the OS
+    pub fn native_document(src: &amp;str) { open::that(src) }  // native: hand off to the OS
+}
+<span class="boring">}</span></code></pre>
+<p>The native/web split here is a real capability difference, not just a stylistic one:
+native has no in-app video/document viewer at all, so <code>native_video</code>/<code>native_document</code>
+hand the URL to the OS’s own default application (<code>open::that</code>) instead of trying to
+render it in-window; the web build can and does render it in-place via a synthesized
+overlay <code>&lt;div&gt;</code>, dismissed by the same <code>Self::remove()</code> a close-button click calls.
+Neither path is a placeholder for the other – they’re genuinely different strategies
+suited to what each platform can actually do.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="attachment"><a class="header" href="#attachment">Attachment</a></h1>
+<p>The smallest file in the crate, and one of the most load-bearing:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/attachment.rs
+pub trait Attachment {
+    fn attach(foliage: &amp;mut Foliage);
+}
+<span class="boring">}</span></code></pre>
+<p>One method, no default, no associated types. Every subsystem in the crate implements it
+once – <code>Panel::attach</code> (<a href="#panel">Panel</a>), <code>Text::attach</code> (<a href="#text">Text</a>),
+<code>Ash::attach</code> (<a href="#the-render-backend-ash">Ash</a>), <code>Disable::attach</code>/<code>Visibility::attach</code>
+(<a href="#lifecycle-disable-enable-remove-visibility-opacity">Lifecycle</a>), <code>Asset::attach</code> (<a href="#assets">Assets</a>), and dozens more –
+and <a href="#the-app-foliage-and-its-schedules"><code>Foliage::new()</code></a> calls every one of them, in sequence, at startup:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/foliage.rs
+Disable::attach(&amp;mut foliage);
+Panel::attach(&amp;mut foliage);
+Ash::attach(&amp;mut foliage);
+Text::attach(&amp;mut foliage);
+Asset::attach(&amp;mut foliage);
+// ... every subsystem, one call each
+<span class="boring">}</span></code></pre>
+<p>This is the entire mechanism behind a claim made repeatedly throughout this book: that
+adding a new <a href="#from-change-to-pixels-differential"><code>Differential</code></a> registration, a new system, or a new
+resource to an existing widget never requires touching <code>foliage.rs</code> itself. <code>attach</code>
+<em>is</em> the registration point – each type owns exactly what it needs to set up about
+itself (systems, resources, differentials), and <code>Foliage::new()</code>’s job is only to call
+every one of them, not to know what any of them actually do. A brand new primitive or
+composite becomes fully wired into the app the moment its own <code>Attachment</code> impl is added
+to that one call list – nothing elsewhere in the engine needs to change to accommodate
+it.</p>
+<p>Application code can use the same door: <code>foliage.attach::&lt;MyType&gt;()</code> runs any
+<code>Attachment</code> impl, library-provided or app-defined, through the identical path.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="the-slot-convention"><a class="header" href="#the-slot-convention">The Slot Convention</a></h1>
 <p>Every composite in the crate – <code>Modal</code>, <code>List</code>, <code>Dropdown</code>, <code>Carousel</code>, and so on –

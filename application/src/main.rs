@@ -24,23 +24,11 @@ fn main() {
     // );
     foliage.desktop_size((360, 800));
 
-    let music_player = bundled_asset!(
-        foliage,
-        "assets/music-player.png",
-        asset_url("assets/music-player.png")
-    );
+    let music_player = bundled_asset!(foliage, "assets/music-player.png", asset_url);
     foliage.store(music_player, "music-player");
-    let artist_blog = bundled_asset!(
-        foliage,
-        "assets/artist-blog.png",
-        asset_url("assets/artist-blog.png")
-    );
+    let artist_blog = bundled_asset!(foliage, "assets/artist-blog.png", asset_url);
     foliage.store(artist_blog, "artist-blog");
-    let album_cover = bundled_asset!(
-        foliage,
-        "assets/album-cover.jpg",
-        asset_url("assets/album-cover.jpg")
-    );
+    let album_cover = bundled_asset!(foliage, "assets/album-cover.jpg", asset_url);
     foliage.store(album_cover, "album-cover");
 
     icons::register(&mut foliage);

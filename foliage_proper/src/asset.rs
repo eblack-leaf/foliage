@@ -28,8 +28,14 @@ impl Attachment for Asset {
 /// Where a runtime-loaded asset's bytes come from. `Url` is used exactly as given -- no
 /// origin/base-url composition happens anywhere in this crate; the caller (native: a full
 /// filesystem path or http(s) URL: wasm: a full, already-resolved URL) owns that entirely.
+///
+/// `Url` only exists as a variant at all on wasm (fetch is unconditional there) or when the
+/// `remote-assets` feature is enabled on native -- an app that disabled it to shed
+/// `reqwest`/`rustls` (see `Cargo.toml`) gets a compile error at the construction site if it
+/// still tries to build one, instead of the runtime panic `handle_load_asset` used to raise.
 pub enum AssetSource {
     Bytes(Vec<u8>),
+    #[cfg(any(target_family = "wasm", feature = "remote-assets"))]
     Url(String),
 }
 
@@ -93,10 +99,6 @@ fn handle_load_asset(trigger: Trigger<LoadAsset>, mut asset_loader: ResMut<Asset
                     .to_vec();
                 sender.send(Asset::new(bytes)).ok();
             });
-        }
-        #[cfg(all(not(target_family = "wasm"), not(feature = "remote-assets")))]
-        AssetSource::Url(_) => {
-            panic!("AssetSource::Url used on native without the `remote-assets` feature enabled");
         }
     }
 }
@@ -192,13 +194,33 @@ impl AssetFetch {
     }
 }
 
-/// A bundled asset -- embedded via `include_bytes!` on native, fetched from `$url` on wasm.
-/// The *mechanics* of that split (which `AssetSource` variant per platform) are the only
-/// thing this provides; `$url` is always a caller-supplied expression -- this crate still
-/// makes no assumption about where an app's assets are actually hosted.
+/// A bundled asset -- embedded via `include_bytes!` on native, fetched on wasm from a URL.
+/// Two forms:
+///
+/// - `bundled_asset!(foliage, $path, $url_fn)` -- the common case, where the web build
+///   mirrors the same relative path (a build step copies `assets/` into the served dist
+///   output, say). `$path` is written once; `$url_fn` is the caller's own hosting-convention
+///   function (`fn(&str) -> String`), applied to that same `$path` internally, rather than
+///   the caller pre-applying it and passing the result -- so the same literal path can't
+///   drift between the two platform branches by a typo or a rename that only touches one.
+/// - `bundled_asset!(foliage, $path, url: $url)` -- the escape hatch, for when the native
+///   embed path and the wasm URL genuinely don't correspond to the same relative path (a
+///   CDN, content-hashed filenames, any hosting layout that doesn't mirror the source tree).
+///   `$url` is used exactly as given, independent of `$path`.
+///
+/// The *mechanics* of the platform split (which `AssetSource` variant) are the only thing
+/// this provides -- this crate still makes no assumption about where an app's assets are
+/// actually hosted.
 #[macro_export]
 macro_rules! bundled_asset {
-    ($foliage:expr, $path:literal, $url:expr) => {{
+    ($foliage:expr, $path:literal, $url_fn:path) => {{
+        #[cfg(not(target_family = "wasm"))]
+        let source = $crate::AssetSource::Bytes(include_bytes!($path).to_vec());
+        #[cfg(target_family = "wasm")]
+        let source = $crate::AssetSource::Url($url_fn($path));
+        $foliage.load_asset(source)
+    }};
+    ($foliage:expr, $path:literal, url: $url:expr) => {{
         #[cfg(not(target_family = "wasm"))]
         let source = $crate::AssetSource::Bytes(include_bytes!($path).to_vec());
         #[cfg(target_family = "wasm")]

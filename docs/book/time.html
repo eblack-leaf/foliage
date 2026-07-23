@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
+            window.path_to_searchindex_js = "searchindex-32a1d561.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -175,6 +175,59 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="time"><a class="header" href="#time">Time</a></h1>
+<p>Every animation (<a href="./anim.html">Animation</a>) and every <code>Timer</code> needs a per-tick delta that’s
+resilient to real-world scheduling hiccups – a debugger pause, a backgrounded browser
+tab, a dropped frame – without every consumer having to defend against a giant delta
+individually.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/time.rs
+pub struct Time { total: TimeDelta, last: Moment, frame_diff: TimeDelta, ... }
+impl Time {
+    pub(crate) const TIME_SKIP_RESISTANCE_FACTOR: u64 = 33; // ms
+    pub(crate) fn update(&amp;mut self) {
+        let now = Moment::now();
+        self.frame_diff = (now - self.last).min(TimeDelta::from_millis(Self::TIME_SKIP_RESISTANCE_FACTOR));
+        self.total += self.frame_diff;
+        self.last = now;
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>frame_diff</code> is clamped to 33ms regardless of how much real wall-clock time actually
+passed – a full second of stall clamps down to one frame’s worth, rather than being
+passed straight through and causing every running animation to jump instantly to wherever
+that much real elapsed time would have carried it. The crate’s own test
+(<code>frame_diff_after_a_large_gap_is_clamped_to_the_skip_resistance_factor</code>) simulates
+exactly this: fast-forwarding <code>last</code> by a full second and asserting the resulting
+<code>frame_diff</code> still respects the clamp, deterministically – not by actually sleeping
+real time in the test.</p>
+<h2 id="timer-a-self-despawning-entity-not-a-callback"><a class="header" href="#timer-a-self-despawning-entity-not-a-callback"><code>Timer</code>: a self-despawning entity, not a callback</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/time.rs
+pub(crate) fn timers(time: Res&lt;Time&gt;, mut timers: Query&lt;(Entity, &amp;mut Timer)&gt;, mut cmd: Commands) {
+    for (entity, mut timer) in timers.iter_mut() {
+        timer.time_left = timer.time_left.checked_sub(time.frame_diff()).unwrap_or_default();
+        if timer.time_left.is_zero() {
+            cmd.trigger_targets(OnEnd { entity: Entity::PLACEHOLDER }, entity);
+            cmd.entity(entity).despawn();
+        }
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>tree.timer(ms, observer)</code> (an <a href="./tree.html"><code>EcsExtension</code></a> method) spawns a bare <code>Timer</code>
+entity and observes <code>OnEnd</code> on it – when the countdown reaches zero, <code>OnEnd</code> fires
+<em>before</em> the entity despawns (verified by its own test,
+<code>a_timer_reaching_zero_triggers_on_end_before_despawning</code>), then the entity is gone. No
+handle to cancel or a separate scheduler resource to manage – the timer entity <em>is</em> the
+whole lifecycle, and removing it (<code>tree.remove(timer_entity)</code>) before it fires is
+cancellation, the same <a href="./lifecycle.html">Remove</a> mechanism every other teardown uses.</p>
+<h2 id="momenttimedelta-not-stdtime"><a class="header" href="#momenttimedelta-not-stdtime"><code>Moment</code>/<code>TimeDelta</code>: not <code>std::time</code></a></h2>
+<p>Both are <code>web_time</code> types, not <code>std::time::Instant</code>/<code>Duration</code> – <code>std::time::Instant</code>
+doesn’t exist on <code>wasm32-unknown-unknown</code> (there’s no OS clock syscall to back it), so
+<code>web_time</code> provides the same API backed by the browser’s <code>performance.now()</code> there and
+plain <code>std::time</code> natively, letting the rest of the crate use one type across every
+platform without its own <code>cfg</code> branch per call site.</p>
 
                     </main>
 
