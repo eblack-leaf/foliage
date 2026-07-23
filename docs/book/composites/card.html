@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-4e864088.js";
+            window.path_to_searchindex_js = "../searchindex-093860de.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c20bf2c0.js"></script>
@@ -221,84 +221,37 @@ if cfg.header.is_some() || cfg.desc.is_some() {
 <p>Two levels of the same row-count Grid idiom <a href="../grid.html">Grid</a> covers – the outer 3-row
 grid divides the card into thirds, and the bottom third gets its own nested 2-row grid
 for header and desc, rather than one grid with irregular row sizes.</p>
-<h2 id="close-button-placement"><a class="header" href="#close-button-placement">Close button placement</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/card.rs
-.at(Location::new().xs(
-    16.px().as_left().with(40.px().as_width()),
-    16.px().as_top().with(40.px().as_height()),
-))
-.elevate(Elevation::up(2)), // real siblings (main_slot/bottom_third) are up(1)
-<span class="boring">}</span></code></pre>
-<p>Present only when <code>.close_icon(..)</code> supplies one – the library ships none. Fixed at
-<code>(16px, 16px)</code>, so it overlays whichever corner of <code>main</code> its <code>40px</code> box falls within,
-the same “X in the corner of an image” pattern common to image cards. <code>up(2)</code> outranks
-its siblings under the same parent, which is all <a href="../coordinate.html"><code>StackKey</code></a> compares.</p>
-<h2 id="one-close-path-one-immediate-removal"><a class="header" href="#one-close-path-one-immediate-removal">One close path, one immediate removal</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/card.rs
-tree.subscribe(this, move |trigger: Trigger&lt;CloseCard&gt;, mut tree: Tree| {
-    let e = trigger.event_target();
-    tree.trigger_targets(Closed::new(), e);
-    tree.remove(e); // children (slot content, terminate button) are Stem-parented -- one remove cascades the lot
-});
-<span class="boring">}</span></code></pre>
-<p>The close button and a programmatic <code>tree.trigger_targets(CloseCard::new(), card)</code> both
-land on this exact handler. <code>Closed</code> fires, then the whole card subtree is gone in the
-same command batch.</p>
+<h2 id="removal"><a class="header" href="#removal">Removal</a></h2>
+<p><code>Card</code> has no close/remove mechanism of its own – <code>tree.remove(card)</code> is the same
+general removal every entity uses (see <a href="../lifecycle.html">Lifecycle</a>’s <code>Remove</code> cascade
+through <code>Stem</code> children), which reaches <code>main</code>/<code>header</code>/<code>desc</code> and everything the
+author’s own closures branched underneath them.</p>
 <h2 id="using-it"><a class="header" href="#using-it">Using it</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage/examples/card.rs
-tree.leaf(
+foliage.world.leaf(
     Card::new()
         .main(|tree: &amp;mut Tree, slot: Entity| {
-            let close = tree.branch(
-                slot,
-                centered_text("Close", Color::orange(400), 16)
-                    .at(Location::new().xs(
-                        0.pct().as_left().with(100.pct().as_right()),
-                        40.pct().as_top().with(60.pct().as_bottom()),
-                    ))
-                    .elevate(Elevation::up(1))
-                    .with(InteractionListener::new()),
-            );
-            tree.on_click(close, close_on_click);
-            close
+            tree.branch(slot, Panel::new().color(Color::gray(700))
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
+                .elevate(Elevation::up(1)))
         })
         .header(|tree: &amp;mut Tree, slot: Entity| {
             tree.branch(slot, centered_text("Card Title", Color::gray(200), 16)
-                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
-                .elevate(Elevation::up(1)))
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom()))))
         })
         .desc(|tree: &amp;mut Tree, slot: Entity| {
             tree.branch(slot, centered_text("A short description of this card.", Color::gray(400), 12)
-                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
-                .elevate(Elevation::up(1)))
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom()))))
         })
-        .colors(Color::gray(800), Color::gray(200), Color::orange(800))
+        .colors(Color::gray(800))
         .at(Location::new().xs(
-            50.pct().as_center_x().with(60.pct().as_width()),
-            50.pct().as_center_y().with(60.pct().as_height()),
+            10.pct().as_left().with(90.pct().as_right()),
+            10.pct().as_top().with(90.pct().as_bottom()),
         ))
-        .elevate(Elevation::abs(50)),
+        .elevate(Elevation::up(1)),
 );
-<span class="boring">}</span></code></pre>
-<p>No <code>.close_icon(..)</code> here (the example has no registered icon bytes to give it), so
-closing goes through a plain clickable “Close” label inside <code>main</code> instead – the same
-pattern <code>.close_icon(..)</code> uses internally: give it its own <code>InteractionListener</code>, and
-resolve back to the card root via <code>Stem::ascend_to::&lt;Card&gt;(..)</code> (see
-<a href="../composites-overview.html">composites-overview</a>), which walks the real <code>Stem</code> chain up
-to whichever ancestor carries <code>Card</code>:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage/examples/card.rs
-fn close_on_click(trigger: Trigger&lt;OnClick&gt;, stems: Query&lt;&amp;Stem&gt;, cards: Query&lt;&amp;Card&gt;, mut tree: Tree) {
-    let card = Stem::ascend_to::&lt;Card&gt;(trigger.event_target(), &amp;stems, &amp;cards);
-    tree.trigger_targets(CloseCard::new(), card);
-}
 <span class="boring">}</span></code></pre>
 <p>Run with <code>cargo run --example card -p foliage</code>.</p>
 

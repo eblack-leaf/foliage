@@ -53,36 +53,12 @@ Two levels of the same row-count Grid idiom [Grid](../grid.md) covers -- the out
 grid divides the card into thirds, and the bottom third gets its own nested 2-row grid
 for header and desc, rather than one grid with irregular row sizes.
 
-## Close button placement
+## Removal
 
-```rust
-// foliage_proper/src/composite/card.rs
-.at(Location::new().xs(
-    16.px().as_left().with(40.px().as_width()),
-    16.px().as_top().with(40.px().as_height()),
-))
-.elevate(Elevation::up(2)), // real siblings (main_slot/bottom_third) are up(1)
-```
-
-Present only when `.close_icon(..)` supplies one -- the library ships none. Fixed at
-`(16px, 16px)`, so it overlays whichever corner of `main` its `40px` box falls within,
-the same "X in the corner of an image" pattern common to image cards. `up(2)` outranks
-its siblings under the same parent, which is all [`StackKey`](../coordinate.md) compares.
-
-## One close path, one immediate removal
-
-```rust
-// foliage_proper/src/composite/card.rs
-tree.subscribe(this, move |trigger: Trigger<CloseCard>, mut tree: Tree| {
-    let e = trigger.event_target();
-    tree.trigger_targets(Closed::new(), e);
-    tree.remove(e); // children (slot content, terminate button) are Stem-parented -- one remove cascades the lot
-});
-```
-
-The close button and a programmatic `tree.trigger_targets(CloseCard::new(), card)` both
-land on this exact handler. `Closed` fires, then the whole card subtree is gone in the
-same command batch.
+`Card` has no close/remove mechanism of its own -- `tree.remove(card)` is the same
+general removal every entity uses (see [Lifecycle](../lifecycle.md)'s `Remove` cascade
+through `Stem` children), which reaches `main`/`header`/`desc` and everything the
+author's own closures branched underneath them.
 
 ## Using it
 
@@ -103,7 +79,7 @@ foliage.world.leaf(
             tree.branch(slot, centered_text("A short description of this card.", Color::gray(400), 12)
                 .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom()))))
         })
-        .colors(Color::gray(800), Color::gray(200), Color::orange(800))
+        .colors(Color::gray(800))
         .at(Location::new().xs(
             10.pct().as_left().with(90.pct().as_right()),
             10.pct().as_top().with(90.pct().as_bottom()),
