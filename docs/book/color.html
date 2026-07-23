@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
+            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -175,6 +175,46 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="color"><a class="header" href="#color">Color</a></h1>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/color.rs
+#[derive(Component, Copy, Clone, PartialEq, Debug)]
+pub struct Color {
+    pub value: bevy_color::Srgba,
+}
+<span class="boring">}</span></code></pre>
+<p>One component, wrapping <code>bevy_color</code>’s sRGBA directly – no separate foliage-specific
+color math, so conversions to <code>wgpu::Color</code> (<code>impl From&lt;Color&gt; for wgpu::Color</code>) and to
+the GPU-packed <code>CReprColor</code> (<code>#[repr(C)] [f32; 4]</code>, for vertex/uniform buffers) are both
+direct, lossless mappings rather than a reimplementation.</p>
+<h2 id="palette-constructors-not-raw-rgb"><a class="header" href="#palette-constructors-not-raw-rgb">Palette constructors, not raw RGB</a></h2>
+<p>Every color used across every example in this book (<code>Color::gray(900)</code>,
+<code>Color::green(500)</code>) comes from one macro, instantiated once per Tailwind color family:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/color.rs
+macro_rules! color_fn {
+    ($name:ident: $c50:expr, $c100:expr, ..., $c950:expr) =&gt; {
+        pub fn $name&lt;L: Into&lt;Luminance&gt;&gt;(l: L) -&gt; Self {
+            Self { value: match l.into() { Luminance::Fifty =&gt; $c50, ..., Luminance::NineHundredFifty =&gt; $c950 } }
+        }
+    };
+}
+<span class="boring">}</span></code></pre>
+<p><code>Luminance</code> is the 50-950 Tailwind scale as an enum, with <code>impl From&lt;i32&gt; for Luminance</code>
+rounding any integer to its nearest step – which is what makes <code>Color::gray(900)</code>
+(a plain <code>i32</code>) legal without an explicit <code>Luminance::NineHundred</code>. This is a genuine
+constraint, not just convenience: authoring against a fixed, named palette (<code>gray</code>,
+<code>green</code>, <code>orange</code>, …) at fixed steps (50/100/…/950) instead of arbitrary RGB values
+means two colors chosen for the same semantic role (say, two different composites both
+reaching for “the danger color”) are far more likely to actually match, and a whole
+palette can be re-themed by swapping which Tailwind family a design system’s roles point
+to, not by hunting down hardcoded hex values.</p>
+<h2 id="animating-color"><a class="header" href="#animating-color">Animating color</a></h2>
+<p><code>Color</code> implements <a href="./anim.html"><code>Animate</code></a> over four channels (r, g, b, a) – see
+<a href="./anim.html">Animation</a> for the shared contract every animatable component follows;
+<code>Color::attach</code> registers nothing else beyond <code>enable_animation::&lt;Self&gt;()</code>, since color
+itself has no cascade/inheritance behavior the way <a href="./lifecycle.html"><code>Opacity</code></a> does.</p>
 
                     </main>
 

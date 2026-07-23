@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
+            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -175,6 +175,57 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="coordinates-position-area-section-elevation"><a class="header" href="#coordinates-position-area-section-elevation">Coordinates: Position, Area, Section, Elevation</a></h1>
+<p>Every number that describes where something is or how big it is needs to answer one
+question first: which units? A window resize changes a widget’s on-screen pixel size
+without changing what the author asked for; a HiDPI display scales physical pixels
+against logical ones. Mixing these up silently is exactly the kind of bug that’s hard to
+spot from a screenshot – so the crate makes the <em>context</em> part of the type, not just a
+convention to remember.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/coordinate/mod.rs
+pub struct Physical;   // real device pixels
+pub struct Logical;    // DPI-independent, what an author writes .px()/.pct() against
+pub struct Numerical;  // context-erased, for values not yet tied to either
+pub type CoordinateUnit = f32;
+pub struct Coordinates(pub [CoordinateUnit; 2]);
+<span class="boring">}</span></code></pre>
+<p><code>Position&lt;Context&gt;</code>, <code>Area&lt;Context&gt;</code>, and <code>Section&lt;Context&gt;</code> (position + area) are all
+generic over one of these three marker types, so <code>Position&lt;Logical&gt;</code> and
+<code>Position&lt;Physical&gt;</code> are different types – passing one where the other is expected is a
+compile error, not a runtime scaling bug. <code>Section&lt;Logical&gt;</code> is the one every <code>Leaf</code>
+carries (see <a href="./leaf.html">Leaf</a>); <code>ResolvedElevation</code>/<code>ScaleFactor</code> (see
+<a href="./ginkgo.html">Ginkgo</a>) are what convert between contexts when a value actually needs to
+cross the boundary (author-facing logical units in, physical pixels out to the GPU).</p>
+<h2 id="elevation-symbolic-order-in-stackkey-underneath"><a class="header" href="#elevation-symbolic-order-in-stackkey-underneath">Elevation: symbolic order in, <code>StackKey</code> underneath</a></h2>
+<p><code>Elevation::up(n)</code>/<code>down(n)</code>/<code>abs(n)</code> is what an author writes; it is <strong>not</strong> the number
+the GPU sorts by. Two different widgets both writing <code>up(1)</code> relative to different
+parents must not collide just because their raw numbers happen to match – so every
+<code>Elevation</code> write computes a <code>StackKey</code>, not a flat float:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/coordinate/elevation.rs
+#[derive(Copy, Clone, Debug, Component)]
+pub(crate) struct StackKey {
+    key: u128,   // one packed byte per ancestor level (16 levels)
+    depth: u8,
+}
+<span class="boring">}</span></code></pre>
+<p>This gives genuine CSS-stacking-context semantics: comparing two <code>StackKey</code>s only looks
+at the first level where two entities’ ancestry actually diverges, so a composite
+author’s own local sibling ordering can never be numerically overridden by unrelated
+content elsewhere in the tree, no matter how deep either branch is nested. The crate’s
+own test suite documents the real bug this replaced – two unrelated branches off the
+same root whose <em>flat</em> elevation sums happened to coincide exactly, so a Carousel page
+could render behind chrome it should have been in front of. A dedicated <code>FRONT_TIER</code>
+(the top byte) also exists specifically so a <code>ClipToViewport</code> overlay (a Dropdown’s
+option list, a Popover’s content) always outranks <em>every</em> ordinary <code>abs()</code>-elevated
+entity, regardless of how far forward that entity’s own absolute value claims to be –
+without it, an overlay nested inside a modal at <code>abs(50)</code> lost to a page button at
+<code>abs(95)</code>, rendering behind (and losing clicks to) chrome it should have floated above.</p>
+<p><code>StackKey</code> only decides <em>ordering</em> (who’s in front of whom); it does not decide the
+actual GPU depth value. That conversion – symbolic order to a real <code>ResolvedElevation</code>
+float – is <a href="./ash.html"><code>Ash::assign_elevations</code></a>’s job, covered there.</p>
 
                     </main>
 

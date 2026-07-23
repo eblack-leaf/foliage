@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
+            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -175,6 +175,55 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="animation"><a class="header" href="#animation">Animation</a></h1>
+<p>Any component that implements <code>Animate</code> can be animated the same way, through the same
+call:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/anim/mod.rs
+pub trait Animate where Self: Sized + Send + Sync + 'static + Clone {
+    fn interpolations(start: &amp;Self, end: &amp;Self) -&gt; Interpolations;
+    fn apply(&amp;mut self, interpolations: &amp;mut Interpolations);
+}
+<span class="boring">}</span></code></pre>
+<p><code>interpolations</code> decomposes a start/end pair into a flat list of <code>f32</code> lerp channels
+(<code>Color</code> uses four, one per r/g/b/a; <code>Outline</code> uses one, its width; <code>Elevation</code> uses
+one, its amount); <code>apply</code> reassembles a live-interpolated value from wherever those
+channels currently sit. This is the entire contract – a new animatable component only
+ever needs these two functions, not a bespoke tweening system of its own. Registration is
+one call per type: <code>foliage.enable_animation::&lt;Outline&gt;()</code> (see <a href="./panel.html">Panel</a>’s
+<code>Attachment</code>), which adds one generic <code>animate::&lt;A&gt;</code> system rather than a
+per-type system.</p>
+<h2 id="animationa-the-builder"><a class="header" href="#animationa-the-builder"><code>Animation&lt;A&gt;</code>: the builder</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/anim/mod.rs
+pub struct Animation&lt;A: Animate&gt; { anim_target: Option&lt;Entity&gt;, a: A, sequence_time_range: SequenceTimeRange, ease: Ease, seq: Entity }
+impl&lt;A: Animate&gt; Animation&lt;A&gt; {
+    pub fn new(a: A) -&gt; Self { .. }
+    pub fn targeting(mut self, lh: Entity) -&gt; Self { .. }
+    pub fn start(mut self, s: u64) -&gt; Self { .. }   // ms
+    pub fn finish(mut self, e: u64) -&gt; Self { .. }  // ms
+    pub fn eased(mut self, ease: Ease) -&gt; Self { .. }
+    pub fn during(mut self, seq: Entity) -&gt; Self { .. }
+}
+<span class="boring">}</span></code></pre>
+<p><code>a</code> is the <strong>end</strong> value – <code>Animation::new(Color::gray(900))</code> means “animate to this
+color,” starting from whatever the target’s current value is. <code>tree.animate(anim)</code> (via
+<a href="./tree.html"><code>EcsExtension</code></a>) spawns an <code>AnimationRunner&lt;A&gt;</code> entity that drives the
+interpolation tick by tick against <a href="./time.html"><code>Time</code></a>’s frame delta, writing the
+interpolated value onto the target every frame until it finishes.</p>
+<h2 id="sequence-grouping-without-recomputing-timing"><a class="header" href="#sequence-grouping-without-recomputing-timing"><code>Sequence</code>: grouping without recomputing timing</a></h2>
+<p><code>Sequence::new(tree).animate(a1).animate(a2).end(on_finish)</code> (covered in
+<a href="./tree.html">Tree and Graft</a>) is the ergonomic layer over <code>during(seq)</code> – animations in
+a sequence can still freely overlap in their own <code>start</code>/<code>finish</code> windows; grouping them
+only removes the repeated <code>tree.animate(...).during(seq)</code> boilerplate per line, it
+doesn’t compute or infer relative timing for you.</p>
+<h2 id="ease"><a class="header" href="#ease">Ease</a></h2>
+<p><code>Ease::DECELERATE</code> is the default (<code>Animation::new</code>’s own default). Eases are pure
+<code>t -&gt; t'</code> curve functions over the <code>0.0..=1.0</code> progress fraction, applied uniformly
+across every interpolation channel <code>interpolations()</code> produced – so an eased color
+animation and an eased position animation share the exact same curve math, just fed
+different channel counts.</p>
 
                     </main>
 

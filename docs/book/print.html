@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
+            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -904,18 +904,443 @@ Both are covered in <a href="#the-render-backend-ash">Ash</a>. <code>tick_pendin
 previous section describes.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="coordinates-position-area-section-elevation"><a class="header" href="#coordinates-position-area-section-elevation">Coordinates: Position, Area, Section, Elevation</a></h1>
+<p>Every number that describes where something is or how big it is needs to answer one
+question first: which units? A window resize changes a widget’s on-screen pixel size
+without changing what the author asked for; a HiDPI display scales physical pixels
+against logical ones. Mixing these up silently is exactly the kind of bug that’s hard to
+spot from a screenshot – so the crate makes the <em>context</em> part of the type, not just a
+convention to remember.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/coordinate/mod.rs
+pub struct Physical;   // real device pixels
+pub struct Logical;    // DPI-independent, what an author writes .px()/.pct() against
+pub struct Numerical;  // context-erased, for values not yet tied to either
+pub type CoordinateUnit = f32;
+pub struct Coordinates(pub [CoordinateUnit; 2]);
+<span class="boring">}</span></code></pre>
+<p><code>Position&lt;Context&gt;</code>, <code>Area&lt;Context&gt;</code>, and <code>Section&lt;Context&gt;</code> (position + area) are all
+generic over one of these three marker types, so <code>Position&lt;Logical&gt;</code> and
+<code>Position&lt;Physical&gt;</code> are different types – passing one where the other is expected is a
+compile error, not a runtime scaling bug. <code>Section&lt;Logical&gt;</code> is the one every <code>Leaf</code>
+carries (see <a href="#every-widget-is-an-entity-leaf">Leaf</a>); <code>ResolvedElevation</code>/<code>ScaleFactor</code> (see
+<a href="#the-gpu-wrapper-ginkgo">Ginkgo</a>) are what convert between contexts when a value actually needs to
+cross the boundary (author-facing logical units in, physical pixels out to the GPU).</p>
+<h2 id="elevation-symbolic-order-in-stackkey-underneath"><a class="header" href="#elevation-symbolic-order-in-stackkey-underneath">Elevation: symbolic order in, <code>StackKey</code> underneath</a></h2>
+<p><code>Elevation::up(n)</code>/<code>down(n)</code>/<code>abs(n)</code> is what an author writes; it is <strong>not</strong> the number
+the GPU sorts by. Two different widgets both writing <code>up(1)</code> relative to different
+parents must not collide just because their raw numbers happen to match – so every
+<code>Elevation</code> write computes a <code>StackKey</code>, not a flat float:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/coordinate/elevation.rs
+#[derive(Copy, Clone, Debug, Component)]
+pub(crate) struct StackKey {
+    key: u128,   // one packed byte per ancestor level (16 levels)
+    depth: u8,
+}
+<span class="boring">}</span></code></pre>
+<p>This gives genuine CSS-stacking-context semantics: comparing two <code>StackKey</code>s only looks
+at the first level where two entities’ ancestry actually diverges, so a composite
+author’s own local sibling ordering can never be numerically overridden by unrelated
+content elsewhere in the tree, no matter how deep either branch is nested. The crate’s
+own test suite documents the real bug this replaced – two unrelated branches off the
+same root whose <em>flat</em> elevation sums happened to coincide exactly, so a Carousel page
+could render behind chrome it should have been in front of. A dedicated <code>FRONT_TIER</code>
+(the top byte) also exists specifically so a <code>ClipToViewport</code> overlay (a Dropdown’s
+option list, a Popover’s content) always outranks <em>every</em> ordinary <code>abs()</code>-elevated
+entity, regardless of how far forward that entity’s own absolute value claims to be –
+without it, an overlay nested inside a modal at <code>abs(50)</code> lost to a page button at
+<code>abs(95)</code>, rendering behind (and losing clicks to) chrome it should have floated above.</p>
+<p><code>StackKey</code> only decides <em>ordering</em> (who’s in front of whom); it does not decide the
+actual GPU depth value. That conversion – symbolic order to a real <code>ResolvedElevation</code>
+float – is <a href="#the-render-backend-ash"><code>Ash::assign_elevations</code></a>’s job, covered there.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="layout-grid-location-anchor"><a class="header" href="#layout-grid-location-anchor">Layout: Grid, Location, Anchor</a></h1>
+<p>Every example so far has quoted calls like <code>8.px().as_left().with(160.px().as_width())</code>
+without explaining them. This chapter is that explanation.</p>
+<h2 id="the-grammar-locationvalue--valuedescriptor--configurationdescriptor"><a class="header" href="#the-grammar-locationvalue--valuedescriptor--configurationdescriptor">The grammar: <code>LocationValue</code> → <code>ValueDescriptor</code> → <code>ConfigurationDescriptor</code></a></h2>
+<p><code>GridExt</code> is implemented for the plain number types (<code>i32</code>, <code>f32</code>, <code>u32</code>, …), which is
+what makes <code>8.px()</code> legal at all:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/grid/location.rs
+pub trait GridExt {
+    fn pct(self) -&gt; LocationValue;
+    fn px(self) -&gt; LocationValue;
+    fn col(self) -&gt; LocationValue;
+    fn row(self) -&gt; LocationValue;
+    fn letters(self) -&gt; LocationValue;
+}
+pub enum LocationValue {
+    Percent(f32), Px(CoordinateUnit), Column(i32), Row(i32), Anchor(Designator),
+    TextContent, Letters(i32),
+}
+<span class="boring">}</span></code></pre>
+<p><code>.as_left()</code>/<code>.as_right()</code>/<code>.as_top()</code>/<code>.as_bottom()</code>/<code>.as_width()</code>/<code>.as_height()</code> wrap a
+<code>LocationValue</code> into a <code>ValueDescriptor</code> (the value plus which edge it describes);
+<code>.with(..)</code> pairs two <code>ValueDescriptor</code>s (one axis-start edge and its counterpart) into a
+<code>ConfigurationDescriptor</code>. So <code>8.px().as_left().with(160.px().as_width())</code> reads exactly
+as written: left edge is 8px in, width is 160px. <code>Location::new().xs(horizontal, vertical)</code> takes one <code>ConfigurationDescriptor</code> per axis; <code>.sm()</code>/<code>.md()</code>/<code>.lg()</code>/<code>.xl()</code>
+override it at larger breakpoints, falling back to the next-smaller configured one if a
+given breakpoint has none of its own (<code>Grid::config</code>’s <code>at_least_sm</code>/<code>at_least_md</code>/
+<code>at_least_lg</code> chain).</p>
+<p><code>col()</code>/<code>row()</code> resolve against the parent’s <code>Grid</code> (see below) instead of raw pixels –
+<code>1.col().as_left().with(1.col().as_right())</code> means “the first column, full width,” the
+pattern every composite’s own internal skeleton uses (see <a href="#building-button-from-scratch">Button</a>’s
+panel, sized to <code>1.col()</code>/<code>1.row()</code> – one full cell). <code>letters()</code> sizes against the
+current font’s monospaced character width, used for text-content-driven width like
+<code>TextInput</code>’s field.</p>
+<h2 id="grid-the-coordinate-system-a-location-resolves-against"><a class="header" href="#grid-the-coordinate-system-a-location-resolves-against"><code>Grid</code>: the coordinate system a <code>Location</code> resolves against</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/grid/mod.rs
+#[derive(Component, Copy, Clone)]
+#[require(View)]
+pub struct Grid {
+    pub xs: GridConfiguration,
+    pub sm: Option&lt;GridConfiguration&gt;,
+    // md, lg, xl -- same breakpoint-override shape as Location
+}
+<span class="boring">}</span></code></pre>
+<p>Any entity that’s going to size children with <code>.col()</code>/<code>.row()</code>/<code>.pct()</code> needs <code>Grid</code> on
+itself – resolving a child’s <code>Location</code> always reads its parent’s <code>Grid</code> unconditionally,
+regardless of which units the child actually uses (<code>examples/opacity_and_elevation.rs</code>’s
+own comment on this: a grid-less parent panics resolving <em>any</em> child, even a plain-<code>px</code>
+one). <code>Grid::default()</code> is <code>Grid::new(1.col(), 1.row())</code> – one column, one row, the
+common case for “this entity is just a positioned box,” not an actual multi-cell layout.</p>
+<h2 id="anchor-relative-to-another-entity-not-relative-to-parent"><a class="header" href="#anchor-relative-to-another-entity-not-relative-to-parent"><code>Anchor</code>: relative-to-another-entity, not relative-to-parent</a></h2>
+<p><code>anchor().left().as_left()</code> and friends (used throughout <code>Button</code>’s icon positioning,
+<code>Dropdown</code>’s option surface) resolve against a <em>named sibling or ancestor</em> entity’s own
+resolved <code>Section</code>, via <code>Anchor::new(target)</code>, instead of the parent’s <code>Grid</code>. This is
+what lets a Popover’s content surface size itself relative to its trigger, or an icon
+size itself relative to a text label it sits beside, without either one needing to know
+the other’s absolute position.</p>
+<p><code>View</code> (required by <code>Grid</code>) is the scroll/pan state a <code>Location</code> resolves <em>through</em> –
+covered where it matters most, in <a href="#textinput">TextInput</a>’s
+scroll-into-view logic and <code>List</code>/<code>Carousel</code>’s viewport.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="interaction-and-focus"><a class="header" href="#interaction-and-focus">Interaction and Focus</a></h1>
+<p><a href="#every-widget-is-an-entity-leaf">Leaf</a> requires <code>InteractionShape</code>/<code>InteractionPropagation</code>/<code>FocusBehavior</code>
+on every entity unconditionally – so the interaction system never needs to special-case
+“this entity might not be able to receive input.” Whether it actually <em>does</em> is a
+separate question, answered by <code>InteractionListener</code>.</p>
+<h2 id="hit-testing-shape--clip-not-bounding-box-only"><a class="header" href="#hit-testing-shape--clip-not-bounding-box-only">Hit-testing: shape + clip, not bounding-box-only</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/interaction/listener.rs
+pub(crate) fn is_contained(shape: InteractionShape, section: Section&lt;Logical&gt;, clip: ResolvedClip, event: Position&lt;Logical&gt;) -&gt; bool {
+    let section_contained = match shape {
+        InteractionShape::Rectangle =&gt; section.contains(event),
+        InteractionShape::Circle =&gt; section.center().distance(event) &lt;= section.width() / 2f32,
+    };
+    section_contained &amp;&amp; clip.0.contains(event)
+}
+<span class="boring">}</span></code></pre>
+<p>A click has to land inside both the entity’s own shape <em>and</em> whatever ancestor clip
+region applies – a <code>Panel</code> with <code>Rounding::Full</code> switches to <code>InteractionShape::Circle</code>
+automatically (see <a href="#panel">Panel</a>’s <code>Rounding::on_insert</code>), so a circular button
+doesn’t grab clicks that land in its bounding box’s square corners.</p>
+<h2 id="three-independent-gates-not-one-flag"><a class="header" href="#three-independent-gates-not-one-flag">Three independent gates, not one flag</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/interaction/listener.rs
+bitflags! {
+    impl InteractionState: u8 {
+        const ENABLED = 1 &lt;&lt; 0;
+        const AUTO_ENABLED = 1 &lt;&lt; 1;
+        const INHERIT_ENABLED = 1 &lt;&lt; 2;
+    }
+}
+pub fn disabled(&amp;self) -&gt; bool {
+    !(self.state.contains(ENABLED) &amp;&amp; self.state.contains(AUTO_ENABLED) &amp;&amp; self.state.contains(INHERIT_ENABLED))
+}
+<span class="boring">}</span></code></pre>
+<p>All three must be set for a listener to actually respond. <code>ENABLED</code> is the author’s own
+explicit <code>Disable</code>/<code>Enable</code>; <code>AUTO_ENABLED</code> is the library’s own internal opt-out (a
+widget disabling one of its own children’s interactivity as part of its own logic, not
+an author choice); <code>INHERIT_ENABLED</code> is what a parent’s <code>Disable</code> cascades down as (see
+<a href="#lifecycle-disable-enable-remove-visibility-opacity">Lifecycle</a>). Three independent bits mean disabling a parent doesn’t
+require touching every descendant’s own <code>ENABLED</code> state directly – it only has to flip
+<code>INHERIT_ENABLED</code> down the tree, leaving the author’s and the library’s own separate
+opt-outs untouched and independently restorable.</p>
+<h2 id="interactionpropagation-pass-through-and-grab"><a class="header" href="#interactionpropagation-pass-through-and-grab"><code>InteractionPropagation</code>: pass-through and grab</a></h2>
+<p>Every entity defaults to <code>grab: true</code> (per <code>Leaf</code>’s unconditional requirement) – a plain
+<code>Panel</code>/<code>Text</code>/<code>Icon</code> with no <code>InteractionListener</code> still competes to <em>own</em> a click even
+though it does nothing with it, since hit-testing is a flat, elevation-ranked scan over
+every <code>Leaf</code>, not ancestor-bubbling (see <a href="#popover">Popover</a>’s doc comment
+on exactly this constraint). <code>InteractionPropagation::pass_through()</code> is how a rendering
+child (<code>Button</code>’s own <code>Panel</code>/<code>Text</code>) opts back out, so the click reaches the composite
+root’s own listener instead of being swallowed by whichever visual child happened to be
+on top. <code>disable_drag()</code> (used by <code>Carousel</code>’s viewport, <code>Slider</code>’s knob) is the
+narrower version – still grabs for click purposes, but excludes drag-panning
+specifically, so a composite that drives its own drag logic doesn’t fight the generic
+view-panning behavior a <code>Grid</code>-bearing entity gets by default.</p>
+<h2 id="focusbehavior"><a class="header" href="#focusbehavior"><code>FocusBehavior</code></a></h2>
+<p><code>FocusBehavior::ignore()</code> (used the same places <code>pass_through()</code> is, on <code>Button</code>’s
+<code>Panel</code>/<code>Text</code> children) keeps a purely-visual child from stealing keyboard focus away
+from the composite root that should actually hold it – the same “rendering children
+shouldn’t compete with their own composite root” pattern <code>InteractionPropagation</code>
+follows, applied to focus instead of clicks.</p>
+<h2 id="after-the-grab-walking-up-to-find-a-view-to-pan"><a class="header" href="#after-the-grab-walking-up-to-find-a-view-to-pan">After the grab: walking up to find a <code>View</code> to pan</a></h2>
+<p>Hit-testing itself (deciding <em>which</em> entity wins the grab, above) is a flat scan with no
+ancestor walking involved. But once something’s grabbed and actually dragged or
+scrolled, a second, separate question comes up: <em>which</em> entity’s <code>View</code> (see
+<a href="#layout-grid-location-anchor">Grid</a>) actually gets panned? The grabbed entity itself might have no <code>View</code>
+of its own (a <code>Slider</code>’s knob, a <code>TextInput</code>’s cursor) – so <code>interactive_elements</code>
+walks up the grabbed entity’s real <code>Stem</code> chain looking for the nearest ancestor that
+does:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/interaction/mod.rs (abridged, the drag-move case)
+let mut context = *contexts.get(p).unwrap();
+while let Some(id) = context.id {
+    if let Ok(_) = views.get(id) {
+        if !all.get(id).unwrap().4.disable_drag {
+            tree.entity(id).insert(ViewAdjustment(diff));
+            break;
+        }
+    }
+    // a disabled view doesn't stop the search -- keep walking up for the next one.
+    if let Ok(up) = contexts.get(id) { context = *up; } else { break; }
+}
+<span class="boring">}</span></code></pre>
+<p>The crate’s own comments call this the interaction system’s “LCA walk” (see
+<code>ash/clip.rs</code>’s doc comment on <code>ClipContext</code>) – informally: it’s a single-entity ancestor
+walk from the grabbed entity outward, not a two-entity lowest-common-ancestor
+computation in the strict graph-theory sense. A disabled view along the way doesn’t stop
+the search either – it keeps walking further out, since touch has no separate
+wheel-scroll channel: a drag not meant for the nearest view (a <code>Carousel</code> swiping its own
+pages) must still be able to reach whatever scrollable ancestor further out <em>is</em> meant to
+receive it (the page behind the <code>Carousel</code>, on a platform where dragging is the only
+scroll input there is).</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="animation"><a class="header" href="#animation">Animation</a></h1>
+<p>Any component that implements <code>Animate</code> can be animated the same way, through the same
+call:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/anim/mod.rs
+pub trait Animate where Self: Sized + Send + Sync + 'static + Clone {
+    fn interpolations(start: &amp;Self, end: &amp;Self) -&gt; Interpolations;
+    fn apply(&amp;mut self, interpolations: &amp;mut Interpolations);
+}
+<span class="boring">}</span></code></pre>
+<p><code>interpolations</code> decomposes a start/end pair into a flat list of <code>f32</code> lerp channels
+(<code>Color</code> uses four, one per r/g/b/a; <code>Outline</code> uses one, its width; <code>Elevation</code> uses
+one, its amount); <code>apply</code> reassembles a live-interpolated value from wherever those
+channels currently sit. This is the entire contract – a new animatable component only
+ever needs these two functions, not a bespoke tweening system of its own. Registration is
+one call per type: <code>foliage.enable_animation::&lt;Outline&gt;()</code> (see <a href="#panel">Panel</a>’s
+<code>Attachment</code>), which adds one generic <code>animate::&lt;A&gt;</code> system rather than a
+per-type system.</p>
+<h2 id="animationa-the-builder"><a class="header" href="#animationa-the-builder"><code>Animation&lt;A&gt;</code>: the builder</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/anim/mod.rs
+pub struct Animation&lt;A: Animate&gt; { anim_target: Option&lt;Entity&gt;, a: A, sequence_time_range: SequenceTimeRange, ease: Ease, seq: Entity }
+impl&lt;A: Animate&gt; Animation&lt;A&gt; {
+    pub fn new(a: A) -&gt; Self { .. }
+    pub fn targeting(mut self, lh: Entity) -&gt; Self { .. }
+    pub fn start(mut self, s: u64) -&gt; Self { .. }   // ms
+    pub fn finish(mut self, e: u64) -&gt; Self { .. }  // ms
+    pub fn eased(mut self, ease: Ease) -&gt; Self { .. }
+    pub fn during(mut self, seq: Entity) -&gt; Self { .. }
+}
+<span class="boring">}</span></code></pre>
+<p><code>a</code> is the <strong>end</strong> value – <code>Animation::new(Color::gray(900))</code> means “animate to this
+color,” starting from whatever the target’s current value is. <code>tree.animate(anim)</code> (via
+<a href="#acting-on-entities-tree-and-graft"><code>EcsExtension</code></a>) spawns an <code>AnimationRunner&lt;A&gt;</code> entity that drives the
+interpolation tick by tick against <a href="#time"><code>Time</code></a>’s frame delta, writing the
+interpolated value onto the target every frame until it finishes.</p>
+<h2 id="sequence-grouping-without-recomputing-timing"><a class="header" href="#sequence-grouping-without-recomputing-timing"><code>Sequence</code>: grouping without recomputing timing</a></h2>
+<p><code>Sequence::new(tree).animate(a1).animate(a2).end(on_finish)</code> (covered in
+<a href="#acting-on-entities-tree-and-graft">Tree and Graft</a>) is the ergonomic layer over <code>during(seq)</code> – animations in
+a sequence can still freely overlap in their own <code>start</code>/<code>finish</code> windows; grouping them
+only removes the repeated <code>tree.animate(...).during(seq)</code> boilerplate per line, it
+doesn’t compute or infer relative timing for you.</p>
+<h2 id="ease"><a class="header" href="#ease">Ease</a></h2>
+<p><code>Ease::DECELERATE</code> is the default (<code>Animation::new</code>’s own default). Eases are pure
+<code>t -&gt; t'</code> curve functions over the <code>0.0..=1.0</code> progress fraction, applied uniformly
+across every interpolation channel <code>interpolations()</code> produced – so an eased color
+animation and an eased position animation share the exact same curve math, just fed
+different channel counts.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="color"><a class="header" href="#color">Color</a></h1>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/color.rs
+#[derive(Component, Copy, Clone, PartialEq, Debug)]
+pub struct Color {
+    pub value: bevy_color::Srgba,
+}
+<span class="boring">}</span></code></pre>
+<p>One component, wrapping <code>bevy_color</code>’s sRGBA directly – no separate foliage-specific
+color math, so conversions to <code>wgpu::Color</code> (<code>impl From&lt;Color&gt; for wgpu::Color</code>) and to
+the GPU-packed <code>CReprColor</code> (<code>#[repr(C)] [f32; 4]</code>, for vertex/uniform buffers) are both
+direct, lossless mappings rather than a reimplementation.</p>
+<h2 id="palette-constructors-not-raw-rgb"><a class="header" href="#palette-constructors-not-raw-rgb">Palette constructors, not raw RGB</a></h2>
+<p>Every color used across every example in this book (<code>Color::gray(900)</code>,
+<code>Color::green(500)</code>) comes from one macro, instantiated once per Tailwind color family:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/color.rs
+macro_rules! color_fn {
+    ($name:ident: $c50:expr, $c100:expr, ..., $c950:expr) =&gt; {
+        pub fn $name&lt;L: Into&lt;Luminance&gt;&gt;(l: L) -&gt; Self {
+            Self { value: match l.into() { Luminance::Fifty =&gt; $c50, ..., Luminance::NineHundredFifty =&gt; $c950 } }
+        }
+    };
+}
+<span class="boring">}</span></code></pre>
+<p><code>Luminance</code> is the 50-950 Tailwind scale as an enum, with <code>impl From&lt;i32&gt; for Luminance</code>
+rounding any integer to its nearest step – which is what makes <code>Color::gray(900)</code>
+(a plain <code>i32</code>) legal without an explicit <code>Luminance::NineHundred</code>. This is a genuine
+constraint, not just convenience: authoring against a fixed, named palette (<code>gray</code>,
+<code>green</code>, <code>orange</code>, …) at fixed steps (50/100/…/950) instead of arbitrary RGB values
+means two colors chosen for the same semantic role (say, two different composites both
+reaching for “the danger color”) are far more likely to actually match, and a whole
+palette can be re-themed by swapping which Tailwind family a design system’s roles point
+to, not by hunting down hardcoded hex values.</p>
+<h2 id="animating-color"><a class="header" href="#animating-color">Animating color</a></h2>
+<p><code>Color</code> implements <a href="#animation"><code>Animate</code></a> over four channels (r, g, b, a) – see
+<a href="#animation">Animation</a> for the shared contract every animatable component follows;
+<code>Color::attach</code> registers nothing else beyond <code>enable_animation::&lt;Self&gt;()</code>, since color
+itself has no cascade/inheritance behavior the way <a href="#lifecycle-disable-enable-remove-visibility-opacity"><code>Opacity</code></a> does.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="ops-named-keyring-update-write"><a class="header" href="#ops-named-keyring-update-write">Ops: Named, Keyring, Update, Write</a></h1>
+<p>Two small, unrelated-looking tools that turn up constantly once you’ve read a few
+composites: generic targeted markers, and two string-keyed lookup tables.</p>
+<h2 id="writew--updateu-broadcast-then-translate--not-duplicates"><a class="header" href="#writew--updateu-broadcast-then-translate--not-duplicates"><code>Write&lt;W&gt;</code> / <code>Update&lt;U&gt;</code>: broadcast, then translate – not duplicates</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ops.rs
+pub struct Write&lt;W: Send + Sync + 'static&gt; { entity: Entity, _phantom: PhantomData&lt;W&gt; }
+pub struct Update&lt;U: Send + Sync + 'static&gt; { entity: Entity, _phantom: PhantomData&lt;U&gt; }
+<span class="boring">}</span></code></pre>
+<p>Identical shape, but they sit at two different ends of the same pipeline, and the
+<code>Section&lt;Logical&gt;</code> → <code>Panel</code>/<code>Text</code>/clip fan-out shows exactly why both exist.
+<code>Section&lt;Logical&gt;::on_insert</code> fires one broadcast every time a <code>Section</code> is written:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/coordinate/section.rs
+fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+    ...
+    world.trigger_targets(Write::&lt;Self&gt;::new(), this); // one Write&lt;Section&lt;Logical&gt;&gt;
+}
+<span class="boring">}</span></code></pre>
+<p><em>Three unrelated</em> systems each independently observe that same <code>Write&lt;Section&lt;Logical&gt;&gt;</code>
+and translate it into their <em>own</em> type’s update signal:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/panel/mod.rs
+fn update_from_section(trigger: Trigger&lt;Write&lt;Section&lt;Logical&gt;&gt;&gt;, mut tree: Tree) {
+    tree.trigger_targets(Update::&lt;Panel&gt;::new(), trigger.event_target());
+}
+// foliage_proper/src/text/mod.rs has its own update_from_section -&gt; Update::&lt;Text&gt;
+// foliage_proper/src/ash/clip.rs has its own -&gt; reacts directly, no Update::&lt;Self&gt; needed
+<span class="boring">}</span></code></pre>
+<p>So: <strong><code>Write&lt;T&gt;</code> is “raw data <code>T</code> was just written, broadcast”</strong> – any number of
+unrelated types can subscribe to the same one and each decide independently whether/how
+to react. <strong><code>Update&lt;U&gt;</code> is a specific type’s own “recompute yourself now” signal</strong> –
+observed only by <code>U</code>’s own update system, and can be triggered from more than one
+source: <code>Panel::update</code> fires on <code>Update&lt;Panel&gt;</code> regardless of whether that came from a
+<code>Write&lt;Section&lt;Logical&gt;&gt;</code> (via the bridge above), or directly from <code>Panel</code>’s own
+<code>on_insert</code> when <code>Color</code>/<code>Rounding</code>/<code>Outline</code> change (<code>panel/mod.rs</code>’s own <code>on_insert</code>
+calls <code>Update::&lt;Panel&gt;::new()</code> straight away, no <code>Write</code> involved). The small bridge
+observers (<code>update_from_section</code> and friends) are what translate “something raw changed”
+into “this specific thing needs recomputing” – collapsing them into one type would mean
+every <code>Write&lt;Section&lt;Logical&gt;&gt;</code> subscriber either shares one <code>Update</code> type it doesn’t
+actually own, or <code>Panel</code>/<code>Text</code>/clip resolution all fire on each other’s writes with no
+way to opt out selectively.</p>
+<p><code>Disable</code>’s cascade (see <a href="#lifecycle-disable-enable-remove-visibility-opacity">Lifecycle</a>) uses <code>Write&lt;Disable&gt;</code> the same way
+– broadcasting “<code>Disable</code> was written on this entity” before separately triggering
+<code>InheritDisable</code> to propagate to children, keeping “notify” and “cascade” as two
+distinct steps.</p>
+<h2 id="named--keyring-string-keys-for-entities-and-assets"><a class="header" href="#named--keyring-string-keys-for-entities-and-assets"><code>Named</code> / <code>Keyring</code>: string keys for entities and assets</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ops.rs
+pub struct Named { map: HashMap&lt;String, Entity&gt; }
+pub struct Keyring { map: HashMap&lt;String, AssetKey&gt; }
+<span class="boring">}</span></code></pre>
+<p><code>tree.name(e, "close-button")</code> / <code>tree.store(key, "logo")</code> (both
+<a href="#acting-on-entities-tree-and-graft"><code>EcsExtension</code></a> methods) register a string alias; <code>Named::get("close-button")</code>
+/ <code>Keyring::get("logo")</code> resolve it back. Both are <code>Resource</code>s populated by a private
+event (<code>Name</code>/<code>StoredKey</code>) rather than direct map mutation, so registering a name
+follows the same deferred-command path as everything else spawned through
+<a href="#spawning-sprout-and-ecsextension"><code>Sprout</code></a> – an alias set during <code>build()</code> is available the moment the
+surrounding spawn command actually applies, not before. This is a convenience for
+app-level code that wants to look an entity or asset key back up by a human-readable
+name instead of threading the raw <code>Entity</code>/<code>AssetKey</code> through wherever it’s needed –
+not something the library’s own composites use internally.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="lifecycle-disable-enable-remove-visibility-opacity"><a class="header" href="#lifecycle-disable-enable-remove-visibility-opacity">Lifecycle: Disable, Enable, Remove, Visibility, Opacity</a></h1>
+<p>Four ways an entity’s state can change without changing <em>what</em> it is: whether it
+responds to input, whether it’s drawn at all, how transparent it is, and whether it
+exists. All four share one shape: an author-facing value on the entity itself, an
+inherited value cascading down from its parent, and a resolved value that’s the actual
+combination – so a parent’s state always propagates without every descendant needing
+its own copy of the same logic.</p>
+<h2 id="disableenable-three-independent-bits-not-one-flag"><a class="header" href="#disableenable-three-independent-bits-not-one-flag">Disable/Enable: three independent bits, not one flag</a></h2>
+<p>Covered in depth in <a href="#interaction-and-focus">Interaction</a> – <code>InteractionState</code>’s <code>ENABLED</code>/
+<code>AUTO_ENABLED</code>/<code>INHERIT_ENABLED</code> bits are what let a parent’s <code>Disable</code> cascade to every
+descendant (via <code>InheritDisable</code>, walking <code>Branch</code>/<code>AnchorDeps</code>) without touching the
+author’s own <code>ENABLED</code> bit or the library’s own internal <code>AUTO_ENABLED</code> opt-outs. <code>Enable</code>
+is the exact mirror, setting the same three bits back.</p>
+<h2 id="visibility-own-flag-inherited-flag-resolved"><a class="header" href="#visibility-own-flag-inherited-flag-resolved">Visibility: own flag, inherited flag, resolved</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/visibility.rs
+#[derive(Component)]
+#[require(InheritedVisibility, ResolvedVisibility, CachedVisibility, AutoVisibility)]
+pub struct Visibility { visible: bool }
+<span class="boring">}</span></code></pre>
+<p><code>Visibility::stem_insert</code> (an observer on <code>Insert&lt;Stem&gt;</code>, so it fires the moment an
+entity gets a parent) captures the parent’s already-<code>ResolvedVisibility</code> into this
+entity’s own <code>InheritedVisibility</code> – hiding a parent after the fact still needs to
+cascade to already-spawned children, which is exactly what
+<a href="#from-change-to-pixels-differential"><code>Differential</code></a>’s visibility-restore path (<code>cached_differential</code>’s
+<code>visible: bool</code> branch) exists to handle for the <em>render</em> side: a value that goes
+invisible then visible again gets re-sent to the renderer even though it didn’t itself
+change, since the renderer may have dropped it while hidden.</p>
+<h2 id="opacity-multiplicative-blend-not-an-override"><a class="header" href="#opacity-multiplicative-blend-not-an-override">Opacity: multiplicative blend, not an override</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/opacity.rs
+#[derive(Component)]
+#[require(InheritedOpacity, BlendedOpacity)]
+pub struct Opacity { pub value: f32 }
+fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+    let blended = BlendedOpacity::new(inherited.value * current.value);
+    ...
+}
+<span class="boring">}</span></code></pre>
+<p>A 50%-opaque child of a 50%-opaque parent renders at 25%, not 50% – <code>BlendedOpacity</code> is
+the product of the whole ancestor chain, propagated to every <code>Branch</code> descendant on
+change, the same cascade shape <code>Visibility</code> follows. This is what
+<code>examples/opacity_and_elevation.rs</code> demonstrates directly: three nested panels, each less
+opaque than the last, blending as a soft stack rather than three independent flat values.
+<code>Opacity</code> implements <a href="#animation"><code>Animate</code></a>, so fading is <code>tree.animate(Animation::new(Opacity::new(0.0)).targeting(e))</code>,
+the same call every other animatable component uses.</p>
+<h2 id="remove-a-cascade-not-a-per-entity-despawn"><a class="header" href="#remove-a-cascade-not-a-per-entity-despawn">Remove: a cascade, not a per-entity despawn</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/remove.rs
+fn observer(trigger: Trigger&lt;Self&gt;, mut tree: Tree, branches: Query&lt;&amp;Branch&gt;, stack_deps: Query&lt;&amp;AnchorDeps&gt;) {
+    tree.entity(trigger.event_target()).despawn();
+    let mut deps = branches.get(trigger.event_target()).unwrap().ids.clone();
+    // + AnchorDeps
+    tree.trigger_targets(Remove::new(), deps.drain().collect::&lt;Vec&lt;_&gt;&gt;());
+}
+<span class="boring">}</span></code></pre>
+<p><code>tree.remove(entity)</code> despawns that entity, then re-triggers <code>Remove</code> on every <code>Branch</code>
+child <em>and</em> every <code>AnchorDeps</code> dependent (an entity that anchored itself to this one via
+<a href="#layout-grid-location-anchor"><code>Anchor::new</code></a>, even if it isn’t a structural <code>Stem</code>-child) – recursively,
+until the whole subtree is gone. This is why <a href="#router">Router</a> can say
+“navigating tears the current scene down” as a single <code>tree.remove(old_root)</code> call: one
+<code>Remove</code> event reaches everything the old scene ever spawned, structural or anchored,
+with no manual teardown list to maintain per composite.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="panel"><a class="header" href="#panel">Panel</a></h1>
 <p><code>Panel</code> is the filled/outlined/rounded rectangle primitive – the thing most composites

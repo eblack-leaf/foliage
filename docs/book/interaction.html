@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
+            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -175,6 +175,99 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="interaction-and-focus"><a class="header" href="#interaction-and-focus">Interaction and Focus</a></h1>
+<p><a href="./leaf.html">Leaf</a> requires <code>InteractionShape</code>/<code>InteractionPropagation</code>/<code>FocusBehavior</code>
+on every entity unconditionally – so the interaction system never needs to special-case
+“this entity might not be able to receive input.” Whether it actually <em>does</em> is a
+separate question, answered by <code>InteractionListener</code>.</p>
+<h2 id="hit-testing-shape--clip-not-bounding-box-only"><a class="header" href="#hit-testing-shape--clip-not-bounding-box-only">Hit-testing: shape + clip, not bounding-box-only</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/interaction/listener.rs
+pub(crate) fn is_contained(shape: InteractionShape, section: Section&lt;Logical&gt;, clip: ResolvedClip, event: Position&lt;Logical&gt;) -&gt; bool {
+    let section_contained = match shape {
+        InteractionShape::Rectangle =&gt; section.contains(event),
+        InteractionShape::Circle =&gt; section.center().distance(event) &lt;= section.width() / 2f32,
+    };
+    section_contained &amp;&amp; clip.0.contains(event)
+}
+<span class="boring">}</span></code></pre>
+<p>A click has to land inside both the entity’s own shape <em>and</em> whatever ancestor clip
+region applies – a <code>Panel</code> with <code>Rounding::Full</code> switches to <code>InteractionShape::Circle</code>
+automatically (see <a href="./panel.html">Panel</a>’s <code>Rounding::on_insert</code>), so a circular button
+doesn’t grab clicks that land in its bounding box’s square corners.</p>
+<h2 id="three-independent-gates-not-one-flag"><a class="header" href="#three-independent-gates-not-one-flag">Three independent gates, not one flag</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/interaction/listener.rs
+bitflags! {
+    impl InteractionState: u8 {
+        const ENABLED = 1 &lt;&lt; 0;
+        const AUTO_ENABLED = 1 &lt;&lt; 1;
+        const INHERIT_ENABLED = 1 &lt;&lt; 2;
+    }
+}
+pub fn disabled(&amp;self) -&gt; bool {
+    !(self.state.contains(ENABLED) &amp;&amp; self.state.contains(AUTO_ENABLED) &amp;&amp; self.state.contains(INHERIT_ENABLED))
+}
+<span class="boring">}</span></code></pre>
+<p>All three must be set for a listener to actually respond. <code>ENABLED</code> is the author’s own
+explicit <code>Disable</code>/<code>Enable</code>; <code>AUTO_ENABLED</code> is the library’s own internal opt-out (a
+widget disabling one of its own children’s interactivity as part of its own logic, not
+an author choice); <code>INHERIT_ENABLED</code> is what a parent’s <code>Disable</code> cascades down as (see
+<a href="./lifecycle.html">Lifecycle</a>). Three independent bits mean disabling a parent doesn’t
+require touching every descendant’s own <code>ENABLED</code> state directly – it only has to flip
+<code>INHERIT_ENABLED</code> down the tree, leaving the author’s and the library’s own separate
+opt-outs untouched and independently restorable.</p>
+<h2 id="interactionpropagation-pass-through-and-grab"><a class="header" href="#interactionpropagation-pass-through-and-grab"><code>InteractionPropagation</code>: pass-through and grab</a></h2>
+<p>Every entity defaults to <code>grab: true</code> (per <code>Leaf</code>’s unconditional requirement) – a plain
+<code>Panel</code>/<code>Text</code>/<code>Icon</code> with no <code>InteractionListener</code> still competes to <em>own</em> a click even
+though it does nothing with it, since hit-testing is a flat, elevation-ranked scan over
+every <code>Leaf</code>, not ancestor-bubbling (see <a href="./composites/popover.html">Popover</a>’s doc comment
+on exactly this constraint). <code>InteractionPropagation::pass_through()</code> is how a rendering
+child (<code>Button</code>’s own <code>Panel</code>/<code>Text</code>) opts back out, so the click reaches the composite
+root’s own listener instead of being swallowed by whichever visual child happened to be
+on top. <code>disable_drag()</code> (used by <code>Carousel</code>’s viewport, <code>Slider</code>’s knob) is the
+narrower version – still grabs for click purposes, but excludes drag-panning
+specifically, so a composite that drives its own drag logic doesn’t fight the generic
+view-panning behavior a <code>Grid</code>-bearing entity gets by default.</p>
+<h2 id="focusbehavior"><a class="header" href="#focusbehavior"><code>FocusBehavior</code></a></h2>
+<p><code>FocusBehavior::ignore()</code> (used the same places <code>pass_through()</code> is, on <code>Button</code>’s
+<code>Panel</code>/<code>Text</code> children) keeps a purely-visual child from stealing keyboard focus away
+from the composite root that should actually hold it – the same “rendering children
+shouldn’t compete with their own composite root” pattern <code>InteractionPropagation</code>
+follows, applied to focus instead of clicks.</p>
+<h2 id="after-the-grab-walking-up-to-find-a-view-to-pan"><a class="header" href="#after-the-grab-walking-up-to-find-a-view-to-pan">After the grab: walking up to find a <code>View</code> to pan</a></h2>
+<p>Hit-testing itself (deciding <em>which</em> entity wins the grab, above) is a flat scan with no
+ancestor walking involved. But once something’s grabbed and actually dragged or
+scrolled, a second, separate question comes up: <em>which</em> entity’s <code>View</code> (see
+<a href="./grid.html">Grid</a>) actually gets panned? The grabbed entity itself might have no <code>View</code>
+of its own (a <code>Slider</code>’s knob, a <code>TextInput</code>’s cursor) – so <code>interactive_elements</code>
+walks up the grabbed entity’s real <code>Stem</code> chain looking for the nearest ancestor that
+does:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/interaction/mod.rs (abridged, the drag-move case)
+let mut context = *contexts.get(p).unwrap();
+while let Some(id) = context.id {
+    if let Ok(_) = views.get(id) {
+        if !all.get(id).unwrap().4.disable_drag {
+            tree.entity(id).insert(ViewAdjustment(diff));
+            break;
+        }
+    }
+    // a disabled view doesn't stop the search -- keep walking up for the next one.
+    if let Ok(up) = contexts.get(id) { context = *up; } else { break; }
+}
+<span class="boring">}</span></code></pre>
+<p>The crate’s own comments call this the interaction system’s “LCA walk” (see
+<code>ash/clip.rs</code>’s doc comment on <code>ClipContext</code>) – informally: it’s a single-entity ancestor
+walk from the grabbed entity outward, not a two-entity lowest-common-ancestor
+computation in the strict graph-theory sense. A disabled view along the way doesn’t stop
+the search either – it keeps walking further out, since touch has no separate
+wheel-scroll channel: a drag not meant for the nearest view (a <code>Carousel</code> swiping its own
+pages) must still be able to reach whatever scrollable ancestor further out <em>is</em> meant to
+receive it (the page behind the <code>Carousel</code>, on a platform where dragging is the only
+scroll input there is).</p>
 
                     </main>
 

@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
+            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -175,6 +175,71 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="lifecycle-disable-enable-remove-visibility-opacity"><a class="header" href="#lifecycle-disable-enable-remove-visibility-opacity">Lifecycle: Disable, Enable, Remove, Visibility, Opacity</a></h1>
+<p>Four ways an entity’s state can change without changing <em>what</em> it is: whether it
+responds to input, whether it’s drawn at all, how transparent it is, and whether it
+exists. All four share one shape: an author-facing value on the entity itself, an
+inherited value cascading down from its parent, and a resolved value that’s the actual
+combination – so a parent’s state always propagates without every descendant needing
+its own copy of the same logic.</p>
+<h2 id="disableenable-three-independent-bits-not-one-flag"><a class="header" href="#disableenable-three-independent-bits-not-one-flag">Disable/Enable: three independent bits, not one flag</a></h2>
+<p>Covered in depth in <a href="./interaction.html">Interaction</a> – <code>InteractionState</code>’s <code>ENABLED</code>/
+<code>AUTO_ENABLED</code>/<code>INHERIT_ENABLED</code> bits are what let a parent’s <code>Disable</code> cascade to every
+descendant (via <code>InheritDisable</code>, walking <code>Branch</code>/<code>AnchorDeps</code>) without touching the
+author’s own <code>ENABLED</code> bit or the library’s own internal <code>AUTO_ENABLED</code> opt-outs. <code>Enable</code>
+is the exact mirror, setting the same three bits back.</p>
+<h2 id="visibility-own-flag-inherited-flag-resolved"><a class="header" href="#visibility-own-flag-inherited-flag-resolved">Visibility: own flag, inherited flag, resolved</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/visibility.rs
+#[derive(Component)]
+#[require(InheritedVisibility, ResolvedVisibility, CachedVisibility, AutoVisibility)]
+pub struct Visibility { visible: bool }
+<span class="boring">}</span></code></pre>
+<p><code>Visibility::stem_insert</code> (an observer on <code>Insert&lt;Stem&gt;</code>, so it fires the moment an
+entity gets a parent) captures the parent’s already-<code>ResolvedVisibility</code> into this
+entity’s own <code>InheritedVisibility</code> – hiding a parent after the fact still needs to
+cascade to already-spawned children, which is exactly what
+<a href="./differential.html"><code>Differential</code></a>’s visibility-restore path (<code>cached_differential</code>’s
+<code>visible: bool</code> branch) exists to handle for the <em>render</em> side: a value that goes
+invisible then visible again gets re-sent to the renderer even though it didn’t itself
+change, since the renderer may have dropped it while hidden.</p>
+<h2 id="opacity-multiplicative-blend-not-an-override"><a class="header" href="#opacity-multiplicative-blend-not-an-override">Opacity: multiplicative blend, not an override</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/opacity.rs
+#[derive(Component)]
+#[require(InheritedOpacity, BlendedOpacity)]
+pub struct Opacity { pub value: f32 }
+fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+    let blended = BlendedOpacity::new(inherited.value * current.value);
+    ...
+}
+<span class="boring">}</span></code></pre>
+<p>A 50%-opaque child of a 50%-opaque parent renders at 25%, not 50% – <code>BlendedOpacity</code> is
+the product of the whole ancestor chain, propagated to every <code>Branch</code> descendant on
+change, the same cascade shape <code>Visibility</code> follows. This is what
+<code>examples/opacity_and_elevation.rs</code> demonstrates directly: three nested panels, each less
+opaque than the last, blending as a soft stack rather than three independent flat values.
+<code>Opacity</code> implements <a href="./anim.html"><code>Animate</code></a>, so fading is <code>tree.animate(Animation::new(Opacity::new(0.0)).targeting(e))</code>,
+the same call every other animatable component uses.</p>
+<h2 id="remove-a-cascade-not-a-per-entity-despawn"><a class="header" href="#remove-a-cascade-not-a-per-entity-despawn">Remove: a cascade, not a per-entity despawn</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/remove.rs
+fn observer(trigger: Trigger&lt;Self&gt;, mut tree: Tree, branches: Query&lt;&amp;Branch&gt;, stack_deps: Query&lt;&amp;AnchorDeps&gt;) {
+    tree.entity(trigger.event_target()).despawn();
+    let mut deps = branches.get(trigger.event_target()).unwrap().ids.clone();
+    // + AnchorDeps
+    tree.trigger_targets(Remove::new(), deps.drain().collect::&lt;Vec&lt;_&gt;&gt;());
+}
+<span class="boring">}</span></code></pre>
+<p><code>tree.remove(entity)</code> despawns that entity, then re-triggers <code>Remove</code> on every <code>Branch</code>
+child <em>and</em> every <code>AnchorDeps</code> dependent (an entity that anchored itself to this one via
+<a href="./grid.html"><code>Anchor::new</code></a>, even if it isn’t a structural <code>Stem</code>-child) – recursively,
+until the whole subtree is gone. This is why <a href="./composites/router.html">Router</a> can say
+“navigating tears the current scene down” as a single <code>tree.remove(old_root)</code> call: one
+<code>Remove</code> event reaches everything the old scene ever spawned, structural or anchored,
+with no manual teardown list to maintain per composite.</p>
 
                     </main>
 

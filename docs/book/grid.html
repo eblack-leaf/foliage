@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
+            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -175,6 +175,68 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="layout-grid-location-anchor"><a class="header" href="#layout-grid-location-anchor">Layout: Grid, Location, Anchor</a></h1>
+<p>Every example so far has quoted calls like <code>8.px().as_left().with(160.px().as_width())</code>
+without explaining them. This chapter is that explanation.</p>
+<h2 id="the-grammar-locationvalue--valuedescriptor--configurationdescriptor"><a class="header" href="#the-grammar-locationvalue--valuedescriptor--configurationdescriptor">The grammar: <code>LocationValue</code> → <code>ValueDescriptor</code> → <code>ConfigurationDescriptor</code></a></h2>
+<p><code>GridExt</code> is implemented for the plain number types (<code>i32</code>, <code>f32</code>, <code>u32</code>, …), which is
+what makes <code>8.px()</code> legal at all:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/grid/location.rs
+pub trait GridExt {
+    fn pct(self) -&gt; LocationValue;
+    fn px(self) -&gt; LocationValue;
+    fn col(self) -&gt; LocationValue;
+    fn row(self) -&gt; LocationValue;
+    fn letters(self) -&gt; LocationValue;
+}
+pub enum LocationValue {
+    Percent(f32), Px(CoordinateUnit), Column(i32), Row(i32), Anchor(Designator),
+    TextContent, Letters(i32),
+}
+<span class="boring">}</span></code></pre>
+<p><code>.as_left()</code>/<code>.as_right()</code>/<code>.as_top()</code>/<code>.as_bottom()</code>/<code>.as_width()</code>/<code>.as_height()</code> wrap a
+<code>LocationValue</code> into a <code>ValueDescriptor</code> (the value plus which edge it describes);
+<code>.with(..)</code> pairs two <code>ValueDescriptor</code>s (one axis-start edge and its counterpart) into a
+<code>ConfigurationDescriptor</code>. So <code>8.px().as_left().with(160.px().as_width())</code> reads exactly
+as written: left edge is 8px in, width is 160px. <code>Location::new().xs(horizontal, vertical)</code> takes one <code>ConfigurationDescriptor</code> per axis; <code>.sm()</code>/<code>.md()</code>/<code>.lg()</code>/<code>.xl()</code>
+override it at larger breakpoints, falling back to the next-smaller configured one if a
+given breakpoint has none of its own (<code>Grid::config</code>’s <code>at_least_sm</code>/<code>at_least_md</code>/
+<code>at_least_lg</code> chain).</p>
+<p><code>col()</code>/<code>row()</code> resolve against the parent’s <code>Grid</code> (see below) instead of raw pixels –
+<code>1.col().as_left().with(1.col().as_right())</code> means “the first column, full width,” the
+pattern every composite’s own internal skeleton uses (see <a href="./composite-button.html">Button</a>’s
+panel, sized to <code>1.col()</code>/<code>1.row()</code> – one full cell). <code>letters()</code> sizes against the
+current font’s monospaced character width, used for text-content-driven width like
+<code>TextInput</code>’s field.</p>
+<h2 id="grid-the-coordinate-system-a-location-resolves-against"><a class="header" href="#grid-the-coordinate-system-a-location-resolves-against"><code>Grid</code>: the coordinate system a <code>Location</code> resolves against</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/grid/mod.rs
+#[derive(Component, Copy, Clone)]
+#[require(View)]
+pub struct Grid {
+    pub xs: GridConfiguration,
+    pub sm: Option&lt;GridConfiguration&gt;,
+    // md, lg, xl -- same breakpoint-override shape as Location
+}
+<span class="boring">}</span></code></pre>
+<p>Any entity that’s going to size children with <code>.col()</code>/<code>.row()</code>/<code>.pct()</code> needs <code>Grid</code> on
+itself – resolving a child’s <code>Location</code> always reads its parent’s <code>Grid</code> unconditionally,
+regardless of which units the child actually uses (<code>examples/opacity_and_elevation.rs</code>’s
+own comment on this: a grid-less parent panics resolving <em>any</em> child, even a plain-<code>px</code>
+one). <code>Grid::default()</code> is <code>Grid::new(1.col(), 1.row())</code> – one column, one row, the
+common case for “this entity is just a positioned box,” not an actual multi-cell layout.</p>
+<h2 id="anchor-relative-to-another-entity-not-relative-to-parent"><a class="header" href="#anchor-relative-to-another-entity-not-relative-to-parent"><code>Anchor</code>: relative-to-another-entity, not relative-to-parent</a></h2>
+<p><code>anchor().left().as_left()</code> and friends (used throughout <code>Button</code>’s icon positioning,
+<code>Dropdown</code>’s option surface) resolve against a <em>named sibling or ancestor</em> entity’s own
+resolved <code>Section</code>, via <code>Anchor::new(target)</code>, instead of the parent’s <code>Grid</code>. This is
+what lets a Popover’s content surface size itself relative to its trigger, or an icon
+size itself relative to a text label it sits beside, without either one needing to know
+the other’s absolute position.</p>
+<p><code>View</code> (required by <code>Grid</code>) is the scroll/pan state a <code>Location</code> resolves <em>through</em> –
+covered where it matters most, in <a href="./composites/text-input.html">TextInput</a>’s
+scroll-into-view logic and <code>List</code>/<code>Carousel</code>’s viewport.</p>
 
                     </main>
 

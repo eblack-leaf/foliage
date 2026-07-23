@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
+            window.path_to_searchindex_js = "searchindex-f2d3833d.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -175,6 +175,71 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="ops-named-keyring-update-write"><a class="header" href="#ops-named-keyring-update-write">Ops: Named, Keyring, Update, Write</a></h1>
+<p>Two small, unrelated-looking tools that turn up constantly once you’ve read a few
+composites: generic targeted markers, and two string-keyed lookup tables.</p>
+<h2 id="writew--updateu-broadcast-then-translate--not-duplicates"><a class="header" href="#writew--updateu-broadcast-then-translate--not-duplicates"><code>Write&lt;W&gt;</code> / <code>Update&lt;U&gt;</code>: broadcast, then translate – not duplicates</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ops.rs
+pub struct Write&lt;W: Send + Sync + 'static&gt; { entity: Entity, _phantom: PhantomData&lt;W&gt; }
+pub struct Update&lt;U: Send + Sync + 'static&gt; { entity: Entity, _phantom: PhantomData&lt;U&gt; }
+<span class="boring">}</span></code></pre>
+<p>Identical shape, but they sit at two different ends of the same pipeline, and the
+<code>Section&lt;Logical&gt;</code> → <code>Panel</code>/<code>Text</code>/clip fan-out shows exactly why both exist.
+<code>Section&lt;Logical&gt;::on_insert</code> fires one broadcast every time a <code>Section</code> is written:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/coordinate/section.rs
+fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+    ...
+    world.trigger_targets(Write::&lt;Self&gt;::new(), this); // one Write&lt;Section&lt;Logical&gt;&gt;
+}
+<span class="boring">}</span></code></pre>
+<p><em>Three unrelated</em> systems each independently observe that same <code>Write&lt;Section&lt;Logical&gt;&gt;</code>
+and translate it into their <em>own</em> type’s update signal:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/panel/mod.rs
+fn update_from_section(trigger: Trigger&lt;Write&lt;Section&lt;Logical&gt;&gt;&gt;, mut tree: Tree) {
+    tree.trigger_targets(Update::&lt;Panel&gt;::new(), trigger.event_target());
+}
+// foliage_proper/src/text/mod.rs has its own update_from_section -&gt; Update::&lt;Text&gt;
+// foliage_proper/src/ash/clip.rs has its own -&gt; reacts directly, no Update::&lt;Self&gt; needed
+<span class="boring">}</span></code></pre>
+<p>So: <strong><code>Write&lt;T&gt;</code> is “raw data <code>T</code> was just written, broadcast”</strong> – any number of
+unrelated types can subscribe to the same one and each decide independently whether/how
+to react. <strong><code>Update&lt;U&gt;</code> is a specific type’s own “recompute yourself now” signal</strong> –
+observed only by <code>U</code>’s own update system, and can be triggered from more than one
+source: <code>Panel::update</code> fires on <code>Update&lt;Panel&gt;</code> regardless of whether that came from a
+<code>Write&lt;Section&lt;Logical&gt;&gt;</code> (via the bridge above), or directly from <code>Panel</code>’s own
+<code>on_insert</code> when <code>Color</code>/<code>Rounding</code>/<code>Outline</code> change (<code>panel/mod.rs</code>’s own <code>on_insert</code>
+calls <code>Update::&lt;Panel&gt;::new()</code> straight away, no <code>Write</code> involved). The small bridge
+observers (<code>update_from_section</code> and friends) are what translate “something raw changed”
+into “this specific thing needs recomputing” – collapsing them into one type would mean
+every <code>Write&lt;Section&lt;Logical&gt;&gt;</code> subscriber either shares one <code>Update</code> type it doesn’t
+actually own, or <code>Panel</code>/<code>Text</code>/clip resolution all fire on each other’s writes with no
+way to opt out selectively.</p>
+<p><code>Disable</code>’s cascade (see <a href="./lifecycle.html">Lifecycle</a>) uses <code>Write&lt;Disable&gt;</code> the same way
+– broadcasting “<code>Disable</code> was written on this entity” before separately triggering
+<code>InheritDisable</code> to propagate to children, keeping “notify” and “cascade” as two
+distinct steps.</p>
+<h2 id="named--keyring-string-keys-for-entities-and-assets"><a class="header" href="#named--keyring-string-keys-for-entities-and-assets"><code>Named</code> / <code>Keyring</code>: string keys for entities and assets</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/ops.rs
+pub struct Named { map: HashMap&lt;String, Entity&gt; }
+pub struct Keyring { map: HashMap&lt;String, AssetKey&gt; }
+<span class="boring">}</span></code></pre>
+<p><code>tree.name(e, "close-button")</code> / <code>tree.store(key, "logo")</code> (both
+<a href="./tree.html"><code>EcsExtension</code></a> methods) register a string alias; <code>Named::get("close-button")</code>
+/ <code>Keyring::get("logo")</code> resolve it back. Both are <code>Resource</code>s populated by a private
+event (<code>Name</code>/<code>StoredKey</code>) rather than direct map mutation, so registering a name
+follows the same deferred-command path as everything else spawned through
+<a href="./spawning.html"><code>Sprout</code></a> – an alias set during <code>build()</code> is available the moment the
+surrounding spawn command actually applies, not before. This is a convenience for
+app-level code that wants to look an entity or asset key back up by a human-readable
+name instead of threading the raw <code>Entity</code>/<code>AssetKey</code> through wherever it’s needed –
+not something the library’s own composites use internally.</p>
 
                     </main>
 
