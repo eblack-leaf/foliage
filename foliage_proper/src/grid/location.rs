@@ -887,7 +887,8 @@ impl LocationValue {
             LocationValue::Px(_)
             | LocationValue::Percent(_)
             | LocationValue::Column(_)
-            | LocationValue::Row(_) => true,
+            | LocationValue::Row(_)
+            | LocationValue::Letters(_) => true,
             _ => false,
         });
         GridAxisDescriptor {
