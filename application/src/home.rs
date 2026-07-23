@@ -1,671 +1,230 @@
 use crate::icons::IconHandles;
-use crate::portfolio;
-use crate::widgets::icon_button;
+use crate::type_in;
 use foliage::{
-    Anchor, Animation, Color, EcsExtension, Elevation, Entity, EntityEvent, FontSize, GlyphColors,
-    Grid, GridExt, HorizontalAlignment, HrefLink, IconId, Insert, Keyring, Leaf, LeafSprout, Line,
-    Location, Logical, OnClick, OnEnd, Opacity, Query, Res, Rounding, Section, Sequence, Sprout,
-    Text, TextValue, Tree, Trigger, VerticalAlignment, Write, anchor, component,
+    Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, GridExt, Icon, Line,
+    Location, Opacity, Polygon, Sprout, Tree, anchor,
 };
-use std::ops::Range;
+use std::f32::consts::PI;
 
-/// The header's opacity fades + the two measurement lines' grow-in animations. The only
-/// entrance animation still driven from the top level -- header's pieces (title, two
-/// measurement lines) aren't a repeatable widget shape, just a lot of one-off page content
-/// that needs a name.
-fn animate_header_entrance<'t, T: EcsExtension>(
-    seq: Sequence<'t, T>,
-    header: &HeaderEntities,
-) -> Sequence<'t, T> {
-    seq.animate(
-        Animation::new(Opacity::new(1.0))
-            .start(500)
-            .finish(1500)
-            .targeting(header.name),
-    )
-    .animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1000)
-            .finish(1250)
-            .targeting(header.top_desc),
-    )
-    .animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1100)
-            .finish(1350)
-            .targeting(header.side_desc),
-    )
-    .animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1500)
-            .finish(1750)
-            .targeting(header.pad_desc),
-    )
-    .animate(
-        Animation::new(Opacity::new(1.0))
-            .start(1750)
-            .finish(2750)
-            .targeting(header.desc),
-    )
-    .animate(
-        Animation::new(Location::new().xs(
-            4.col().as_x().with(5.row().as_y()),
-            9.col().as_x().with(5.row().as_y()),
-        ))
-        .start(1000)
-        .finish(3000)
-        .targeting(header.top_line),
-    )
-    .animate(
-        Animation::new(Location::new().xs(
-            7.col().as_x().with(5.row().as_y()),
-            7.col().as_x().with(8.row().as_y()),
-        ))
-        .start(1750)
-        .finish(3000)
-        .targeting(header.pad_connector),
+const WIDTH: f32 = 14.0;
+const HEIGHT: f32 = 11.0;
+const START_CENTER_X: f32 = -10.0; // fully offscreen left
+const END_CENTER_X: f32 = 200.0 / 3.0; // two-thirds across
+const CENTER_Y: f32 = 30.0; // upper third of the page
+const BOTTOM_CENTER_Y: f32 = 83.0; // center of the bottom third
+
+const MOVE_END: u64 = 3400; // slower glide to its resting horizontal position
+const SPIN_DURATION: u64 = 180; // fast spin into the next shape
+const BOUNCE_DURATION: u64 = 140; // quick overcorrect back to rest angle
+const SHAPE_PAUSE: u64 = 380; // longer hold once it settles
+const STAGE_DURATION: u64 = SPIN_DURATION + BOUNCE_DURATION + SHAPE_PAUSE;
+/// Timed so the LAST stage's "spin into" lands exactly when the location move finishes --
+/// the shape's final flourish and its arrival read as one beat.
+const MORPH_DELAY: u64 = MOVE_END - SPIN_DURATION - (STAGES.len() as u64 - 1) * STAGE_DURATION;
+const TURN_DURATION: u64 = 7000;
+/// Per stage: spin past the resting angle by this much, then bounce back -- faster and
+/// punchier than a single monotonic turn.
+const ROTATION_PER_STAGE: f32 = PI / 2.0;
+const OVERSHOOT: f32 = PI / 10.0;
+
+const LINE_WEIGHT: i32 = 2;
+const LINE_GAP: f32 = 4.0; // clearance from the polygon's own edge
+const SCREEN_MARGIN: f32 = 6.0; // clearance from the screen edge
+const LINE_DRAW: u64 = 1200;
+
+const DOWN_DURATION: u64 = 900; // polygon + both lines, together, to the bottom third
+const ICON_PX: i32 = 20; // plain pct sizing resolves against the parent, not an Anchor --
+                          // fixed size is the honest option here, not a guessed percentage
+const ICON_FADE: u64 = 500;
+
+/// sides/rounding at each morph stage, continuing on from the starting triangle (3) --
+/// stops at a heptagon, well short of circle-ish, so the polygon-ness stays legible
+/// throughout.
+const STAGES: &[(f32, f32)] = &[
+    (4.0, 0.0),  // square
+    (5.0, 0.25), // pentagon
+    (7.0, 0.55), // heptagon
+];
+
+fn box_at(center_x: f32, center_y: f32) -> Location {
+    box_of_size(center_x, center_y, WIDTH, HEIGHT)
+}
+
+fn box_of_size(center_x: f32, center_y: f32, w: f32, h: f32) -> Location {
+    Location::new().xs(
+        (center_x - w / 2.0).pct().as_left().with(w.pct().as_width()),
+        (center_y - h / 2.0).pct().as_top().with(h.pct().as_height()),
     )
 }
 
-struct HeaderEntities {
-    name: Entity,
-    top_desc: Entity,
-    top_line: Entity,
-    side_desc: Entity,
-    pad_connector: Entity,
-    pad_desc: Entity,
-    desc: Entity,
-}
-
-/// Title, three live layout-measurement readouts (width/half-width/pad-height), and the
-/// tagline -- everything anchored under one `name_container`.
-fn header<T: EcsExtension>(tree: &mut T, root: Entity) -> HeaderEntities {
-    let name_container = tree.branch(
-        root,
-        Leaf::sprout()
-            .at(Location::new().xs(
-                1.col().as_left().with(12.col().as_right()).max(600.0),
-                4.row().as_top().with(8.row().as_bottom()),
-            ))
-            .elevate(Elevation::up(1))
-            .with(Grid::new(12.col().gap(4), 12.row().gap(4))),
-    );
-    let name = tree.branch(
-        name_container,
-        Text::new("foliage.rs")
-            .size(FontSize::new(44))
-            .at(Location::new().xs(
-                2.col().as_left().with(11.col().as_right()),
-                1.row().as_top().with(3.row().as_bottom()),
-            ))
-            .elevate(Elevation::up(1))
-            .with((
-                HorizontalAlignment::Center,
-                GlyphColors::new().add(7..10, Color::green(400)),
-                Opacity::new(0.0),
-            )),
-    );
-    let top_line = tree.branch(
-        name_container,
-        Line::new(2)
-            .color(Color::gray(700))
-            .at(Location::new().xs(
-                4.col().as_x().with(5.row().as_y()),
-                4.col().as_x().with(5.row().as_y()),
-            ))
-            .elevate(Elevation::up(1)),
-    );
-    let top_desc = measurement_readout(
-        tree,
-        name_container,
-        top_line,
-        "w",
-        |s| s.width(),
-        Location::new().xs(
-            5.col().as_left().with(8.col().as_right()),
-            4.row().as_top().with(4.row().as_bottom()),
-        ),
-    );
-    let side_desc = measurement_readout(
-        tree,
-        name_container,
-        top_line,
-        "h",
-        |s| s.width() * 0.5,
-        Location::new().xs(
-            9.col().as_left().with(11.col().as_right()),
-            4.row().as_top().with(4.row().as_bottom()),
-        ),
-    );
-    let pad_connector = tree.branch(
-        name_container,
-        Line::new(2)
-            .color(Color::gray(700))
-            .at(Location::new().xs(
-                7.col().as_x().with(5.row().as_y()),
-                7.col().as_x().with(5.row().as_y()),
-            ))
-            .elevate(Elevation::up(1)),
-    );
-    let pad_desc = measurement_readout(
-        tree,
-        name_container,
-        pad_connector,
-        "pad",
-        |s| s.height(),
-        Location::new().xs(
-            8.col().as_left().with(11.col().as_right()),
-            7.row().as_top().with(8.row().as_bottom()),
-        ),
-    );
-    let desc = tree.branch(
-        name_container,
-        Text::new("native + web ui")
-            .size(FontSize::new(24))
-            .color(Color::gray(500))
-            .at(Location::new().xs(
-                1.col().as_left().with(12.col().as_right()),
-                9.row().as_top().with(12.row().as_bottom()),
-            ))
-            .elevate(Elevation::up(1))
-            .with((
-                HorizontalAlignment::Center,
-                GlyphColors::new()
-                    .add(7..8, Color::orange(700))
-                    .add(13..15, Color::green(400)),
-                Opacity::new(0.0),
-            )),
-    );
-    HeaderEntities {
-        name,
-        top_desc,
-        top_line,
-        side_desc,
-        pad_connector,
-        pad_desc,
-        desc,
-    }
-}
-
-/// A faded-in `Text` that tracks `watch`'s `Section<Logical>` live, formatted as
-/// `"<label>: <value>"` -- the shape all three of `header`'s readouts share, differing only in
-/// which entity/dimension they read and their label.
-fn measurement_readout<T: EcsExtension>(
-    tree: &mut T,
-    parent: Entity,
-    watch: Entity,
-    label: &'static str,
-    read: impl Fn(&Section<Logical>) -> f32 + Send + Sync + 'static,
-    at: Location,
-) -> Entity {
-    let desc = tree.branch(
-        parent,
-        Text::new(format!("{label}: 0.0"))
-            .size(FontSize::new(14))
-            .color(Color::gray(700))
-            .at(at)
-            .elevate(Elevation::up(1))
-            .with(Opacity::new(0.0)),
-    );
-    tree.subscribe(
-        watch,
-        move |trigger: Trigger<Write<Section<Logical>>>,
-              mut tree: Tree,
-              sections: Query<&Section<Logical>>| {
-            let value = read(sections.get(trigger.event_target()).unwrap());
-            tree.write_to(desc, TextValue(format!("{label}: {value:.01}")));
-        },
-    );
-    desc
-}
-
-// ===========================================================================
-// GithubLink -- icon button + connecting line + highlighted label, entirely self-contained:
-// it disables its own button at spawn, fades everything in on its own schedule, and
-// re-enables itself once its own fade finishes. The caller supplies only where it goes.
-// Used once, but the point isn't reuse -- it's that "button + line + label, one entity,
-// nobody outside needs its children" is exactly what `Sprout` is for.
-// ===========================================================================
-
-#[component]
-struct GithubLink {}
-
-struct GithubLinkSprout {
-    leaf: LeafSprout,
-}
-impl GithubLink {
-    fn new() -> GithubLinkSprout {
-        GithubLinkSprout {
-            leaf: LeafSprout::default(),
-        }
-    }
-}
-impl Sprout for GithubLinkSprout {
-    fn seed(&mut self) -> &mut LeafSprout {
-        &mut self.leaf
-    }
-    fn root(self) -> impl foliage::Bundle {
-        // matches root's own 12-column, row_size-tall grid exactly -- `.at()` (set by the
-        // caller) spans root's full area, so column/row numbers below mean what they'd mean
-        // spawned directly under root, including the desc text's `10.col()` reach.
-        (GithubLink {}, Grid::new(12.col().gap(8), 40.px().gap(8)))
-    }
-    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
-        let button = tree.branch(
-            this,
-            icon_button(IconHandles::Github, Color::gray(200), Color::gray(800))
-                .at(Location::new().xs(
-                    1.col().as_left().with(48.px().as_width()),
-                    1.row().as_top().with(48.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Opacity::new(0.0)),
-        );
-        tree.write_to(button, FontSize::new(16));
-        tree.on_click(button, |_: Trigger<OnClick>| {
-            HrefLink::new("https://github.com/eblack-leaf/foliage").navigate()
-        });
-        tree.disable(button);
-        let line = tree.branch(
-            this,
-            Line::new(2)
-                .color(Color::gray(700))
-                .at(Location::new().xs(
-                    anchor().right().as_x().adjust(16).with(1.row().as_y()),
-                    anchor().right().as_x().adjust(16).with(1.row().as_y()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Anchor::new(button)),
-        );
-        let desc = tree.branch(
-            this,
-            Text::new("on-click: github")
-                .size(FontSize::new(14))
-                .color(Color::gray(500))
-                .at(Location::new().xs(
-                    anchor()
-                        .right()
-                        .as_left()
-                        .adjust(16)
-                        .with(10.col().as_right()),
-                    1.row().as_top().adjust(8).with(2.row().as_bottom()),
-                ))
-                .elevate(Elevation::up(1))
-                .with((
-                    GlyphColors::new().add(10..16, Color::green(300)),
-                    Anchor::new(line),
-                    Opacity::new(0.0),
-                )),
-        );
-
-        Sequence::new(tree)
-            .animate(
-                Animation::new(Opacity::new(1.0))
-                    .start(1000)
-                    .finish(1500)
-                    .targeting(button),
-            )
-            .animate(
-                Animation::new(Opacity::new(1.0))
-                    .start(2500)
-                    .finish(3000)
-                    .targeting(desc),
-            )
-            .animate(
-                Animation::new(Location::new().xs(
-                    anchor().right().as_x().adjust(16).with(1.row().as_y()),
-                    anchor().right().as_x().adjust(64).with(1.row().as_y()),
-                ))
-                .start(1750)
-                .finish(2500)
-                .targeting(line),
-            );
-        // aesthetic pacing, not a GPU-readiness wait -- avoids the button becoming
-        // interactive the instant its own fade finishes while its label is still settling.
-        tree.timer(1500, move |_: Trigger<OnEnd>, mut tree: Tree| {
-            tree.enable(button);
-        });
-    }
-}
-
-// ===========================================================================
-// OptionRow -- the "on-click: usage/impl/docs" shape: icon button + callout line + label,
-// self-contained the same way GithubLink is, but genuinely reused 3x with different
-// icon/color/copy/geometry, so its variation rides a config component read back via `react`
-// (build() has no access to `self` -- that's the actual reason this needs `react` instead of
-// spawning directly like GithubLink does).
-// ===========================================================================
-
-#[component]
-struct OptionRow {}
-
-#[component]
-#[derive(Clone)]
-struct OptionRowConfig {
-    icon: IconId,
-    color: Color,
-    desc_text: &'static str,
-    desc_highlight: Range<usize>,
-    desc_columns: (i32, i32),
-    line_column: i32,
-    line_target_columns: (i32, i32),
-    /// when this row's own fade-in starts, ms from its own spawn.
-    start_delay: u64,
-    /// when this row's button becomes clickable -- a page-level decision (today: "once the
-    /// whole page has settled"), so the caller supplies it rather than OptionRow guessing.
-    enable_delay: u64,
-}
-
-struct OptionRowSprout {
-    leaf: LeafSprout,
-    config: OptionRowConfig,
-}
-impl OptionRow {
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        icon: IconId,
-        color: Color,
-        desc_text: &'static str,
-        desc_highlight: Range<usize>,
-        desc_columns: (i32, i32),
-        line_column: i32,
-        line_target_columns: (i32, i32),
-        start_delay: u64,
-        enable_delay: u64,
-    ) -> OptionRowSprout {
-        OptionRowSprout {
-            leaf: LeafSprout::default(),
-            config: OptionRowConfig {
-                icon,
-                color,
-                desc_text,
-                desc_highlight,
-                desc_columns,
-                line_column,
-                line_target_columns,
-                start_delay,
-                enable_delay,
-            },
-        }
-    }
-}
-impl Sprout for OptionRowSprout {
-    fn seed(&mut self) -> &mut LeafSprout {
-        &mut self.leaf
-    }
-    fn root(self) -> impl foliage::Bundle {
-        // `.at()` (set by the caller) spans exactly one row of options_container's own
-        // 5-column grid -- matching that column split here, with a single local row, means
-        // `3.col()`/`line_column.col()`/etc below resolve to the same pixels they would have
-        // spanning the whole 3-row container directly.
-        (
-            OptionRow {},
-            self.config,
-            Grid::new(5.col().gap(4), 1.row()),
-        )
-    }
-    fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
-        tree.react::<OptionRowConfig, _>(
-            this,
-            move |trigger: Trigger<Insert, OptionRowConfig>,
-                  configs: Query<&OptionRowConfig>,
-                  mut tree: Tree| {
-                let cfg = configs.get(trigger.event_target()).unwrap().clone();
-                let button = tree.branch(
-                    this,
-                    icon_button(cfg.icon, cfg.color, Color::gray(900))
-                        .outline(2)
-                        .at(Location::new().xs(
-                            3.col()
-                                .as_left()
-                                .with(3.col().as_right())
-                                .max(48.0)
-                                .min(48.0),
-                            1.row()
-                                .as_top()
-                                .with(1.row().as_bottom())
-                                .max(48.0)
-                                .min(48.0),
-                        ))
-                        .elevate(Elevation::up(1))
-                        .with(Opacity::new(0.0)),
-                );
-                tree.on_click(button, move |_: Trigger<OnClick>| {
-                    HrefLink::new("https://eblack-leaf.github.io/foliage/book/").navigate()
-                });
-                tree.disable(button);
-                let line = tree.branch(
-                    this,
-                    Line::new(2)
-                        .color(cfg.color)
-                        .at(Location::new().xs(
-                            cfg.line_column.col().as_x().with(1.row().as_y()),
-                            cfg.line_column.col().as_x().with(1.row().as_y()),
-                        ))
-                        .elevate(Elevation::up(1)),
-                );
-                let desc = tree.branch(
-                    this,
-                    Text::new(cfg.desc_text)
-                        .size(FontSize::new(16))
-                        .color(Color::gray(500))
-                        .at(Location::new().xs(
-                            cfg.desc_columns
-                                .0
-                                .col()
-                                .as_left()
-                                .with(cfg.desc_columns.1.col().as_right()),
-                            1.row().as_top().with(1.row().as_bottom()),
-                        ))
-                        .elevate(Elevation::up(1))
-                        .with((
-                            HorizontalAlignment::Center,
-                            VerticalAlignment::Middle,
-                            GlyphColors::new().add(cfg.desc_highlight.clone(), cfg.color),
-                            Opacity::new(0.0),
-                        )),
-                );
-
-                let base = cfg.start_delay;
-                Sequence::new(&mut tree)
-                    .animate(
-                        Animation::new(Opacity::new(1.0))
-                            .targeting(button)
-                            .start(base)
-                            .finish(base + 500),
-                    )
-                    .animate(
-                        Animation::new(Opacity::new(1.0))
-                            .targeting(desc)
-                            .start(base + 500)
-                            .finish(base + 1000),
-                    )
-                    .animate(
-                        Animation::new(Location::new().xs(
-                            cfg.line_target_columns.0.col().as_x().with(1.row().as_y()),
-                            cfg.line_target_columns.1.col().as_x().with(1.row().as_y()),
-                        ))
-                        .targeting(line)
-                        .start(base)
-                        .finish(base + 500),
-                    );
-                tree.timer(
-                    cfg.enable_delay,
-                    move |_: Trigger<OnEnd>, mut tree: Tree| {
-                        tree.enable(button);
-                    },
-                );
-            },
-        );
-    }
-}
-
-pub(crate) fn build<T: EcsExtension>(tree: &mut T) {
-    let row_size = 40;
-    let root = tree.leaf(
-        Leaf::sprout()
-            .at(Location::new().xs(
-                0.pct().as_left().with(100.pct().as_right()),
-                0.pct().as_top().with(100.pct().as_bottom()),
-            ))
-            .elevate(Elevation::abs(0))
-            .with(Grid::new(12.col().gap(8), row_size.px().gap(8))),
-    );
-    tree.name(root, "home");
-
-    let header = header(tree, root);
-    tree.branch(
-        root,
-        GithubLink::new()
-            // full width (its own 12-column grid needs to match root's own column math
-            // exactly -- see its own doc comment), but only the two rows its content
-            // actually occupies (button/line/desc all sit within row 1-2) -- not the whole
-            // page height. Row spacing is fixed-px (`40.px().gap(8)`, same as root's own),
-            // computed from this entity's own top edge downward, independent of its own
-            // assigned height, so this doesn't affect where its children land. Spanning the
-            // whole page here was the real bug: it made this purely-positional wrapper (no
-            // click handler of its own) a grab candidate for clicks anywhere on the page,
-            // including squarely on top of `options_container`'s and the portfolio button's
-            // own, unrelated content further down -- which used to land on a genuine
-            // elevation tie (all `Elevation::up(1)` off the same `root`) that interaction's
-            // LCA-based `more_in_front` doesn't break consistently. Shrinking the box removes
-            // the overlap entirely, so the tie never arises in the first place.
-            .at(Location::new().xs(
-                0.pct().as_left().with(100.pct().as_right()),
-                1.row().as_top().with(2.row().as_bottom()),
-            ))
+pub fn home(tree: &mut Tree, slot: Entity) {
+    let polygon = tree.branch(
+        slot,
+        Polygon::new()
+            .sides(3.0)
+            .rounding(0.0)
+            .rotation(PI) // upside-down triangle
+            .color(Color::orange(400))
+            .at(box_at(START_CENTER_X, CENTER_Y))
             .elevate(Elevation::up(1)),
     );
 
-    let options_container = tree.branch(
-        root,
-        Leaf::sprout()
-            .at(Location::new().xs(
-                1.col().as_left().with(12.col().as_right()).max(600.0),
-                10.row().as_top().with(13.row().as_bottom()),
-            ))
-            .elevate(Elevation::up(1))
-            .with(Grid::new(5.col().gap(4), 3.row().gap(8))),
+    let seq = tree.sequence();
+
+    tree.animate(
+        Animation::new(box_at(END_CENTER_X, CENTER_Y))
+            .targeting(polygon)
+            .during(seq)
+            .start(0)
+            .finish(MOVE_END)
+            .eased(Ease::ACCELERATE), // slow start, fast end
     );
-    // row, icon, color, desc text, highlight range, desc columns, line column, line target,
-    // start delay -- enable delay (3500) matches portfolio's own fade-in below: all three
-    // rows wait for the whole page to settle, unlike GithubLink's early self-enable.
-    let rows: [(
-        i32,
-        IconId,
-        Color,
-        &str,
-        Range<usize>,
-        (i32, i32),
-        i32,
-        (i32, i32),
-        u64,
-    ); 3] = [
-        (
-            1,
-            IconHandles::Terminal.into(),
-            Color::green(700),
-            "on-click: usage",
-            10..15,
-            (4, 5),
-            1,
-            (1, 2),
-            500,
-        ),
-        (
-            2,
-            IconHandles::Layers.into(),
-            Color::green(500),
-            "on-click: impl",
-            10..14,
-            (1, 2),
-            5,
-            (4, 5),
-            1500,
-        ),
-        (
-            3,
-            IconHandles::BookOpen.into(),
-            Color::green(300),
-            "on-click: docs",
-            10..14,
-            (4, 5),
-            1,
-            (1, 2),
-            2500,
-        ),
+
+    let mut t = MORPH_DELAY;
+    let mut rotation = PI;
+    for &(sides, rounding) in STAGES {
+        let settle_rotation = rotation + ROTATION_PER_STAGE;
+        let overshoot_rotation = settle_rotation + OVERSHOOT;
+
+        // spin into the new shape, sailing past the resting angle
+        let spin_finish = t + SPIN_DURATION;
+        tree.animate(
+            Animation::new(Polygon {
+                sides,
+                rounding,
+                rotation: overshoot_rotation,
+            })
+            .targeting(polygon)
+            .during(seq)
+            .start(t)
+            .finish(spin_finish)
+            .eased(Ease::EMPHASIS),
+        );
+
+        // overcorrect bounce-back to the actual resting angle
+        let bounce_finish = spin_finish + BOUNCE_DURATION;
+        tree.animate(
+            Animation::new(Polygon {
+                sides,
+                rounding,
+                rotation: settle_rotation,
+            })
+            .targeting(polygon)
+            .during(seq)
+            .start(spin_finish)
+            .finish(bounce_finish)
+            .eased(Ease::INWARD),
+        );
+
+        rotation = settle_rotation;
+        t = bounce_finish + SHAPE_PAUSE;
+    }
+    let morph_end = t - SHAPE_PAUSE;
+
+    // shape and rounding are done changing from here -- only a slow final turn remains
+    // before everything comes to rest.
+    let (last_sides, last_rounding) = *STAGES.last().unwrap();
+    tree.animate(
+        Animation::new(Polygon {
+            sides: last_sides,
+            rounding: last_rounding,
+            rotation: rotation + 2.0 * PI,
+        })
+        .targeting(polygon)
+        .during(seq)
+        .start(morph_end)
+        .finish(morph_end + TURN_DURATION)
+        .eased(Ease::Linear),
+    );
+
+    // once it's arrived (the shape is still finishing its spin), a blueprint spoke draws
+    // out from its center on each side -- gapped off both the polygon's own edge and the
+    // screen's, so it never touches either.
+    let half_w = WIDTH / 2.0 + LINE_GAP;
+    let (cx, cy) = (END_CENTER_X, CENTER_Y);
+    let spokes = [
+        (cx - half_w, cy, SCREEN_MARGIN, cy),         // left
+        (cx + half_w, cy, 100.0 - SCREEN_MARGIN, cy), // right
     ];
-    for (row, icon, color, desc_text, highlight, desc_columns, line_column, line_target, delay) in
-        rows
-    {
-        tree.branch(
-            options_container,
-            OptionRow::new(
-                icon,
-                color,
-                desc_text,
-                highlight,
-                desc_columns,
-                line_column,
-                line_target,
-                delay,
-                3500,
-            )
-            .at(Location::new().xs(
-                1.col().as_left().with(5.col().as_right()),
-                row.row().as_top().with(row.row().as_bottom()),
+    for (anchor_x, anchor_y, tip_x, tip_y) in spokes {
+        // the anchor point (nearest the polygon) is fixed for the whole animation --
+        // only the tip moves, so it reads as drawing out from a fixed root, not
+        // growing from both ends.
+        let line = tree.branch(
+            slot,
+            Line::new(LINE_WEIGHT)
+                .color(Color::stone(400))
+                .at(Location::new().xs(
+                    anchor_x.pct().as_x().with(anchor_y.pct().as_y()),
+                    anchor_x.pct().as_x().with(anchor_y.pct().as_y()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        tree.animate(
+            Animation::new(Location::new().xs(
+                anchor_x.pct().as_x().with(anchor_y.pct().as_y()),
+                tip_x.pct().as_x().with(tip_y.pct().as_y()),
             ))
-            .elevate(Elevation::up(1)),
+            .targeting(line)
+            .during(seq)
+            .start(MOVE_END)
+            .finish(MOVE_END + LINE_DRAW)
+            .eased(Ease::DECELERATE),
+        );
+
+        // once the lines are done drawing, this one rides down to the bottom third
+        // together with the polygon and its sibling line -- same x's, only y changes.
+        tree.animate(
+            Animation::new(Location::new().xs(
+                anchor_x.pct().as_x().with(BOTTOM_CENTER_Y.pct().as_y()),
+                tip_x.pct().as_x().with(BOTTOM_CENTER_Y.pct().as_y()),
+            ))
+            .targeting(line)
+            .during(seq)
+            .start(MOVE_END + LINE_DRAW)
+            .finish(MOVE_END + LINE_DRAW + DOWN_DURATION)
+            .eased(Ease::DECELERATE),
         );
     }
 
-    let portfolio = tree.branch(
-        root,
-        foliage::Button::new()
-            .icon(IconHandles::Code.into())
-            .text("Portfolio")
-            .rounding(Rounding::Sm)
-            .colors(Color::orange(500), Color::gray(900))
-            .outline(2)
-            .at(Location::new().xs(
-                3.col()
-                    .as_left()
-                    .with(10.col().as_right())
-                    .min(175.0)
-                    .max(350.0),
-                15.row().as_top().with(48.px().as_height()),
-            ))
-            .elevate(Elevation::up(1)),
-    );
-    tree.graft(portfolio)
-        .write((FontSize::new(20), Opacity::new(0.0)))
-        .on_click(
-            move |_: Trigger<OnClick>, mut tree: Tree, keyring: Res<Keyring>| {
-                tree.disable(root);
-                portfolio::build(&mut tree, root, &keyring);
-            },
-        );
-
-    let _spacing = tree.branch(
-        root,
-        Leaf::sprout()
-            .at(Location::new().xs(
-                0.pct().as_left().with(100.pct().as_right()),
-                17.row().as_top().with(17.row().as_bottom()),
-            ))
-            .elevate(Elevation::up(1)),
+    let settle_start = MOVE_END + LINE_DRAW;
+    let settle_end = settle_start + DOWN_DURATION;
+    tree.animate(
+        Animation::new(box_at(END_CENTER_X, BOTTOM_CENTER_Y))
+            .targeting(polygon)
+            .during(seq)
+            .start(settle_start)
+            .finish(settle_end)
+            .eased(Ease::DECELERATE),
     );
 
-    let seq = Sequence::new(tree);
-    let seq = animate_header_entrance(seq, &header);
-    seq.animate(
+    // a terminal icon fades in centered on the polygon itself -- anchored to the polygon
+    // entity, so it's dead-center in the polygon's own box wherever that box actually is,
+    // no separately-tracked screen coordinates to keep in sync. Plain `.pct()` resolves
+    // against the *parent* regardless of `Anchor`, so centering has to go through
+    // `anchor().center_x()/.center_y()` (the anchor-relative value) rather than a bare
+    // `50.pct()`.
+    let icon = tree.branch(
+        slot,
+        Icon::new(IconHandles::Terminal)
+            .color(Color::gray(900))
+            .at(Location::new().xs(
+                anchor().center_x().as_center_x().with(ICON_PX.px().as_width()),
+                anchor().center_y().as_center_y().with(ICON_PX.px().as_height()),
+            ))
+            .elevate(Elevation::up(2))
+            .with((Anchor::new(polygon), Opacity::new(0.0))),
+    );
+    tree.animate(
         Animation::new(Opacity::new(1.0))
-            .start(3000)
-            .finish(3500)
-            .targeting(portfolio),
-    )
-    .end(move |_: Trigger<OnEnd>, mut tree: Tree| {
-        tree.enable(portfolio);
-    });
-    tree.disable(portfolio);
+            .targeting(icon)
+            .during(seq)
+            .start(settle_end)
+            .finish(settle_end + ICON_FADE)
+            .eased(Ease::DECELERATE),
+    );
+
+    // once polygon + lines are at rest (still spinning), a terminal-style type-in effect
+    // starts in the middle of the screen.
+    type_in::type_in(tree, slot, seq, settle_end);
 }
