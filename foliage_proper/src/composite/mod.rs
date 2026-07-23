@@ -4,11 +4,11 @@ use bevy_ecs::prelude::Component;
 use std::sync::Arc;
 
 pub(crate) mod button;
+pub(crate) mod card;
 pub(crate) mod carousel;
 pub(crate) mod checkbox;
 pub(crate) mod dropdown;
 pub(crate) mod list;
-pub(crate) mod modal;
 pub(crate) mod pagination;
 pub(crate) mod polyline;
 pub(crate) mod popover;
@@ -21,8 +21,8 @@ pub(crate) mod text_input;
 pub(crate) mod toggle;
 pub(crate) use text_input::keybindings::KeyBindings;
 
-/// THE slot convention: how a library composite hosts arbitrary author content (a Modal's
-/// body) without baking in what that content is. The composite calls the closure with a
+/// THE slot convention: how a library composite hosts arbitrary author content (a Card's
+/// main region) without baking in what that content is. The composite calls the closure with a
 /// transient **slot** entity -- a private, positioned, `Grid::default()` child it just
 /// spawned -- and the author branches whatever they want under it with full
 /// `Location`/`Grid`/`Anchor` freedom, returning their content root. The closure is `Fn`
@@ -32,8 +32,8 @@ pub(crate) use text_input::keybindings::KeyBindings;
 /// may be interactive.
 pub type SlotFn = Arc<dyn Fn(&mut Tree, Entity) -> Entity + Send + Sync>;
 /// [`SlotFn`]'s indexed variant, for collection composites (List rows, Carousel pages):
-/// called once per index with that index's own slot. No return -- unlike a Modal's body
-/// (removed early on close, hence `SlotFn`'s returned root), collection slots are torn
+/// called once per index with that index's own slot. No return -- unlike a Card's main
+/// region (removed on close, hence `SlotFn`'s returned root), collection slots are torn
 /// down wholesale by the composite, so there's nothing for the author to hand back.
 pub type IndexedSlotFn = Arc<dyn Fn(&mut Tree, Entity, usize) + Send + Sync>;
 

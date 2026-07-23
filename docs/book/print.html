@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1f6144a4.js";
+            window.path_to_searchindex_js = "searchindex-4e864088.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-a847c643.js"></script>
+        <script src="toc-c20bf2c0.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -2309,6 +2309,134 @@ automatically the moment this spawns and again on every later <code>tree.write_t
 because it is one. The only thing that changes composite to composite is what <code>build()</code>
 spawns and what <code>react</code>/<code>react_any</code> do with it.</p>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="card"><a class="header" href="#card">Card</a></h1>
+<p><code>Card</code> is the common “primary content, then a title, then a description” shape –
+an image or main visual on top, a header and a short description stacked below it. One
+entity, itself the backdrop panel.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/card.rs
+pub struct Card {}
+fn root(self) -&gt; impl Bundle {
+    (
+        Card {}, CardConfig { .. }, self.style,
+        Panel::default(), // the root entity IS the backdrop panel
+        Grid::new(1.col(), 3.row()), // three equal rows: main spans 1-2, header/desc share row 3
+    )
+}
+<span class="boring">}</span></code></pre>
+<h2 id="three-regions-main-header-desc"><a class="header" href="#three-regions-main-header-desc">Three regions: <code>main</code>, <code>header</code>, <code>desc</code></a></h2>
+<pre class="playground"><code class="language-rust">// foliage_proper/src/composite/card.rs
+pub fn main(mut self, f: impl Fn(&amp;mut Tree, Entity) -&gt; Entity + Send + Sync + 'static) -&gt; Self { .. } // required
+pub fn header(mut self, f: impl Fn(&amp;mut Tree, Entity) -&gt; Entity + Send + Sync + 'static) -&gt; Self { .. } // optional
+pub fn desc(mut self, f: impl Fn(&amp;mut Tree, Entity) -&gt; Entity + Send + Sync + 'static) -&gt; Self { .. }   // optional</code></pre>
+<p><code>main</code> fills the top two-thirds of the card (rows 1-2 of the root’s own 3-row grid) –
+required, since a card with nothing in it isn’t meaningful. <code>header</code> and <code>desc</code> are
+optional, share the bottom third as their own two-row grouping (header above desc), and
+follow the same <a href="#the-slot-convention">slot convention</a> every other composite with
+arbitrary author content uses. Skipping both means no bottom-third container gets
+spawned at all – not a defunct empty one:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/card.rs (build, abridged)
+let main_slot = tree.branch(e, Leaf::sprout().at(Location::new().xs(
+    0.pct().as_left().with(100.pct().as_right()),
+    1.row().as_top().with(2.row().as_bottom()), // rows 1-2 = top two-thirds
+)).elevate(Elevation::up(1)).with(Grid::default()));
+(cfg.main)(&amp;mut tree, main_slot);
+
+if cfg.header.is_some() || cfg.desc.is_some() {
+    let bottom_third = tree.branch(e, Leaf::sprout().at(Location::new().xs(
+        0.pct().as_left().with(100.pct().as_right()),
+        3.row().as_top().with(3.row().as_bottom()), // row 3 = bottom third
+    )).elevate(Elevation::up(1)).with(Grid::new(1.col(), 2.row())));
+    // header -&gt; bottom_third's own row 1, desc -&gt; bottom_third's own row 2
+}
+<span class="boring">}</span></code></pre>
+<p>Two levels of the same row-count Grid idiom <a href="#layout-grid-location-anchor">Grid</a> covers – the outer 3-row
+grid divides the card into thirds, and the bottom third gets its own nested 2-row grid
+for header and desc, rather than one grid with irregular row sizes.</p>
+<h2 id="close-button-placement"><a class="header" href="#close-button-placement">Close button placement</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/card.rs
+.at(Location::new().xs(
+    16.px().as_left().with(40.px().as_width()),
+    16.px().as_top().with(40.px().as_height()),
+))
+.elevate(Elevation::up(2)), // real siblings (main_slot/bottom_third) are up(1)
+<span class="boring">}</span></code></pre>
+<p>Present only when <code>.close_icon(..)</code> supplies one – the library ships none. Fixed at
+<code>(16px, 16px)</code>, so it overlays whichever corner of <code>main</code> its <code>40px</code> box falls within,
+the same “X in the corner of an image” pattern common to image cards. <code>up(2)</code> outranks
+its siblings under the same parent, which is all <a href="#coordinates-position-area-section-elevation"><code>StackKey</code></a> compares.</p>
+<h2 id="one-close-path-one-immediate-removal"><a class="header" href="#one-close-path-one-immediate-removal">One close path, one immediate removal</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/card.rs
+tree.subscribe(this, move |trigger: Trigger&lt;CloseCard&gt;, mut tree: Tree| {
+    let e = trigger.event_target();
+    tree.trigger_targets(Closed::new(), e);
+    tree.remove(e); // children (slot content, terminate button) are Stem-parented -- one remove cascades the lot
+});
+<span class="boring">}</span></code></pre>
+<p>The close button and a programmatic <code>tree.trigger_targets(CloseCard::new(), card)</code> both
+land on this exact handler. <code>Closed</code> fires, then the whole card subtree is gone in the
+same command batch.</p>
+<h2 id="using-it-1"><a class="header" href="#using-it-1">Using it</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage/examples/card.rs
+tree.leaf(
+    Card::new()
+        .main(|tree: &amp;mut Tree, slot: Entity| {
+            let close = tree.branch(
+                slot,
+                centered_text("Close", Color::orange(400), 16)
+                    .at(Location::new().xs(
+                        0.pct().as_left().with(100.pct().as_right()),
+                        40.pct().as_top().with(60.pct().as_bottom()),
+                    ))
+                    .elevate(Elevation::up(1))
+                    .with(InteractionListener::new()),
+            );
+            tree.on_click(close, close_on_click);
+            close
+        })
+        .header(|tree: &amp;mut Tree, slot: Entity| {
+            tree.branch(slot, centered_text("Card Title", Color::gray(200), 16)
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
+                .elevate(Elevation::up(1)))
+        })
+        .desc(|tree: &amp;mut Tree, slot: Entity| {
+            tree.branch(slot, centered_text("A short description of this card.", Color::gray(400), 12)
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
+                .elevate(Elevation::up(1)))
+        })
+        .colors(Color::gray(800), Color::gray(200), Color::orange(800))
+        .at(Location::new().xs(
+            50.pct().as_center_x().with(60.pct().as_width()),
+            50.pct().as_center_y().with(60.pct().as_height()),
+        ))
+        .elevate(Elevation::abs(50)),
+);
+<span class="boring">}</span></code></pre>
+<p>No <code>.close_icon(..)</code> here (the example has no registered icon bytes to give it), so
+closing goes through a plain clickable “Close” label inside <code>main</code> instead – the same
+pattern <code>.close_icon(..)</code> uses internally: give it its own <code>InteractionListener</code>, and
+resolve back to the card root via <code>Stem::ascend_to::&lt;Card&gt;(..)</code> (see
+<a href="#the-slot-convention">composites-overview</a>), which walks the real <code>Stem</code> chain up
+to whichever ancestor carries <code>Card</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage/examples/card.rs
+fn close_on_click(trigger: Trigger&lt;OnClick&gt;, stems: Query&lt;&amp;Stem&gt;, cards: Query&lt;&amp;Card&gt;, mut tree: Tree) {
+    let card = Stem::ascend_to::&lt;Card&gt;(trigger.event_target(), &amp;stems, &amp;cards);
+    tree.trigger_targets(CloseCard::new(), card);
+}
+<span class="boring">}</span></code></pre>
+<p>Run with <code>cargo run --example card -p foliage</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="carousel"><a class="header" href="#carousel">Carousel</a></h1>
 <p><code>Carousel</code> shares <a href="#the-slot-convention"><code>PageIndex</code></a>/<code>PageCount</code> with
 <a href="#tabs">Tabs</a> and <a href="#pagination">Pagination</a> – swipe, an optional embedded
@@ -2504,53 +2632,6 @@ teardown logic of its own for author content, however deep a row’s own subtree
 child rather than a second implementation of row-building – see
 <a href="#dropdown">Dropdown</a> for how that composition actually works.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="modal"><a class="header" href="#modal">Modal</a></h1>
-<p>Unlike every other composite in this catalog, <code>Modal</code>’s root entity <em>is</em> its own visual
-surface – the doc comment is explicit: “the modal owns its root <code>Location</code> (it IS the
-overlay rect…) – <code>.at()</code> on the sprout is meaningless here.”</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/modal.rs
-fn root(self) -&gt; impl Bundle {
-    (
-        Modal {}, ModalConfig { .. }, self.style,
-        Panel::default(), // the root entity IS the backdrop panel
-        Grid::default(),
-    )
-}
-<span class="boring">}</span></code></pre>
-<p>Making the one public entity the visual overlay itself (rather than a container holding
-a separate backdrop child) means teardown is a single <code>tree.remove(this)</code>, and opening is
-a single write of final state:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/modal.rs (config reaction, abridged)
-tree.write_to(e, (full_location(), style.backdrop, Opacity::new(1.0)));
-<span class="boring">}</span></code></pre>
-<p><code>Modal</code> opens and closes instantly – there’s no animation of its own. <code>full_location()</code>
-is a full-bleed, edge-to-edge rect; anything padded or centered is the author’s own
-<code>.content(..)</code> closure’s job to lay out inside that space.</p>
-<h2 id="one-close-path-one-immediate-removal"><a class="header" href="#one-close-path-one-immediate-removal">One close path, one immediate removal</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/modal.rs
-tree.subscribe(this, move |trigger: Trigger&lt;CloseModal&gt;, mut tree: Tree| {
-    let e = trigger.event_target();
-    tree.trigger_targets(Closed::new(), e);
-    tree.remove(e); // children (slot content, terminate button) are Stem-parented -- one remove cascades the lot
-});
-<span class="boring">}</span></code></pre>
-<p>The close button (present only when <code>.close_icon(..)</code> supplies one – the library ships
-none) and a programmatic <code>tree.trigger_targets(CloseModal::new(), modal)</code> both land on
-this exact handler – there’s no separate “close via button” code path to keep in sync
-with “close via API.” <code>Closed</code> fires, then the whole modal subtree is gone in the same
-command batch.</p>
-<h2 id="anchor_to-currently-has-no-visible-effect"><a class="header" href="#anchor_to-currently-has-no-visible-effect"><code>.anchor_to(..)</code> currently has no visible effect</a></h2>
-<p><code>ModalSprout::anchor_to(entity)</code> sets an <code>Anchor</code> component on the modal root. Nothing in
-<code>Modal</code> currently reads it – <code>full_location()</code> doesn’t reference it, and nothing else in
-<code>build()</code> does either. This is an open item, not a documented feature: an author calling
-<code>.anchor_to(..)</code> today gets no observable behavior difference from not calling it at all.</p>
-<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="pagination"><a class="header" href="#pagination">Pagination</a></h1>
 <p><code>Pagination</code> shares <a href="#the-slot-convention"><code>PageIndex</code></a>/<code>PageCount</code> with
 <a href="#tabs">Tabs</a> and <a href="#carousel">Carousel</a> – one paging vocabulary, so any of the
@@ -2694,7 +2775,7 @@ if open {
 <p>Unlike <code>Dropdown</code>’s <code>List</code> (patched on selection, only rebuilt on structural change),
 <code>Popover</code>’s content has no cheaper “just recolor it” patch path in general – arbitrary
 author content can’t be assumed to support in-place updates the way a fixed row shape
-can. So it’s matched to <a href="#modal">Modal</a>’s content lifecycle instead: torn down and
+can. So it’s matched to <a href="composites/modal.html">Modal</a>’s content lifecycle instead: torn down and
 rebuilt fresh every time it opens, not patched.</p>
 <h2 id="real-siblings-not-an-absolute-constant"><a class="header" href="#real-siblings-not-an-absolute-constant">Real siblings, not an absolute constant</a></h2>
 <p>The content surface is <code>up(2)</code> relative to the <em>trigger slot</em> (<code>up(1)</code>) – an ordinary

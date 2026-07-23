@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Toggle - foliage</title>
+        <title>Card - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -174,77 +174,143 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="toggle"><a class="header" href="#toggle">Toggle</a></h1>
-<p>Same persistent-state shape as <a href="./checkbox.html">Checkbox</a> – one <code>ToggleState(bool)</code>,
-flipped by a click or a programmatic write, redrawn by one reaction regardless of which
-– but with an animated knob instead of an instant redraw, and Material 3’s specific
-track/knob sizing behavior:</p>
+                        <h1 id="card"><a class="header" href="#card">Card</a></h1>
+<p><code>Card</code> is the common “primary content, then a title, then a description” shape –
+an image or main visual on top, a header and a short description stacked below it. One
+entity, itself the backdrop panel.</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/toggle.rs
-fn knob_location(on: bool) -&gt; Location {
-    if on {
-        // half-track-width pill, inset 4px from the track's own edges
-        Location::new().xs(50.pct().as_left().adjust(2).with(100.pct().as_right().adjust(-4)), ...)
-    } else {
-        // roughly half that diameter, centered in the track's left portion
-        Location::new().xs(12.5.pct().as_left().with(37.5.pct().as_right()), ...)
-    }
+</span>// foliage_proper/src/composite/card.rs
+pub struct Card {}
+fn root(self) -&gt; impl Bundle {
+    (
+        Card {}, CardConfig { .. }, self.style,
+        Panel::default(), // the root entity IS the backdrop panel
+        Grid::new(1.col(), 3.row()), // three equal rows: main spans 1-2, header/desc share row 3
+    )
 }
 <span class="boring">}</span></code></pre>
-<p>The doc comment on this function explains a real, tested design choice: the knob doesn’t
-just slide left/right at a fixed size – it visibly <em>shrinks</em> while off, the same size
-drop Material’s own switch uses to keep the empty state reading as genuinely smaller,
-not just “the same knob, slid over.” Both states use pure percentage anchors (no fixed
-pixel insets) specifically so the shrink scales with the track’s own height instead of
-being crushed at whatever small track size a real app actually uses.</p>
-<h2 id="sliding-not-snapping"><a class="header" href="#sliding-not-snapping">Sliding, not snapping</a></h2>
+<h2 id="three-regions-main-header-desc"><a class="header" href="#three-regions-main-header-desc">Three regions: <code>main</code>, <code>header</code>, <code>desc</code></a></h2>
+<pre class="playground"><code class="language-rust">// foliage_proper/src/composite/card.rs
+pub fn main(mut self, f: impl Fn(&amp;mut Tree, Entity) -&gt; Entity + Send + Sync + 'static) -&gt; Self { .. } // required
+pub fn header(mut self, f: impl Fn(&amp;mut Tree, Entity) -&gt; Entity + Send + Sync + 'static) -&gt; Self { .. } // optional
+pub fn desc(mut self, f: impl Fn(&amp;mut Tree, Entity) -&gt; Entity + Send + Sync + 'static) -&gt; Self { .. }   // optional</code></pre>
+<p><code>main</code> fills the top two-thirds of the card (rows 1-2 of the root’s own 3-row grid) –
+required, since a card with nothing in it isn’t meaningful. <code>header</code> and <code>desc</code> are
+optional, share the bottom third as their own two-row grouping (header above desc), and
+follow the same <a href="../composites-overview.html">slot convention</a> every other composite with
+arbitrary author content uses. Skipping both means no bottom-third container gets
+spawned at all – not a defunct empty one:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/toggle.rs (abridged)
-if place_directly {
-    tree.write_to(knob, knob_location(on)); // first fire: nothing to slide from yet
-    place_directly = false;
-} else {
-    Sequence::new(&amp;mut tree).animate(
-        Animation::new(knob_location(on)).targeting(knob).start(0).finish(150).eased(Ease::EMPHASIS),
-    );
+</span>// foliage_proper/src/composite/card.rs (build, abridged)
+let main_slot = tree.branch(e, Leaf::sprout().at(Location::new().xs(
+    0.pct().as_left().with(100.pct().as_right()),
+    1.row().as_top().with(2.row().as_bottom()), // rows 1-2 = top two-thirds
+)).elevate(Elevation::up(1)).with(Grid::default()));
+(cfg.main)(&amp;mut tree, main_slot);
+
+if cfg.header.is_some() || cfg.desc.is_some() {
+    let bottom_third = tree.branch(e, Leaf::sprout().at(Location::new().xs(
+        0.pct().as_left().with(100.pct().as_right()),
+        3.row().as_top().with(3.row().as_bottom()), // row 3 = bottom third
+    )).elevate(Elevation::up(1)).with(Grid::new(1.col(), 2.row())));
+    // header -&gt; bottom_third's own row 1, desc -&gt; bottom_third's own row 2
 }
 <span class="boring">}</span></code></pre>
-<p>A captured <code>place_directly</code> flag (the same “first fire is special” pattern the crate
-calls out elsewhere as the ProjectCard-image pattern) distinguishes initial placement
-from every later toggle: the very first fire has no prior knob position to slide from,
-so it writes the target <code>Location</code> directly; every subsequent state flip animates to it
-instead of snapping.</p>
-<h2 id="track-exclusivity-mirrors-checkbox-exactly"><a class="header" href="#track-exclusivity-mirrors-checkbox-exactly">Track exclusivity mirrors <code>Checkbox</code> exactly</a></h2>
+<p>Two levels of the same row-count Grid idiom <a href="../grid.html">Grid</a> covers – the outer 3-row
+grid divides the card into thirds, and the bottom third gets its own nested 2-row grid
+for header and desc, rather than one grid with irregular row sizes.</p>
+<h2 id="close-button-placement"><a class="header" href="#close-button-placement">Close button placement</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/toggle.rs
-if on {
-    tree.write_to(track, (style.on_fill, Outline::default()));
-    tree.write_to(knob, style.knob_on);
-} else {
-    tree.write_to(track, (style.off_outline, Outline::new(2)));
-    tree.write_to(knob, style.knob_off);
+</span>// foliage_proper/src/composite/card.rs
+.at(Location::new().xs(
+    16.px().as_left().with(40.px().as_width()),
+    16.px().as_top().with(40.px().as_height()),
+))
+.elevate(Elevation::up(2)), // real siblings (main_slot/bottom_third) are up(1)
+<span class="boring">}</span></code></pre>
+<p>Present only when <code>.close_icon(..)</code> supplies one – the library ships none. Fixed at
+<code>(16px, 16px)</code>, so it overlays whichever corner of <code>main</code> its <code>40px</code> box falls within,
+the same “X in the corner of an image” pattern common to image cards. <code>up(2)</code> outranks
+its siblings under the same parent, which is all <a href="../coordinate.html"><code>StackKey</code></a> compares.</p>
+<h2 id="one-close-path-one-immediate-removal"><a class="header" href="#one-close-path-one-immediate-removal">One close path, one immediate removal</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage_proper/src/composite/card.rs
+tree.subscribe(this, move |trigger: Trigger&lt;CloseCard&gt;, mut tree: Tree| {
+    let e = trigger.event_target();
+    tree.trigger_targets(Closed::new(), e);
+    tree.remove(e); // children (slot content, terminate button) are Stem-parented -- one remove cascades the lot
+});
+<span class="boring">}</span></code></pre>
+<p>The close button and a programmatic <code>tree.trigger_targets(CloseCard::new(), card)</code> both
+land on this exact handler. <code>Closed</code> fires, then the whole card subtree is gone in the
+same command batch.</p>
+<h2 id="using-it"><a class="header" href="#using-it">Using it</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage/examples/card.rs
+tree.leaf(
+    Card::new()
+        .main(|tree: &amp;mut Tree, slot: Entity| {
+            let close = tree.branch(
+                slot,
+                centered_text("Close", Color::orange(400), 16)
+                    .at(Location::new().xs(
+                        0.pct().as_left().with(100.pct().as_right()),
+                        40.pct().as_top().with(60.pct().as_bottom()),
+                    ))
+                    .elevate(Elevation::up(1))
+                    .with(InteractionListener::new()),
+            );
+            tree.on_click(close, close_on_click);
+            close
+        })
+        .header(|tree: &amp;mut Tree, slot: Entity| {
+            tree.branch(slot, centered_text("Card Title", Color::gray(200), 16)
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
+                .elevate(Elevation::up(1)))
+        })
+        .desc(|tree: &amp;mut Tree, slot: Entity| {
+            tree.branch(slot, centered_text("A short description of this card.", Color::gray(400), 12)
+                .at(Location::new().xs(0.pct().as_left().with(100.pct().as_right()), 0.pct().as_top().with(100.pct().as_bottom())))
+                .elevate(Elevation::up(1)))
+        })
+        .colors(Color::gray(800), Color::gray(200), Color::orange(800))
+        .at(Location::new().xs(
+            50.pct().as_center_x().with(60.pct().as_width()),
+            50.pct().as_center_y().with(60.pct().as_height()),
+        ))
+        .elevate(Elevation::abs(50)),
+);
+<span class="boring">}</span></code></pre>
+<p>No <code>.close_icon(..)</code> here (the example has no registered icon bytes to give it), so
+closing goes through a plain clickable “Close” label inside <code>main</code> instead – the same
+pattern <code>.close_icon(..)</code> uses internally: give it its own <code>InteractionListener</code>, and
+resolve back to the card root via <code>Stem::ascend_to::&lt;Card&gt;(..)</code> (see
+<a href="../composites-overview.html">composites-overview</a>), which walks the real <code>Stem</code> chain up
+to whichever ancestor carries <code>Card</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// foliage/examples/card.rs
+fn close_on_click(trigger: Trigger&lt;OnClick&gt;, stems: Query&lt;&amp;Stem&gt;, cards: Query&lt;&amp;Card&gt;, mut tree: Tree) {
+    let card = Stem::ascend_to::&lt;Card&gt;(trigger.event_target(), &amp;stems, &amp;cards);
+    tree.trigger_targets(CloseCard::new(), card);
 }
 <span class="boring">}</span></code></pre>
-<p>The same <a href="../panel.html"><code>Panel</code></a> fill-vs-outline switch <a href="./checkbox.html">Checkbox</a> uses for
-its box carries <code>Toggle</code>’s track state: solid fill while on, stroke-only (whatever’s
-behind the track shows through) while off. The optional check-icon glyph on the knob
-follows the same “structural config, spawned lazily, registered before the style
-reaction” pattern <code>Checkbox</code> uses too – parented to the <em>knob</em> itself here, specifically
-so the icon’s position rides along with the knob’s own slide for free rather than being
-repositioned by a second, separate reaction.</p>
+<p>Run with <code>cargo run --example card -p foliage</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../composites/text-input.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../composite-button.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../platform.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../composites/carousel.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -254,11 +320,11 @@ repositioned by a second, separate reaction.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../composites/text-input.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../composite-button.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../platform.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../composites/carousel.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

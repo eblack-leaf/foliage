@@ -249,7 +249,7 @@ impl Sprout for PopoverSprout {
             },
         );
         // structure: the content surface exists only while expanded -- rebuilt fresh each
-        // time it opens (matches Modal's content lifecycle, not Dropdown's list, since
+        // time it opens (matches Card's content lifecycle, not Dropdown's list, since
         // arbitrary author content has no cheaper "just recolor it" patch path in general).
         tree.react::<PopoverExpanded, _>(
             this,

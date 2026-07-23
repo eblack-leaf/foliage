@@ -43,8 +43,8 @@ pub struct CheckboxStyle {
 }
 
 /// The checkmark glyph -- structural (which icon, if any), not a color/rounding style
-/// knob, so it gets its own component, same split as `Modal`'s `ModalConfig`/
-/// `ModalStyle`. Set once at spawn, `build`'s reaction on this is what actually spawns
+/// knob, so it gets its own component, same split as `Card`'s `CardConfig`/
+/// `CardStyle`. Set once at spawn, `build`'s reaction on this is what actually spawns
 /// the icon child (`build` itself has no way to read the sprout's own config back --
 /// this component is that door). `None` means no icon was configured -- no child gets
 /// spawned at all, not a defunct hidden one.
@@ -145,8 +145,8 @@ impl Sprout for CheckboxSprout {
         // structure: the checkmark glyph is author config, so it's spawned inside the
         // reaction on CheckboxConfig's insert rather than the static skeleton above --
         // registered before the style reaction below, so its CheckboxHandle write lands
-        // before that reaction's own first fire (same ordering Modal uses between its
-        // ModalConfig and ModalStyle reactions).
+        // before that reaction's own first fire (same ordering Card uses between its
+        // CardConfig and CardStyle reactions).
         tree.react::<CheckboxConfig, _>(
             this,
             move |trigger: Trigger<Insert, CheckboxConfig>,

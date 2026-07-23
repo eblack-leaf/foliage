@@ -4,16 +4,16 @@ pub(crate) mod music_player;
 use crate::icons::IconHandles;
 use crate::widgets::{Launch, ProjectCard, icon_button};
 use foliage::{
-    Animation, Closed, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt, Keyring, Leaf,
-    Location, Modal, OnClick, OnEnd, Opacity, Panel, Query, Res, Rounding, Sequence, Sprout, Tree,
-    Trigger,
+    Anchor, Animation, Closed, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt,
+    Keyring, Leaf, Location, Card, OnClick, OnEnd, Opacity, Panel, Query, Res, Rounding, Sequence,
+    Sprout, Tree, Trigger, anchor,
 };
 
 /// The panel each modal's content lives in, plus injecting that content -- isolated here so
 /// the `music_player`-vs-`artist_blog` branch reads as one named step instead of sitting
 /// mid-closure.
 /// `album_cover` is pre-resolved from the `Keyring` at the call site rather than threading a
-/// whole `Keyring` reference into `Modal`'s content closure, which needs to be `'static`.
+/// whole `Keyring` reference into `Card`'s content closure, which needs to be `'static`.
 fn spawn_modal_content(
     tree: &mut Tree,
     slot: Entity,
@@ -50,7 +50,7 @@ fn spawn_modal_content(
 }
 
 /// `root`/`back` fade out together whenever a card opens into a modal -- separate from
-/// `Modal`'s own open animation since `root`/`back` are page-level, not the modal's concern.
+/// `Card`'s own open animation since `root`/`back` are page-level, not the modal's concern.
 fn fade_page_chrome_out(tree: &mut Tree, root: Entity, back: Entity) {
     Sequence::new(tree)
         .animate(
@@ -67,7 +67,7 @@ fn fade_page_chrome_out(tree: &mut Tree, root: Entity, back: Entity) {
         );
 }
 
-/// The mirror of `fade_page_chrome_out`, timed to land near the end of `Modal`'s own close
+/// The mirror of `fade_page_chrome_out`, timed to land near the end of `Card`'s own close
 /// animation, re-enabling both once fully faded back in.
 fn fade_page_chrome_in(tree: &mut Tree, root: Entity, back: Entity) {
     Sequence::new(tree)
@@ -84,7 +84,7 @@ fn fade_page_chrome_in(tree: &mut Tree, root: Entity, back: Entity) {
                 .finish(1500),
         )
         .end(
-            move |_: Trigger<OnEnd>, mut tree: Tree, modals: Query<&Modal>| {
+            move |_: Trigger<OnEnd>, mut tree: Tree, modals: Query<&Card>| {
                 // same race as the page-load timer (see its comment): if the user reopens a
                 // modal before this fade-back-in finishes, this fires anyway and would
                 // re-enable `back`/`root` right out from under the new modal.
@@ -192,13 +192,17 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
                 tree.disable([root, back]);
                 fade_page_chrome_out(&mut tree, root, back);
                 let modal = tree.leaf(
-                    Modal::new()
-                        .anchor_to(card_root)
-                        .content(move |tree: &mut Tree, slot: Entity| {
+                    Card::new()
+                        .main(move |tree: &mut Tree, slot: Entity| {
                             spawn_modal_content(tree, slot, i, album_cover, artwork)
                         })
                         .close_icon(IconHandles::X.into())
                         .colors(Color::gray(800), Color::gray(200), Color::orange(800))
+                        .at(Location::new().xs(
+                            anchor().left().as_left().with(anchor().right().as_right()),
+                            anchor().top().as_top().with(anchor().bottom().as_bottom()),
+                        ))
+                        .with(Anchor::new(card_root))
                         .elevate(Elevation::abs(50)),
                 );
                 tree.subscribe(modal, move |_: Trigger<Closed>, mut tree: Tree| {
@@ -278,7 +282,7 @@ pub(crate) fn build(tree: &mut Tree, home: Entity, keyring: &Keyring) {
     }
     tree.timer(
         1000,
-        move |trigger: Trigger<OnEnd>, mut tree: Tree, modals: Query<&Modal>| {
+        move |trigger: Trigger<OnEnd>, mut tree: Tree, modals: Query<&Card>| {
             // a card can open its modal before this fires (cards start fading in at
             // 750ms, this timer fires at 1000ms) -- `open_modal` already disabled `back`
             // for that case, and re-enabling it here regardless would let `back`'s own

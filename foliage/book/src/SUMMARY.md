@@ -47,11 +47,11 @@
 
 - [The Slot Convention](./composites-overview.md)
 - [Building Button From Scratch](./composite-button.md)
+- [Card](./composites/card.md)
 - [Carousel](./composites/carousel.md)
 - [Checkbox](./composites/checkbox.md)
 - [Dropdown](./composites/dropdown.md)
 - [List](./composites/list.md)
-- [Modal](./composites/modal.md)
 - [Pagination](./composites/pagination.md)
 - [Polyline](./composites/polyline.md)
 - [Popover](./composites/popover.md)
