@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6cd55966.js";
+            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -216,14 +216,13 @@ let new_value = match (left_v, right_v) {
 };
 <span class="boring">}</span></code></pre>
 <p>Two edge cases force a full <code>renormalize</code> instead: a gap bisected so many times the
-midpoint loses meaningful float precision, or a value landing exactly on the
-<a href="./willow.html">near/far</a> boundary. The boundary case has a real bug behind it, documented
-in the source: repeatedly inserting new frontmost content (an overlay opening in front of
-existing forward chrome, repeatedly) marches the frontmost value down toward <code>near</code>; once
-it <em>reaches</em> <code>near</code>, the next insertion’s <code>near - gap</code> used to clamp straight back to
-<code>near</code> – an identical depth to whatever was already there, resolved by non-deterministic
-draw order. That’s documented as the literal cause of “popover text sometimes renders
-behind its own panel.” Re-spacing on boundary contact keeps every depth distinct instead.</p>
+midpoint loses meaningful float precision, or a computed value landing at or past the
+<a href="./willow.html">near/far</a> boundary. Clamping a boundary hit to <code>near</code>/<code>far</code> directly would
+place the new entity at an identical depth to whatever’s already sitting there, and two
+entities at the same depth have no defined relative order – which one draws in front is
+left to draw order, which isn’t guaranteed stable frame to frame. Re-spacing the whole
+list on boundary contact keeps every depth strictly distinct instead, so which entity is
+in front is always determined by <code>StackKey</code>, never by an incidental tie.</p>
 <h2 id="prepare-draining-the-queues-into-nodes"><a class="header" href="#prepare-draining-the-queues-into-nodes"><code>prepare</code>: draining the queues into nodes</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {

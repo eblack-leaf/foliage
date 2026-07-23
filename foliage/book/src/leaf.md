@@ -43,8 +43,8 @@ without them.
 
 You might expect a rendering primitive like `Panel` to declare `#[require(Leaf, ...)]`
 -- but it doesn't. Grep `foliage_proper/src/panel/mod.rs` and `text/mod.rs` and neither
-one mentions `Leaf` at all. Instead, `Leaf` is unioned onto *every* entity at the moment
-it's spawned, by the one path that's allowed to spawn anything:
+one mentions `Leaf` at all. Instead, `Leaf` is unioned onto every entity the *library's
+own* spawn path produces, at the moment it's spawned:
 
 ```rust
 // foliage_proper/src/tree.rs
@@ -61,8 +61,10 @@ an entity is, while `Leaf` is inserted alongside them, unconditionally, describi
 *any* on-screen entity needs regardless of what it is. This is why `Leaf`'s own
 `on_add`/`on_remove` hooks (registering `anim_opacity`/`anim_elevation`/`anim_location`
 observers, and cleaning up `CurrentInteraction` state on removal) run for literally every
-widget in the framework, without each widget type needing to remember to register them
-itself.
+widget spawned through `Sprout`, without each widget type needing to remember to
+register them itself. It's a guarantee about the library's *own* spawn path, not a wall
+nothing can get past -- see the note at the end of [Spawning](./spawning.md) for why, and
+where the actual boundary sits.
 
 The next chapter, [Spawning](./spawning.md), covers exactly how `sow` gets called, and
 why an entity can't be spawned any other way.

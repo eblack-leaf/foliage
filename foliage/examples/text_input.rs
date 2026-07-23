@@ -1,5 +1,10 @@
 //! `TextInput`'s styling surface -- hint text, foreground/background/accent, rounding,
-//! outline. Config reused from `application/src/portfolio/composites.rs`. Run with
+//! outline. Config reused from `application/src/portfolio/composites.rs`. The box is
+//! sized in percent of the viewport (not fixed px), and the window is resizable by
+//! default, so dragging the OS window's edge actually grows/shrinks the box -- useful
+//! for testing scroll-position behavior across a resize: type/paste enough multi-line
+//! text to scroll away from the top, then resize the window and see whether the scroll
+//! position holds or jumps back toward the cursor. Run with
 //! `cargo run --example text_input -p foliage`.
 
 use foliage::{Color, EcsExtension, Elevation, Foliage, GridExt, Location, Rounding, Sprout, TextInput};
@@ -17,8 +22,8 @@ fn main() {
             .accent(Color::green(600))
             .rounding(Rounding::None)
             .at(Location::new().xs(
-                20.px().as_left().with(240.px().as_width()),
-                30.px().as_top().with(400.px().as_height()),
+                20.px().as_left().with(90.pct().as_right()),
+                30.px().as_top().with(90.pct().as_bottom()),
             ))
             .elevate(Elevation::up(1)),
     );

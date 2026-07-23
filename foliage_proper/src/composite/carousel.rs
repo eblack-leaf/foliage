@@ -1,6 +1,6 @@
 use crate::Trigger;
 use crate::composite::pagination::{PageChanged, Pagination, PaginationMode};
-use crate::composite::{IndexedSlotFn, PageCount, PageIndex, Root};
+use crate::composite::{IndexedSlotFn, PageCount, PageIndex};
 use crate::{
     Animation, Color, Component, CurrentInteraction, Disengaged, Ease, EcsExtension, Elevation,
     Entity, Grid, GridExt, InteractionListener, InteractionPropagation, Leaf, LeafSprout, Location,
@@ -233,7 +233,6 @@ impl Sprout for CarouselSprout {
                             .with((
                                 Grid::default(),
                                 InteractionPropagation::grab().disable_drag(),
-                                Root(e),
                             )),
                     );
                     (pages.builder)(&mut tree, slot, i);

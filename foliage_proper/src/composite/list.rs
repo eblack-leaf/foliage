@@ -1,5 +1,5 @@
 use crate::Trigger;
-use crate::composite::{IndexedSlotFn, Root};
+use crate::composite::IndexedSlotFn;
 use crate::{
     Component, EcsExtension, Elevation, Entity, Grid, GridExt, InteractionListener, Leaf,
     LeafSprout, Location, Sprout, Tree, View,
@@ -14,8 +14,9 @@ use std::sync::Arc;
 /// author content, via the slot convention (see [`crate::composite::IndexedSlotFn`]). The
 /// list owns the scroll viewport (`View` + listener = wheel/touch scrolling, ancestor
 /// clipping for free) and the uniform row layout; what a row IS -- visuals, interaction,
-/// selection semantics -- belongs entirely to the author's closure. Each slot carries
-/// `Root(list)` so row handlers can route back via [`Root::resolve`]. No events of its own.
+/// selection semantics -- belongs entirely to the author's closure. A row handler that needs
+/// to route back to the list root can do so with `Stem::ascend_to::<List>(..)`. No events of
+/// its own.
 ///
 /// Rewriting [`ListItems`] via `write_to` is the re-render API: prior rows are torn down
 /// and the closure runs again per index. No virtualization -- `count` is expected O(dozens).
@@ -143,7 +144,7 @@ impl Sprout for ListSprout {
                                 (i + 1).row().as_top().with((i + 1).row().as_bottom()),
                             ))
                             .elevate(Elevation::up(1))
-                            .with((Grid::default(), Root(e))),
+                            .with(Grid::default()),
                     );
                     (items.builder)(&mut tree, slot, i);
                     slots.push(slot);

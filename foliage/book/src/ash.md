@@ -46,14 +46,13 @@ let new_value = match (left_v, right_v) {
 ```
 
 Two edge cases force a full `renormalize` instead: a gap bisected so many times the
-midpoint loses meaningful float precision, or a value landing exactly on the
-[near/far](./willow.md) boundary. The boundary case has a real bug behind it, documented
-in the source: repeatedly inserting new frontmost content (an overlay opening in front of
-existing forward chrome, repeatedly) marches the frontmost value down toward `near`; once
-it *reaches* `near`, the next insertion's `near - gap` used to clamp straight back to
-`near` -- an identical depth to whatever was already there, resolved by non-deterministic
-draw order. That's documented as the literal cause of "popover text sometimes renders
-behind its own panel." Re-spacing on boundary contact keeps every depth distinct instead.
+midpoint loses meaningful float precision, or a computed value landing at or past the
+[near/far](./willow.md) boundary. Clamping a boundary hit to `near`/`far` directly would
+place the new entity at an identical depth to whatever's already sitting there, and two
+entities at the same depth have no defined relative order -- which one draws in front is
+left to draw order, which isn't guaranteed stable frame to frame. Re-spacing the whole
+list on boundary contact keeps every depth strictly distinct instead, so which entity is
+in front is always determined by `StackKey`, never by an incidental tie.
 
 ## `prepare`: draining the queues into nodes
 

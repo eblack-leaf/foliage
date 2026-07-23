@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6cd55966.js";
+            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -215,23 +215,38 @@ pub struct PageCount(pub usize);    // the other half of PageIndex
 <p><code>tree.write_to(button_entity, TextValue("new label".into()))</code> works identically whether
 <code>button_entity</code> is a <code>Button</code>, a <code>TextInput</code>, or anything else that forwards <code>TextValue</code>
 onward – the composite’s root is the API, regardless of what’s actually rendering it.</p>
-<h2 id="root-descendant-to-root-lookup"><a class="header" href="#root-descendant-to-root-lookup"><code>Root</code>: descendant-to-root lookup</a></h2>
+<h2 id="routing-a-descendant-back-to-its-root-stemascend_to"><a class="header" href="#routing-a-descendant-back-to-its-root-stemascend_to">Routing a descendant back to its root: <code>Stem::ascend_to</code></a></h2>
 <p>A reactive system running on a composite’s <em>descendant</em> (a slot’s content, an option
 row) often can’t resolve widget-level state locally and needs to route back up to the
-composite’s root entity:</p>
+composite’s root entity. Every composite already carries its own marker component on
+that root (<code>Modal</code>, <code>Dropdown</code>, <code>TextInput</code>, …) – so rather than a separate pointer
+component pointing back to it (one more thing to keep in sync, and nothing stops it
+drifting out of date if the structure around it changes), <a href="./leaf.html"><code>Stem</code></a> itself
+provides the walk:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/mod.rs
-pub struct Root(pub Entity);
-impl Root {
-    pub fn resolve(entity: Entity, roots: &amp;Query&lt;&amp;Root&gt;) -&gt; Entity {
-        roots.get(entity).map(|r| r.0).unwrap_or(entity)
+</span>// foliage_proper/src/leaf.rs
+impl Stem {
+    pub fn ascend_to&lt;C: Component&gt;(entity: Entity, stems: &amp;Query&lt;&amp;Stem&gt;, markers: &amp;Query&lt;&amp;C&gt;) -&gt; Entity {
+        let mut current = entity;
+        loop {
+            if markers.get(current).is_ok() {
+                return current;
+            }
+            match stems.get(current).ok().and_then(|s| s.id) {
+                Some(parent) =&gt; current = parent,
+                None =&gt; return current,
+            }
+        }
     }
 }
 <span class="boring">}</span></code></pre>
-<p><code>Root::resolve</code> walks the pointer if present, otherwise returns the entity itself –
-used, for instance, by a <code>Modal</code>’s “Close” button (spawned inside the slot) to find its
-way back to the modal root it needs to trigger <code>CloseModal</code> against.</p>
+<p>Used as <code>Stem::ascend_to::&lt;Modal&gt;(entity, &amp;stems, &amp;modals)</code> – for instance, by a
+<code>Modal</code>’s “Close” button (spawned inside the slot) to find its way back to the modal
+root it needs to trigger <code>CloseModal</code> against. Walking through a <em>different</em> composite
+type nested in between is harmless: <code>C</code> only matches its own type, so the walk passes
+through unrelated ancestors (Dropdown’s option rows sit inside a nested <code>List</code>, for
+instance) and keeps going until it reaches the actual root.</p>
 <p><a href="./composite-button.html">Building <code>Button</code> From Scratch</a> is the next chapter, and puts
 all of this – <code>Sprout</code>, <code>react</code>, value channels – to work in one worked example.</p>
 

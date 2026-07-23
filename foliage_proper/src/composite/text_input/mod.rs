@@ -2,7 +2,6 @@ pub(crate) mod action;
 pub(crate) mod keybindings;
 
 use crate::Trigger;
-use crate::composite::Root;
 use crate::coordinate::position::Position;
 use crate::foliage::MainMarkers;
 use crate::ginkgo::ScaleFactor;
@@ -23,7 +22,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::prelude::IntoScheduleConfigs;
-use bevy_ecs::query::Changed;
+use bevy_ecs::query::{Changed, With};
 use bevy_ecs::system::{Query, Res, SystemParam};
 use keybindings::KeyBindings;
 use std::collections::HashMap;
@@ -120,6 +119,13 @@ impl Attachment for TextInput {
 #[require(LineConstraint, Cursor, Selection, HintText, HintColor)]
 #[require(TextInputStyle, FontSize, TextValue)]
 pub struct TextInput {}
+/// Marks `text`/`hint_text` -- the two `Text`-bearing entities a `TextInput` actually owns --
+/// so `resync_on_glyphs_changed` can filter its `Changed<Glyphs>` query to just these at the
+/// ECS level (`With<TextInputField>`), instead of visiting *every* `Text` entity in the app
+/// (including ones with nothing to do with any `TextInput`) and discarding most of them after
+/// an unbounded `Stem` walk found no `TextInput` ancestor.
+#[derive(Component, Copy, Clone)]
+pub(crate) struct TextInputField;
 /// TextInput's OWN config vocabulary (widgets each own theirs -- nothing is library-blessed),
 /// poked as one unit: `tree.write_to(input, TextInputStyle { .. })`.
 #[derive(Component, Copy, Clone, Default)]
@@ -186,7 +192,7 @@ impl Sprout for TextInputSprout {
                         .adjust(4)
                         .with(100.pct().as_bottom().adjust(-4)),
                 ))
-                .with((Grid::default(), InteractionListener::new(), Root(this))),
+                .with((Grid::default(), InteractionListener::new())),
         );
         tree.subscribe(panel, TextInput::unfocused);
         tree.subscribe(panel, PlaceCursor::forward);
@@ -211,7 +217,6 @@ impl Sprout for TextInputSprout {
                     // default) and silently swallows every click meant for panel's own
                     // InteractionListener, the same bug class Popover had.
                     InteractionPropagation::pass_through(),
-                    Root(this),
                 )),
         );
 
@@ -228,7 +233,6 @@ impl Sprout for TextInputSprout {
                 .with((
                     InteractionListener::new(),
                     InteractionPropagation::pass_through(),
-                    Root(this),
                 )),
         );
         let visible = tree.branch(
@@ -243,7 +247,6 @@ impl Sprout for TextInputSprout {
                     InteractionListener::new(),
                     InteractionPropagation::pass_through(),
                     FocusBehavior::ignore(),
-                    Root(this),
                 )),
         );
         // no Location / auto flags: LineConstraint-dependent, set by that reaction's
@@ -252,14 +255,14 @@ impl Sprout for TextInputSprout {
             field,
             Text::new("")
                 .elevate(Elevation::up(5))
-                .with((InteractionListener::new(), Root(this))),
+                .with((InteractionListener::new(), TextInputField)),
         );
         let hint_text = tree.branch(
             field,
             Text::new("").elevate(Elevation::up(4)).with((
                 InteractionPropagation::pass_through(),
                 FocusBehavior::ignore(),
-                Root(this),
+                TextInputField,
             )),
         );
         tree.subscribe(cursor, TextInput::unfocused);
@@ -334,12 +337,13 @@ impl TextInput {
     pub(crate) fn unfocused(
         trigger: Trigger<Unfocused>,
         mut tree: Tree,
-        roots: Query<&Root>,
+        stems: Query<&Stem>,
+        text_inputs: Query<&TextInput>,
         handles: Query<&Handle>,
         current_interaction: Res<CurrentInteraction>,
         mut selections: Query<&mut Selection>,
     ) {
-        let main = Root::resolve(trigger.event_target(), &roots);
+        let main = Stem::ascend_to::<TextInput>(trigger.event_target(), &stems, &text_inputs);
         let handle = handles.get(main).unwrap();
         if let Some(f) = current_interaction.focused {
             if f == main || f == handle.panel || f == handle.text || f == handle.cursor {
@@ -576,10 +580,15 @@ impl Cursor {
         }
     }
     // we clicked explicitly on cursor, start drag behavior
-    pub(crate) fn engaged(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
+    pub(crate) fn engaged(
+        trigger: Trigger<Engaged>,
+        mut tree: Tree,
+        stems: Query<&Stem>,
+        text_inputs: Query<&TextInput>,
+    ) {
         tree.trigger_targets(
             TextInputState::Highlighting,
-            Root::resolve(trigger.event_target(), &roots),
+            Stem::ascend_to::<TextInput>(trigger.event_target(), &stems, &text_inputs),
         );
     }
 }
@@ -587,10 +596,15 @@ impl Cursor {
 #[derive(Copy)]
 pub(crate) struct PlaceCursor {}
 impl PlaceCursor {
-    pub(crate) fn forward(trigger: Trigger<Engaged>, mut tree: Tree, roots: Query<&Root>) {
+    pub(crate) fn forward(
+        trigger: Trigger<Engaged>,
+        mut tree: Tree,
+        stems: Query<&Stem>,
+        text_inputs: Query<&TextInput>,
+    ) {
         tree.trigger_targets(
             PlaceCursor::new(),
-            Root::resolve(trigger.event_target(), &roots),
+            Stem::ascend_to::<TextInput>(trigger.event_target(), &stems, &text_inputs),
         );
     }
     pub(crate) fn obs(
@@ -1002,7 +1016,8 @@ impl Selection {
     pub(crate) fn reselect(
         trigger: Trigger<crate::text::TextContentChanged>,
         mut tree: Tree,
-        roots: Query<&Root>,
+        stems: Query<&Stem>,
+        text_inputs: Query<&TextInput>,
         glyphs: Query<&Glyphs>,
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
@@ -1013,7 +1028,7 @@ impl Selection {
         line_metrics: Query<&LineMetrics>,
         scroll: ScrollContext,
     ) {
-        let root = Root::resolve(trigger.event_target(), &roots);
+        let root = Stem::ascend_to::<TextInput>(trigger.event_target(), &stems, &text_inputs);
         let offset = cursor.get(root).unwrap().location;
         TextInput::move_cursor(
             root,
@@ -1049,7 +1064,8 @@ impl Selection {
     // is the likely shape of the fix, not built yet -- scoping only.
     pub(crate) fn select(
         trigger: Trigger<Dragged>,
-        roots: Query<&Root>,
+        stems: Query<&Stem>,
+        text_inputs: Query<&TextInput>,
         current_interaction: Res<CurrentInteraction>,
         font: Res<MonospacedFont>,
         font_sizes: Query<&FontSize>,
@@ -1063,7 +1079,7 @@ impl Selection {
         mut selections: Query<&mut Selection>,
         glyphs: Query<&Glyphs>,
     ) {
-        let root = Root::resolve(trigger.event_target(), &roots);
+        let root = Stem::ascend_to::<TextInput>(trigger.event_target(), &stems, &text_inputs);
         let (col, row) = TextInput::location_from_click(
             root,
             false,
@@ -1194,16 +1210,17 @@ impl TextInput {
             );
         }
     }
-    /// Runs whenever `Glyphs` changes for *any* text entity (typing, or a rewrap from a
-    /// parent resize) and re-derives the cursor's `(col, row)` from its actual byte-offset
-    /// against the current layout, plus resyncs the highlight panels -- see the comment on
-    /// its registration in `attach` for why. `Root::resolve` + the `cursor.get` guard is
-    /// what scopes this to text entities that actually belong to a `TextInput` (`hint_text`
-    /// resolves to the same root as `text` and just does harmless duplicate work; a
-    /// standalone `Text` outside any `TextInput` has no `Cursor` to look up and is skipped).
+    /// Runs whenever `Glyphs` changes on `text`/`hint_text` -- `TextInputField` filters the
+    /// query at the ECS level to just those two (typing, or a rewrap from a parent resize),
+    /// so a standalone `Text` elsewhere in the app is never visited by this system at all,
+    /// not even to be walked and discarded. Re-derives the cursor's `(col, row)` from its
+    /// actual byte-offset against the current layout, plus resyncs the highlight panels --
+    /// see the comment on its registration in `attach` for why. `hint_text` resolves to the
+    /// same root as `text` and just does harmless duplicate work.
     fn resync_on_glyphs_changed(
-        changed: Query<Entity, Changed<Glyphs>>,
-        roots: Query<&Root>,
+        changed: Query<Entity, (Changed<Glyphs>, With<TextInputField>)>,
+        stems: Query<&Stem>,
+        text_inputs: Query<&TextInput>,
         mut tree: Tree,
         mut cursor: Query<&mut Cursor>,
         mut handles: Query<&mut Handle>,
@@ -1217,7 +1234,7 @@ impl TextInput {
         styles: Query<&TextInputStyle>,
     ) {
         for text_entity in changed.iter() {
-            let this = Root::resolve(text_entity, &roots);
+            let this = Stem::ascend_to::<TextInput>(text_entity, &stems, &text_inputs);
             let offset = if let Ok(cursor_val) = cursor.get(this) {
                 cursor_val.location
             } else {
@@ -1370,12 +1387,13 @@ impl Input {
     pub(crate) fn forward(
         trigger: Trigger<InputSequence>,
         mut tree: Tree,
-        roots: Query<&Root>,
+        stems: Query<&Stem>,
+        text_inputs: Query<&TextInput>,
         current_interaction: Res<CurrentInteraction>,
         handles: Query<&Handle>,
     ) {
         if let Some(f) = current_interaction.focused {
-            let main = Root::resolve(f, &roots);
+            let main = Stem::ascend_to::<TextInput>(f, &stems, &text_inputs);
             let Ok(handle) = handles.get(main) else {
                 return;
             };

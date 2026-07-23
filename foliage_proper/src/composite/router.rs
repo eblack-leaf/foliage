@@ -1,6 +1,6 @@
 use crate::Trigger;
 use crate::composite::pagination::PageChanged;
-use crate::composite::{PageCount, PageIndex, Root};
+use crate::composite::{PageCount, PageIndex};
 use crate::{
     Component, EcsExtension, Elevation, Entity, Grid, GridExt, LeafSprout, Location, Sprout, Tree,
 };
@@ -178,7 +178,7 @@ fn build_route(tree: &mut Tree, root: Entity, routes: &RouterRoutes, index: usiz
                 0.pct().as_top().with(100.pct().as_bottom()),
             ))
             .elevate(Elevation::up(1))
-            .with((Grid::default(), Root(root))),
+            .with(Grid::default()),
     );
     (routes.0[index])(tree, slot);
     (index, slot)

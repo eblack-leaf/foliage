@@ -1,5 +1,4 @@
 use crate::Trigger;
-use crate::composite::Root;
 use crate::{
     Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid, GridExt,
     HorizontalAlignment, InteractionListener, InteractionPropagation, LeafSprout, Location,
@@ -202,7 +201,7 @@ impl Sprout for SegmentedControlSprout {
                                 1.row().as_top().with(1.row().as_bottom()),
                             ))
                             .elevate(Elevation::up(1))
-                            .with((InteractionListener::new(), Root(e))),
+                            .with(InteractionListener::new()),
                     );
                     let label = tree.branch(
                         e,

@@ -1,10 +1,10 @@
 use crate::Trigger;
-use crate::composite::Root;
 use crate::{
     Anchor, ClipToViewport, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity,
     FocusBehavior, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId, IconValue,
     InteractionListener, InteractionPropagation, LeafSprout, List, ListItems, Location, OnClick,
-    Outline, Panel, Rounding, Sprout, Text, TextValue, Tree, Unfocused, VerticalAlignment, anchor,
+    Outline, Panel, Rounding, Sprout, Stem, Text, TextValue, Tree, Unfocused, VerticalAlignment,
+    anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -333,7 +333,7 @@ impl Sprout for DropdownSprout {
                                             0.pct().as_top().with(100.pct().as_bottom()),
                                         ))
                                         .elevate(Elevation::up(1))
-                                        .with((InteractionListener::new(), Root(e))),
+                                        .with(InteractionListener::new()),
                                 );
                                 tree.branch(
                                     slot,
@@ -370,7 +370,6 @@ impl Sprout for DropdownSprout {
                                 ClipToViewport,
                                 style.background,
                                 Panel::default(),
-                                Root(e),
                             )),
                     );
                     handle.options = Some(surface);
@@ -401,12 +400,14 @@ impl Sprout for DropdownSprout {
             },
         );
         // click-away: collapse when focus leaves the widget -- unless it landed on our own
-        // option surface (the rows carry Root(this); the List root is tracked directly).
+        // option surface (the rows are genuine `Stem`-descendants, walked back to `e` via
+        // `Stem::ascend_to`; the List root itself is tracked directly via `handle.options`).
         tree.subscribe(
             this,
             move |trigger: Trigger<Unfocused>,
                   current_interaction: Res<CurrentInteraction>,
-                  roots: Query<&Root>,
+                  stems: Query<&Stem>,
+                  dropdowns: Query<&Dropdown>,
                   handles: Query<&DropdownHandle>,
                   expanded: Query<&Expanded>,
                   mut tree: Tree| {
@@ -416,7 +417,10 @@ impl Sprout for DropdownSprout {
                 }
                 if let Some(f) = current_interaction.focused {
                     let handle = handles.get(e).unwrap();
-                    if f == e || Some(f) == handle.options || Root::resolve(f, &roots) == e {
+                    if f == e
+                        || Some(f) == handle.options
+                        || Stem::ascend_to::<Dropdown>(f, &stems, &dropdowns) == e
+                    {
                         return;
                     }
                 }

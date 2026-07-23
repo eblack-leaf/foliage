@@ -15,8 +15,8 @@ contains a multi-byte character.
 
 ## Known gaps
 
-Three specific, scoped-but-not-implemented gaps exist in the current selection/scroll
-handling, each documented in place as a `TODO` rather than silently absent:
+Two specific, scoped-but-not-implemented gaps exist in the current selection handling,
+each documented in place as a `TODO` rather than silently absent:
 
 **Shift+Click doesn't extend an existing selection.** Every click unconditionally
 restarts the selection at the click point:
@@ -26,19 +26,6 @@ restarts the selection at the click point:
 // TODO: every click unconditionally restarts the selection here, even Shift+Click --
 // some editors instead extend the existing selection to the click point when Shift
 // is held. Not implemented; scoping only, not clear this is wanted yet.
-```
-
-**Resizing the box while scrolled doesn't preserve scroll position.** Growing the box
-after scrolling away from the cursor snaps the view back toward the cursor instead of
-leaving the user's manual scroll position alone -- and the root cause isn't even
-pinned down yet between two candidates:
-
-```rust
-// foliage_proper/src/composite/text_input/mod.rs:694-697
-// TODO: scroll up away from the cursor (cursor sitting at/below the bottom of view), then
-// resize the box bigger -- the resulting rewrap drops `view.offset` back toward the
-// cursor instead of leaving the user's manual scroll position alone. Two candidate
-// causes, not yet distinguished by an actual trace...
 ```
 
 **Drag-selecting near the box's edges doesn't auto-scroll.** Drag-selection only ever
@@ -54,8 +41,8 @@ that already has scroll-into-view logic:
 // is the likely shape of the fix, not built yet -- scoping only.
 ```
 
-None of these are silent -- normal typing, arrow-key navigation, click-to-place, and
-programmatic scroll-into-view on edit all work and already account for multi-byte
-characters correctly. The gaps are specifically: extending (not just replacing) a
-selection via Shift+Click, scroll-position stability across a resize, and continuous
-auto-scroll during a drag that leaves the visible box.
+None of these are silent -- normal typing, arrow-key navigation, click-to-place,
+resizing while scrolled, and programmatic scroll-into-view on edit all work and already
+account for multi-byte characters correctly. The gaps are specifically: extending (not
+just replacing) a selection via Shift+Click, and continuous auto-scroll during a drag
+that leaves the visible box.

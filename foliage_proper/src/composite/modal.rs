@@ -205,7 +205,7 @@ impl Sprout for ModalSprout {
                     Leaf::sprout()
                         .at(full_location())
                         .elevate(Elevation::up(1))
-                        .with((Grid::default(), crate::composite::Root(e))),
+                        .with(Grid::default()),
                 );
                 let content = (cfg.content)(&mut tree, slot);
                 let terminate = cfg.close_icon.map(|icon| {

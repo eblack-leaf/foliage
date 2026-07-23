@@ -2,19 +2,18 @@
 //! `.close_icon(..)` either (optional, no registered icon bytes in this example) -- closing
 //! goes through a plain clickable "Close" label inside the content instead, the same pattern
 //! `.close_icon(..)` uses internally: give it its own `InteractionListener`, and resolve back
-//! to the modal root via `Root` (the slot it's under carries `Root(modal)`, same as every
-//! other composite's descendant-to-root lookup).
+//! to the modal root via `Stem::ascend_to::<Modal>(..)`, which walks the real `Stem` chain
+//! up to whichever ancestor carries the `Modal` component.
 //! Run with `cargo run --example modal -p foliage`, click "Open Modal" then "Close".
 
 use foliage::{
     Button, CloseModal, Color, EcsExtension, Elevation, Entity, Foliage, FontSize,
     HorizontalAlignment, GridExt, InteractionListener, InteractionPropagation, Location, Modal,
-    OnClick, Query, Root, Rounding, Sprout, Stem, Text, Tree, Trigger, VerticalAlignment,
+    OnClick, Query, Rounding, Sprout, Stem, Text, Tree, Trigger, VerticalAlignment,
 };
 
-fn close_on_click(trigger: Trigger<OnClick>, stems: Query<&Stem>, roots: Query<&Root>, mut tree: Tree) {
-    let slot = stems.get(trigger.event_target()).unwrap().id.unwrap();
-    let modal = Root::resolve(slot, &roots);
+fn close_on_click(trigger: Trigger<OnClick>, stems: Query<&Stem>, modals: Query<&Modal>, mut tree: Tree) {
+    let modal = Stem::ascend_to::<Modal>(trigger.event_target(), &stems, &modals);
     tree.trigger_targets(CloseModal::new(), modal);
 }
 

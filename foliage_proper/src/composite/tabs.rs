@@ -1,7 +1,7 @@
 use crate::Trigger;
 use crate::composite::pagination::PageChanged;
 use crate::composite::segmented_control::{SegmentChanged, SegmentedControl};
-use crate::composite::{IndexedSlotFn, PageCount, PageIndex, Root};
+use crate::composite::{IndexedSlotFn, PageCount, PageIndex};
 use crate::{
     Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt, LeafSprout, Location,
     Rounding, Sprout, Tree, Visibility,
@@ -226,7 +226,7 @@ impl Sprout for TabsSprout {
                                     .with(100.pct().as_bottom()),
                             ))
                             .elevate(Elevation::up(1))
-                            .with((Grid::default(), Root(e), Visibility::new(i == current))),
+                            .with((Grid::default(), Visibility::new(i == current))),
                     );
                     (tabs_pages.builder)(&mut tree, slot, i);
                     handle.content_slots.push(slot);

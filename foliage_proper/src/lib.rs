@@ -61,7 +61,6 @@ pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
 pub use composite::{IconValue, IndexedSlotFn, PageCount, PageIndex, Progress, SlotFn, TextValue};
 pub use composite::{
-    Root,
     button::{Button, ButtonSprout, ButtonStyle, Engagement},
     carousel::{Carousel, CarouselConfig, CarouselPages, CarouselSprout, CarouselStyle},
     checkbox::{Checkbox, CheckboxSprout, CheckboxState, CheckboxStyle, Checked},

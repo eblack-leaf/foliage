@@ -1,9 +1,9 @@
 use crate::Trigger;
-use crate::composite::{Root, SlotFn};
+use crate::composite::SlotFn;
 use crate::{
     Anchor, ClipToViewport, Color, Component, CurrentInteraction, EcsExtension, Elevation, Entity,
     Grid, GridExt, InteractionListener, InteractionPropagation, Leaf, LeafSprout, Location,
-    LocationValue, OnClick, Panel, Sprout, Tree, Unfocused, anchor,
+    LocationValue, OnClick, Panel, Sprout, Stem, Tree, Unfocused, anchor,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
@@ -218,11 +218,7 @@ impl Sprout for PopoverSprout {
                     0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .elevate(Elevation::up(1))
-                .with((
-                    Grid::default(),
-                    Root(this),
-                    InteractionPropagation::pass_through(),
-                )),
+                .with((Grid::default(), InteractionPropagation::pass_through())),
         );
         tree.write_to(
             this,
@@ -287,7 +283,7 @@ impl Sprout for PopoverSprout {
                             .color(style.background)
                             .at(cfg.placement.location(cfg.extent))
                             .elevate(Elevation::up(2))
-                            .with((Anchor::new(e), ClipToViewport, Grid::default(), Root(e))),
+                            .with((Anchor::new(e), ClipToViewport, Grid::default())),
                     );
                     (cfg.content)(&mut tree, surface);
                     handle.content = Some(surface);
@@ -298,13 +294,14 @@ impl Sprout for PopoverSprout {
             },
         );
         // click-away: collapse when focus leaves the popover -- unless it landed on the
-        // popover's own content surface (content carries Root(this) the same way Dropdown's
-        // option rows do).
+        // popover's own content surface (a genuine `Stem`-descendant of `this`, walked back
+        // via `Stem::ascend_to` the same way Dropdown's option rows are).
         tree.subscribe(
             this,
             move |trigger: Trigger<Unfocused>,
                   current_interaction: Res<CurrentInteraction>,
-                  roots: Query<&Root>,
+                  stems: Query<&Stem>,
+                  popovers: Query<&Popover>,
                   handles: Query<&PopoverHandle>,
                   expanded: Query<&PopoverExpanded>,
                   mut tree: Tree| {
@@ -314,7 +311,10 @@ impl Sprout for PopoverSprout {
                 }
                 if let Some(f) = current_interaction.focused {
                     let handle = handles.get(e).unwrap();
-                    if f == e || Some(f) == handle.content || Root::resolve(f, &roots) == e {
+                    if f == e
+                        || Some(f) == handle.content
+                        || Stem::ascend_to::<Popover>(f, &stems, &popovers) == e
+                    {
                         return;
                     }
                 }

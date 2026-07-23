@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-6cd55966.js";
+            window.path_to_searchindex_js = "../searchindex-5a0e86ef.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-a847c643.js"></script>
@@ -187,8 +187,8 @@ between offsets via <code>prev_boundary</code>/<code>next_boundary</code> helper
 plain <code>± 1</code> on a byte offset would panic <code>String::remove</code>/slicing the moment the content
 contains a multi-byte character.</p>
 <h2 id="known-gaps"><a class="header" href="#known-gaps">Known gaps</a></h2>
-<p>Three specific, scoped-but-not-implemented gaps exist in the current selection/scroll
-handling, each documented in place as a <code>TODO</code> rather than silently absent:</p>
+<p>Two specific, scoped-but-not-implemented gaps exist in the current selection handling,
+each documented in place as a <code>TODO</code> rather than silently absent:</p>
 <p><strong>Shift+Click doesn’t extend an existing selection.</strong> Every click unconditionally
 restarts the selection at the click point:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -197,18 +197,6 @@ restarts the selection at the click point:</p>
 // TODO: every click unconditionally restarts the selection here, even Shift+Click --
 // some editors instead extend the existing selection to the click point when Shift
 // is held. Not implemented; scoping only, not clear this is wanted yet.
-<span class="boring">}</span></code></pre>
-<p><strong>Resizing the box while scrolled doesn’t preserve scroll position.</strong> Growing the box
-after scrolling away from the cursor snaps the view back toward the cursor instead of
-leaving the user’s manual scroll position alone – and the root cause isn’t even
-pinned down yet between two candidates:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/text_input/mod.rs:694-697
-// TODO: scroll up away from the cursor (cursor sitting at/below the bottom of view), then
-// resize the box bigger -- the resulting rewrap drops `view.offset` back toward the
-// cursor instead of leaving the user's manual scroll position alone. Two candidate
-// causes, not yet distinguished by an actual trace...
 <span class="boring">}</span></code></pre>
 <p><strong>Drag-selecting near the box’s edges doesn’t auto-scroll.</strong> Drag-selection only ever
 sees whatever’s currently visible – it calls <code>extend_range</code> directly rather than through
@@ -222,11 +210,11 @@ that already has scroll-into-view logic:</p>
 // continuously while the pointer sits near the boundary (not just once per keystroke)
 // is the likely shape of the fix, not built yet -- scoping only.
 <span class="boring">}</span></code></pre>
-<p>None of these are silent – normal typing, arrow-key navigation, click-to-place, and
-programmatic scroll-into-view on edit all work and already account for multi-byte
-characters correctly. The gaps are specifically: extending (not just replacing) a
-selection via Shift+Click, scroll-position stability across a resize, and continuous
-auto-scroll during a drag that leaves the visible box.</p>
+<p>None of these are silent – normal typing, arrow-key navigation, click-to-place,
+resizing while scrolled, and programmatic scroll-into-view on edit all work and already
+account for multi-byte characters correctly. The gaps are specifically: extending (not
+just replacing) a selection via Shift+Click, and continuous auto-scroll during a drag
+that leaves the visible box.</p>
 
                     </main>
 

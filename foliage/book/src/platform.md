@@ -48,9 +48,8 @@ unverified rather than confirmed working.
 
 ## `TextInput` gaps
 
-See [TextInput](./composites/text-input.md) for the three specific, scoped-but-not-yet-implemented
-selection/scroll gaps (Shift+Click range-extend, scroll-position stability across a
-resize, and auto-scroll during an edge-adjacent drag).
+See [TextInput](./composites/text-input.md) for the two specific, scoped-but-not-yet-implemented
+selection gaps (Shift+Click range-extend and auto-scroll during an edge-adjacent drag).
 
 ## Router's no-URL-history design
 

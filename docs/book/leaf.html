@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6cd55966.js";
+            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -215,8 +215,8 @@ without them.</p>
 <h2 id="leaf-attaches-itself-not-the-other-way-around"><a class="header" href="#leaf-attaches-itself-not-the-other-way-around">Leaf attaches itself, not the other way around</a></h2>
 <p>You might expect a rendering primitive like <code>Panel</code> to declare <code>#[require(Leaf, ...)]</code>
 – but it doesn’t. Grep <code>foliage_proper/src/panel/mod.rs</code> and <code>text/mod.rs</code> and neither
-one mentions <code>Leaf</code> at all. Instead, <code>Leaf</code> is unioned onto <em>every</em> entity at the moment
-it’s spawned, by the one path that’s allowed to spawn anything:</p>
+one mentions <code>Leaf</code> at all. Instead, <code>Leaf</code> is unioned onto every entity the <em>library’s
+own</em> spawn path produces, at the moment it’s spawned:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/tree.rs
@@ -232,8 +232,10 @@ an entity is, while <code>Leaf</code> is inserted alongside them, unconditionall
 <em>any</em> on-screen entity needs regardless of what it is. This is why <code>Leaf</code>’s own
 <code>on_add</code>/<code>on_remove</code> hooks (registering <code>anim_opacity</code>/<code>anim_elevation</code>/<code>anim_location</code>
 observers, and cleaning up <code>CurrentInteraction</code> state on removal) run for literally every
-widget in the framework, without each widget type needing to remember to register them
-itself.</p>
+widget spawned through <code>Sprout</code>, without each widget type needing to remember to
+register them itself. It’s a guarantee about the library’s <em>own</em> spawn path, not a wall
+nothing can get past – see the note at the end of <a href="./spawning.html">Spawning</a> for why, and
+where the actual boundary sits.</p>
 <p>The next chapter, <a href="./spawning.html">Spawning</a>, covers exactly how <code>sow</code> gets called, and
 why an entity can’t be spawned any other way.</p>
 

@@ -63,12 +63,11 @@ sequence can still freely overlap), it only removes the repeated wrapper.
 `send_to`/`remove`/`enable`/`disable` all accept anything implementing `IntoTargets`
 (`Entity`, `Vec<Entity>`, `[Entity; N]`) so a single entity or a batch can be targeted
 without allocating for the common single-entity case. `TargetedEvent` is how an event
-carries its own destination -- since bevy 0.19 removed `trigger_targets`, an
-`EntityEvent` now carries its target inside itself, and foliage's targeted events store
-an `entity` field that `send_to` rewrites per target before triggering. The
-`#[targeted_event]` macro attribute generates this scaffolding (the field, the `Event`/
-`EntityEvent` impls, a `new(..)` constructor) so authors never write
-`Entity::PLACEHOLDER` by hand.
+carries its own destination: it stores an `entity` field that `send_to` rewrites per
+target immediately before triggering, so the same event value can be aimed at several
+entities in turn. The `#[targeted_event]` macro attribute generates this scaffolding
+(the field, the `Event`/`EntityEvent` impls, a `new(..)` constructor) so authors never
+write `Entity::PLACEHOLDER` by hand.
 
 All of this -- `leaf`/`branch` from the [previous chapter](./spawning.md), plus `react`/
 `graft`/`sequence` here -- is implemented once on `Tree`, `DeferredWorld`, and `World`

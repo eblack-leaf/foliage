@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6cd55966.js";
+            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -228,12 +228,11 @@ sequence can still freely overlap), it only removes the repeated wrapper.</p>
 <p><code>send_to</code>/<code>remove</code>/<code>enable</code>/<code>disable</code> all accept anything implementing <code>IntoTargets</code>
 (<code>Entity</code>, <code>Vec&lt;Entity&gt;</code>, <code>[Entity; N]</code>) so a single entity or a batch can be targeted
 without allocating for the common single-entity case. <code>TargetedEvent</code> is how an event
-carries its own destination – since bevy 0.19 removed <code>trigger_targets</code>, an
-<code>EntityEvent</code> now carries its target inside itself, and foliage’s targeted events store
-an <code>entity</code> field that <code>send_to</code> rewrites per target before triggering. The
-<code>#[targeted_event]</code> macro attribute generates this scaffolding (the field, the <code>Event</code>/
-<code>EntityEvent</code> impls, a <code>new(..)</code> constructor) so authors never write
-<code>Entity::PLACEHOLDER</code> by hand.</p>
+carries its own destination: it stores an <code>entity</code> field that <code>send_to</code> rewrites per
+target immediately before triggering, so the same event value can be aimed at several
+entities in turn. The <code>#[targeted_event]</code> macro attribute generates this scaffolding
+(the field, the <code>Event</code>/<code>EntityEvent</code> impls, a <code>new(..)</code> constructor) so authors never
+write <code>Entity::PLACEHOLDER</code> by hand.</p>
 <p>All of this – <code>leaf</code>/<code>branch</code> from the <a href="./spawning.html">previous chapter</a>, plus <code>react</code>/
 <code>graft</code>/<code>sequence</code> here – is implemented once on <code>Tree</code>, <code>DeferredWorld</code>, and <code>World</code>
 via the shared <code>EcsExtension</code> trait, so the same calls work in a system, an observer, or

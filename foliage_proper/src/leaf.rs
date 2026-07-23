@@ -137,6 +137,30 @@ impl Stem {
             }
         }
     }
+    /// Walks the `Stem` chain upward from `entity` until an ancestor carrying `C` is found
+    /// (returned), or returns `entity` itself if nothing does. For a reactive system on a
+    /// composite's descendant that needs to route back to the composite's own root: `C` is
+    /// that composite's own marker component (`TextInput`, `Dropdown`, ...), which every
+    /// composite already has on its root for other reasons, so there's nothing separate to
+    /// keep in sync. Walking through a *different* composite type nested in between (e.g.
+    /// Dropdown's option rows sit inside a nested `List`) is harmless: `C` only matches its
+    /// own type, so the walk passes through unrelated ancestors and keeps going.
+    pub fn ascend_to<C: Component>(
+        entity: Entity,
+        stems: &Query<&Stem>,
+        markers: &Query<&C>,
+    ) -> Entity {
+        let mut current = entity;
+        loop {
+            if markers.get(current).is_ok() {
+                return current;
+            }
+            match stems.get(current).ok().and_then(|s| s.id) {
+                Some(parent) => current = parent,
+                None => return current,
+            }
+        }
+    }
 }
 
 #[derive(Component, Clone, Default)]

@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-6cd55966.js";
+            window.path_to_searchindex_js = "searchindex-5a0e86ef.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-a847c643.js"></script>
@@ -253,8 +253,8 @@ without them.</p>
 <h2 id="leaf-attaches-itself-not-the-other-way-around"><a class="header" href="#leaf-attaches-itself-not-the-other-way-around">Leaf attaches itself, not the other way around</a></h2>
 <p>You might expect a rendering primitive like <code>Panel</code> to declare <code>#[require(Leaf, ...)]</code>
 – but it doesn’t. Grep <code>foliage_proper/src/panel/mod.rs</code> and <code>text/mod.rs</code> and neither
-one mentions <code>Leaf</code> at all. Instead, <code>Leaf</code> is unioned onto <em>every</em> entity at the moment
-it’s spawned, by the one path that’s allowed to spawn anything:</p>
+one mentions <code>Leaf</code> at all. Instead, <code>Leaf</code> is unioned onto every entity the <em>library’s
+own</em> spawn path produces, at the moment it’s spawned:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/tree.rs
@@ -270,8 +270,10 @@ an entity is, while <code>Leaf</code> is inserted alongside them, unconditionall
 <em>any</em> on-screen entity needs regardless of what it is. This is why <code>Leaf</code>’s own
 <code>on_add</code>/<code>on_remove</code> hooks (registering <code>anim_opacity</code>/<code>anim_elevation</code>/<code>anim_location</code>
 observers, and cleaning up <code>CurrentInteraction</code> state on removal) run for literally every
-widget in the framework, without each widget type needing to remember to register them
-itself.</p>
+widget spawned through <code>Sprout</code>, without each widget type needing to remember to
+register them itself. It’s a guarantee about the library’s <em>own</em> spawn path, not a wall
+nothing can get past – see the note at the end of <a href="#spawning-sprout-and-ecsextension">Spawning</a> for why, and
+where the actual boundary sits.</p>
 <p>The next chapter, <a href="#spawning-sprout-and-ecsextension">Spawning</a>, covers exactly how <code>sow</code> gets called, and
 why an entity can’t be spawned any other way.</p>
 <div style="break-before: page; page-break-before: always;"></div>
@@ -310,13 +312,13 @@ pub struct LeafSprout {
     pub(crate) elevation: Option&lt;Elevation&gt;,
 }
 <span class="boring">}</span></code></pre>
-<p><code>elevation</code> is deliberately <code>Option</code> with <strong>no default</strong>, per its own doc comment:</p>
-<blockquote>
-<p>an unset <code>Elevation</code> silently picking <em>some</em> layer (front, back, or “one above
-whatever the parent is this moment”) is exactly the kind of surprise that’s cost real
-debugging time in this codebase… Leaving it unset is a hard requirement to specify
-it, not a soft default to fall back on.</p>
-</blockquote>
+<p><code>elevation</code> is deliberately <code>Option</code> with <strong>no default</strong>. Any default would have to pick
+something – front, back, or “one above whatever the parent is this moment” – and
+whichever it picked would be silently wrong for any widget that meant something else,
+with no signal at the call site that anything was left unspecified. Leaving it unset is
+a hard requirement to specify it explicitly, not a soft default to fall back on – see
+<code>Sow::grow</code>’s <code>.expect("elevation not set -- call .elevate(...) before spawning")</code> below,
+which is where that requirement is actually enforced.</p>
 <p><code>root()</code> and <code>build()</code> split a widget’s spawn into two concerns: <code>root()</code> is <em>what
 this entity is</em> – every config field folded into one bundle, inserted once, at spawn.
 <code>build()</code> is <em>what this entity needs around it</em> – a config-independent skeleton of
@@ -365,15 +367,31 @@ fn branch&lt;S: Sprout&gt;(&amp;mut self, parent: Entity, spec: S) -&gt; Entity 
 with <code>parent</code> as a required argument so a child can’t be spawned orphaned by forgetting a
 chained call. Both are implemented once for <code>Tree</code> (<code>Commands</code>), <code>DeferredWorld</code>, and
 <code>World</code>, so the same calls work whether you’re in a system, an observer, or app setup.</p>
-<p>An external crate can implement <code>Sprout</code> for its own widget types (as
-<code>application</code>-style code does), but it can never call <code>Sow::grow</code> directly – there’s no
-path from a <code>Sprout</code> impl to a spawned entity that skips the mandatory <code>.elevate(...)</code> or
-hand-rolls a parent link. That’s the whole point of keeping <code>Sow</code> private.</p>
+<p>An external crate can implement <code>Sprout</code> for its own widget types (app code does this
+routinely), but it can never call <code>Sow::grow</code> directly or implement <code>EcsExtension</code>
+itself – there’s no path from a <code>Sprout</code> impl to a spawned entity that skips the
+mandatory <code>.elevate(...)</code> or hand-rolls a parent link. <em>Going through <code>Sprout</code></em> always
+produces a well-formed, <code>Leaf</code>-bearing entity.</p>
 <p><code>LeafSprout</code> itself implements <code>Sprout</code> – the “no named marker component” case, for a
 child with no reusable type of its own (a bare interaction hit-area). Its <code>root()</code>
 returns an empty bundle; any marker it needs is attached via <code>.with(...)</code>, the same as
 every other extra component – which is what makes <code>branch</code> uniform for <em>every</em> child
 instead of needing a raw, un-typed spawn path.</p>
+<h2 id="this-is-a-guarantee-about-the-sanctioned-path-not-an-unbypassable-wall"><a class="header" href="#this-is-a-guarantee-about-the-sanctioned-path-not-an-unbypassable-wall">This is a guarantee about the sanctioned path, not an unbypassable wall</a></h2>
+<p><code>Sow</code> being <code>pub(crate)</code> stops <code>Sow::grow</code>/<code>sow</code> from being called directly, and stops
+<code>EcsExtension</code> from being implemented outside this crate – but <code>Foliage::world</code> is
+<code>pub</code>, and <code>World::spawn</code>/<code>Commands::spawn</code> are ordinary public methods bevy itself
+provides. Nothing about <code>Sow</code> being private prevents <code>foliage.world.spawn(some_bundle)</code>,
+which bypasses <code>Sprout</code> entirely and produces an entity with no <code>Leaf</code>, no <code>Stem</code>, no
+<code>Elevation</code> – bevy has no idea any of that convention exists. This isn’t a gap that
+could be closed by making <code>world</code> private, either: application code legitimately needs
+raw <code>World</code>/<code>Commands</code> access for its <em>own</em> components and entities that have nothing to
+do with any foliage widget, and <code>Tree</code> is just <code>bevy_ecs::system::Commands</code> – the same
+<code>Commands</code> any system can already request as a parameter, not a separately-gated type.
+So <code>Sprout</code>/<code>leaf</code>/<code>branch</code> is best understood as the library’s own guided path for
+rendering/UI elements – always correct if you use it – not a security boundary around
+the ECS itself. Nothing stops an author from spawning their own raw, non-widget entities
+alongside it; that’s expected, not a loophole.</p>
 <p>Once an entity exists, acting on it further – <code>on_click</code>, <code>animate</code>, more components –
 is <a href="#acting-on-entities-tree-and-graft">Tree and Graft’s</a> job, not <code>Sprout</code>’s.</p>
 <div style="break-before: page; page-break-before: always;"></div>
@@ -431,12 +449,11 @@ sequence can still freely overlap), it only removes the repeated wrapper.</p>
 <p><code>send_to</code>/<code>remove</code>/<code>enable</code>/<code>disable</code> all accept anything implementing <code>IntoTargets</code>
 (<code>Entity</code>, <code>Vec&lt;Entity&gt;</code>, <code>[Entity; N]</code>) so a single entity or a batch can be targeted
 without allocating for the common single-entity case. <code>TargetedEvent</code> is how an event
-carries its own destination – since bevy 0.19 removed <code>trigger_targets</code>, an
-<code>EntityEvent</code> now carries its target inside itself, and foliage’s targeted events store
-an <code>entity</code> field that <code>send_to</code> rewrites per target before triggering. The
-<code>#[targeted_event]</code> macro attribute generates this scaffolding (the field, the <code>Event</code>/
-<code>EntityEvent</code> impls, a <code>new(..)</code> constructor) so authors never write
-<code>Entity::PLACEHOLDER</code> by hand.</p>
+carries its own destination: it stores an <code>entity</code> field that <code>send_to</code> rewrites per
+target immediately before triggering, so the same event value can be aimed at several
+entities in turn. The <code>#[targeted_event]</code> macro attribute generates this scaffolding
+(the field, the <code>Event</code>/<code>EntityEvent</code> impls, a <code>new(..)</code> constructor) so authors never
+write <code>Entity::PLACEHOLDER</code> by hand.</p>
 <p>All of this – <code>leaf</code>/<code>branch</code> from the <a href="#spawning-sprout-and-ecsextension">previous chapter</a>, plus <code>react</code>/
 <code>graft</code>/<code>sequence</code> here – is implemented once on <code>Tree</code>, <code>DeferredWorld</code>, and <code>World</code>
 via the shared <code>EcsExtension</code> trait, so the same calls work in a system, an observer, or
@@ -634,14 +651,13 @@ let new_value = match (left_v, right_v) {
 };
 <span class="boring">}</span></code></pre>
 <p>Two edge cases force a full <code>renormalize</code> instead: a gap bisected so many times the
-midpoint loses meaningful float precision, or a value landing exactly on the
-<a href="#the-window-willow">near/far</a> boundary. The boundary case has a real bug behind it, documented
-in the source: repeatedly inserting new frontmost content (an overlay opening in front of
-existing forward chrome, repeatedly) marches the frontmost value down toward <code>near</code>; once
-it <em>reaches</em> <code>near</code>, the next insertion’s <code>near - gap</code> used to clamp straight back to
-<code>near</code> – an identical depth to whatever was already there, resolved by non-deterministic
-draw order. That’s documented as the literal cause of “popover text sometimes renders
-behind its own panel.” Re-spacing on boundary contact keeps every depth distinct instead.</p>
+midpoint loses meaningful float precision, or a computed value landing at or past the
+<a href="#the-window-willow">near/far</a> boundary. Clamping a boundary hit to <code>near</code>/<code>far</code> directly would
+place the new entity at an identical depth to whatever’s already sitting there, and two
+entities at the same depth have no defined relative order – which one draws in front is
+left to draw order, which isn’t guaranteed stable frame to frame. Re-spacing the whole
+list on boundary contact keeps every depth strictly distinct instead, so which entity is
+in front is always determined by <code>StackKey</code>, never by an incidental tie.</p>
 <h2 id="prepare-draining-the-queues-into-nodes"><a class="header" href="#prepare-draining-the-queues-into-nodes"><code>prepare</code>: draining the queues into nodes</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1141,23 +1157,38 @@ pub struct PageCount(pub usize);    // the other half of PageIndex
 <p><code>tree.write_to(button_entity, TextValue("new label".into()))</code> works identically whether
 <code>button_entity</code> is a <code>Button</code>, a <code>TextInput</code>, or anything else that forwards <code>TextValue</code>
 onward – the composite’s root is the API, regardless of what’s actually rendering it.</p>
-<h2 id="root-descendant-to-root-lookup"><a class="header" href="#root-descendant-to-root-lookup"><code>Root</code>: descendant-to-root lookup</a></h2>
+<h2 id="routing-a-descendant-back-to-its-root-stemascend_to"><a class="header" href="#routing-a-descendant-back-to-its-root-stemascend_to">Routing a descendant back to its root: <code>Stem::ascend_to</code></a></h2>
 <p>A reactive system running on a composite’s <em>descendant</em> (a slot’s content, an option
 row) often can’t resolve widget-level state locally and needs to route back up to the
-composite’s root entity:</p>
+composite’s root entity. Every composite already carries its own marker component on
+that root (<code>Modal</code>, <code>Dropdown</code>, <code>TextInput</code>, …) – so rather than a separate pointer
+component pointing back to it (one more thing to keep in sync, and nothing stops it
+drifting out of date if the structure around it changes), <a href="#every-widget-is-an-entity-leaf"><code>Stem</code></a> itself
+provides the walk:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/mod.rs
-pub struct Root(pub Entity);
-impl Root {
-    pub fn resolve(entity: Entity, roots: &amp;Query&lt;&amp;Root&gt;) -&gt; Entity {
-        roots.get(entity).map(|r| r.0).unwrap_or(entity)
+</span>// foliage_proper/src/leaf.rs
+impl Stem {
+    pub fn ascend_to&lt;C: Component&gt;(entity: Entity, stems: &amp;Query&lt;&amp;Stem&gt;, markers: &amp;Query&lt;&amp;C&gt;) -&gt; Entity {
+        let mut current = entity;
+        loop {
+            if markers.get(current).is_ok() {
+                return current;
+            }
+            match stems.get(current).ok().and_then(|s| s.id) {
+                Some(parent) =&gt; current = parent,
+                None =&gt; return current,
+            }
+        }
     }
 }
 <span class="boring">}</span></code></pre>
-<p><code>Root::resolve</code> walks the pointer if present, otherwise returns the entity itself –
-used, for instance, by a <code>Modal</code>’s “Close” button (spawned inside the slot) to find its
-way back to the modal root it needs to trigger <code>CloseModal</code> against.</p>
+<p>Used as <code>Stem::ascend_to::&lt;Modal&gt;(entity, &amp;stems, &amp;modals)</code> – for instance, by a
+<code>Modal</code>’s “Close” button (spawned inside the slot) to find its way back to the modal
+root it needs to trigger <code>CloseModal</code> against. Walking through a <em>different</em> composite
+type nested in between is harmless: <code>C</code> only matches its own type, so the walk passes
+through unrelated ancestors (Dropdown’s option rows sit inside a nested <code>List</code>, for
+instance) and keeps going until it reaches the actual root.</p>
 <p><a href="#building-button-from-scratch">Building <code>Button</code> From Scratch</a> is the next chapter, and puts
 all of this – <code>Sprout</code>, <code>react</code>, value channels – to work in one worked example.</p>
 <div style="break-before: page; page-break-before: always;"></div>
@@ -1366,8 +1397,8 @@ between offsets via <code>prev_boundary</code>/<code>next_boundary</code> helper
 plain <code>± 1</code> on a byte offset would panic <code>String::remove</code>/slicing the moment the content
 contains a multi-byte character.</p>
 <h2 id="known-gaps"><a class="header" href="#known-gaps">Known gaps</a></h2>
-<p>Three specific, scoped-but-not-implemented gaps exist in the current selection/scroll
-handling, each documented in place as a <code>TODO</code> rather than silently absent:</p>
+<p>Two specific, scoped-but-not-implemented gaps exist in the current selection handling,
+each documented in place as a <code>TODO</code> rather than silently absent:</p>
 <p><strong>Shift+Click doesn’t extend an existing selection.</strong> Every click unconditionally
 restarts the selection at the click point:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -1376,18 +1407,6 @@ restarts the selection at the click point:</p>
 // TODO: every click unconditionally restarts the selection here, even Shift+Click --
 // some editors instead extend the existing selection to the click point when Shift
 // is held. Not implemented; scoping only, not clear this is wanted yet.
-<span class="boring">}</span></code></pre>
-<p><strong>Resizing the box while scrolled doesn’t preserve scroll position.</strong> Growing the box
-after scrolling away from the cursor snaps the view back toward the cursor instead of
-leaving the user’s manual scroll position alone – and the root cause isn’t even
-pinned down yet between two candidates:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage_proper/src/composite/text_input/mod.rs:694-697
-// TODO: scroll up away from the cursor (cursor sitting at/below the bottom of view), then
-// resize the box bigger -- the resulting rewrap drops `view.offset` back toward the
-// cursor instead of leaving the user's manual scroll position alone. Two candidate
-// causes, not yet distinguished by an actual trace...
 <span class="boring">}</span></code></pre>
 <p><strong>Drag-selecting near the box’s edges doesn’t auto-scroll.</strong> Drag-selection only ever
 sees whatever’s currently visible – it calls <code>extend_range</code> directly rather than through
@@ -1401,11 +1420,11 @@ that already has scroll-into-view logic:</p>
 // continuously while the pointer sits near the boundary (not just once per keystroke)
 // is the likely shape of the fix, not built yet -- scoping only.
 <span class="boring">}</span></code></pre>
-<p>None of these are silent – normal typing, arrow-key navigation, click-to-place, and
-programmatic scroll-into-view on edit all work and already account for multi-byte
-characters correctly. The gaps are specifically: extending (not just replacing) a
-selection via Shift+Click, scroll-position stability across a resize, and continuous
-auto-scroll during a drag that leaves the visible box.</p>
+<p>None of these are silent – normal typing, arrow-key navigation, click-to-place,
+resizing while scrolled, and programmatic scroll-into-view on edit all work and already
+account for multi-byte characters correctly. The gaps are specifically: extending (not
+just replacing) a selection via Shift+Click, and continuous auto-scroll during a drag
+that leaves the visible box.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="toggle"><a class="header" href="#toggle">Toggle</a></h1>
 <div style="break-before: page; page-break-before: always;"></div>
@@ -1446,9 +1465,8 @@ anything the macOS job doesn’t already cover. In short: likely possible, given
 shared codebase already compiles cleanly for every other native target, but genuinely
 unverified rather than confirmed working.</p>
 <h2 id="textinput-gaps"><a class="header" href="#textinput-gaps"><code>TextInput</code> gaps</a></h2>
-<p>See <a href="#textinput">TextInput</a> for the three specific, scoped-but-not-yet-implemented
-selection/scroll gaps (Shift+Click range-extend, scroll-position stability across a
-resize, and auto-scroll during an edge-adjacent drag).</p>
+<p>See <a href="#textinput">TextInput</a> for the two specific, scoped-but-not-yet-implemented
+selection gaps (Shift+Click range-extend and auto-scroll during an edge-adjacent drag).</p>
 <h2 id="routers-no-url-history-design"><a class="header" href="#routers-no-url-history-design">Router’s no-URL-history design</a></h2>
 <p>See <a href="#router">Router</a> – not a gap, a deliberate, documented rejection of
 URL/browser-history sync after a full design was worked through.</p>

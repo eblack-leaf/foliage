@@ -1,6 +1,6 @@
 use crate::{IconId, Tree};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Component, Query};
+use bevy_ecs::prelude::Component;
 use std::sync::Arc;
 
 pub(crate) mod button;
@@ -56,15 +56,3 @@ pub struct PageIndex(pub usize);
 /// A paged widget's page-count channel, the other half of [`PageIndex`].
 #[derive(Component, Copy, Clone, Default)]
 pub struct PageCount(pub usize);
-/// Points a widget's descendant at its root entity, for reactive systems that can't resolve
-/// state locally and need to route back through the root. Use [`Root::resolve`] rather than
-/// querying this directly.
-#[derive(Component, Copy, Clone)]
-pub struct Root(pub Entity);
-impl Root {
-    /// Walks a `Root` pointer if the entity has one, otherwise returns the entity itself -- for
-    /// reactive systems on a widget's descendants that need to route back to the widget root.
-    pub fn resolve(entity: Entity, roots: &Query<&Root>) -> Entity {
-        roots.get(entity).map(|r| r.0).unwrap_or(entity)
-    }
-}

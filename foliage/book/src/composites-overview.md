@@ -46,25 +46,40 @@ pub struct PageCount(pub usize);    // the other half of PageIndex
 `button_entity` is a `Button`, a `TextInput`, or anything else that forwards `TextValue`
 onward -- the composite's root is the API, regardless of what's actually rendering it.
 
-## `Root`: descendant-to-root lookup
+## Routing a descendant back to its root: `Stem::ascend_to`
 
 A reactive system running on a composite's *descendant* (a slot's content, an option
 row) often can't resolve widget-level state locally and needs to route back up to the
-composite's root entity:
+composite's root entity. Every composite already carries its own marker component on
+that root (`Modal`, `Dropdown`, `TextInput`, ...) -- so rather than a separate pointer
+component pointing back to it (one more thing to keep in sync, and nothing stops it
+drifting out of date if the structure around it changes), [`Stem`](./leaf.md) itself
+provides the walk:
 
 ```rust
-// foliage_proper/src/composite/mod.rs
-pub struct Root(pub Entity);
-impl Root {
-    pub fn resolve(entity: Entity, roots: &Query<&Root>) -> Entity {
-        roots.get(entity).map(|r| r.0).unwrap_or(entity)
+// foliage_proper/src/leaf.rs
+impl Stem {
+    pub fn ascend_to<C: Component>(entity: Entity, stems: &Query<&Stem>, markers: &Query<&C>) -> Entity {
+        let mut current = entity;
+        loop {
+            if markers.get(current).is_ok() {
+                return current;
+            }
+            match stems.get(current).ok().and_then(|s| s.id) {
+                Some(parent) => current = parent,
+                None => return current,
+            }
+        }
     }
 }
 ```
 
-`Root::resolve` walks the pointer if present, otherwise returns the entity itself --
-used, for instance, by a `Modal`'s "Close" button (spawned inside the slot) to find its
-way back to the modal root it needs to trigger `CloseModal` against.
+Used as `Stem::ascend_to::<Modal>(entity, &stems, &modals)` -- for instance, by a
+`Modal`'s "Close" button (spawned inside the slot) to find its way back to the modal
+root it needs to trigger `CloseModal` against. Walking through a *different* composite
+type nested in between is harmless: `C` only matches its own type, so the walk passes
+through unrelated ancestors (Dropdown's option rows sit inside a nested `List`, for
+instance) and keeps going until it reaches the actual root.
 
 [Building `Button` From Scratch](./composite-button.md) is the next chapter, and puts
 all of this -- `Sprout`, `react`, value channels -- to work in one worked example.

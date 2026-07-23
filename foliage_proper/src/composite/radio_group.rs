@@ -1,5 +1,4 @@
 use crate::Trigger;
-use crate::composite::Root;
 use crate::{
     Color, Component, EcsExtension, Elevation, Entity, Grid, GridExt, HorizontalAlignment,
     InteractionListener, LeafSprout, Location, OnClick, Outline, Panel, Sprout, Text, Tree,
@@ -145,7 +144,7 @@ impl Sprout for RadioGroupSprout {
                                 row.row().as_center_y().with(CIRCLE_SIZE.px().as_height()),
                             ))
                             .elevate(Elevation::up(1))
-                            .with((InteractionListener::new(), Root(e))),
+                            .with(InteractionListener::new()),
                     );
                     // clickable too, not just the circle -- the label is the bigger, more
                     // natural tap target for this kind of row.
@@ -162,7 +161,6 @@ impl Sprout for RadioGroupSprout {
                                 VerticalAlignment::Middle,
                                 HorizontalAlignment::Left,
                                 InteractionListener::new(),
-                                Root(e),
                             )),
                     );
                     tree.on_click(circle, move |_: Trigger<OnClick>, mut tree: Tree| {
