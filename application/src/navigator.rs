@@ -326,19 +326,6 @@ pub fn build(tree: &mut Tree, router: Entity) {
     );
     tree.disable(back);
 
-    // persistent for the navigator's whole lifetime: resends `NavigatorLanded` on every
-    // later return to home (the very first one is handled directly once the intro
-    // actually lands, further down).
-    tree.subscribe(
-        router,
-        move |trigger: Trigger<PageChanged>,
-              landed: Query<(), With<Landed>>,
-              branches: Query<&Branch>,
-              mut tree: Tree| {
-            on_page_changed(&mut tree, router, trigger.index, &landed, &branches);
-        },
-    );
-
     // `forward` doesn't travel at all -- it's already sitting at its permanent horizontal
     // (`END_CENTER_X`, roughly mid-screen), just invisible, and fades in in place, slowly,
     // as the precursor beat. Once it's visible, it starts morphing immediately -- still at
@@ -754,6 +741,29 @@ fn build_icons(
                 },
             );
 
+            // persistent for the navigator's whole lifetime, registered here (not
+            // `build()`) since it needs `nav` -- `reconcile` runs on *every* page change
+            // regardless of source, not just the ones driven by clicking `forward`/`back`
+            // themselves (`on_nav_click`'s own chain already calls it too, but a page
+            // change can also arrive directly from `crate::chrome`'s Home/ToC buttons,
+            // which write `PageIndex` straight to the router with none of that ceremony --
+            // without this, jumping there left `forward`/`back`'s enabled/muted state
+            // stuck at whatever it was before the jump). Resending `NavigatorLanded` on
+            // every later return to home is the other half (the very first one is
+            // handled directly right below, before this subscription even exists yet).
+            tree.subscribe(
+                router,
+                move |trigger: Trigger<PageChanged>,
+                      landed: Query<(), With<Landed>>,
+                      counts: Query<&PageCount>,
+                      branches: Query<&Branch>,
+                      mut tree: Tree| {
+                    on_page_changed(&mut tree, router, trigger.index, &landed, &branches);
+                    let count = counts.get(router).unwrap().0;
+                    reconcile(&mut tree, nav, trigger.index, count);
+                },
+            );
+
             tree.write_to(router, Landed);
 
             // structural, not timed: fires exactly when the icon is actually visible,
@@ -807,19 +817,31 @@ fn on_nav_click(
 
     // fade out whatever the router's current scene actually contains.
     let slot = current_slot(nav.router, branches);
+    let content: Vec<Entity> = branches
+        .get(slot)
+        .map(|b| b.ids.iter().copied().collect())
+        .unwrap_or_default();
+
+    if content.is_empty() {
+        // nothing to fade out (e.g. the still-blank ToC route) -- a `sequence_end` on a
+        // sequence with zero animations ever added to it never fires (`OnEnd` only comes
+        // from an animation actually finishing and decrementing the count), so waiting on
+        // one here would hang the rest of the click transition forever, leaving `forward`
+        // and `back` permanently disabled (they were just disabled above).
+        build_pull_in(tree, nav, clicked, current, next_index, count);
+        return;
+    }
 
     let fade_seq = tree.sequence();
-    if let Ok(slot_branch) = branches.get(slot) {
-        for &content in slot_branch.ids.iter() {
-            tree.animate(
-                Animation::new(Opacity::new(0.0))
-                    .targeting(content)
-                    .during(fade_seq)
-                    .start(0)
-                    .finish(CONTENT_FADE_OUT)
-                    .eased(Ease::Linear),
-            );
-        }
+    for content in content {
+        tree.animate(
+            Animation::new(Opacity::new(0.0))
+                .targeting(content)
+                .during(fade_seq)
+                .start(0)
+                .finish(CONTENT_FADE_OUT)
+                .eased(Ease::Linear),
+        );
     }
 
     tree.sequence_end(fade_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
