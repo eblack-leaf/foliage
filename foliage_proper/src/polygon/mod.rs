@@ -1,5 +1,6 @@
 use crate::anim::interpolation::Interpolations;
 use crate::ash::clip::ClipContext;
+use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
@@ -115,7 +116,17 @@ impl Sprout for PolygonSprout {
         &mut self.leaf
     }
     fn root(self) -> impl Bundle {
-        (self.polygon, self.color.unwrap_or_default())
+        // A regular polygon's rounded corners only stay circular -- and the shader's
+        // `min(width, height)` apothem clamp only agrees with a box's own declared edges
+        // -- if the box is square. Without this, independent width%/height% resolution
+        // (each against its own screen axis) lets a non-square box silently shrink the
+        // visible shape inside its own bounds on any non-matching aspect ratio, same as
+        // `Icon` constrains itself for the same reason.
+        (
+            self.polygon,
+            self.color.unwrap_or_default(),
+            AspectRatio::new().xs(1.0),
+        )
     }
 }
 impl PolygonSprout {

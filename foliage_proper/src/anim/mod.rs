@@ -64,6 +64,7 @@ where
 pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::Mutable>>(
     mut anims: Query<(Entity, &mut AnimationRunner<A>)>,
     mut anim_targets: Query<&mut A>,
+    mut create_diffs: Query<&mut CreateDiff>,
     time: ResMut<Time>,
     mut sequences: Query<&mut SequenceMarker>,
     mut tree: Tree,
@@ -84,9 +85,18 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
                         A::interpolations(&a, animation.finish.as_ref().unwrap());
                     animation.started = true;
                     if TypeId::of::<A>() == TypeId::of::<Location>() {
+                        // both writes must land in the same instant: an anchor-target's own
+                        // resolve can cascade an `Update::<Location>` into this entity at any
+                        // point once its `Location` is replaced (e.g. it's someone else's
+                        // anchor target too), and if that lands after the `Location` swap but
+                        // before a *deferred* `CreateDiff(true)` actually applied, it resolves
+                        // with the new target and the stale (usually zero) cached diff --
+                        // permanently poisoning this animation's diff to zero. Deferred insert
+                        // used to open exactly that window; a direct query mutation, right next
+                        // to the `Location` swap, closes it.
                         *anim_targets.get_mut(target_entity).unwrap() =
                             animation.finish.clone().unwrap();
-                        tree.entity(target_entity).insert(CreateDiff(true));
+                        *create_diffs.get_mut(target_entity).unwrap() = CreateDiff(true);
                     }
                 } else {
                     despawn_and_update_sequence(

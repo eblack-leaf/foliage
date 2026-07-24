@@ -21,6 +21,7 @@ use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::prelude::Query;
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
+use std::ops::Mul;
 
 impl Attachment for Location {
     fn attach(foliage: &mut Foliage) {
@@ -693,20 +694,22 @@ fn calc(
                 (r as f32 - 1f32 * f32::from(!inclusive)) * row + r as f32 * grid.rows.gap.amount;
             Some(val + offset + context.top() * f32::from(desc.designator != Designator::Height))
         }
-        LocationValue::Anchor(s) => {
+        LocationValue::Anchor(s, scale) => {
             if let Some(anchor) = stack {
-                Some(match s {
-                    Designator::X => anchor.left(),
-                    Designator::Y => anchor.top(),
-                    Designator::Left => anchor.left(),
-                    Designator::Top => anchor.top(),
-                    Designator::Width => anchor.width(),
-                    Designator::Height => anchor.height(),
-                    Designator::Right => anchor.right(),
-                    Designator::Bottom => anchor.bottom(),
-                    Designator::CenterX => anchor.center().left(),
-                    Designator::CenterY => anchor.center().top(),
-                })
+                Some(
+                    match s {
+                        Designator::X => anchor.left(),
+                        Designator::Y => anchor.top(),
+                        Designator::Left => anchor.left(),
+                        Designator::Top => anchor.top(),
+                        Designator::Width => anchor.width(),
+                        Designator::Height => anchor.height(),
+                        Designator::Right => anchor.right(),
+                        Designator::Bottom => anchor.bottom(),
+                        Designator::CenterX => anchor.center().left(),
+                        Designator::CenterY => anchor.center().top(),
+                    } * scale,
+                )
             } else {
                 None
             }
@@ -841,14 +844,19 @@ pub enum LocationValue {
     Px(CoordinateUnit),
     Column(i32),
     Row(i32),
-    Anchor(Designator),
+    /// The `f32` is a scale factor, identity at `1.0` -- an anchor's resolved value isn't
+    /// known until it's actually looked up against the target's live section, so `Mul`
+    /// can't multiply a number that doesn't exist yet the way `Percent`/`Px` do; instead it
+    /// multiplies this factor in place (same pattern, different field), and `calc()`
+    /// applies it once the anchor's real value is finally in hand.
+    Anchor(Designator, f32),
     TextContent,
     Letters(i32),
 }
 impl LocationValue {
     fn is_stack(self) -> bool {
         match self {
-            LocationValue::Anchor(_) => true,
+            LocationValue::Anchor(_, _) => true,
             _ => false,
         }
     }
@@ -897,6 +905,31 @@ impl LocationValue {
         }
     }
 }
+/// `Percent`/`Px`/`Anchor` each scale by multiplying whatever numeric field they already
+/// carry in place -- same pattern used everywhere else a `Mul<f32>` is implemented in this
+/// crate (`Section`/`Area`/`Position`/...), just applied to whichever field a given variant
+/// actually has. The other variants (`Column`/`Row`/`Letters`/`TextContent`) have no
+/// standalone numeric value that scaling could mean anything for -- rejected loudly in
+/// debug builds (same convention as `gap`'s own `debug_assert!` above) rather than
+/// silently doing nothing, so `Column(3) * 2.0` can't quietly look like it worked when it
+/// didn't.
+impl Mul<f32> for LocationValue {
+    type Output = LocationValue;
+    fn mul(self, rhs: f32) -> LocationValue {
+        match self {
+            LocationValue::Percent(p) => LocationValue::Percent(p * rhs),
+            LocationValue::Px(p) => LocationValue::Px(p * rhs),
+            LocationValue::Anchor(d, scale) => LocationValue::Anchor(d, scale * rhs),
+            other => {
+                debug_assert!(
+                    false,
+                    "LocationValue::{other:?} has no scalable value -- Mul<f32> isn't meaningful for it"
+                );
+                other
+            }
+        }
+    }
+}
 #[derive(Copy, Clone, Debug, PartialEq, Ord, PartialOrd, Eq, Hash)]
 pub enum Designator {
     X,
@@ -914,28 +947,28 @@ pub enum Designator {
 pub struct AnchorDescriptor {}
 impl AnchorDescriptor {
     pub fn left(self) -> LocationValue {
-        LocationValue::Anchor(Designator::Left)
+        LocationValue::Anchor(Designator::Left, 1.0)
     }
     pub fn top(self) -> LocationValue {
-        LocationValue::Anchor(Designator::Top)
+        LocationValue::Anchor(Designator::Top, 1.0)
     }
     pub fn width(self) -> LocationValue {
-        LocationValue::Anchor(Designator::Width)
+        LocationValue::Anchor(Designator::Width, 1.0)
     }
     pub fn height(self) -> LocationValue {
-        LocationValue::Anchor(Designator::Height)
+        LocationValue::Anchor(Designator::Height, 1.0)
     }
     pub fn center_x(self) -> LocationValue {
-        LocationValue::Anchor(Designator::CenterX)
+        LocationValue::Anchor(Designator::CenterX, 1.0)
     }
     pub fn center_y(self) -> LocationValue {
-        LocationValue::Anchor(Designator::CenterY)
+        LocationValue::Anchor(Designator::CenterY, 1.0)
     }
     pub fn right(self) -> LocationValue {
-        LocationValue::Anchor(Designator::Right)
+        LocationValue::Anchor(Designator::Right, 1.0)
     }
     pub fn bottom(self) -> LocationValue {
-        LocationValue::Anchor(Designator::Bottom)
+        LocationValue::Anchor(Designator::Bottom, 1.0)
     }
 }
 pub fn anchor() -> AnchorDescriptor {
@@ -1014,6 +1047,312 @@ impl Anchor {
             if let Some(mut deps) = world.get_mut::<AnchorDeps>(id) {
                 deps.ids.remove(&this);
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{EcsExtension, Elevation, Foliage, Leaf, Location, Logical, Section, Sprout};
+
+    /// `Mul<f32>` on an `Anchor`-sourced value scales the *factor* it carries (identity
+    /// `1.0`), applied once the anchor's real value is resolved against its live target --
+    /// not something baked in at construction time, unlike `Percent`/`Px` which can just
+    /// multiply their own stored number immediately. This is the actual resolution path
+    /// (`anchor().width() * 0.5`, fed through real `Location` resolution against a real
+    /// target), not just a check that the enum's stored factor changed.
+    #[test]
+    fn anchor_value_scales_by_the_target_s_own_resolved_size() {
+        let mut foliage = Foliage::new();
+        let target = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(60.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        let dependent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with((anchor().width() * 0.5).as_width()),
+                    0.px().as_top().with((anchor().height() * 0.5).as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Anchor::new(target)),
+        );
+        foliage.world.flush();
+
+        let section = *foliage.world.get::<Section<Logical>>(dependent).unwrap();
+        assert_eq!(
+            section.width(),
+            50.0,
+            "anchor().width() * 0.5 should resolve to half the target's real resolved width"
+        );
+        assert_eq!(
+            section.height(),
+            30.0,
+            "anchor().height() * 0.5 should resolve to half the target's real resolved height"
+        );
+    }
+
+    /// Replicates `application/src/navigator.rs`'s `shadow_box` exactly: a `(Width,
+    /// Right)` pair where `Right` is `anchor().center_x()` (an *unscaled* anchor value)
+    /// and `Width` is `anchor().width() * scale` (a *scaled* one), mixed in the same pair
+    /// -- plus the analogous `(Top, Height)` pair for the vertical axis. Checking this
+    /// directly against known numbers, rather than reasoning about it, since the app-level
+    /// symptom (shadows reading as offset almost purely vertically, not diagonally) implies
+    /// this exact combination doesn't resolve the way it was designed to.
+    #[test]
+    fn scaled_width_paired_with_unscaled_anchor_center_resolves_to_expected_offset_box() {
+        let mut foliage = Foliage::new();
+        let target = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    100.px().as_left().with(80.px().as_width()),
+                    50.px().as_top().with(80.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        // target: X in [100, 180] (center_x = 140), Y in [50, 130] (center_y = 90)
+        let dependent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    (anchor().width() * 0.5).as_width().with(anchor().center_x().as_right()),
+                    anchor().center_y().as_top().with((anchor().height() * 0.5).as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Anchor::new(target)),
+        );
+        foliage.world.flush();
+
+        let section = *foliage.world.get::<Section<Logical>>(dependent).unwrap();
+        assert_eq!(section.width(), 40.0, "width should be 0.5 * target's 80px width");
+        assert_eq!(section.height(), 40.0, "height should be 0.5 * target's 80px height");
+        assert_eq!(
+            section.left(),
+            100.0,
+            "left should be target's center_x (140) minus this box's own width (40)"
+        );
+        assert_eq!(
+            section.top(),
+            90.0,
+            "top should be exactly target's center_y (90) -- extends downward from there"
+        );
+    }
+
+    /// Replicates `navigator.rs`'s `back_line`: a point-mode `Line` anchored to a target
+    /// on X, spawned as a zero-length dot at the target's edge, then immediately animated
+    /// (via `tree.animate`) to a longer segment at the *same* fixed row. The reported bug:
+    /// the draw-in visually starts at some other row entirely while the target is still
+    /// mid-animation elsewhere. Drives the real `animate::<Location>` system (not just
+    /// `flush()`) across several ticks to see what the line's Y actually does.
+    #[test]
+    fn a_point_mode_line_animating_its_far_endpoint_keeps_its_anchored_row_throughout() {
+        use crate::anim::Animation;
+        use crate::anim::ease::Ease;
+        use crate::{Anchor, EcsExtension, Line};
+        use std::thread::sleep;
+        use std::time::Duration;
+
+        let mut foliage = Foliage::new();
+        let target = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        let row = 25.0; // a fixed row, never anchored -- matches `cy` in `build_lines`
+        let fwd_left = anchor().left().as_x();
+        let line = foliage.world.leaf(
+            Line::new(2)
+                .at(Location::new().xs(
+                    fwd_left.with(row.px().as_y()),
+                    fwd_left.with(row.px().as_y()),
+                ))
+                .elevate(Elevation::up(10))
+                .with(Anchor::new(target)),
+        );
+        foliage.world.flush();
+
+        let initial = *foliage.world.get::<Points<Logical>>(line).unwrap();
+        assert_eq!(initial.data[0].top(), row, "spawn point should sit at the fixed row");
+        assert_eq!(initial.data[1].top(), row, "spawn point should sit at the fixed row");
+
+        let seq = foliage.world.sequence();
+        foliage.world.animate(
+            Animation::new(Location::new().xs(
+                fwd_left.with(row.px().as_y()),
+                200.0.px().as_x().with(row.px().as_y()),
+            ))
+            .targeting(line)
+            .during(seq)
+            .start(0)
+            .finish(1200)
+            .eased(Ease::DECELERATE),
+        );
+        foliage.world.flush();
+
+        for _ in 0..5 {
+            sleep(Duration::from_millis(16));
+            foliage.main.run(&mut foliage.world);
+            foliage.world.flush();
+            let pts = *foliage.world.get::<Points<Logical>>(line).unwrap();
+            assert_eq!(
+                pts.data[0].top(),
+                row,
+                "point a's row must stay put throughout the draw-in"
+            );
+            assert_eq!(
+                pts.data[1].top(),
+                row,
+                "point b's row must stay put throughout the draw-in, not jump to some other row"
+            );
+        }
+    }
+
+    /// Isolates whether a *stationary* target is enough to make a line's own Y-changing
+    /// animation snap immediately to its end value (ruling in/out "target also animating"
+    /// as a necessary ingredient for the jump seen in the next test).
+    #[test]
+    fn a_line_alone_changing_its_own_row_does_not_snap_to_the_end_row_immediately() {
+        use crate::anim::Animation;
+        use crate::anim::ease::Ease;
+        use crate::{Anchor, EcsExtension, Line};
+        use std::thread::sleep;
+        use std::time::Duration;
+
+        let mut foliage = Foliage::new();
+        let start_row = 30.0;
+        let end_row = 300.0;
+        let target = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    start_row.px().as_top().with(50.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        let fwd_left = anchor().left().as_x();
+        let line = foliage.world.leaf(
+            Line::new(2)
+                .at(Location::new().xs(
+                    fwd_left.with(start_row.px().as_y()),
+                    200.0.px().as_x().with(start_row.px().as_y()),
+                ))
+                .elevate(Elevation::up(10))
+                .with(Anchor::new(target)),
+        );
+        foliage.world.flush();
+
+        let seq = foliage.world.sequence();
+        foliage.world.animate(
+            Animation::new(Location::new().xs(
+                fwd_left.with(end_row.px().as_y()),
+                200.0.px().as_x().with(end_row.px().as_y()),
+            ))
+            .targeting(line)
+            .during(seq)
+            .start(0)
+            .finish(900)
+            .eased(Ease::DECELERATE),
+        );
+        foliage.world.flush();
+
+        sleep(Duration::from_millis(16));
+        foliage.main.run(&mut foliage.world);
+        foliage.world.flush();
+        let pts = *foliage.world.get::<Points<Logical>>(line).unwrap();
+        println!("tick 0 (stationary target): line row = {}", pts.data[0].top());
+        assert!(
+            pts.data[0].top() < 200.0,
+            "line row {} should still be close to start_row (30), not already near end_row (300)",
+            pts.data[0].top()
+        );
+    }
+
+    /// Replicates `build_down_move`: the target (`forward`) and an already-settled line
+    /// both animate their row from `start_row` to `end_row` *at the same time*, via two
+    /// separate `Animation<Location>` runs (not one shared value) -- the line's target row
+    /// is the same hardcoded `end_row` constant the target itself animates toward, not
+    /// something read live off the target. Checks whether the line's resolved row ever
+    /// jumps ahead of (or lags badly behind) the target's own live row while both are still
+    /// mid-flight, which is what "line shows the resting row while the polygon is still
+    /// visibly up top" would actually look like.
+    #[test]
+    fn a_line_and_its_target_animating_the_same_row_change_together_stay_in_sync() {
+        use crate::anim::Animation;
+        use crate::anim::ease::Ease;
+        use crate::{Anchor, EcsExtension, Line};
+        use std::thread::sleep;
+        use std::time::Duration;
+
+        let mut foliage = Foliage::new();
+        let start_row = 30.0;
+        let end_row = 300.0;
+        let target = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    start_row.px().as_top().with(50.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        let fwd_left = anchor().left().as_x();
+        let line = foliage.world.leaf(
+            Line::new(2)
+                .at(Location::new().xs(
+                    fwd_left.with(start_row.px().as_y()),
+                    200.0.px().as_x().with(start_row.px().as_y()),
+                ))
+                .elevate(Elevation::up(10))
+                .with(Anchor::new(target)),
+        );
+        foliage.world.flush();
+
+        let seq = foliage.world.sequence();
+        // target rides down, row only (mirrors `box_at(END_CENTER_X, REST_CENTER_Y)`)
+        foliage.world.animate(
+            Animation::new(Location::new().xs(
+                0.px().as_left().with(100.px().as_width()),
+                end_row.px().as_top().with(50.px().as_height()),
+            ))
+            .targeting(target)
+            .during(seq)
+            .start(0)
+            .finish(900)
+            .eased(Ease::DECELERATE),
+        );
+        // line rides down too, its own separate animation to the same hardcoded end_row
+        foliage.world.animate(
+            Animation::new(Location::new().xs(
+                fwd_left.with(end_row.px().as_y()),
+                200.0.px().as_x().with(end_row.px().as_y()),
+            ))
+            .targeting(line)
+            .during(seq)
+            .start(0)
+            .finish(900)
+            .eased(Ease::DECELERATE),
+        );
+        foliage.world.flush();
+
+        for i in 0..10 {
+            sleep(Duration::from_millis(16));
+            foliage.main.run(&mut foliage.world);
+            foliage.world.flush();
+            let target_row = foliage.world.get::<Section<Logical>>(target).unwrap().top();
+            let pts = *foliage.world.get::<Points<Logical>>(line).unwrap();
+            let diff = (pts.data[0].top() - target_row).abs();
+            assert!(
+                diff < 1.0,
+                "tick {i}: line row {} should track target row {} closely, diverged by {diff}",
+                pts.data[0].top(),
+                target_row
+            );
         }
     }
 }

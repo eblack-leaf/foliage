@@ -67,8 +67,17 @@ impl AspectRatio {
                 attempted_width -= 1.0;
                 attempted_height = attempted_width * 1.0 / c;
             }
-            // let diff = Position::from((section.width() - attempted_width, 0.0)) * 0.5;
-            let constrained = Section::new(section.position, (attempted_width, attempted_height));
+            // recenter the shrunk box within the original section on both axes -- leaving
+            // `section.position` untouched pins the result to the original top-left corner,
+            // silently shifting anything anchored to the shape's own center/edges away from
+            // where every non-anchored sibling (a fixed row, a percent-based line) assumes
+            // that center to be.
+            let diff = Position::from((
+                (section.width() - attempted_width) * 0.5,
+                (section.height() - attempted_height) * 0.5,
+            ));
+            let constrained =
+                Section::new(section.position + diff, (attempted_width, attempted_height));
             return Some(constrained);
         }
         None
@@ -136,5 +145,42 @@ impl AspectRatio {
             Layout::Lg => self.at_least_lg(),
             Layout::Xl => self.at_least_xl(),
         }
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Logical;
+
+    #[test]
+    fn constraining_a_tall_box_to_square_centers_it_vertically_not_pinned_to_the_top() {
+        // 50 wide x 88 tall -> square constrained to 50x50; the removed 38px of height
+        // should come off evenly top and bottom, not all from the bottom.
+        let section = Section::<Logical>::new((10.0, 20.0), (50.0, 88.0));
+        let constrained = AspectRatio::new()
+            .xs(1.0)
+            .constrain(section, Layout::Xs)
+            .unwrap();
+        assert_eq!(constrained.width(), 50.0);
+        assert_eq!(constrained.height(), 50.0);
+        assert_eq!(constrained.left(), 10.0, "left should be unchanged (width already matched)");
+        assert_eq!(constrained.top(), 20.0 + 19.0, "top should shift down by half the removed height");
+        assert_eq!(constrained.center().left(), section.center().left());
+        assert_eq!(constrained.center().top(), section.center().top());
+    }
+
+    #[test]
+    fn constraining_a_wide_box_to_square_centers_it_horizontally_not_pinned_to_the_left() {
+        let section = Section::<Logical>::new((10.0, 20.0), (88.0, 50.0));
+        let constrained = AspectRatio::new()
+            .xs(1.0)
+            .constrain(section, Layout::Xs)
+            .unwrap();
+        assert_eq!(constrained.width(), 50.0);
+        assert_eq!(constrained.height(), 50.0);
+        assert_eq!(constrained.top(), 20.0, "top should be unchanged (height already matched)");
+        assert_eq!(constrained.left(), 10.0 + 19.0, "left should shift right by half the removed width");
+        assert_eq!(constrained.center().left(), section.center().left());
+        assert_eq!(constrained.center().top(), section.center().top());
     }
 }

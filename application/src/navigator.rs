@@ -37,9 +37,18 @@ const INTRO_HEIGHT: f32 = HEIGHT * INTRO_SCALE;
 
 /// Two decorative "shadow" copies of `forward`, offset down+left and progressively
 /// smaller/lighter -- a layered-card depth effect, not interactive, never clicked. Index 0
-/// is the nearer/larger/darker one.
-const SHADOW_OFFSET_X: f32 = -3.0; // per layer, left
-const SHADOW_OFFSET_Y: f32 = 3.0; // per layer, down
+/// is the nearer/larger/darker one. `Anchor::new(forward)` + `anchor().width() * scale`
+/// (root-level, not a child -- no clipping concerns) rather than a fixed screen-percentage
+/// offset: a root-level offset expressed as one percent of screen *width* and another of
+/// screen *height* produced visibly different pixel shifts on each axis depending on the
+/// screen's own aspect ratio (reading as almost purely vertical on a portrait screen,
+/// almost purely horizontal on a wide one). Anchoring to `forward` and scaling *its* own
+/// resolved size means the offset is always relative to a real, already-square (thanks to
+/// `AspectRatio`) reference, so it means the same thing on both axes regardless of the
+/// screen's shape. It also means the shadows automatically track every one of `forward`'s
+/// own position/size changes (fade-in, settle, down-move) for free, continuously, the same
+/// way an anchored icon already tracks its own target -- no separate position animation
+/// needed for the shadows at all.
 const SHADOW_SCALE: [f32; 2] = [0.78, 0.58];
 /// Each shadow's own fade-in/morph starts this much later than the previous layer's (and
 /// `forward`'s own, for layer 0) -- reads as the shadows "catching up" to `forward`'s shape
@@ -96,6 +105,10 @@ const LINE_WEIGHT: i32 = 2;
 const LINE_GAP: f32 = 4.0; // clearance from each polygon's own edge
 const SCREEN_MARGIN: f32 = 6.0; // clearance from the screen edge
 const LINE_DRAW: u64 = 1200;
+/// Real pixels, not a percentage -- the drop-preview line's start needs clearance from
+/// `back`'s bounding-box edge regardless of screen size, since it's compensating for the
+/// polygon's own rotation not the screen's aspect ratio.
+const DROP_LINE_MARGIN: i32 = 6;
 
 const DOWN_DURATION: u64 = 900; // `forward` + both lines, together, to the resting spot
 const ICON_PX: i32 = 20;
@@ -123,15 +136,19 @@ const STAGES: &[(f32, f32)] = &[
 // -- click transition: fade current scene, pull lines in, spin + hop, redraw, advance --
 const CONTENT_FADE_OUT: u64 = 200;
 const LINES_PULL_IN: u64 = 400;
-const SPIN_TRANSITION: u64 = 700;
-const HOP_UP: u64 = 250;
-const HOP_PAUSE: u64 = 200;
-const HOP_DOWN: u64 = 250; // HOP_UP + HOP_PAUSE + HOP_DOWN == SPIN_TRANSITION: hop and
+const SPIN_TRANSITION: u64 = 530;
+const HOP_UP: u64 = 190;
+const HOP_PAUSE: u64 = 150;
+const HOP_DOWN: u64 = 190; // HOP_UP + HOP_PAUSE + HOP_DOWN == SPIN_TRANSITION: hop and
 // spin read as one beat, not two staggered motions.
 const HOP_HEIGHT_PCT: f32 = 4.0;
 const REDRAW_LINES: u64 = 700;
 const REVOLUTION: f32 = 2.0 * PI;
 const BOUNDARY_FADE: u64 = 250; // muting/unmuting at the ends
+/// `build_continuous_spin`'s own duration -- deliberately separate from `TURN_DURATION`
+/// (the intro's own finishing spin): the two read the same, but aren't meant to be tied
+/// to the same value going forward.
+const POST_CLICK_SPIN_DURATION: u64 = 3000;
 
 fn box_at(center_x: f32, center_y: f32) -> Location {
     box_of_size(center_x, center_y, WIDTH, HEIGHT)
@@ -144,18 +161,26 @@ fn box_of_size(center_x: f32, center_y: f32, w: f32, h: f32) -> Location {
     )
 }
 
-/// `layer`-th shadow's box (1 or 2): offset down+left from `forward`'s own
-/// `(center_x, center_y)` by `layer` multiples of `SHADOW_OFFSET_*`, sized down by
-/// `SHADOW_SCALE[layer - 1]` -- called with whatever `forward`'s own current target
-/// (`center_x, center_y, w, h`) is at each stage, so the shadow always tracks it exactly.
-fn shadow_box(center_x: f32, center_y: f32, w: f32, h: f32, layer: usize) -> Location {
-    let n = layer as f32;
+/// `layer`-th shadow's box (1 or 2) -- entirely `Anchor`-derived (the shadow entity needs
+/// `Anchor::new(forward)`), continuously live against whatever `forward`'s own current
+/// box actually is, at any stage. Built via the `(Width, Right)`/`(Top, Height)` edge
+/// pairings (not `(Left, Width)`/center-plus-delta): the shadow's right edge is pinned to
+/// a reference point on `forward` and it extends left/down from there by its own scaled
+/// size -- no arithmetic between two independently-resolved anchor values needed (only
+/// `Mul<f32>` on a single one, which is all `LocationValue::Anchor` actually supports).
+/// Layer 1 pins to `forward`'s center (a moderate, mostly-overlapping peek); layer 2 pins
+/// to `forward`'s far corner (left edge / bottom edge) for a more separated, further-back
+/// read.
+fn shadow_box(layer: usize) -> Location {
     let scale = SHADOW_SCALE[layer - 1];
-    box_of_size(
-        center_x + n * SHADOW_OFFSET_X,
-        center_y + n * SHADOW_OFFSET_Y,
-        w * scale,
-        h * scale,
+    let (right_ref, top_ref) = if layer == 1 {
+        (anchor().center_x(), anchor().center_y())
+    } else {
+        (anchor().left(), anchor().bottom())
+    };
+    Location::new().xs(
+        (anchor().width() * scale).as_width().with(right_ref.as_right()),
+        top_ref.as_top().with((anchor().height() * scale).as_height()),
     )
 }
 
@@ -163,36 +188,24 @@ fn shadow_color(layer: usize) -> Color {
     if layer == 1 { Color::stone(600) } else { Color::stone(500) }
 }
 
-/// `back`'s bottom edge once it's settled at `BACK_CENTER_Y` and shrunk down to normal
-/// resting size (`build_lines`, which uses this, only runs after `build_settle` finishes).
-fn back_bottom_y() -> f32 {
-    BACK_CENTER_Y + HEIGHT / 2.0
-}
-
-/// `back`'s bottom edge once it's fully landed at `REST_CENTER_Y` -- the drop-preview
-/// line's fixed reference point, both for where its tip draws to and where its anchor
-/// converges to during the descent. Using `REST_CENTER_Y` itself (the polygon's *center*
-/// target, not its bottom edge) made the line finish collapsing before `back`'s actual
-/// bottom edge got there -- since both animate over the same duration/easing, only an
-/// identical constant offset (`HEIGHT / 2` in both the current and rest calculation) keeps
-/// the anchor mathematically locked to `back`'s real bottom edge at every point in between,
-/// not just at the start and end.
-fn back_rest_bottom_y() -> f32 {
+/// A rough estimate of where `back`'s bottom edge ends up once it's fully landed at
+/// `REST_CENTER_Y` -- used only as the drop-preview line's *fixed* target during its
+/// initial draw-in (`build_lines`). Doesn't need to be exact: the line's other end tracks
+/// `back`'s actual live bottom edge via `Anchor` (see `build_lines`), so this only
+/// determines how close to fully "eaten" the line gets, not whether it connects correctly.
+fn back_rest_bottom_y_estimate() -> f32 {
     REST_CENTER_Y + HEIGHT / 2.0
 }
 
-/// Fixed, always: both polygons exist the whole time (see `MUTED_OPACITY`), so the
-/// lines connecting them never move. Deliberately asymmetric: `forward` is the sole
-/// anchor for *both* lines -- the first element of each pair, the fixed point every
-/// draw/pull-in/redraw treats as immobile -- so everything always emanates from (and
-/// pulls back toward) `forward`, never `back`, matching the original single-polygon
-/// design this grew out of.
-fn line_spans() -> [(f32, f32); 2] {
-    let half_w = WIDTH / 2.0 + LINE_GAP;
-    let fwd_l = END_CENTER_X - half_w;
-    let fwd_r = END_CENTER_X + half_w;
-    let back_r = BACK_X + half_w;
-    [(fwd_l, back_r), (fwd_r, 100.0 - SCREEN_MARGIN)]
+/// A rough estimate of `back`'s own right edge (with `LINE_GAP` clearance) -- used only
+/// as `back_line`'s far tip. `back_line` is anchored to `forward` (both lines are --
+/// "forward is the sole anchor," per the original design, is a real invariant, not just a
+/// convenience: a `Line` only gets one `Anchor` target, and `forward`'s edge is the one
+/// every draw/pull-in/redraw treats as immobile), so `back`'s own edge can't *also* be
+/// anchored on the same entity -- this stays a percentage estimate, same class of
+/// imprecision `WIDTH` always had, just no longer worth chasing given the constraint.
+fn back_r_estimate() -> f32 {
+    BACK_X + WIDTH / 2.0 + LINE_GAP
 }
 
 /// Router keeps exactly one child (its current slot) at a time, by its own design
@@ -260,6 +273,7 @@ pub fn build(tree: &mut Tree, router: Entity) {
 
     // decorative shadows, offset down+left and smaller/lighter per layer -- purely a
     // depth backdrop, never interactive, elevated behind `forward` (and each other).
+    // Anchored to `forward`, not children of it -- see `shadow_box`.
     let mut shadows = [Entity::PLACEHOLDER; 2];
     for (i, shadow) in shadows.iter_mut().enumerate() {
         let layer = i + 1;
@@ -269,9 +283,9 @@ pub fn build(tree: &mut Tree, router: Entity) {
                 .rounding(0.0)
                 .rotation(0.0)
                 .color(shadow_color(layer))
-                .at(shadow_box(END_CENTER_X, CENTER_Y, INTRO_WIDTH, INTRO_HEIGHT, layer))
+                .at(shadow_box(layer))
                 .elevate(Elevation::up(10 - layer as i32))
-                .with(Opacity::new(0.0)),
+                .with((Opacity::new(0.0), Anchor::new(forward))),
         );
     }
 
@@ -388,15 +402,9 @@ fn build_back_arrive(
         let settle_seq = tree.sequence();
         build_settle(&mut tree, settle_seq, forward, box_at(END_CENTER_X, CENTER_Y));
         build_settle(&mut tree, settle_seq, back, box_at(BACK_X, BACK_CENTER_Y));
-        for (i, &shadow) in shadows.iter().enumerate() {
-            let layer = i + 1;
-            build_settle(
-                &mut tree,
-                settle_seq,
-                shadow,
-                shadow_box(END_CENTER_X, CENTER_Y, WIDTH, HEIGHT, layer),
-            );
-        }
+        // no shadow entry here: their box is entirely `Anchor`-derived (see
+        // `shadow_box`/`build`), so they track `forward`'s own settle automatically,
+        // continuously, the moment it happens -- same as an anchored icon always does.
         tree.sequence_end(settle_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
             build_lines(&mut tree, router, forward, back, shadows);
         });
@@ -481,53 +489,94 @@ fn build_morph(tree: &mut Tree, target: Entity, delay: u64) {
     );
 }
 
-/// Fires once `arrive` truly ends: a blueprint line draws out from `forward`'s center on
-/// each side -- one to `back`, one out to the right edge -- plus a transient third line
-/// hinting at `back`'s upcoming drop: from its current bottom edge straight down to where
-/// it's about to land. `build_down_move` "eats" this one back to nothing in step with
-/// `back`'s own descent, rather than leaving a stray line hanging around afterward.
+/// Fires once `arrive` truly ends: a blueprint line draws out from `forward`'s edge on
+/// each side -- one toward `back`, one out to the right edge -- plus a transient third
+/// line hinting at `back`'s upcoming drop. The line reaching toward `back`, and the
+/// drop-preview line, are both anchored directly to it (`Anchor::new(back)`) for their
+/// *X* edge (`anchor().right()`/`.center_x()`) -- no compile-time constant can predict
+/// where `back`'s real edge ends up once `AspectRatio` constrains it, without knowing the
+/// screen's own aspect ratio. Y stays a plain row constant throughout, never anchored:
+/// `back`'s own Y-center isn't an aspect-distorted quantity, it's just a different
+/// (perfectly known) row than `forward`'s until they drop together later -- anchoring Y
+/// too made the line diagonal instead of the intended horizontal connector. `build_down_move`
+/// eats the drop line back to nothing in step with `back`'s own descent, rather than
+/// leaving a stray line hanging around after.
 fn build_lines(tree: &mut Tree, router: Entity, forward: Entity, back: Entity, shadows: [Entity; 2]) {
     let cy = CENTER_Y;
     let lines_seq = tree.sequence();
-    let mut lines = [Entity::PLACEHOLDER; 2];
-    for (i, (anchor_x, tip_x)) in line_spans().into_iter().enumerate() {
-        let line = tree.leaf(
-            Line::new(LINE_WEIGHT)
-                .color(Color::stone(400))
-                .at(Location::new().xs(
-                    anchor_x.pct().as_x().with(cy.pct().as_y()),
-                    anchor_x.pct().as_x().with(cy.pct().as_y()),
-                ))
-                .elevate(Elevation::up(10)),
-        );
-        tree.animate(
-            Animation::new(Location::new().xs(
-                anchor_x.pct().as_x().with(cy.pct().as_y()),
-                tip_x.pct().as_x().with(cy.pct().as_y()),
-            ))
-            .targeting(line)
-            .during(lines_seq)
-            .start(0)
-            .finish(LINE_DRAW)
-            .eased(Ease::DECELERATE),
-        );
-        lines[i] = line;
-    }
 
-    let drop_top = back_bottom_y();
-    let drop_line = tree.leaf(
+    // both lines anchor to `forward` -- it's the one true immobile reference every
+    // draw/pull-in/redraw treats as fixed. `back`'s own edge (a `Line` only gets one
+    // `Anchor` target, already spent on `forward` here) stays a percentage estimate.
+    let fwd_left = anchor().left().as_x();
+    let fwd_right = anchor().right().as_x();
+    let back_line = tree.leaf(
         Line::new(LINE_WEIGHT)
             .color(Color::stone(400))
             .at(Location::new().xs(
-                BACK_X.pct().as_x().with(drop_top.pct().as_y()),
-                BACK_X.pct().as_x().with(drop_top.pct().as_y()),
+                fwd_left.with(cy.pct().as_y()),
+                fwd_left.with(cy.pct().as_y()),
             ))
-            .elevate(Elevation::up(10)),
+            .elevate(Elevation::up(10))
+            .with(Anchor::new(forward)),
     );
     tree.animate(
         Animation::new(Location::new().xs(
-            BACK_X.pct().as_x().with(drop_top.pct().as_y()),
-            BACK_X.pct().as_x().with(back_rest_bottom_y().pct().as_y()),
+            fwd_left.with(cy.pct().as_y()),
+            back_r_estimate().pct().as_x().with(cy.pct().as_y()),
+        ))
+        .targeting(back_line)
+        .during(lines_seq)
+        .start(0)
+        .finish(LINE_DRAW)
+        .eased(Ease::DECELERATE),
+    );
+
+    let edge_line = tree.leaf(
+        Line::new(LINE_WEIGHT)
+            .color(Color::stone(400))
+            .at(Location::new().xs(
+                fwd_right.with(cy.pct().as_y()),
+                fwd_right.with(cy.pct().as_y()),
+            ))
+            .elevate(Elevation::up(10))
+            .with(Anchor::new(forward)),
+    );
+    tree.animate(
+        Animation::new(Location::new().xs(
+            fwd_right.with(cy.pct().as_y()),
+            (100.0 - SCREEN_MARGIN).pct().as_x().with(cy.pct().as_y()),
+        ))
+        .targeting(edge_line)
+        .during(lines_seq)
+        .start(0)
+        .finish(LINE_DRAW)
+        .eased(Ease::DECELERATE),
+    );
+    let lines = [back_line, edge_line];
+
+    // top always tracks `back`'s own actual bottom edge live, via `Anchor` -- no
+    // animation needed for that end at all, in this or any later phase. `back`'s morph
+    // keeps rotating independently (including its long final spin), so its visual shape
+    // at any given moment often doesn't actually reach the bounding box's exact
+    // bottom-center (that only holds for a perfect circle, or a vertex pointing straight
+    // down) -- `DROP_LINE_MARGIN` pushes the start a few real pixels further down so it
+    // clears the shape regardless of whatever rotation it's currently at, rather than
+    // visibly starting inside it. The bottom is a fixed landing estimate; as `back`
+    // actually descends in `build_down_move`, the top catches up to it on its own and the
+    // line "eats" itself with no further code.
+    let drop_top = anchor().center_x().as_x().with(anchor().bottom().as_y().adjust(DROP_LINE_MARGIN));
+    let drop_line = tree.leaf(
+        Line::new(LINE_WEIGHT)
+            .color(Color::stone(400))
+            .at(Location::new().xs(drop_top, drop_top))
+            .elevate(Elevation::up(10))
+            .with(Anchor::new(back)),
+    );
+    tree.animate(
+        Animation::new(Location::new().xs(
+            drop_top,
+            BACK_X.pct().as_x().with(back_rest_bottom_y_estimate().pct().as_y()),
         ))
         .targeting(drop_line)
         .during(lines_seq)
@@ -574,41 +623,33 @@ fn build_down_move(
             .finish(DOWN_DURATION)
             .eased(Ease::DECELERATE),
     );
-    for (i, &shadow) in shadows.iter().enumerate() {
-        let layer = i + 1;
-        tree.animate(
-            Animation::new(shadow_box(END_CENTER_X, REST_CENTER_Y, WIDTH, HEIGHT, layer))
-                .targeting(shadow)
-                .during(down_seq)
-                .start(0)
-                .finish(DOWN_DURATION)
-                .eased(Ease::DECELERATE),
-        );
-    }
-    for (line, (anchor_x, tip_x)) in lines.into_iter().zip(line_spans()) {
-        tree.animate(
-            Animation::new(Location::new().xs(
-                anchor_x.pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-                tip_x.pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-            ))
-            .targeting(line)
-            .during(down_seq)
-            .start(0)
-            .finish(DOWN_DURATION)
-            .eased(Ease::DECELERATE),
-        );
-    }
+    // no shadow entries here either, for the same reason as `build_settle` above -- their
+    // `Anchor`-derived box already tracks `forward`'s descent automatically.
     tree.animate(
         Animation::new(Location::new().xs(
-            BACK_X.pct().as_x().with(back_rest_bottom_y().pct().as_y()),
-            BACK_X.pct().as_x().with(back_rest_bottom_y().pct().as_y()),
+            anchor().left().as_x().with(REST_CENTER_Y.pct().as_y()),
+            back_r_estimate().pct().as_x().with(REST_CENTER_Y.pct().as_y()),
         ))
-        .targeting(drop_line)
+        .targeting(lines[0])
         .during(down_seq)
         .start(0)
         .finish(DOWN_DURATION)
         .eased(Ease::DECELERATE),
     );
+    tree.animate(
+        Animation::new(Location::new().xs(
+            anchor().right().as_x().with(REST_CENTER_Y.pct().as_y()),
+            (100.0 - SCREEN_MARGIN).pct().as_x().with(REST_CENTER_Y.pct().as_y()),
+        ))
+        .targeting(lines[1])
+        .during(down_seq)
+        .start(0)
+        .finish(DOWN_DURATION)
+        .eased(Ease::DECELERATE),
+    );
+    // the drop line needs no animation here at all: its "top" already tracks `back`'s
+    // live bottom edge via `Anchor` (see `build_lines`), so it shrinks to nothing on its
+    // own as `back` (animated above) actually descends toward the line's fixed bottom.
     tree.sequence_end(down_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
         tree.remove(drop_line);
         build_icons(&mut tree, router, forward, back, shadows, lines);
@@ -779,17 +820,17 @@ fn build_pull_in(
     count: usize,
 ) {
     let pull_seq = tree.sequence();
-    for (line, (anchor_x, _tip_x)) in nav.lines.into_iter().zip(line_spans()) {
+    // collapses each line down to `forward`'s own edge -- its own real anchor, not the
+    // percentage estimate `back`/the screen edge use.
+    for (line, edge) in [(nav.lines[0], anchor().left()), (nav.lines[1], anchor().right())] {
+        let point = edge.as_x().with(REST_CENTER_Y.pct().as_y());
         tree.animate(
-            Animation::new(Location::new().xs(
-                anchor_x.pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-                anchor_x.pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-            ))
-            .targeting(line)
-            .during(pull_seq)
-            .start(0)
-            .finish(LINES_PULL_IN)
-            .eased(Ease::DECELERATE),
+            Animation::new(Location::new().xs(point, point))
+                .targeting(line)
+                .during(pull_seq)
+                .start(0)
+                .finish(LINES_PULL_IN)
+                .eased(Ease::DECELERATE),
         );
     }
     tree.sequence_end(pull_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
@@ -854,9 +895,10 @@ fn build_spin_hop(
 }
 
 /// Spins `target` a full turn past wherever `build_spin_hop`'s own short transition spin
-/// left it (`current.rotation + REVOLUTION`), continuing in the same direction, over the
-/// same `TURN_DURATION` the intro's final morph stage uses -- same flourish, same feel,
-/// just re-triggered after every click instead of only the first landing.
+/// left it (`current.rotation + REVOLUTION`), continuing in the same direction, over
+/// `POST_CLICK_SPIN_DURATION` -- the same *kind* of flourish as the intro's `build_morph`
+/// finishing spin, just re-triggered after every click instead of only the first landing,
+/// and on its own separate duration rather than reusing `TURN_DURATION`.
 fn build_continuous_spin(tree: &mut Tree, target: Entity, current: Polygon) {
     let spin_seq = tree.sequence();
     tree.animate(
@@ -867,26 +909,35 @@ fn build_continuous_spin(tree: &mut Tree, target: Entity, current: Polygon) {
         .targeting(target)
         .during(spin_seq)
         .start(0)
-        .finish(TURN_DURATION)
+        .finish(POST_CLICK_SPIN_DURATION)
         .eased(Ease::Linear),
     );
 }
 
 fn build_redraw_lines(tree: &mut Tree, nav: Nav, next_index: usize, count: usize) {
     let redraw_seq = tree.sequence();
-    for (line, (anchor_x, tip_x)) in nav.lines.into_iter().zip(line_spans()) {
-        tree.animate(
-            Animation::new(Location::new().xs(
-                anchor_x.pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-                tip_x.pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-            ))
-            .targeting(line)
-            .during(redraw_seq)
-            .start(0)
-            .finish(REDRAW_LINES)
-            .eased(Ease::DECELERATE),
-        );
-    }
+    tree.animate(
+        Animation::new(Location::new().xs(
+            anchor().left().as_x().with(REST_CENTER_Y.pct().as_y()),
+            back_r_estimate().pct().as_x().with(REST_CENTER_Y.pct().as_y()),
+        ))
+        .targeting(nav.lines[0])
+        .during(redraw_seq)
+        .start(0)
+        .finish(REDRAW_LINES)
+        .eased(Ease::DECELERATE),
+    );
+    tree.animate(
+        Animation::new(Location::new().xs(
+            anchor().right().as_x().with(REST_CENTER_Y.pct().as_y()),
+            (100.0 - SCREEN_MARGIN).pct().as_x().with(REST_CENTER_Y.pct().as_y()),
+        ))
+        .targeting(nav.lines[1])
+        .during(redraw_seq)
+        .start(0)
+        .finish(REDRAW_LINES)
+        .eased(Ease::DECELERATE),
+    );
     tree.sequence_end(redraw_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
         // the route switch itself: the router tears down the old scene and builds the
         // new one synchronously off this write.
