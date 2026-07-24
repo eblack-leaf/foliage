@@ -63,6 +63,7 @@ pub struct Foliage {
     pub(crate) tick_pending: bool,
 }
 
+#[cfg(not(target_os = "android"))]
 impl Default for Foliage {
     fn default() -> Self {
         Self::new()
@@ -73,7 +74,20 @@ impl Foliage {
     pub const SCROLL_SENSITIVITY: f32 = 40.0;
     pub const NATURAL_SCROLLING: f32 = -1.0;
     pub const VIEW_SCROLLING: f32 = 1.0;
+    /// Every other platform's entry point owns nothing external -- this is the one place
+    /// there's a real handle (the `AndroidApp` Android hands you at process start) that has
+    /// to exist *before* a `Foliage` is meaningful, so unlike every other platform there's no
+    /// default to fall back on here: without it, `photosynthesize` has nothing to build the
+    /// event loop against.
+    #[cfg(target_os = "android")]
+    pub fn android(app: crate::AndroidApp) -> Foliage {
+        Self::build(AndroidConnection(app))
+    }
+    #[cfg(not(target_os = "android"))]
     pub fn new() -> Foliage {
+        Self::build(AndroidConnection::default())
+    }
+    fn build(android_connection: AndroidConnection) -> Foliage {
         let mut foliage = Foliage {
             world: Default::default(),
             main: Default::default(),
@@ -82,7 +96,7 @@ impl Foliage {
             willow: Default::default(),
             ginkgo: Default::default(),
             ash: Default::default(),
-            android_connection: Default::default(),
+            android_connection,
             booted: false,
             queue: vec![],
             sender: None,
@@ -149,6 +163,18 @@ impl Foliage {
     /// Runs the app -- the whole-organism, keeps-going process the event loop actually is,
     /// as distinct from [`Sow::grow`](crate::tree::Sow::grow) spawning one entity.
     pub fn photosynthesize(mut self) {
+        // winit's android backend has nothing to poll events from without the `AndroidApp`
+        // handle threaded through at event-loop construction -- `EventLoop::new()` alone
+        // panics there. Every other platform has no such handle to give it.
+        #[cfg(target_os = "android")]
+        let event_loop = {
+            use winit::platform::android::EventLoopBuilderExtAndroid;
+            EventLoop::builder()
+                .with_android_app(self.android_connection.0.clone())
+                .build()
+                .unwrap()
+        };
+        #[cfg(not(target_os = "android"))]
         let event_loop = EventLoop::new().unwrap();
         event_loop.set_control_flow(ControlFlow::Wait);
         cfg_if::cfg_if! {

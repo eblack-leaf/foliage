@@ -1,0 +1,61 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Release signing: optional, and absent by default -- `assembleRelease` still
+// works without it (produces an unsigned artifact you can't install directly).
+// Create keystore.properties next to this file (see android/README.md's "Release
+// signing" section) and it's picked up automatically -- nothing else to edit here.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "io.github.eblackleaf.application"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            minifyEnabled = false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    namespace = 'io.github.eblackleaf.application'
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+
+    // To use the Games Activity library
+    implementation "androidx.games:games-activity:4.4.0"
+    // Note: don't include game-text-input separately, since it's integrated into game-activity
+}

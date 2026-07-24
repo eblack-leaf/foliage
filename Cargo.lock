@@ -1363,6 +1363,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "foliage_android"
+version = "1.0.0"
+dependencies = [
+ "clap",
+ "reqwest",
+]
+
+[[package]]
 name = "foliage_icons"
 version = "1.0.0"
 dependencies = [
