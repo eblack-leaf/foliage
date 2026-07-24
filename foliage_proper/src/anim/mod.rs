@@ -70,6 +70,39 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
     mut tree: Tree,
 ) {
     let frame_diff = time.frame_diff();
+    let now = time.mark().since_beginning();
+    // if a new animation starts on an entity that already has one of the same component
+    // type actively running (e.g. a fade-out started while an earlier fade-in on the same
+    // entity hasn't finished yet), both `AnimationRunner<A>`s would keep writing the same
+    // component every frame -- whichever happens to iterate last each tick wins, which is
+    // exactly the nondeterministic "fade-in randomly keeps winning" race this guards
+    // against. Only "actively running" (delay already expired) animations compete here --
+    // one still waiting on its own `.start(delay)` hasn't touched the component at all yet,
+    // so it isn't racing anything; a whole staggered batch pre-created on one entity (e.g.
+    // `build_morph`'s square -> pentagon -> heptagon stages, all queued up front with
+    // increasing delays) must NOT get torn down to just the first stage just because they
+    // share a target and were created in the same tick. Among the actual competitors, the
+    // most-recently-created one (by `created_at`, stamped from `Time` on an animation's
+    // first tick here -- not `Entity`, whose `Ord` doesn't correlate with spawn order) wins;
+    // any other active one targeting the same entity is superseded and torn down
+    // immediately, same as if it had finished normally.
+    let mut latest_for_target: std::collections::HashMap<Entity, (Entity, TimeDelta)> =
+        std::collections::HashMap::new();
+    for (anim_entity, mut animation) in anims.iter_mut() {
+        if !animation.animation_time.delay.is_zero() {
+            continue;
+        }
+        let created_at = *animation.created_at.get_or_insert(now);
+        latest_for_target
+            .entry(animation.animation_target)
+            .and_modify(|(current_entity, current_created)| {
+                if created_at > *current_created {
+                    *current_entity = anim_entity;
+                    *current_created = created_at;
+                }
+            })
+            .or_insert((anim_entity, created_at));
+    }
     for (anim_entity, mut animation) in anims.iter_mut() {
         if !animation.animation_time.delay.is_zero() {
             animation.animation_time.delay = animation
@@ -77,6 +110,9 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
                 .delay
                 .checked_sub(frame_diff)
                 .unwrap_or_default();
+        } else if latest_for_target[&animation.animation_target].0 != anim_entity {
+            despawn_and_update_sequence(&mut sequences, &mut tree, anim_entity, &mut animation);
+            continue;
         } else {
             if !animation.started {
                 let target_entity = animation.animation_target;
@@ -131,6 +167,140 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
                 tree.entity(anim_entity).despawn();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{EcsExtension, Elevation, Foliage, Leaf, Opacity, Sprout};
+    use std::thread::sleep;
+    use std::time::Duration;
+
+    /// Replicates a page-content entrance fade-in still mid-flight when the navigator
+    /// starts its own fade-out on the same entity: two `AnimationRunner<Opacity>`s would
+    /// otherwise both write `Opacity` every frame, and whichever iterates last each tick
+    /// wins nondeterministically -- reading as "the fade-in randomly keeps winning". Only
+    /// the newer (fade-out) animation should survive and drive the value.
+    #[test]
+    fn a_newer_animation_supersedes_an_older_one_on_the_same_entity() {
+        let mut foliage = Foliage::new();
+        let entity = foliage
+            .world
+            .leaf(Leaf::sprout().elevate(Elevation::up(1)).with(Opacity::new(0.0)));
+        foliage.world.flush();
+
+        let fade_in_seq = foliage.world.sequence();
+        let fade_in = foliage.world.animate(
+            Animation::new(Opacity::new(1.0))
+                .targeting(entity)
+                .during(fade_in_seq)
+                .start(0)
+                .finish(1000)
+                .eased(Ease::Linear),
+        );
+        foliage.world.flush();
+
+        // let the fade-in actually start and make some partial progress.
+        sleep(Duration::from_millis(16));
+        foliage.main.run(&mut foliage.world);
+        foliage.world.flush();
+        assert!(
+            foliage.world.get::<AnimationRunner<Opacity>>(fade_in).is_some(),
+            "fade-in should still be alive and mid-flight"
+        );
+
+        // now start a fade-out on the same entity, before the fade-in has finished.
+        let fade_out_seq = foliage.world.sequence();
+        let fade_out = foliage.world.animate(
+            Animation::new(Opacity::new(0.0))
+                .targeting(entity)
+                .during(fade_out_seq)
+                .start(0)
+                .finish(100)
+                .eased(Ease::Linear),
+        );
+        foliage.world.flush();
+
+        sleep(Duration::from_millis(16));
+        foliage.main.run(&mut foliage.world);
+        foliage.world.flush();
+
+        assert!(
+            foliage.world.get::<AnimationRunner<Opacity>>(fade_in).is_none(),
+            "the older fade-in should have been superseded and torn down"
+        );
+        assert!(
+            foliage.world.get::<AnimationRunner<Opacity>>(fade_out).is_some(),
+            "the newer fade-out should still be driving the entity"
+        );
+
+        for _ in 0..10 {
+            sleep(Duration::from_millis(16));
+            foliage.main.run(&mut foliage.world);
+            foliage.world.flush();
+        }
+        let value = foliage.world.get::<Opacity>(entity).unwrap().value;
+        assert!(
+            value < 0.5,
+            "opacity should have followed the fade-out toward 0, not the superseded fade-in toward 1 (got {value})"
+        );
+    }
+
+    /// Replicates `build_morph`'s square -> pentagon -> heptagon batch: several
+    /// non-overlapping, staggered animations on the *same* entity, all created up front in
+    /// one go via increasing `.start(t)`. None of these are racing each other -- only one
+    /// is ever actually active (delay expired) at a time -- so the supersede logic must
+    /// leave the later, still-delayed stages alone rather than tearing them down just
+    /// because they share a target and were created in the same tick as an earlier stage.
+    #[test]
+    fn a_staggered_batch_of_animations_on_the_same_entity_all_get_their_turn() {
+        let mut foliage = Foliage::new();
+        let entity = foliage
+            .world
+            .leaf(Leaf::sprout().elevate(Elevation::up(1)).with(Opacity::new(0.0)));
+        foliage.world.flush();
+
+        let seq = foliage.world.sequence();
+        foliage.world.animate(
+            Animation::new(Opacity::new(0.3))
+                .targeting(entity)
+                .during(seq)
+                .start(0)
+                .finish(50)
+                .eased(Ease::Linear),
+        );
+        foliage.world.animate(
+            Animation::new(Opacity::new(0.6))
+                .targeting(entity)
+                .during(seq)
+                .start(50)
+                .finish(100)
+                .eased(Ease::Linear),
+        );
+        foliage.world.animate(
+            Animation::new(Opacity::new(0.9))
+                .targeting(entity)
+                .during(seq)
+                .start(100)
+                .finish(150)
+                .eased(Ease::Linear),
+        );
+        foliage.world.flush();
+
+        for _ in 0..30 {
+            sleep(Duration::from_millis(16));
+            foliage.main.run(&mut foliage.world);
+            foliage.world.flush();
+        }
+
+        let value = foliage.world.get::<Opacity>(entity).unwrap().value;
+        assert!(
+            (value - 0.9).abs() < 0.05,
+            "the final staggered stage should have actually run and landed near 0.9, got {value} \
+             -- if an earlier stage got superseded/torn down instead of waiting its turn, later \
+             stages would never activate and this would stall at an earlier target"
+        );
     }
 }
 

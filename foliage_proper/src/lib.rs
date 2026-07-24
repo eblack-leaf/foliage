@@ -99,7 +99,7 @@ pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
-pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationValue};
+pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationValue, ValueDescriptor};
 pub use grid::{
     AspectRatio, Grid, Layout, Location, View, anchor, text_content, view::OverscrollPropagation,
 };

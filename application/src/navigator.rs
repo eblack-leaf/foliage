@@ -4,7 +4,7 @@ use foliage::{
     Anchor, Animation, Branch, Color, Ease, EcsExtension, Elevation, Entity, GridExt, Icon,
     IconValue, InteractionListener, InteractionPropagation, InteractionShape, Line, Location,
     OnClick, OnEnd, Opacity, PageChanged, PageCount, PageIndex, Polygon, Query, Sprout, Tree,
-    Trigger, anchor, component, targeted_event,
+    Trigger, ValueDescriptor, anchor, component, targeted_event,
 };
 use std::f32::consts::PI;
 
@@ -109,6 +109,10 @@ const LINE_DRAW: u64 = 1200;
 /// `back`'s bounding-box edge regardless of screen size, since it's compensating for the
 /// polygon's own rotation not the screen's aspect ratio.
 const DROP_LINE_MARGIN: i32 = 6;
+/// Same reasoning as `DROP_LINE_MARGIN`, applied to `back_line`/`edge_line`'s end that sits
+/// against `forward`'s own edge -- without it the lines visually touch/overlap `forward`
+/// rather than leaving a small gap.
+const LINE_MARGIN: i32 = 16;
 
 const DOWN_DURATION: u64 = 900; // `forward` + both lines, together, to the resting spot
 const ICON_PX: i32 = 20;
@@ -134,17 +138,17 @@ const STAGES: &[(f32, f32)] = &[
 ];
 
 // -- click transition: fade current scene, pull lines in, spin + hop, redraw, advance --
-const CONTENT_FADE_OUT: u64 = 200;
-const LINES_PULL_IN: u64 = 400;
-const SPIN_TRANSITION: u64 = 530;
-const HOP_UP: u64 = 190;
-const HOP_PAUSE: u64 = 150;
-const HOP_DOWN: u64 = 190; // HOP_UP + HOP_PAUSE + HOP_DOWN == SPIN_TRANSITION: hop and
+const CONTENT_FADE_OUT: u64 = 90;
+const LINES_PULL_IN: u64 = 170;
+const SPIN_TRANSITION: u64 = 420;
+const HOP_UP: u64 = 150;
+const HOP_PAUSE: u64 = 120;
+const HOP_DOWN: u64 = 150; // HOP_UP + HOP_PAUSE + HOP_DOWN == SPIN_TRANSITION: hop and
 // spin read as one beat, not two staggered motions.
 const HOP_HEIGHT_PCT: f32 = 4.0;
-const REDRAW_LINES: u64 = 700;
+const REDRAW_LINES: u64 = 300;
 const REVOLUTION: f32 = 2.0 * PI;
-const BOUNDARY_FADE: u64 = 250; // muting/unmuting at the ends
+const BOUNDARY_FADE: u64 = 120; // muting/unmuting at the ends
 /// `build_continuous_spin`'s own duration -- deliberately separate from `TURN_DURATION`
 /// (the intro's own finishing spin): the two read the same, but aren't meant to be tied
 /// to the same value going forward.
@@ -206,6 +210,18 @@ fn back_rest_bottom_y_estimate() -> f32 {
 /// imprecision `WIDTH` always had, just no longer worth chasing given the constraint.
 fn back_r_estimate() -> f32 {
     BACK_X + WIDTH / 2.0 + LINE_GAP
+}
+
+/// `forward`'s left/right edge, each pushed `LINE_MARGIN` real pixels further away from
+/// `forward` -- every line touching `forward` (`back_line`/`edge_line`'s near end, in every
+/// phase: initial draw, pull-in, down-move, redraw) should go through these rather than a
+/// bare `anchor().left()/.right()`, so the breathing room stays consistent everywhere
+/// instead of only wherever someone remembered to add it.
+fn fwd_left_x() -> ValueDescriptor {
+    anchor().left().as_x().adjust(-LINE_MARGIN)
+}
+fn fwd_right_x() -> ValueDescriptor {
+    anchor().right().as_x().adjust(LINE_MARGIN)
 }
 
 /// Router keeps exactly one child (its current slot) at a time, by its own design
@@ -508,8 +524,8 @@ fn build_lines(tree: &mut Tree, router: Entity, forward: Entity, back: Entity, s
     // both lines anchor to `forward` -- it's the one true immobile reference every
     // draw/pull-in/redraw treats as fixed. `back`'s own edge (a `Line` only gets one
     // `Anchor` target, already spent on `forward` here) stays a percentage estimate.
-    let fwd_left = anchor().left().as_x();
-    let fwd_right = anchor().right().as_x();
+    let fwd_left = fwd_left_x();
+    let fwd_right = fwd_right_x();
     let back_line = tree.leaf(
         Line::new(LINE_WEIGHT)
             .color(Color::stone(400))
@@ -627,7 +643,7 @@ fn build_down_move(
     // `Anchor`-derived box already tracks `forward`'s descent automatically.
     tree.animate(
         Animation::new(Location::new().xs(
-            anchor().left().as_x().with(REST_CENTER_Y.pct().as_y()),
+            fwd_left_x().with(REST_CENTER_Y.pct().as_y()),
             back_r_estimate().pct().as_x().with(REST_CENTER_Y.pct().as_y()),
         ))
         .targeting(lines[0])
@@ -638,7 +654,7 @@ fn build_down_move(
     );
     tree.animate(
         Animation::new(Location::new().xs(
-            anchor().right().as_x().with(REST_CENTER_Y.pct().as_y()),
+            fwd_right_x().with(REST_CENTER_Y.pct().as_y()),
             (100.0 - SCREEN_MARGIN).pct().as_x().with(REST_CENTER_Y.pct().as_y()),
         ))
         .targeting(lines[1])
@@ -820,10 +836,10 @@ fn build_pull_in(
     count: usize,
 ) {
     let pull_seq = tree.sequence();
-    // collapses each line down to `forward`'s own edge -- its own real anchor, not the
-    // percentage estimate `back`/the screen edge use.
-    for (line, edge) in [(nav.lines[0], anchor().left()), (nav.lines[1], anchor().right())] {
-        let point = edge.as_x().with(REST_CENTER_Y.pct().as_y());
+    // collapses each line down to `forward`'s own edge (plus `LINE_MARGIN` breathing room)
+    // -- its own real anchor, not the percentage estimate `back`/the screen edge use.
+    for (line, edge) in [(nav.lines[0], fwd_left_x()), (nav.lines[1], fwd_right_x())] {
+        let point = edge.with(REST_CENTER_Y.pct().as_y());
         tree.animate(
             Animation::new(Location::new().xs(point, point))
                 .targeting(line)
@@ -918,7 +934,7 @@ fn build_redraw_lines(tree: &mut Tree, nav: Nav, next_index: usize, count: usize
     let redraw_seq = tree.sequence();
     tree.animate(
         Animation::new(Location::new().xs(
-            anchor().left().as_x().with(REST_CENTER_Y.pct().as_y()),
+            fwd_left_x().with(REST_CENTER_Y.pct().as_y()),
             back_r_estimate().pct().as_x().with(REST_CENTER_Y.pct().as_y()),
         ))
         .targeting(nav.lines[0])
@@ -929,7 +945,7 @@ fn build_redraw_lines(tree: &mut Tree, nav: Nav, next_index: usize, count: usize
     );
     tree.animate(
         Animation::new(Location::new().xs(
-            anchor().right().as_x().with(REST_CENTER_Y.pct().as_y()),
+            fwd_right_x().with(REST_CENTER_Y.pct().as_y()),
             (100.0 - SCREEN_MARGIN).pct().as_x().with(REST_CENTER_Y.pct().as_y()),
         ))
         .targeting(nav.lines[1])
