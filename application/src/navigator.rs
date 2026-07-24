@@ -844,8 +844,32 @@ fn build_spin_hop(
     );
 
     tree.sequence_end(spin_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
+        // the same long, slow "keeps going" flourish the intro's `build_morph` finishes
+        // on -- fired on every page switch now, not just once at boot. Its own sequence,
+        // not added to `spin_seq`/gating `build_redraw_lines`: a multi-second spin
+        // stalling the actual page navigation would be wrong.
+        build_continuous_spin(&mut tree, clicked, current);
         build_redraw_lines(&mut tree, nav, next_index, count);
     });
+}
+
+/// Spins `target` a full turn past wherever `build_spin_hop`'s own short transition spin
+/// left it (`current.rotation + REVOLUTION`), continuing in the same direction, over the
+/// same `TURN_DURATION` the intro's final morph stage uses -- same flourish, same feel,
+/// just re-triggered after every click instead of only the first landing.
+fn build_continuous_spin(tree: &mut Tree, target: Entity, current: Polygon) {
+    let spin_seq = tree.sequence();
+    tree.animate(
+        Animation::new(Polygon {
+            rotation: current.rotation + REVOLUTION + REVOLUTION,
+            ..current
+        })
+        .targeting(target)
+        .during(spin_seq)
+        .start(0)
+        .finish(TURN_DURATION)
+        .eased(Ease::Linear),
+    );
 }
 
 fn build_redraw_lines(tree: &mut Tree, nav: Nav, next_index: usize, count: usize) {
