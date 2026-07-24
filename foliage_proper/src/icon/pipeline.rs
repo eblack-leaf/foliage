@@ -187,14 +187,24 @@ impl Render for Icon {
         }
         for (entity, icon) in queues.attribute::<Icon, Icon>() {
             let id = entity.index().index() as InstanceId;
-            if let Some(gid) = renderer.resources.entity_to_group.remove(&entity) {
-                let group = renderer.groups.get_mut(&gid).unwrap();
-                let order = group.coordinator.order(id);
-                group.coordinator.remove(order);
+            if let Some(old_gid) = renderer.resources.entity_to_group.remove(&entity) {
+                let old_group = renderer.groups.get_mut(&old_gid).unwrap();
+                let order = old_group.coordinator.order(id);
+                old_group.coordinator.remove(order);
+                // an id change moves the instance to a different (texture) group -- nothing
+                // else ever tells the render tree to drop this group's node for it (only a
+                // full despawn does), so without this it's orphaned: it keeps drawing forever
+                // at its last-known position/color/opacity alongside the new group's instance.
+                nodes.remove(RemoveNode::new(PipelineId::Icon, old_gid, id));
             }
             renderer.resources.entity_to_group.insert(entity, icon.id);
             if let Some(group) = renderer.groups.get_mut(&icon.id) {
                 if !group.coordinator.has_instance(id) {
+                    // freshly entering this group -- its section/elevation/clip/color/opacity
+                    // arrive through their own attribute loops below, exactly like any other
+                    // entity entering the render queue for the first time (see
+                    // `Icon::resend_attributes_on_group_change`, which forces exactly that
+                    // resend whenever an *existing* icon's id changes group).
                     group.coordinator.add(Instance::new(
                         ResolvedElevation::default(),
                         Stem::default(),

@@ -3,6 +3,7 @@ use crate::Trigger;
 use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
+use crate::foliage::DiffMarkers;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::grid::AspectRatio;
@@ -15,6 +16,7 @@ use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
+use bevy_ecs::prelude::{Changed, IntoScheduleConfigs};
 use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, Res, ResMut};
 use bevy_ecs::world::DeferredWorld;
@@ -44,6 +46,9 @@ impl Attachment for Icon {
         foliage.differential::<Icon, ResolvedElevation>();
         foliage.differential::<Icon, Color>();
         foliage.differential::<Icon, BlendedOpacity>();
+        foliage.diff.add_systems(
+            Icon::resend_attributes_on_group_change.in_set(DiffMarkers::Extract),
+        );
     }
 }
 impl Icon {
@@ -110,6 +115,39 @@ impl Icon {
             if let Ok(value) = values.get(this) {
                 tree.entity(this).insert(Icon::new_marker(value.0));
             }
+        }
+    }
+    /// The render backend only ever reads whatever's queued per attribute -- it doesn't
+    /// re-derive geometry/color/etc on its own (see `pipeline::prepare`'s per-`IconId`
+    /// render groups, one per distinct MTSDF texture). So when an icon's `id` changes, it
+    /// moves to a different group's otherwise-blank buffers, and needs its other attributes
+    /// resent through the *normal* queue path -- exactly like any entity entering the render
+    /// queue for the first time -- or the new group's instance never receives them (nothing
+    /// else changed this frame to trigger their own differentials).
+    fn resend_attributes_on_group_change(
+        changed: Query<
+            (
+                Entity,
+                &Section<Logical>,
+                &ResolvedElevation,
+                &ClipContext,
+                &Color,
+                &BlendedOpacity,
+            ),
+            Changed<Icon>,
+        >,
+        mut sections: ResMut<RenderQueue<Icon, Section<Logical>>>,
+        mut elevations: ResMut<RenderQueue<Icon, ResolvedElevation>>,
+        mut clips: ResMut<RenderQueue<Icon, ClipContext>>,
+        mut colors: ResMut<RenderQueue<Icon, Color>>,
+        mut opacities: ResMut<RenderQueue<Icon, BlendedOpacity>>,
+    ) {
+        for (entity, section, elevation, clip, color, opacity) in changed.iter() {
+            sections.queue.insert(entity, *section);
+            elevations.queue.insert(entity, *elevation);
+            clips.queue.insert(entity, *clip);
+            colors.queue.insert(entity, *color);
+            opacities.queue.insert(entity, *opacity);
         }
     }
 }

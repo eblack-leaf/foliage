@@ -22,7 +22,7 @@ pub fn generate(entries: &[IconEntry], cfg: &CodegenConfig) -> String {
         "// Regenerate via: foliage_icons gen --svg <svg-dir> --out <this-dir> --field-size {} --px-range {}\n\n",
         cfg.field_size, cfg.px_range
     ));
-    out.push_str("use foliage::{icon_handle, EcsExtension, Foliage, Icon, IconId};\n\n");
+    out.push_str("use foliage::{icon_handle, Foliage, Icon, IconId};\n\n");
     out.push_str("#[icon_handle]\n");
     out.push_str(&format!("pub enum {} {{\n", cfg.enum_name));
     for e in entries {

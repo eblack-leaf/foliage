@@ -173,6 +173,16 @@ pub fn system_set(
     )
 }
 
+/// `#[derive(Event)]`, without needing `bevy_ecs` in scope -- a plain, non-targeted
+/// event (compare `#[targeted_event]`, for one aimed at a specific entity).
+#[proc_macro_attribute]
+pub fn event(
+    _attrs: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    wrap_bevy_derive(input, quote::quote!(bevy_ecs::event::Event))
+}
+
 /// Turns a plain struct into a targeted event: injects the `entity: Entity` plumbing
 /// field, implements bevy's `Event`/`EntityEvent` (generated directly with fully-qualified
 /// paths, so consumer crates need no `bevy_ecs` dependency for the derive's manifest

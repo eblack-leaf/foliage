@@ -3,6 +3,9 @@ use foliage::{Foliage};
 mod icons;
 mod entry;
 mod home;
+mod navigator;
+mod next;
+mod third;
 mod type_in;
 
 /// This app's own hosting convention -- `foliage_proper` makes no assumption about it, so it
