@@ -16,7 +16,7 @@ public class MainActivity extends GameActivity {
         // Must match both the foliage app's `[lib] name` (its cdylib output) and
         // the `android.app.lib_name` meta-data value in AndroidManifest.xml -- all
         // three have to agree, or the JVM can't find `android_main` to call into.
-        System.loadLibrary("application");
+        System.loadLibrary("application_android");
     }
 
     private void hideSystemUI() {

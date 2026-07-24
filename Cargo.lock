@@ -184,6 +184,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "application_android"
+version = "0.1.0"
+dependencies = [
+ "application",
+ "foliage",
+]
+
+[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

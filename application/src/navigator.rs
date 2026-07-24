@@ -27,6 +27,29 @@ struct Landed;
 
 const WIDTH: f32 = 14.0;
 const HEIGHT: f32 = 11.0;
+/// Both polygons spawn and travel through their whole intro at this size -- much bigger
+/// than their `WIDTH`/`HEIGHT` resting size, so the intro reads as prominent -- then shrink
+/// down to resting size during `build_down_move`, simply by animating from this size to
+/// `WIDTH`/`HEIGHT` (the `Animation<Location>` interpolates size exactly like position).
+const INTRO_SCALE: f32 = 3.0;
+const INTRO_WIDTH: f32 = WIDTH * INTRO_SCALE;
+const INTRO_HEIGHT: f32 = HEIGHT * INTRO_SCALE;
+
+/// Two decorative "shadow" copies of `forward`, offset down+left and progressively
+/// smaller/lighter -- a layered-card depth effect, not interactive, never clicked. Index 0
+/// is the nearer/larger/darker one.
+const SHADOW_OFFSET_X: f32 = -3.0; // per layer, left
+const SHADOW_OFFSET_Y: f32 = 3.0; // per layer, down
+const SHADOW_SCALE: [f32; 2] = [0.78, 0.58];
+/// Each shadow's own fade-in/morph starts this much later than the previous layer's (and
+/// `forward`'s own, for layer 0) -- reads as the shadows "catching up" to `forward`'s shape
+/// with a lag, rather than moving in perfect lockstep with it.
+const SHADOW_LAG: u64 = 220;
+/// Kept short enough that even the farthest layer (`2 * SHADOW_LAG + SHADOW_FADE_IN`)
+/// finishes before `FORWARD_FADE_IN` does -- `fade_seq`'s own completion (which triggers
+/// `forward`'s morph and `back`'s whole intro) is driven by `forward`'s fade, not stalled
+/// waiting on the shadows.
+const SHADOW_FADE_IN: u64 = 400;
 const START_CENTER_X: f32 = -10.0; // fully offscreen left
 const END_CENTER_X: f32 = 200.0 / 3.0; // `forward`'s fixed x, always
 /// `back`'s fixed x, always -- enough clearance from the screen edge that the whole
@@ -34,18 +57,37 @@ const END_CENTER_X: f32 = 200.0 / 3.0; // `forward`'s fixed x, always
 /// clipped off it.
 const BACK_X: f32 = 15.0;
 const CENTER_Y: f32 = 30.0; // upper third of the page, during the intro
+/// `back` holds lower than `forward` during the intro -- at `INTRO_HEIGHT`, the two boxes
+/// would otherwise overlap outright (both start from the same off-screen spawn point, and
+/// `back`'s own arrive is staggered, so there's a real window where `forward` has started
+/// peeling away but `back` hasn't moved yet). `CENTER_Y + INTRO_HEIGHT` puts `back`'s own
+/// top edge exactly level with `forward`'s bottom edge (`CENTER_Y + INTRO_HEIGHT / 2`,
+/// plus another `INTRO_HEIGHT / 2` for `back`'s own half-height); `+ 3.0` is a small
+/// margin so they don't sit flush against each other.
+const BACK_CENTER_Y: f32 = CENTER_Y + INTRO_HEIGHT + 3.0;
 /// Resting spot once settled -- low enough to read as a nav control, leaving the rest of
 /// the screen for whatever scene is showing above it.
 const REST_CENTER_Y: f32 = 91.0;
 
-const MOVE_END: u64 = 3400; // slower glide to its resting horizontal position
+const MOVE_END: u64 = 3400; // `back`'s slower glide to its resting horizontal position
+const FORWARD_FADE_IN: u64 = 900; // `forward`'s in-place fade-in (it never slides)
+/// `back` becomes visible over this long, starting exactly when its own arrive begins --
+/// it isn't actually fully off-screen at intro size (`START_CENTER_X` still leaves a
+/// corner of it on-screen at `INTRO_WIDTH`), so it needs to fade in rather than just be
+/// visible from spawn, or that corner sits there as a stray artifact before it starts
+/// moving.
+const BACK_ARRIVE_FADE_IN: u64 = 400;
+const SETTLE_DURATION: u64 = 400; // in-place shrink from intro size to resting size
 const SPIN_DURATION: u64 = 180; // fast spin into the next shape
 const BOUNCE_DURATION: u64 = 140; // quick overcorrect back to rest angle
 const SHAPE_PAUSE: u64 = 380; // longer hold once it settles
 const STAGE_DURATION: u64 = SPIN_DURATION + BOUNCE_DURATION + SHAPE_PAUSE;
-/// Timed so the LAST stage's "spin into" lands exactly when the location move finishes.
+/// `back`'s own morph delay: timed so its LAST stage's "spin into" lands exactly when
+/// `back`'s own glide (`MOVE_END`) finishes. `forward` doesn't glide anywhere, so its
+/// morph just starts right away once it's done fading in -- see its own call to
+/// `build_morph` in `build`.
 const MORPH_DELAY: u64 = MOVE_END - SPIN_DURATION - (STAGES.len() as u64 - 1) * STAGE_DURATION;
-const TURN_DURATION: u64 = 7000;
+const TURN_DURATION: u64 = 11000;
 /// Per stage: spin past the resting angle by this much, then bounce back.
 const ROTATION_PER_STAGE: f32 = PI / 2.0;
 const OVERSHOOT: f32 = PI / 10.0;
@@ -59,8 +101,9 @@ const DOWN_DURATION: u64 = 900; // `forward` + both lines, together, to the rest
 const ICON_PX: i32 = 20;
 const ICON_FADE: u64 = 500;
 
-/// `back` fades in this long after `forward`'s own icon lands -- a staggered second
-/// entrance so the intro doesn't read as bare with just the one polygon.
+/// `back`'s icon fades in this long after `forward`'s icon-fade sequence ends -- a
+/// staggered second entrance for the icon layer specifically (the polygon itself is
+/// already fully visible by then, from its own intro).
 const BACK_STAGGER: u64 = 400;
 const BACK_FADE: u64 = 500;
 
@@ -101,6 +144,43 @@ fn box_of_size(center_x: f32, center_y: f32, w: f32, h: f32) -> Location {
     )
 }
 
+/// `layer`-th shadow's box (1 or 2): offset down+left from `forward`'s own
+/// `(center_x, center_y)` by `layer` multiples of `SHADOW_OFFSET_*`, sized down by
+/// `SHADOW_SCALE[layer - 1]` -- called with whatever `forward`'s own current target
+/// (`center_x, center_y, w, h`) is at each stage, so the shadow always tracks it exactly.
+fn shadow_box(center_x: f32, center_y: f32, w: f32, h: f32, layer: usize) -> Location {
+    let n = layer as f32;
+    let scale = SHADOW_SCALE[layer - 1];
+    box_of_size(
+        center_x + n * SHADOW_OFFSET_X,
+        center_y + n * SHADOW_OFFSET_Y,
+        w * scale,
+        h * scale,
+    )
+}
+
+fn shadow_color(layer: usize) -> Color {
+    if layer == 1 { Color::stone(600) } else { Color::stone(500) }
+}
+
+/// `back`'s bottom edge once it's settled at `BACK_CENTER_Y` and shrunk down to normal
+/// resting size (`build_lines`, which uses this, only runs after `build_settle` finishes).
+fn back_bottom_y() -> f32 {
+    BACK_CENTER_Y + HEIGHT / 2.0
+}
+
+/// `back`'s bottom edge once it's fully landed at `REST_CENTER_Y` -- the drop-preview
+/// line's fixed reference point, both for where its tip draws to and where its anchor
+/// converges to during the descent. Using `REST_CENTER_Y` itself (the polygon's *center*
+/// target, not its bottom edge) made the line finish collapsing before `back`'s actual
+/// bottom edge got there -- since both animate over the same duration/easing, only an
+/// identical constant offset (`HEIGHT / 2` in both the current and rest calculation) keeps
+/// the anchor mathematically locked to `back`'s real bottom edge at every point in between,
+/// not just at the start and end.
+fn back_rest_bottom_y() -> f32 {
+    REST_CENTER_Y + HEIGHT / 2.0
+}
+
 /// Fixed, always: both polygons exist the whole time (see `MUTED_OPACITY`), so the
 /// lines connecting them never move. Deliberately asymmetric: `forward` is the sole
 /// anchor for *both* lines -- the first element of each pair, the fixed point every
@@ -134,6 +214,7 @@ struct Nav {
     router: Entity,
     forward: Entity,
     forward_icon: Entity,
+    shadows: [Entity; 2],
     back: Entity,
     back_icon: Entity,
     lines: [Entity; 2], // [left, right]
@@ -165,13 +246,55 @@ pub fn build(tree: &mut Tree, router: Entity) {
         Polygon::new()
             .sides(3.0)
             .rounding(0.0)
-            .rotation(PI) // upside-down triangle
+            .rotation(0.0) // upside-down triangle (the shader's un-rotated triangle already points down)
             .color(Color::orange(400))
-            .at(box_at(START_CENTER_X, CENTER_Y))
+            .at(box_of_size(END_CENTER_X, CENTER_Y, INTRO_WIDTH, INTRO_HEIGHT))
             .elevate(Elevation::up(10))
-            .with((InteractionListener::new(), InteractionShape::Circle)),
+            .with((
+                InteractionListener::new(),
+                InteractionShape::Circle,
+                Opacity::new(0.0),
+            )),
     );
     tree.disable(forward); // not clickable until the intro finishes
+
+    // decorative shadows, offset down+left and smaller/lighter per layer -- purely a
+    // depth backdrop, never interactive, elevated behind `forward` (and each other).
+    let mut shadows = [Entity::PLACEHOLDER; 2];
+    for (i, shadow) in shadows.iter_mut().enumerate() {
+        let layer = i + 1;
+        *shadow = tree.leaf(
+            Polygon::new()
+                .sides(3.0)
+                .rounding(0.0)
+                .rotation(0.0)
+                .color(shadow_color(layer))
+                .at(shadow_box(END_CENTER_X, CENTER_Y, INTRO_WIDTH, INTRO_HEIGHT, layer))
+                .elevate(Elevation::up(10 - layer as i32))
+                .with(Opacity::new(0.0)),
+        );
+    }
+
+    // `back` runs its own intro alongside `forward`'s -- same big size, same morph
+    // stages, fully visible throughout -- staggered a beat later and travelling a much
+    // shorter horizontal distance (it's heading for `BACK_X`, already close to where it
+    // starts), so it reads as "in place" next to forward's longer glide. Stays disabled
+    // the whole time -- there's nothing to go back to at index 0 regardless of the intro.
+    let back = tree.leaf(
+        Polygon::new()
+            .sides(3.0)
+            .rounding(0.0)
+            .rotation(0.0) // upside-down, matching `forward`'s starting orientation
+            .color(Color::red(400))
+            .at(box_of_size(START_CENTER_X, BACK_CENTER_Y, INTRO_WIDTH, INTRO_HEIGHT))
+            .elevate(Elevation::up(10))
+            .with((
+                InteractionListener::new(),
+                InteractionShape::Circle,
+                Opacity::new(0.0),
+            )),
+    );
+    tree.disable(back);
 
     // persistent for the navigator's whole lifetime: resends `NavigatorLanded` on every
     // later return to home (the very first one is handled directly once the intro
@@ -186,23 +309,127 @@ pub fn build(tree: &mut Tree, router: Entity) {
         },
     );
 
-    let arrive_seq = tree.sequence();
+    // `forward` doesn't travel at all -- it's already sitting at its permanent horizontal
+    // (`END_CENTER_X`, roughly mid-screen), just invisible, and fades in in place, slowly,
+    // as the precursor beat. Once it's visible, it starts morphing immediately -- still at
+    // full intro size, same as it always did -- and `back`'s own intro (the one that
+    // actually slides in from off-screen) only starts once that fade is done, not racing
+    // it on a guessed timer.
+    let fade_seq = tree.sequence();
     tree.animate(
-        Animation::new(box_at(END_CENTER_X, CENTER_Y))
+        Animation::new(Opacity::new(1.0))
             .targeting(forward)
-            .during(arrive_seq)
+            .during(fade_seq)
+            .start(0)
+            .finish(FORWARD_FADE_IN)
+            // DECELERATE (fast-start, slow-end) made this look like it just popped in --
+            // most of the opacity gain happened in the first fraction of the duration.
+            // ACCELERATE (slow-start, fast-end) actually reads as a slow build.
+            .eased(Ease::ACCELERATE),
+    );
+    // each shadow fades in a beat behind the previous layer (and `forward`'s own, at
+    // "layer 0"), so they read as trailing reactions rather than moving in lockstep.
+    for (i, &shadow) in shadows.iter().enumerate() {
+        let lag = (i + 1) as u64 * SHADOW_LAG;
+        tree.animate(
+            Animation::new(Opacity::new(1.0))
+                .targeting(shadow)
+                .during(fade_seq)
+                .start(lag)
+                .finish(lag + SHADOW_FADE_IN)
+                .eased(Ease::ACCELERATE),
+        );
+    }
+    tree.sequence_end(fade_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
+        build_morph(&mut tree, forward, 0); // starts morphing right away, still big
+        for (i, &shadow) in shadows.iter().enumerate() {
+            build_morph(&mut tree, shadow, (i + 1) as u64 * SHADOW_LAG);
+        }
+        build_back_arrive(&mut tree, router, forward, back, shadows);
+    });
+}
+
+/// `back`'s whole intro -- slide in from off-screen, morphing the same as `forward` did --
+/// only starts once `forward` has finished fading in. Once `back` finishes arriving, both
+/// polygons (and both shadows, tracking `forward`) settle down to normal size together
+/// (same duration, same beat, in the same shared sequence -- not several separate shrinks
+/// that merely happen to line up), and only then do the lines draw.
+fn build_back_arrive(
+    tree: &mut Tree,
+    router: Entity,
+    forward: Entity,
+    back: Entity,
+    shadows: [Entity; 2],
+) {
+    let back_arrive_seq = tree.sequence();
+    tree.animate(
+        Animation::new(box_of_size(BACK_X, BACK_CENTER_Y, INTRO_WIDTH, INTRO_HEIGHT))
+            .targeting(back)
+            .during(back_arrive_seq)
             .start(0)
             .finish(MOVE_END)
-            .eased(Ease::ACCELERATE), // slow start, fast end
+            .eased(Ease::ACCELERATE),
     );
-    tree.sequence_end(arrive_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        build_lines(&mut tree, router, forward);
-    });
+    // fades in right as it starts moving -- it spawned invisible specifically so the
+    // corner of it that sits on-screen at its off-screen spawn spot (its intro size is
+    // wider than `START_CENTER_X` alone hides) doesn't show as a stray artifact while it
+    // was waiting for `forward`'s own fade to finish.
+    tree.animate(
+        Animation::new(Opacity::new(1.0))
+            .targeting(back)
+            .during(back_arrive_seq)
+            .start(0)
+            .finish(BACK_ARRIVE_FADE_IN)
+            .eased(Ease::ACCELERATE),
+    );
+    build_morph(tree, back, MORPH_DELAY);
 
-    // morph: self-contained, nothing downstream depends on when this finishes.
+    tree.sequence_end(back_arrive_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
+        let settle_seq = tree.sequence();
+        build_settle(&mut tree, settle_seq, forward, box_at(END_CENTER_X, CENTER_Y));
+        build_settle(&mut tree, settle_seq, back, box_at(BACK_X, BACK_CENTER_Y));
+        for (i, &shadow) in shadows.iter().enumerate() {
+            let layer = i + 1;
+            build_settle(
+                &mut tree,
+                settle_seq,
+                shadow,
+                shadow_box(END_CENTER_X, CENTER_Y, WIDTH, HEIGHT, layer),
+            );
+        }
+        tree.sequence_end(settle_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
+            build_lines(&mut tree, router, forward, back, shadows);
+        });
+    });
+}
+
+/// Quick, in-place shrink from the big intro size down to normal resting size, without
+/// moving row/column. Adds to `seq` rather than creating its own, so multiple polygons
+/// (see `build_back_arrive`, which settles `forward`, `back`, and both shadows this way)
+/// shrink together in one genuinely shared beat, not several separately-timed animations
+/// that happen to overlap. Takes the target `Location` directly rather than a plain
+/// `(x, y)` pair so shadows -- which settle to their own offset+scaled box, not a plain
+/// `box_at` -- can use it too.
+fn build_settle(tree: &mut Tree, seq: Entity, target: Entity, location: Location) {
+    tree.animate(
+        Animation::new(location)
+            .targeting(target)
+            .during(seq)
+            .start(0)
+            .finish(SETTLE_DURATION)
+            .eased(Ease::DECELERATE),
+    );
+}
+
+/// The shape-morph sequence -- square -> pentagon -> heptagon, spin-and-bounce into each
+/// -- shared by both `forward` and `back` so they run through the identical beats, offset
+/// only by `delay` (each polygon's own intro start time). Self-contained: nothing
+/// downstream depends on when this finishes, including the final slow spin that keeps
+/// going well past both polygons landing at rest.
+fn build_morph(tree: &mut Tree, target: Entity, delay: u64) {
     let morph_seq = tree.sequence();
-    let mut t = MORPH_DELAY;
-    let mut rotation = PI;
+    let mut t = delay;
+    let mut rotation = 0.0; // matches both polygons' actual starting (upside-down) rotation
     for &(sides, rounding) in STAGES {
         let settle_rotation = rotation + ROTATION_PER_STAGE;
         let overshoot_rotation = settle_rotation + OVERSHOOT;
@@ -214,7 +441,7 @@ pub fn build(tree: &mut Tree, router: Entity) {
                 rounding,
                 rotation: overshoot_rotation,
             })
-            .targeting(forward)
+            .targeting(target)
             .during(morph_seq)
             .start(t)
             .finish(spin_finish)
@@ -228,7 +455,7 @@ pub fn build(tree: &mut Tree, router: Entity) {
                 rounding,
                 rotation: settle_rotation,
             })
-            .targeting(forward)
+            .targeting(target)
             .during(morph_seq)
             .start(spin_finish)
             .finish(bounce_finish)
@@ -246,7 +473,7 @@ pub fn build(tree: &mut Tree, router: Entity) {
             rounding: last_rounding,
             rotation: rotation + REVOLUTION,
         })
-        .targeting(forward)
+        .targeting(target)
         .during(morph_seq)
         .start(morph_end)
         .finish(morph_end + TURN_DURATION)
@@ -255,8 +482,11 @@ pub fn build(tree: &mut Tree, router: Entity) {
 }
 
 /// Fires once `arrive` truly ends: a blueprint line draws out from `forward`'s center on
-/// each side -- one to `back`, one out to the right edge.
-fn build_lines(tree: &mut Tree, router: Entity, forward: Entity) {
+/// each side -- one to `back`, one out to the right edge -- plus a transient third line
+/// hinting at `back`'s upcoming drop: from its current bottom edge straight down to where
+/// it's about to land. `build_down_move` "eats" this one back to nothing in step with
+/// `back`'s own descent, rather than leaving a stray line hanging around afterward.
+fn build_lines(tree: &mut Tree, router: Entity, forward: Entity, back: Entity, shadows: [Entity; 2]) {
     let cy = CENTER_Y;
     let lines_seq = tree.sequence();
     let mut lines = [Entity::PLACEHOLDER; 2];
@@ -283,14 +513,50 @@ fn build_lines(tree: &mut Tree, router: Entity, forward: Entity) {
         );
         lines[i] = line;
     }
+
+    let drop_top = back_bottom_y();
+    let drop_line = tree.leaf(
+        Line::new(LINE_WEIGHT)
+            .color(Color::stone(400))
+            .at(Location::new().xs(
+                BACK_X.pct().as_x().with(drop_top.pct().as_y()),
+                BACK_X.pct().as_x().with(drop_top.pct().as_y()),
+            ))
+            .elevate(Elevation::up(10)),
+    );
+    tree.animate(
+        Animation::new(Location::new().xs(
+            BACK_X.pct().as_x().with(drop_top.pct().as_y()),
+            BACK_X.pct().as_x().with(back_rest_bottom_y().pct().as_y()),
+        ))
+        .targeting(drop_line)
+        .during(lines_seq)
+        .start(0)
+        .finish(LINE_DRAW)
+        .eased(Ease::DECELERATE),
+    );
+
     tree.sequence_end(lines_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        build_down_move(&mut tree, router, forward, lines);
+        build_down_move(&mut tree, router, forward, back, shadows, lines, drop_line);
     });
 }
 
-/// Fires once the lines are truly done drawing: `forward` + both lines ride down
-/// together to the resting spot.
-fn build_down_move(tree: &mut Tree, router: Entity, forward: Entity, lines: [Entity; 2]) {
+/// Fires once the lines are truly done drawing: `forward` + `back` (both already at
+/// resting size, courtesy of `build_settle`) + both permanent lines ride down together to
+/// the resting spot -- and both shadows ride down with `forward`, tracking its offset, so
+/// they end up sitting as a fixed backdrop just behind/below it at rest, never touched
+/// again after this. The transient drop-preview line shrinks in the same window, at the
+/// same easing, its top edge tracking `back` down so it's fully consumed exactly when
+/// `back` lands -- then it's removed outright, rather than left sitting at zero length.
+fn build_down_move(
+    tree: &mut Tree,
+    router: Entity,
+    forward: Entity,
+    back: Entity,
+    shadows: [Entity; 2],
+    lines: [Entity; 2],
+    drop_line: Entity,
+) {
     let down_seq = tree.sequence();
     tree.animate(
         Animation::new(box_at(END_CENTER_X, REST_CENTER_Y))
@@ -300,6 +566,25 @@ fn build_down_move(tree: &mut Tree, router: Entity, forward: Entity, lines: [Ent
             .finish(DOWN_DURATION)
             .eased(Ease::DECELERATE),
     );
+    tree.animate(
+        Animation::new(box_at(BACK_X, REST_CENTER_Y))
+            .targeting(back)
+            .during(down_seq)
+            .start(0)
+            .finish(DOWN_DURATION)
+            .eased(Ease::DECELERATE),
+    );
+    for (i, &shadow) in shadows.iter().enumerate() {
+        let layer = i + 1;
+        tree.animate(
+            Animation::new(shadow_box(END_CENTER_X, REST_CENTER_Y, WIDTH, HEIGHT, layer))
+                .targeting(shadow)
+                .during(down_seq)
+                .start(0)
+                .finish(DOWN_DURATION)
+                .eased(Ease::DECELERATE),
+        );
+    }
     for (line, (anchor_x, tip_x)) in lines.into_iter().zip(line_spans()) {
         tree.animate(
             Animation::new(Location::new().xs(
@@ -313,21 +598,41 @@ fn build_down_move(tree: &mut Tree, router: Entity, forward: Entity, lines: [Ent
             .eased(Ease::DECELERATE),
         );
     }
+    tree.animate(
+        Animation::new(Location::new().xs(
+            BACK_X.pct().as_x().with(back_rest_bottom_y().pct().as_y()),
+            BACK_X.pct().as_x().with(back_rest_bottom_y().pct().as_y()),
+        ))
+        .targeting(drop_line)
+        .during(down_seq)
+        .start(0)
+        .finish(DOWN_DURATION)
+        .eased(Ease::DECELERATE),
+    );
     tree.sequence_end(down_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        build_icons(&mut tree, router, forward, lines);
+        tree.remove(drop_line);
+        build_icons(&mut tree, router, forward, back, shadows, lines);
     });
 }
 
 /// Fires once settled at rest: `forward`'s icon fades in, and only once THAT finishes
 /// does `forward` become clickable ("enabled when the icon is done appearing"), both
 /// click observers get registered, and the one-time `NavigatorLanded` signal fires.
-/// `back` and its icon spawn *here* too -- not pre-created back at `build()` time (t=0,
-/// before the event loop has even started) the way an earlier version had it. That
-/// early-spawned `back_icon` never rendered despite every ECS-level property (opacity,
-/// position, icon id, elevation ordering) checking out fine under a diagnostic dump --
-/// spawning both here instead, at the exact same late point `forward_icon` already
-/// spawns from successfully, sidesteps whatever that was.
-fn build_icons(tree: &mut Tree, router: Entity, forward: Entity, lines: [Entity; 2]) {
+/// `back` itself already exists and already landed -- it rode down together with
+/// `forward` in `build_down_move` -- so this only spawns its icon (spawning icons at this
+/// exact late point, once things are truly settled, is what actually renders reliably;
+/// spawning one any earlier, e.g. back at `build()` time before the event loop starts,
+/// never rendered despite every ECS-level property checking out under a diagnostic dump).
+/// `back` fades from its full intro visibility down to muted (nothing to go back to yet,
+/// at index 0) while `back_icon` fades up to the same muted level, together.
+fn build_icons(
+    tree: &mut Tree,
+    router: Entity,
+    forward: Entity,
+    back: Entity,
+    shadows: [Entity; 2],
+    lines: [Entity; 2],
+) {
     let icon_seq = tree.sequence();
 
     let forward_icon = tree.leaf(icon_bundle(forward));
@@ -345,24 +650,6 @@ fn build_icons(tree: &mut Tree, router: Entity, forward: Entity, lines: [Entity;
         move |_: Trigger<OnEnd>, branches: Query<&Branch>, mut tree: Tree| {
             tree.enable(forward);
 
-            // spawned now, already at its permanent rest spot -- muted, since there's
-            // nothing to go back to yet -- then a staggered fade-in a beat later, for a
-            // more playful two-part opener than a single polygon settling alone.
-            let back = tree.leaf(
-                Polygon::new()
-                    .sides(7.0)
-                    .rounding(0.55)
-                    .rotation(0.0)
-                    .color(Color::orange(400))
-                    .at(box_at(BACK_X, REST_CENTER_Y))
-                    .elevate(Elevation::up(10))
-                    .with((
-                        InteractionListener::new(),
-                        InteractionShape::Circle,
-                        Opacity::new(0.0),
-                    )),
-            );
-            tree.disable(back); // nothing to go back to at index 0
             let back_icon = tree.leaf(icon_bundle(back));
             // `back` never changes what it means, so its icon is set once, here, and
             // never touched again (unlike `forward`'s, which swaps meaning between
@@ -384,6 +671,7 @@ fn build_icons(tree: &mut Tree, router: Entity, forward: Entity, lines: [Entity;
                 router,
                 forward,
                 forward_icon,
+                shadows,
                 back,
                 back_icon,
                 lines,
@@ -616,7 +904,7 @@ fn reconcile(tree: &mut Tree, nav: Nav, index: usize, count: usize) {
     } else {
         tree.disable(nav.forward);
     }
-    for target in [nav.forward, nav.forward_icon] {
+    for target in [nav.forward, nav.forward_icon, nav.shadows[0], nav.shadows[1]] {
         tree.animate(
             Animation::new(Opacity::new(forward_opacity))
                 .targeting(target)

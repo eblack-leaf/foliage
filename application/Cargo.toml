@@ -3,10 +3,6 @@ name = "application"
 version = "0.1.0"
 edition = "2024"
 
-[lib]
-name = "application"
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 foliage = { path = "../foliage" }
 tracing = "0.1.40"

@@ -17,21 +17,18 @@ fn asset_url(path: &str) -> String {
 }
 
 /// Shared by every platform's entry point -- desktop's `main`, wasm's `main` (compiled to
-/// `wasm32-unknown-unknown` and invoked by the generated JS glue), and android's
-/// `android_main` below. Only *how a `Foliage` gets constructed* differs per platform (see
+/// `wasm32-unknown-unknown` and invoked by the generated JS glue), and `application_android`'s
+/// `android_main`. Only *how a `Foliage` gets constructed* differs per platform (see
 /// `Foliage::new` vs `Foliage::android`); everything after that is identical.
+///
+/// Android's own entry point deliberately isn't in this crate -- it needs `crate-type =
+/// ["cdylib"]`, and a cdylib target also produces a competing `wasm32-unknown-unknown`
+/// artifact sharing this crate's own binary name, which broke trunk's artifact selection
+/// for the actual wasm build. `application_android` is the separate, cdylib-only crate
+/// that calls this from its own `android_main`.
 pub fn run(mut foliage: Foliage) {
     foliage.desktop_size((360, 800));
     icons::register(&mut foliage);
     entry::build(&mut foliage);
     foliage.photosynthesize();
-}
-
-/// Android's actual process entry point -- the Java/Kotlin GameActivity shim loads this
-/// crate as a `.so` and calls this via JNI, handing over the one thing `Foliage::android`
-/// needs and nothing else on any other platform has: a live `AndroidApp`.
-#[cfg(target_os = "android")]
-#[unsafe(no_mangle)]
-fn android_main(app: foliage::AndroidApp) {
-    run(Foliage::android(app));
 }
