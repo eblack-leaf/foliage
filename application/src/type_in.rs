@@ -1,11 +1,15 @@
+use crate::icons::IconHandles;
 use foliage::{
     Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    HorizontalAlignment, Leaf, Line, Location, Opacity, Panel, Polygon, Sprout, Text, Tree,
-    anchor,
+    HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape,
+    Leaf, Line, Location, Opacity, Panel, Polygon, Sprout, Text, Tree, VerticalAlignment, anchor,
 };
 
 const TEXT: &str = "foliage.rs";
 const FONT_SIZE: u32 = 34;
+/// Raised off dead-center to leave room below the whole type-in block (line, subtitle,
+/// heptagon chain) for the "Docs" button.
+const FIELD_CENTER_Y_PCT: f32 = 38.0;
 /// Index (0-based) where the ".rs" extension starts -- colored differently from the rest.
 const EXTENSION_START: usize = 7;
 const CELL_GAP_PX: i32 = 10; // spacing between letter cells (must exceed 2*CELL_PAD)
@@ -254,7 +258,9 @@ fn draw_heptagon(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
 /// way `navigator.rs`'s `drop_line` keeps its row -- so this reads as coming off the text
 /// itself, not floating at some independent screen position. Once the line finishes, a
 /// second, quieter type-in reveals `SUBTITLE_TEXT` directly under it, same `Anchor`.
-fn draw_line_and_subtitle(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
+/// Returns the time the subtitle's own last letter finishes revealing, so callers can
+/// sequence anything that should wait for this whole effect to finish first.
+fn draw_line_and_subtitle(tree: &mut Tree, field: Entity, seq: Entity, start: u64) -> u64 {
     let center_x = anchor().center_x().as_x();
     let line_y = anchor().bottom().as_y().adjust(LINE_UNDER_GAP);
     let center_point = center_x.with(line_y);
@@ -323,6 +329,192 @@ fn draw_line_and_subtitle(tree: &mut Tree, field: Entity, seq: Entity, start: u6
         );
         letter_time += SUBTITLE_LETTER_STAGGER;
     }
+    // `letter_time` was bumped once more after the last letter's own start time above --
+    // undo that to get the last letter's real start, then add its own reveal duration.
+    letter_time - SUBTITLE_LETTER_STAGGER + SUBTITLE_REVEAL_SNAP
+}
+
+/// A "Docs" link below everything else the type-in builds, restyled to match the
+/// decorative heptagon chain's own visual language instead of looking like a plain
+/// stock button: a morphed-in heptagon (same triangle -> `sides: 7.0` technique as
+/// `draw_heptagon`) is the actual clickable target (`InteractionListener` +
+/// `InteractionShape::Circle`, hand-added since this is a bare `Polygon`, not the
+/// `Button` composite), a green `Icon` sits anchored to its center, and one muted stone
+/// heptagon morphs in behind it at a lower elevation as a shadow -- offset left by
+/// `DOCS_SHADOW_OFFSET_PX` and sharing the front heptagon's own rotation exactly (see
+/// that constant's doc for why a positional shift, not a rotation mismatch, is what
+/// actually shows it). The icon sits at a HIGHER elevation than the heptagon (so
+/// it renders visibly on top of the fill), which would otherwise let it win the hit-test
+/// and swallow clicks meant for the heptagon underneath -- `InteractionPropagation::
+/// pass_through()` on the icon is what lets the click fall through to it instead. Plus a
+/// separate "Docs" label, the whole group centered under `field`, `Anchor`-pinned the
+/// same way the underline/subtitle/heptagons already are. `start` should be well after
+/// everything else has landed (see `type_in`'s own call site) -- it showed up alongside
+/// the very first letter before, which read as competing with content that hadn't
+/// finished yet.
+const DOCS_BTN_PX: i32 = 40;
+const DOCS_HEPTA_ROUNDING: f32 = 0.15; // same softening the decorative heptagon chain uses
+const DOCS_COLOR: i32 = 400; // green -- the clickable heptagon's own fill
+const DOCS_SHADOW_COLOR: i32 = 500; // muted stone -- the shadow heptagon behind it
+/// Px the shadow shifts left of the front heptagon -- same offset idea `navigator.rs`'s
+/// own shadow layers use, just a lot smaller since this shape is a lot smaller. The
+/// shadow's own rotation matches the front heptagon's final rotation exactly (no
+/// rotation offset) -- the positional shift alone is enough to show it past the front
+/// shape's edge, and matching rotation reads as one shape with a shifted backdrop
+/// rather than two shapes spinning out of sync.
+const DOCS_SHADOW_OFFSET_PX: i32 = 8;
+const DOCS_SHADOW_Y_OFFSET_PX: i32 = 4; // px the shadow also sits below the front heptagon -- matches chrome.rs's own SHADOW_Y_OFFSET_PX
+const DOCS_ICON_SCALE: f32 = 0.5; // fraction of the heptagon's own box the icon fills
+const DOCS_LABEL_GAP_PX: i32 = 10;
+const DOCS_LABEL_WIDTH_PX: i32 = 90;
+const DOCS_FONT_SIZE: u32 = 22;
+const DOCS_GAP_FROM_FIELD_BOTTOM: i32 = 90; // px -- clears the line + subtitle below field
+const DOCS_MORPH_DURATION: u64 = 700;
+const DOCS_START_GAP: u64 = 400; // ms after the subtitle finishes before the Docs link appears
+
+fn draw_docs_button(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
+    let group_width = DOCS_BTN_PX + DOCS_LABEL_GAP_PX + DOCS_LABEL_WIDTH_PX;
+    let icon_offset = -(group_width / 2);
+    let label_offset = icon_offset + DOCS_BTN_PX + DOCS_LABEL_GAP_PX;
+
+    let left = anchor().center_x().as_left();
+    let btn_left = left.adjust(icon_offset);
+    let label_left = left.adjust(label_offset);
+    let row_top = anchor().bottom().as_top().adjust(DOCS_GAP_FROM_FIELD_BOTTOM);
+    let btn_box = Location::new().xs(
+        btn_left.with(DOCS_BTN_PX.px().as_width()),
+        row_top.with(DOCS_BTN_PX.px().as_height()),
+    );
+    let shadow_box = Location::new().xs(
+        left.adjust(icon_offset - DOCS_SHADOW_OFFSET_PX)
+            .with(DOCS_BTN_PX.px().as_width()),
+        anchor()
+            .bottom()
+            .as_top()
+            .adjust(DOCS_GAP_FROM_FIELD_BOTTOM + DOCS_SHADOW_Y_OFFSET_PX)
+            .with(DOCS_BTN_PX.px().as_height()),
+    );
+
+    let shadow = tree.leaf(
+        Polygon::new()
+            .sides(3.0)
+            .rounding(0.0)
+            .rotation(0.0)
+            .color(Color::stone(DOCS_SHADOW_COLOR))
+            .at(shadow_box)
+            .elevate(Elevation::up(1))
+            .with((Opacity::new(0.0), Anchor::new(field))),
+    );
+    tree.animate(
+        Animation::new(Opacity::new(1.0))
+            .targeting(shadow)
+            .during(seq)
+            .start(start)
+            .finish(start + DOCS_MORPH_DURATION)
+            .eased(Ease::Linear),
+    );
+    tree.animate(
+        Animation::new(Polygon {
+            sides: 7.0,
+            rounding: DOCS_HEPTA_ROUNDING,
+            rotation: 0.0,
+        })
+        .targeting(shadow)
+        .during(seq)
+        .start(start)
+        .finish(start + DOCS_MORPH_DURATION)
+        .eased(Ease::DECELERATE),
+    );
+
+    let docs_btn = tree.leaf(
+        Polygon::new()
+            .sides(3.0)
+            .rounding(0.0)
+            .rotation(0.0)
+            .color(Color::green(DOCS_COLOR))
+            .at(btn_box)
+            .elevate(Elevation::up(2))
+            .with((
+                InteractionListener::new(),
+                InteractionShape::Circle,
+                Opacity::new(0.0),
+                Anchor::new(field),
+            )),
+    );
+    tree.animate(
+        Animation::new(Opacity::new(1.0))
+            .targeting(docs_btn)
+            .during(seq)
+            .start(start)
+            .finish(start + DOCS_MORPH_DURATION)
+            .eased(Ease::Linear),
+    );
+    tree.animate(
+        Animation::new(Polygon {
+            sides: 7.0,
+            rounding: DOCS_HEPTA_ROUNDING,
+            rotation: 0.0,
+        })
+        .targeting(docs_btn)
+        .during(seq)
+        .start(start)
+        .finish(start + DOCS_MORPH_DURATION)
+        .eased(Ease::DECELERATE),
+    );
+
+    let icon = tree.leaf(
+        Icon::new(IconHandles::BookOpen)
+            .color(Color::gray(950))
+            .at(Location::new().xs(
+                anchor()
+                    .center_x()
+                    .as_center_x()
+                    .with((anchor().width() * DOCS_ICON_SCALE).as_width()),
+                anchor()
+                    .center_y()
+                    .as_center_y()
+                    .with((anchor().height() * DOCS_ICON_SCALE).as_height()),
+            ))
+            .elevate(Elevation::up(3))
+            .with((
+                Opacity::new(0.0),
+                Anchor::new(docs_btn),
+                InteractionPropagation::pass_through(),
+            )),
+    );
+    tree.animate(
+        Animation::new(Opacity::new(1.0))
+            .targeting(icon)
+            .during(seq)
+            .start(start)
+            .finish(start + DOCS_MORPH_DURATION)
+            .eased(Ease::Linear),
+    );
+
+    let docs_label = tree.leaf(
+        Text::new("docs")
+            .size(FontSize::new(DOCS_FONT_SIZE))
+            .color(Color::stone(500))
+            .at(Location::new().xs(
+                label_left.with(DOCS_LABEL_WIDTH_PX.px().as_width()),
+                row_top.with(DOCS_BTN_PX.px().as_height()),
+            ))
+            .elevate(Elevation::up(2))
+            .with((
+                HorizontalAlignment::Left,
+                VerticalAlignment::Middle,
+                Opacity::new(0.0),
+                Anchor::new(field),
+            )),
+    );
+    tree.animate(
+        Animation::new(Opacity::new(1.0))
+            .targeting(docs_label)
+            .during(seq)
+            .start(start)
+            .finish(start + DOCS_MORPH_DURATION)
+            .eased(Ease::Linear),
+    );
 }
 
 /// A terminal-style type-in: a blinking `_` sits where the first letter will go, then
@@ -352,7 +544,7 @@ pub fn type_in(tree: &mut Tree, parent: Entity, seq: Entity, start: u64) {
                         .as_width()
                         .adjust((TOTAL_COLS - 1) * CELL_GAP_PX),
                 ),
-                50.pct().as_center_y().with(1.letters().as_height()),
+                FIELD_CENTER_Y_PCT.pct().as_center_y().with(1.letters().as_height()),
             ))
             .elevate(Elevation::up(1))
             .with((grid, FontSize::new(FONT_SIZE))),
@@ -416,7 +608,8 @@ pub fn type_in(tree: &mut Tree, parent: Entity, seq: Entity, start: u64) {
         );
     }
 
-    draw_line_and_subtitle(tree, field, seq, letter_time + REVEAL_SNAP);
+    let subtitle_end = draw_line_and_subtitle(tree, field, seq, letter_time + REVEAL_SNAP);
+    draw_docs_button(tree, field, seq, subtitle_end + DOCS_START_GAP);
 
     // cursor blink: a snapped on/off toggle at a steady cadence, running through the
     // whole typing pass and a while after it settles.

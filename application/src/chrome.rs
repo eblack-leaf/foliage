@@ -1,8 +1,9 @@
 use crate::icons::IconHandles;
 use foliage::{
-    Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, GridExt, Icon,
-    InteractionListener, InteractionPropagation, InteractionShape, Line, Location, OnClick, OnEnd,
-    Opacity, PageIndex, Polygon, Query, Sprout, Tree, Trigger, anchor,
+    Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, GridExt,
+    HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape,
+    Line, Location, OnClick, OnEnd, Opacity, PageIndex, Polygon, Query, Sprout, Text, Tree,
+    Trigger, anchor,
 };
 
 /// Global, site-wide chrome -- distinct from the inner-site forward/back navigator
@@ -110,6 +111,121 @@ fn icon_bundle(target: Entity, handle: IconHandles, color: Color) -> impl Sprout
         ))
 }
 
+/// Px each shadow shifts left of its own front shape -- same offset idea `navigator.rs`'s
+/// own shadow layers use, just a lot smaller, since these shapes (30-38px) are a lot
+/// smaller than the navigator's own.
+const SHADOW_OFFSET_PX: i32 = 6;
+const SHADOW_Y_OFFSET_PX: i32 = 4; // px the shadow also sits below the front shape's own row
+const SHADOW_COLOR: i32 = 600; // muted stone -- neutral, not a shade of the front shape's own hue
+
+/// Same row as `row_box`, shifted `SHADOW_OFFSET_PX` left and `SHADOW_Y_OFFSET_PX` down.
+fn shadow_row_box(center_x_px: i32, size_px: i32) -> Location {
+    Location::new().xs(
+        (center_x_px - SHADOW_OFFSET_PX)
+            .px()
+            .as_center_x()
+            .with(size_px.px().as_width()),
+        (ROW_CENTER_Y_PX - size_px / 2 + SHADOW_Y_OFFSET_PX)
+            .px()
+            .as_top()
+            .with(size_px.px().as_height()),
+    )
+}
+
+/// One muted shadow copy of a clickable shape's own final form, offset to the left (see
+/// `SHADOW_OFFSET_PX`) rather than rotated out of sync with it -- same `rotation` as the
+/// front shape's own final rotation, so the two read as one shape with a shifted
+/// backdrop, not two shapes spinning independently. The positional offset alone is
+/// enough to show the shadow past the front shape's edge; it doesn't need to bring its
+/// own corners out from directly behind anymore. Morphs in alongside the front shape's
+/// own morph (same `start`/`morph_duration`/`rotation`), one elevation step behind it.
+fn build_shadow(
+    tree: &mut Tree,
+    seq: Entity,
+    center_x_px: i32,
+    size_px: i32,
+    sides: f32,
+    rounding: f32,
+    rotation: f32,
+    start: u64,
+    morph_duration: u64,
+) {
+    let shadow = tree.leaf(
+        Polygon::new()
+            .sides(3.0)
+            .rounding(0.0)
+            .rotation(0.0)
+            .color(Color::stone(SHADOW_COLOR))
+            .at(shadow_row_box(center_x_px, size_px))
+            .elevate(Elevation::up(19))
+            .with(Opacity::new(0.0)),
+    );
+    tree.animate(
+        Animation::new(Opacity::new(1.0))
+            .targeting(shadow)
+            .during(seq)
+            .start(start)
+            .finish(start + morph_duration)
+            .eased(Ease::DECELERATE),
+    );
+    tree.animate(
+        Animation::new(Polygon {
+            sides,
+            rounding,
+            rotation,
+        })
+        .targeting(shadow)
+        .during(seq)
+        .start(start)
+        .finish(start + morph_duration)
+        .eased(Ease::EMPHASIS),
+    );
+}
+
+const LABEL_FONT_SIZE: u32 = 12;
+const LABEL_GAP_PX: i32 = 6; // px between a shape's own bottom edge and its label's top
+const LABEL_WIDTH_PX: i32 = 74; // fits "github" alone
+const COMBINED_LABEL_WIDTH_PX: i32 = 110; // fits "home|contents"
+const LABEL_HEIGHT_PX: i32 = 16;
+
+/// A small `stone(500)` label centered under a chrome shape (or between a group of
+/// them, given their shared midpoint `center_x_px` and `size_px` as the row height),
+/// `LABEL_GAP_PX` below its own bottom edge. `width_px` varies per label -- "github" and
+/// the combined "home|contents" need different amounts of room.
+fn build_label(
+    tree: &mut Tree,
+    seq: Entity,
+    center_x_px: i32,
+    size_px: i32,
+    width_px: i32,
+    text: &str,
+    start: u64,
+    fade: u64,
+) {
+    let label = tree.leaf(
+        Text::new(text)
+            .size(FontSize::new(LABEL_FONT_SIZE))
+            .color(Color::stone(500))
+            .at(Location::new().xs(
+                center_x_px.px().as_center_x().with(width_px.px().as_width()),
+                (ROW_CENTER_Y_PX + size_px / 2 + LABEL_GAP_PX)
+                    .px()
+                    .as_top()
+                    .with(LABEL_HEIGHT_PX.px().as_height()),
+            ))
+            .elevate(Elevation::up(21))
+            .with((HorizontalAlignment::Center, Opacity::new(0.0))),
+    );
+    tree.animate(
+        Animation::new(Opacity::new(1.0))
+            .targeting(label)
+            .during(seq)
+            .start(start)
+            .finish(start + fade)
+            .eased(Ease::DECELERATE),
+    );
+}
+
 pub fn build(tree: &mut Tree, router: Entity) {
     let seq = tree.sequence();
     // spawns sharp-triangle -- a fixed shape rotating in place (especially a rounded,
@@ -146,6 +262,17 @@ pub fn build(tree: &mut Tree, router: Entity) {
         .finish(SPIN_DELAY + SPIN_IN)
         .eased(Ease::EMPHASIS),
     );
+    build_shadow(
+        tree,
+        seq,
+        HEPTA_CENTER_X_PX,
+        HEPTA_SIZE_PX,
+        7.0,
+        0.3,
+        SPIN_ROTATION,
+        SPIN_DELAY,
+        SPIN_IN,
+    );
 
     tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
         build_github_and_line(&mut tree, router, hepta);
@@ -163,6 +290,16 @@ fn build_github_and_line(tree: &mut Tree, router: Entity, hepta: Entity) {
             .start(0)
             .finish(GITHUB_FADE)
             .eased(Ease::DECELERATE),
+    );
+    build_label(
+        tree,
+        seq,
+        HEPTA_CENTER_X_PX,
+        HEPTA_SIZE_PX,
+        LABEL_WIDTH_PX,
+        "github",
+        0,
+        GITHUB_FADE,
     );
 
     let line_start = anchor()
@@ -203,6 +340,22 @@ fn build_controls(tree: &mut Tree, router: Entity) {
         IconHandles::Menu,
         1,
         HEXA_STAGGER,
+    );
+    // One combined label, not one per control -- Home and ToC sit close enough together
+    // (see `TOC_CENTER_X_PX`'s doc) that two separate `LABEL_WIDTH_PX`-wide labels, one
+    // per shape, overlapped each other. Timed off ToC's own landing (the later of the
+    // two, `HEXA_STAGGER` behind Home's) so it appears once both are actually settled.
+    let controls_land = HEXA_STAGGER + CONTROL_MORPH_DELAY + CONTROL_MORPH + ICON_FADE_IN;
+    let seq = tree.sequence();
+    build_label(
+        tree,
+        seq,
+        (HOME_CENTER_X_PX + TOC_CENTER_X_PX) / 2,
+        CONTROL_SIZE_PX,
+        COMBINED_LABEL_WIDTH_PX,
+        "home|contents",
+        controls_land,
+        ICON_FADE_IN,
     );
 }
 
@@ -257,6 +410,17 @@ fn build_control(
         .start(stagger + CONTROL_MORPH_DELAY)
         .finish(stagger + CONTROL_MORPH_DELAY + CONTROL_MORPH)
         .eased(Ease::EMPHASIS),
+    );
+    build_shadow(
+        tree,
+        seq,
+        center_x_px,
+        CONTROL_SIZE_PX,
+        6.0,
+        0.25,
+        SPIN_ROTATION,
+        stagger + CONTROL_MORPH_DELAY,
+        CONTROL_MORPH,
     );
 
     tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
