@@ -187,7 +187,7 @@ fn heptagon_chain_color(i: usize) -> Color {
     )
 }
 
-fn draw_heptagon(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
+fn draw_heptagon(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity, start: u64) {
     for i in 0..HEPTAGON_CHAIN_LEN {
         let (dx, dy) = heptagon_arc_offset(i);
         let shrink = HEPTAGON_SHRINK.powi(i as i32);
@@ -195,7 +195,8 @@ fn draw_heptagon(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
         let height_scale = HEPTAGON_HEIGHT_SCALE * shrink;
         let morph_start = start + i as u64 * HEPTAGON_CHAIN_LAG;
 
-        let heptagon = tree.leaf(
+        let heptagon = tree.branch(
+            parent,
             Polygon::new()
                 .sides(3.0)
                 .rounding(0.0)
@@ -260,14 +261,21 @@ fn draw_heptagon(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
 /// second, quieter type-in reveals `SUBTITLE_TEXT` directly under it, same `Anchor`.
 /// Returns the time the subtitle's own last letter finishes revealing, so callers can
 /// sequence anything that should wait for this whole effect to finish first.
-fn draw_line_and_subtitle(tree: &mut Tree, field: Entity, seq: Entity, start: u64) -> u64 {
+fn draw_line_and_subtitle(
+    tree: &mut Tree,
+    parent: Entity,
+    field: Entity,
+    seq: Entity,
+    start: u64,
+) -> u64 {
     let center_x = anchor().center_x().as_x();
     let line_y = anchor().bottom().as_y().adjust(LINE_UNDER_GAP);
     let center_point = center_x.with(line_y);
     let left_point = center_x.adjust(-LINE_HALF_WIDTH).with(line_y);
     let right_point = center_x.adjust(LINE_HALF_WIDTH).with(line_y);
 
-    let line = tree.leaf(
+    let line = tree.branch(
+        parent,
         Line::new(LINE_WEIGHT)
             .color(Color::stone(600))
             .at(Location::new().xs(center_point, center_point))
@@ -284,7 +292,8 @@ fn draw_line_and_subtitle(tree: &mut Tree, field: Entity, seq: Entity, start: u6
     );
 
     let subtitle_grid = Grid::new(1.letters().gap(SUBTITLE_CELL_GAP_PX), 1.letters());
-    let subtitle_field = tree.leaf(
+    let subtitle_field = tree.branch(
+        parent,
         Leaf::sprout()
             .at(Location::new().xs(
                 anchor().center_x().as_center_x().with(
@@ -372,7 +381,7 @@ const DOCS_GAP_FROM_FIELD_BOTTOM: i32 = 90; // px -- clears the line + subtitle 
 const DOCS_MORPH_DURATION: u64 = 700;
 const DOCS_START_GAP: u64 = 400; // ms after the subtitle finishes before the Docs link appears
 
-fn draw_docs_button(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
+fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity, start: u64) {
     let group_width = DOCS_BTN_PX + DOCS_LABEL_GAP_PX + DOCS_LABEL_WIDTH_PX;
     let icon_offset = -(group_width / 2);
     let label_offset = icon_offset + DOCS_BTN_PX + DOCS_LABEL_GAP_PX;
@@ -395,7 +404,8 @@ fn draw_docs_button(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
             .with(DOCS_BTN_PX.px().as_height()),
     );
 
-    let shadow = tree.leaf(
+    let shadow = tree.branch(
+        parent,
         Polygon::new()
             .sides(3.0)
             .rounding(0.0)
@@ -426,7 +436,8 @@ fn draw_docs_button(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
         .eased(Ease::DECELERATE),
     );
 
-    let docs_btn = tree.leaf(
+    let docs_btn = tree.branch(
+        parent,
         Polygon::new()
             .sides(3.0)
             .rounding(0.0)
@@ -462,7 +473,8 @@ fn draw_docs_button(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
         .eased(Ease::DECELERATE),
     );
 
-    let icon = tree.leaf(
+    let icon = tree.branch(
+        parent,
         Icon::new(IconHandles::BookOpen)
             .color(Color::gray(950))
             .at(Location::new().xs(
@@ -491,7 +503,8 @@ fn draw_docs_button(tree: &mut Tree, field: Entity, seq: Entity, start: u64) {
             .eased(Ease::Linear),
     );
 
-    let docs_label = tree.leaf(
+    let docs_label = tree.branch(
+        parent,
         Text::new("docs")
             .size(FontSize::new(DOCS_FONT_SIZE))
             .color(Color::stone(500))
@@ -550,7 +563,7 @@ pub fn type_in(tree: &mut Tree, parent: Entity, seq: Entity, start: u64) {
             .with((grid, FontSize::new(FONT_SIZE))),
     );
 
-    draw_heptagon(tree, field, seq, start);
+    draw_heptagon(tree, parent, field, seq, start);
 
     let cursor = tree.branch(
         field,
@@ -608,8 +621,8 @@ pub fn type_in(tree: &mut Tree, parent: Entity, seq: Entity, start: u64) {
         );
     }
 
-    let subtitle_end = draw_line_and_subtitle(tree, field, seq, letter_time + REVEAL_SNAP);
-    draw_docs_button(tree, field, seq, subtitle_end + DOCS_START_GAP);
+    let subtitle_end = draw_line_and_subtitle(tree, parent, field, seq, letter_time + REVEAL_SNAP);
+    draw_docs_button(tree, parent, field, seq, subtitle_end + DOCS_START_GAP);
 
     // cursor blink: a snapped on/off toggle at a steady cadence, running through the
     // whole typing pass and a while after it settles.

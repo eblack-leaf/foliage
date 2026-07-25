@@ -194,7 +194,16 @@ impl Location {
             tracing::trace!(entity = ?this, visible = auto_vis.visible, "location: resolve start");
             let stem = stems.get(this).unwrap();
             let (grid, view, context, stem_letters) = if let Some(id) = stem.id {
-                let val = grids.get(id).unwrap();
+                let val = grids.get(id).unwrap_or_else(|_| {
+                    panic!(
+                        "{this:?}'s `Location` resolves relative to its parent {id:?}, but \
+                        {id:?} has no `Grid` component -- ANY child with a `Location` needs its \
+                        parent to carry one, regardless of what values that `Location` actually \
+                        uses (e.g. spawn the parent `.with(Grid::new(1.col().gap(0), 1.row().gap(0)))` \
+                        for a plain single-cell grid, or a real column/row split if the parent \
+                        actually lays out multiple children)"
+                    )
+                });
                 let context = sections.get(id).unwrap();
                 let stem_letter_dims = if let Ok(fs) = font_sizes.get(id) {
                     font.character_block(fs.resolve(*layout).value)

@@ -83,7 +83,7 @@ fn percentage_of_parent_resolves_relative_to_the_parents_own_resolved_section() 
 }
 
 #[test]
-#[should_panic(expected = "QueryDoesNotMatch")]
+#[should_panic(expected = "has no `Grid` component")]
 fn a_grid_less_parent_panics_resolving_a_child_even_with_a_plain_px_location() {
     // the gap that slipped through above: it's tempting to read "a child anchored with
     // pct/col/row needs its parent's Grid" and assume plain-px children are exempt.
@@ -92,7 +92,9 @@ fn a_grid_less_parent_panics_resolving_a_child_even_with_a_plain_px_location() {
     // rather than a passing case on purpose: it documents a real, current sharp edge (an
     // easy mistake to make authoring a new composite, as `Polyline` did) rather than
     // silently working around it -- if this ever stops panicking, that's worth noticing,
-    // not something to quietly let this test start failing on.
+    // not something to quietly let this test start failing on. The message itself used to
+    // be a bare `QueryDoesNotMatch` (only recognizable from having hit it before); it now
+    // names the missing component and both entities involved directly.
     let mut foliage = Foliage::new();
     let parent = foliage
         .world

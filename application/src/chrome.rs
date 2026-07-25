@@ -1,4 +1,6 @@
 use crate::icons::IconHandles;
+use crate::navigator::Landed;
+use foliage::bevy_ecs::lifecycle::Insert;
 use foliage::{
     Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, GridExt,
     HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape,
@@ -390,6 +392,13 @@ fn build_control(
             )),
     );
     tree.disable(shape);
+    // Enabled only once the navigator's own first landing is done, not just this
+    // control's own (much quicker) local morph-in -- otherwise it's clickable, and can
+    // navigate away, while the navigator/home's own intro is still actively animating,
+    // which visibly competes with (and can orphan) that in-flight content.
+    tree.react::<Landed, _>(router, move |_: Trigger<Insert, Landed>, mut tree: Tree| {
+        tree.enable(shape);
+    });
 
     tree.animate(
         Animation::new(Opacity::new(1.0))
@@ -434,7 +443,6 @@ fn build_control(
                 .finish(ICON_FADE_IN)
                 .eased(Ease::DECELERATE),
         );
-        tree.enable(shape);
     });
 
     tree.on_click(
