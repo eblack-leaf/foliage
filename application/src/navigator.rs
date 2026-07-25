@@ -1,10 +1,11 @@
 use crate::icons::IconHandles;
 use foliage::bevy_ecs::query::With;
 use foliage::{
-    Anchor, Animation, Branch, Color, Ease, EcsExtension, Elevation, Entity, GridExt, Icon,
-    IconValue, InteractionListener, InteractionPropagation, InteractionShape, Line, Location,
-    OnClick, OnEnd, Opacity, PageChanged, PageCount, PageIndex, Polygon, Query, Router,
-    RouterHandle, Sprout, Tree, Trigger, ValueDescriptor, anchor, component, targeted_event,
+    Anchor, Animation, Branch, Color, Ease, EcsExtension, Elevation, Entity, FontSize, GridExt,
+    HorizontalAlignment, Icon, IconValue, InteractionListener, InteractionPropagation,
+    InteractionShape, Line, Location, OnClick, OnEnd, Opacity, PageChanged, PageCount, PageIndex,
+    Polygon, Query, Router, RouterHandle, Sprout, Text, TextValue, Tree, Trigger, ValueDescriptor,
+    anchor, component, targeted_event,
 };
 use std::f32::consts::PI;
 
@@ -129,6 +130,21 @@ const BACK_FADE: u64 = 500;
 /// "disabled," not "gone," and means the lines connecting them never have to change.
 const MUTED_OPACITY: f32 = 0.3;
 
+/// One page name per route index, in the same order `entry.rs` registers them in
+/// `RouterRoutes::new([home, toc, next, third])` -- otherwise a first-time visitor has
+/// no reason to expect the navigator does anything beyond decoration, and might go
+/// straight for the Docs button's `.md` docs without ever discovering the in-app pages.
+/// `forward_label`/`back_label` show whichever of these is next/previous, live, on every
+/// route (not just home) -- built here (not `home.rs`) specifically so they can be real
+/// `Anchor`s to `forward`/`back`, which are already in scope at this exact point, so
+/// there's no need to guess their position or thread them through `NavigatorLanded`
+/// (fired at every route landing, not just once).
+const PAGE_NAMES: [&str; 4] = ["home", "contents", "next", "third"];
+const LABEL_FONT_SIZE: u32 = 16; // bigger than chrome.rs's own label font (12)
+const LABEL_GAP_PX: i32 = 10; // px above each polygon's own top edge
+const LABEL_WIDTH_PX: i32 = 100; // was 70 -- clipped the trailing "s" off "contents", the longest of PAGE_NAMES
+const LABEL_HEIGHT_PX: i32 = 18;
+
 /// sides/rounding at each morph stage, continuing on from the starting triangle (3) --
 /// stops at a heptagon, well short of circle-ish, so the polygon-ness stays legible.
 const STAGES: &[(f32, f32)] = &[
@@ -245,9 +261,11 @@ struct Nav {
     router: Entity,
     forward: Entity,
     forward_icon: Entity,
+    forward_label: Entity,
     shadows: [Entity; 2],
     back: Entity,
     back_icon: Entity,
+    back_label: Entity,
     lines: [Entity; 2], // [left, right]
 }
 
@@ -266,6 +284,31 @@ fn icon_bundle(target: Entity) -> impl foliage::Sprout {
         ))
         .elevate(Elevation::up(11))
         .with((
+            Anchor::new(target),
+            Opacity::new(0.0),
+            InteractionPropagation::pass_through(),
+        ))
+}
+
+/// `text` starts as whatever the initial page-name label should be; `reconcile` keeps it
+/// live afterward via `TextValue` writes as the current page changes. Sits `LABEL_GAP_PX`
+/// above `target`'s own top edge, centered on it -- same "anchored, not guessed"
+/// reasoning as `icon_bundle`.
+fn label_bundle(target: Entity, text: &str) -> impl foliage::Sprout {
+    let label_bottom = anchor().top().as_bottom().adjust(-LABEL_GAP_PX);
+    Text::new(text)
+        .size(FontSize::new(LABEL_FONT_SIZE))
+        .color(Color::stone(500))
+        .at(Location::new().xs(
+            anchor()
+                .center_x()
+                .as_center_x()
+                .with(LABEL_WIDTH_PX.px().as_width()),
+            label_bottom.with(LABEL_HEIGHT_PX.px().as_height()),
+        ))
+        .elevate(Elevation::up(11))
+        .with((
+            HorizontalAlignment::Center,
             Anchor::new(target),
             Opacity::new(0.0),
             InteractionPropagation::pass_through(),
@@ -763,13 +806,39 @@ fn build_icons(
                 );
             }
 
+            // Index 0's own initial state, mirroring `back`/`back_icon`'s own
+            // immediate-forward/staggered-muted-back split just above -- `reconcile`
+            // only runs on later `PageChanged`s, so this first landing needs its own
+            // correct starting point (has_forward, no back yet) set by hand.
+            let forward_label = tree.leaf(label_bundle(forward, PAGE_NAMES[1]));
+            let back_label = tree.leaf(label_bundle(back, ""));
+            let labels_seq = tree.sequence();
+            tree.animate(
+                Animation::new(Opacity::new(1.0))
+                    .targeting(forward_label)
+                    .during(labels_seq)
+                    .start(0)
+                    .finish(ICON_FADE)
+                    .eased(Ease::DECELERATE),
+            );
+            tree.animate(
+                Animation::new(Opacity::new(MUTED_OPACITY))
+                    .targeting(back_label)
+                    .during(labels_seq)
+                    .start(BACK_STAGGER)
+                    .finish(BACK_STAGGER + BACK_FADE)
+                    .eased(Ease::DECELERATE),
+            );
+
             let nav = Nav {
                 router,
                 forward,
                 forward_icon,
+                forward_label,
                 shadows,
                 back,
                 back_icon,
+                back_label,
                 lines,
             };
             tree.on_click(
@@ -1088,7 +1157,7 @@ fn reconcile(tree: &mut Tree, nav: Nav, index: usize, count: usize) {
     } else {
         tree.disable(nav.back);
     }
-    for target in [nav.back, nav.back_icon] {
+    for target in [nav.back, nav.back_icon, nav.back_label] {
         tree.animate(
             Animation::new(Opacity::new(back_opacity))
                 .targeting(target)
@@ -1098,6 +1167,14 @@ fn reconcile(tree: &mut Tree, nav: Nav, index: usize, count: usize) {
                 .eased(Ease::DECELERATE),
         );
     }
+    tree.write_to(
+        nav.back_label,
+        TextValue(if has_back {
+            PAGE_NAMES[index - 1].to_string()
+        } else {
+            String::new()
+        }),
+    );
 
     let forward_opacity = if has_forward { 1.0 } else { MUTED_OPACITY };
     if has_forward {
@@ -1108,6 +1185,7 @@ fn reconcile(tree: &mut Tree, nav: Nav, index: usize, count: usize) {
     for target in [
         nav.forward,
         nav.forward_icon,
+        nav.forward_label,
         nav.shadows[0],
         nav.shadows[1],
     ] {
@@ -1120,6 +1198,14 @@ fn reconcile(tree: &mut Tree, nav: Nav, index: usize, count: usize) {
                 .eased(Ease::DECELERATE),
         );
     }
+    tree.write_to(
+        nav.forward_label,
+        TextValue(if has_forward {
+            PAGE_NAMES[index + 1].to_string()
+        } else {
+            String::new()
+        }),
+    );
     // `forward`'s icon is the one that changes meaning: the original `Terminal` glyph
     // when it's alone (nothing to go back to yet), `SkipRight` once `back` exists too.
     let forward_icon = if has_back {
