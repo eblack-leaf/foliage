@@ -5,17 +5,17 @@ use foliage::{
 
 const FADE_IN: u64 = 400;
 
-/// Placeholder second route -- just enough to see the navigator's transition land
-/// somewhere real: a static hexagon, fading in, centered where the intro scene's
-/// polygon started.
-pub fn next(tree: &mut Tree, slot: Entity) {
+/// Chapter 5: a component as a tweenable value -- interpolating from its current value
+/// to a target over time. Placeholder shape only; the real infographic for this concept
+/// lands later.
+pub fn build(tree: &mut Tree, slot: Entity) {
     let seq = tree.sequence();
     let panel = tree.branch(
         slot,
         Polygon::new()
-            .sides(6.0)
+            .sides(7.0)
             .rounding(0.2)
-            .color(Color::teal(400))
+            .color(Color::orange(400))
             .at(Location::new().xs(
                 35.pct().as_left().with(30.pct().as_width()),
                 20.pct().as_top().with(20.pct().as_height()),

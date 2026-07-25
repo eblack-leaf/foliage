@@ -81,20 +81,7 @@ impl Animate for Polygon {
             self.rounding = rounding;
         }
         if let Some(rotation) = interpolations.read(2) {
-            // Normalized here, not left to grow -- callers routinely animate "current +
-            // one more turn" (a click-spin, a re-triggered continuous spin) rather than
-            // a fixed absolute target, since a fixed target only visibly moves once, so
-            // `rotation` only ever grows across a session with that pattern. Safe to
-            // normalize post-hoc: `interpolations` captured its own start/end once at
-            // animation setup and computes each frame's raw value from that, independent
-            // of whatever this write does to `self.rotation` afterward, so this can't
-            // introduce a mid-tween jump. The *next* animation reads its own `start` from
-            // this (now-normalized) live value, so "current + delta" still produces the
-            // exact same visible motion, just off a small number instead of an
-            // ever-growing one. `rem_euclid`, not `%` -- `%` on a negative value (a
-            // counter-clockwise delta) returns a negative remainder in Rust, not a
-            // canonical angle.
-            self.rotation = rotation.rem_euclid(2.0 * std::f32::consts::PI);
+            self.rotation = rotation;
         }
     }
 }

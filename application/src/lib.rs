@@ -1,13 +1,12 @@
 use foliage::Foliage;
 
+mod chapters;
 mod chrome;
 mod entry;
 mod home;
 #[path = "assets/icons/gen/generated.rs"]
 mod icons;
 mod navigator;
-mod next;
-mod third;
 mod toc;
 mod type_in;
 

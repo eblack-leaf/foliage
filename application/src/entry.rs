@@ -1,8 +1,7 @@
+use crate::chapters;
 use crate::chrome;
 use crate::home::home;
 use crate::navigator;
-use crate::next::next;
-use crate::third::third;
 use crate::toc::toc;
 use foliage::{
     EcsExtension, Elevation, Entity, Foliage, GridExt, Location, Router, RouterRoutes, Sprout,
@@ -26,8 +25,15 @@ pub fn build(foliage: &mut Foliage) {
             .routes(RouterRoutes::new([
                 home as fn(&mut Tree, Entity),
                 toc as fn(&mut Tree, Entity),
-                next as fn(&mut Tree, Entity),
-                third as fn(&mut Tree, Entity),
+                chapters::entity::build as fn(&mut Tree, Entity),
+                chapters::location::build as fn(&mut Tree, Entity),
+                chapters::grid::build as fn(&mut Tree, Entity),
+                chapters::anchor::build as fn(&mut Tree, Entity),
+                chapters::animate::build as fn(&mut Tree, Entity),
+                chapters::sequence::build as fn(&mut Tree, Entity),
+                chapters::interact::build as fn(&mut Tree, Entity),
+                chapters::sprout::build as fn(&mut Tree, Entity),
+                chapters::composite::build as fn(&mut Tree, Entity),
             ]))
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
