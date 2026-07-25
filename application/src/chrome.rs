@@ -41,6 +41,14 @@ const SPIN_IN: u64 = 700;
 /// not a fixed shape rotating in place, which barely reads as motion regardless of amount.
 const SPIN_ROTATION: f32 = std::f32::consts::PI * 2.0;
 
+/// Home/ToC's own click feedback: one more quick turn, added onto whatever the shape's
+/// own rotation currently is (not a fixed absolute value -- every click after the first
+/// needs to add another turn on top of the last one, not target the same spot again),
+/// then (only once that finishes) the actual page switch -- not github, which navigates
+/// out of the app entirely and would never be seen.
+const CLICK_SPIN_DURATION: u64 = 400;
+const CLICK_SPIN_ROTATION: f32 = std::f32::consts::PI * 2.0;
+
 const GITHUB_FADE: u64 = 400;
 const LINE_WEIGHT: i32 = 2;
 const LINE_DRAW: u64 = 500;
@@ -447,16 +455,42 @@ fn build_control(
 
     tree.on_click(
         shape,
-        move |_: Trigger<OnClick>, page_index: Query<&PageIndex>, mut tree: Tree| {
+        move |_: Trigger<OnClick>,
+              page_index: Query<&PageIndex>,
+              polygons: Query<&Polygon>,
+              mut tree: Tree| {
             // Router's own no-op guard skips rebuilding the scene when the index doesn't
             // actually change, but it still fires `PageChanged` unconditionally -- which
             // (for index 0) re-triggers `NavigatorLanded`, restarting `home.rs`'s type-in
             // animation from scratch even though nothing really changed. Guard here too,
             // so clicking Home while already on Home is a genuine no-op.
             if page_index.get(router).map(|p| p.0) != Ok(target_page) {
-                // direct jump, no ceremony -- distinct on purpose from the inner-site
-                // navigator's whole spin/hop/redraw transition.
-                tree.write_to(router, PageIndex(target_page));
+                // one quick extra turn as click feedback, THEN the actual jump -- not
+                // github's own click (see `CLICK_SPIN_ROTATION`'s doc), which navigates
+                // out of the app and would never see it anyway. Added onto whatever the
+                // shape's *current* rotation actually is, not a fixed absolute target --
+                // a fixed target only visibly spins once; every click after the first
+                // would already be sitting exactly on that value, animating to itself.
+                let current_rotation = polygons.get(shape).unwrap().rotation;
+                let spin_seq = tree.sequence();
+                tree.animate(
+                    Animation::new(Polygon {
+                        sides: 6.0,
+                        rounding: 0.25,
+                        rotation: current_rotation + CLICK_SPIN_ROTATION,
+                    })
+                    .targeting(shape)
+                    .during(spin_seq)
+                    .start(0)
+                    .finish(CLICK_SPIN_DURATION)
+                    .eased(Ease::EMPHASIS),
+                );
+                tree.sequence_end(spin_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
+                    // direct jump, no ceremony beyond the spin above -- distinct on
+                    // purpose from the inner-site navigator's whole spin/hop/redraw
+                    // transition.
+                    tree.write_to(router, PageIndex(target_page));
+                });
             }
         },
     );

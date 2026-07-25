@@ -5,8 +5,20 @@ use crate::next::next;
 use crate::third::third;
 use crate::toc::toc;
 use foliage::{
-    EcsExtension, Elevation, Entity, Foliage, GridExt, Location, Router, RouterRoutes, Sprout, Tree,
+    EcsExtension, Elevation, Entity, Foliage, GridExt, Location, Router, RouterRoutes, Sprout,
+    Tree, component,
 };
+
+/// Tags the app's one-and-only `Router` entity explicitly, so anywhere that needs to
+/// find it (e.g. a route function that only gets its own `slot`, not `router`, since
+/// `RouteFn = fn(&mut Tree, Entity)` has no room for a third parameter) can
+/// `Query<Entity, With<AppRouter>>` instead of `Query<Entity, With<Router>>` -- `Router`
+/// itself is just "this entity is *a* router" (a `foliage_proper` type, could in
+/// principle describe more than one), where `AppRouter` means specifically "the one this
+/// app actually built."
+#[component]
+#[derive(Copy, Clone)]
+pub(crate) struct AppRouter;
 
 pub fn build(foliage: &mut Foliage) {
     let router = foliage.world.leaf(
@@ -21,7 +33,8 @@ pub fn build(foliage: &mut Foliage) {
                 0.pct().as_left().with(100.pct().as_right()),
                 0.pct().as_top().with(100.pct().as_bottom()),
             ))
-            .elevate(Elevation::up(1)),
+            .elevate(Elevation::up(1))
+            .with(AppRouter),
     );
 
     // outside the router's subtree on purpose -- it survives every route switch and
