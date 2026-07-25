@@ -185,9 +185,11 @@ mod tests {
     #[test]
     fn a_newer_animation_supersedes_an_older_one_on_the_same_entity() {
         let mut foliage = Foliage::new();
-        let entity = foliage
-            .world
-            .leaf(Leaf::sprout().elevate(Elevation::up(1)).with(Opacity::new(0.0)));
+        let entity = foliage.world.leaf(
+            Leaf::sprout()
+                .elevate(Elevation::up(1))
+                .with(Opacity::new(0.0)),
+        );
         foliage.world.flush();
 
         let fade_in_seq = foliage.world.sequence();
@@ -206,7 +208,10 @@ mod tests {
         foliage.main.run(&mut foliage.world);
         foliage.world.flush();
         assert!(
-            foliage.world.get::<AnimationRunner<Opacity>>(fade_in).is_some(),
+            foliage
+                .world
+                .get::<AnimationRunner<Opacity>>(fade_in)
+                .is_some(),
             "fade-in should still be alive and mid-flight"
         );
 
@@ -227,11 +232,17 @@ mod tests {
         foliage.world.flush();
 
         assert!(
-            foliage.world.get::<AnimationRunner<Opacity>>(fade_in).is_none(),
+            foliage
+                .world
+                .get::<AnimationRunner<Opacity>>(fade_in)
+                .is_none(),
             "the older fade-in should have been superseded and torn down"
         );
         assert!(
-            foliage.world.get::<AnimationRunner<Opacity>>(fade_out).is_some(),
+            foliage
+                .world
+                .get::<AnimationRunner<Opacity>>(fade_out)
+                .is_some(),
             "the newer fade-out should still be driving the entity"
         );
 
@@ -256,9 +267,11 @@ mod tests {
     #[test]
     fn a_staggered_batch_of_animations_on_the_same_entity_all_get_their_turn() {
         let mut foliage = Foliage::new();
-        let entity = foliage
-            .world
-            .leaf(Leaf::sprout().elevate(Elevation::up(1)).with(Opacity::new(0.0)));
+        let entity = foliage.world.leaf(
+            Leaf::sprout()
+                .elevate(Elevation::up(1))
+                .with(Opacity::new(0.0)),
+        );
         foliage.world.flush();
 
         let seq = foliage.world.sequence();

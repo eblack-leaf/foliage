@@ -1119,8 +1119,13 @@ mod tests {
         let dependent = foliage.world.leaf(
             Leaf::sprout()
                 .at(Location::new().xs(
-                    (anchor().width() * 0.5).as_width().with(anchor().center_x().as_right()),
-                    anchor().center_y().as_top().with((anchor().height() * 0.5).as_height()),
+                    (anchor().width() * 0.5)
+                        .as_width()
+                        .with(anchor().center_x().as_right()),
+                    anchor()
+                        .center_y()
+                        .as_top()
+                        .with((anchor().height() * 0.5).as_height()),
                 ))
                 .elevate(Elevation::up(1))
                 .with(Anchor::new(target)),
@@ -1128,8 +1133,16 @@ mod tests {
         foliage.world.flush();
 
         let section = *foliage.world.get::<Section<Logical>>(dependent).unwrap();
-        assert_eq!(section.width(), 40.0, "width should be 0.5 * target's 80px width");
-        assert_eq!(section.height(), 40.0, "height should be 0.5 * target's 80px height");
+        assert_eq!(
+            section.width(),
+            40.0,
+            "width should be 0.5 * target's 80px width"
+        );
+        assert_eq!(
+            section.height(),
+            40.0,
+            "height should be 0.5 * target's 80px height"
+        );
         assert_eq!(
             section.left(),
             100.0,
@@ -1179,8 +1192,16 @@ mod tests {
         foliage.world.flush();
 
         let initial = *foliage.world.get::<Points<Logical>>(line).unwrap();
-        assert_eq!(initial.data[0].top(), row, "spawn point should sit at the fixed row");
-        assert_eq!(initial.data[1].top(), row, "spawn point should sit at the fixed row");
+        assert_eq!(
+            initial.data[0].top(),
+            row,
+            "spawn point should sit at the fixed row"
+        );
+        assert_eq!(
+            initial.data[1].top(),
+            row,
+            "spawn point should sit at the fixed row"
+        );
 
         let seq = foliage.world.sequence();
         foliage.world.animate(
@@ -1266,7 +1287,10 @@ mod tests {
         foliage.main.run(&mut foliage.world);
         foliage.world.flush();
         let pts = *foliage.world.get::<Points<Logical>>(line).unwrap();
-        println!("tick 0 (stationary target): line row = {}", pts.data[0].top());
+        println!(
+            "tick 0 (stationary target): line row = {}",
+            pts.data[0].top()
+        );
         assert!(
             pts.data[0].top() < 200.0,
             "line row {} should still be close to start_row (30), not already near end_row (300)",

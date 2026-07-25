@@ -1,4 +1,7 @@
-use foliage::{Animation, Color, Ease, EcsExtension, Elevation, Entity, GridExt, Location, Opacity, Polygon, Sprout, Tree};
+use foliage::{
+    Animation, Color, Ease, EcsExtension, Elevation, Entity, GridExt, Location, Opacity, Polygon,
+    Sprout, Tree,
+};
 
 const FADE_IN: u64 = 400;
 

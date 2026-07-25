@@ -55,6 +55,16 @@ impl Router {
             route: 0,
         }
     }
+    /// The entity currently holding this router's built route content -- e.g. to fade it
+    /// out before navigating away, or to target something at whatever's currently showing.
+    /// `None` if `router` isn't a `Router`, or hasn't built a route yet (true only in the
+    /// brief window between `Router` being spawned and its `RouterRoutes`/`PageIndex`
+    /// structure reaction actually running) -- callers that know that can't happen for
+    /// their own usage can `.expect(...)` it themselves; the library doesn't get to
+    /// decide that's always safe to assume for every caller.
+    pub fn slot(router: Entity, handles: &Query<&RouterHandle>) -> Option<Entity> {
+        handles.get(router).ok()?.built.map(|(_, slot)| slot)
+    }
 }
 
 /// The route set, rewritten as one unit (config writes ARE the re-render API, same as
@@ -67,9 +77,12 @@ impl RouterRoutes {
     }
 }
 
-/// Private registry: which route index is currently built, and the slot holding it.
+/// Which route index is currently built, and the slot holding it -- the router's own
+/// authoritative record. `built` stays private (no public setter, no `&mut` access route)
+/// so only this module's own reactions can ever write it; the type itself is exported
+/// only so `Query<&RouterHandle>` type-checks for callers of [`Router::slot`].
 #[derive(Component, Clone)]
-pub(crate) struct RouterHandle {
+pub struct RouterHandle {
     built: Option<(usize, Entity)>,
 }
 
@@ -169,7 +182,12 @@ impl Sprout for RouterSprout {
 
 /// One fresh full-size slot (the same transient-slot convention as every composite), with
 /// the route's builder run against it.
-fn build_route(tree: &mut Tree, root: Entity, routes: &RouterRoutes, index: usize) -> (usize, Entity) {
+fn build_route(
+    tree: &mut Tree,
+    root: Entity,
+    routes: &RouterRoutes,
+    index: usize,
+) -> (usize, Entity) {
     let slot = tree.branch(
         root,
         crate::Leaf::sprout()

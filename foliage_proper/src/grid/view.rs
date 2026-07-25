@@ -326,7 +326,11 @@ mod tests {
             last_tick: Some(Moment::now() - TimeDelta::from_millis(50)),
         };
         let (multiplier, _) = momentum.tick();
-        assert_eq!(multiplier, ScrollMomentum::MAX, "growth should clamp at MAX, not overshoot it");
+        assert_eq!(
+            multiplier,
+            ScrollMomentum::MAX,
+            "growth should clamp at MAX, not overshoot it"
+        );
     }
 
     #[test]
@@ -337,6 +341,9 @@ mod tests {
         // simulate the next tick arriving well within the window, without a real sleep
         momentum.last_tick = Some(Moment::now() - TimeDelta::from_millis(50));
         let (second, _) = momentum.tick();
-        assert!(second > first, "a second fast tick should ramp higher than the first");
+        assert!(
+            second > first,
+            "a second fast tick should ramp higher than the first"
+        );
     }
 }

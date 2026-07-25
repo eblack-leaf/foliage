@@ -9,7 +9,9 @@
 //! unreachable from this external integration-test crate, so there's no way to set up a
 //! resolvable viewport from out here. This file only checks structure.
 
-use foliage_proper::{Card, EcsExtension, Elevation, Entity, Foliage, GridExt, Leaf, Location, Sprout, Stem};
+use foliage_proper::{
+    Card, EcsExtension, Elevation, Entity, Foliage, GridExt, Leaf, Location, Sprout, Stem,
+};
 
 fn children_of(foliage: &mut Foliage, parent: Entity) -> Vec<Entity> {
     let mut q = foliage.world.query::<(Entity, &Stem)>();
@@ -22,9 +24,7 @@ fn children_of(foliage: &mut Foliage, parent: Entity) -> Vec<Entity> {
 fn leaf_child(tree: &mut foliage_proper::Tree, slot: Entity) -> Entity {
     tree.branch(
         slot,
-        Leaf::sprout()
-            .at(Location::new())
-            .elevate(Elevation::up(1)),
+        Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
     )
 }
 
@@ -110,7 +110,10 @@ fn removing_a_card_removes_its_whole_subtree() {
     let card = spawn_with_header_and_desc(&mut foliage);
     foliage.world.flush();
     let children = children_of(&mut foliage, card);
-    assert!(!children.is_empty(), "sanity: the card should have real children before removal");
+    assert!(
+        !children.is_empty(),
+        "sanity: the card should have real children before removal"
+    );
 
     foliage.world.remove(card);
     foliage.world.flush();

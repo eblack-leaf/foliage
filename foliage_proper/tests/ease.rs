@@ -17,11 +17,24 @@ fn every_bezier_ease_lands_exactly_on_its_endpoints() {
     // the cubic bezier formula's structure guarantees this regardless of control points --
     // worth pinning down explicitly, since every eased animation in the framework depends
     // on actually reaching 0% and 100%, not asymptotically approaching them.
-    for ease in [Ease::DECELERATE, Ease::ACCELERATE, Ease::EMPHASIS, Ease::INWARD] {
+    for ease in [
+        Ease::DECELERATE,
+        Ease::ACCELERATE,
+        Ease::EMPHASIS,
+        Ease::INWARD,
+    ] {
         let mut e = Easement::from(ease.clone());
-        assert!((e.percent_changed(0.0) - 0.0).abs() < 1e-6, "{:?} should start at 0", ease_name(&ease));
+        assert!(
+            (e.percent_changed(0.0) - 0.0).abs() < 1e-6,
+            "{:?} should start at 0",
+            ease_name(&ease)
+        );
         let mut e = Easement::from(ease.clone());
-        assert!((e.percent_changed(1.0) - 1.0).abs() < 1e-6, "{:?} should end at 1", ease_name(&ease));
+        assert!(
+            (e.percent_changed(1.0) - 1.0).abs() < 1e-6,
+            "{:?} should end at 1",
+            ease_name(&ease)
+        );
     }
 }
 

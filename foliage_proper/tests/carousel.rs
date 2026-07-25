@@ -3,13 +3,13 @@
 //! testable -- same boundary as `Slider`'s drag. What's testable: page-set structure,
 //! `PageIndex` patching (no respawn), and the embedded `Pagination`'s existence/absence.
 
+use bevy_ecs::observer::On;
+use bevy_ecs::system::ResMut;
+use foliage_proper::Resource;
 use foliage_proper::{
     Carousel, CarouselPages, Color, EcsExtension, Elevation, Entity, Foliage, GridExt, Leaf,
     Location, PageChanged, PageCount, PageIndex, Pagination, PaginationMode, Sprout, Stem,
 };
-use bevy_ecs::observer::On;
-use bevy_ecs::system::ResMut;
-use foliage_proper::Resource;
 
 fn children_of(foliage: &mut Foliage, parent: Entity) -> Vec<Entity> {
     let mut q = foliage.world.query::<(Entity, &Stem)>();
@@ -87,7 +87,10 @@ fn writing_page_index_fires_page_changed_and_does_not_respawn_slots() {
     assert_eq!(foliage.world.resource::<Last>().0, Some(2));
     let mut after = descendants_of(&mut foliage, carousel);
     after.sort();
-    assert_eq!(before, after, "a page change slides the strip -- it must not touch slot identity");
+    assert_eq!(
+        before, after,
+        "a page change slides the strip -- it must not touch slot identity"
+    );
 }
 
 #[test]
@@ -101,9 +104,7 @@ fn rewriting_carousel_pages_rebuilds_the_slot_set() {
         CarouselPages::new(5, |tree, slot, _i| {
             tree.branch(
                 slot,
-                Leaf::sprout()
-                    .at(Location::new())
-                    .elevate(Elevation::up(1)),
+                Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
             );
         }),
     );
@@ -130,9 +131,7 @@ fn configuring_pagination_embeds_one_and_keeps_its_page_count_in_sync() {
             .pages(CarouselPages::new(3, |tree, slot, _i| {
                 tree.branch(
                     slot,
-                    Leaf::sprout()
-                        .at(Location::new())
-                        .elevate(Elevation::up(1)),
+                    Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
                 );
             }))
             .pagination(PaginationMode::Dots)
@@ -151,5 +150,9 @@ fn configuring_pagination_embeds_one_and_keeps_its_page_count_in_sync() {
         .filter(|(e, _)| *e != carousel)
         .map(|(_, c)| c.0)
         .collect();
-    assert_eq!(pagination_counts, vec![3], "the embedded Pagination's own PageCount should mirror the carousel's");
+    assert_eq!(
+        pagination_counts,
+        vec![3],
+        "the embedded Pagination's own PageCount should mirror the carousel's"
+    );
 }

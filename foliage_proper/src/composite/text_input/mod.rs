@@ -2178,14 +2178,26 @@ mod tests {
     }
 
     fn type_char(foliage: &mut Foliage, this: Entity, c: char) {
-        press(foliage, this, Key::Character(c.to_string()), Modifiers::default());
+        press(
+            foliage,
+            this,
+            Key::Character(c.to_string()),
+            Modifiers::default(),
+        );
     }
 
-    fn set_cursor(foliage: &mut Foliage, this: Entity, location: GlyphOffset, column: u32, row: u32) {
-        foliage
-            .world
-            .entity_mut(this)
-            .insert(Cursor { location, column, row });
+    fn set_cursor(
+        foliage: &mut Foliage,
+        this: Entity,
+        location: GlyphOffset,
+        column: u32,
+        row: u32,
+    ) {
+        foliage.world.entity_mut(this).insert(Cursor {
+            location,
+            column,
+            row,
+        });
         foliage.world.flush();
     }
 
@@ -2216,8 +2228,14 @@ mod tests {
         press_enter(&mut foliage, this);
 
         let cursor = *foliage.world.get::<Cursor>(this).unwrap();
-        assert_eq!(cursor.row, 1, "the cursor should have dropped to the new (empty) line");
-        assert_eq!(cursor.column, 0, "the new line is empty -- cursor should be at its start");
+        assert_eq!(
+            cursor.row, 1,
+            "the cursor should have dropped to the new (empty) line"
+        );
+        assert_eq!(
+            cursor.column, 0,
+            "the new line is empty -- cursor should be at its start"
+        );
     }
 
     #[test]
@@ -2242,7 +2260,10 @@ mod tests {
         assert_eq!(cursor.row, 1);
         assert_eq!(cursor.column, 0);
         let text = foliage.world.get::<TextValue>(this).unwrap().0.clone();
-        assert_eq!(text, "hello\nworld", "the newline should have landed between the two words");
+        assert_eq!(
+            text, "hello\nworld",
+            "the newline should have landed between the two words"
+        );
     }
 
     #[test]
@@ -2269,7 +2290,10 @@ mod tests {
         press_enter(&mut foliage, this);
 
         let text = foliage.world.get::<TextValue>(this).unwrap().0.clone();
-        assert_eq!(text, "hello", "a single-line field should never gain a newline");
+        assert_eq!(
+            text, "hello",
+            "a single-line field should never gain a newline"
+        );
     }
 
     // ---------- typing / backspace / delete ----------
@@ -2284,7 +2308,10 @@ mod tests {
 
         assert_eq!(text_value(&mut foliage, this), "hello");
         let cursor = *foliage.world.get::<Cursor>(this).unwrap();
-        assert_eq!(cursor.location, 4, "cursor lands right after the inserted character");
+        assert_eq!(
+            cursor.location, 4,
+            "cursor lands right after the inserted character"
+        );
     }
 
     #[test]
@@ -2321,7 +2348,10 @@ mod tests {
 
         assert_eq!(text_value(&mut foliage, this), "ello");
         let cursor = *foliage.world.get::<Cursor>(this).unwrap();
-        assert_eq!(cursor.location, 0, "delete removes forward -- the cursor doesn't move");
+        assert_eq!(
+            cursor.location, 0,
+            "delete removes forward -- the cursor doesn't move"
+        );
     }
 
     #[test]
@@ -2383,7 +2413,12 @@ mod tests {
         let this = spawn_multiline(&mut foliage, "hello");
         set_cursor(&mut foliage, this, 0, 0, 0);
 
-        press(&mut foliage, this, Key::Character("a".to_string()), Modifiers::CONTROL);
+        press(
+            &mut foliage,
+            this,
+            Key::Character("a".to_string()),
+            Modifiers::CONTROL,
+        );
 
         let selection = foliage.world.get::<Selection>(this).unwrap();
         assert_eq!(selection.range, 0..5);
@@ -2399,7 +2434,11 @@ mod tests {
         press(&mut foliage, this, Key::ArrowRight, Modifiers::SHIFT);
 
         let selection = foliage.world.get::<Selection>(this).unwrap();
-        assert_eq!(selection.range, 0..2, "two shift-right presses should select the first two characters");
+        assert_eq!(
+            selection.range,
+            0..2,
+            "two shift-right presses should select the first two characters"
+        );
     }
 
     #[test]
@@ -2416,7 +2455,10 @@ mod tests {
         press(&mut foliage, this, Key::ArrowLeft, Modifiers::default());
 
         let selection = foliage.world.get::<Selection>(this).unwrap();
-        assert!(selection.range.is_empty(), "an unmodified arrow press should drop the selection");
+        assert!(
+            selection.range.is_empty(),
+            "an unmodified arrow press should drop the selection"
+        );
     }
 
     // ---------- cursor navigation ----------
@@ -2457,7 +2499,10 @@ mod tests {
         press(&mut foliage, this, Key::ArrowDown, Modifiers::default());
         let after_down = *foliage.world.get::<Cursor>(this).unwrap();
         assert_eq!(after_down.row, 1, "should have moved to the second line");
-        assert_eq!(after_down.column, 2, "column should be preserved across rows");
+        assert_eq!(
+            after_down.column, 2,
+            "column should be preserved across rows"
+        );
 
         press(&mut foliage, this, Key::ArrowUp, Modifiers::default());
         let after_up = *foliage.world.get::<Cursor>(this).unwrap();

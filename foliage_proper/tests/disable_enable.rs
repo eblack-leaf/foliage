@@ -8,8 +8,8 @@
 //! three times this session.
 
 use foliage_proper::{
-    Disable, EcsExtension, Elevation, Enable, Entity, Foliage, InteractionListener, Leaf,
-    Location, Sprout,
+    Disable, EcsExtension, Elevation, Enable, Entity, Foliage, InteractionListener, Leaf, Location,
+    Sprout,
 };
 
 fn disabled(foliage: &mut Foliage, entity: Entity) -> bool {
@@ -65,7 +65,10 @@ fn disabling_a_parent_cascades_to_an_already_spawned_childs_listener() {
     let parent = spawn_leaf(&mut foliage);
     let child = branch_leaf(&mut foliage, parent);
     foliage.world.flush();
-    assert!(!disabled(&mut foliage, child), "sanity: enabled before any change");
+    assert!(
+        !disabled(&mut foliage, child),
+        "sanity: enabled before any change"
+    );
 
     foliage.world.trigger_targets(Disable::new(), parent);
     foliage.world.flush();
@@ -89,7 +92,10 @@ fn disabling_a_parent_cascades_through_multiple_levels() {
     foliage.world.flush();
 
     assert!(disabled(&mut foliage, parent));
-    assert!(disabled(&mut foliage, child), "cascaded two levels down, not just one");
+    assert!(
+        disabled(&mut foliage, child),
+        "cascaded two levels down, not just one"
+    );
 }
 
 #[test]
@@ -101,12 +107,18 @@ fn enabling_a_previously_disabled_parent_restores_the_childs_enabled_state() {
 
     foliage.world.trigger_targets(Disable::new(), parent);
     foliage.world.flush();
-    assert!(disabled(&mut foliage, child), "sanity: disabled after the parent's Disable");
+    assert!(
+        disabled(&mut foliage, child),
+        "sanity: disabled after the parent's Disable"
+    );
 
     foliage.world.trigger_targets(Enable::new(), parent);
     foliage.world.flush();
 
-    assert!(!disabled(&mut foliage, child), "Enable should cascade the same way Disable did");
+    assert!(
+        !disabled(&mut foliage, child),
+        "Enable should cascade the same way Disable did"
+    );
 }
 
 #[test]
@@ -122,7 +134,10 @@ fn a_childs_own_disable_survives_the_parent_being_re_enabled() {
 
     foliage.world.trigger_targets(Disable::new(), child);
     foliage.world.flush();
-    assert!(disabled(&mut foliage, child), "sanity: the child disabled itself directly");
+    assert!(
+        disabled(&mut foliage, child),
+        "sanity: the child disabled itself directly"
+    );
 
     foliage.world.trigger_targets(Enable::new(), parent);
     foliage.world.flush();
@@ -146,5 +161,8 @@ fn disabling_a_child_directly_does_not_affect_its_sibling() {
     foliage.world.flush();
 
     assert!(disabled(&mut foliage, a));
-    assert!(!disabled(&mut foliage, b), "disabling one sibling directly shouldn't touch the other");
+    assert!(
+        !disabled(&mut foliage, b),
+        "disabling one sibling directly shouldn't touch the other"
+    );
 }

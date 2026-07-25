@@ -22,7 +22,10 @@ fn spawn(foliage: &mut Foliage, labels: &[&str]) -> Entity {
     foliage.world.leaf(
         Tabs::new()
             .pages(TabsPages::new(owned, |tree, slot, _i| {
-                tree.branch(slot, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+                tree.branch(
+                    slot,
+                    Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+                );
             }))
             .colors(Color::green(500), Color::gray(600), Color::default())
             .at(Location::new().xs(
@@ -39,7 +42,10 @@ fn spawn(foliage: &mut Foliage, labels: &[&str]) -> Entity {
 fn content_slots(foliage: &mut Foliage, root: Entity) -> Vec<Entity> {
     children_of(foliage, root)
         .into_iter()
-        .filter(|e| foliage.world.get::<Visibility>(*e).is_some() && foliage.world.get::<SegmentedControl>(*e).is_none())
+        .filter(|e| {
+            foliage.world.get::<Visibility>(*e).is_some()
+                && foliage.world.get::<SegmentedControl>(*e).is_none()
+        })
         .collect()
 }
 
@@ -55,7 +61,11 @@ fn spawning_builds_one_content_slot_per_label_with_only_the_current_one_visible(
         .iter()
         .map(|e| foliage.world.get::<Visibility>(*e).unwrap().visible())
         .collect();
-    assert_eq!(visible.iter().filter(|v| **v).count(), 1, "exactly one tab's content should start visible");
+    assert_eq!(
+        visible.iter().filter(|v| **v).count(),
+        1,
+        "exactly one tab's content should start visible"
+    );
 }
 
 #[test]
@@ -71,14 +81,21 @@ fn switching_pages_toggles_visibility_without_respawning_slots() {
 
     let mut after = content_slots(&mut foliage, tabs);
     after.sort();
-    assert_eq!(before, after, "switching tabs must not respawn content -- only Visibility should change");
+    assert_eq!(
+        before, after,
+        "switching tabs must not respawn content -- only Visibility should change"
+    );
 
     let now_visible: Vec<Entity> = after
         .iter()
         .filter(|e| foliage.world.get::<Visibility>(**e).unwrap().visible())
         .copied()
         .collect();
-    assert_eq!(now_visible.len(), 1, "still exactly one visible slot after switching");
+    assert_eq!(
+        now_visible.len(),
+        1,
+        "still exactly one visible slot after switching"
+    );
 }
 
 #[test]
@@ -117,7 +134,11 @@ fn the_header_is_a_real_segmented_control_kept_in_sync_with_page_index() {
     foliage.world.flush();
 
     assert_eq!(
-        foliage.world.get::<foliage_proper::SegmentedSelected>(header).unwrap().0,
+        foliage
+            .world
+            .get::<foliage_proper::SegmentedSelected>(header)
+            .unwrap()
+            .0,
         2,
         "the header's own selection should track PageIndex"
     );
@@ -132,7 +153,10 @@ fn rewriting_tabs_pages_matches_the_new_label_count() {
     foliage.write_to(
         tabs,
         TabsPages::new(vec!["A".into(), "B".into()], |tree, slot, _i| {
-            tree.branch(slot, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+            tree.branch(
+                slot,
+                Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+            );
         }),
     );
     foliage.world.flush();
@@ -153,7 +177,10 @@ fn switching_to_the_last_tab_after_shrinking_the_page_set_shows_a_real_slot() {
     foliage.write_to(
         tabs,
         TabsPages::new(vec!["A".into(), "B".into()], |tree, slot, _i| {
-            tree.branch(slot, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+            tree.branch(
+                slot,
+                Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+            );
         }),
     );
     foliage.world.flush();
@@ -167,5 +194,9 @@ fn switching_to_the_last_tab_after_shrinking_the_page_set_shows_a_real_slot() {
         .filter(|e| foliage.world.get::<Visibility>(**e).unwrap().visible())
         .copied()
         .collect();
-    assert_eq!(visible.len(), 1, "exactly one of the two real slots should be visible");
+    assert_eq!(
+        visible.len(),
+        1,
+        "exactly one of the two real slots should be visible"
+    );
 }

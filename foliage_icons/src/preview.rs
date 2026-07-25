@@ -37,7 +37,10 @@ pub fn render(icon: &Path, size: u32, px_range: f32, out: &Path) -> Result<(), S
     let mut img = image::GrayImage::new(size, size);
     for y in 0..size {
         for x in 0..size {
-            let (tx, ty) = ((x as f32 + 0.5) / size as f32, (y as f32 + 0.5) / size as f32);
+            let (tx, ty) = (
+                (x as f32 + 0.5) / size as f32,
+                (y as f32 + 0.5) / size as f32,
+            );
             let (r, g, b) = (sample(tx, ty, 0), sample(tx, ty, 1), sample(tx, ty, 2));
             let median = r.max(g.min(b)).min(r.min(g).max(b));
             let coverage = ((median - 0.5) * screen_px_range + 0.5).clamp(0.0, 1.0);
@@ -45,7 +48,8 @@ pub fn render(icon: &Path, size: u32, px_range: f32, out: &Path) -> Result<(), S
             img.put_pixel(x, y, image::Luma([255 - (coverage * 255.0).round() as u8]));
         }
     }
-    img.save(out).map_err(|e| format!("writing {}: {e}", out.display()))?;
+    img.save(out)
+        .map_err(|e| format!("writing {}: {e}", out.display()))?;
     println!("{} @ {size}px -> {}", icon.display(), out.display());
     Ok(())
 }

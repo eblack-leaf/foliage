@@ -157,7 +157,11 @@ mod tests {
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
         );
         foliage.world.flush();
-        assert_eq!(blended_of(&mut foliage, child), 1.0, "sanity: fully opaque before any change");
+        assert_eq!(
+            blended_of(&mut foliage, child),
+            1.0,
+            "sanity: fully opaque before any change"
+        );
 
         foliage.write_to(parent, Opacity::new(0.4));
         foliage.world.flush();

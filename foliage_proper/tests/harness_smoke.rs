@@ -26,8 +26,16 @@ fn a_bare_leaf_resolves_its_section_after_one_flush() {
         .world
         .get::<Section<Logical>>(leaf)
         .expect("Section<Logical> is required on every Leaf");
-    assert_eq!(section.left(), 10.0, "left should resolve from the authored Location, not stay at its zeroed default");
+    assert_eq!(
+        section.left(),
+        10.0,
+        "left should resolve from the authored Location, not stay at its zeroed default"
+    );
     assert_eq!(section.top(), 20.0);
-    assert_eq!(section.width(), 110.0, "as_left().with(110.px().as_width()) sets width directly to 110");
+    assert_eq!(
+        section.width(),
+        110.0,
+        "as_left().with(110.px().as_width()) sets width directly to 110"
+    );
     assert_eq!(section.height(), 220.0);
 }

@@ -4,7 +4,9 @@
 //! don't guarantee it *looks* right). Run with
 //! `cargo run --example opacity_and_elevation -p foliage`.
 
-use foliage::{Color, EcsExtension, Elevation, Foliage, Grid, GridExt, Location, Opacity, Panel, Sprout};
+use foliage::{
+    Color, EcsExtension, Elevation, Foliage, Grid, GridExt, Location, Opacity, Panel, Sprout,
+};
 
 fn main() {
     let mut foliage = Foliage::new();

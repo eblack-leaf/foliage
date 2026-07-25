@@ -51,7 +51,12 @@ fn dots_mode_produces_one_dot_per_page() {
     // no listener) -- 5 pages means 5 hit regions, 10 total Panel-shaped descendants.
     let hit_regions = descendants_of(&mut foliage, pagination)
         .iter()
-        .filter(|e| foliage.world.get::<foliage_proper::InteractionListener>(**e).is_some())
+        .filter(|e| {
+            foliage
+                .world
+                .get::<foliage_proper::InteractionListener>(**e)
+                .is_some()
+        })
         .count();
     assert_eq!(hit_regions, 5);
 }
@@ -77,7 +82,11 @@ fn writing_page_index_fires_page_changed_with_the_clamped_value() {
 
     foliage.write_to(pagination, PageIndex(999));
     foliage.world.flush();
-    assert_eq!(foliage.world.resource::<Last>().0, Some(4), "out-of-range should clamp to the last page, not panic");
+    assert_eq!(
+        foliage.world.resource::<Last>().0,
+        Some(4),
+        "out-of-range should clamp to the last page, not panic"
+    );
 }
 
 #[test]
@@ -93,7 +102,10 @@ fn a_page_change_does_not_respawn_the_indicator_entities() {
 
     let mut after = descendants_of(&mut foliage, pagination);
     after.sort();
-    assert_eq!(before, after, "PATCH recolors stable indicators -- no spawns, no removes");
+    assert_eq!(
+        before, after,
+        "PATCH recolors stable indicators -- no spawns, no removes"
+    );
 }
 
 #[test]
@@ -107,7 +119,12 @@ fn rewriting_page_count_rebuilds_the_indicator_set() {
 
     let hit_regions = descendants_of(&mut foliage, pagination)
         .iter()
-        .filter(|e| foliage.world.get::<foliage_proper::InteractionListener>(**e).is_some())
+        .filter(|e| {
+            foliage
+                .world
+                .get::<foliage_proper::InteractionListener>(**e)
+                .is_some()
+        })
         .count();
     assert_eq!(hit_regions, 2);
 }
@@ -129,9 +146,17 @@ fn numbered_mode_shows_at_most_five_slots_regardless_of_page_count() {
 
     let listeners = descendants_of(&mut foliage, pagination)
         .iter()
-        .filter(|e| foliage.world.get::<foliage_proper::InteractionListener>(**e).is_some())
+        .filter(|e| {
+            foliage
+                .world
+                .get::<foliage_proper::InteractionListener>(**e)
+                .is_some()
+        })
         .count();
-    assert_eq!(listeners, 5, "Numbered mode caps at a 5-slot sliding window even with 20 pages");
+    assert_eq!(
+        listeners, 5,
+        "Numbered mode caps at a 5-slot sliding window even with 20 pages"
+    );
 }
 
 #[test]
@@ -141,5 +166,8 @@ fn spawning_with_a_zero_style_writes_a_default_pagination_style() {
     foliage.world.flush();
 
     let style = foliage.world.get::<PaginationStyle>(pagination).unwrap();
-    assert!(matches!(style.mode, PaginationMode::Dots), "Dots is the documented default mode");
+    assert!(
+        matches!(style.mode, PaginationMode::Dots),
+        "Dots is the documented default mode"
+    );
 }

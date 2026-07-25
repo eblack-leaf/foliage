@@ -3,8 +3,8 @@
 use bevy_ecs::observer::On;
 use bevy_ecs::system::ResMut;
 use foliage_proper::{
-    Dropdown, DropdownOptions, EcsExtension, Elevation, Entity, Expanded, Foliage, GridExt,
-    List, Location, OnClick, Resource, Selected, SelectionChanged, Sprout, Stem, TextValue,
+    Dropdown, DropdownOptions, EcsExtension, Elevation, Entity, Expanded, Foliage, GridExt, List,
+    Location, OnClick, Resource, Selected, SelectionChanged, Sprout, Stem, TextValue,
 };
 
 fn children_of(foliage: &mut Foliage, parent: Entity) -> Vec<Entity> {

@@ -24,7 +24,10 @@ fn removing_a_parent_despawns_its_whole_descendant_chain() {
         Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
     );
     foliage.world.flush();
-    assert!(foliage.world.get_entity(child).is_ok(), "sanity: everything exists before removal");
+    assert!(
+        foliage.world.get_entity(child).is_ok(),
+        "sanity: everything exists before removal"
+    );
 
     foliage.world.remove(parent);
     foliage.world.flush();
@@ -33,8 +36,14 @@ fn removing_a_parent_despawns_its_whole_descendant_chain() {
         foliage.world.get_entity(grandparent).is_ok(),
         "the grandparent wasn't removed -- only its descendant was"
     );
-    assert!(foliage.world.get_entity(parent).is_err(), "the directly-removed entity is gone");
-    assert!(foliage.world.get_entity(child).is_err(), "cascaded one level down");
+    assert!(
+        foliage.world.get_entity(parent).is_err(),
+        "the directly-removed entity is gone"
+    );
+    assert!(
+        foliage.world.get_entity(child).is_err(),
+        "cascaded one level down"
+    );
     assert!(
         foliage.world.get_entity(grandchild).is_err(),
         "cascaded two levels down -- this is the actual point of the test, not just \
@@ -62,6 +71,9 @@ fn removing_a_leaf_child_does_not_affect_its_siblings() {
     foliage.world.flush();
 
     assert!(foliage.world.get_entity(a).is_err());
-    assert!(foliage.world.get_entity(b).is_ok(), "removing one sibling shouldn't touch the other");
+    assert!(
+        foliage.world.get_entity(b).is_ok(),
+        "removing one sibling shouldn't touch the other"
+    );
     assert!(foliage.world.get_entity(parent).is_ok());
 }

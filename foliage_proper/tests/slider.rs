@@ -6,12 +6,12 @@
 //! `ProgressChanged` firing, and `.interactive(false)` disabling the whole thing --
 //! Slider's actual state machine, independent of how a given `Progress` write arrived.
 
+use bevy_ecs::observer::On;
+use bevy_ecs::system::ResMut;
 use foliage_proper::{
     Disable, EcsExtension, Elevation, Entity, Foliage, GridExt, InteractionListener, Location,
     Progress, ProgressChanged, Resource, Slider, SliderBehavior, Sprout,
 };
-use bevy_ecs::observer::On;
-use bevy_ecs::system::ResMut;
 
 fn spawn(foliage: &mut Foliage, progress: f32) -> Entity {
     foliage.world.leaf(
@@ -49,7 +49,11 @@ fn writing_progress_fires_progress_changed_with_the_same_value() {
     foliage.world.add_observer(mark);
     let slider = spawn(&mut foliage, 0.0);
     foliage.world.flush();
-    assert_eq!(foliage.world.resource::<Last>().0, Some(0.0), "react fires once at spawn too");
+    assert_eq!(
+        foliage.world.resource::<Last>().0,
+        Some(0.0),
+        "react fires once at spawn too"
+    );
 
     foliage.write_to(slider, Progress(0.75));
     foliage.world.flush();
@@ -71,7 +75,13 @@ fn a_non_interactive_slider_has_its_listener_disabled() {
     );
     foliage.world.flush();
 
-    assert!(foliage.world.get::<InteractionListener>(slider).unwrap().disabled());
+    assert!(
+        foliage
+            .world
+            .get::<InteractionListener>(slider)
+            .unwrap()
+            .disabled()
+    );
 }
 
 #[test]
@@ -87,15 +97,25 @@ fn re_enabling_interactivity_restores_the_listener() {
             .elevate(Elevation::up(1)),
     );
     foliage.world.flush();
-    assert!(foliage.world.get::<InteractionListener>(slider).unwrap().disabled(), "sanity");
-
-    foliage.write_to(
-        slider,
-        SliderBehavior { interactive: true },
+    assert!(
+        foliage
+            .world
+            .get::<InteractionListener>(slider)
+            .unwrap()
+            .disabled(),
+        "sanity"
     );
+
+    foliage.write_to(slider, SliderBehavior { interactive: true });
     foliage.world.flush();
 
-    assert!(!foliage.world.get::<InteractionListener>(slider).unwrap().disabled());
+    assert!(
+        !foliage
+            .world
+            .get::<InteractionListener>(slider)
+            .unwrap()
+            .disabled()
+    );
 }
 
 #[test]
@@ -106,5 +126,11 @@ fn disabling_the_root_directly_disables_its_listener() {
 
     foliage.world.trigger_targets(Disable::new(), slider);
     foliage.world.flush();
-    assert!(foliage.world.get::<InteractionListener>(slider).unwrap().disabled());
+    assert!(
+        foliage
+            .world
+            .get::<InteractionListener>(slider)
+            .unwrap()
+            .disabled()
+    );
 }

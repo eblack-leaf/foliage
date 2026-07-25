@@ -90,7 +90,10 @@ fn knob_location(on: bool) -> Location {
     } else {
         Location::new().xs(
             12.5.pct().as_left().with(37.5.pct().as_right()),
-            0.pct().as_top().adjust(6).with(100.pct().as_bottom().adjust(-6)),
+            0.pct()
+                .as_top()
+                .adjust(6)
+                .with(100.pct().as_bottom().adjust(-6)),
         )
     }
 }
@@ -123,7 +126,13 @@ impl ToggleSprout {
         self.check_icon = Some(id.into());
         self
     }
-    pub fn colors(mut self, on_fill: Color, off_outline: Color, knob_on: Color, knob_off: Color) -> Self {
+    pub fn colors(
+        mut self,
+        on_fill: Color,
+        off_outline: Color,
+        knob_on: Color,
+        knob_off: Color,
+    ) -> Self {
         self.style = ToggleStyle {
             on_fill,
             off_outline,

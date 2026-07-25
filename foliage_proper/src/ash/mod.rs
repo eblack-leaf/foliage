@@ -136,10 +136,17 @@ impl Ash {
                 })
                 .unwrap_or_else(|i| i);
             self.elevation_order.insert(pos, e);
-            let left = pos.checked_sub(1).and_then(|i| self.elevation_order.get(i)).copied();
+            let left = pos
+                .checked_sub(1)
+                .and_then(|i| self.elevation_order.get(i))
+                .copied();
             let right = self.elevation_order.get(pos + 1).copied();
-            let left_v = left.and_then(|le| world.get::<ResolvedElevation>(le)).map(|r| r.value());
-            let right_v = right.and_then(|re| world.get::<ResolvedElevation>(re)).map(|r| r.value());
+            let left_v = left
+                .and_then(|le| world.get::<ResolvedElevation>(le))
+                .map(|r| r.value());
+            let right_v = right
+                .and_then(|re| world.get::<ResolvedElevation>(re))
+                .map(|r| r.value());
             // `elevation_order` runs least-in-front-first: `left` (lower index, lower
             // StackKey) must end up with a *larger* raw value than `right` (higher index,
             // higher StackKey), matching the existing "smaller raw = more in front" convention.
@@ -149,8 +156,12 @@ impl Ash {
                 (None, Some(r)) => r + initial_gap,
                 (None, None) => (nf.near.value() + nf.far.value()) / 2.0,
             };
-            let too_close = left_v.map(|l| (l - new_value).abs() < EPSILON).unwrap_or(false)
-                || right_v.map(|r| (r - new_value).abs() < EPSILON).unwrap_or(false);
+            let too_close = left_v
+                .map(|l| (l - new_value).abs() < EPSILON)
+                .unwrap_or(false)
+                || right_v
+                    .map(|r| (r - new_value).abs() < EPSILON)
+                    .unwrap_or(false);
             // Boundary case: a front/back insertion that runs off the end of `[near, far]` has
             // no room to sit *distinctly* -- clamping it would land it on `near` (or `far`)
             // exactly alongside anything else already pinned there, an equal depth the GPU
@@ -158,12 +169,13 @@ impl Ash {
             // (overlay panel + its text both pushing toward `near`) that made the popover text
             // "sometimes" vanish behind its panel. Re-space everyone instead, which restores
             // room and keeps every value strictly distinct.
-            let hits_boundary =
-                new_value <= nf.near.value() || new_value >= nf.far.value();
+            let hits_boundary = new_value <= nf.near.value() || new_value >= nf.far.value();
             if too_close || hits_boundary {
                 self.renormalize(world, &nf);
             } else {
-                world.entity_mut(e).insert(ResolvedElevation::new(new_value));
+                world
+                    .entity_mut(e)
+                    .insert(ResolvedElevation::new(new_value));
             }
         }
     }
@@ -179,7 +191,11 @@ impl Ash {
         }
         let span = nf.far.value() - nf.near.value();
         for (i, e) in self.elevation_order.iter().enumerate() {
-            let t = if n == 1 { 0.5 } else { i as f32 / (n - 1) as f32 };
+            let t = if n == 1 {
+                0.5
+            } else {
+                i as f32 / (n - 1) as f32
+            };
             let value = nf.far.value() - t * span;
             world.entity_mut(*e).insert(ResolvedElevation::new(value));
         }
@@ -354,7 +370,7 @@ impl Ash {
 #[cfg(test)]
 mod elevation_assignment_tests {
     use super::*;
-    use crate::{Elevation, EcsExtension, Foliage, Leaf, Location, Sprout};
+    use crate::{EcsExtension, Elevation, Foliage, Leaf, Location, Sprout};
 
     fn resolved_of(world: &mut World, e: Entity) -> f32 {
         world.get::<ResolvedElevation>(e).unwrap().value()
@@ -366,9 +382,11 @@ mod elevation_assignment_tests {
     #[test]
     fn resulting_resolved_elevation_order_agrees_with_stack_key_order() {
         let mut foliage = Foliage::new();
-        let root = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0)),
+        );
         let a = foliage.world.branch(
             root,
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
@@ -377,9 +395,10 @@ mod elevation_assignment_tests {
             root,
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(2)),
         );
-        let c = foliage
-            .world
-            .branch(a, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+        let c = foliage.world.branch(
+            a,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+        );
         foliage.world.flush();
 
         let mut ash = Ash::new();
@@ -391,9 +410,15 @@ mod elevation_assignment_tests {
             resolved_of(&mut foliage.world, c),
         );
         // b (up(2)) is more in front than a (up(1)) -- smaller raw value.
-        assert!(rb < ra, "up(2) sibling should resolve more in front (smaller raw) than up(1)");
+        assert!(
+            rb < ra,
+            "up(2) sibling should resolve more in front (smaller raw) than up(1)"
+        );
         // c (up(1) from a) is more in front than a itself.
-        assert!(rc < ra, "a's own child should resolve more in front than a itself");
+        assert!(
+            rc < ra,
+            "a's own child should resolve more in front than a itself"
+        );
     }
 
     /// The actual point of the gapped/fractional-index scheme: inserting a new entity between
@@ -402,9 +427,11 @@ mod elevation_assignment_tests {
     #[test]
     fn inserting_between_two_existing_entities_touches_only_the_new_entity() {
         let mut foliage = Foliage::new();
-        let root = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0)),
+        );
         let low = foliage.world.branch(
             root,
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
@@ -465,9 +492,11 @@ mod elevation_assignment_tests {
     #[test]
     fn incrementally_added_front_content_never_collides_at_the_near_boundary() {
         let mut foliage = Foliage::new();
-        let root = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0)),
+        );
         foliage.world.flush();
 
         let mut ash = Ash::new();

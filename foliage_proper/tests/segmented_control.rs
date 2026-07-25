@@ -6,8 +6,8 @@ use bevy_ecs::observer::On;
 use bevy_ecs::system::ResMut;
 use foliage_proper::{
     Color, EcsExtension, Elevation, Entity, Foliage, GridExt, InteractionListener, Location,
-    Logical, Resource, SegmentChanged, SegmentedControl, SegmentedOptions, SegmentedSelected,
-    Section, Sprout, Stem,
+    Logical, Resource, Section, SegmentChanged, SegmentedControl, SegmentedOptions,
+    SegmentedSelected, Sprout, Stem,
 };
 
 fn children_of(foliage: &mut Foliage, parent: Entity) -> Vec<Entity> {
@@ -38,7 +38,11 @@ fn active_segment_index(foliage: &mut Foliage, control: Entity, active_color: Co
         .filter(|(_, (_, _, c))| *c == active_color)
         .map(|(i, _)| i)
         .collect();
-    assert_eq!(active.len(), 1, "exactly one panel should carry the active color");
+    assert_eq!(
+        active.len(),
+        1,
+        "exactly one panel should carry the active color"
+    );
     active[0]
 }
 
@@ -83,7 +87,10 @@ fn writing_segmented_selected_flips_exclusivity_without_respawning() {
     assert_eq!(active_segment_index(&mut foliage, control, active), 2);
     let mut after = children_of(&mut foliage, control);
     after.sort();
-    assert_eq!(before, after, "the PATCH reaction recolors stable entities -- it must not respawn anything");
+    assert_eq!(
+        before, after,
+        "the PATCH reaction recolors stable entities -- it must not respawn anything"
+    );
 }
 
 #[test]

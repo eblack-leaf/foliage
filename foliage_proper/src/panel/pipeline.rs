@@ -1,3 +1,4 @@
+use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
@@ -5,8 +6,9 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::panel::{Corner, vertex};
-use crate::ash::clip::ClipContext;
-use crate::{CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section, Stem};
+use crate::{
+    CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section, Stem,
+};
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;

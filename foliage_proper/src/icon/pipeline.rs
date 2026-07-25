@@ -1,3 +1,4 @@
+use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
@@ -5,7 +6,6 @@ use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, R
 use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::opacity::BlendedOpacity;
-use crate::ash::clip::ClipContext;
 use crate::{
     CReprColor, CReprSection, Color, Coordinates, IconMemory, Logical, ResolvedElevation, Section,
     Stem,
@@ -227,7 +227,10 @@ impl Render for Icon {
             // (square) icon is placed in a non-square box.
             let on_screen = physical.width().min(physical.height()).max(1.0);
             let screen_px_range = (on_screen / group.group.field_size) * group.group.px_range;
-            group.group.px_ranges.queue(id, ScreenPxRange(screen_px_range));
+            group
+                .group
+                .px_ranges
+                .queue(id, ScreenPxRange(screen_px_range));
         }
         for (entity, elevation) in queues.attribute::<Icon, ResolvedElevation>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();

@@ -549,7 +549,11 @@ mod tests {
 
         // on-run 1: (0,0)-(6,0). off: (6,0)-(10,0). on-run 2 starts exactly at the
         // bend (10,0) and continues onto the second leg: (10,0)-(10,6).
-        assert_eq!(segments.len(), 2, "the on-run either side of the untouched off-gap");
+        assert_eq!(
+            segments.len(),
+            2,
+            "the on-run either side of the untouched off-gap"
+        );
         assert_eq!(segments[0], (p(0.0, 0.0), p(6.0, 0.0)));
         assert_eq!(segments[1], (p(10.0, 0.0), p(10.0, 6.0)));
 

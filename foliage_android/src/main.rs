@@ -72,16 +72,28 @@ fn main() -> Result<(), String> {
     let app_name = app_name.unwrap_or_else(|| lib_name.clone());
     let package_path = app_id.replace('.', "/");
 
-    write(&out.join("build.gradle"), &templates::root_build_gradle(&agp_version))?;
+    write(
+        &out.join("build.gradle"),
+        &templates::root_build_gradle(&agp_version),
+    )?;
     write(&out.join("settings.gradle"), &templates::settings_gradle())?;
-    write(&out.join("gradle.properties"), &templates::gradle_properties())?;
+    write(
+        &out.join("gradle.properties"),
+        &templates::gradle_properties(),
+    )?;
     write(
         &out.join("gradle/wrapper/gradle-wrapper.properties"),
         &templates::gradle_wrapper_properties(&gradle_version),
     )?;
     write(
         &out.join("app/build.gradle"),
-        &templates::app_build_gradle(&app_id, min_sdk, compile_sdk, target_sdk, &games_activity_version),
+        &templates::app_build_gradle(
+            &app_id,
+            min_sdk,
+            compile_sdk,
+            target_sdk,
+            &games_activity_version,
+        ),
     )?;
     write(
         &out.join("app/src/main/AndroidManifest.xml"),
@@ -92,7 +104,9 @@ fn main() -> Result<(), String> {
         &templates::themes_xml(),
     )?;
     write(
-        &out.join(format!("app/src/main/java/{package_path}/MainActivity.java")),
+        &out.join(format!(
+            "app/src/main/java/{package_path}/MainActivity.java"
+        )),
         &templates::main_activity_java(&app_id, &lib_name),
     )?;
 
@@ -104,7 +118,10 @@ fn main() -> Result<(), String> {
         );
     } else {
         download(&format!("{WRAPPER_SOURCE}/gradlew"), &out.join("gradlew"))?;
-        download(&format!("{WRAPPER_SOURCE}/gradlew.bat"), &out.join("gradlew.bat"))?;
+        download(
+            &format!("{WRAPPER_SOURCE}/gradlew.bat"),
+            &out.join("gradlew.bat"),
+        )?;
         download(
             &format!("{WRAPPER_SOURCE}/gradle/wrapper/gradle-wrapper.jar"),
             &out.join("gradle/wrapper/gradle-wrapper.jar"),
@@ -122,9 +139,7 @@ fn main() -> Result<(), String> {
     );
     println!("then:");
     println!("  cd {} && ./gradlew assembleDebug", out.display());
-    println!(
-        "  # -> app/build/outputs/apk/debug/app-debug.apk, transfer it however you like"
-    );
+    println!("  # -> app/build/outputs/apk/debug/app-debug.apk, transfer it however you like");
     Ok(())
 }
 
@@ -157,8 +172,7 @@ fn download(url: &str, dest: &Path) -> Result<(), String> {
             .map_err(|e| format!("stat {}: {e}", dest.display()))?
             .permissions();
         perms.set_mode(0o755);
-        fs::set_permissions(dest, perms)
-            .map_err(|e| format!("chmod {}: {e}", dest.display()))?;
+        fs::set_permissions(dest, perms).map_err(|e| format!("chmod {}: {e}", dest.display()))?;
     }
     println!("downloaded {url} -> {}", dest.display());
     Ok(())

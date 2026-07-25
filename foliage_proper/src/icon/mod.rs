@@ -4,9 +4,9 @@ use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueue;
 use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
 use crate::foliage::DiffMarkers;
+use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::grid::AspectRatio;
 use crate::{
     AssetKey, Attachment, Color, Component, Differential, Foliage, LeafSprout, Logical,
     ResolvedElevation, Section, Sprout, Tree, Visibility,
@@ -46,9 +46,9 @@ impl Attachment for Icon {
         foliage.differential::<Icon, ResolvedElevation>();
         foliage.differential::<Icon, Color>();
         foliage.differential::<Icon, BlendedOpacity>();
-        foliage.diff.add_systems(
-            Icon::resend_attributes_on_group_change.in_set(DiffMarkers::Extract),
-        );
+        foliage
+            .diff
+            .add_systems(Icon::resend_attributes_on_group_change.in_set(DiffMarkers::Extract));
     }
 }
 impl Icon {

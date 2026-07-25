@@ -15,7 +15,9 @@ use crate::ash::clip::ResolvedClip;
 use crate::coordinate::elevation::StackKey;
 use crate::foliage::{Foliage, MainMarkers};
 use crate::grid::view::{ScrollMomentum, ViewAdjustment};
-use crate::{Attachment, Component, InteractionShape, ResolvedElevation, Section, Stem, Tree, View};
+use crate::{
+    Attachment, Component, InteractionShape, ResolvedElevation, Section, Stem, Tree, View,
+};
 pub use adapter::{InputSequence, Key, Modifiers, PhysicalInputSequence, PhysicalKey};
 pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
 use listener::InteractionListener;
@@ -516,7 +518,12 @@ mod tests {
     /// Queues an `Interaction` and runs the `main` schedule once -- `interactive_elements`
     /// is a `main`-schedule system driven by a queued `Message`, not an observer, so unlike
     /// every other test in this suite, a bare `world.flush()` never invokes it.
-    fn send(foliage: &mut Foliage, phase: InteractionPhase, pos: Position<Logical>, method: InteractionMethod) {
+    fn send(
+        foliage: &mut Foliage,
+        phase: InteractionPhase,
+        pos: Position<Logical>,
+        method: InteractionMethod,
+    ) {
         foliage.queue(Interaction::new(phase, pos, method));
         foliage.main.run(&mut foliage.world);
     }
@@ -590,9 +597,17 @@ mod tests {
         let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
 
-        assert_eq!(foliage.world.resource::<CurrentInteraction>().primary, Some(leaf));
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().primary,
+            Some(leaf)
+        );
     }
 
     #[test]
@@ -601,7 +616,12 @@ mod tests {
         spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(500.0, 500.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(500.0, 500.0),
+            InteractionMethod::Mouse,
+        );
 
         assert_eq!(foliage.world.resource::<CurrentInteraction>().primary, None);
     }
@@ -621,10 +641,19 @@ mod tests {
         );
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
 
         let primary = foliage.world.resource::<CurrentInteraction>().primary;
-        assert_eq!(primary, Some(front), "the more-in-front (up(2)) entity should win over up(1) at the same point");
+        assert_eq!(
+            primary,
+            Some(front),
+            "the more-in-front (up(2)) entity should win over up(1) at the same point"
+        );
         assert_ne!(primary, Some(back));
     }
 
@@ -645,10 +674,17 @@ mod tests {
                 .with(InteractionListener::new()),
         );
         foliage.world.flush();
-        foliage.world.trigger_targets(crate::Disable::new(), on_top_disabled);
+        foliage
+            .world
+            .trigger_targets(crate::Disable::new(), on_top_disabled);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
 
         assert_eq!(
             foliage.world.resource::<CurrentInteraction>().primary,
@@ -663,11 +699,21 @@ mod tests {
         let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
         assert!(foliage.world.get::<Marks>(leaf).unwrap().engaged);
         assert!(!foliage.world.get::<Marks>(leaf).unwrap().disengaged);
 
-        send(&mut foliage, InteractionPhase::End, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
         assert!(foliage.world.get::<Marks>(leaf).unwrap().disengaged);
     }
 
@@ -677,8 +723,18 @@ mod tests {
         let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
-        send(&mut foliage, InteractionPhase::End, point(55.0, 55.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(55.0, 55.0),
+            InteractionMethod::Mouse,
+        );
 
         assert!(foliage.world.get::<Marks>(leaf).unwrap().clicked);
     }
@@ -693,11 +749,24 @@ mod tests {
         let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
-        send(&mut foliage, InteractionPhase::End, point(500.0, 500.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(500.0, 500.0),
+            InteractionMethod::Mouse,
+        );
 
         assert!(!foliage.world.get::<Marks>(leaf).unwrap().clicked);
-        assert!(foliage.world.get::<Marks>(leaf).unwrap().disengaged, "Disengaged still fires regardless");
+        assert!(
+            foliage.world.get::<Marks>(leaf).unwrap().disengaged,
+            "Disengaged still fires regardless"
+        );
     }
 
     #[test]
@@ -711,7 +780,12 @@ mod tests {
         let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 200.0, 200.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
         send(
             &mut foliage,
             InteractionPhase::Moved,
@@ -719,8 +793,14 @@ mod tests {
             InteractionMethod::Mouse,
         );
 
-        assert!(!foliage.world.resource::<CurrentInteraction>().past_drag, "under the threshold");
-        assert!(foliage.world.get::<Marks>(leaf).unwrap().dragged, "but Dragged itself isn't threshold-gated");
+        assert!(
+            !foliage.world.resource::<CurrentInteraction>().past_drag,
+            "under the threshold"
+        );
+        assert!(
+            foliage.world.get::<Marks>(leaf).unwrap().dragged,
+            "but Dragged itself isn't threshold-gated"
+        );
     }
 
     #[test]
@@ -729,8 +809,16 @@ mod tests {
         spawn_grabbable(&mut foliage, 0.0, 0.0, 200.0, 200.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
-        assert!(!foliage.world.resource::<CurrentInteraction>().past_drag, "sanity: not yet");
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        assert!(
+            !foliage.world.resource::<CurrentInteraction>().past_drag,
+            "sanity: not yet"
+        );
 
         send(
             &mut foliage,
@@ -764,16 +852,29 @@ mod tests {
                 .with(InteractionListener::new()),
         );
         foliage.world.flush();
-        assert_eq!(foliage.world.get::<ViewAdjustment>(parent).unwrap().0, Position::default());
+        assert_eq!(
+            foliage.world.get::<ViewAdjustment>(parent).unwrap().0,
+            Position::default()
+        );
 
-        send(&mut foliage, InteractionPhase::Start, point(25.0, 25.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(25.0, 25.0),
+            InteractionMethod::Mouse,
+        );
         send(
             &mut foliage,
             InteractionPhase::Moved,
             point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
             InteractionMethod::Mouse,
         );
-        send(&mut foliage, InteractionPhase::Moved, point(80.0, 25.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(80.0, 25.0),
+            InteractionMethod::Mouse,
+        );
 
         assert_ne!(
             foliage.world.get::<ViewAdjustment>(parent).unwrap().0,
@@ -782,7 +883,11 @@ mod tests {
              chain and panned its ancestor View instead"
         );
         assert_eq!(
-            foliage.world.get::<ViewAdjustment>(child).unwrap_or(&ViewAdjustment::default()).0,
+            foliage
+                .world
+                .get::<ViewAdjustment>(child)
+                .unwrap_or(&ViewAdjustment::default())
+                .0,
             Position::default(),
             "the child itself isn't a View -- nothing should have been written on it directly"
         );
@@ -808,18 +913,31 @@ mod tests {
                     0.px().as_top().with(50.px().as_height()),
                 ))
                 .elevate(Elevation::up(1))
-                .with((InteractionListener::new(), InteractionPropagation::grab().disable_drag())),
+                .with((
+                    InteractionListener::new(),
+                    InteractionPropagation::grab().disable_drag(),
+                )),
         );
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(25.0, 25.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(25.0, 25.0),
+            InteractionMethod::Mouse,
+        );
         send(
             &mut foliage,
             InteractionPhase::Moved,
             point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
             InteractionMethod::Mouse,
         );
-        send(&mut foliage, InteractionPhase::Moved, point(80.0, 25.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(80.0, 25.0),
+            InteractionMethod::Mouse,
+        );
 
         assert_eq!(
             foliage.world.get::<ViewAdjustment>(parent).unwrap().0,
@@ -835,9 +953,17 @@ mod tests {
         let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
 
-        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(leaf));
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().focused,
+            Some(leaf)
+        );
         assert!(foliage.world.get::<Marks>(leaf).unwrap().focused);
     }
 
@@ -855,7 +981,12 @@ mod tests {
         );
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
 
         assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, None);
     }
@@ -879,10 +1010,23 @@ mod tests {
         );
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
-        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(focusable));
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().focused,
+            Some(focusable)
+        );
 
-        send(&mut foliage, InteractionPhase::Start, point(250.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(250.0, 50.0),
+            InteractionMethod::Mouse,
+        );
         assert_eq!(
             foliage.world.resource::<CurrentInteraction>().focused,
             None,
@@ -899,10 +1043,23 @@ mod tests {
         let focusable = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
-        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(focusable));
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().focused,
+            Some(focusable)
+        );
 
-        send(&mut foliage, InteractionPhase::Start, point(500.0, 500.0), InteractionMethod::ScrollWheel);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(500.0, 500.0),
+            InteractionMethod::ScrollWheel,
+        );
         assert_eq!(
             foliage.world.resource::<CurrentInteraction>().focused,
             Some(focusable),
@@ -917,12 +1074,28 @@ mod tests {
         let b = spawn_grabbable(&mut foliage, 200.0, 0.0, 100.0, 100.0);
         foliage.world.flush();
 
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
-        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(a));
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().focused,
+            Some(a)
+        );
 
-        send(&mut foliage, InteractionPhase::Start, point(250.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(250.0, 50.0),
+            InteractionMethod::Mouse,
+        );
 
-        assert_eq!(foliage.world.resource::<CurrentInteraction>().focused, Some(b));
+        assert_eq!(
+            foliage.world.resource::<CurrentInteraction>().focused,
+            Some(b)
+        );
         assert!(foliage.world.get::<Marks>(a).unwrap().unfocused);
         assert!(foliage.world.get::<Marks>(b).unwrap().focused);
     }
@@ -939,7 +1112,8 @@ mod tests {
     /// `viewport`'s (`up(1)`), so under the branch-local comparison this must be
     /// deterministic every time, regardless of how deep either side's own content nests.
     #[test]
-    fn a_chrome_branch_beats_deeply_nested_content_in_a_different_branch_despite_a_raw_elevation_tie() {
+    fn a_chrome_branch_beats_deeply_nested_content_in_a_different_branch_despite_a_raw_elevation_tie()
+     {
         let mut foliage = Foliage::new();
         let root = foliage.world.leaf(
             Leaf::sprout()
@@ -1012,13 +1186,29 @@ mod tests {
         foliage.world.flush();
 
         // sanity: confirm the tie is real before asserting the fix resolves it correctly.
-        let deep_raw = foliage.world.get::<ResolvedElevation>(deep_decorative).unwrap().value();
-        let interactive_raw = foliage.world.get::<ResolvedElevation>(interactive).unwrap().value();
-        assert_eq!(deep_raw, interactive_raw, "sanity: this must actually be a raw-elevation tie for the test to mean anything");
+        let deep_raw = foliage
+            .world
+            .get::<ResolvedElevation>(deep_decorative)
+            .unwrap()
+            .value();
+        let interactive_raw = foliage
+            .world
+            .get::<ResolvedElevation>(interactive)
+            .unwrap()
+            .value();
+        assert_eq!(
+            deep_raw, interactive_raw,
+            "sanity: this must actually be a raw-elevation tie for the test to mean anything"
+        );
 
         // both entities occupy the same click point (50, 50) -- inside chrome/interactive's
         // small box, and also inside viewport/slot/deep_decorative's larger covering box.
-        send(&mut foliage, InteractionPhase::Start, point(50.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
 
         assert_eq!(
             foliage.world.resource::<CurrentInteraction>().primary,

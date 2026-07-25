@@ -18,7 +18,11 @@ fn children_of(foliage: &mut Foliage, parent: Entity) -> Vec<Entity> {
 }
 
 fn left_of(foliage: &mut Foliage, entity: Entity) -> f32 {
-    foliage.world.get::<Section<Logical>>(entity).unwrap().left()
+    foliage
+        .world
+        .get::<Section<Logical>>(entity)
+        .unwrap()
+        .left()
 }
 
 fn p(x: f32, y: f32) -> Position<Logical> {
@@ -173,7 +177,10 @@ fn rewriting_list_items_to_a_new_count_matches_the_new_count_exactly() {
             .elevate(Elevation::up(1)),
     );
     foliage.world.flush();
-    foliage.write_to(list, foliage_proper::ListItems::new(2, |_tree, _slot, _i| {}));
+    foliage.write_to(
+        list,
+        foliage_proper::ListItems::new(2, |_tree, _slot, _i| {}),
+    );
     foliage.world.flush();
     assert_eq!(children_of(&mut foliage, list).len(), 2);
 }
@@ -185,7 +192,12 @@ fn a_straight_polyline_produces_n_minus_one_segments_and_n_minus_two_joints() {
     let mut foliage = Foliage::new();
     let polyline = foliage.world.leaf(
         Polyline::new()
-            .points(vec![p(0.0, 0.0), p(10.0, 0.0), p(10.0, 10.0), p(20.0, 10.0)])
+            .points(vec![
+                p(0.0, 0.0),
+                p(10.0, 0.0),
+                p(10.0, 10.0),
+                p(20.0, 10.0),
+            ])
             .weight(3)
             .color(Color::gray(300))
             .at(Location::new().xs(
@@ -239,7 +251,10 @@ fn rewriting_polyline_points_with_an_unchanged_segment_count_reuses_the_same_ent
     let mut after = children_of(&mut foliage, polyline);
     after.sort();
 
-    assert_eq!(before, after, "same point/segment count -- must be the exact same entity set");
+    assert_eq!(
+        before, after,
+        "same point/segment count -- must be the exact same entity set"
+    );
 }
 
 #[test]

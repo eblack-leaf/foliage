@@ -29,8 +29,14 @@ pub fn generate(entries: &[IconEntry], cfg: &CodegenConfig) -> String {
         out.push_str(&format!("    {},\n", e.variant));
     }
     out.push_str("}\n\n");
-    out.push_str(&format!("pub const FIELD_SIZE: u32 = {};\n", cfg.field_size));
-    out.push_str(&format!("pub const PX_RANGE: f32 = {:.1};\n\n", cfg.px_range));
+    out.push_str(&format!(
+        "pub const FIELD_SIZE: u32 = {};\n",
+        cfg.field_size
+    ));
+    out.push_str(&format!(
+        "pub const PX_RANGE: f32 = {:.1};\n\n",
+        cfg.px_range
+    ));
     out.push_str("pub fn register(foliage: &mut Foliage) {\n");
     for e in entries {
         let id = format!("IconId::from({}::{})", cfg.enum_name, e.variant);

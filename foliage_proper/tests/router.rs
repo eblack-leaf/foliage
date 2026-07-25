@@ -39,7 +39,10 @@ fn scene_b(tree: &mut Tree, slot: Entity) {
 fn spawn(foliage: &mut Foliage) -> Entity {
     foliage.world.leaf(
         Router::new()
-            .routes(RouterRoutes::new([scene_a as foliage_proper::RouteFn, scene_b]))
+            .routes(RouterRoutes::new([
+                scene_a as foliage_proper::RouteFn,
+                scene_b,
+            ]))
             .at(Location::new().xs(
                 0.px().as_left().with(300.px().as_width()),
                 0.px().as_top().with(200.px().as_height()),
@@ -49,7 +52,9 @@ fn spawn(foliage: &mut Foliage) -> Entity {
 }
 
 fn entities_with<C: Component>(foliage: &mut Foliage) -> Vec<Entity> {
-    let mut q = foliage.world.query_filtered::<Entity, bevy_ecs::query::With<C>>();
+    let mut q = foliage
+        .world
+        .query_filtered::<Entity, bevy_ecs::query::With<C>>();
     q.iter(&foliage.world).collect()
 }
 

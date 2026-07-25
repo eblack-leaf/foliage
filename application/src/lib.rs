@@ -1,10 +1,10 @@
 use foliage::Foliage;
 
-#[path = "assets/icons/gen/generated.rs"]
-mod icons;
 mod chrome;
 mod entry;
 mod home;
+#[path = "assets/icons/gen/generated.rs"]
+mod icons;
 mod navigator;
 mod next;
 mod third;

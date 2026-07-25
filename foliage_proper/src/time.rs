@@ -144,7 +144,10 @@ mod tests {
         time.last = Moment::now() - TimeDelta::from_millis(5);
         time.update();
 
-        assert!(time.total > after_first, "total should keep accumulating, not reset per update");
+        assert!(
+            time.total > after_first,
+            "total should keep accumulating, not reset per update"
+        );
     }
 
     #[test]
@@ -155,7 +158,10 @@ mod tests {
 
         foliage.main.run(&mut foliage.world);
 
-        assert!(foliage.world.get_entity(entity).is_err(), "should have despawned itself");
+        assert!(
+            foliage.world.get_entity(entity).is_err(),
+            "should have despawned itself"
+        );
     }
 
     #[test]
@@ -196,7 +202,13 @@ mod tests {
 
         foliage.main.run(&mut foliage.world);
 
-        assert!(foliage.world.get_entity(entity).is_err(), "sanity: despawned");
-        assert!(foliage.world.resource::<Fired>().0, "OnEnd should have fired before the despawn");
+        assert!(
+            foliage.world.get_entity(entity).is_err(),
+            "sanity: despawned"
+        );
+        assert!(
+            foliage.world.resource::<Fired>().0,
+            "OnEnd should have fired before the despawn"
+        );
     }
 }

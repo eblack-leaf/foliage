@@ -36,7 +36,11 @@ fn fit_grows_width_until_the_ratio_reaches_the_original_height_and_recenters() {
     let fitted = ratio.fit(section(100.0, 100.0), Layout::Xs).unwrap();
     assert_eq!(fitted.width(), 200.0);
     assert_eq!(fitted.height(), 100.0);
-    assert_eq!(fitted.left(), -50.0, "recentered: grew by 100, so shifted left by half that");
+    assert_eq!(
+        fitted.left(),
+        -50.0,
+        "recentered: grew by 100, so shifted left by half that"
+    );
 }
 
 #[test]
@@ -47,7 +51,11 @@ fn config_falls_back_to_the_nearest_smaller_configured_breakpoint() {
     let ratio = AspectRatio::new().xs(1.0).lg(3.0);
     assert_eq!(ratio.config(Layout::Xs), Some(1.0));
     assert_eq!(ratio.config(Layout::Sm), Some(1.0), "falls back to xs");
-    assert_eq!(ratio.config(Layout::Md), Some(1.0), "falls back to xs, not lg");
+    assert_eq!(
+        ratio.config(Layout::Md),
+        Some(1.0),
+        "falls back to xs, not lg"
+    );
     assert_eq!(ratio.config(Layout::Lg), Some(3.0), "lg is set directly");
     assert_eq!(ratio.config(Layout::Xl), Some(3.0), "falls back to lg");
 }

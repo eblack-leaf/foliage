@@ -1,6 +1,6 @@
 use crate::navigator::NavigatorLanded;
 use crate::type_in;
-use foliage::{EcsExtension, Entity, Trigger, Tree};
+use foliage::{EcsExtension, Entity, Tree, Trigger};
 
 /// The polygon/lines/icon "navigator" moved out to its own persistent module -- it
 /// survives route switches, so it can no longer live inside any one scene. This route's

@@ -3,8 +3,8 @@ use foliage::bevy_ecs::query::With;
 use foliage::{
     Anchor, Animation, Branch, Color, Ease, EcsExtension, Elevation, Entity, GridExt, Icon,
     IconValue, InteractionListener, InteractionPropagation, InteractionShape, Line, Location,
-    OnClick, OnEnd, Opacity, PageChanged, PageCount, PageIndex, Polygon, Query, Sprout, Tree,
-    Trigger, ValueDescriptor, anchor, component, targeted_event,
+    OnClick, OnEnd, Opacity, PageChanged, PageCount, PageIndex, Polygon, Query, Router,
+    RouterHandle, Sprout, Tree, Trigger, ValueDescriptor, anchor, component, targeted_event,
 };
 use std::f32::consts::PI;
 
@@ -160,8 +160,14 @@ fn box_at(center_x: f32, center_y: f32) -> Location {
 
 fn box_of_size(center_x: f32, center_y: f32, w: f32, h: f32) -> Location {
     Location::new().xs(
-        (center_x - w / 2.0).pct().as_left().with(w.pct().as_width()),
-        (center_y - h / 2.0).pct().as_top().with(h.pct().as_height()),
+        (center_x - w / 2.0)
+            .pct()
+            .as_left()
+            .with(w.pct().as_width()),
+        (center_y - h / 2.0)
+            .pct()
+            .as_top()
+            .with(h.pct().as_height()),
     )
 }
 
@@ -183,13 +189,21 @@ fn shadow_box(layer: usize) -> Location {
         (anchor().left(), anchor().bottom())
     };
     Location::new().xs(
-        (anchor().width() * scale).as_width().with(right_ref.as_right()),
-        top_ref.as_top().with((anchor().height() * scale).as_height()),
+        (anchor().width() * scale)
+            .as_width()
+            .with(right_ref.as_right()),
+        top_ref
+            .as_top()
+            .with((anchor().height() * scale).as_height()),
     )
 }
 
 fn shadow_color(layer: usize) -> Color {
-    if layer == 1 { Color::stone(600) } else { Color::stone(500) }
+    if layer == 1 {
+        Color::stone(600)
+    } else {
+        Color::stone(500)
+    }
 }
 
 /// A rough estimate of where `back`'s bottom edge ends up once it's fully landed at
@@ -224,18 +238,6 @@ fn fwd_right_x() -> ValueDescriptor {
     anchor().right().as_x().adjust(LINE_MARGIN)
 }
 
-/// Router keeps exactly one child (its current slot) at a time, by its own design
-/// (destroy-then-rebuild, each fully cleaning up its own `Stem`/`Branch` entries) --
-/// stated plainly, not looped over as if there could be several.
-fn current_slot(router: Entity, branches: &Query<&Branch>) -> Entity {
-    let router_branch = branches.get(router).unwrap();
-    *router_branch
-        .ids
-        .iter()
-        .next()
-        .expect("router always has exactly one slot (its own build_route discipline)")
-}
-
 /// The whole navigator's live entities, threaded through the click-transition chain as
 /// one value instead of a growing parameter list.
 #[derive(Copy, Clone)]
@@ -253,8 +255,14 @@ fn icon_bundle(target: Entity) -> impl foliage::Sprout {
     Icon::new(IconHandles::Terminal)
         .color(Color::gray(900))
         .at(Location::new().xs(
-            anchor().center_x().as_center_x().with(ICON_PX.px().as_width()),
-            anchor().center_y().as_center_y().with(ICON_PX.px().as_height()),
+            anchor()
+                .center_x()
+                .as_center_x()
+                .with(ICON_PX.px().as_width()),
+            anchor()
+                .center_y()
+                .as_center_y()
+                .with(ICON_PX.px().as_height()),
         ))
         .elevate(Elevation::up(11))
         .with((
@@ -277,7 +285,12 @@ pub fn build(tree: &mut Tree, router: Entity) {
             .rounding(0.0)
             .rotation(0.0) // upside-down triangle (the shader's un-rotated triangle already points down)
             .color(Color::orange(400))
-            .at(box_of_size(END_CENTER_X, CENTER_Y, INTRO_WIDTH, INTRO_HEIGHT))
+            .at(box_of_size(
+                END_CENTER_X,
+                CENTER_Y,
+                INTRO_WIDTH,
+                INTRO_HEIGHT,
+            ))
             .elevate(Elevation::up(10))
             .with((
                 InteractionListener::new(),
@@ -316,7 +329,12 @@ pub fn build(tree: &mut Tree, router: Entity) {
             .rounding(0.0)
             .rotation(0.0) // upside-down, matching `forward`'s starting orientation
             .color(Color::red(400))
-            .at(box_of_size(START_CENTER_X, BACK_CENTER_Y, INTRO_WIDTH, INTRO_HEIGHT))
+            .at(box_of_size(
+                START_CENTER_X,
+                BACK_CENTER_Y,
+                INTRO_WIDTH,
+                INTRO_HEIGHT,
+            ))
             .elevate(Elevation::up(10))
             .with((
                 InteractionListener::new(),
@@ -380,12 +398,17 @@ fn build_back_arrive(
 ) {
     let back_arrive_seq = tree.sequence();
     tree.animate(
-        Animation::new(box_of_size(BACK_X, BACK_CENTER_Y, INTRO_WIDTH, INTRO_HEIGHT))
-            .targeting(back)
-            .during(back_arrive_seq)
-            .start(0)
-            .finish(MOVE_END)
-            .eased(Ease::ACCELERATE),
+        Animation::new(box_of_size(
+            BACK_X,
+            BACK_CENTER_Y,
+            INTRO_WIDTH,
+            INTRO_HEIGHT,
+        ))
+        .targeting(back)
+        .during(back_arrive_seq)
+        .start(0)
+        .finish(MOVE_END)
+        .eased(Ease::ACCELERATE),
     );
     // fades in right as it starts moving -- it spawned invisible specifically so the
     // corner of it that sits on-screen at its off-screen spawn spot (its intro size is
@@ -403,7 +426,12 @@ fn build_back_arrive(
 
     tree.sequence_end(back_arrive_seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
         let settle_seq = tree.sequence();
-        build_settle(&mut tree, settle_seq, forward, box_at(END_CENTER_X, CENTER_Y));
+        build_settle(
+            &mut tree,
+            settle_seq,
+            forward,
+            box_at(END_CENTER_X, CENTER_Y),
+        );
         build_settle(&mut tree, settle_seq, back, box_at(BACK_X, BACK_CENTER_Y));
         // no shadow entry here: their box is entirely `Anchor`-derived (see
         // `shadow_box`/`build`), so they track `forward`'s own settle automatically,
@@ -504,7 +532,13 @@ fn build_morph(tree: &mut Tree, target: Entity, delay: u64) {
 /// too made the line diagonal instead of the intended horizontal connector. `build_down_move`
 /// eats the drop line back to nothing in step with `back`'s own descent, rather than
 /// leaving a stray line hanging around after.
-fn build_lines(tree: &mut Tree, router: Entity, forward: Entity, back: Entity, shadows: [Entity; 2]) {
+fn build_lines(
+    tree: &mut Tree,
+    router: Entity,
+    forward: Entity,
+    back: Entity,
+    shadows: [Entity; 2],
+) {
     let cy = CENTER_Y;
     let lines_seq = tree.sequence();
 
@@ -568,7 +602,10 @@ fn build_lines(tree: &mut Tree, router: Entity, forward: Entity, back: Entity, s
     // visibly starting inside it. The bottom is a fixed landing estimate; as `back`
     // actually descends in `build_down_move`, the top catches up to it on its own and the
     // line "eats" itself with no further code.
-    let drop_top = anchor().center_x().as_x().with(anchor().bottom().as_y().adjust(DROP_LINE_MARGIN));
+    let drop_top = anchor()
+        .center_x()
+        .as_x()
+        .with(anchor().bottom().as_y().adjust(DROP_LINE_MARGIN));
     let drop_line = tree.leaf(
         Line::new(LINE_WEIGHT)
             .color(Color::stone(400))
@@ -577,10 +614,15 @@ fn build_lines(tree: &mut Tree, router: Entity, forward: Entity, back: Entity, s
             .with(Anchor::new(back)),
     );
     tree.animate(
-        Animation::new(Location::new().xs(
-            drop_top,
-            BACK_X.pct().as_x().with(back_rest_bottom_y_estimate().pct().as_y()),
-        ))
+        Animation::new(
+            Location::new().xs(
+                drop_top,
+                BACK_X
+                    .pct()
+                    .as_x()
+                    .with(back_rest_bottom_y_estimate().pct().as_y()),
+            ),
+        )
         .targeting(drop_line)
         .during(lines_seq)
         .start(0)
@@ -629,10 +671,15 @@ fn build_down_move(
     // no shadow entries here either, for the same reason as `build_settle` above -- their
     // `Anchor`-derived box already tracks `forward`'s descent automatically.
     tree.animate(
-        Animation::new(Location::new().xs(
-            fwd_left_x().with(REST_CENTER_Y.pct().as_y()),
-            back_r_estimate().pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-        ))
+        Animation::new(
+            Location::new().xs(
+                fwd_left_x().with(REST_CENTER_Y.pct().as_y()),
+                back_r_estimate()
+                    .pct()
+                    .as_x()
+                    .with(REST_CENTER_Y.pct().as_y()),
+            ),
+        )
         .targeting(lines[0])
         .during(down_seq)
         .start(0)
@@ -640,10 +687,15 @@ fn build_down_move(
         .eased(Ease::DECELERATE),
     );
     tree.animate(
-        Animation::new(Location::new().xs(
-            fwd_right_x().with(REST_CENTER_Y.pct().as_y()),
-            (100.0 - SCREEN_MARGIN).pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-        ))
+        Animation::new(
+            Location::new().xs(
+                fwd_right_x().with(REST_CENTER_Y.pct().as_y()),
+                (100.0 - SCREEN_MARGIN)
+                    .pct()
+                    .as_x()
+                    .with(REST_CENTER_Y.pct().as_y()),
+            ),
+        )
         .targeting(lines[1])
         .during(down_seq)
         .start(0)
@@ -691,7 +743,7 @@ fn build_icons(
 
     tree.sequence_end(
         icon_seq,
-        move |_: Trigger<OnEnd>, branches: Query<&Branch>, mut tree: Tree| {
+        move |_: Trigger<OnEnd>, handles: Query<&RouterHandle>, mut tree: Tree| {
             tree.enable(forward);
 
             let back_icon = tree.leaf(icon_bundle(back));
@@ -725,9 +777,19 @@ fn build_icons(
                 move |_: Trigger<OnClick>,
                       page_state: Query<(&PageIndex, &PageCount)>,
                       polygons: Query<&Polygon>,
+                      handles: Query<&RouterHandle>,
                       branches: Query<&Branch>,
                       mut tree: Tree| {
-                    on_nav_click(&mut tree, nav, forward, 1, &page_state, &polygons, &branches);
+                    on_nav_click(
+                        &mut tree,
+                        nav,
+                        forward,
+                        1,
+                        &page_state,
+                        &polygons,
+                        &handles,
+                        &branches,
+                    );
                 },
             );
             tree.on_click(
@@ -735,9 +797,19 @@ fn build_icons(
                 move |_: Trigger<OnClick>,
                       page_state: Query<(&PageIndex, &PageCount)>,
                       polygons: Query<&Polygon>,
+                      handles: Query<&RouterHandle>,
                       branches: Query<&Branch>,
                       mut tree: Tree| {
-                    on_nav_click(&mut tree, nav, back, -1, &page_state, &polygons, &branches);
+                    on_nav_click(
+                        &mut tree,
+                        nav,
+                        back,
+                        -1,
+                        &page_state,
+                        &polygons,
+                        &handles,
+                        &branches,
+                    );
                 },
             );
 
@@ -756,9 +828,9 @@ fn build_icons(
                 move |trigger: Trigger<PageChanged>,
                       landed: Query<(), With<Landed>>,
                       counts: Query<&PageCount>,
-                      branches: Query<&Branch>,
+                      handles: Query<&RouterHandle>,
                       mut tree: Tree| {
-                    on_page_changed(&mut tree, router, trigger.index, &landed, &branches);
+                    on_page_changed(&mut tree, router, trigger.index, &landed, &handles);
                     let count = counts.get(router).unwrap().0;
                     reconcile(&mut tree, nav, trigger.index, count);
                 },
@@ -768,7 +840,8 @@ fn build_icons(
 
             // structural, not timed: fires exactly when the icon is actually visible,
             // whatever that took, at whatever slot home actually built into.
-            let slot = current_slot(router, &branches);
+            let slot = Router::slot(router, &handles)
+                .expect("router already landed, has a built slot by then");
             tree.trigger_targets(NavigatorLanded::new(), slot);
         },
     );
@@ -785,10 +858,11 @@ fn on_page_changed(
     router: Entity,
     index: usize,
     landed: &Query<(), With<Landed>>,
-    branches: &Query<&Branch>,
+    handles: &Query<&RouterHandle>,
 ) {
     if index == 0 && landed.get(router).is_ok() {
-        let slot = current_slot(router, branches);
+        let slot =
+            Router::slot(router, handles).expect("router already landed, has a built slot by then");
         tree.trigger_targets(NavigatorLanded::new(), slot);
     }
 }
@@ -805,6 +879,7 @@ fn on_nav_click(
     direction: i32,
     page_state: &Query<(&PageIndex, &PageCount)>,
     polygons: &Query<&Polygon>,
+    handles: &Query<&RouterHandle>,
     branches: &Query<&Branch>,
 ) {
     tree.disable(nav.forward);
@@ -815,8 +890,11 @@ fn on_nav_click(
     let next_index = (index.0 as i32 + direction).clamp(0, count as i32 - 1) as usize;
     let current = *polygons.get(clicked).unwrap();
 
-    // fade out whatever the router's current scene actually contains.
-    let slot = current_slot(nav.router, branches);
+    // fade out whatever the router's current scene actually contains. `branches` here is
+    // legitimately about the *slot's own content children* (a different concern from
+    // finding the router's slot itself, which now reads `RouterHandle` directly).
+    let slot =
+        Router::slot(nav.router, handles).expect("router already landed, has a built slot by then");
     let content: Vec<Entity> = branches
         .get(slot)
         .map(|b| b.ids.iter().copied().collect())
@@ -955,10 +1033,15 @@ fn build_continuous_spin(tree: &mut Tree, target: Entity, current: Polygon) {
 fn build_redraw_lines(tree: &mut Tree, nav: Nav, next_index: usize, count: usize) {
     let redraw_seq = tree.sequence();
     tree.animate(
-        Animation::new(Location::new().xs(
-            fwd_left_x().with(REST_CENTER_Y.pct().as_y()),
-            back_r_estimate().pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-        ))
+        Animation::new(
+            Location::new().xs(
+                fwd_left_x().with(REST_CENTER_Y.pct().as_y()),
+                back_r_estimate()
+                    .pct()
+                    .as_x()
+                    .with(REST_CENTER_Y.pct().as_y()),
+            ),
+        )
         .targeting(nav.lines[0])
         .during(redraw_seq)
         .start(0)
@@ -966,10 +1049,15 @@ fn build_redraw_lines(tree: &mut Tree, nav: Nav, next_index: usize, count: usize
         .eased(Ease::DECELERATE),
     );
     tree.animate(
-        Animation::new(Location::new().xs(
-            fwd_right_x().with(REST_CENTER_Y.pct().as_y()),
-            (100.0 - SCREEN_MARGIN).pct().as_x().with(REST_CENTER_Y.pct().as_y()),
-        ))
+        Animation::new(
+            Location::new().xs(
+                fwd_right_x().with(REST_CENTER_Y.pct().as_y()),
+                (100.0 - SCREEN_MARGIN)
+                    .pct()
+                    .as_x()
+                    .with(REST_CENTER_Y.pct().as_y()),
+            ),
+        )
         .targeting(nav.lines[1])
         .during(redraw_seq)
         .start(0)
@@ -1017,7 +1105,12 @@ fn reconcile(tree: &mut Tree, nav: Nav, index: usize, count: usize) {
     } else {
         tree.disable(nav.forward);
     }
-    for target in [nav.forward, nav.forward_icon, nav.shadows[0], nav.shadows[1]] {
+    for target in [
+        nav.forward,
+        nav.forward_icon,
+        nav.shadows[0],
+        nav.shadows[1],
+    ] {
         tree.animate(
             Animation::new(Opacity::new(forward_opacity))
                 .targeting(target)

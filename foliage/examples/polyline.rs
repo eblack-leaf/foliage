@@ -3,8 +3,8 @@
 //! `cargo run --example polyline -p foliage`.
 
 use foliage::{
-    component, Color, DashPattern, EcsExtension, Elevation, Foliage, GridExt, Location, Polyline,
-    PolylineDrawProgress, Position, Query, Res, Sprout, Time, Tree,
+    Color, DashPattern, EcsExtension, Elevation, Foliage, GridExt, Location, Polyline,
+    PolylineDrawProgress, Position, Query, Res, Sprout, Time, Tree, component,
 };
 
 #[component]

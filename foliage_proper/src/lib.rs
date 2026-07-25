@@ -56,6 +56,7 @@ pub use bevy_ecs::{self, prelude::*};
 /// name here; `On` is also available (via the prelude re-export above) for new code.
 pub type Trigger<'w, 't, E, B = ()> = bevy_ecs::observer::On<'w, 't, E, B>;
 pub use alignment::{HorizontalAlignment, VerticalAlignment};
+pub use ash::clip::ClipToViewport;
 pub use clipboard::Clipboard;
 pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
@@ -82,7 +83,7 @@ pub use composite::{
     radio_group::{
         RadioChanged, RadioGroup, RadioGroupSprout, RadioOptions, RadioSelected, RadioStyle,
     },
-    router::{RouteFn, Router, RouterRoutes, RouterSprout},
+    router::{RouteFn, Router, RouterHandle, RouterRoutes, RouterSprout},
     segmented_control::{
         SegmentChanged, SegmentedControl, SegmentedControlSprout, SegmentedOptions,
         SegmentedSelected, SegmentedStyle,
@@ -99,7 +100,9 @@ pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
-pub use grid::{Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationValue, ValueDescriptor};
+pub use grid::{
+    Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationValue, ValueDescriptor,
+};
 pub use grid::{
     AspectRatio, Grid, Layout, Location, View, anchor, text_content, view::OverscrollPropagation,
 };
@@ -112,7 +115,6 @@ pub use interaction::{
     Modifiers, OnClick, PhysicalInputSequence, PhysicalKey, listener::InteractionListener,
     listener::InteractionShape, listener::InteractionState,
 };
-pub use ash::clip::ClipToViewport;
 pub use leaf::{Branch, Leaf, Stem};
 pub use line::{Line, LineSprout};
 pub use opacity::Opacity;

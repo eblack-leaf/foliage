@@ -7,7 +7,10 @@
 //! `Section<Logical>`) -- the same harness `harness_smoke.rs` already proved settles fully
 //! headless with no schedule run required.
 
-use foliage_proper::{EcsExtension, Elevation, Foliage, Grid, GridExt, Layout, Leaf, Location, Logical, Section, Sprout};
+use foliage_proper::{
+    EcsExtension, Elevation, Foliage, Grid, GridExt, Layout, Leaf, Location, Logical, Section,
+    Sprout,
+};
 
 fn section_of(foliage: &mut Foliage, entity: foliage_proper::Entity) -> Section<Logical> {
     *foliage
@@ -67,8 +70,16 @@ fn percentage_of_parent_resolves_relative_to_the_parents_own_resolved_section() 
     );
     foliage.world.flush();
     let child_section = section_of(&mut foliage, child);
-    assert_eq!(child_section.width(), 100.0, "50% of the parent's 200-wide context");
-    assert_eq!(child_section.height(), 100.0, "100% of the parent's 100-tall context");
+    assert_eq!(
+        child_section.width(),
+        100.0,
+        "50% of the parent's 200-wide context"
+    );
+    assert_eq!(
+        child_section.height(),
+        100.0,
+        "100% of the parent's 100-tall context"
+    );
 }
 
 #[test]
@@ -171,7 +182,11 @@ fn grids_nested_two_levels_deep_resolve_relative_to_their_own_immediate_parent()
     assert_eq!(middle_section.width(), 200.0);
 
     let innermost_section = section_of(&mut foliage, innermost);
-    assert_eq!(innermost_section.left(), 100.0, "middle's own left(0) + its second-half column start(100)");
+    assert_eq!(
+        innermost_section.left(),
+        100.0,
+        "middle's own left(0) + its second-half column start(100)"
+    );
     assert_eq!(innermost_section.width(), 100.0);
 }
 
@@ -190,7 +205,11 @@ fn a_non_xs_layout_falls_back_to_the_nearest_smaller_configured_breakpoint() {
     foliage.world.flush();
 
     let section = section_of(&mut foliage, leaf);
-    assert_eq!(section.width(), 60.0, "only xs is configured -- an active Md layout should fall back to it");
+    assert_eq!(
+        section.width(),
+        60.0,
+        "only xs is configured -- an active Md layout should fall back to it"
+    );
 }
 
 #[test]
@@ -213,5 +232,9 @@ fn a_specific_breakpoint_config_wins_over_the_fallback_when_it_is_the_active_lay
     foliage.world.flush();
 
     let section = section_of(&mut foliage, leaf);
-    assert_eq!(section.width(), 150.0, "Md is explicitly configured and active -- it should win over the xs fallback");
+    assert_eq!(
+        section.width(),
+        150.0,
+        "Md is explicitly configured and active -- it should win over the xs fallback"
+    );
 }

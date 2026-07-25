@@ -78,11 +78,15 @@ fn clicking_toggles_checkbox_state() {
     let cb = spawn(&mut foliage, false);
     foliage.world.flush();
 
-    foliage.world.trigger_targets(foliage_proper::OnClick::new(), cb);
+    foliage
+        .world
+        .trigger_targets(foliage_proper::OnClick::new(), cb);
     foliage.world.flush();
     assert!(foliage.world.get::<CheckboxState>(cb).unwrap().0);
 
-    foliage.world.trigger_targets(foliage_proper::OnClick::new(), cb);
+    foliage
+        .world
+        .trigger_targets(foliage_proper::OnClick::new(), cb);
     foliage.world.flush();
     assert!(!foliage.world.get::<CheckboxState>(cb).unwrap().0);
 }
@@ -101,7 +105,11 @@ fn writing_checkbox_state_fires_checked_with_the_new_value() {
     foliage.world.add_observer(mark);
     let cb = spawn(&mut foliage, false);
     foliage.world.flush();
-    assert_eq!(foliage.world.resource::<LastChecked>().0, Some(false), "react fires once at spawn with the initial value");
+    assert_eq!(
+        foliage.world.resource::<LastChecked>().0,
+        Some(false),
+        "react fires once at spawn with the initial value"
+    );
 
     foliage.write_to(cb, CheckboxState(true));
     foliage.world.flush();

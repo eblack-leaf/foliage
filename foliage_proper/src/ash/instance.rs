@@ -137,12 +137,11 @@ impl InstanceCoordinator {
             return swaps;
         }
         self.needs_sort = false;
-        self.instances.sort_by(|a, b| {
-            match a.elevation.front_to_back(&b.elevation) {
+        self.instances
+            .sort_by(|a, b| match a.elevation.front_to_back(&b.elevation) {
                 Ordering::Equal => a.clip_context.partial_cmp(&b.clip_context).unwrap(),
                 ord => ord,
-            }
-        });
+            });
         let old_orders = self
             .cache
             .iter()
@@ -228,8 +227,16 @@ mod tests {
         let _ = c.generate_id(); // 0
         let _ = c.generate_id(); // 1
         c.gen_pool.insert(0);
-        assert_eq!(c.generate_id(), 0, "a freed id should come back before minting id 2");
-        assert_eq!(c.generate_id(), 2, "pool now empty -- back to sequential minting");
+        assert_eq!(
+            c.generate_id(),
+            0,
+            "a freed id should come back before minting id 2"
+        );
+        assert_eq!(
+            c.generate_id(),
+            2,
+            "pool now empty -- back to sequential minting"
+        );
     }
 
     #[test]
@@ -244,7 +251,11 @@ mod tests {
         c.add(instance(30, 3.0)); // middle
         c.sort();
         let order: Vec<InstanceId> = c.instances.iter().map(|i| i.id).collect();
-        assert_eq!(order, vec![10, 30, 20], "back-to-front: 5.0, 3.0, then 1.0 last");
+        assert_eq!(
+            order,
+            vec![10, 30, 20],
+            "back-to-front: 5.0, 3.0, then 1.0 last"
+        );
     }
 
     #[test]
@@ -254,7 +265,10 @@ mod tests {
         c.sort();
         assert!(!c.needs_sort, "sanity: sort() itself clears the flag");
         let swaps = c.sort();
-        assert!(swaps.is_empty(), "nothing changed since the last sort -- no swaps to report");
+        assert!(
+            swaps.is_empty(),
+            "nothing changed since the last sort -- no swaps to report"
+        );
     }
 
     #[test]
@@ -272,7 +286,11 @@ mod tests {
         assert!(!c.has_instance(1));
         assert!(c.has_instance(2));
         assert!(c.has_instance(3));
-        assert_eq!(c.order(2), order_of_2, "the untouched middle instance's order shouldn't move");
+        assert_eq!(
+            c.order(2),
+            order_of_2,
+            "the untouched middle instance's order shouldn't move"
+        );
         assert_eq!(c.instances.len(), 2);
     }
 }

@@ -37,7 +37,10 @@ fn a_button_spawned_without_an_icon_gets_no_icon_child() {
     );
     foliage.world.flush();
 
-    assert!(!has_icon_child(&mut foliage, btn), "no .icon(..) was ever called -- no icon child should exist");
+    assert!(
+        !has_icon_child(&mut foliage, btn),
+        "no .icon(..) was ever called -- no icon child should exist"
+    );
 }
 
 #[test]
@@ -75,13 +78,20 @@ fn engaged_and_disengaged_flip_the_engagement_component() {
             .elevate(Elevation::up(1)),
     );
     foliage.world.flush();
-    assert!(!foliage.world.get::<Engagement>(btn).unwrap().0, "sanity: not engaged at rest");
+    assert!(
+        !foliage.world.get::<Engagement>(btn).unwrap().0,
+        "sanity: not engaged at rest"
+    );
 
-    foliage.world.trigger_targets(foliage_proper::Engaged::new(), btn);
+    foliage
+        .world
+        .trigger_targets(foliage_proper::Engaged::new(), btn);
     foliage.world.flush();
     assert!(foliage.world.get::<Engagement>(btn).unwrap().0);
 
-    foliage.world.trigger_targets(foliage_proper::Disengaged::new(), btn);
+    foliage
+        .world
+        .trigger_targets(foliage_proper::Disengaged::new(), btn);
     foliage.world.flush();
     assert!(!foliage.world.get::<Engagement>(btn).unwrap().0);
 }
@@ -126,7 +136,10 @@ fn spawn_colors_land_on_the_public_style_component() {
     );
     foliage.world.flush();
 
-    let style = foliage.world.get::<foliage_proper::ButtonStyle>(btn).unwrap();
+    let style = foliage
+        .world
+        .get::<foliage_proper::ButtonStyle>(btn)
+        .unwrap();
     assert_eq!(style.foreground, fg);
     assert_eq!(style.background, bg);
 }

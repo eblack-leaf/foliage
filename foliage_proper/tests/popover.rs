@@ -24,10 +24,16 @@ fn spawn(foliage: &mut Foliage) -> Entity {
     foliage.world.leaf(
         Popover::new()
             .trigger(|tree, slot| {
-                tree.branch(slot, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)))
+                tree.branch(
+                    slot,
+                    Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+                )
             })
             .content(|tree, slot| {
-                tree.branch(slot, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)))
+                tree.branch(
+                    slot,
+                    Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+                )
             })
             .extent(100.px())
             .at(Location::new().xs(
@@ -47,7 +53,10 @@ fn the_trigger_content_is_built_once_at_spawn() {
     // trigger slot is a real Stem-child; the trigger closure branches under it
     let trigger_slot = children_of(&mut foliage, popover);
     assert_eq!(trigger_slot.len(), 1);
-    assert!(!children_of(&mut foliage, trigger_slot[0]).is_empty(), "the trigger closure should have built under the trigger slot");
+    assert!(
+        !children_of(&mut foliage, trigger_slot[0]).is_empty(),
+        "the trigger closure should have built under the trigger slot"
+    );
 }
 
 #[test]
@@ -87,7 +96,11 @@ fn clicking_again_closes_it_and_tears_down_the_content_surface() {
     foliage.world.flush();
 
     assert!(!foliage.world.get::<PopoverExpanded>(popover).unwrap().0);
-    assert_eq!(panel_count(&mut foliage), 0, "content is a top-level leaf -- closing must tear it down, not just hide it");
+    assert_eq!(
+        panel_count(&mut foliage),
+        0,
+        "content is a top-level leaf -- closing must tear it down, not just hide it"
+    );
 }
 
 #[test]
@@ -108,5 +121,8 @@ fn reopening_rebuilds_a_fresh_content_surface_each_time() {
     let mut q = foliage.world.query::<(Entity, &Panel)>();
     let second_surface: Entity = q.iter(&foliage.world).next().unwrap().0;
 
-    assert_ne!(first_surface, second_surface, "content has no cheaper patch path -- each open rebuilds fresh, per the module's own doc comment");
+    assert_ne!(
+        first_surface, second_surface,
+        "content has no cheaper patch path -- each open rebuilds fresh, per the module's own doc comment"
+    );
 }

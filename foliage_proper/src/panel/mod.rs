@@ -1,10 +1,10 @@
 use crate::EcsExtension;
 use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
+use crate::ash::clip::ClipContext;
 use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
-use crate::ash::clip::ClipContext;
 use crate::{
     Animate, Animation, Attachment, Color, Component, CoordinateUnit, Coordinates, Differential,
     Foliage, InteractionShape, Logical, Position, ResolvedElevation, Section, Tree, Update,

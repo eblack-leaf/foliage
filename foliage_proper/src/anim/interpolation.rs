@@ -53,7 +53,10 @@ mod tests {
         let i = Interpolation::new(10.0, 30.0);
         assert_eq!(i.diff, 20.0);
         let i = Interpolation::new(30.0, 10.0);
-        assert_eq!(i.diff, -20.0, "diff is signed -- a decreasing interpolation has a negative diff");
+        assert_eq!(
+            i.diff, -20.0,
+            "diff is signed -- a decreasing interpolation has a negative diff"
+        );
     }
 
     #[test]
@@ -71,7 +74,11 @@ mod tests {
         let mut i = Interpolation::new(0.0, 10.0);
         i.current_value = Some(5.0);
         assert_eq!(i.current_value(), Some(5.0));
-        assert_eq!(i.current_value(), None, "the second read must not see the same value again");
+        assert_eq!(
+            i.current_value(),
+            None,
+            "the second read must not see the same value again"
+        );
     }
 
     #[test]
@@ -82,7 +89,11 @@ mod tests {
         // unlike `current_value()`, `percent()` takes `&self` -- it must be safe to call
         // repeatedly, and must not interfere with a later `current_value()` read.
         assert_eq!(i.percent(), Some(0.25));
-        assert_eq!(i.current_value(), Some(2.5), "percent() must not have consumed it");
+        assert_eq!(
+            i.current_value(),
+            Some(2.5),
+            "percent() must not have consumed it"
+        );
     }
 
     #[test]

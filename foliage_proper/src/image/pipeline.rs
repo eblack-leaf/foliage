@@ -1,3 +1,4 @@
+use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
@@ -6,7 +7,6 @@ use crate::ginkgo::Ginkgo;
 use crate::image::{CropAdjustment, Image, ImageWrite};
 use crate::opacity::BlendedOpacity;
 use crate::texture::TextureCoordinates;
-use crate::ash::clip::ClipContext;
 use crate::{
     Area, AssetKey, CReprSection, Logical, Numerical, ResolvedElevation, Section, Stem, texture,
 };

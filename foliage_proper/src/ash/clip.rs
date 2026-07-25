@@ -150,11 +150,14 @@ mod tests {
     use crate::{Elevation, Foliage, Grid, GridExt, Leaf, Location, Sprout};
 
     fn set_realistic_viewport(foliage: &mut Foliage) {
-        foliage.world.insert_resource(ViewportHandle::new(Area::logical((1000.0, 1000.0))));
+        foliage
+            .world
+            .insert_resource(ViewportHandle::new(Area::logical((1000.0, 1000.0))));
     }
 
     #[test]
-    fn a_grandchild_of_a_clip_to_viewport_ancestor_clips_to_its_own_bounds_not_the_tiny_real_ancestor_or_the_whole_viewport() {
+    fn a_grandchild_of_a_clip_to_viewport_ancestor_clips_to_its_own_bounds_not_the_tiny_real_ancestor_or_the_whole_viewport()
+     {
         // reproduces the real bug (the grandchild used to get silently re-clipped to the
         // tiny real trigger further up), while also pinning down the correct, non-coarse
         // fix: an unmarked descendant of a `ClipToViewport` entity should clip to *that
@@ -206,8 +209,15 @@ mod tests {
             "the overflowing grandchild must be clipped to surface's own 300-wide box, not \
              its own wider 500 request"
         );
-        assert_ne!(grandchild_clip, viewport, "must not be the whole viewport either -- that would let overflow leak past surface's own box");
-        assert_eq!(grandchild_clip.top(), surface_section.top(), "and not the tiny trigger further up, which sits at a different position entirely");
+        assert_ne!(
+            grandchild_clip, viewport,
+            "must not be the whole viewport either -- that would let overflow leak past surface's own box"
+        );
+        assert_eq!(
+            grandchild_clip.top(),
+            surface_section.top(),
+            "and not the tiny trigger further up, which sits at a different position entirely"
+        );
     }
 
     #[test]
@@ -280,11 +290,15 @@ mod tests {
 
         let grandchild_clip = foliage.world.get::<ResolvedClip>(grandchild).unwrap().0;
         let viewport = foliage.world.resource::<ViewportHandle>().section();
-        assert_ne!(grandchild_clip, viewport, "sanity: without the marker, it really is clipped to the tiny ancestor, proving the marked case above is the fix actually doing something");
+        assert_ne!(
+            grandchild_clip, viewport,
+            "sanity: without the marker, it really is clipped to the tiny ancestor, proving the marked case above is the fix actually doing something"
+        );
     }
 
     #[test]
-    fn a_nested_clip_to_viewport_descendant_is_independently_unbounded_by_its_own_marked_ancestor() {
+    fn a_nested_clip_to_viewport_descendant_is_independently_unbounded_by_its_own_marked_ancestor()
+    {
         // "unless they are explicit clip-to-viewport": a doubly-nested case (a Popover
         // opened from inside a Dropdown's option list, say) -- the inner marked entity must
         // resolve to the viewport too, not get clipped to the outer marked entity's own
@@ -324,9 +338,18 @@ mod tests {
         foliage.world.flush();
 
         let inner_clip = foliage.world.get::<ResolvedClip>(inner_surface).unwrap().0;
-        let outer_section = *foliage.world.get::<Section<Logical>>(outer_surface).unwrap();
+        let outer_section = *foliage
+            .world
+            .get::<Section<Logical>>(outer_surface)
+            .unwrap();
         let viewport = foliage.world.resource::<ViewportHandle>().section();
-        assert_eq!(inner_clip, viewport, "the independently-marked inner surface should resolve to the viewport, not to outer_surface's own smaller bounds");
-        assert_ne!(inner_clip, outer_section, "sanity: outer_surface's own bounds are genuinely different from the viewport, so this is a real assertion, not a tautology");
+        assert_eq!(
+            inner_clip, viewport,
+            "the independently-marked inner surface should resolve to the viewport, not to outer_surface's own smaller bounds"
+        );
+        assert_ne!(
+            inner_clip, outer_section,
+            "sanity: outer_surface's own bounds are genuinely different from the viewport, so this is a real assertion, not a tautology"
+        );
     }
 }

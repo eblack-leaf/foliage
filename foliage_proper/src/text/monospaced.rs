@@ -36,8 +36,14 @@ mod tests {
     fn character_block_reports_positive_real_font_metrics() {
         let font = MonospacedFont::new(crate::Text::OPT_SCALE);
         let block = font.character_block(FontSize::DEFAULT_SIZE);
-        assert!(block.a() > 0.0, "advance width should be a real size from the bundled font, not a stub");
-        assert!(block.b() > 0.0, "line height should be a real size from the bundled font, not a stub");
+        assert!(
+            block.a() > 0.0,
+            "advance width should be a real size from the bundled font, not a stub"
+        );
+        assert!(
+            block.b() > 0.0,
+            "line height should be a real size from the bundled font, not a stub"
+        );
     }
 
     /// `.letters(n)` (`grid/location.rs`'s `GridExt::letters`) is how every text-sized

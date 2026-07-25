@@ -1,3 +1,4 @@
+use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Nodes, RemoveNode};
@@ -5,7 +6,6 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::polygon::Polygon;
-use crate::ash::clip::ClipContext;
 use crate::{
     CReprColor, CReprSection, Color, Coordinates, Logical, ResolvedElevation, Section, Stem,
 };

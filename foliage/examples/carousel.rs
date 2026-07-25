@@ -16,9 +16,8 @@
 //!   `Elevation::abs(0)` is the correct, conventional choice here.
 
 use foliage::{
-    Carousel, CarouselPages, Color, EcsExtension, Elevation, Entity, Foliage, FontSize,
-    GridExt, HorizontalAlignment, Location, Panel, PaginationMode,
-    Sprout, Text, Tree, VerticalAlignment,
+    Carousel, CarouselPages, Color, EcsExtension, Elevation, Entity, Foliage, FontSize, GridExt,
+    HorizontalAlignment, Location, PaginationMode, Panel, Sprout, Text, Tree, VerticalAlignment,
 };
 
 fn main() {
@@ -37,7 +36,7 @@ fn main() {
                             0.pct().as_left().with(100.pct().as_right()),
                             0.pct().as_top().with(100.pct().as_bottom()),
                         ))
-                        .elevate(Elevation::up(1))
+                        .elevate(Elevation::up(1)),
                 );
                 tree.branch(
                     slot,
@@ -49,10 +48,7 @@ fn main() {
                             0.pct().as_top().with(100.pct().as_bottom()),
                         ))
                         .elevate(Elevation::up(2))
-                        .with((
-                            HorizontalAlignment::Center,
-                            VerticalAlignment::Middle,
-                        )),
+                        .with((HorizontalAlignment::Center, VerticalAlignment::Middle)),
                 );
             }))
             .pagination(PaginationMode::Dots)

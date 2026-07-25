@@ -5,8 +5,7 @@ use crate::next::next;
 use crate::third::third;
 use crate::toc::toc;
 use foliage::{
-    EcsExtension, Elevation, Entity, Foliage, GridExt, Location, Router, RouterRoutes, Sprout,
-    Tree,
+    EcsExtension, Elevation, Entity, Foliage, GridExt, Location, Router, RouterRoutes, Sprout, Tree,
 };
 
 pub fn build(foliage: &mut Foliage) {

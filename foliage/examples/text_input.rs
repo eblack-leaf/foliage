@@ -7,7 +7,9 @@
 //! position holds or jumps back toward the cursor. Run with
 //! `cargo run --example text_input -p foliage`.
 
-use foliage::{Color, EcsExtension, Elevation, Foliage, GridExt, Location, Rounding, Sprout, TextInput};
+use foliage::{
+    Color, EcsExtension, Elevation, Foliage, GridExt, Location, Rounding, Sprout, TextInput,
+};
 use foliage_proper::LineConstraint;
 
 fn main() {
@@ -15,7 +17,8 @@ fn main() {
     foliage.desktop_size((280, 500));
 
     foliage.world.leaf(
-        TextInput::new().line_constraint(LineConstraint::Multiple)
+        TextInput::new()
+            .line_constraint(LineConstraint::Multiple)
             .hint_text("type here...")
             .foreground(Color::gray(200))
             .background(Color::gray(800))

@@ -2,8 +2,8 @@
 //! `desc`. Run with `cargo run --example card -p foliage`.
 
 use foliage::{
-    Card, Color, EcsExtension, Elevation, Entity, Foliage, FontSize, GridExt,
-    HorizontalAlignment, Location, Panel, Sprout, Text, Tree, VerticalAlignment,
+    Card, Color, EcsExtension, Elevation, Entity, Foliage, FontSize, GridExt, HorizontalAlignment,
+    Location, Panel, Sprout, Text, Tree, VerticalAlignment,
 };
 
 fn centered_text(text: &str, color: Color, size: u32) -> impl Sprout {
@@ -34,21 +34,23 @@ fn main() {
             .header(|tree: &mut Tree, slot: Entity| {
                 tree.branch(
                     slot,
-                    centered_text("Card Title", Color::gray(200), 16).at(Location::new().xs(
-                        0.pct().as_left().with(100.pct().as_right()),
-                        0.pct().as_top().with(100.pct().as_bottom()),
-                    )).elevate(Elevation::up(1)),
+                    centered_text("Card Title", Color::gray(200), 16)
+                        .at(Location::new().xs(
+                            0.pct().as_left().with(100.pct().as_right()),
+                            0.pct().as_top().with(100.pct().as_bottom()),
+                        ))
+                        .elevate(Elevation::up(1)),
                 )
             })
             .desc(|tree: &mut Tree, slot: Entity| {
                 tree.branch(
                     slot,
-                    centered_text("A short description of this card.", Color::gray(400), 12).at(
-                        Location::new().xs(
+                    centered_text("A short description of this card.", Color::gray(400), 12)
+                        .at(Location::new().xs(
                             0.pct().as_left().with(100.pct().as_right()),
                             0.pct().as_top().with(100.pct().as_bottom()),
-                        ),
-                    ).elevate(Elevation::up(1)),
+                        ))
+                        .elevate(Elevation::up(1)),
                 )
             })
             .colors(Color::gray(800))

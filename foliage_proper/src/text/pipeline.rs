@@ -1,3 +1,4 @@
+use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
 use crate::ash::node::{Node, Nodes, RemoveNode};
@@ -8,7 +9,6 @@ use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, VERTICES, Vertex};
-use crate::ash::clip::ClipContext;
 use crate::{CReprColor, CReprSection, Logical, ResolvedElevation, Section, Stem, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;

@@ -297,9 +297,11 @@ mod stack_key_tests {
     #[test]
     fn a_child_inherits_its_parents_key_as_a_prefix() {
         let mut foliage = Foliage::new();
-        let parent = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let parent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0)),
+        );
         let child = foliage.world.branch(
             parent,
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
@@ -324,9 +326,11 @@ mod stack_key_tests {
     #[test]
     fn a_higher_up_amount_resolves_further_in_front_than_a_lower_one() {
         let mut foliage = Foliage::new();
-        let parent = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let parent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0)),
+        );
         let near = foliage.world.branch(
             parent,
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
@@ -350,12 +354,16 @@ mod stack_key_tests {
         // front, and the two children's keys genuinely differ (they don't collapse to the same
         // value regardless of context).
         let mut foliage = Foliage::new();
-        let low_root = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
-        let high_root = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(10)));
+        let low_root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0)),
+        );
+        let high_root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(10)),
+        );
         let low_child = foliage.world.branch(
             low_root,
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
@@ -379,16 +387,19 @@ mod stack_key_tests {
     }
 
     #[test]
-    fn a_chrome_branch_beats_deeply_nested_content_in_a_different_branch_despite_a_raw_elevation_tie() {
+    fn a_chrome_branch_beats_deeply_nested_content_in_a_different_branch_despite_a_raw_elevation_tie()
+     {
         // the real Carousel bug this mechanism exists to prevent: two unrelated branches off
         // the same root, one much deeper than the other, whose *raw* flat elevation sums
         // happen to coincide exactly -- the shallower branch's own local "in front" choice,
         // at the point the two branches actually diverge, must still win regardless of how
         // deep the other branch's own content reaches.
         let mut foliage = Foliage::new();
-        let root = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0)),
+        );
         let chrome = foliage.world.branch(
             root,
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(5)),
@@ -401,15 +412,18 @@ mod stack_key_tests {
             content,
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
         );
-        let b = foliage
-            .world
-            .branch(a, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
-        let c = foliage
-            .world
-            .branch(b, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
-        let deep = foliage
-            .world
-            .branch(c, Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
+        let b = foliage.world.branch(
+            a,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+        );
+        let c = foliage.world.branch(
+            b,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+        );
+        let deep = foliage.world.branch(
+            c,
+            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
+        );
         foliage.world.flush();
 
         // this is a genuine reproduction of the old flat-model tie, by hand: under the old
@@ -433,12 +447,16 @@ mod stack_key_tests {
         // clicks to, all that chrome. A reserved FRONT stacking tier must put the overlay in
         // front of every ordinary entity regardless of their `abs()` values.
         let mut foliage = Foliage::new();
-        let modal = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(50)));
-        let back_button = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(95)));
+        let modal = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(50)),
+        );
+        let back_button = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(95)),
+        );
         let content = foliage.world.branch(
             modal,
             Leaf::sprout()
@@ -507,9 +525,11 @@ mod stack_key_tests {
             Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
         );
         // control: an ordinary (unmarked) entity at the same real depth as `surface`.
-        let ordinary_root = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::abs(0)));
+        let ordinary_root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new())
+                .elevate(Elevation::abs(0)),
+        );
         let ordinary_deep = foliage.world.branch(
             ordinary_root,
             Leaf::sprout()

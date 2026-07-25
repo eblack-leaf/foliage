@@ -4,7 +4,9 @@
 //! be confused with `Disable`/`Enable`, a separate system entirely -- that one governs
 //! interaction-enablement flags on `InteractionListener`, not `ResolvedVisibility`.)
 
-use foliage_proper::{EcsExtension, Elevation, Entity, Foliage, Leaf, Location, Sprout, Visibility};
+use foliage_proper::{
+    EcsExtension, Elevation, Entity, Foliage, Leaf, Location, Sprout, Visibility,
+};
 
 fn resolved_visible(foliage: &mut Foliage, entity: Entity) -> bool {
     foliage
@@ -35,7 +37,10 @@ fn hiding_a_parent_cascades_to_an_already_spawned_childs_resolved_visibility() {
         Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
     );
     foliage.world.flush();
-    assert!(resolved_visible(&mut foliage, child), "sanity: visible before any change");
+    assert!(
+        resolved_visible(&mut foliage, child),
+        "sanity: visible before any change"
+    );
 
     foliage.write_to(parent, Visibility::new(false));
     foliage.world.flush();

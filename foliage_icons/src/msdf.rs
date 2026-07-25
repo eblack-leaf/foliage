@@ -42,7 +42,11 @@ pub struct MsdfField {
 
 /// Bakes `svg_bytes` into a square `field_size`×`field_size` MTSDF with a `px_range`-texel
 /// distance spread (and a matching margin so the field isn't clipped at the icon's own edges).
-pub fn generate_field(svg_bytes: &[u8], field_size: u32, px_range: f64) -> Result<MsdfField, String> {
+pub fn generate_field(
+    svg_bytes: &[u8],
+    field_size: u32,
+    px_range: f64,
+) -> Result<MsdfField, String> {
     let opt = usvg::Options::default();
     let tree = usvg::Tree::from_data(svg_bytes, &opt).map_err(|e| e.to_string())?;
 
@@ -55,8 +59,7 @@ pub fn generate_field(svg_bytes: &[u8], field_size: u32, px_range: f64) -> Resul
     }
 
     // Rough (control-point) extent is plenty accurate for picking a flattening tolerance.
-    let (mut min_x, mut min_y, mut max_x, mut max_y) =
-        (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    let (mut min_x, mut min_y, mut max_x, mut max_y) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
     for p in nonzero.iter().chain(&evenodd) {
         let b = p.bounds();
         min_x = min_x.min(b.left());
@@ -84,8 +87,7 @@ pub fn generate_field(svg_bytes: &[u8], field_size: u32, px_range: f64) -> Resul
 
     // Exact bounds of the unioned geometry -- not the viewBox, so a stroke that overshoots
     // the viewBox still fits.
-    let (mut min_x, mut min_y, mut max_x, mut max_y) =
-        (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
+    let (mut min_x, mut min_y, mut max_x, mut max_y) = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
     for [x, y] in unioned.iter().flatten().flatten() {
         min_x = min_x.min(*x);
         min_y = min_y.min(*y);
@@ -104,11 +106,8 @@ pub fn generate_field(svg_bytes: &[u8], field_size: u32, px_range: f64) -> Resul
     let scale = if extent > 0.0 { usable / extent } else { 1.0 };
     let tx = px_range + (usable - bw * scale) * 0.5 - min_x * scale;
     let ty = px_range + (usable - bh * scale) * 0.5 - min_y * scale;
-    let transformation = nalgebra::convert::<_, Affine2<f64>>(Similarity2::new(
-        Vector2::new(tx, ty),
-        0.0,
-        scale,
-    ));
+    let transformation =
+        nalgebra::convert::<_, Affine2<f64>>(Similarity2::new(Vector2::new(tx, ty), 0.0, scale));
 
     // Build the fdsm shape from the unioned polylines, then pre-transform its control points
     // to pixel space (fdsm expects coordinates already in distance-field texels).
@@ -121,8 +120,10 @@ pub fn generate_field(svg_bytes: &[u8], field_size: u32, px_range: f64) -> Resul
         for pair in contour.windows(2) {
             c.segments.push(Segment::line(cvt(pair[0]), cvt(pair[1])));
         }
-        c.segments
-            .push(Segment::line(cvt(*contour.last().unwrap()), cvt(contour[0])));
+        c.segments.push(Segment::line(
+            cvt(*contour.last().unwrap()),
+            cvt(contour[0]),
+        ));
         shape.contours.push(c);
     }
     if shape.contours.is_empty() {
@@ -230,7 +231,14 @@ fn flatten_path(path: &SkPath, tolerance: f64, out: &mut Vec<Vec<[f64; 2]>>) {
 
 const MAX_FLATTEN_DEPTH: u32 = 12;
 
-fn flatten_quad(p0: [f64; 2], c: [f64; 2], p1: [f64; 2], tol: f64, depth: u32, out: &mut Vec<[f64; 2]>) {
+fn flatten_quad(
+    p0: [f64; 2],
+    c: [f64; 2],
+    p1: [f64; 2],
+    tol: f64,
+    depth: u32,
+    out: &mut Vec<[f64; 2]>,
+) {
     if depth >= MAX_FLATTEN_DEPTH || dist_to_chord(c, p0, p1) <= tol {
         out.push(p1);
         return;
@@ -320,7 +328,10 @@ mod tests {
                 outside += 1;
             }
         }
-        assert!(inside > 0, "no inside texels -- the stroke was not outlined into a fill");
+        assert!(
+            inside > 0,
+            "no inside texels -- the stroke was not outlined into a fill"
+        );
         assert!(outside > 0, "no outside texels -- the field is degenerate");
     }
 

@@ -96,9 +96,7 @@ pub fn app_build_gradle(
     out.push_str("def keystorePropertiesFile = rootProject.file(\"keystore.properties\")\n");
     out.push_str("def keystoreProperties = new Properties()\n");
     out.push_str("if (keystorePropertiesFile.exists()) {\n");
-    out.push_str(
-        "    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\n",
-    );
+    out.push_str("    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\n");
     out.push_str("}\n\n");
     out.push_str("android {\n");
     out.push_str(&format!("    compileSdk = {compile_sdk}\n\n"));
@@ -112,12 +110,8 @@ pub fn app_build_gradle(
     out.push_str("    signingConfigs {\n");
     out.push_str("        release {\n");
     out.push_str("            if (keystorePropertiesFile.exists()) {\n");
-    out.push_str(
-        "                storeFile rootProject.file(keystoreProperties['storeFile'])\n",
-    );
-    out.push_str(
-        "                storePassword keystoreProperties['storePassword']\n",
-    );
+    out.push_str("                storeFile rootProject.file(keystoreProperties['storeFile'])\n");
+    out.push_str("                storePassword keystoreProperties['storePassword']\n");
     out.push_str("                keyAlias keystoreProperties['keyAlias']\n");
     out.push_str("                keyPassword keystoreProperties['keyPassword']\n");
     out.push_str("            }\n");

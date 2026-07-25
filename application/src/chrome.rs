@@ -2,7 +2,7 @@ use crate::icons::IconHandles;
 use foliage::{
     Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, GridExt, Icon,
     InteractionListener, InteractionPropagation, InteractionShape, Line, Location, OnClick, OnEnd,
-    Opacity, PageIndex, Polygon, Sprout, Tree, Trigger, anchor,
+    Opacity, PageIndex, Polygon, Query, Sprout, Tree, Trigger, anchor,
 };
 
 /// Global, site-wide chrome -- distinct from the inner-site forward/back navigator
@@ -82,7 +82,10 @@ const HEXA_STAGGER: u64 = 220;
 fn row_box(center_x_px: i32, size_px: i32) -> Location {
     Location::new().xs(
         center_x_px.px().as_center_x().with(size_px.px().as_width()),
-        (ROW_CENTER_Y_PX - size_px / 2).px().as_top().with(size_px.px().as_height()),
+        (ROW_CENTER_Y_PX - size_px / 2)
+            .px()
+            .as_top()
+            .with(size_px.px().as_height()),
     )
 }
 
@@ -90,8 +93,14 @@ fn icon_bundle(target: Entity, handle: IconHandles, color: Color) -> impl Sprout
     Icon::new(handle)
         .color(color)
         .at(Location::new().xs(
-            anchor().center_x().as_center_x().with((anchor().width() * ICON_SCALE).as_width()),
-            anchor().center_y().as_center_y().with((anchor().height() * ICON_SCALE).as_height()),
+            anchor()
+                .center_x()
+                .as_center_x()
+                .with((anchor().width() * ICON_SCALE).as_width()),
+            anchor()
+                .center_y()
+                .as_center_y()
+                .with((anchor().height() * ICON_SCALE).as_height()),
         ))
         .elevate(Elevation::up(21))
         .with((
@@ -187,7 +196,14 @@ fn build_github_and_line(tree: &mut Tree, router: Entity, hepta: Entity) {
 
 fn build_controls(tree: &mut Tree, router: Entity) {
     build_control(tree, router, HOME_CENTER_X_PX, IconHandles::Terminal, 0, 0);
-    build_control(tree, router, TOC_CENTER_X_PX, IconHandles::Menu, 1, HEXA_STAGGER);
+    build_control(
+        tree,
+        router,
+        TOC_CENTER_X_PX,
+        IconHandles::Menu,
+        1,
+        HEXA_STAGGER,
+    );
 }
 
 /// One Home/ToC control, fully self-contained: fade + shape-morph (sharp triangle growing
@@ -257,9 +273,19 @@ fn build_control(
         tree.enable(shape);
     });
 
-    tree.on_click(shape, move |_: Trigger<OnClick>, mut tree: Tree| {
-        // direct jump, no ceremony -- distinct on purpose from the inner-site navigator's
-        // whole spin/hop/redraw transition.
-        tree.write_to(router, PageIndex(target_page));
-    });
+    tree.on_click(
+        shape,
+        move |_: Trigger<OnClick>, page_index: Query<&PageIndex>, mut tree: Tree| {
+            // Router's own no-op guard skips rebuilding the scene when the index doesn't
+            // actually change, but it still fires `PageChanged` unconditionally -- which
+            // (for index 0) re-triggers `NavigatorLanded`, restarting `home.rs`'s type-in
+            // animation from scratch even though nothing really changed. Guard here too,
+            // so clicking Home while already on Home is a genuine no-op.
+            if page_index.get(router).map(|p| p.0) != Ok(target_page) {
+                // direct jump, no ceremony -- distinct on purpose from the inner-site
+                // navigator's whole spin/hop/redraw transition.
+                tree.write_to(router, PageIndex(target_page));
+            }
+        },
+    );
 }

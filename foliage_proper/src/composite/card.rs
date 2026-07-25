@@ -68,10 +68,7 @@ pub struct CardSprout {
 }
 impl CardSprout {
     /// The card's main region -- the top two-thirds. Required.
-    pub fn main(
-        mut self,
-        f: impl Fn(&mut Tree, Entity) -> Entity + Send + Sync + 'static,
-    ) -> Self {
+    pub fn main(mut self, f: impl Fn(&mut Tree, Entity) -> Entity + Send + Sync + 'static) -> Self {
         self.main = Some(Arc::new(f));
         self
     }
@@ -86,10 +83,7 @@ impl CardSprout {
     }
     /// The description row within the bottom third, below the header. Optional, same
     /// contract as [`Self::header`].
-    pub fn desc(
-        mut self,
-        f: impl Fn(&mut Tree, Entity) -> Entity + Send + Sync + 'static,
-    ) -> Self {
+    pub fn desc(mut self, f: impl Fn(&mut Tree, Entity) -> Entity + Send + Sync + 'static) -> Self {
         self.desc = Some(Arc::new(f));
         self
     }
@@ -210,7 +204,9 @@ impl Sprout for CardSprout {
         // not be visible to this reaction's own first fire in the same command batch).
         tree.react::<CardStyle, _>(
             this,
-            move |trigger: Trigger<Insert, CardStyle>, styles: Query<&CardStyle>, mut tree: Tree| {
+            move |trigger: Trigger<Insert, CardStyle>,
+                  styles: Query<&CardStyle>,
+                  mut tree: Tree| {
                 let e = trigger.event_target();
                 let style = *styles.get(e).unwrap();
                 tree.write_to(e, style.backdrop);
@@ -277,7 +273,11 @@ mod tests {
         foliage.world.flush();
 
         let card_section = section_of(&mut foliage, card);
-        assert_ne!(card_section.height(), 0.0, "sanity: the card itself must have resolved to a real size");
+        assert_ne!(
+            card_section.height(),
+            0.0,
+            "sanity: the card itself must have resolved to a real size"
+        );
         let main_slot = children_of(&mut foliage, card)[0];
         let main_section = section_of(&mut foliage, main_slot);
 
@@ -322,8 +322,14 @@ mod tests {
         );
         foliage.world.flush();
 
-        let header_slot = header_slot.lock().unwrap().expect("header closure should have been called");
-        let desc_slot = desc_slot.lock().unwrap().expect("desc closure should have been called");
+        let header_slot = header_slot
+            .lock()
+            .unwrap()
+            .expect("header closure should have been called");
+        let desc_slot = desc_slot
+            .lock()
+            .unwrap()
+            .expect("desc closure should have been called");
         assert_ne!(header_slot, desc_slot);
 
         let card_section = section_of(&mut foliage, card);

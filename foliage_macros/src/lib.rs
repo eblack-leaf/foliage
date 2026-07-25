@@ -37,7 +37,9 @@ fn foliage_root() -> proc_macro2::TokenStream {
 
 fn compiling_the_actual_lib_target() -> bool {
     let crate_name = std::env::var("CARGO_CRATE_NAME").unwrap_or_default();
-    let pkg_name = std::env::var("CARGO_PKG_NAME").unwrap_or_default().replace('-', "_");
+    let pkg_name = std::env::var("CARGO_PKG_NAME")
+        .unwrap_or_default()
+        .replace('-', "_");
     crate_name == pkg_name
 }
 
