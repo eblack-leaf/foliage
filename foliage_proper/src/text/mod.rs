@@ -96,6 +96,7 @@ pub struct TextSprout {
     value: String,
     size: Option<FontSize>,
     color: Option<Color>,
+    glyph_colors: Option<GlyphColors>,
 }
 impl crate::Sprout for TextSprout {
     fn seed(&mut self) -> &mut crate::LeafSprout {
@@ -106,6 +107,7 @@ impl crate::Sprout for TextSprout {
             Text::new_marker(self.value),
             self.size.unwrap_or_default(),
             self.color.unwrap_or_default(),
+            self.glyph_colors.unwrap_or_default(),
         )
     }
 }
@@ -116,6 +118,19 @@ impl TextSprout {
     }
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
+        self
+    }
+    /// Colors each glyph individually: `f(i)` is called once per char index (0-based --
+    /// the same index space `GlyphOffset` already uses) over `self.value` as it stands
+    /// right now, so call this after `Text::new(..)` has the final string. Builds the
+    /// `GlyphColors` component for the caller instead of them constructing
+    /// `GlyphColors::new().add(range, color)` by hand.
+    pub fn glyph_colors<F: Fn(usize) -> Color>(mut self, f: F) -> Self {
+        let mut colors = GlyphColors::new();
+        for i in 0..self.value.chars().count() {
+            colors = colors.add(i..i + 1, f(i));
+        }
+        self.glyph_colors = Some(colors);
         self
     }
 }
