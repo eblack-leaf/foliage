@@ -41,13 +41,13 @@ color," starting from whatever the target's current value is. `tree.animate(anim
 interpolation tick by tick against [`Time`](./time.md)'s frame delta, writing the
 interpolated value onto the target every frame until it finishes.
 
-## `Sequence`: grouping without recomputing timing
+## Sequencing: `during(seq)` and reacting once a group finishes
 
-`Sequence::new(tree).animate(a1).animate(a2).end(on_finish)` (covered in
-[Tree and Graft](./tree.md)) is the ergonomic layer over `during(seq)` -- animations in
-a sequence can still freely overlap in their own `start`/`finish` windows; grouping them
-only removes the repeated `tree.animate(...).during(seq)` boilerplate per line, it
-doesn't compute or infer relative timing for you.
+`seq` above is a plain `Entity` from `tree.sequence()` -- animations sharing one still
+freely overlap in their own `start`/`finish` windows; a sequence groups them only for the
+purpose of knowing when *all* of them are done, via `tree.sequence_end(seq, ..)`. Full
+mechanism (the `SequenceMarker` counter, why the sequence entity self-despawns, the
+`Sequence` builder sugar) is in [Tree and Graft](./tree.md).
 
 ## Ease
 

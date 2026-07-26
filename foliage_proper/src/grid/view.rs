@@ -95,8 +95,8 @@ impl ScrollMomentum {
 #[derive(Component, Copy, Clone, Debug)]
 #[require(ViewAdjustment, OverscrollPropagation, ScrollMomentum, ScrollProgress)]
 pub struct View {
-    pub offset: Position<Logical>,
-    pub extent: Section<Logical>,
+    pub(crate) offset: Position<Logical>,
+    pub(crate) extent: Section<Logical>,
 }
 impl View {
     pub fn new() -> View {
@@ -104,6 +104,19 @@ impl View {
             offset: Default::default(),
             extent: Default::default(),
         }
+    }
+    /// Current pan, in px -- raw state, `pub(crate)`-write only (`extent_check`'s clamp
+    /// is the one place that ever moves it); read-only from outside the crate. Most
+    /// external callers want [`ScrollProgress`] instead (normalized, no `Section` needed
+    /// to interpret it) -- this is for the rarer case that genuinely needs pixels (exact
+    /// content height, which row sits at the top edge).
+    pub fn offset(&self) -> Position<Logical> {
+        self.offset
+    }
+    /// The scrollable content's bounds, in px -- see [`View::offset`]'s own doc for why
+    /// this is read-only from outside the crate.
+    pub fn extent(&self) -> Section<Logical> {
+        self.extent
     }
 }
 impl Default for View {
@@ -120,8 +133,16 @@ impl Default for View {
 /// re-deriving it from `View`/`Section` itself. 0 on an axis with nothing to scroll.
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub struct ScrollProgress {
-    pub x: f32,
-    pub y: f32,
+    x: f32,
+    y: f32,
+}
+impl ScrollProgress {
+    pub fn x(&self) -> f32 {
+        self.x
+    }
+    pub fn y(&self) -> f32 {
+        self.y
+    }
 }
 fn ovrscrl(
     entity: Entity,

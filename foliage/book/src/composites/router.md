@@ -29,6 +29,27 @@ the author builds and owns every scene; the widget only owns which one currently
 Anything that must survive a switch (persistent chrome, shared state) has to live outside
 the router's subtree or in a `Resource`, never inside a scene.
 
+## Reaching the current slot from outside a route
+
+A `RouteFn` gets its own slot as a parameter, but anything living *outside* the router's
+subtree -- persistent chrome, a sibling composite -- has no slot to reach for. `Router::slot`
+is that door:
+
+```rust
+// foliage_proper/src/composite/router.rs
+impl Router {
+    pub fn slot(router: Entity, handles: &Query<&RouterHandle>) -> Option<Entity> { .. }
+}
+```
+
+`None` only in the brief window between `Router` being spawned and its structure reaction
+actually building the first route -- everywhere else, it's the entity currently holding
+whatever route is showing (fade it out before navigating away, anchor something to
+whatever's currently on screen). `RouterHandle` itself is `pub` only so `Query<&RouterHandle>`
+type-checks at the call site; its `built` field stays private with no setter -- only the
+router's own reactions ever write it, this is a read door, not a second way to drive
+navigation (that's still exactly `tree.write_to(router, PageIndex(i))`).
+
 ## No URL/browser-history integration -- decided, not pending
 
 This is the one composite in the crate with a documented, deliberately-rejected design,

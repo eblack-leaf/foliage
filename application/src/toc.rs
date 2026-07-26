@@ -510,7 +510,7 @@ fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
               progress: Query<&ScrollProgress>,
               sections: Query<&Section<Logical>>,
               mut tree: Tree| {
-            let y = progress.get(trigger.entity).unwrap().y;
+            let y = progress.get(trigger.entity).unwrap().y();
             // half the knob's own size, as a percent of `root`'s live height -- without
             // this, mapping `y` straight onto 0%..100% centers the knob exactly on
             // `root`'s own top/bottom edge at the extremes, and `root` (the knob's

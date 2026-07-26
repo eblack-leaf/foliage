@@ -24,15 +24,47 @@ than `pollster::block_on`, since blocking isn't available on the web.
 
 ## Android
 
-Real code exists for this target -- `AndroidConnection`, `cfg(target_os = "android")`
-branches (including the same `downlevel_webgl2_defaults()` limits path WASM uses, since
-mobile GPU drivers share that ceiling), and `winit`'s android-game-activity feature are
-all already in the tree. What's missing is an actual app project wired up to build and
-run against them end to end, and the Android SDK's own interactive license-acceptance
-step (doable in CI via `android-actions/setup-android` + `yes | sdkmanager --licenses`,
-but real setup work for a target that isn't finished being wired up locally either) --
-so there's no Android job in CI yet. This is unfinished integration work, not an
-unsolved technical problem.
+An actual app project *is* now wired up end to end -- three pieces:
+
+- **`Foliage::android(app)`** -- the Android-only counterpart to `Foliage::new()`.
+  `winit`'s android backend can't build an event loop without the `AndroidApp` handle
+  Android itself hands over at process start (`EventLoop::new()` alone panics there), so
+  unlike every other platform there's no zero-arg `Default` to fall back on for this one.
+  ```rust
+  // foliage_proper/src/foliage.rs
+  #[cfg(target_os = "android")]
+  pub fn android(app: crate::AndroidApp) -> Foliage { .. }
+  ```
+- **`application_android`** -- a separate `crate-type = ["cdylib"]` crate (not folded into
+  `application` itself: a cdylib target also produces a competing
+  `wasm32-unknown-unknown` artifact sharing `application`'s own binary name, which broke
+  trunk's artifact selection for the real wasm build). Its whole job is the JNI boundary:
+  ```rust
+  // application_android/src/lib.rs
+  #[unsafe(no_mangle)]
+  fn android_main(app: foliage::AndroidApp) {
+      application::run(foliage::Foliage::android(app));
+  }
+  ```
+  The Java/Kotlin `GameActivity` shim loads this crate as a `.so` and calls `android_main`
+  via JNI -- everything after that is the same `application::run` every other platform
+  calls.
+- **`foliage_android`** -- a scaffolding CLI (`cargo run -p foliage_android -- gen
+  --app-id .. --lib-name application_android --out application/android`) that generates
+  the Gradle/`GameActivity` project around the compiled cdylib -- build files, manifest,
+  `MainActivity`, Gradle wrapper. `androidx.games:games-activity` (Google's `GameActivity`,
+  not the older `NativeActivity`) has a real Java/Kotlin AAR dependency, so a Gradle
+  project is genuinely unavoidable here, not a workaround; generating it instead of
+  hand-writing it keeps it a parameterized copy of
+  `rust-mobile/android-activity`'s own `agdk-mainloop` example (the crate that actually
+  implements the android-game-activity backend) rather than a maintained fork of it.
+  `application/android/README.md` has the full one-time SDK/NDK setup (all doable
+  non-interactively from a terminal, no Android Studio required).
+
+Still no Android job in CI (`.github/workflows/ci.yml` has a comment on this, itself
+written before this local wiring existed) -- the SDK's interactive license-acceptance step
+is doable non-interactively there too (`android-actions/setup-android` +
+`yes | sdkmanager --licenses`), just not yet done.
 
 ## iOS
 

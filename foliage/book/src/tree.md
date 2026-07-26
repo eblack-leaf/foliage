@@ -51,12 +51,44 @@ impl<'t, T: EcsExtension + ?Sized> Graft<'t, T> {
 Used as `tree.graft(e).on_click(...).animate(...)`. Each method returns `Self`, so calls
 chain, and `Graft` converts back to `Entity` via `From` when you need the id back out.
 
-## `Sequence`: chaining animations without repeating the wiring
+## Sequencing animations: `sequence`/`sequence_end`, and `Sequence` as sugar over them
 
-`Sequence::new(tree).animate(a1).animate(a2).end(on_finish)` removes the
-per-line `tree.animate(...).during(seq)` boilerplate for grouping several animations
-under one sequence marker -- it doesn't compute or infer timing (animations in a
-sequence can still freely overlap), it only removes the repeated wrapper.
+The actual primitive -- what every composite in this codebase reaches for directly (60+
+call sites; the `Sequence` sugar below is a much rarer 2nd choice) -- is three
+`EcsExtension` methods:
+
+```rust
+// foliage_proper/src/tree.rs
+fn sequence(&mut self) -> Entity;
+fn sequence_end<M>(&mut self, seq: Entity, end: impl IntoEntityObserver<M>);
+```
+
+```rust
+let seq = tree.sequence();
+tree.animate(Animation::new(end_value).targeting(e1).during(seq)./* .. */);
+tree.animate(Animation::new(other_value).targeting(e2).during(seq)./* .. */);
+tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| { /* .. */ });
+```
+
+`tree.sequence()` just spawns a bare entity carrying a `SequenceMarker { animations_to_finish: i32 }`
+(starting at 0). Every `Animation` with `.during(seq)` increments that counter the moment
+its `AnimationRunner` is inserted (an `on_insert` hook, so it's automatic regardless of
+call order -- animations can be added to a sequence incrementally, no need to know the
+final count up front); each one decrements it again on finishing. Once the count reaches
+zero, the sequence entity fires `OnEnd` at itself (the same event type [`Timer`](./time.md)
+uses) and **despawns itself** -- `sequence_end`'s closure is a plain `Trigger<OnEnd>`
+observer registered on that entity (`tree.entity(seq).observe(end)`), so it fires exactly
+once, after every animation in the group has actually finished, never before. Don't hold
+onto or reuse a `seq` `Entity` past that point -- it's gone.
+
+`Sequence::new(tree).animate(a1).animate(a2).end(on_finish)` is a thin builder over the
+exact same three calls (`Sequence::new` calls `tree.sequence()`, `.animate` calls
+`tree.animate(anim.during(seq))`, `.end` calls `tree.sequence_end`) -- convenient when a
+sequence's animations are all known up front in one chain, but most real usage reaches
+for the raw calls instead, either because the animations are built across a loop/branch,
+or because keeping `seq` around as a plain `Entity` (to pass into a closure, thread
+through a helper function) is simpler than threading a `Sequence<'t, T>` borrow through
+the same code.
 
 ## `IntoTargets` and `TargetedEvent`
 

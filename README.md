@@ -3,7 +3,7 @@
 `Foliage` is a cross-platform UI framework written in Rust. Every widget is one ECS entity
 (via [`bevy_ecs`](https://crates.io/crates/bevy_ecs)); rendering is [`wgpu`](https://wgpu.rs)
 and windowing/input is [`winit`](https://docs.rs/winit). It targets Linux, Windows, and macOS
-natively, the Web via WebAssembly, and Android (in progress) -- see [Platform support](#platform-support)
+natively, the Web via WebAssembly, and Android -- see [Platform support](#platform-support)
 below.
 
 ## Getting started
@@ -98,7 +98,7 @@ itself from scratch using only what came before it.
 |---|---|
 | Linux / Windows / macOS | Native, CI-tested (`cargo test --workspace` on all three) |
 | Web (WASM) | Live -- this is the crate's actual deployed target, not just a CI build check |
-| Android | Code paths exist (`cfg(target_os = "android")`, winit's android-game-activity feature) but no app project is wired up end-to-end yet; not yet in CI |
+| Android | Wired up end-to-end -- `Foliage::android(app)`, a cdylib entry point crate (`application_android`), and a Gradle-project scaffolding CLI (`foliage_android`); not yet in CI |
 | iOS | No toolchain currently available to compile or verify against; the shared source has no iOS-specific branch behind it yet, so this is unverified rather than unsupported |
 
 ## Known gaps
