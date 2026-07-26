@@ -1,8 +1,8 @@
 use crate::icons::IconHandles;
 use foliage::{
     Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape,
-    Leaf, Line, Location, Opacity, Panel, Polygon, Sprout, Text, Tree, VerticalAlignment, anchor,
+    HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape, Leaf,
+    Line, Location, Opacity, Panel, Polygon, Sprout, Text, Tree, VerticalAlignment, anchor,
 };
 
 const TEXT: &str = "foliage.rs";
@@ -389,7 +389,10 @@ fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity,
     let left = anchor().center_x().as_left();
     let btn_left = left.adjust(icon_offset);
     let label_left = left.adjust(label_offset);
-    let row_top = anchor().bottom().as_top().adjust(DOCS_GAP_FROM_FIELD_BOTTOM);
+    let row_top = anchor()
+        .bottom()
+        .as_top()
+        .adjust(DOCS_GAP_FROM_FIELD_BOTTOM);
     let btn_box = Location::new().xs(
         btn_left.with(DOCS_BTN_PX.px().as_width()),
         row_top.with(DOCS_BTN_PX.px().as_height()),
@@ -557,7 +560,10 @@ pub fn type_in(tree: &mut Tree, parent: Entity, seq: Entity, start: u64) {
                         .as_width()
                         .adjust((TOTAL_COLS - 1) * CELL_GAP_PX),
                 ),
-                FIELD_CENTER_Y_PCT.pct().as_center_y().with(1.letters().as_height()),
+                FIELD_CENTER_Y_PCT
+                    .pct()
+                    .as_center_y()
+                    .with(1.letters().as_height()),
             ))
             .elevate(Elevation::up(1))
             .with((grid, FontSize::new(FONT_SIZE))),

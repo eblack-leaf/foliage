@@ -4,8 +4,8 @@ use foliage::bevy_ecs::bundle::Bundle;
 use foliage::bevy_ecs::lifecycle::Insert;
 use foliage::bevy_ecs::query::With;
 use foliage::{
-    Animation, Color, CurrentInteraction, Dragged, Ease, EcsExtension, Elevation, Entity,
-    FontSize, Grid, GridExt, HorizontalAlignment, InteractionListener, InteractionPropagation,
+    Animation, Color, CurrentInteraction, Dragged, Ease, EcsExtension, Elevation, Entity, FontSize,
+    Grid, GridExt, HorizontalAlignment, InteractionListener, InteractionPropagation,
     InteractionShape, Leaf, LeafSprout, Line, Location, Logical, OnClick, OnEnd, Opacity,
     PageIndex, Polygon, Query, Res, ScrollProgress, ScrollTo, Section, Sprout, Text, TextValue,
     Tree, Trigger, VerticalAlignment, component,
@@ -76,17 +76,17 @@ impl ContentsItem {
 
 /// Same family each `chapters/*.rs` page already uses for its own placeholder shape --
 /// a card reads as that chapter's own color before you ever click into it, not just one
-/// of nine identical green cards.
+/// of identical green cards.
 fn chapter_color(target_page: usize, shade: i32) -> Color {
     match target_page {
         2 => Color::blue(shade),
-        3 => Color::cyan(shade),
-        4 => Color::teal(shade),
-        5 => Color::orange(shade),
-        6 => Color::amber(shade),
-        7 => Color::rose(shade),
-        8 => Color::lime(shade),
-        9 => Color::purple(shade),
+        3 => Color::indigo(shade),
+        4 => Color::cyan(shade),
+        5 => Color::teal(shade),
+        6 => Color::orange(shade),
+        7 => Color::amber(shade),
+        8 => Color::rose(shade),
+        9 => Color::lime(shade),
         _ => Color::green(shade),
     }
 }
@@ -128,7 +128,9 @@ impl Sprout for ContentsItemSprout {
                             .rotation(0.0)
                             .color(chapter_color(config.target_page, 400))
                             .at(Location::new().xs(
-                                50.pct().as_center_x().with(HEPTA_WIDTH_PCT.pct().as_width()),
+                                50.pct()
+                                    .as_center_x()
+                                    .with(HEPTA_WIDTH_PCT.pct().as_width()),
                                 HEPTA_TOP_PCT
                                     .pct()
                                     .as_top()
@@ -327,22 +329,41 @@ const MD_COL_GAP_PX: i32 = 32;
 /// description)`. Title isn't duplicated here -- it comes from `ROUTE_NAMES[target_page]`
 /// (see `toc`'s own body), the same single source of truth `navigator.rs` uses for its
 /// forward/back labels, so this list and the nav labels can't drift out of sync the way
-/// `navigator.rs`'s own now-removed local copy just did. The nine-chapter walkthrough of
-/// how `foliage_proper` builds up a composite, in learning order -- see
-/// `crate::chapters`' own doc comment.
+/// `navigator.rs`'s own now-removed local copy just did. The chapter walkthrough of how
+/// `foliage_proper` builds up a composite, in learning order -- see `crate::chapters`'
+/// own doc comment.
 const ROUTES: &[(usize, &str)] = &[
-    (2, "Where it sits: percent/px/point, always relative to its parent"),
-    (3, "How a parent divides into columns/rows so children can address cells"),
-    (4, "Position relative to another entity's live box, not just your parent"),
-    (5, "A component as a tweenable value, interpolating over time"),
-    (6, "Chaining animations together and reacting once they all finish"),
-    (7, "Clicks and hit-testing: listeners, propagation, pass-through"),
-    (8, "The authoring pattern: config in, reactive structure out"),
-    (9, "A complete worked example, built from everything before it"),
+    (
+        2,
+        "Where it sits: percent/px/point, as a live value that can change",
+    ),
+    (3, "Stacking order between shapes, and changing it live"),
+    (4, "The same percentages, against a real, visible parent"),
+    (
+        5,
+        "How a parent divides into columns/rows so children can address cells",
+    ),
+    (
+        6,
+        "Position relative to another entity's live box, not just your parent",
+    ),
+    (
+        7,
+        "A component as a tweenable value, interpolating over time",
+    ),
+    (
+        8,
+        "Chaining animations together and reacting once they all finish",
+    ),
+    (
+        9,
+        "Clicks and hit-testing: listeners, propagation, pass-through",
+    ),
 ];
 
 const COLS_XS: i32 = 1;
 const COLS_MD: i32 = 2;
+const COLS_LG: i32 = 3;
 
 fn container_width_px(cols: i32, col_gap: i32) -> i32 {
     cols * CARD_WIDTH_PX + (cols - 1) * col_gap
@@ -353,13 +374,13 @@ fn container_height_px(rows: i32) -> i32 {
 
 /// Reachable via the global chrome's explicit ToC button (and, since `Router` treats
 /// every route the same, via the main forward/back navigator too). One `ContentsItem`
-/// per route in `ROUTES`, arranged in a `Grid` that's a single column below `Md` and two
-/// columns at `Md`+ (`Layout::MD` = 600px) -- both the `content` `Grid`'s own
-/// column/row counts and each card's own `.col()`/`.row()` index get explicit
-/// `.xs(..)`/`.md(..)` placements. There's no auto-flow in this engine: spanning items
-/// (used elsewhere for alignment, not every layout is 1 item per cell) make "place the
-/// next item in the next free cell" ambiguous, so placement stays explicit and
-/// hand-computed instead.
+/// per route in `ROUTES`, arranged in a `Grid` that's a single column below `Md`, two
+/// columns at `Md`+ (`Layout::MD` = 600px), and three at `Lg`+ (`Layout::LG` = 840px) --
+/// both the `content` `Grid`'s own column/row counts and each card's own `.col()`/`.row()`
+/// index get explicit `.xs(..)`/`.md(..)`/`.lg(..)` placements. There's no auto-flow in
+/// this engine: spanning items (used elsewhere for alignment, not every layout is 1 item
+/// per cell) make "place the next item in the next free cell" ambiguous, so placement
+/// stays explicit and hand-computed instead.
 ///
 /// Three levels deep, not two -- `viewport` (sized to the content area below chrome,
 /// carrying the real scrollable `View`) holding `content` (sized to the full card-stack
@@ -373,6 +394,8 @@ fn container_height_px(rows: i32) -> i32 {
 pub fn toc(tree: &mut Tree, slot: Entity) {
     let rows_xs = ROUTES.len() as i32;
     let rows_md = ROUTES.len() as i32 / COLS_MD + ROUTES.len() as i32 % COLS_MD;
+    let rows_lg = (ROUTES.len() as i32 + COLS_LG - 1) / COLS_LG; // proper ceil -- `rows_md`'s
+    // own `len/cols + len%cols` only happens to work out for `COLS_MD`'s specific 8/2 split
 
     let viewport = tree.branch(
         slot,
@@ -408,11 +431,29 @@ pub fn toc(tree: &mut Tree, slot: Entity) {
                     0.px()
                         .as_top()
                         .with(container_height_px(rows_md).px().as_height()),
+                )
+                .lg(
+                    50.pct()
+                        .as_center_x()
+                        .with(container_width_px(COLS_LG, MD_COL_GAP_PX).px().as_width()),
+                    0.px()
+                        .as_top()
+                        .with(container_height_px(rows_lg).px().as_height()),
                 ))
             .elevate(Elevation::up(1))
             .with(
-                Grid::new(COLS_XS.col().gap(GRID_GAP_PX), rows_xs.row().gap(GRID_GAP_PX))
-                    .md(COLS_MD.col().gap(MD_COL_GAP_PX), rows_md.row().gap(GRID_GAP_PX)),
+                Grid::new(
+                    COLS_XS.col().gap(GRID_GAP_PX),
+                    rows_xs.row().gap(GRID_GAP_PX),
+                )
+                .md(
+                    COLS_MD.col().gap(MD_COL_GAP_PX),
+                    rows_md.row().gap(GRID_GAP_PX),
+                )
+                .lg(
+                    COLS_LG.col().gap(MD_COL_GAP_PX),
+                    rows_lg.row().gap(GRID_GAP_PX),
+                ),
             ),
     );
 
@@ -422,6 +463,8 @@ pub fn toc(tree: &mut Tree, slot: Entity) {
         let row_xs = i + 1;
         let col_md = i % COLS_MD + 1;
         let row_md = i / COLS_MD + 1;
+        let col_lg = i % COLS_LG + 1;
+        let row_lg = i / COLS_LG + 1;
 
         // `ROUTE_NAMES` is lowercase (matches the nav labels' own convention); the card
         // title capitalizes just its own copy for display, not the shared data itself.
@@ -445,6 +488,10 @@ pub fn toc(tree: &mut Tree, slot: Entity) {
                     .md(
                         col_md.col().as_left().with(col_md.col().as_right()),
                         row_md.row().as_top().with(row_md.row().as_bottom()),
+                    )
+                    .lg(
+                        col_lg.col().as_left().with(col_lg.col().as_right()),
+                        row_lg.row().as_top().with(row_lg.row().as_bottom()),
                     ))
                 .elevate(Elevation::up(1)),
         );
@@ -628,8 +675,8 @@ fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
               sections: Query<&Section<Logical>>,
               mut tree: Tree| {
             let bounds = sections.get(root).unwrap();
-            let pct =
-                ((interaction.click().current.top() - bounds.top()) / bounds.height()).clamp(0.0, 1.0);
+            let pct = ((interaction.click().current.top() - bounds.top()) / bounds.height())
+                .clamp(0.0, 1.0);
             tree.write_to(view_target, ScrollTo::y(pct));
         },
     );
@@ -640,8 +687,8 @@ fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
               sections: Query<&Section<Logical>>,
               mut tree: Tree| {
             let bounds = sections.get(root).unwrap();
-            let pct =
-                ((interaction.click().current.top() - bounds.top()) / bounds.height()).clamp(0.0, 1.0);
+            let pct = ((interaction.click().current.top() - bounds.top()) / bounds.height())
+                .clamp(0.0, 1.0);
             tree.write_to(view_target, ScrollTo::y(pct));
         },
     );

@@ -126,12 +126,14 @@ mod tests {
     /// `LocationValue::gap` used to `debug_assert!` against `Letters`, even though
     /// `calc()`'s column-pitch resolution reads `grid.columns.gap.amount` unconditionally
     /// regardless of which value variant computed the pitch -- the assert disallowed a
-    /// combination the resolver already supported. This both proves `N.letters().gap(g)`
-    /// no longer panics and that the gap is actually honored: a column's left edge is
-    /// `(index) * gap` further right than with no gap at all (see the `(Left, Width)`
-    /// resolution math in `location.rs::calc`).
+    /// combination the resolver already supported. This proves `N.letters().gap(g)` no
+    /// longer panics -- with only one column, there's nothing for the gap to sit *between*
+    /// (`grid/location.rs`'s own resolution now spends `(n - 1)` gaps across `n` columns,
+    /// matching ordinary CSS grid, not `(n + 1)` -- a leading/trailing margin `gap`, on its
+    /// own, was never supposed to add), so the single cell still spans the field's own full
+    /// width, unaffected by `GAP`.
     #[test]
-    fn letters_grid_gap_does_not_panic_and_shifts_column_position() {
+    fn letters_grid_gap_does_not_panic_and_leaves_a_single_column_unaffected() {
         let mut foliage = Foliage::new();
         const GAP: i32 = 10;
 
@@ -161,9 +163,9 @@ mod tests {
         let section = *foliage.world.get::<Section<Logical>>(child).unwrap();
         assert_eq!(
             section.left(),
-            GAP as f32,
-            "the first cell's left edge should sit exactly one gap in from the field's own \
-             left edge, not at zero (no gap applied) or panicked before ever resolving"
+            0.0,
+            "a single column has no other column to gap *from* -- gap shouldn't add a \
+             leading margin before it, only space between multiple columns"
         );
     }
 

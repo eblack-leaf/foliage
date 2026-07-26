@@ -3,9 +3,9 @@ use crate::navigator::Landed;
 use foliage::bevy_ecs::lifecycle::Insert;
 use foliage::{
     Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, GridExt,
-    HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape,
-    Line, Location, OnClick, OnEnd, Opacity, PageIndex, Polygon, Query, Sprout, Text, Tree,
-    Trigger, anchor,
+    HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape, Line,
+    Location, OnClick, OnEnd, Opacity, PageIndex, Polygon, Query, Sprout, Text, Tree, Trigger,
+    anchor,
 };
 
 /// Global, site-wide chrome -- distinct from the inner-site forward/back navigator
@@ -217,7 +217,10 @@ fn build_label(
             .size(FontSize::new(LABEL_FONT_SIZE))
             .color(Color::stone(500))
             .at(Location::new().xs(
-                center_x_px.px().as_center_x().with(width_px.px().as_width()),
+                center_x_px
+                    .px()
+                    .as_center_x()
+                    .with(width_px.px().as_width()),
                 (ROW_CENTER_Y_PX + size_px / 2 + LABEL_GAP_PX)
                     .px()
                     .as_top()

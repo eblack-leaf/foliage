@@ -146,7 +146,7 @@ const MUTED_OPACITY: f32 = 0.3;
 /// just once).
 const LABEL_FONT_SIZE: u32 = 16; // bigger than chrome.rs's own label font (12)
 const LABEL_GAP_PX: i32 = 10; // px above each polygon's own top edge
-const LABEL_WIDTH_PX: i32 = 100; // wide enough for the longest name in ROUTE_NAMES ("composite")
+const LABEL_WIDTH_PX: i32 = 100; // wide enough for the longest name in ROUTE_NAMES ("relative"/"sequence"/"interact")
 const LABEL_HEIGHT_PX: i32 = 24; // > a 16px font's actual line height (ascent+descent) --
 // text rendering scissor-clips to this box's own bounds (`TextBounds`, independent of
 // elevation/z-order), so anything shorter clips descenders (g/p/q/y) against its own

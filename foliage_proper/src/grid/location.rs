@@ -665,7 +665,7 @@ fn calc(
                 _ => false,
             };
             let column = if let LocationValue::Column(n) = grid.columns.value {
-                (context.width() - grid.columns.gap.amount * (n + 1) as f32) / (n as f32)
+                (context.width() - grid.columns.gap.amount * (n - 1) as f32) / (n as f32)
             } else if let LocationValue::Px(px) = grid.columns.value {
                 px
             } else if let LocationValue::Letters(l) = grid.columns.value {
@@ -678,7 +678,7 @@ fn calc(
                 _ => 0.0,
             };
             let val = (c as f32 - 1f32 * f32::from(!inclusive)) * column
-                + c as f32 * grid.columns.gap.amount;
+                + (c as f32 - 1.0) * grid.columns.gap.amount;
             Some(val + offset + context.left() * f32::from(desc.designator != Designator::Width))
         }
         LocationValue::Row(r) => {
@@ -687,7 +687,7 @@ fn calc(
                 _ => false,
             };
             let row = if let LocationValue::Row(n) = grid.rows.value {
-                (context.height() - grid.rows.gap.amount * (n + 1) as f32) / (n as f32)
+                (context.height() - grid.rows.gap.amount * (n - 1) as f32) / (n as f32)
             } else if let LocationValue::Px(px) = grid.rows.value {
                 px
             } else if let LocationValue::Letters(l) = grid.rows.value {
@@ -699,8 +699,8 @@ fn calc(
                 Designator::Y | Designator::CenterY => 0.5 * row,
                 _ => 0.0,
             };
-            let val =
-                (r as f32 - 1f32 * f32::from(!inclusive)) * row + r as f32 * grid.rows.gap.amount;
+            let val = (r as f32 - 1f32 * f32::from(!inclusive)) * row
+                + (r as f32 - 1.0) * grid.rows.gap.amount;
             Some(val + offset + context.top() * f32::from(desc.designator != Designator::Height))
         }
         LocationValue::Anchor(s, scale) => {

@@ -26,13 +26,13 @@ pub fn build(foliage: &mut Foliage) {
                 home as RouteFn,
                 toc as RouteFn,
                 chapters::location::build as RouteFn,
+                chapters::elevate::build as RouteFn,
+                chapters::relative::build as RouteFn,
                 chapters::grid::build as RouteFn,
                 chapters::anchor::build as RouteFn,
                 chapters::animate::build as RouteFn,
                 chapters::sequence::build as RouteFn,
                 chapters::interact::build as RouteFn,
-                chapters::sprout::build as RouteFn,
-                chapters::composite::build as RouteFn,
             ]))
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),

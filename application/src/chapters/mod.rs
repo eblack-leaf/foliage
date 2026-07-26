@@ -1,25 +1,26 @@
 //! The visual walkthrough of how `foliage_proper` builds up a composite -- one page per
 //! concept, in the order you actually need to learn them: `location` first (an entity is
 //! nothing without a position -- that's `location`'s own opening beat, not a separate
-//! page), then `grid`/`anchor` (the two ways a child's `Location` resolves), then
-//! `animate`/`sequence` (motion), then `interact` (clicks), then `sprout` (the authoring
-//! pattern that packages all of the above), and finally `composite`, a capstone worked
-//! example. Each is currently just the shared window frame -- the real infographic for
-//! each concept lands per-page later.
+//! page), then `elevate` (which of two overlapping entities actually renders in front,
+//! and that it's just a component you can change), then `relative` (the same `Location`
+//! percentages, but against a real, visible parent instead of the invisible window
+//! frame), then `grid`/`anchor` (the two ways a child's `Location` resolves), then
+//! `animate`/`sequence` (motion), then finally `interact` (clicks). Most are currently
+//! just the shared window frame -- the real infographic for each concept lands per-page
+//! later.
 
 pub mod anchor;
 pub mod animate;
-pub mod composite;
+pub mod elevate;
 pub mod grid;
 pub mod interact;
 pub mod location;
+pub mod relative;
 pub mod sequence;
-pub mod sprout;
 
 use crate::toc::{CONTENT_AREA_BOTTOM_CLEARANCE_PX, CONTENT_AREA_BOTTOM_PCT, CONTENT_AREA_TOP_PX};
 use foliage::{
-    Color, EcsExtension, Elevation, Entity, Grid, GridExt, Location, Panel, Rounding, Sprout,
-    Tree,
+    Color, EcsExtension, Elevation, Entity, Grid, GridExt, Location, Panel, Rounding, Sprout, Tree,
 };
 
 const WINDOW_LEFT_PCT: f32 = 8.0;
@@ -68,7 +69,10 @@ pub(crate) fn window_frame(tree: &mut Tree, slot: Entity) -> Entity {
                 .rounding(Rounding::Full)
                 .at(Location::new().xs(
                     left_px.px().as_left().with(DOT_SIZE_PX.px().as_width()),
-                    DOT_INSET_PX.px().as_top().with(DOT_SIZE_PX.px().as_height()),
+                    DOT_INSET_PX
+                        .px()
+                        .as_top()
+                        .with(DOT_SIZE_PX.px().as_height()),
                 ))
                 .elevate(Elevation::up(1)),
         );

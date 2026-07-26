@@ -9,11 +9,11 @@ pub const ROUTE_NAMES: [&str; 10] = [
     "home",
     "contents",
     "location",
+    "elevate",
+    "relative",
     "grid",
     "anchor",
     "animate",
     "sequence",
     "interact",
-    "sprout",
-    "composite",
 ];
