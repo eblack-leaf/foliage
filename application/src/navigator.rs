@@ -83,18 +83,18 @@ const BACK_CENTER_Y: f32 = CENTER_Y + INTRO_HEIGHT + 3.0;
 /// the screen for whatever scene is showing above it.
 const REST_CENTER_Y: f32 = 91.0;
 
-const MOVE_END: u64 = 2600; // `back`'s slower glide to its resting horizontal position -- was 3400, trimmed so the whole intro doesn't take so long before anything is clickable
-const FORWARD_FADE_IN: u64 = 650; // `forward`'s in-place fade-in (it never slides) -- was 900
+const MOVE_END: u64 = 1600; // `back`'s slower glide to its resting horizontal position -- was 2600, trimmed further so the whole intro doesn't take so long before anything is clickable
+const FORWARD_FADE_IN: u64 = 400; // `forward`'s in-place fade-in (it never slides) -- was 650
 /// `back` becomes visible over this long, starting exactly when its own arrive begins --
 /// it isn't actually fully off-screen at intro size (`START_CENTER_X` still leaves a
 /// corner of it on-screen at `INTRO_WIDTH`), so it needs to fade in rather than just be
 /// visible from spawn, or that corner sits there as a stray artifact before it starts
 /// moving.
-const BACK_ARRIVE_FADE_IN: u64 = 400;
-const SETTLE_DURATION: u64 = 300; // in-place shrink from intro size to resting size -- was 400
-const SPIN_DURATION: u64 = 180; // fast spin into the next shape
-const BOUNCE_DURATION: u64 = 140; // quick overcorrect back to rest angle
-const SHAPE_PAUSE: u64 = 380; // longer hold once it settles
+const BACK_ARRIVE_FADE_IN: u64 = 250; // was 400
+const SETTLE_DURATION: u64 = 200; // in-place shrink from intro size to resting size -- was 300
+const SPIN_DURATION: u64 = 120; // fast spin into the next shape -- was 180
+const BOUNCE_DURATION: u64 = 90; // quick overcorrect back to rest angle -- was 140
+const SHAPE_PAUSE: u64 = 220; // longer hold once it settles -- was 380
 const STAGE_DURATION: u64 = SPIN_DURATION + BOUNCE_DURATION + SHAPE_PAUSE;
 /// `back`'s own morph delay: timed so its LAST stage's "spin into" lands exactly when
 /// `back`'s own glide (`MOVE_END`) finishes. `forward` doesn't glide anywhere, so its
@@ -109,7 +109,7 @@ const OVERSHOOT: f32 = PI / 10.0;
 const LINE_WEIGHT: i32 = 2;
 const LINE_GAP: f32 = 4.0; // clearance from each polygon's own edge
 const SCREEN_MARGIN: f32 = 6.0; // clearance from the screen edge
-const LINE_DRAW: u64 = 850; // was 1200
+const LINE_DRAW: u64 = 550; // was 850
 /// Real pixels, not a percentage -- the drop-preview line's start needs clearance from
 /// `back`'s bounding-box edge regardless of screen size, since it's compensating for the
 /// polygon's own rotation not the screen's aspect ratio.
@@ -119,15 +119,15 @@ const DROP_LINE_MARGIN: i32 = 6;
 /// rather than leaving a small gap.
 const LINE_MARGIN: i32 = 16;
 
-const DOWN_DURATION: u64 = 650; // `forward` + both lines, together, to the resting spot -- was 900
+const DOWN_DURATION: u64 = 550; // `forward` + both lines, together, to the resting spot -- was 650, then 400 (too rushed)
 const ICON_PX: i32 = 20;
-const ICON_FADE: u64 = 350; // was 500
+const ICON_FADE: u64 = 220; // was 350
 
 /// `back`'s icon fades in this long after `forward`'s icon-fade sequence ends -- a
 /// staggered second entrance for the icon layer specifically (the polygon itself is
 /// already fully visible by then, from its own intro).
-const BACK_STAGGER: u64 = 400;
-const BACK_FADE: u64 = 500;
+const BACK_STAGGER: u64 = 250; // was 400
+const BACK_FADE: u64 = 300; // was 500
 
 /// Both polygons exist the whole time; a boundary (index 0 or the last page) mutes
 /// whichever one isn't currently usable rather than hiding it outright -- reads as

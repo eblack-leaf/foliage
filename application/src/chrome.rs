@@ -31,12 +31,12 @@ const HEPTA_CENTER_X_PX: i32 = 32;
 /// the heptagon and the smaller Home/ToC controls).
 const ROW_CENTER_Y_PX: i32 = ROOT_TOP_PX + HEPTA_SIZE_PX / 2;
 
-const FADE_IN: u64 = 500;
+const FADE_IN: u64 = 300; // was 500
 /// Staggered behind the fade start, not concurrent with it -- the mark visibly begins
 /// appearing first, then starts spinning a beat later, rather than both reading as one
 /// indistinguishable motion.
-const SPIN_DELAY: u64 = 180;
-const SPIN_IN: u64 = 700;
+const SPIN_DELAY: u64 = 120; // was 180
+const SPIN_IN: u64 = 450; // was 700
 /// A full turn -- combined with the shape actually changing (see `build`'s spawn shape),
 /// not a fixed shape rotating in place, which barely reads as motion regardless of amount.
 const SPIN_ROTATION: f32 = std::f32::consts::PI * 2.0;
@@ -49,7 +49,7 @@ const SPIN_ROTATION: f32 = std::f32::consts::PI * 2.0;
 const CLICK_SPIN_DURATION: u64 = 400;
 const CLICK_SPIN_ROTATION: f32 = std::f32::consts::PI * 2.0;
 
-const GITHUB_FADE: u64 = 400;
+const GITHUB_FADE: u64 = 250; // was 400
 const LINE_WEIGHT: i32 = 2;
 const LINE_DRAW: u64 = 500;
 /// Real pixels -- gap between the heptagon's own edge and where the connecting line
@@ -77,14 +77,14 @@ const TOC_CENTER_X_PX: i32 = 234;
 /// is -- scales with the polygon instead of a fixed pixel count, the same
 /// `anchor().width() * scale` mechanism `navigator.rs`'s `shadow_box` uses.
 const ICON_SCALE: f32 = 0.55;
-const CONTROL_FADE: u64 = 400;
-const CONTROL_MORPH_DELAY: u64 = 150;
-const CONTROL_MORPH: u64 = 550;
-const ICON_FADE_IN: u64 = 350;
+const CONTROL_FADE: u64 = 250; // was 400
+const CONTROL_MORPH_DELAY: u64 = 100; // was 150
+const CONTROL_MORPH: u64 = 350; // was 550
+const ICON_FADE_IN: u64 = 220; // was 350
 /// Home starts first; ToC follows this long after -- so the two visibly don't move in
 /// lockstep, the same "catching up with a lag" read `navigator.rs`'s `SHADOW_LAG` uses for
 /// its own staggered layers.
-const HEXA_STAGGER: u64 = 220;
+const HEXA_STAGGER: u64 = 150; // was 220
 
 /// One shared row -- every element's own *center* lands on `ROW_CENTER_Y_PX` regardless
 /// of its own size (see that constant's doc for why: a shared `top` instead would

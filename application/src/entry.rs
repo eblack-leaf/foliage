@@ -4,8 +4,8 @@ use crate::home::home;
 use crate::navigator;
 use crate::toc::toc;
 use foliage::{
-    EcsExtension, Elevation, Entity, Foliage, GridExt, Location, Router, RouterRoutes, Sprout,
-    Tree, component,
+    EcsExtension, Elevation, Foliage, GridExt, Location, RouteFn, Router, RouterRoutes, Sprout,
+    component,
 };
 
 /// Tags the app's one-and-only `Router` entity explicitly, so anywhere that needs to
@@ -23,17 +23,16 @@ pub fn build(foliage: &mut Foliage) {
     let router = foliage.world.leaf(
         Router::new()
             .routes(RouterRoutes::new([
-                home as fn(&mut Tree, Entity),
-                toc as fn(&mut Tree, Entity),
-                chapters::entity::build as fn(&mut Tree, Entity),
-                chapters::location::build as fn(&mut Tree, Entity),
-                chapters::grid::build as fn(&mut Tree, Entity),
-                chapters::anchor::build as fn(&mut Tree, Entity),
-                chapters::animate::build as fn(&mut Tree, Entity),
-                chapters::sequence::build as fn(&mut Tree, Entity),
-                chapters::interact::build as fn(&mut Tree, Entity),
-                chapters::sprout::build as fn(&mut Tree, Entity),
-                chapters::composite::build as fn(&mut Tree, Entity),
+                home as RouteFn,
+                toc as RouteFn,
+                chapters::location::build as RouteFn,
+                chapters::grid::build as RouteFn,
+                chapters::anchor::build as RouteFn,
+                chapters::animate::build as RouteFn,
+                chapters::sequence::build as RouteFn,
+                chapters::interact::build as RouteFn,
+                chapters::sprout::build as RouteFn,
+                chapters::composite::build as RouteFn,
             ]))
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),

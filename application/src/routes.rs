@@ -5,10 +5,9 @@
 /// `navigator.rs`'s own local `PAGE_NAMES` just did when `next`/`third` were replaced by
 /// the nine `chapters` routes (stale 4-entry array against an 11-route list -- both an
 /// index-out-of-bounds panic past index 4 and wrong labels below that).
-pub const ROUTE_NAMES: [&str; 11] = [
+pub const ROUTE_NAMES: [&str; 10] = [
     "home",
     "contents",
-    "entity",
     "location",
     "grid",
     "anchor",

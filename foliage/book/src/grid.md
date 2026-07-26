@@ -18,7 +18,7 @@ pub trait GridExt {
     fn letters(self) -> LocationValue;
 }
 pub enum LocationValue {
-    Percent(f32), Px(CoordinateUnit), Column(i32), Row(i32), Anchor(Designator),
+    Percent(f32), Px(CoordinateUnit), Column(i32), Row(i32), Anchor(Designator, f32),
     TextContent, Letters(i32),
 }
 ```
@@ -36,9 +36,18 @@ given breakpoint has none of its own (`Grid::config`'s `at_least_sm`/`at_least_m
 `col()`/`row()` resolve against the parent's `Grid` (see below) instead of raw pixels --
 `1.col().as_left().with(1.col().as_right())` means "the first column, full width," the
 pattern every composite's own internal skeleton uses (see [Button](./composite-button.md)'s
-panel, sized to `1.col()`/`1.row()` -- one full cell). `letters()` sizes against the
-current font's monospaced character width, used for text-content-driven width like
-`TextInput`'s field.
+panel, sized to `1.col()`/`1.row()` -- one full cell).
+
+`letters()` has two distinct, separately-resolved paths, both against the *current
+font's* real monospaced advance width (never a guessed constant):
+
+- As a `Location` value directly, on the entity's own `FontSize`: `5.letters().as_width()`
+  sizes a box to exactly 5 character-widths.
+- As a `Grid` column/row pitch, on a *parent*: `Grid::new(1.letters(), 1.letters())` makes
+  one column/row worth exactly one letter, so a child's `1.col()`/`5.col()` resolves
+  through the *parent's* own `FontSize` (`stem_letters`) rather than the child's own --
+  `TextInput`'s field/cursor grid is built entirely on this: the cursor's column is a real
+  `.col()` address into a letter-pitched grid, not a hand-computed pixel offset.
 
 ## `Grid`: the coordinate system a `Location` resolves against
 

@@ -39,22 +39,25 @@ struct ContentsItemConfig {
 const HEPTA_ROUNDING: f32 = 0.15; // same softening the rest of the app's heptagons use
 const HEPTA_MORPH: u64 = 700;
 const HEPTA_WIDTH_PCT: f32 = 92.0; // the backdrop -- fills almost the whole card
-const HEPTA_HEIGHT_PCT: f32 = 92.0;
-const HEPTA_TOP_PCT: f32 = 4.0;
+const HEPTA_HEIGHT_PCT: f32 = 97.0;
+const HEPTA_TOP_PCT: f32 = 1.5;
 
 // A heptagon isn't a rectangle -- it narrows fast above/below its own vertical center,
 // so text placed near the top or bottom of its bounding box (as this used to be) spills
 // past the actual green silhouette onto the dark page background behind it, unreadable,
-// even when the text itself isn't clipped by its own box. Title and description both
-// stay inside roughly the middle half of the heptagon's own extent (~25%-75% of its
-// 4%-96% span) instead.
+// even when the text itself isn't clipped by its own box. Title and description together
+// span ~14%-85.5% of the card -- still inside the heptagon's wider middle band.
+// Same absolute pixel sizes/gap these boxes always had (45.6px title, 7.6px gap, 114px
+// desc, on a 380px card) -- just re-percented against the smaller `CARD_HEIGHT_PX(235)`
+// and shifted up to start near the card's own top instead of at the old 28%, which on
+// this card would push the block (and its unchanged absolute height) past the bottom edge.
 const TITLE_FONT_SIZE: u32 = 20;
-const TITLE_TOP_PCT: f32 = 28.0;
-const TITLE_HEIGHT_PCT: f32 = 12.0;
+const TITLE_TOP_PCT: f32 = 14.4;
+const TITLE_HEIGHT_PCT: f32 = 19.4;
 
 const DESC_FONT_SIZE: u32 = 13;
-const DESC_TOP_PCT: f32 = 42.0;
-const DESC_HEIGHT_PCT: f32 = 30.0; // ends at 72% -- still inside the heptagon's wider band
+const DESC_TOP_PCT: f32 = 37.0;
+const DESC_HEIGHT_PCT: f32 = 48.5;
 const DESC_WIDTH_PCT: f32 = 76.0; // narrower than before (was 94%) -- same reason, safe margin either side
 
 /// On click: the heptagon spins out (a few full turns, accelerating, same
@@ -76,15 +79,14 @@ impl ContentsItem {
 /// of nine identical green cards.
 fn chapter_color(target_page: usize, shade: i32) -> Color {
     match target_page {
-        2 => Color::gray(shade),
-        3 => Color::blue(shade),
-        4 => Color::cyan(shade),
-        5 => Color::teal(shade),
-        6 => Color::orange(shade),
-        7 => Color::amber(shade),
-        8 => Color::rose(shade),
-        9 => Color::lime(shade),
-        10 => Color::purple(shade),
+        2 => Color::blue(shade),
+        3 => Color::cyan(shade),
+        4 => Color::teal(shade),
+        5 => Color::orange(shade),
+        6 => Color::amber(shade),
+        7 => Color::rose(shade),
+        8 => Color::lime(shade),
+        9 => Color::purple(shade),
         _ => Color::green(shade),
     }
 }
@@ -275,15 +277,45 @@ impl ContentsItemSprout {
     }
 }
 
+/// The shared vertical clearance every content area (this page's own scrollable
+/// `viewport`, and `chapters::window_frame`, used by every chapter page) needs to stay
+/// clear of the persistent chrome bar and forward/back navigator -- canonical here since
+/// `toc` is the page that actually scrolls its content and first needed this measured
+/// precisely; `chapters::window_frame` imports these rather than keeping its own
+/// independently-derived (and previously drifted) copies.
+///
+/// Real pixels, not a percent -- `chrome`'s whole row is fixed-pixel by design (doesn't
+/// shrink on a short viewport). Chrome's *true* bottom edge isn't the heptagon icon itself
+/// (`ROOT_TOP_PX(8) + HEPTA_SIZE_PX(38)` = 46) -- `chrome.rs`'s `build_label` puts the
+/// "github" caption *below* that icon too: `ROW_CENTER_Y_PX(27) + HEPTA_SIZE_PX/2(19) +
+/// LABEL_GAP_PX(6) + LABEL_HEIGHT_PX(16)` = 68. `+ 10` margin past that.
+pub(crate) const CONTENT_AREA_TOP_PX: i32 = 78;
+/// Tied to `navigator.rs`'s own resting geometry, not an arbitrary round percent: its
+/// polygon's top edge is `REST_CENTER_Y(91.0) - HEIGHT(11.0) / 2` = 85.5% of the screen.
+/// Using any other percent here left a gap that grows with screen height (a fixed percent
+/// difference is a growing *pixel* gap on a taller screen) -- matching nav's own percent
+/// exactly cancels that out, so the only remaining gap is the fixed-px one below.
+pub(crate) const CONTENT_AREA_BOTTOM_PCT: f32 = 85.5;
+/// `navigator.rs`'s route-name label sits a fixed `LABEL_GAP_PX(10) + LABEL_HEIGHT_PX(24)`
+/// = 34px above the polygon's top edge (`navigator.rs`'s `label_bottom`) regardless of
+/// viewport height, since both are real pixels, not percent. `+ 8` margin past that.
+pub(crate) const CONTENT_AREA_BOTTOM_CLEARANCE_PX: i32 = 42;
+
 const CARD_WIDTH_PX: i32 = 240; // was 200 -- more room lowers the wrapped-line count too
-const CARD_HEIGHT_PX: i32 = 380; // was 220, then 300 -- still clipping/spilling past the heptagon at 300
-// px of clearance below the persistent top chrome bar (brand mark + its label finish
-// around ~70px down -- see `chrome.rs`'s own `ROOT_TOP_PX`/`HEPTA_SIZE_PX`/label stack).
-const VIEWPORT_TOP_PX: i32 = 84;
-// stop clear of the persistent forward/back navigator's resting position (`REST_CENTER_Y`
-// = 91%, `HEIGHT` = 11% in `navigator.rs` -- its own box top edge sits around 85.5%, plus
-// its labels sit further above that still) so scrolled content can't render under it.
-const VIEWPORT_BOTTOM_PCT: f32 = 82.0;
+/// Every `Polygon` (including `hepta` below) carries a built-in `AspectRatio::new().xs(1.0)`
+/// (see `foliage_proper`'s `PolygonSprout::root`), which clamps its resolved box to
+/// `min(width, height)` and *centers* the shrunk square inside whatever box it was given
+/// (`AspectRatio::constrain`) -- it never stretches into a non-square box. `hepta`'s own box
+/// is `HEPTA_WIDTH_PCT(92%)` of `CARD_WIDTH_PX` wide vs `HEPTA_HEIGHT_PCT(97%)` of this tall;
+/// as long as this stays above roughly `(92/97) * CARD_WIDTH_PX` (~228), the heptagon is
+/// permanently width-bound at ~221x221px -- *any* value above that just adds equal dead
+/// space above and below the already-fixed-size shape, not a bigger heptagon. The old `380`
+/// (raised from `220`, then `300`, chasing what looked like a clipping fix) was actually
+/// widening that dead zone, not helping text -- title/desc are plain percent-of-card boxes,
+/// unaffected by the polygon's own aspect lock, so the real fix for their clipping was
+/// always available at any card height. Set close to the true square size instead, so the
+/// heptagon fills its card with no leftover gap before the next one.
+const CARD_HEIGHT_PX: i32 = 235;
 const GRID_GAP_PX: i32 = 16;
 // `Md`'s 2 columns sit side by side in the same viewport width `Xs`'s single column
 // has to itself, so the same 16px that reads fine as vertical breathing room between
@@ -299,15 +331,14 @@ const MD_COL_GAP_PX: i32 = 32;
 /// how `foliage_proper` builds up a composite, in learning order -- see
 /// `crate::chapters`' own doc comment.
 const ROUTES: &[(usize, &str)] = &[
-    (2, "The atom -- nothing exists on screen until it has a Location"),
-    (3, "Where it sits: percent/px/point, always relative to its parent"),
-    (4, "How a parent divides into columns/rows so children can address cells"),
-    (5, "Position relative to another entity's live box, not just your parent"),
-    (6, "A component as a tweenable value, interpolating over time"),
-    (7, "Chaining animations together and reacting once they all finish"),
-    (8, "Clicks and hit-testing: listeners, propagation, pass-through"),
-    (9, "The authoring pattern: config in, reactive structure out"),
-    (10, "A complete worked example, built from everything before it"),
+    (2, "Where it sits: percent/px/point, always relative to its parent"),
+    (3, "How a parent divides into columns/rows so children can address cells"),
+    (4, "Position relative to another entity's live box, not just your parent"),
+    (5, "A component as a tweenable value, interpolating over time"),
+    (6, "Chaining animations together and reacting once they all finish"),
+    (7, "Clicks and hit-testing: listeners, propagation, pass-through"),
+    (8, "The authoring pattern: config in, reactive structure out"),
+    (9, "A complete worked example, built from everything before it"),
 ];
 
 const COLS_XS: i32 = 1;
@@ -348,10 +379,12 @@ pub fn toc(tree: &mut Tree, slot: Entity) {
         Leaf::sprout()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
-                VIEWPORT_TOP_PX
-                    .px()
-                    .as_top()
-                    .with(VIEWPORT_BOTTOM_PCT.pct().as_bottom()),
+                CONTENT_AREA_TOP_PX.px().as_top().with(
+                    CONTENT_AREA_BOTTOM_PCT
+                        .pct()
+                        .as_bottom()
+                        .adjust(-CONTENT_AREA_BOTTOM_CLEARANCE_PX),
+                ),
             ))
             .elevate(Elevation::up(1))
             .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
@@ -421,11 +454,15 @@ pub fn toc(tree: &mut Tree, slot: Entity) {
 }
 
 const SCROLLBAR_RIGHT_INSET_PX: i32 = 14; // from `parent`'s own right edge
-const SCROLLBAR_HIT_WIDTH_PX: i32 = 28; // wider than the visual track -- an easier drag/tap target
+const SCROLLBAR_HIT_WIDTH_PX: i32 = 44; // wider than the visual track -- an easier drag/tap target
 const SCROLLBAR_TRACK_TOP_PCT: f32 = 26.0;
 const SCROLLBAR_TRACK_BOTTOM_PCT: f32 = 78.0;
 const SCROLLBAR_TRACK_WEIGHT: i32 = 2;
-const SCROLLBAR_KNOB_SIZE_PX: i32 = 20;
+const SCROLLBAR_KNOB_VISUAL_SIZE_PX: i32 = 28; // the drawn heptagon -- stays dainty
+// invisible, larger than the drawn knob -- the real listener/drag target, Material's
+// "small visible dot, bigger invisible touch target" split. The drawn knob itself is
+// just along for the ride (`InteractionPropagation::pass_through()`), not a listener.
+const SCROLLBAR_KNOB_HIT_SIZE_PX: i32 = 44;
 const SCROLLBAR_KNOB_ROUNDING: f32 = 0.15; // same softening every other heptagon in this app uses
 // left + down -- this app's one established shadow direction (`chrome.rs`'s
 // `build_shadow`, `navigator.rs`'s `shadow_box`), not right.
@@ -498,6 +535,15 @@ fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
             .rotation(0.0)
             .color(Color::orange(400))
             .elevate(Elevation::up(3))
+            .with(InteractionPropagation::pass_through()),
+    );
+    // invisible -- see `SCROLLBAR_KNOB_HIT_SIZE_PX`'s own doc. Elevated above the drawn
+    // knob so it always wins the hit-test regardless of draw order, though it being
+    // invisible means nothing renders differently either way.
+    let knob_hit = tree.branch(
+        root,
+        Leaf::sprout()
+            .elevate(Elevation::up(4))
             .with((InteractionListener::new(), InteractionShape::Circle)),
     );
 
@@ -513,13 +559,21 @@ fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
               sections: Query<&Section<Logical>>,
               mut tree: Tree| {
             let y = progress.get(trigger.entity).unwrap().y();
-            // half the knob's own size, as a percent of `root`'s live height -- without
-            // this, mapping `y` straight onto 0%..100% centers the knob exactly on
-            // `root`'s own top/bottom edge at the extremes, and `root` (the knob's
-            // immediate `Stem` parent) clips its children to its own bounds, so half the
-            // knob at each end was getting clipped away.
+            // half the *hit* circle's own size (the larger of the two), as a percent of
+            // `root`'s live height -- without this, mapping `y` straight onto 0%..100%
+            // centers it exactly on `root`'s own top/bottom edge at the extremes, and
+            // `root` (its immediate `Stem` parent) clips its children to its own bounds.
+            // Margining by the bigger hit circle rather than the smaller drawn knob keeps
+            // both comfortably inside `root` at either end -- known, accepted tradeoff:
+            // the *visible* knob shares this same (larger-than-it-needs) margin, so it
+            // visibly stops a little short of the true top/bottom rather than reaching
+            // all the way to `root`'s own edge, even though its own smaller size would
+            // technically allow it to travel further. Reads fine in practice; the
+            // alternative (a second, knob-sized margin just for the visible one) would
+            // desync the drawn knob's position from the invisible hit circle it's
+            // supposed to sit on top of, which would look worse than the small unused gap.
             let bounds = sections.get(root).unwrap();
-            let margin_pct = (SCROLLBAR_KNOB_SIZE_PX as f32 / 2.0 / bounds.height() * 100.0)
+            let margin_pct = (SCROLLBAR_KNOB_HIT_SIZE_PX as f32 / 2.0 / bounds.height() * 100.0)
                 .clamp(0.0, 50.0);
             let center_y_pct = margin_pct + y * (100.0 - 2.0 * margin_pct);
             tree.write_to(
@@ -527,11 +581,11 @@ fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
                 Location::new().xs(
                     50.pct()
                         .as_center_x()
-                        .with(SCROLLBAR_KNOB_SIZE_PX.px().as_width()),
+                        .with(SCROLLBAR_KNOB_VISUAL_SIZE_PX.px().as_width()),
                     center_y_pct
                         .pct()
                         .as_center_y()
-                        .with(SCROLLBAR_KNOB_SIZE_PX.px().as_height()),
+                        .with(SCROLLBAR_KNOB_VISUAL_SIZE_PX.px().as_height()),
                 ),
             );
             tree.write_to(
@@ -540,23 +594,35 @@ fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
                     50.pct()
                         .as_center_x()
                         .adjust(-SCROLLBAR_SHADOW_OFFSET_PX)
-                        .with(SCROLLBAR_KNOB_SIZE_PX.px().as_width()),
+                        .with(SCROLLBAR_KNOB_VISUAL_SIZE_PX.px().as_width()),
                     center_y_pct
                         .pct()
                         .as_center_y()
                         .adjust(SCROLLBAR_SHADOW_OFFSET_PX)
-                        .with(SCROLLBAR_KNOB_SIZE_PX.px().as_height()),
+                        .with(SCROLLBAR_KNOB_VISUAL_SIZE_PX.px().as_height()),
+                ),
+            );
+            tree.write_to(
+                knob_hit,
+                Location::new().xs(
+                    50.pct()
+                        .as_center_x()
+                        .with(SCROLLBAR_KNOB_HIT_SIZE_PX.px().as_width()),
+                    center_y_pct
+                        .pct()
+                        .as_center_y()
+                        .with(SCROLLBAR_KNOB_HIT_SIZE_PX.px().as_height()),
                 ),
             );
         },
     );
 
-    // input: drag the knob, or tap anywhere on the track to seek there -- both go through
-    // the same `ScrollTo` door `extent_check` resolves against `view_target`'s own live
-    // `View`/`Section`, so neither one can push the knob further than a real drag over the
-    // content itself would ever be allowed to scroll.
+    // input: drag the (invisible) hit circle, or tap anywhere on the track to seek there
+    // -- both go through the same `ScrollTo` door `extent_check` resolves against
+    // `view_target`'s own live `View`/`Section`, so neither one can push the knob further
+    // than a real drag over the content itself would ever be allowed to scroll.
     tree.subscribe(
-        knob,
+        knob_hit,
         move |_: Trigger<Dragged>,
               interaction: Res<CurrentInteraction>,
               sections: Query<&Section<Logical>>,
