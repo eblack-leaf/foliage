@@ -7,6 +7,7 @@ mod home;
 #[path = "assets/icons/gen/generated.rs"]
 mod icons;
 mod navigator;
+mod routes;
 mod toc;
 mod type_in;
 

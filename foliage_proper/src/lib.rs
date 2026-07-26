@@ -104,7 +104,8 @@ pub use grid::{
     Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationValue, ValueDescriptor,
 };
 pub use grid::{
-    AspectRatio, Grid, Layout, Location, View, anchor, text_content, view::OverscrollPropagation,
+    AspectRatio, Grid, Layout, Location, ScrollProgress, ScrollTo, View, anchor, text_content,
+    view::OverscrollPropagation,
 };
 pub use icon::{Icon, IconId, IconMemory, IconSprout};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};

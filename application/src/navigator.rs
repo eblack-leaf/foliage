@@ -1,4 +1,5 @@
 use crate::icons::IconHandles;
+use crate::routes::ROUTE_NAMES;
 use foliage::bevy_ecs::query::With;
 use foliage::{
     Anchor, Animation, Branch, Color, Ease, EcsExtension, Elevation, Entity, FontSize, GridExt,
@@ -133,20 +134,23 @@ const BACK_FADE: u64 = 500;
 /// "disabled," not "gone," and means the lines connecting them never have to change.
 const MUTED_OPACITY: f32 = 0.3;
 
-/// One page name per route index, in the same order `entry.rs` registers them in
-/// `RouterRoutes::new([home, toc, next, third])` -- otherwise a first-time visitor has
-/// no reason to expect the navigator does anything beyond decoration, and might go
-/// straight for the Docs button's `.md` docs without ever discovering the in-app pages.
-/// `forward_label`/`back_label` show whichever of these is next/previous, live, on every
-/// route (not just home) -- built here (not `home.rs`) specifically so they can be real
-/// `Anchor`s to `forward`/`back`, which are already in scope at this exact point, so
-/// there's no need to guess their position or thread them through `NavigatorLanded`
-/// (fired at every route landing, not just once).
-const PAGE_NAMES: [&str; 4] = ["home", "contents", "next", "third"];
+/// `crate::routes::ROUTE_NAMES` is the single source of truth for page names (shared
+/// with `toc.rs`, so the two can't drift the way this file's own now-removed local copy
+/// just did) -- otherwise a first-time visitor has no reason to expect the navigator
+/// does anything beyond decoration, and might go straight for the Docs button's `.md`
+/// docs without ever discovering the in-app pages. `forward_label`/`back_label` show
+/// whichever of these is next/previous, live, on every route (not just home) -- built
+/// here (not `home.rs`) specifically so they can be real `Anchor`s to `forward`/`back`,
+/// which are already in scope at this exact point, so there's no need to guess their
+/// position or thread them through `NavigatorLanded` (fired at every route landing, not
+/// just once).
 const LABEL_FONT_SIZE: u32 = 16; // bigger than chrome.rs's own label font (12)
 const LABEL_GAP_PX: i32 = 10; // px above each polygon's own top edge
-const LABEL_WIDTH_PX: i32 = 100; // was 70 -- clipped the trailing "s" off "contents", the longest of PAGE_NAMES
-const LABEL_HEIGHT_PX: i32 = 18;
+const LABEL_WIDTH_PX: i32 = 100; // wide enough for the longest name in ROUTE_NAMES ("composite")
+const LABEL_HEIGHT_PX: i32 = 24; // > a 16px font's actual line height (ascent+descent) --
+// text rendering scissor-clips to this box's own bounds (`TextBounds`, independent of
+// elevation/z-order), so anything shorter clips descenders (g/p/q/y) against its own
+// bottom edge before the polygon is ever in the picture.
 
 /// sides/rounding at each morph stage, continuing on from the starting triangle (3) --
 /// stops at a heptagon, well short of circle-ish, so the polygon-ness stays legible.
@@ -813,7 +817,7 @@ fn build_icons(
             // immediate-forward/staggered-muted-back split just above -- `reconcile`
             // only runs on later `PageChanged`s, so this first landing needs its own
             // correct starting point (has_forward, no back yet) set by hand.
-            let forward_label = tree.leaf(label_bundle(forward, PAGE_NAMES[1]));
+            let forward_label = tree.leaf(label_bundle(forward, ROUTE_NAMES[1]));
             let back_label = tree.leaf(label_bundle(back, ""));
             let labels_seq = tree.sequence();
             tree.animate(
@@ -1173,7 +1177,7 @@ fn reconcile(tree: &mut Tree, nav: Nav, index: usize, count: usize) {
     tree.write_to(
         nav.back_label,
         TextValue(if has_back {
-            PAGE_NAMES[index - 1].to_string()
+            ROUTE_NAMES[index - 1].to_string()
         } else {
             String::new()
         }),
@@ -1204,7 +1208,7 @@ fn reconcile(tree: &mut Tree, nav: Nav, index: usize, count: usize) {
     tree.write_to(
         nav.forward_label,
         TextValue(if has_forward {
-            PAGE_NAMES[index + 1].to_string()
+            ROUTE_NAMES[index + 1].to_string()
         } else {
             String::new()
         }),

@@ -17,7 +17,7 @@ pub use layout::Layout;
 pub use location::Anchor;
 pub use location::AnchorDeps;
 pub use location::Location;
-pub use view::View;
+pub use view::{ScrollProgress, ScrollTo, View};
 
 impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {

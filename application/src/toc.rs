@@ -1,12 +1,14 @@
 use crate::entry::AppRouter;
+use crate::routes::ROUTE_NAMES;
 use foliage::bevy_ecs::bundle::Bundle;
 use foliage::bevy_ecs::lifecycle::Insert;
 use foliage::bevy_ecs::query::With;
 use foliage::{
-    Animation, Color, EcsExtension, Ease, Elevation, Entity, FontSize, Grid, GridExt,
-    HorizontalAlignment, InteractionListener, InteractionPropagation, InteractionShape, Leaf,
-    LeafSprout, Location, OnClick, OnEnd, Opacity, PageIndex, Polygon, Query, Sprout, Text,
-    TextValue, Tree, Trigger, VerticalAlignment, component,
+    Animation, Color, CurrentInteraction, Dragged, Ease, EcsExtension, Elevation, Entity,
+    FontSize, Grid, GridExt, HorizontalAlignment, InteractionListener, InteractionPropagation,
+    InteractionShape, Leaf, LeafSprout, Line, Location, Logical, OnClick, OnEnd, Opacity,
+    PageIndex, Polygon, Query, Res, ScrollProgress, ScrollTo, Section, Sprout, Text, TextValue,
+    Tree, Trigger, VerticalAlignment, component,
 };
 
 /// A custom card-like element, not the generic `Card` composite -- purpose-built for one
@@ -40,13 +42,20 @@ const HEPTA_WIDTH_PCT: f32 = 92.0; // the backdrop -- fills almost the whole car
 const HEPTA_HEIGHT_PCT: f32 = 92.0;
 const HEPTA_TOP_PCT: f32 = 4.0;
 
+// A heptagon isn't a rectangle -- it narrows fast above/below its own vertical center,
+// so text placed near the top or bottom of its bounding box (as this used to be) spills
+// past the actual green silhouette onto the dark page background behind it, unreadable,
+// even when the text itself isn't clipped by its own box. Title and description both
+// stay inside roughly the middle half of the heptagon's own extent (~25%-75% of its
+// 4%-96% span) instead.
 const TITLE_FONT_SIZE: u32 = 20;
-const TITLE_TOP_PCT: f32 = 32.0; // middle-top-ish of the heptagon backdrop
-const TITLE_HEIGHT_PCT: f32 = 14.0;
+const TITLE_TOP_PCT: f32 = 28.0;
+const TITLE_HEIGHT_PCT: f32 = 12.0;
 
 const DESC_FONT_SIZE: u32 = 13;
-const DESC_TOP_PCT: f32 = 50.0; // spans what used to be two separate hand-split lines
-const DESC_HEIGHT_PCT: f32 = 25.0; // -- enough room for fontdue to wrap into as many as it needs
+const DESC_TOP_PCT: f32 = 42.0;
+const DESC_HEIGHT_PCT: f32 = 30.0; // ends at 72% -- still inside the heptagon's wider band
+const DESC_WIDTH_PCT: f32 = 76.0; // narrower than before (was 94%) -- same reason, safe margin either side
 
 /// On click: the heptagon spins out (a few full turns, accelerating, same
 /// "spin while changing" idea `navigator.rs`'s own morphs use) while the whole card fades
@@ -59,6 +68,24 @@ const SPIN_OUT_TURNS: f32 = 3.0 * 2.0 * std::f32::consts::PI;
 impl ContentsItem {
     pub fn new() -> ContentsItemSprout {
         ContentsItemSprout::default()
+    }
+}
+
+/// Same family each `chapters/*.rs` page already uses for its own placeholder shape --
+/// a card reads as that chapter's own color before you ever click into it, not just one
+/// of nine identical green cards.
+fn chapter_color(target_page: usize, shade: i32) -> Color {
+    match target_page {
+        2 => Color::gray(shade),
+        3 => Color::blue(shade),
+        4 => Color::cyan(shade),
+        5 => Color::teal(shade),
+        6 => Color::orange(shade),
+        7 => Color::amber(shade),
+        8 => Color::rose(shade),
+        9 => Color::lime(shade),
+        10 => Color::purple(shade),
+        _ => Color::green(shade),
     }
 }
 
@@ -97,7 +124,7 @@ impl Sprout for ContentsItemSprout {
                             .sides(3.0)
                             .rounding(0.0)
                             .rotation(0.0)
-                            .color(Color::green(400))
+                            .color(chapter_color(config.target_page, 400))
                             .at(Location::new().xs(
                                 50.pct().as_center_x().with(HEPTA_WIDTH_PCT.pct().as_width()),
                                 HEPTA_TOP_PCT
@@ -138,7 +165,7 @@ impl Sprout for ContentsItemSprout {
                         e,
                         Text::new(config.title.clone())
                             .size(FontSize::new(TITLE_FONT_SIZE))
-                            .color(Color::green(950))
+                            .color(chapter_color(config.target_page, 950))
                             .at(Location::new().xs(
                                 50.pct().as_center_x().with(90.0.pct().as_width()),
                                 TITLE_TOP_PCT
@@ -157,9 +184,9 @@ impl Sprout for ContentsItemSprout {
                         e,
                         Text::new(config.description.clone())
                             .size(FontSize::new(DESC_FONT_SIZE))
-                            .color(Color::green(800))
+                            .color(chapter_color(config.target_page, 800))
                             .at(Location::new().xs(
-                                50.pct().as_center_x().with(94.0.pct().as_width()),
+                                50.pct().as_center_x().with(DESC_WIDTH_PCT.pct().as_width()),
                                 DESC_TOP_PCT
                                     .pct()
                                     .as_top()
@@ -248,22 +275,46 @@ impl ContentsItemSprout {
     }
 }
 
-const CARD_WIDTH_PX: i32 = 200;
-const CARD_HEIGHT_PX: i32 = 220;
+const CARD_WIDTH_PX: i32 = 240; // was 200 -- more room lowers the wrapped-line count too
+const CARD_HEIGHT_PX: i32 = 380; // was 220, then 300 -- still clipping/spilling past the heptagon at 300
+// px of clearance below the persistent top chrome bar (brand mark + its label finish
+// around ~70px down -- see `chrome.rs`'s own `ROOT_TOP_PX`/`HEPTA_SIZE_PX`/label stack).
+const VIEWPORT_TOP_PX: i32 = 84;
+// stop clear of the persistent forward/back navigator's resting position (`REST_CENTER_Y`
+// = 91%, `HEIGHT` = 11% in `navigator.rs` -- its own box top edge sits around 85.5%, plus
+// its labels sit further above that still) so scrolled content can't render under it.
+const VIEWPORT_BOTTOM_PCT: f32 = 82.0;
 const GRID_GAP_PX: i32 = 16;
+// `Md`'s 2 columns sit side by side in the same viewport width `Xs`'s single column
+// has to itself, so the same 16px that reads fine as vertical breathing room between
+// stacked cards reads as cramped between two cards side by side -- a wider gap just for
+// that horizontal split, row spacing (and `Xs`) unchanged.
+const MD_COL_GAP_PX: i32 = 32;
 
-/// One entry per route, other than home/contents themselves -- `(target_page, title,
-/// description)`.
-const ROUTES: &[(usize, &str, &str)] = &[
-    (2, "Next", "A static hexagon, just to prove routing works"),
-    (3, "Third", "One more hop -- a pentagon, for variety"),
+/// One entry per route, other than home/contents themselves -- `(target_page,
+/// description)`. Title isn't duplicated here -- it comes from `ROUTE_NAMES[target_page]`
+/// (see `toc`'s own body), the same single source of truth `navigator.rs` uses for its
+/// forward/back labels, so this list and the nav labels can't drift out of sync the way
+/// `navigator.rs`'s own now-removed local copy just did. The nine-chapter walkthrough of
+/// how `foliage_proper` builds up a composite, in learning order -- see
+/// `crate::chapters`' own doc comment.
+const ROUTES: &[(usize, &str)] = &[
+    (2, "The atom -- nothing exists on screen until it has a Location"),
+    (3, "Where it sits: percent/px/point, always relative to its parent"),
+    (4, "How a parent divides into columns/rows so children can address cells"),
+    (5, "Position relative to another entity's live box, not just your parent"),
+    (6, "A component as a tweenable value, interpolating over time"),
+    (7, "Chaining animations together and reacting once they all finish"),
+    (8, "Clicks and hit-testing: listeners, propagation, pass-through"),
+    (9, "The authoring pattern: config in, reactive structure out"),
+    (10, "A complete worked example, built from everything before it"),
 ];
 
 const COLS_XS: i32 = 1;
 const COLS_MD: i32 = 2;
 
-fn container_width_px(cols: i32) -> i32 {
-    cols * CARD_WIDTH_PX + (cols - 1) * GRID_GAP_PX
+fn container_width_px(cols: i32, col_gap: i32) -> i32 {
+    cols * CARD_WIDTH_PX + (cols - 1) * col_gap
 }
 fn container_height_px(rows: i32) -> i32 {
     rows * CARD_HEIGHT_PX + (rows - 1) * GRID_GAP_PX
@@ -272,52 +323,83 @@ fn container_height_px(rows: i32) -> i32 {
 /// Reachable via the global chrome's explicit ToC button (and, since `Router` treats
 /// every route the same, via the main forward/back navigator too). One `ContentsItem`
 /// per route in `ROUTES`, arranged in a `Grid` that's a single column below `Md` and two
-/// columns at `Md`+ (`Layout::MD` = 600px) -- both the container `Grid`'s own
+/// columns at `Md`+ (`Layout::MD` = 600px) -- both the `content` `Grid`'s own
 /// column/row counts and each card's own `.col()`/`.row()` index get explicit
 /// `.xs(..)`/`.md(..)` placements. There's no auto-flow in this engine: spanning items
 /// (used elsewhere for alignment, not every layout is 1 item per cell) make "place the
 /// next item in the next free cell" ambiguous, so placement stays explicit and
 /// hand-computed instead.
+///
+/// Three levels deep, not two -- `viewport` (sized to the content area below chrome,
+/// carrying the real scrollable `View`) holding `content` (sized to the full card-stack
+/// height, structurally overflowing `viewport` the same way `viewport` itself used to
+/// overflow `slot` before this split) holding the cards. `build_scrollbar` spawns as
+/// `viewport`'s *sibling*, not its child: any child of a `View`-holder gets that view's
+/// scroll offset subtracted from its own resolved position on every cascade (see
+/// `grid/location.rs`'s `resolution.section.position -= view.offset`), so a scrollbar
+/// nested *inside* the thing it scrolls would itself scroll away and out of view the
+/// moment you used it -- it needs to sit outside the view it's driving.
 pub fn toc(tree: &mut Tree, slot: Entity) {
     let rows_xs = ROUTES.len() as i32;
     let rows_md = ROUTES.len() as i32 / COLS_MD + ROUTES.len() as i32 % COLS_MD;
 
-    let container = tree.branch(
+    let viewport = tree.branch(
         slot,
+        Leaf::sprout()
+            .at(Location::new().xs(
+                0.pct().as_left().with(100.pct().as_right()),
+                VIEWPORT_TOP_PX
+                    .px()
+                    .as_top()
+                    .with(VIEWPORT_BOTTOM_PCT.pct().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+    );
+    let content = tree.branch(
+        viewport,
         Leaf::sprout()
             .at(Location::new()
                 .xs(
                     50.pct()
                         .as_center_x()
-                        .with(container_width_px(COLS_XS).px().as_width()),
-                    50.pct()
-                        .as_center_y()
+                        .with(container_width_px(COLS_XS, GRID_GAP_PX).px().as_width()),
+                    0.px()
+                        .as_top()
                         .with(container_height_px(rows_xs).px().as_height()),
                 )
                 .md(
                     50.pct()
                         .as_center_x()
-                        .with(container_width_px(COLS_MD).px().as_width()),
-                    50.pct()
-                        .as_center_y()
+                        .with(container_width_px(COLS_MD, MD_COL_GAP_PX).px().as_width()),
+                    0.px()
+                        .as_top()
                         .with(container_height_px(rows_md).px().as_height()),
                 ))
             .elevate(Elevation::up(1))
             .with(
                 Grid::new(COLS_XS.col().gap(GRID_GAP_PX), rows_xs.row().gap(GRID_GAP_PX))
-                    .md(COLS_MD.col().gap(GRID_GAP_PX), rows_md.row().gap(GRID_GAP_PX)),
+                    .md(COLS_MD.col().gap(MD_COL_GAP_PX), rows_md.row().gap(GRID_GAP_PX)),
             ),
     );
 
-    for (i, &(target_page, title, desc)) in ROUTES.iter().enumerate() {
+    for (i, &(target_page, desc)) in ROUTES.iter().enumerate() {
         let i = i as i32;
         let col_xs = 1;
         let row_xs = i + 1;
         let col_md = i % COLS_MD + 1;
         let row_md = i / COLS_MD + 1;
 
+        // `ROUTE_NAMES` is lowercase (matches the nav labels' own convention); the card
+        // title capitalizes just its own copy for display, not the shared data itself.
+        let name = ROUTE_NAMES[target_page];
+        let title = name
+            .get(..1)
+            .map(|c| c.to_uppercase() + &name[1..])
+            .unwrap_or_default();
+
         tree.branch(
-            container,
+            content,
             ContentsItem::new()
                 .title(title)
                 .description(desc)
@@ -334,4 +416,165 @@ pub fn toc(tree: &mut Tree, slot: Entity) {
                 .elevate(Elevation::up(1)),
         );
     }
+
+    build_scrollbar(tree, slot, viewport);
+}
+
+const SCROLLBAR_RIGHT_INSET_PX: i32 = 14; // from `parent`'s own right edge
+const SCROLLBAR_HIT_WIDTH_PX: i32 = 28; // wider than the visual track -- an easier drag/tap target
+const SCROLLBAR_TRACK_TOP_PCT: f32 = 26.0;
+const SCROLLBAR_TRACK_BOTTOM_PCT: f32 = 78.0;
+const SCROLLBAR_TRACK_WEIGHT: i32 = 2;
+const SCROLLBAR_KNOB_SIZE_PX: i32 = 20;
+const SCROLLBAR_KNOB_ROUNDING: f32 = 0.15; // same softening every other heptagon in this app uses
+const SCROLLBAR_SHADOW_OFFSET_PX: i32 = 3;
+
+/// A vertical, hepta-knobbed scrollbar along the page's right edge -- `ToC` is the only
+/// page in the app that scrolls, so this is purpose-built here rather than a reusable
+/// composite (same "custom, not the generic thing" call `ContentsItem` already made over
+/// `Card`). Structurally the same split the built-in `Slider` uses (a root that's the
+/// click-to-seek surface, a thin visual track, a separately-listened knob for drag) just
+/// rotated to vertical and with the knob swapped for a heptagon + shadow to match this
+/// app's own visual language, and driven by `view_target`'s own [`ScrollProgress`]/
+/// [`ScrollTo`] instead of a `Progress` component of its own -- there's already exactly
+/// one source of truth for "how far scrolled" (`view_target`'s `View`), so the knob reads
+/// it directly rather than keeping a second, shadow copy that could drift out of sync.
+/// `parent` (where this actually spawns) is deliberately a *different* entity than
+/// `view_target` (whose scroll it reads/drives) -- see `toc`'s own doc comment for why
+/// this can't itself be a descendant of the view it scrolls.
+fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
+    let root = tree.branch(
+        parent,
+        Leaf::sprout()
+            .at(Location::new().xs(
+                100.pct()
+                    .as_right()
+                    .adjust(-SCROLLBAR_RIGHT_INSET_PX)
+                    .with(SCROLLBAR_HIT_WIDTH_PX.px().as_width()),
+                SCROLLBAR_TRACK_TOP_PCT.pct().as_top().with(
+                    (SCROLLBAR_TRACK_BOTTOM_PCT - SCROLLBAR_TRACK_TOP_PCT)
+                        .pct()
+                        .as_height(),
+                ),
+            ))
+            .elevate(Elevation::up(4))
+            .with((
+                Grid::new(1.col().gap(0), 1.row().gap(0)),
+                InteractionListener::new(),
+                InteractionShape::Rectangle,
+            )),
+    );
+    tree.branch(
+        root,
+        Line::new(SCROLLBAR_TRACK_WEIGHT)
+            .color(Color::stone(700))
+            .at(Location::new().xs(
+                50.pct().as_x().with(0.pct().as_y()),
+                50.pct().as_x().with(100.pct().as_y()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(InteractionPropagation::pass_through()),
+    );
+    // no `Location` on either -- both are position-dependent (the knob's own scroll
+    // progress), set by the `ScrollProgress` reaction's first fire, same "static skeleton,
+    // data-dependent placement lands via the reaction" split `Slider`'s own `fill` uses.
+    let shadow = tree.branch(
+        root,
+        Polygon::new()
+            .sides(7.0)
+            .rounding(SCROLLBAR_KNOB_ROUNDING)
+            .rotation(0.0)
+            .color(Color::stone(900))
+            .elevate(Elevation::up(2))
+            .with(InteractionPropagation::pass_through()),
+    );
+    let knob = tree.branch(
+        root,
+        Polygon::new()
+            .sides(7.0)
+            .rounding(SCROLLBAR_KNOB_ROUNDING)
+            .rotation(0.0)
+            .color(Color::orange(400))
+            .elevate(Elevation::up(3))
+            .with((InteractionListener::new(), InteractionShape::Circle)),
+    );
+
+    // render: `view_target`'s scroll position -> knob/shadow placement. Fires once at
+    // spawn (parking the knob at the top) and again every time the scroll changes,
+    // regardless of whether that came from dragging this knob, wheeling over the content
+    // directly, or a future unrelated `ScrollTo` write -- one door, same as `Slider`'s own
+    // `Progress` reaction.
+    tree.react::<ScrollProgress, _>(
+        view_target,
+        move |trigger: Trigger<Insert, ScrollProgress>,
+              progress: Query<&ScrollProgress>,
+              sections: Query<&Section<Logical>>,
+              mut tree: Tree| {
+            let y = progress.get(trigger.entity).unwrap().y;
+            // half the knob's own size, as a percent of `root`'s live height -- without
+            // this, mapping `y` straight onto 0%..100% centers the knob exactly on
+            // `root`'s own top/bottom edge at the extremes, and `root` (the knob's
+            // immediate `Stem` parent) clips its children to its own bounds, so half the
+            // knob at each end was getting clipped away.
+            let bounds = sections.get(root).unwrap();
+            let margin_pct = (SCROLLBAR_KNOB_SIZE_PX as f32 / 2.0 / bounds.height() * 100.0)
+                .clamp(0.0, 50.0);
+            let center_y_pct = margin_pct + y * (100.0 - 2.0 * margin_pct);
+            tree.write_to(
+                knob,
+                Location::new().xs(
+                    50.pct()
+                        .as_center_x()
+                        .with(SCROLLBAR_KNOB_SIZE_PX.px().as_width()),
+                    center_y_pct
+                        .pct()
+                        .as_center_y()
+                        .with(SCROLLBAR_KNOB_SIZE_PX.px().as_height()),
+                ),
+            );
+            tree.write_to(
+                shadow,
+                Location::new().xs(
+                    50.pct()
+                        .as_center_x()
+                        .adjust(SCROLLBAR_SHADOW_OFFSET_PX)
+                        .with(SCROLLBAR_KNOB_SIZE_PX.px().as_width()),
+                    center_y_pct
+                        .pct()
+                        .as_center_y()
+                        .adjust(SCROLLBAR_SHADOW_OFFSET_PX)
+                        .with(SCROLLBAR_KNOB_SIZE_PX.px().as_height()),
+                ),
+            );
+        },
+    );
+
+    // input: drag the knob, or tap anywhere on the track to seek there -- both go through
+    // the same `ScrollTo` door `extent_check` resolves against `view_target`'s own live
+    // `View`/`Section`, so neither one can push the knob further than a real drag over the
+    // content itself would ever be allowed to scroll.
+    tree.subscribe(
+        knob,
+        move |_: Trigger<Dragged>,
+              interaction: Res<CurrentInteraction>,
+              sections: Query<&Section<Logical>>,
+              mut tree: Tree| {
+            let bounds = sections.get(root).unwrap();
+            let pct =
+                ((interaction.click().current.top() - bounds.top()) / bounds.height()).clamp(0.0, 1.0);
+            tree.write_to(view_target, ScrollTo::y(pct));
+        },
+    );
+    tree.on_click(
+        root,
+        move |_: Trigger<OnClick>,
+              interaction: Res<CurrentInteraction>,
+              sections: Query<&Section<Logical>>,
+              mut tree: Tree| {
+            let bounds = sections.get(root).unwrap();
+            let pct =
+                ((interaction.click().current.top() - bounds.top()) / bounds.height()).clamp(0.0, 1.0);
+            tree.write_to(view_target, ScrollTo::y(pct));
+        },
+    );
 }
