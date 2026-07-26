@@ -427,6 +427,8 @@ const SCROLLBAR_TRACK_BOTTOM_PCT: f32 = 78.0;
 const SCROLLBAR_TRACK_WEIGHT: i32 = 2;
 const SCROLLBAR_KNOB_SIZE_PX: i32 = 20;
 const SCROLLBAR_KNOB_ROUNDING: f32 = 0.15; // same softening every other heptagon in this app uses
+// left + down -- this app's one established shadow direction (`chrome.rs`'s
+// `build_shadow`, `navigator.rs`'s `shadow_box`), not right.
 const SCROLLBAR_SHADOW_OFFSET_PX: i32 = 3;
 
 /// A vertical, hepta-knobbed scrollbar along the page's right edge -- `ToC` is the only
@@ -537,7 +539,7 @@ fn build_scrollbar(tree: &mut Tree, parent: Entity, view_target: Entity) {
                 Location::new().xs(
                     50.pct()
                         .as_center_x()
-                        .adjust(SCROLLBAR_SHADOW_OFFSET_PX)
+                        .adjust(-SCROLLBAR_SHADOW_OFFSET_PX)
                         .with(SCROLLBAR_KNOB_SIZE_PX.px().as_width()),
                     center_y_pct
                         .pct()

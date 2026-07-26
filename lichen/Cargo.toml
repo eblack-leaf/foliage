@@ -1,0 +1,9 @@
+[package]
+name = "lichen"
+version = "0.1.0"
+edition = "2024"
+description = "Opinionated Polygon-based motifs (drop shadows, staged morphs, a themed scrollbar) distilled from the foliage demo app -- not part of foliage_proper's own unopinionated composite/ module on purpose."
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+foliage = { path = "../foliage" }
