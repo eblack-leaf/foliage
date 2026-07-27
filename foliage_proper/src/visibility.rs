@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::Trigger;
 use crate::ash::differential::RenderRemoveQueue;
-use crate::{AnchorDeps, Attachment, Branch, Component, Foliage, Stem, Tree, Update, Write};
+use crate::{AnchorDeps, Attachment, Branch, Component, Foliage, Stem, Tree, Resolve, Resolved};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
@@ -60,10 +60,10 @@ impl Visibility {
         let this = ctx.entity;
         world
             .commands()
-            .trigger_targets(Update::<Visibility>::new(), this);
+            .trigger_targets(Resolve::<Visibility>::new(), this);
     }
     pub(crate) fn update(
-        trigger: Trigger<Update<Visibility>>,
+        trigger: Trigger<Resolve<Visibility>>,
         inheriteds: Query<&InheritedVisibility>,
         vis: Query<&Visibility>,
         auto: Query<&AutoVisibility>,
@@ -93,7 +93,7 @@ impl Visibility {
             tree.entity(this).insert(resolved).insert(CachedVisibility {
                 visible: resolved.visible,
             });
-            tree.trigger_targets(Write::<Visibility>::new(), this);
+            tree.trigger_targets(Resolved::<Visibility>::new(), this);
             let mut deps = branches.get(this).unwrap().ids.clone();
             if let Some(stack_deps) = sd.get(this).ok() {
                 deps.extend(stack_deps.ids.clone());
@@ -112,7 +112,7 @@ impl Visibility {
         }
     }
     pub(crate) fn push_remove_packet<R: Clone + Send + Sync + 'static>(
-        trigger: Trigger<Write<Visibility>>,
+        trigger: Trigger<Resolved<Visibility>>,
         visibilities: Query<&ResolvedVisibility>,
         mut queue: ResMut<RenderRemoveQueue<R>>,
     ) {

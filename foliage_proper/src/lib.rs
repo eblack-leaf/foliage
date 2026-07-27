@@ -104,8 +104,8 @@ pub use grid::{
     Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationValue, ValueDescriptor,
 };
 pub use grid::{
-    AspectRatio, Grid, Layout, Location, ScrollProgress, ScrollTo, View, anchor, text_content,
-    view::OverscrollPropagation,
+    AspectRatio, Grid, Layout, Location, ScrollMomentum, ScrollProgress, ScrollTo, View, anchor,
+    text_content, view::OverscrollPropagation,
 };
 pub use icon::{Icon, IconId, IconMemory, IconSprout};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
@@ -120,7 +120,7 @@ pub use leaf::{Branch, Leaf, Stem};
 pub use line::{Line, LineSprout};
 pub use opacity::Opacity;
 pub use ops::Named;
-pub use ops::{Keyring, Update, Write};
+pub use ops::{Keyring, Resolve, Resolved};
 pub use panel::{Outline, Panel, PanelSprout, Rounding, Side};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;

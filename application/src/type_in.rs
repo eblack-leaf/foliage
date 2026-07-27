@@ -1,8 +1,9 @@
 use crate::icons::IconHandles;
 use foliage::{
     Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape, Leaf,
-    Line, Location, Opacity, Panel, Polygon, Sprout, Text, Tree, VerticalAlignment, anchor,
+    HorizontalAlignment, HrefLink, Icon, InteractionListener, InteractionPropagation,
+    InteractionShape, Leaf, Line, Location, OnClick, Opacity, Panel, Polygon, Sprout, Text, Tree,
+    Trigger, VerticalAlignment, anchor,
 };
 
 const TEXT: &str = "foliage.rs";
@@ -380,6 +381,11 @@ const DOCS_FONT_SIZE: u32 = 22;
 const DOCS_GAP_FROM_FIELD_BOTTOM: i32 = 90; // px -- clears the line + subtitle below field
 const DOCS_MORPH_DURATION: u64 = 700;
 const DOCS_START_GAP: u64 = 400; // ms after the subtitle finishes before the Docs link appears
+// a real absolute URL (scheme + host), not just a root-relative path -- matches
+// `foliage_proper/Cargo.toml`'s own `documentation` field exactly: `book.sh` copies the
+// built mdbook into `docs/book/`, a sibling of `docs/index.html`, which GitHub Pages
+// serves at this exact address.
+const DOCS_BOOK_HREF: &str = "https://eblack-leaf.github.io/foliage/book/";
 
 fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity, start: u64) {
     let group_width = DOCS_BTN_PX + DOCS_LABEL_GAP_PX + DOCS_LABEL_WIDTH_PX;
@@ -475,6 +481,9 @@ fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity,
         .finish(start + DOCS_MORPH_DURATION)
         .eased(Ease::DECELERATE),
     );
+    tree.on_click(docs_btn, move |_: Trigger<OnClick>, _: Tree| {
+        HrefLink::new(DOCS_BOOK_HREF).navigate();
+    });
 
     let icon = tree.branch(
         parent,

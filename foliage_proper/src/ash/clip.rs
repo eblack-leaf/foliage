@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::Trigger;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::{Branch, Component, Logical, Section, Tree, Update, Write};
+use crate::{Branch, Component, Logical, Section, Tree, Resolve, Resolved};
 use crate::{Differential, Stem};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -31,7 +31,7 @@ pub struct ClipToViewport;
 pub(crate) struct ClipSection(pub(crate) Section<Logical>);
 impl ClipSection {
     pub(crate) fn write_section(
-        trigger: Trigger<Write<Section<Logical>>>,
+        trigger: Trigger<Resolved<Section<Logical>>>,
         sections: Query<&Section<Logical>>,
         mut tree: Tree,
     ) {
@@ -41,10 +41,10 @@ impl ClipSection {
             .insert(ClipSection(value));
     }
     pub(crate) fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
-        tree.trigger_targets(Update::<InheritedClip>::new(), trigger.event_target());
+        tree.trigger_targets(Resolve::<InheritedClip>::new(), trigger.event_target());
     }
     pub(crate) fn update_inherited(
-        trigger: Trigger<Update<InheritedClip>>,
+        trigger: Trigger<Resolve<InheritedClip>>,
         mut tree: Tree,
         stems: Query<&Stem>,
         sections: Query<&Section<Logical>>,

@@ -9,7 +9,7 @@ pub use crate::grid::location::{
     Adjust, AnchorDescriptor, Justify, ValueDescriptor, anchor, text_content,
 };
 pub use crate::grid::location::{GridExt, LocationValue};
-use crate::grid::view::extent_check;
+use crate::grid::view::{coast, extent_check};
 use crate::{Attachment, Component, CoordinateUnit};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoScheduleConfigs;
@@ -17,14 +17,18 @@ pub use layout::Layout;
 pub use location::Anchor;
 pub use location::AnchorDeps;
 pub use location::Location;
-pub use view::{ScrollProgress, ScrollTo, View};
+pub use view::{ScrollMomentum, ScrollProgress, ScrollTo, View};
 
 impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(Layout::Xs);
+        foliage.world.insert_resource(ScrollMomentum::default());
         foliage
             .main
             .add_systems(viewport_changed.in_set(MainMarkers::External));
+        foliage
+            .main
+            .add_systems(coast.in_set(MainMarkers::Process));
         foliage
             .diff
             .add_systems(extent_check.in_set(DiffMarkers::Prepare));

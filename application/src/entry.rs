@@ -33,6 +33,7 @@ pub fn build(foliage: &mut Foliage) {
                 chapters::animate::build as RouteFn,
                 chapters::sequence::build as RouteFn,
                 chapters::interact::build as RouteFn,
+                chapters::text::build as RouteFn,
             ]))
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),

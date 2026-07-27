@@ -131,7 +131,7 @@ no-op'ing if multiplied.
 ```rust
 // foliage_proper/src/grid/view.rs
 #[derive(Component, Copy, Clone, Debug)]
-#[require(ViewAdjustment, OverscrollPropagation, ScrollMomentum, ScrollProgress)]
+#[require(ViewAdjustment, OverscrollPropagation, ScrollInertia, ScrollProgress)]
 pub struct View {
     offset: Position<Logical>, // pub(crate) -- only `extent_check`'s own clamp writes it
     extent: Section<Logical>,  // read externally via `.offset()`/`.extent()`
@@ -179,6 +179,64 @@ This split -- author states intent via `ScrollTo`, a resolved value comes back v
 [Lifecycle](./lifecycle.md)): several inputs can influence the real state, but only one
 resolved value is ever the ground truth, and nothing outside the resolver mutates it
 directly.
+
+## `ScrollMomentum`: coasting after a drag/touch release
+
+A raw pointer-drag stays exactly 1:1 while it's actually moving (see
+[Interaction](./interaction.md)'s own walk-up code) -- but on release, a fast enough
+flick should keep the view coasting on its own instead of stopping dead the instant a
+finger lifts, the way every native touch-scroll implementation behaves ("momentum
+scrolling" is the term most of them use for exactly this).
+
+```rust
+// foliage_proper/src/grid/view.rs
+#[derive(Resource, Copy, Clone, Debug)]
+pub struct ScrollMomentum {
+    pub velocity_threshold: f32,   // px/ms below which a release just stops, no coast
+    pub decay: f32,                // fraction of velocity retained per elapsed ms while coasting
+    pub stop_epsilon: f32,         // px/ms below which a coast is finished
+    pub stillness_cutoff_ms: f32,  // ms since the last real move past which velocity is zeroed outright
+}
+```
+
+`ScrollMomentum` is a real `Resource`, inserted with a default at startup -- insert your
+own before `photosynthesize()` to retune the feel for a given app (a dense list and a
+wide gallery don't want the same threshold/decay). `Coasting` (`pub(crate)`, not
+author-facing) is the actual per-view runtime state -- a release velocity plus a last-tick
+timestamp, present only while a coast is in flight. A small `coast` system ticks every
+`Coasting` view each frame, writing `ViewAdjustment` from `velocity * elapsed_ms` and
+decaying `velocity` by `decay.powf(elapsed_ms)` (exponential, so it's frame-rate
+independent) until it drops under `stop_epsilon`, at which point `Coasting` removes
+itself.
+
+`coast` also reads `CurrentInteraction` directly and removes a view's own `Coasting`
+outright, before any of the decay logic above runs, if the pointer is down right now
+(`current.pressed`) *and* that view is either the currently grabbed `current.primary`
+itself, or is reached by walking *up from* `current.primary` through its own `Stem`
+chain -- the same walk (starting at the grabbed entity, going toward the root)
+`interactive_elements` uses to find a view to pan (see
+[Interaction](./interaction.md)). The direction matters: grabbing something *inside* a
+coasting view (a row in a list, a nested scrollable region within it) walks up through
+that content and reaches the view, stopping it -- correct, you're interacting with its
+own content. Grabbing the coasting view's own *parent* directly does not stop it: walking
+up from that parent goes further toward the root, away from the view (which is *below*
+it, not above), so an unrelated container being touched never reaches down into a
+completely different view's own coast. `interactive_elements` separately clears
+`Coasting` off the same chain right on `Start` too, but that's a `Tree`-queued command
+with no guaranteed same-frame ordering against `coast`'s own run within the same
+schedule; `coast`'s own resource read is what actually guarantees a fresh drag's real
+`ViewAdjustment` never gets overwritten by a stale coasting one on the same view.
+
+`current.pressed` matters here specifically because `current.primary` isn't cleared on
+release -- it's deliberately left set between gestures (only the *next* `Start` clears
+it), so a released entity's own click/`Disengaged` can still be judged against where it
+was grabbed. Checking `primary`'s mere presence would read as "still grabbed" for the
+exact entity that was *just* released, on the very tick its own `Coasting` was created --
+`pressed` is the field that actually answers "is the pointer down right now."
+
+This is distinct from `ScrollInertia` (the `#[require(..)]` above) -- that one scales
+each *new* wheel tick while ticks keep arriving close together; `ScrollMomentum` instead
+governs what happens once a drag/touch release has no more input left to scale at all.
 
 Covered where scrolling matters most beyond this: [TextInput](./composites/text-input.md)'s
 scroll-into-view logic and `List`/`Carousel`'s viewport.

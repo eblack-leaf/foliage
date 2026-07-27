@@ -51,7 +51,7 @@ impl<const N: usize> IntoTargets for [Entity; N] {
 /// targeted events store an `entity` field the seam below rewrites per target. Implement via
 /// the `#[targeted_event]` attribute (injects the field, implements `Event`/`EntityEvent`,
 /// generates `new(<payload fields>)` — authors never write `Entity::PLACEHOLDER`); generics
-/// like `Update<C>`/`Write<C>` implement it by hand.
+/// like `Resolve<C>`/`Resolved<C>` implement it by hand.
 pub trait TargetedEvent: EntityEvent + Clone {
     fn set_target(&mut self, entity: Entity);
 }

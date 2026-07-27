@@ -10,7 +10,7 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
     Area, Attachment, Component, Foliage, Layout, LeafSprout, Logical, Numerical,
-    ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem, Write,
+    ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem, Resolved,
 };
 use crate::{AssetKey, AssetRetrieval};
 use crate::{Differential, EcsExtension, Tree, Visibility};
@@ -110,7 +110,7 @@ impl Image {
         Self { key }
     }
     fn visibility_trigger(
-        trigger: Trigger<Write<Visibility>>,
+        trigger: Trigger<Resolved<Visibility>>,
         images: Query<&Image>,
         mut tree: Tree,
         vis: Query<&ResolvedVisibility>,

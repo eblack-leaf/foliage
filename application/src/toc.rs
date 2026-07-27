@@ -87,6 +87,7 @@ fn chapter_color(target_page: usize, shade: i32) -> Color {
         7 => Color::amber(shade),
         8 => Color::rose(shade),
         9 => Color::lime(shade),
+        10 => Color::purple(shade),
         _ => Color::green(shade),
     }
 }
@@ -358,6 +359,10 @@ const ROUTES: &[(usize, &str)] = &[
     (
         9,
         "Clicks and hit-testing: listeners, propagation, pass-through",
+    ),
+    (
+        10,
+        "Font size, per-character color, and the monospace grid's own pitch",
     ),
 ];
 

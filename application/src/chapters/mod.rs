@@ -5,9 +5,10 @@
 //! and that it's just a component you can change), then `relative` (the same `Location`
 //! percentages, but against a real, visible parent instead of the invisible window
 //! frame), then `grid`/`anchor` (the two ways a child's `Location` resolves), then
-//! `animate`/`sequence` (motion), then finally `interact` (clicks). Most are currently
-//! just the shared window frame -- the real infographic for each concept lands per-page
-//! later.
+//! `animate`/`sequence` (motion), then `interact` (clicks), and finally `text` (font
+//! size, per-character color, and the monospace grid's own pitch/kerning story). Most
+//! are currently just the shared window frame -- the real infographic for each concept
+//! lands per-page later.
 
 pub mod anchor;
 pub mod animate;
@@ -17,6 +18,7 @@ pub mod interact;
 pub mod location;
 pub mod relative;
 pub mod sequence;
+pub mod text;
 
 use crate::toc::{CONTENT_AREA_BOTTOM_CLEARANCE_PX, CONTENT_AREA_BOTTOM_PCT, CONTENT_AREA_TOP_PX};
 use foliage::{

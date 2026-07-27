@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::Location;
-use crate::{CoordinateUnit, Logical, Section, Stem, Tree, Update, Write};
+use crate::{CoordinateUnit, Logical, Section, Stem, Tree, Resolve, Resolved};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::With;
 use bevy_ecs::resource::Resource;
@@ -43,7 +43,7 @@ pub(crate) fn viewport_changed(
     if vh.window_forced_resize() {
         let new = Layout::new(vh.section());
         if new != *layout {
-            tree.trigger(Write::<Layout>::new());
+            tree.trigger(Resolved::<Layout>::new());
             *layout = new;
         }
         let mut targets = vec![];
@@ -55,6 +55,6 @@ pub(crate) fn viewport_changed(
         if targets.is_empty() {
             return;
         }
-        tree.trigger_targets(Update::<Location>::new(), targets);
+        tree.trigger_targets(Resolve::<Location>::new(), targets);
     }
 }

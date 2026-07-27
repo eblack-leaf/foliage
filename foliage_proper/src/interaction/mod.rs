@@ -7,16 +7,16 @@ use bevy_ecs::message::{Message, MessageReader};
 use bevy_ecs::prelude::IntoScheduleConfigs;
 use bevy_ecs::query::With;
 use bevy_ecs::resource::Resource;
-use bevy_ecs::system::{Query, ResMut};
+use bevy_ecs::system::{Query, Res, ResMut};
 mod adapter;
 pub(crate) mod listener;
 
 use crate::ash::clip::ResolvedClip;
 use crate::coordinate::elevation::StackKey;
 use crate::foliage::{Foliage, MainMarkers};
-use crate::grid::view::{ScrollMomentum, ViewAdjustment};
+use crate::grid::view::{Coasting, ScrollInertia, ScrollMomentum, ViewAdjustment};
 use crate::{
-    Attachment, Component, InteractionShape, ResolvedElevation, Section, Stem, Tree, View,
+    Attachment, Component, InteractionShape, Moment, ResolvedElevation, Section, Stem, Tree, View,
 };
 pub use adapter::{InputSequence, Key, Modifiers, PhysicalInputSequence, PhysicalKey};
 pub(crate) use adapter::{KeyboardAdapter, MouseAdapter, TouchAdapter};
@@ -91,6 +91,23 @@ pub struct CurrentInteraction {
     pub(crate) pass_through: Vec<Entity>,
     pub(crate) focused: Option<Entity>,
     pub(crate) past_drag: bool,
+    /// True from `Start` until the matching `End`/`Cancel` -- unlike `primary` (which
+    /// deliberately stays set between gestures, cleared only by the *next* `Start`, so a
+    /// released entity's `Disengaged` can still fire and its click can still be judged
+    /// against where it was originally grabbed) this genuinely reflects "is the pointer
+    /// down right now." `coast` needs exactly that: checking `primary.is_some()` alone
+    /// is true immediately after every release too (it hasn't been cleared yet), which
+    /// would kill a just-started coast on its very first tick.
+    pub(crate) pressed: bool,
+    /// When the last drag-move's own `ViewAdjustment` diff was computed -- paired with
+    /// `velocity` to turn each move's raw px delta into a px/ms rate (see the `moved`
+    /// handling in `interactive_elements`).
+    pub(crate) last_drag_time: Option<Moment>,
+    /// A smoothed (EMA, not instantaneous) px/ms rate of the current drag's own motion --
+    /// smoothed so a single noisy/tiny final move right before release doesn't solely
+    /// decide whether the release reads as a flick. Read at `ended` to decide whether to
+    /// hand off to a [`Coasting`] coast; reset at `started`.
+    pub(crate) velocity: Position<Logical>,
 }
 impl CurrentInteraction {
     pub fn click(&self) -> Click {
@@ -166,7 +183,8 @@ pub(crate) fn interactive_elements(
     mut current: ResMut<CurrentInteraction>,
     contexts: Query<&Stem>,
     views: Query<Entity, With<View>>,
-    momentums: Query<&ScrollMomentum>,
+    inertias: Query<&ScrollInertia>,
+    momentum: Res<ScrollMomentum>,
     mut tree: Tree,
 ) {
     let events = reader.read().copied().collect::<Vec<_>>();
@@ -174,6 +192,7 @@ pub(crate) fn interactive_elements(
         .iter()
         .any(|e| e.click_phase == InteractionPhase::Cancel)
     {
+        current.pressed = false;
         if let Some(entity) = current.primary.take() {
             tree.trigger_targets(
                 Disengaged {
@@ -207,6 +226,7 @@ pub(crate) fn interactive_elements(
             .filter(|i| i.click_phase == InteractionPhase::End)
             .collect::<Vec<_>>();
         if let Some(event) = started.last() {
+            current.pressed = true;
             if let Some(entity) = current.primary.take() {
                 tree.trigger_targets(
                     Disengaged {
@@ -271,6 +291,26 @@ pub(crate) fn interactive_elements(
                 }
                 current.click = Click::new(event.position);
                 current.last_drag = event.position;
+                current.last_drag_time = None;
+                current.velocity = Position::default();
+                // grabbing the content again stops any in-flight coast immediately, same
+                // as every native touch-scroll implementation -- walk the same stem chain
+                // a drag/release would use to find whichever view(s) might currently be
+                // coasting and cut them off, not just `p` itself.
+                if views.get(p).is_ok() {
+                    tree.entity(p).remove::<Coasting>();
+                }
+                let mut context = *contexts.get(p).unwrap();
+                while let Some(id) = context.id {
+                    if views.get(id).is_ok() {
+                        tree.entity(id).remove::<Coasting>();
+                    }
+                    if let Ok(up) = contexts.get(id) {
+                        context = *up;
+                    } else {
+                        break;
+                    }
+                }
             }
             // Focus reconciliation for a non-scroll press: move focus to the grabbed primary if
             // it can take focus, otherwise *clear* focus. Pressing a focus-ignoring element
@@ -324,10 +364,42 @@ pub(crate) fn interactive_elements(
                     {
                         current.past_drag = true;
                         current.last_drag = event.position;
+                        // seeds a baseline for the *next* Moved event's own velocity
+                        // computation -- without this, a fling that only sends a couple of
+                        // move samples before release (a real fast flick can) would never
+                        // get a `last_drag_time` to diff its first real move against, and
+                        // so would never compute a nonzero velocity at all.
+                        current.last_drag_time = Some(Moment::now());
                     }
                 } else if !all.get(p).unwrap().4.disable_drag {
                     let diff = current.last_drag - event.position;
+                    // smoothed (EMA) px/ms rate of this drag's own motion, read at `ended`
+                    // to decide whether release velocity is fast enough to hand off to a
+                    // `Coasting` coast -- same units/sign convention `diff` (and so
+                    // `ViewAdjustment`) already use, so `Coasting::velocity` can be fed
+                    // straight back into `ViewAdjustment` unchanged once coasting starts.
+                    let now = Moment::now();
+                    if let Some(last_time) = current.last_drag_time {
+                        let elapsed_ms = now.duration_since(last_time).as_secs_f32() * 1000.0;
+                        if elapsed_ms > 0.0 {
+                            const SMOOTHING: f32 = 0.35;
+                            let instant = diff / elapsed_ms;
+                            current.velocity =
+                                current.velocity * (1.0 - SMOOTHING) + instant * SMOOTHING;
+                        }
+                    }
+                    current.last_drag_time = Some(now);
                     if let Ok(_) = views.get(p) {
+                        // cleared right here, not left to `coast`'s own separate
+                        // ancestor-walk check -- this is the one place that knows with
+                        // certainty which entity is receiving a *live* pan this frame.
+                        // `coast` runs in the same `MainMarkers::Process` set with no
+                        // ordering constraint against this system, so relying on it to
+                        // notice and cancel independently left a real window where its
+                        // own stale, decaying write could land after (and overwrite) the
+                        // live one right back, every single frame, for as long as the
+                        // coast kept running -- reading as the coast fighting the drag.
+                        tree.entity(p).remove::<Coasting>();
                         tree.entity(p).insert(ViewAdjustment(diff));
                     } else {
                         let mut context = *contexts.get(p).unwrap();
@@ -350,6 +422,8 @@ pub(crate) fn interactive_elements(
                             let mut wrote = false;
                             if let Ok(_) = views.get(id) {
                                 if !all.get(id).unwrap().4.disable_drag {
+                                    // same reasoning as the direct-view case above.
+                                    tree.entity(id).remove::<Coasting>();
                                     tree.entity(id).insert(ViewAdjustment(diff));
                                     wrote = true;
                                 }
@@ -392,6 +466,7 @@ pub(crate) fn interactive_elements(
             }
         }
         if let Some(event) = ended.last() {
+            current.pressed = false;
             if let Some(p) = current.primary {
                 // `disable_drag` suppresses *pointer*-drag panning specifically (e.g. the
                 // text_input cursor and the slider knob both drag-subscribe themselves and
@@ -405,23 +480,59 @@ pub(crate) fn interactive_elements(
                 // allowed through regardless of drag suppression.
                 if current.past_drag || event.method == InteractionMethod::ScrollWheel {
                     let diff = current.last_drag - event.position;
+                    // stale-velocity guard: a fast drag followed by holding perfectly
+                    // still (no more Moved events at all -- so `current.velocity` never
+                    // gets a fresh EMA sample) for a while before releasing must not
+                    // still read as a flick using whatever velocity was last measured,
+                    // however long ago that was. A hard recency cutoff, not a continued
+                    // exponential decay -- a fast enough swipe held still for a couple of
+                    // real seconds would still clear `velocity_threshold` even decayed the
+                    // whole time (`decay.powf` never actually reaches zero). Past
+                    // `stillness_cutoff_ms` since the last real sample, the pointer had
+                    // already stopped, full stop, regardless of how fast it was moving
+                    // before that.
+                    if let Some(last_time) = current.last_drag_time {
+                        let elapsed_ms =
+                            Moment::now().duration_since(last_time).as_secs_f32() * 1000.0;
+                        if elapsed_ms > momentum.stillness_cutoff_ms {
+                            current.velocity = Position::default();
+                        }
+                    }
                     // wheel scaling: drag stays exactly 1:1 (a raw pointer-drag is
-                    // continuous tracking, not a discrete pulse -- momentum doesn't apply
-                    // to it), a wheel tick's delta gets scaled by that target's own
-                    // ScrollMomentum, which grows the closer together repeated ticks
-                    // arrive and resets once they stop -- see ScrollMomentum::tick.
+                    // continuous tracking, not a discrete pulse -- this scaling doesn't
+                    // apply to it), a wheel tick's delta gets scaled by that target's own
+                    // ScrollInertia, which grows the closer together repeated ticks
+                    // arrive and resets once they stop -- see ScrollInertia::tick.
                     let wheel_diff = |tree: &mut Tree, target: Entity| -> Position<Logical> {
                         if event.method != InteractionMethod::ScrollWheel {
                             return diff;
                         }
                         let (scale, updated) =
-                            momentums.get(target).copied().unwrap_or_default().tick();
+                            inertias.get(target).copied().unwrap_or_default().tick();
                         tree.entity(target).insert(updated);
                         diff * scale
+                    };
+                    // hands off to a coast only for a real drag/touch release (not a
+                    // wheel tick, which already has its own `ScrollInertia`) whose
+                    // tracked release velocity clears `ScrollMomentum::velocity_threshold`
+                    // -- a slow, deliberate drag that was already settling just stops,
+                    // same as before this existed.
+                    let maybe_coast = |tree: &mut Tree, target: Entity| {
+                        if event.method == InteractionMethod::ScrollWheel {
+                            return;
+                        }
+                        let speed = current.velocity.left().hypot(current.velocity.top());
+                        if speed > momentum.velocity_threshold {
+                            tree.entity(target).insert(Coasting {
+                                velocity: current.velocity,
+                                last_tick: Moment::now(),
+                            });
+                        }
                     };
                     if let Ok(_) = views.get(p) {
                         let scaled = wheel_diff(&mut tree, p);
                         tree.entity(p).insert(ViewAdjustment(scaled));
+                        maybe_coast(&mut tree, p);
                     } else {
                         let mut context = *contexts.get(p).unwrap();
                         while let Some(id) = context.id {
@@ -439,6 +550,7 @@ pub(crate) fn interactive_elements(
                                 {
                                     let scaled = wheel_diff(&mut tree, id);
                                     tree.entity(id).insert(ViewAdjustment(scaled));
+                                    maybe_coast(&mut tree, id);
                                     wrote = true;
                                 }
                             }
@@ -456,7 +568,16 @@ pub(crate) fn interactive_elements(
                 current.click.end.replace(event.position);
                 if let Ok(mut listener) = listeners.get_mut(p) {
                     let data = all.get(p).unwrap();
-                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
+                    // `!current.past_drag` -- a real drag (crossed `DRAG_THRESHOLD`) that
+                    // happens to release back over the same entity's own current bounds
+                    // (easy to do on a view that itself just scrolled, e.g. a `ContentsItem`
+                    // card that's also a click target) shouldn't *also* count as a click on
+                    // it -- position containment alone doesn't distinguish "tapped it" from
+                    // "dragged it and let go here by coincidence."
+                    if !listener.disabled()
+                        && !current.past_drag
+                        && event.method != InteractionMethod::ScrollWheel
+                    {
                         if InteractionListener::is_contained(
                             *data.5,
                             *data.1,
@@ -474,10 +595,15 @@ pub(crate) fn interactive_elements(
                     );
                 }
             }
+            let past_drag = current.past_drag;
             for ps in current.pass_through.drain(..) {
                 if let Ok(mut listener) = listeners.get_mut(ps) {
                     let data = all.get(ps).unwrap();
-                    if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
+                    // same reasoning as the primary's own gate above.
+                    if !listener.disabled()
+                        && !past_drag
+                        && event.method != InteractionMethod::ScrollWheel
+                    {
                         if InteractionListener::is_contained(
                             *data.5,
                             *data.1,
@@ -740,6 +866,43 @@ mod tests {
     }
 
     #[test]
+    fn a_real_drag_that_releases_back_inside_the_same_bounds_does_not_fire_onclick() {
+        // position containment alone doesn't distinguish "tapped it" from "dragged it and
+        // let go here by coincidence" -- a view that scrolled during the drag (a
+        // `ContentsItem` card, say, which is also a click target) can easily have its own
+        // current bounds still contain the release point even though a real drag happened.
+        let mut foliage = Foliage::new();
+        let leaf = spawn_grabbable(&mut foliage, 0.0, 0.0, 100.0, 100.0);
+        foliage.world.flush();
+
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(50.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+        // released back inside the same 100x100 bounds it started in.
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(52.0, 52.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(
+            !foliage.world.get::<Marks>(leaf).unwrap().clicked,
+            "a gesture that crossed the drag threshold shouldn't also count as a click, \
+             regardless of where it happened to release"
+        );
+    }
+
+    #[test]
     fn releasing_outside_the_grabbed_entitys_own_bounds_does_not_fire_onclick() {
         // the grabbed entity stays primary for the whole gesture (it doesn't get dropped
         // just because the pointer wandered off it) -- but OnClick specifically requires
@@ -890,6 +1053,373 @@ mod tests {
                 .0,
             Position::default(),
             "the child itself isn't a View -- nothing should have been written on it directly"
+        );
+    }
+
+    fn spawn_grabbable_view(foliage: &mut Foliage) -> Entity {
+        let e = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((View::new(), Grid::default(), InteractionListener::new())),
+        );
+        foliage.world.flush();
+        e
+    }
+
+    #[test]
+    fn touching_a_toc_style_nested_grid_card_stops_the_outer_lists_coast() {
+        // reproduces `toc.rs`'s real shape: `content` is a real scrollable `View`; each
+        // card branched under it *also* carries its own `Grid` (hence its own View) for
+        // purely internal single-cell layout, with a listener (`hepta`) nested one level
+        // deeper still inside that. First gesture grabs empty space in `content` itself
+        // (nothing else covers that point) and flicks -- `content` should end up
+        // coasting. Second gesture touches `hepta`, inside a card, to try to stop it.
+        let mut foliage = Foliage::new();
+        let content = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(400.px().as_width()),
+                    0.px().as_top().with(400.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((View::new(), Grid::new(1.col().gap(0), 1.row().gap(0)))),
+        );
+        let card = foliage.world.branch(
+            content,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(2))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        let hepta = foliage.world.branch(
+            card,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(90.px().as_width()),
+                    0.px().as_top().with(90.px().as_height()),
+                ))
+                .elevate(Elevation::up(3))
+                .with(InteractionListener::new()),
+        );
+        let _ = hepta;
+        foliage.world.flush();
+
+        // gesture 1: grabbed at (300, 300) -- inside `content`'s own 400x400 box, well
+        // outside `card`'s 0..100 corner, so nothing but `content` itself covers this
+        // point.
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(300.0, 300.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(300.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 300.0),
+            InteractionMethod::Mouse,
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(365.0, 300.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(365.0, 300.0),
+            InteractionMethod::Mouse,
+        );
+        assert!(
+            foliage.world.get::<Coasting>(content).is_some(),
+            "sanity: the brisk release on empty space should have started coasting on `content`"
+        );
+
+        // gesture 2: touch `hepta`, at (50, 50) -- inside the nested card's own listener.
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(50.0, 50.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(
+            foliage.world.get::<Coasting>(content).is_none(),
+            "touching the nested card should stop the outer list's own coast"
+        );
+    }
+
+    #[test]
+    fn a_brisk_release_hands_off_to_a_coast() {
+        let mut foliage = Foliage::new();
+        let view = spawn_grabbable_view(&mut foliage);
+
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(25.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        // a big move over a short real sleep -- well past the default velocity_threshold
+        // (0.15 px/ms), so this should read as a flick, not a settling drag.
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(90.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(90.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(
+            foliage.world.get::<Coasting>(view).is_some(),
+            "a brisk release should have started a coast"
+        );
+    }
+
+    #[test]
+    fn a_fast_drag_held_motionless_for_a_while_before_release_does_not_coast() {
+        // the exact bug report: drag fast, then hold perfectly still (no more Moved
+        // events at all, so `current.velocity`'s own EMA never gets a fresh sample) for
+        // a few real seconds, then release -- without decaying the stale velocity by how
+        // long it's actually been since the last real sample, this used to still read as
+        // a flick and coast off however fast the pointer *used to* be moving.
+        let mut foliage = Foliage::new();
+        let view = spawn_grabbable_view(&mut foliage);
+
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(25.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        // same brisk move as `a_brisk_release_hands_off_to_a_coast` -- on its own this
+        // would clear the velocity threshold easily.
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(90.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        // back-dated, same trick `grid::view`'s own coast-decay tests use -- simulates
+        // having stood motionless for 3 real seconds without an actual `sleep`.
+        foliage.world.resource_mut::<CurrentInteraction>().last_drag_time =
+            Some(Moment::now() - crate::TimeDelta::from_secs(3));
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(90.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(
+            foliage.world.get::<Coasting>(view).is_none(),
+            "a velocity stale by 3 real seconds of motionless holding shouldn't still coast"
+        );
+    }
+
+    #[test]
+    fn an_arbitrarily_fast_swipe_held_still_past_the_cutoff_never_coasts() {
+        // a purely decay-based staleness check (`velocity * decay.powf(elapsed_ms)`) can
+        // never guarantee this for *any* fixed pause length: an original velocity high
+        // enough always needs proportionally longer to decay under the same fraction, so
+        // a fixed real-world pause (2 real seconds, say) is only "enough" for velocities
+        // below whatever that specific pause happens to decay past `velocity_threshold` --
+        // a fast enough swipe defeats it regardless of how long you wait. A hard recency
+        // cutoff doesn't have that problem: past `stillness_cutoff_ms` with no new sample,
+        // velocity is zeroed outright, independent of its own original magnitude.
+        let mut foliage = Foliage::new();
+        let view = spawn_grabbable_view(&mut foliage);
+
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(25.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        // an extreme move over a tiny real sleep -- hundreds of px/ms, far beyond
+        // anything a real swipe would produce.
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(525.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        // just past `ScrollMomentum::default().stillness_cutoff_ms` (150ms) -- nowhere
+        // near the multi-second holds the other tests use.
+        foliage.world.resource_mut::<CurrentInteraction>().last_drag_time =
+            Some(Moment::now() - crate::TimeDelta::from_millis(200));
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(525.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(
+            foliage.world.get::<Coasting>(view).is_none(),
+            "past the stillness cutoff, no original velocity should still be able to coast"
+        );
+    }
+
+    #[test]
+    fn a_slow_settling_release_does_not_coast() {
+        let mut foliage = Foliage::new();
+        let view = spawn_grabbable_view(&mut foliage);
+
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(25.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        std::thread::sleep(std::time::Duration::from_millis(80));
+        // a tiny move over a comparatively long real sleep -- well under the default
+        // velocity_threshold, reading as a drag that was already settling before release.
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(37.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        // a couple px further, not the exact same point as the last Moved -- `ended`
+        // recomputes its own `diff` from `current.last_drag` to the release point, so an
+        // End at the identical position as the last Moved would (correctly) produce a
+        // zero diff there and overwrite the real one, which isn't what this is checking.
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(38.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(
+            foliage.world.get::<Coasting>(view).is_none(),
+            "a slow, already-settling release shouldn't hand off to a coast"
+        );
+        assert_ne!(
+            foliage.world.get::<ViewAdjustment>(view).unwrap().0,
+            Position::default(),
+            "the release's own 1:1 ViewAdjustment should still have been applied"
+        );
+    }
+
+    #[test]
+    fn grabbing_a_coasting_view_again_cancels_the_coast() {
+        let mut foliage = Foliage::new();
+        let view = spawn_grabbable_view(&mut foliage);
+        foliage.world.entity_mut(view).insert(Coasting {
+            velocity: point(1.0, 0.0),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(25.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(
+            foliage.world.get::<Coasting>(view).is_none(),
+            "touching the view again should cancel any in-flight coast immediately"
+        );
+    }
+
+    #[test]
+    fn a_live_drag_move_on_a_coasting_view_is_not_overwritten_by_the_stale_coast() {
+        // the actual reported bug: `coast` and `interactive_elements` share no explicit
+        // ordering, so a fresh drag's own `ViewAdjustment` write on a still-coasting view
+        // could be immediately clobbered right back by the coast's own decaying write
+        // later the same frame, regardless of whether cancellation itself "worked" --
+        // `Coasting` needs to be gone by the time *this* system runs at all, not just
+        // eventually. Cleared inline, at the exact same place the live pan is written,
+        // not left for a separate system to notice and race against.
+        let mut foliage = Foliage::new();
+        let view = spawn_grabbable_view(&mut foliage);
+        foliage.world.entity_mut(view).insert(Coasting {
+            velocity: point(5.0, 0.0),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(25.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        assert!(
+            foliage.world.get::<Coasting>(view).is_none(),
+            "sanity: Start alone already cancels it"
+        );
+        // re-insert it, simulating `coast` not yet having gotten around to removing it
+        // (or a fresh coast starting back up) by the time the real drag-move lands --
+        // the point of this test is that the *move* handler itself is also a removal
+        // site, not just Start.
+        foliage.world.entity_mut(view).insert(Coasting {
+            velocity: point(5.0, 0.0),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(25.0 + InteractionListener::DRAG_THRESHOLD + 5.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(60.0, 25.0),
+            InteractionMethod::Mouse,
+        );
+
+        assert!(
+            foliage.world.get::<Coasting>(view).is_none(),
+            "a live drag-move on the exact view that's coasting must clear Coasting itself"
         );
     }
 

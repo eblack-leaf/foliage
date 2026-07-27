@@ -7,7 +7,7 @@
 //! text reads Left/Top (prose; the enums' `Default`), icons center (UI glyphs; absent
 //! components read as Center/Middle inside `Icon::align_render_size`).
 
-use crate::{Component, EcsExtension, Update};
+use crate::{Component, EcsExtension, Resolve};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::world::DeferredWorld;
@@ -32,12 +32,12 @@ pub enum VerticalAlignment {
 /// Alignment landed -- tell whichever content this entity actually carries to re-place
 /// itself. Text relayouts (fontdue consumes the alignment); an icon re-resolves its
 /// `Location` so the placement pass (`Icon::align_render_size`) runs against a fresh box.
-/// Unconditional `Update::<Text>` here was fine when only Text used these; on an icon it
+/// Unconditional `Resolve::<Text>` here was fine when only Text used these; on an icon it
 /// would reach `Text::update`'s `texts.get(..).unwrap()`.
 fn on_alignment_insert(mut world: DeferredWorld, ctx: HookContext) {
     let this = ctx.entity;
     if world.get::<crate::Text>(this).is_some() {
-        world.trigger_targets(Update::<crate::Text>::new(), this);
+        world.trigger_targets(Resolve::<crate::Text>::new(), this);
     } else if world.get::<crate::Icon>(this).is_some() {
         if let Some(location) = world.get::<crate::Location>(this).cloned() {
             world.commands().entity(this).insert(location);

@@ -1,14 +1,14 @@
-# Ops: Named, Keyring, Update, Write
+# Ops: Named, Keyring, Resolve, Resolved
 
 Two small, unrelated-looking tools that turn up constantly once you've read a few
 composites: generic targeted markers, and two string-keyed lookup tables.
 
-## `Write<W>` / `Update<U>`: broadcast, then translate -- not duplicates
+## `Resolved<W>` / `Resolve<U>`: broadcast, then translate -- not duplicates
 
 ```rust
 // foliage_proper/src/ops.rs
-pub struct Write<W: Send + Sync + 'static> { entity: Entity, _phantom: PhantomData<W> }
-pub struct Update<U: Send + Sync + 'static> { entity: Entity, _phantom: PhantomData<U> }
+pub struct Resolved<W: Send + Sync + 'static> { entity: Entity, _phantom: PhantomData<W> }
+pub struct Resolve<U: Send + Sync + 'static> { entity: Entity, _phantom: PhantomData<U> }
 ```
 
 Identical shape, but they sit at two different ends of the same pipeline, and the
@@ -19,38 +19,41 @@ Identical shape, but they sit at two different ends of the same pipeline, and th
 // foliage_proper/src/coordinate/section.rs
 fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
     ...
-    world.trigger_targets(Write::<Self>::new(), this); // one Write<Section<Logical>>
+    world.trigger_targets(Resolved::<Self>::new(), this); // one Resolved<Section<Logical>>
 }
 ```
 
-*Three unrelated* systems each independently observe that same `Write<Section<Logical>>`
-and translate it into their *own* type's update signal:
+*Three unrelated* systems each independently observe that same
+`Resolved<Section<Logical>>` and translate it into their *own* type's resolve signal:
 
 ```rust
 // foliage_proper/src/panel/mod.rs
-fn update_from_section(trigger: Trigger<Write<Section<Logical>>>, mut tree: Tree) {
-    tree.trigger_targets(Update::<Panel>::new(), trigger.event_target());
+fn update_from_section(trigger: Trigger<Resolved<Section<Logical>>>, mut tree: Tree) {
+    tree.trigger_targets(Resolve::<Panel>::new(), trigger.event_target());
 }
-// foliage_proper/src/text/mod.rs has its own update_from_section -> Update::<Text>
-// foliage_proper/src/ash/clip.rs has its own -> reacts directly, no Update::<Self> needed
+// foliage_proper/src/text/mod.rs has its own update_from_section -> Resolve::<Text>
+// foliage_proper/src/ash/clip.rs has its own -> reacts directly, no Resolve::<Self> needed
 ```
 
-So: **`Write<T>` is "raw data `T` was just written, broadcast"** -- any number of
+So: **`Resolved<T>` is "raw data `T` was just written, broadcast"** -- any number of
 unrelated types can subscribe to the same one and each decide independently whether/how
-to react. **`Update<U>` is a specific type's own "recompute yourself now" signal** --
+to react. **`Resolve<U>` is a specific type's own "recompute yourself now" signal** --
 observed only by `U`'s own update system, and can be triggered from more than one
-source: `Panel::update` fires on `Update<Panel>` regardless of whether that came from a
-`Write<Section<Logical>>` (via the bridge above), or directly from `Panel`'s own
+source: `Panel::update` fires on `Resolve<Panel>` regardless of whether that came from a
+`Resolved<Section<Logical>>` (via the bridge above), or directly from `Panel`'s own
 `on_insert` when `Color`/`Rounding`/`Outline` change (`panel/mod.rs`'s own `on_insert`
-calls `Update::<Panel>::new()` straight away, no `Write` involved). The small bridge
+calls `Resolve::<Panel>::new()` straight away, no `Resolved` involved). The small bridge
 observers (`update_from_section` and friends) are what translate "something raw changed"
 into "this specific thing needs recomputing" -- collapsing them into one type would mean
-every `Write<Section<Logical>>` subscriber either shares one `Update` type it doesn't
+every `Resolved<Section<Logical>>` subscriber either shares one `Resolve` type it doesn't
 actually own, or `Panel`/`Text`/clip resolution all fire on each other's writes with no
-way to opt out selectively.
+way to opt out selectively. `ResolvedFontSize`, `ResolvedElevation`, `ResolvedGlyphs`, and
+the rest of the crate's own `Resolved*`-prefixed components are a different thing
+entirely -- concrete settled *values*, not this generic broadcast event -- but the shared
+word is deliberate: both mean "this has now actually been computed."
 
-`Disable`'s cascade (see [Lifecycle](./lifecycle.md)) uses `Write<Disable>` the same way
--- broadcasting "`Disable` was written on this entity" before separately triggering
+`Disable`'s cascade (see [Lifecycle](./lifecycle.md)) uses `Resolved<Disable>` the same
+way -- broadcasting "`Disable` was written on this entity" before separately triggering
 `InheritDisable` to propagate to children, keeping "notify" and "cascade" as two
 distinct steps.
 

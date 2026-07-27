@@ -6,19 +6,19 @@ use bevy_ecs::system::ResMut;
 use std::collections::HashMap;
 
 #[derive(EntityEvent)]
-pub struct Write<W: Send + Sync + 'static> {
+pub struct Resolved<W: Send + Sync + 'static> {
     entity: Entity,
     _phantom: std::marker::PhantomData<W>,
 }
-impl<W: Send + Sync + 'static> Default for Write<W> {
+impl<W: Send + Sync + 'static> Default for Resolved<W> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<W: Send + Sync + 'static> Write<W> {
-    pub fn new() -> Write<W> {
-        Write {
+impl<W: Send + Sync + 'static> Resolved<W> {
+    pub fn new() -> Resolved<W> {
+        Resolved {
             entity: Entity::PLACEHOLDER,
             _phantom: std::marker::PhantomData,
         }
@@ -29,31 +29,31 @@ impl<W: Send + Sync + 'static> Write<W> {
         self.entity
     }
 }
-impl<W: Send + Sync + 'static> Clone for Write<W> {
+impl<W: Send + Sync + 'static> Clone for Resolved<W> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<W: Send + Sync + 'static> Copy for Write<W> {}
-impl<W: Send + Sync + 'static> TargetedEvent for Write<W> {
+impl<W: Send + Sync + 'static> Copy for Resolved<W> {}
+impl<W: Send + Sync + 'static> TargetedEvent for Resolved<W> {
     fn set_target(&mut self, entity: Entity) {
         self.entity = entity;
     }
 }
 #[derive(EntityEvent)]
-pub struct Update<U: Send + Sync + 'static> {
+pub struct Resolve<U: Send + Sync + 'static> {
     entity: Entity,
     _phantom: std::marker::PhantomData<U>,
 }
-impl<U: Send + Sync + 'static> Default for Update<U> {
+impl<U: Send + Sync + 'static> Default for Resolve<U> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<U: Send + Sync + 'static> Update<U> {
-    pub fn new() -> Update<U> {
-        Update {
+impl<U: Send + Sync + 'static> Resolve<U> {
+    pub fn new() -> Resolve<U> {
+        Resolve {
             entity: Entity::PLACEHOLDER,
             _phantom: std::marker::PhantomData,
         }
@@ -64,13 +64,13 @@ impl<U: Send + Sync + 'static> Update<U> {
         self.entity
     }
 }
-impl<U: Send + Sync + 'static> Clone for Update<U> {
+impl<U: Send + Sync + 'static> Clone for Resolve<U> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<U: Send + Sync + 'static> Copy for Update<U> {}
-impl<U: Send + Sync + 'static> TargetedEvent for Update<U> {
+impl<U: Send + Sync + 'static> Copy for Resolve<U> {}
+impl<U: Send + Sync + 'static> TargetedEvent for Resolve<U> {
     fn set_target(&mut self, entity: Entity) {
         self.entity = entity;
     }

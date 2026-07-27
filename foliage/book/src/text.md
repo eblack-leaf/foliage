@@ -65,6 +65,38 @@ it gets its own dedicated queuing system (`glyph::glyph_differential`), because 
 data has update semantics the generic `PartialEq`-cache comparison doesn't fit (see that
 function's own doc comment in `text/glyph.rs` for the specific reason).
 
+## `FontSize` changes cascade to children's own `Location`, not just glyph layout
+
+```rust
+// foliage_proper/src/text/mod.rs
+fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+    let this = ctx.entity;
+    if world.get::<Text>(this).is_some() {
+        world.commands().trigger_targets(Resolve::<Text>::new(), this);
+    }
+    if let Some(branch) = world.get::<Branch>(this) {
+        let children: Vec<Entity> = branch.ids.iter().copied().collect();
+        if !children.is_empty() {
+            world.commands().trigger_targets(Resolve::<Location>::new(), children);
+        }
+    }
+}
+```
+
+A `Grid`'s own `.letters()`-based column/row pitch depends on the entity's live
+`FontSize` (see [Grid](./grid.md)'s own `character_block`-driven cell sizing), so a
+`FontSize` change can shift how every child's own `Location` ought to resolve, even on an
+entity (like a plain `Grid`-bearing layout leaf) that isn't itself `Text`. This hook is
+`ResolvedFontSize::on_insert` -- fired any time `FontSize`'s own resolved value is
+(re-)inserted, which is exactly the "please resolve now" moment. Alongside the entity's
+own `Resolve<Text>` (for its own glyph layout, when it has one), it walks the entity's
+`Branch` -- its tracked children, the same set `Stem::on_insert`/`on_replace` maintain --
+and fires `Resolve<Location>` directly for each one, the same event `Location::on_insert`
+itself fires to request a resolve. For a `Text` child specifically this also keeps its
+`TextBounds`-driven render scissor (see `text/pipeline.rs`'s `render`) in step with its
+own glyphs: a stale, too-small `Section` there would clip a freshly-rasterized larger
+glyph down to a sliver of the real letterform.
+
 ## `TextSprout`
 
 Same builder shape as every other primitive:

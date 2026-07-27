@@ -168,8 +168,18 @@ impl<
         self.references.get_mut(&key).unwrap().insert(referrer);
     }
     pub(crate) fn remove_reference(&mut self, key: Key, referrer: Referrer) {
-        self.references.get_mut(&key).unwrap().remove(&referrer);
-        if self.references.get(&key).unwrap().is_empty() {
+        // `key` can legitimately be absent: a `ResolvedFontSize` change replaces this
+        // atlas wholesale with a fresh one (`text/pipeline.rs`'s own `prepare`, since the
+        // glyph cell dimensions themselves changed), and the very same pass still queues
+        // "remove this old-size glyph's reference" work left over from before the replace
+        // -- that key only ever existed in the atlas that's already gone. The atlas itself
+        // is the source of truth for what it holds, so asking it is enough; nothing needs
+        // to separately track *why* a key might be missing.
+        let Some(refs) = self.references.get_mut(&key) else {
+            return;
+        };
+        refs.remove(&referrer);
+        if refs.is_empty() {
             self.remove_entry(key);
         }
     }

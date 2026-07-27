@@ -7,8 +7,8 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
     Animate, Animation, Attachment, Color, Component, CoordinateUnit, Coordinates, Differential,
-    Foliage, InteractionShape, Logical, Position, ResolvedElevation, Section, Tree, Update,
-    Visibility, Write,
+    Foliage, InteractionShape, Logical, Position, ResolvedElevation, Section, Tree, Resolve,
+    Visibility, Resolved,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
@@ -59,15 +59,15 @@ impl Panel {
             .observe(Remove::push_remove_packet::<Self>)
             .observe(Visibility::push_remove_packet::<Self>);
     }
-    fn update_from_section(trigger: Trigger<Write<Section<Logical>>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Panel>::new(), trigger.event_target());
+    fn update_from_section(trigger: Trigger<Resolved<Section<Logical>>>, mut tree: Tree) {
+        tree.trigger_targets(Resolve::<Panel>::new(), trigger.event_target());
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world.trigger_targets(Update::<Panel>::new(), this);
+        world.trigger_targets(Resolve::<Panel>::new(), this);
     }
     fn update(
-        trigger: Trigger<Update<Panel>>,
+        trigger: Trigger<Resolve<Panel>>,
         mut panels: Query<&mut Panel>,
         roundings: Query<&Rounding>,
         sides: Query<&Side>,
@@ -287,7 +287,7 @@ impl Side {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         if world.get::<Panel>(this).is_some() {
-            world.trigger_targets(Update::<Panel>::new(), this);
+            world.trigger_targets(Resolve::<Panel>::new(), this);
         }
     }
 }
@@ -317,7 +317,7 @@ impl Rounding {
                 .insert(InteractionShape::Rectangle);
         }
         if world.get::<Panel>(this).is_some() {
-            world.trigger_targets(Update::<Self>::new(), this);
+            world.trigger_targets(Resolve::<Self>::new(), this);
         }
     }
 }
@@ -350,13 +350,13 @@ impl Outline {
     pub fn new(value: i32) -> Outline {
         Outline { value }
     }
-    fn update_anim(trigger: Trigger<Update<Animation<Self>>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Panel>::new(), trigger.event_target());
+    fn update_anim(trigger: Trigger<Resolve<Animation<Self>>>, mut tree: Tree) {
+        tree.trigger_targets(Resolve::<Panel>::new(), trigger.event_target());
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         if world.get::<Panel>(this).is_some() {
-            world.trigger_targets(Update::<Panel>::new(), this);
+            world.trigger_targets(Resolve::<Panel>::new(), this);
         }
     }
 }

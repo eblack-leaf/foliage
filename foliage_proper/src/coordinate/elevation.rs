@@ -2,7 +2,7 @@ use crate::EcsExtension;
 use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
 use crate::ash::clip::ClipToViewport;
-use crate::{Animate, Attachment, Branch, Foliage, Stem, Tree, Update};
+use crate::{Animate, Attachment, Branch, Foliage, Stem, Tree, Resolve};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
@@ -187,10 +187,10 @@ impl Elevation {
         }
     }
     fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Elevation>::new(), trigger.event_target());
+        tree.trigger_targets(Resolve::<Elevation>::new(), trigger.event_target());
     }
     fn update(
-        trigger: Trigger<Update<Elevation>>,
+        trigger: Trigger<Resolve<Elevation>>,
         mut tree: Tree,
         stack_keys: Query<&StackKey>,
         clip_to_viewport: Query<&ClipToViewport>,
@@ -243,7 +243,7 @@ impl Elevation {
         let this = ctx.entity;
         world
             .commands()
-            .trigger_targets(Update::<Elevation>::new(), this);
+            .trigger_targets(Resolve::<Elevation>::new(), this);
     }
 }
 impl Animate for Elevation {

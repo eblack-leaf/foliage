@@ -9,8 +9,8 @@ use crate::text::monospaced::MonospacedFont;
 use crate::visibility::AutoVisibility;
 use crate::{
     Animate, AspectRatio, Attachment, Component, CoordinateUnit, Coordinates, Foliage, FontSize,
-    Grid, Layout, Line, Logical, Points, ResolvedVisibility, Section, Stem, Tree, Update, View,
-    Visibility, Write,
+    Grid, Layout, Line, Logical, Points, ResolvedVisibility, Section, Stem, Tree, Resolve, View,
+    Visibility, Resolved,
 };
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::component::ComponentId;
@@ -156,16 +156,16 @@ impl Location {
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world.trigger_targets(Update::<Location>::new(), this);
+        world.trigger_targets(Resolve::<Location>::new(), this);
     }
     fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Location>::new(), trigger.event_target());
+        tree.trigger_targets(Resolve::<Location>::new(), trigger.event_target());
     }
-    fn update_from_visibility(trigger: Trigger<Write<Visibility>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Location>::new(), trigger.event_target());
+    fn update_from_visibility(trigger: Trigger<Resolved<Visibility>>, mut tree: Tree) {
+        tree.trigger_targets(Resolve::<Location>::new(), trigger.event_target());
     }
     fn update(
-        trigger: Trigger<Update<Location>>,
+        trigger: Trigger<Resolve<Location>>,
         mut tree: Tree,
         layout: Res<Layout>,
         locations: Query<&Location>,
@@ -206,7 +206,7 @@ impl Location {
                 });
                 let context = sections.get(id).unwrap();
                 let stem_letter_dims = if let Ok(fs) = font_sizes.get(id) {
-                    font.character_block(fs.resolve(*layout).value)
+                    font.character_block(fs.resolve(*layout))
                 } else {
                     Coordinates::default()
                 };
@@ -234,8 +234,7 @@ impl Location {
             };
             let current = *sections.get(this).unwrap();
             let letter_dims = if let Ok(fs) = font_sizes.get(this) {
-                let f = fs.resolve(*layout);
-                font.character_block(f.value)
+                font.character_block(fs.resolve(*layout))
             } else {
                 Coordinates::default()
             };
@@ -1387,5 +1386,53 @@ mod tests {
                 target_row
             );
         }
+    }
+
+    /// The reported bug: a `Grid`'s own `.letters()`-based column/row pitch depends on
+    /// the entity's live `FontSize`, but nothing used to re-trigger `Resolve<Location>`
+    /// for its children in response to a plain `FontSize` write (only a child's own
+    /// `Location`/`Stem`/`Visibility` being written did) -- so a runtime `FontSize`
+    /// change left every child's own `Section` stale at the old, smaller cell size until
+    /// something unrelated forced a fresh resolve (a window resize, say). For a `Text`
+    /// child specifically this meant its own `TextBounds`-driven render scissor stayed
+    /// pinned to the old cell too, clipping a freshly-rasterized larger glyph down to a
+    /// sliver -- see `application/src/chapters/text.rs`'s own font-size-grow step, where
+    /// this first showed up visually.
+    #[test]
+    fn changing_a_grid_parents_font_size_re_resolves_a_letters_addressed_childs_section() {
+        let mut foliage = Foliage::new();
+        let field = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(3.letters().as_width()),
+                    0.px().as_top().with(1.letters().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((
+                    Grid::new(1.letters().gap(0), 1.letters()),
+                    FontSize::new(20),
+                )),
+        );
+        let child = foliage.world.branch(
+            field,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    1.col().as_left().with(1.col().as_right()),
+                    1.row().as_top().with(1.row().as_bottom()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+        let width_before = foliage.world.get::<Section<Logical>>(child).unwrap().width();
+
+        foliage.world.entity_mut(field).insert(FontSize::new(60));
+        foliage.world.flush();
+        let width_after = foliage.world.get::<Section<Logical>>(child).unwrap().width();
+
+        assert!(
+            width_after > width_before,
+            "the child's own cell width should grow along with its Grid parent's FontSize \
+             (before: {width_before}, after: {width_after}), not stay pinned to the old size"
+        );
     }
 }

@@ -17,8 +17,8 @@ use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
 use crate::{
-    Attachment, Layout, Physical, ResolvedElevation, ResolvedVisibility, Tree, Update, Visibility,
-    Write,
+    Attachment, Branch, Layout, Location, Physical, Resolve, Resolved, ResolvedElevation,
+    ResolvedVisibility, Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
@@ -183,22 +183,22 @@ impl Text {
             .observe(Self::clear_last_on_visibility);
     }
     fn responsive_font_size(
-        _trigger: Trigger<Write<Layout>>,
+        _trigger: Trigger<Resolved<Layout>>,
         mut font_sizes: Query<(&FontSize, &mut ResolvedFontSize)>,
         layout: Res<Layout>,
     ) {
         for (font_size, mut resolved_font_size) in font_sizes.iter_mut() {
-            resolved_font_size.value = font_size.resolve(*layout).value;
+            resolved_font_size.value = font_size.resolve(*layout);
         }
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         world
             .commands()
-            .trigger_targets(Update::<Text>::new(), this);
+            .trigger_targets(Resolve::<Text>::new(), this);
     }
-    fn update_from_section(trigger: Trigger<Write<Section<Logical>>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Text>::new(), trigger.event_target());
+    fn update_from_section(trigger: Trigger<Resolved<Section<Logical>>>, mut tree: Tree) {
+        tree.trigger_targets(Resolve::<Text>::new(), trigger.event_target());
     }
     fn resolve_colors(
         mut glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
@@ -236,7 +236,7 @@ impl Text {
         }
     }
     fn update(
-        trigger: Trigger<Update<Text>>,
+        trigger: Trigger<Resolve<Text>>,
         mut tree: Tree,
         texts: Query<&Text>,
         font_sizes: Query<&ResolvedFontSize>,
@@ -268,7 +268,7 @@ impl Text {
         // effect of a parent's scroll offset), not just a genuine content edit. Consumers
         // that care specifically about "the text *value* changed, glyphs are freshly
         // laid out" (like `TextInput`'s scroll-into-view) need that distinction --
-        // `Write<Text>` below fires for both cases and can't make it.
+        // `Resolved<Text>` below fires for both cases and can't make it.
         let content_changed = cache.get(this).unwrap().text.value != current.text.value;
         if cache.get(this).unwrap() != &current {
             let old = cache.get(this).unwrap().clone();
@@ -387,14 +387,14 @@ impl Text {
                     tree.entity(this).insert(adjusted);
                 }
             }
-            tree.trigger_targets(Write::<Text>::new(), this);
+            tree.trigger_targets(Resolved::<Text>::new(), this);
             if content_changed {
                 tree.trigger_targets(TextContentChanged::new(), this);
             }
         }
     }
     fn clear_last_on_visibility(
-        trigger: Trigger<Write<Visibility>>,
+        trigger: Trigger<Resolved<Visibility>>,
         mut glyphs: Query<&mut Glyphs>,
         vis: Query<&ResolvedVisibility>,
     ) {
@@ -446,7 +446,17 @@ impl Text {
                         px: g.key.px as u32,
                         font_hash: g.key.font_hash,
                     },
-                    section: Section::physical((g.x, g.y), (g.width, g.height)),
+                    // rounded to whole physical pixels, same as the text element's own
+                    // container position (`text/pipeline.rs`'s own `.rounded()` on
+                    // `Section<Logical>::to_physical`) -- fontdue's own `(g.x, g.y)` are raw
+                    // sub-pixel floats (character advance widths at a given physical font
+                    // size are almost never whole numbers), and drawing a glyph's already-
+                    // rasterized bitmap at a sub-pixel offset resamples/blurs it slightly,
+                    // by a *different* fractional amount per glyph. At scale factors near a
+                    // round number (1.0, 2.0, 1.5) that remainder tends to be small; at an
+                    // odd one (e.g. 1.73) it drifts unpredictably character to character,
+                    // which is what actually read as "glitchy" rather than uniformly soft.
+                    section: Section::physical((g.x, g.y), (g.width, g.height)).rounded(),
                     parent: g.parent,
                     offset: i,
                 })
@@ -516,11 +526,11 @@ impl UniqueCharacters {
 }
 #[derive(Component, Clone, Copy, PartialEq, Debug)]
 #[component(on_insert = ResolvedFontSize::on_insert)]
-pub struct ResolvedFontSize {
-    pub value: u32,
+pub(crate) struct ResolvedFontSize {
+    pub(crate) value: u32,
 }
 impl ResolvedFontSize {
-    pub fn new(value: u32) -> Self {
+    pub(crate) fn new(value: u32) -> Self {
         Self { value }
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
@@ -528,7 +538,25 @@ impl ResolvedFontSize {
         if world.get::<Text>(this).is_some() {
             world
                 .commands()
-                .trigger_targets(Update::<Text>::new(), this);
+                .trigger_targets(Resolve::<Text>::new(), this);
+        }
+        // a `Grid`'s own `.letters()`-based column/row pitch depends on this entity's
+        // FontSize (see `grid/location.rs`'s own `letter_dims`/`stem_letter_dims`), so a
+        // change here can shift how every child's own `Location` ought to resolve -- but
+        // nothing else re-triggers `Resolve<Location>` for them in response to a plain
+        // `FontSize` write (only a child's own `Location`/`Stem`/`Visibility` being
+        // written does). Without this, a runtime `FontSize` change left every child's own
+        // `Section` (and so its `TextBounds`-driven render scissor, for a `Text` child
+        // specifically) stale until something unrelated forced a fresh resolve elsewhere
+        // (a window resize, say) -- a `Text` child would keep rendering clipped to its
+        // old, pre-change cell size.
+        if let Some(branch) = world.get::<Branch>(this) {
+            let children: Vec<Entity> = branch.ids.iter().copied().collect();
+            if !children.is_empty() {
+                world
+                    .commands()
+                    .trigger_targets(Resolve::<Location>::new(), children);
+            }
         }
     }
 }
@@ -559,49 +587,18 @@ impl FontSize {
             xl: None,
         }
     }
-    pub fn resolve(&self, layout: Layout) -> ResolvedFontSize {
+    pub(crate) fn resolve(&self, layout: Layout) -> u32 {
         match layout {
-            Layout::Xs => ResolvedFontSize::new(self.xs),
-            Layout::Sm => {
-                if let Some(sm) = self.sm {
-                    ResolvedFontSize::new(sm)
-                } else {
-                    ResolvedFontSize::new(self.xs)
-                }
-            }
-            Layout::Md => {
-                if let Some(md) = self.md {
-                    ResolvedFontSize::new(md)
-                } else if let Some(sm) = self.sm {
-                    ResolvedFontSize::new(sm)
-                } else {
-                    ResolvedFontSize::new(self.xs)
-                }
-            }
-            Layout::Lg => {
-                if let Some(lg) = self.lg {
-                    ResolvedFontSize::new(lg)
-                } else if let Some(md) = self.md {
-                    ResolvedFontSize::new(md)
-                } else if let Some(sm) = self.sm {
-                    ResolvedFontSize::new(sm)
-                } else {
-                    ResolvedFontSize::new(self.xs)
-                }
-            }
-            Layout::Xl => {
-                if let Some(xl) = self.xl {
-                    ResolvedFontSize::new(xl)
-                } else if let Some(lg) = self.lg {
-                    ResolvedFontSize::new(lg)
-                } else if let Some(md) = self.md {
-                    ResolvedFontSize::new(md)
-                } else if let Some(sm) = self.sm {
-                    ResolvedFontSize::new(sm)
-                } else {
-                    ResolvedFontSize::new(self.xs)
-                }
-            }
+            Layout::Xs => self.xs,
+            Layout::Sm => self.sm.unwrap_or(self.xs),
+            Layout::Md => self.md.or(self.sm).unwrap_or(self.xs),
+            Layout::Lg => self.lg.or(self.md).or(self.sm).unwrap_or(self.xs),
+            Layout::Xl => self
+                .xl
+                .or(self.lg)
+                .or(self.md)
+                .or(self.sm)
+                .unwrap_or(self.xs),
         }
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
@@ -609,7 +606,7 @@ impl FontSize {
         let layout = *world.get_resource::<Layout>().unwrap();
         let comp = world.get::<FontSize>(this).unwrap();
         let resolved = comp.resolve(layout);
-        world.commands().entity(this).insert(resolved);
+        world.commands().entity(this).insert(ResolvedFontSize::new(resolved));
     }
     pub fn sm(mut self, value: u32) -> Self {
         self.sm.replace(value);
@@ -648,7 +645,7 @@ pub(crate) struct UpdateCache {
     pub(crate) vertical_alignment: VerticalAlignment,
 }
 /// Fires only when the text *value* actually changed and glyphs/`LineMetrics` have just been
-/// freshly recomputed -- unlike `Write<Text>`, which also fires for a pure `Section` shift
+/// freshly recomputed -- unlike `Resolved<Text>`, which also fires for a pure `Section` shift
 /// (e.g. scrolling a parent view repositions this entity with no content change at all).
 #[foliage_macros::targeted_event]
 #[derive(Copy)]

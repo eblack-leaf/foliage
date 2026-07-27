@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::grid::location::CreateDiff;
 use crate::time::{OnEnd, Time, TimeDelta};
-use crate::{Component, Location, Tree, Update};
+use crate::{Component, Location, Tree, Resolve};
 use bevy_ecs::change_detection::{Mut, ResMut};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Query;
@@ -122,7 +122,7 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
                     animation.started = true;
                     if TypeId::of::<A>() == TypeId::of::<Location>() {
                         // both writes must land in the same instant: an anchor-target's own
-                        // resolve can cascade an `Update::<Location>` into this entity at any
+                        // resolve can cascade an `Resolve::<Location>` into this entity at any
                         // point once its `Location` is replaced (e.g. it's someone else's
                         // anchor target too), and if that lands after the `Location` swap but
                         // before a *deferred* `CreateDiff(true)` actually applied, it resolves
@@ -156,7 +156,7 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
             }
             if let Ok(mut a) = anim_targets.get_mut(animation.animation_target) {
                 a.apply(&mut animation.interpolations);
-                tree.trigger_targets(Update::<Animation<A>>::new(), animation.animation_target);
+                tree.trigger_targets(Resolve::<Animation<A>>::new(), animation.animation_target);
             } else {
                 despawn_and_update_sequence(&mut sequences, &mut tree, anim_entity, &mut animation);
                 tree.entity(anim_entity).despawn();

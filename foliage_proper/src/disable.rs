@@ -2,7 +2,7 @@ use crate::EcsExtension;
 use crate::Trigger;
 use crate::enable::InheritEnable;
 use crate::interaction::listener::InteractionListener;
-use crate::{AnchorDeps, Attachment, Branch, Event, Foliage, InteractionState, Tree, Write};
+use crate::{AnchorDeps, Attachment, Branch, Event, Foliage, InteractionState, Tree, Resolved};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::system::Query;
@@ -35,7 +35,7 @@ impl Disable {
         branches: Query<&Branch>,
         stacks: Query<&AnchorDeps>,
     ) {
-        tree.trigger_targets(Write::<Disable>::new(), trigger.event_target());
+        tree.trigger_targets(Resolved::<Disable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(
@@ -59,7 +59,7 @@ impl Disable {
 pub(crate) struct AutoDisable {}
 impl AutoDisable {
     fn user_signal(trigger: Trigger<Self>, mut tree: Tree) {
-        tree.trigger_targets(Write::<Disable>::new(), trigger.event_target());
+        tree.trigger_targets(Resolved::<Disable>::new(), trigger.event_target());
     }
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
@@ -80,7 +80,7 @@ impl InheritDisable {
         branches: Query<&Branch>,
         stacks: Query<&AnchorDeps>,
     ) {
-        tree.trigger_targets(Write::<Disable>::new(), trigger.event_target());
+        tree.trigger_targets(Resolved::<Disable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(

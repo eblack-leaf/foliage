@@ -3,10 +3,14 @@ use crate::navigator::Landed;
 use foliage::bevy_ecs::lifecycle::Insert;
 use foliage::{
     Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, GridExt,
-    HorizontalAlignment, Icon, InteractionListener, InteractionPropagation, InteractionShape, Line,
-    Location, OnClick, OnEnd, Opacity, PageIndex, Polygon, Query, Sprout, Text, Tree, Trigger,
-    anchor,
+    HorizontalAlignment, HrefLink, Icon, InteractionListener, InteractionPropagation,
+    InteractionShape, Line, Location, OnClick, OnEnd, Opacity, PageIndex, Polygon, Query, Sprout,
+    Text, Tree, Trigger, anchor,
 };
+
+// a real absolute URL (scheme + host) -- matches `foliage/Cargo.toml`'s own `repository`
+// field exactly.
+const GITHUB_REPO_HREF: &str = "https://github.com/eblack-leaf/foliage";
 
 /// Global, site-wide chrome -- distinct from the inner-site forward/back navigator
 /// (`crate::navigator`), which only ever moves one page at a time and is meant to be
@@ -253,8 +257,18 @@ pub fn build(tree: &mut Tree, router: Entity) {
             .color(Color::cyan(500))
             .at(row_box(HEPTA_CENTER_X_PX, HEPTA_SIZE_PX))
             .elevate(Elevation::up(20))
-            .with(Opacity::new(0.0)),
+            .with((
+                Opacity::new(0.0),
+                InteractionListener::new(),
+                InteractionShape::Circle,
+            )),
     );
+    // the github icon sits on top of `hepta` (`Anchor::new(hepta)`, `pass_through()`) --
+    // `hepta` itself is the real listener, same "icon passes through to the shape
+    // underneath" split every other clickable control in this file already uses.
+    tree.on_click(hepta, move |_: Trigger<OnClick>, _: Tree| {
+        HrefLink::new(GITHUB_REPO_HREF).navigate();
+    });
     tree.animate(
         Animation::new(Opacity::new(1.0))
             .targeting(hepta)

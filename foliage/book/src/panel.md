@@ -59,7 +59,7 @@ knows `Panel` has seven trackable attributes.
 ## `Corner` geometry: computed, not authored
 
 Authors set `Rounding`/`Side`/`Outline`; `Panel::update` (an observer on
-`Update<Panel>`, triggered whenever `Section`, `Rounding`, `Side`, or `Outline` changes)
+`Resolve<Panel>`, triggered whenever `Section`, `Rounding`, `Side`, or `Outline` changes)
 computes the actual per-corner geometry the shader consumes:
 
 ```rust

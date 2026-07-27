@@ -1,7 +1,8 @@
 use crate::ash::clip::ClipToViewport;
+use crate::interaction::CurrentInteraction;
 use crate::{Component, Logical, Moment, Position, Section, Stem, Tree};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref};
+use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref, Res, Resource};
 use std::collections::HashSet;
 
 #[derive(Component, Copy, Clone, Debug, Default)]
@@ -49,18 +50,18 @@ impl Default for OverscrollPropagation {
         OverscrollPropagation(true)
     }
 }
-/// Wheel-scroll momentum, tracked per view: a multiplier applied to each wheel tick's raw
-/// delta, separate from drag (which stays 1:1, no momentum) since a wheel tick is a
+/// Wheel-scroll inertia, tracked per view: a multiplier applied to each wheel tick's raw
+/// delta, separate from drag (which stays 1:1, no scaling) since a wheel tick is a
 /// discrete pulse, not continuous tracking. Slow to start (base multiplier) so a single
 /// tick stays a subtle nudge; grows toward a cap while ticks keep arriving close together,
 /// resetting back to base once they stop -- pure state, no interpolation/animation
 /// involved, since the delta itself (not a value being eased toward) is what scales.
 #[derive(Component, Copy, Clone, Debug)]
-pub(crate) struct ScrollMomentum {
+pub(crate) struct ScrollInertia {
     pub(crate) value: f32,
     pub(crate) last_tick: Option<Moment>,
 }
-impl Default for ScrollMomentum {
+impl Default for ScrollInertia {
     fn default() -> Self {
         Self {
             value: Self::BASE,
@@ -68,7 +69,7 @@ impl Default for ScrollMomentum {
         }
     }
 }
-impl ScrollMomentum {
+impl ScrollInertia {
     const BASE: f32 = 1.0;
     const GROWTH: f32 = 0.15;
     const MAX: f32 = 3.0;
@@ -92,8 +93,134 @@ impl ScrollMomentum {
         )
     }
 }
+/// End-user-tunable knobs for drag/touch release momentum -- a real `Resource`, the same
+/// "insert your own before `photosynthesize`" pattern [`Layout`](crate::Layout)'s own
+/// breakpoints use, since the right feel here genuinely depends on the app (a dense list
+/// vs. a wide gallery, say). Distinct from [`ScrollInertia`], which scales each *new*
+/// wheel tick while ticks keep arriving -- this instead governs what happens once a
+/// drag/touch release has *no more input to scale*: whether it just stops (a slow,
+/// deliberate drag) or keeps coasting on its own release velocity (a flick, i.e. real
+/// "momentum scrolling", the term most native/browser touch-scroll implementations use
+/// for exactly this).
+#[derive(Resource, Copy, Clone, Debug)]
+pub struct ScrollMomentum {
+    /// px/ms magnitude of release velocity below which a drag just stops -- reads as "the
+    /// last motion before lifting off was already slow/settled", not a flick.
+    pub velocity_threshold: f32,
+    /// Fraction of velocity retained per elapsed ms while *actively coasting* (exponential
+    /// decay, applied as `decay.powf(elapsed_ms)` each tick so it's frame-rate independent).
+    pub decay: f32,
+    /// px/ms magnitude below which a coast is considered finished and stops.
+    pub stop_epsilon: f32,
+    /// ms since the last real move sample beyond which a release is read as "the pointer
+    /// had already stopped," regardless of how fast it was moving before that -- a hard
+    /// recency cutoff (velocity zeroed outright past this), not a continued exponential
+    /// decay: a fast enough swipe followed by holding still for a couple of real seconds
+    /// would otherwise still clear `velocity_threshold` even decayed by `decay` the whole
+    /// time (`0.998.powf(2000)` is still only ~98% gone). Real touch-scroll implementations
+    /// use a similarly short recency window for exactly this reason, not a slow decay --
+    /// the same idea `ScrollInertia::WINDOW_MS` already uses for wheel-momentum reset.
+    pub stillness_cutoff_ms: f32,
+}
+impl Default for ScrollMomentum {
+    fn default() -> Self {
+        Self {
+            velocity_threshold: 0.15,
+            decay: 0.998,
+            stop_epsilon: 0.02,
+            stillness_cutoff_ms: 150.0,
+        }
+    }
+}
+/// A view actively coasting on release velocity, decaying toward zero -- present only
+/// while a coast is in flight (inserted by `interaction/mod.rs` on a fast-enough drag
+/// release, removed here once it decays past [`ScrollMomentum::stop_epsilon`] or a fresh
+/// drag interrupts it). `velocity` is px/ms, the same units/sign convention `ViewAdjustment`
+/// itself already uses for a drag's own per-frame delta.
 #[derive(Component, Copy, Clone, Debug)]
-#[require(ViewAdjustment, OverscrollPropagation, ScrollMomentum, ScrollProgress)]
+pub(crate) struct Coasting {
+    pub(crate) velocity: Position<Logical>,
+    pub(crate) last_tick: Moment,
+}
+pub(crate) fn coast(
+    mut coasting: Query<(Entity, &mut Coasting)>,
+    momentum: Res<ScrollMomentum>,
+    current: Res<CurrentInteraction>,
+    contexts: Query<&Stem>,
+    mut tree: Tree,
+) {
+    for (entity, mut c) in coasting.iter_mut() {
+        // A real, in-place resource read, not a component removal that might still be a
+        // queued command elsewhere this same frame -- `interactive_elements` also clears
+        // `Coasting` off the touched view/ancestor chain directly on `Start`, but that's a
+        // `Tree`-queued command whose actual application relative to this system's own
+        // run order isn't guaranteed same-frame.
+        //
+        // `current.pressed`, not just `current.primary.is_some()`: `primary` is
+        // deliberately left set *between* gestures (cleared only by the *next* `Start`,
+        // so a released entity's own `Disengaged`/click can still be judged against it
+        // afterward) -- checking its presence alone would be true immediately after
+        // every release too, for the exact entity that was just released, killing a
+        // just-started coast on its very first tick, every single time. `pressed` is the
+        // one field that actually reflects "is the pointer down right now."
+        //
+        // Scoped to whatever's actually grabbed, not *any* grab anywhere: an unrelated
+        // view's own coast shouldn't die just because some other, completely different
+        // part of the screen got touched (see `coast_is_not_stopped_by_grabbing_an_
+        // unrelated_entity_elsewhere`). But "related" has to cover more than a direct
+        // ancestor/descendant relationship: `entity` and `primary` can also be *cousins*
+        // -- two sibling cards each with their own `Grid` (hence their own `View`, for
+        // purely internal single-cell layout -- see `application/src/toc.rs`'s own
+        // `ContentsItem`), neither an ancestor of the other, related only through a
+        // shared parent further up (`content`). Stop if:
+        //   1. `entity` == `primary` (grabbed the exact coasting view), or
+        //   2. `entity` is an ancestor of `primary` (grabbed something *inside* it), or
+        //   3. neither is an ancestor of the other, but they share *some* common
+        //      ancestor (cousins under the same list) -- explicitly excluding the case
+        //      where `primary` is an ancestor of `entity` (grabbing the coasting view's
+        //      own *parent* directly shouldn't stop it: that grab was never going to
+        //      pan this view at all, see `coast_is_not_stopped_by_grabbing_the_coasting_
+        //      views_own_parent`) since every entity's own ancestors are trivially
+        //      "shared" with anything further down that exact same chain.
+        if current.pressed {
+            if let Some(primary) = current.primary {
+                let ancestors_of = |start: Entity| -> HashSet<Entity> {
+                    let mut found = HashSet::new();
+                    let mut context = contexts.get(start).copied();
+                    while let Ok(c) = context {
+                        let Some(id) = c.id else { break };
+                        found.insert(id);
+                        context = contexts.get(id).copied();
+                    }
+                    found
+                };
+                let primary_ancestors = ancestors_of(primary);
+                let entity_ancestors = ancestors_of(entity);
+                let entity_is_ancestor_of_primary = primary_ancestors.contains(&entity);
+                let primary_is_ancestor_of_entity = entity_ancestors.contains(&primary);
+                let grabbing_this_view = primary == entity
+                    || entity_is_ancestor_of_primary
+                    || (!primary_is_ancestor_of_entity
+                        && primary_ancestors.intersection(&entity_ancestors).next().is_some());
+                if grabbing_this_view {
+                    tree.entity(entity).remove::<Coasting>();
+                    continue;
+                }
+            }
+        }
+        let now = Moment::now();
+        let elapsed_ms = now.duration_since(c.last_tick).as_secs_f32() * 1000.0;
+        c.last_tick = now;
+        tree.entity(entity).insert(ViewAdjustment(c.velocity * elapsed_ms));
+        let decayed = momentum.decay.powf(elapsed_ms);
+        c.velocity = c.velocity * decayed;
+        if c.velocity.left().hypot(c.velocity.top()) < momentum.stop_epsilon {
+            tree.entity(entity).remove::<Coasting>();
+        }
+    }
+}
+#[derive(Component, Copy, Clone, Debug)]
+#[require(ViewAdjustment, OverscrollPropagation, ScrollInertia, ScrollProgress)]
 pub struct View {
     pub(crate) offset: Position<Logical>,
     pub(crate) extent: Section<Logical>,
@@ -566,60 +693,388 @@ mod tests {
 
     #[test]
     fn the_first_ever_tick_returns_the_base_multiplier() {
-        let (multiplier, updated) = ScrollMomentum::default().tick();
-        assert_eq!(multiplier, ScrollMomentum::BASE);
+        let (multiplier, updated) = ScrollInertia::default().tick();
+        assert_eq!(multiplier, ScrollInertia::BASE);
         assert!(updated.last_tick.is_some());
     }
 
     #[test]
     fn a_tick_within_the_window_grows_the_multiplier() {
-        let momentum = ScrollMomentum {
-            value: ScrollMomentum::BASE,
+        let inertia = ScrollInertia {
+            value: ScrollInertia::BASE,
             last_tick: Some(Moment::now() - TimeDelta::from_millis(50)),
         };
-        let (multiplier, _) = momentum.tick();
-        assert_eq!(multiplier, ScrollMomentum::BASE + ScrollMomentum::GROWTH);
+        let (multiplier, _) = inertia.tick();
+        assert_eq!(multiplier, ScrollInertia::BASE + ScrollInertia::GROWTH);
     }
 
     #[test]
     fn a_tick_after_the_window_resets_to_base_regardless_of_prior_value() {
-        let momentum = ScrollMomentum {
+        let inertia = ScrollInertia {
             value: 2.5,
             last_tick: Some(Moment::now() - TimeDelta::from_millis(200)),
         };
-        let (multiplier, _) = momentum.tick();
+        let (multiplier, _) = inertia.tick();
         assert_eq!(
             multiplier,
-            ScrollMomentum::BASE,
+            ScrollInertia::BASE,
             "a pause longer than WINDOW_MS should reset the ramp, not continue from where it left off"
         );
     }
 
     #[test]
     fn growth_is_capped_at_max() {
-        let momentum = ScrollMomentum {
-            value: ScrollMomentum::MAX - 0.05,
+        let inertia = ScrollInertia {
+            value: ScrollInertia::MAX - 0.05,
             last_tick: Some(Moment::now() - TimeDelta::from_millis(50)),
         };
-        let (multiplier, _) = momentum.tick();
+        let (multiplier, _) = inertia.tick();
         assert_eq!(
             multiplier,
-            ScrollMomentum::MAX,
+            ScrollInertia::MAX,
             "growth should clamp at MAX, not overshoot it"
         );
     }
 
     #[test]
     fn repeated_fast_ticks_accumulate_growth_across_calls() {
-        let mut momentum = ScrollMomentum::default();
-        let (first, updated) = momentum.tick();
-        momentum = updated;
+        let mut inertia = ScrollInertia::default();
+        let (first, updated) = inertia.tick();
+        inertia = updated;
         // simulate the next tick arriving well within the window, without a real sleep
-        momentum.last_tick = Some(Moment::now() - TimeDelta::from_millis(50));
-        let (second, _) = momentum.tick();
+        inertia.last_tick = Some(Moment::now() - TimeDelta::from_millis(50));
+        let (second, _) = inertia.tick();
         assert!(
             second > first,
             "a second fast tick should ramp higher than the first"
         );
+    }
+
+    fn spawn_view(foliage: &mut Foliage) -> Entity {
+        let e = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        foliage.world.flush();
+        e
+    }
+
+    #[test]
+    fn coast_writes_a_view_adjustment_from_its_decaying_velocity() {
+        let mut foliage = Foliage::new();
+        let parent = spawn_view(&mut foliage);
+        // back-dated `last_tick`, same trick `repeated_fast_ticks_accumulate_growth_across_calls`
+        // uses -- gives `coast` a real, nonzero elapsed time to decay across without an
+        // actual `sleep`.
+        foliage.world.entity_mut(parent).insert(Coasting {
+            velocity: Position::logical((0.0, 1.0)),
+            last_tick: Moment::now() - TimeDelta::from_millis(10),
+        });
+        foliage.world.flush();
+
+        foliage.main.run(&mut foliage.world);
+
+        let adjustment = foliage.world.get::<ViewAdjustment>(parent).unwrap().0;
+        assert!(
+            adjustment.top() > 0.0,
+            "a downward-coasting view should have produced a downward pan, got {adjustment:?}"
+        );
+    }
+
+    #[test]
+    fn coast_removes_itself_once_velocity_decays_past_stop_epsilon() {
+        let mut foliage = Foliage::new();
+        let parent = spawn_view(&mut foliage);
+        // an enormous elapsed time collapses `decay.powf(elapsed_ms)` to effectively zero
+        // in a single tick, so this doesn't need many real frames (or a real sleep) to
+        // observe the coast actually ending.
+        foliage.world.entity_mut(parent).insert(Coasting {
+            velocity: Position::logical((2.0, 0.0)),
+            last_tick: Moment::now() - TimeDelta::from_secs(5),
+        });
+        foliage.world.flush();
+
+        foliage.main.run(&mut foliage.world);
+
+        assert!(
+            foliage.world.get::<Coasting>(parent).is_none(),
+            "velocity should have decayed past stop_epsilon and removed Coasting"
+        );
+    }
+
+    #[test]
+    fn coast_stops_immediately_once_the_same_view_is_grabbed_again() {
+        // the reported bug: starting a fresh drag on a still-coasting view (or on
+        // something inside it) shouldn't leave the coast still writing its own stale
+        // `ViewAdjustment` back over the new drag's real one.
+        let mut foliage = Foliage::new();
+        let parent = spawn_view(&mut foliage);
+        foliage.world.entity_mut(parent).insert(Coasting {
+            velocity: Position::logical((2.0, 0.0)),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+        {
+            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
+            current.primary = Some(parent);
+            current.pressed = true;
+        }
+
+        foliage.main.run(&mut foliage.world);
+
+        assert!(
+            foliage.world.get::<Coasting>(parent).is_none(),
+            "grabbing the exact coasting view again should halt its own coast"
+        );
+    }
+
+    #[test]
+    fn coast_stops_when_something_inside_the_coasting_view_is_grabbed() {
+        let mut foliage = Foliage::new();
+        let list = spawn_view(&mut foliage);
+        let row = foliage.world.branch(
+            list,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(20.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.entity_mut(list).insert(Coasting {
+            velocity: Position::logical((2.0, 0.0)),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+        {
+            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
+            current.primary = Some(row);
+            current.pressed = true;
+        }
+
+        foliage.main.run(&mut foliage.world);
+
+        assert!(
+            foliage.world.get::<Coasting>(list).is_none(),
+            "grabbing a row inside the list should walk up and halt the list's own coast, \
+             same as `interactive_elements`' own walk-up finds the list to pan"
+        );
+    }
+
+    #[test]
+    fn clicking_a_nested_list_stops_the_outer_pages_own_coast() {
+        // the outer page is coasting; the list is a real, nested `View` of its own
+        // *inside* the page, and gets grabbed directly (not a plain child, an actual
+        // scrollable region within a scrollable region). Walking up from the list still
+        // reaches the page, so the page's own coast stops -- grabbing content contained
+        // within a coasting view's own bounds should always stop it, regardless of
+        // whether that content is a plain leaf or itself a `View`.
+        let mut foliage = Foliage::new();
+        let page = spawn_view(&mut foliage);
+        let list = foliage.world.branch(
+            page,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(150.px().as_width()),
+                    0.px().as_top().with(150.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        foliage.world.flush();
+        foliage.world.entity_mut(page).insert(Coasting {
+            velocity: Position::logical((2.0, 0.0)),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+        {
+            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
+            current.primary = Some(list);
+            current.pressed = true;
+        }
+
+        foliage.main.run(&mut foliage.world);
+
+        assert!(
+            foliage.world.get::<Coasting>(page).is_none(),
+            "grabbing the nested list (inside the coasting page) should stop the page's own coast"
+        );
+    }
+
+    #[test]
+    fn grabbing_a_sibling_cousin_view_stops_an_unrelated_cards_own_coast() {
+        // the real `toc.rs` shape: `content` holds several cards, and each card carries
+        // its own `Grid` (hence its own `View`, for purely internal single-cell layout --
+        // see `ContentsItem`), not just `content` itself. `card_a` and `card_b` are
+        // siblings under `content` -- neither is an ancestor of the other, only related
+        // through that shared parent. Card A's own view is coasting; Card B is grabbed
+        // directly. Neither the old "is entity an ancestor of primary" check nor its
+        // mirror would ever connect two siblings -- this needs the cousin/shared-ancestor
+        // path specifically.
+        let mut foliage = Foliage::new();
+        let content = spawn_view(&mut foliage);
+        let card_a = foliage.world.branch(
+            content,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        let card_b = foliage.world.branch(
+            content,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    100.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        foliage.world.flush();
+        foliage.world.entity_mut(card_a).insert(Coasting {
+            velocity: Position::logical((2.0, 0.0)),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+        {
+            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
+            current.primary = Some(card_b);
+            current.pressed = true;
+        }
+
+        foliage.main.run(&mut foliage.world);
+
+        assert!(
+            foliage.world.get::<Coasting>(card_a).is_none(),
+            "grabbing a sibling card should stop an unrelated card's own coast, since \
+             both are part of the same list even though neither is the other's ancestor"
+        );
+    }
+
+    #[test]
+    fn coast_is_not_stopped_by_grabbing_the_coasting_views_own_parent() {
+        // the "click next to it" case: a plain container *above* the list in the tree
+        // (not inside it) getting grabbed directly shouldn't stop the list's own coast --
+        // only the list itself, or something inside it, should. `page` deliberately has
+        // its own parent (`root`) above it -- if `page` were root-level (no `Stem.id` at
+        // all), the walk-up loop would break on its very first check without ever really
+        // iterating, which wouldn't actually distinguish "correctly walked up and found
+        // nothing" from "the walk never runs" -- this exercises at least one real step.
+        let mut foliage = Foliage::new();
+        let root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(400.px().as_width()),
+                    0.px().as_top().with(400.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        let page = foliage.world.branch(
+            root,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(400.px().as_width()),
+                    0.px().as_top().with(400.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        let list = foliage.world.branch(
+            page,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        foliage.world.flush();
+        foliage.world.entity_mut(list).insert(Coasting {
+            velocity: Position::logical((2.0, 0.0)),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+        // `page` (the list's own parent) grabbed directly -- not the list, not anything
+        // inside it.
+        {
+            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
+            current.primary = Some(page);
+            current.pressed = true;
+        }
+
+        foliage.main.run(&mut foliage.world);
+
+        assert!(
+            foliage.world.get::<Coasting>(list).is_some(),
+            "grabbing the list's own parent (an ancestor, not the list or a descendant \
+             of it) shouldn't stop the list's unrelated coast"
+        );
+    }
+
+    #[test]
+    fn coast_is_not_stopped_by_grabbing_an_unrelated_entity_elsewhere() {
+        // `unrelated` deliberately has its own real parent, in a completely separate tree
+        // from `list` -- if `unrelated` were root-level (no `Stem.id` at all, the way
+        // `spawn_view` alone produces), the walk-up loop would break on its very first
+        // check without ever really iterating, the same trivial-zero-iteration problem
+        // the parent test above had to be fixed for.
+        let mut foliage = Foliage::new();
+        let list = spawn_view(&mut foliage);
+        let other_root = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(400.px().as_width()),
+                    0.px().as_top().with(400.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        let unrelated = foliage.world.branch(
+            other_root,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        foliage.world.flush();
+        foliage.world.entity_mut(list).insert(Coasting {
+            velocity: Position::logical((2.0, 0.0)),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+        {
+            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
+            current.primary = Some(unrelated);
+            current.pressed = true;
+        }
+
+        foliage.main.run(&mut foliage.world);
+
+        assert!(
+            foliage.world.get::<Coasting>(list).is_some(),
+            "a completely unrelated grab elsewhere on screen shouldn't stop this view's own coast"
+        );
+    }
+
+    #[test]
+    fn a_slow_release_stays_under_the_default_velocity_threshold() {
+        // sanity on the shipped defaults: a genuinely slow, deliberate drag (well under a
+        // brisk flick) shouldn't clear `ScrollMomentum::default().velocity_threshold`.
+        let slow: Position<Logical> = Position::logical((0.02, 0.0));
+        let speed = slow.left().hypot(slow.top());
+        assert!(speed < ScrollMomentum::default().velocity_threshold);
     }
 }

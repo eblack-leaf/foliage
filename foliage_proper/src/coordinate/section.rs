@@ -14,7 +14,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
-use crate::{Anchor, AnchorDeps, Branch, Location, Update, Write};
+use crate::{Anchor, AnchorDeps, Branch, Location, Resolve, Resolved};
 
 #[derive(Copy, Clone, Default, Component, PartialEq, PartialOrd)]
 #[component(on_insert = Section::<Logical>::on_insert)]
@@ -209,7 +209,7 @@ impl<Context: CoordinateContext> Section<Context> {
         if TypeId::of::<Self>() != TypeId::of::<Section<Logical>>() {
             return;
         }
-        world.trigger_targets(Write::<Self>::new(), this);
+        world.trigger_targets(Resolved::<Self>::new(), this);
         let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
         for d in deps.clone().iter() {
             if let Some(stack) = world.get::<Anchor>(*d) {
@@ -225,10 +225,10 @@ impl<Context: CoordinateContext> Section<Context> {
             return;
         }
         let dep_vec = deps.iter().copied().collect::<Vec<_>>();
-        tracing::trace!(entity = ?this, deps = ?dep_vec, "coordinate::section: Section<Logical> on_insert cascading Update<Location>");
+        tracing::trace!(entity = ?this, deps = ?dep_vec, "coordinate::section: Section<Logical> on_insert cascading Resolve<Location>");
         world
             .commands()
-            .trigger_targets(Update::<Location>::new(), dep_vec);
+            .trigger_targets(Resolve::<Location>::new(), dep_vec);
     }
 }
 impl Section<Numerical> {

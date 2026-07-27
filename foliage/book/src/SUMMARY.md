@@ -21,7 +21,7 @@
 - [Interaction and Focus](./interaction.md)
 - [Animation](./anim.md)
 - [Color](./color.md)
-- [Ops: Named, Keyring, Update, Write](./ops.md)
+- [Ops: Named, Keyring, Resolve, Resolved](./ops.md)
 - [Lifecycle: Disable, Enable, Remove, Visibility, Opacity](./lifecycle.md)
 
 # Rendering Primitives

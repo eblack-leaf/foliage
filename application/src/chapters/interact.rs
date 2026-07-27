@@ -19,8 +19,8 @@ const PANEL_FADE: u64 = 400;
 
 const PASSTHROUGH_COLOR: i32 = 500; // slate outline -- reads as a plain frame, not a surface
 const INTERACTIVE_COLOR: i32 = 500; // blue -- the real, solid, listening surface
-// emerald, not amber -- amber sat too close to `BLIP_COLOR`'s own rose to read as two
-// distinct colors at a glance; emerald is far enough from both rose and blue to be
+// emerald, not amber -- amber sat too close to `BLIP_COLOR`'s own original rose to read
+// as two distinct colors at a glance; emerald is far enough from both blip and blue to be
 // unambiguous.
 const TOGGLED_COLOR: i32 = 500;
 const COLOR_CHANGE_DURATION: u64 = 400;
@@ -46,9 +46,9 @@ const BLIP_LEFT_PCT: f32 =
 const BLIP_TOP_PCT: f32 =
     INTERACTIVE_TOP_PCT + (PASSTHROUGH_TOP_PCT + PANEL_HEIGHT_PCT - INTERACTIVE_TOP_PCT) / 2.0
         - BLIP_HEIGHT_PCT / 2.0;
-const BLIP_COLOR: i32 = 400; // rose -- a click indicator, distinct from either panel's own color
-const BLIP_FADE_IN: u64 = 180;
-const BLIP_FADE_OUT: u64 = 180;
+const BLIP_COLOR: i32 = 400; // stone, not rose -- a click indicator, distinct from either panel's own color
+const BLIP_FADE_IN: u64 = 400; // was 180 -- slower, easier to actually watch
+const BLIP_FADE_OUT: u64 = 400; // was 180
 
 const CLICK_WAIT: u64 = 900; // between the first click's effect settling and the second click
 
@@ -201,7 +201,7 @@ pub fn build(tree: &mut Tree, slot: Entity) {
             .sides(4.0)
             .rounding(1.0) // full rounding -- a true circle regardless of side count
             .rotation(0.0)
-            .color(Color::rose(BLIP_COLOR))
+            .color(Color::stone(BLIP_COLOR))
             .at(Location::new().xs(
                 BLIP_LEFT_PCT.pct().as_left().with(BLIP_WIDTH_PCT.pct().as_width()),
                 BLIP_TOP_PCT.pct().as_top().with(BLIP_HEIGHT_PCT.pct().as_height()),

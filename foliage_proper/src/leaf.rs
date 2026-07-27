@@ -8,8 +8,8 @@ use crate::Visibility;
 use crate::ash::clip::ClipSection;
 use crate::interaction::CurrentInteraction;
 use crate::{
-    Animation, Component, FocusBehavior, InteractionPropagation, InteractionShape, Location, Tree,
-    Update,
+    Animation, Component, FocusBehavior, InteractionPropagation, InteractionShape, Location,
+    Resolve, Tree,
 };
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
@@ -54,7 +54,7 @@ impl Leaf {
             .observe(Self::anim_location);
     }
     fn anim_opacity(
-        trigger: Trigger<Update<Animation<Opacity>>>,
+        trigger: Trigger<Resolve<Animation<Opacity>>>,
         opacities: Query<&Opacity>,
         mut tree: Tree,
     ) {
@@ -63,7 +63,7 @@ impl Leaf {
         }
     }
     fn anim_elevation(
-        trigger: Trigger<Update<Animation<Elevation>>>,
+        trigger: Trigger<Resolve<Animation<Elevation>>>,
         mut tree: Tree,
         elevation: Query<&Elevation>,
     ) {
@@ -71,8 +71,8 @@ impl Leaf {
             tree.entity(trigger.event_target()).insert(*e);
         }
     }
-    fn anim_location(trigger: Trigger<Update<Animation<Location>>>, mut tree: Tree) {
-        tree.trigger_targets(Update::<Location>::new(), trigger.event_target());
+    fn anim_location(trigger: Trigger<Resolve<Animation<Location>>>, mut tree: Tree) {
+        tree.trigger_targets(Resolve::<Location>::new(), trigger.event_target());
     }
     fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;

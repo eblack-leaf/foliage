@@ -3,7 +3,7 @@ use crate::ash::differential::RenderQueue;
 use crate::coordinate::Physical;
 use crate::coordinate::section::Section;
 use crate::text::Text;
-use crate::{Color, Component, Differential, ResolvedVisibility, Update};
+use crate::{Color, Component, Differential, ResolvedVisibility, Resolve};
 use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::lifecycle::HookContext;
@@ -82,7 +82,7 @@ pub struct GlyphColors {
 impl GlyphColors {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world.trigger_targets(Update::<Self>::new(), this);
+        world.trigger_targets(Resolve::<Self>::new(), this);
     }
     pub fn new() -> Self {
         Self::default()

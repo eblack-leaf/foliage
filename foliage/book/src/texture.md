@@ -32,8 +32,10 @@ so an atlas slot is only actually freed once nothing refers to it anymore
 // foliage_proper/src/texture.rs
 pub(crate) fn add_reference(&mut self, key: Key, referrer: Referrer)
 pub(crate) fn remove_reference(&mut self, key: Key, referrer: Referrer) {
-    self.references.get_mut(&key).unwrap().remove(&referrer);
-    if self.references.get(&key).unwrap().is_empty() {
+    // `key` can legitimately be absent -- see below.
+    let Some(refs) = self.references.get_mut(&key) else { return; };
+    refs.remove(&referrer);
+    if refs.is_empty() {
         self.remove_entry(key);
     }
 }
@@ -44,6 +46,14 @@ icon id, share one atlas slot -- the second reference doesn't re-upload the same
 data, it just adds itself to that key's `references` set. This is what keeps a UI with
 many repeated icons/glyphs cheap on GPU memory regardless of how many entities render
 them.
+
+`remove_reference` tolerates a missing `key` rather than unwrapping, because a `Text`
+group's atlas isn't only grown in place -- a font-size change (`text/pipeline.rs`'s own
+`prepare`) replaces the whole atlas outright, since the glyph cell dimensions themselves
+changed. The very same `prepare` call still walks that entity's old-size glyphs being
+discarded by the relayout and asks to remove their references too; those keys only ever
+existed in the atlas that was just replaced out from under them, so there's nothing left
+to count -- a no-op, not a bug.
 
 ## Growing without losing existing entries
 

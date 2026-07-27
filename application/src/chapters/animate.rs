@@ -1,7 +1,7 @@
 use foliage::{
-    Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, GridExt,
+    Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, GridExt,
     HorizontalAlignment, Location, OnEnd, Opacity, Polygon, Query, Sprout, Text, TextValue, Tree,
-    Trigger, VerticalAlignment, anchor,
+    Trigger, VerticalAlignment,
 };
 
 const POLY_LEFT_PCT: f32 = 18.0; // same proportions `location.rs`'s own hepta uses
@@ -9,65 +9,41 @@ const POLY_TOP_PCT: f32 = 35.0;
 const POLY_WIDTH_PCT: f32 = 26.0;
 const POLY_HEIGHT_PCT: f32 = 30.0;
 const POLY_ROUNDING: f32 = 0.15;
-const POLY_COLOR: i32 = 400; // green
-const CHANGED_COLOR: i32 = 400; // purple -- the "color" phase's target, then back to green
 const MORPH_DURATION: u64 = 500;
+
+// green is both the rest color and where the last stage returns to -- three stages,
+// not two, so the loop actually reads as "a value moving through several states", not
+// just "a value and its opposite".
+const REST_COLOR: i32 = 400; // green
+const STAGE_COLOR: i32 = 400; // shared shade for the purple/amber stages in between
+const STAGE_DURATION: u64 = 1400; // slow enough that the interpolation itself is the point
+const STAGE_PAUSE: u64 = 900; // a real waiting step between stages -- see `wait_before_stage2`
 
 const LABEL_COLOR: i32 = 500; // slate, same blueprint tone the other chapters use
 const LABEL_FONT_SIZE: u32 = 13;
-const LABEL_GAP_PX: i32 = 10; // below `poly`'s own bottom edge
-const LABEL_WIDTH_PX: i32 = 90;
-const LABEL_HEIGHT_PX: i32 = 20;
+const LABEL_GAP_PCT: f32 = 5.0; // below `poly`'s own bottom edge
+const LABEL_TOP_PCT: f32 = POLY_TOP_PCT + POLY_HEIGHT_PCT + LABEL_GAP_PCT;
+const LABEL_HEIGHT_PCT: f32 = 10.0;
 const LABEL_FADE: u64 = 300;
 const LABEL_DELAY: u64 = 150; // after `poly` finishes morphing in
-
-// one polygon, three phases, one property animated at a time -- `location`
-// (up/pause/down past rest/pause/rest, same technique `location.rs`'s own demo uses),
-// then `opacity` (1 -> 0 -> 1), then `color` (green -> purple -> green). The label
-// underneath snaps to the phase's own name right as it starts, since it's naming which
-// *property* is being tweened, not a value worth counting continuously.
-const LOCATION_DELTA_PCT: f32 = 10.0;
-const UP_PCT: f32 = POLY_TOP_PCT - LOCATION_DELTA_PCT;
-const DOWN_PCT: f32 = POLY_TOP_PCT + LOCATION_DELTA_PCT;
-const LOCATION_MOVE_DURATION: u64 = 500;
-const LOCATION_PAUSE: u64 = 400;
-
-// a real waiting step before `opacity` starts too (see `wait_before_opacity`) -- not just
-// baked into `fade_out`'s own `.start()`, for the same reason `AFTER_OPACITY_PAUSE` isn't:
-// the label switch and the animation's actual start need to land at the same moment.
-const BEFORE_OPACITY_PAUSE: u64 = 800;
-
-const OPACITY_DURATION: u64 = 400;
-const OPACITY_PAUSE: u64 = 400;
-const AFTER_OPACITY_PAUSE: u64 = 800; // bigger than the usual 400 -- a beat to register the shape's back before color starts changing on top of it
-
-const COLOR_DURATION: u64 = 900; // was 500 -- slower, so the tween itself is easier to actually watch
-const COLOR_PAUSE: u64 = 400;
 
 const TAGLINE_TEXT: &str = "interpolate between values for smooth transitions";
 const TAGLINE_FONT_SIZE: u32 = 13;
 const TAGLINE_COLOR: i32 = 400; // slate, muted subtitle -- orients without competing with the demo
-/// `Xs` (portrait) stacks this above the demo, in the frame's own empty band before
-/// `POLY_TOP_PCT` -- same band `location.rs`'s own tagline uses, since `poly` sits at the
-/// same rest position its hepta does. `Md`+ goes beside it instead, anchored past
-/// `poly`'s own right edge -- stable, since `poly` only ever animates `top` (during the
-/// `location` phase) or `Opacity`/`Color` (never `left`/`width`), so this never drifts.
 const TAGLINE_XS_TOP_PCT: f32 = 6.0;
 const TAGLINE_XS_HEIGHT_PCT: f32 = 40.0;
 const TAGLINE_XS_LEFT_PCT: f32 = 8.0;
 const TAGLINE_XS_WIDTH_PCT: f32 = 84.0;
-const TAGLINE_MD_GAP_PX: i32 = 56; // was 24 -- too close to `poly`'s own right edge
-const TAGLINE_MD_WIDTH_PX: i32 = 150;
-const TAGLINE_MD_TOP_PCT: f32 = 15.0; // was `POLY_TOP_PCT` (35) -- centered too far down against `poly`
-const TAGLINE_MD_HEIGHT_PCT: f32 = 65.0; // dedicated, not `POLY_HEIGHT_PCT` reused -- more room to wrap
+const TAGLINE_MD_LEFT_PCT: f32 = 78.0;
+const TAGLINE_MD_WIDTH_PCT: f32 = 14.0; // ends at 92%, flush with `window_frame`'s own margin
+const TAGLINE_MD_TOP_PCT: f32 = 15.0;
+const TAGLINE_MD_HEIGHT_PCT: f32 = 65.0;
 
-/// One heptagon, stepping through three of `foliage_proper`'s own animatable properties
-/// one at a time: `Location` (up/pause/down past rest/pause/rest), `Opacity` (fades out
-/// then back in), then `Color` (shifts to a different shade, then back) -- the same
-/// `Animation::new(..)` call every other chapter's own morph/move already uses, just
-/// aimed at a different component each phase, proving a component really is just a value
-/// that can be tweened, not something special-cased per type. A label underneath snaps to
-/// the phase's own name (`location`/`opacity`/`color`) right as each one starts.
+/// One heptagon, cycling through three color stages (green -> purple -> amber -> green) --
+/// nothing else about it ever changes, so the interpolation itself is the whole point, not
+/// a chain of different properties (that's `sequence.rs`'s own job). The label underneath
+/// always names the color the shape is *currently moving towards*, snapping to the next
+/// name right as each transition actually starts.
 pub fn build(tree: &mut Tree, slot: Entity) {
     let frame = crate::chapters::window_frame(tree, slot);
 
@@ -77,8 +53,8 @@ pub fn build(tree: &mut Tree, slot: Entity) {
             .sides(3.0)
             .rounding(0.0)
             .rotation(0.0)
-            .color(Color::green(POLY_COLOR))
-            .at(poly_location(POLY_TOP_PCT))
+            .color(Color::green(REST_COLOR))
+            .at(poly_location())
             .elevate(Elevation::up(2))
             .with(Opacity::new(0.0)),
     );
@@ -105,27 +81,28 @@ pub fn build(tree: &mut Tree, slot: Entity) {
         .eased(Ease::DECELERATE),
     );
 
+    // names the color the very first stage moves *towards* -- already correct by the time
+    // it fades in, so unlike the later transitions, no `wait_before_*` sync step is needed
+    // here: the first stage's tween starts the instant this label has already appeared.
     let label = tree.branch(
         frame,
-        Text::new("location")
+        Text::new("purple")
             .size(FontSize::new(LABEL_FONT_SIZE))
             .color(Color::slate(LABEL_COLOR))
             .at(Location::new().xs(
-                anchor()
-                    .center_x()
-                    .as_center_x()
-                    .with(LABEL_WIDTH_PX.px().as_width()),
-                anchor()
-                    .bottom()
+                POLY_LEFT_PCT
+                    .pct()
+                    .as_left()
+                    .with(POLY_WIDTH_PCT.pct().as_width()),
+                LABEL_TOP_PCT
+                    .pct()
                     .as_top()
-                    .adjust(LABEL_GAP_PX)
-                    .with(LABEL_HEIGHT_PX.px().as_height()),
+                    .with(LABEL_HEIGHT_PCT.pct().as_height()),
             ))
             .elevate(Elevation::up(2))
             .with((
                 HorizontalAlignment::Center,
                 VerticalAlignment::Middle,
-                Anchor::new(poly),
                 Opacity::new(0.0),
             )),
     );
@@ -155,11 +132,10 @@ pub fn build(tree: &mut Tree, slot: Entity) {
                         .with(TAGLINE_XS_HEIGHT_PCT.pct().as_height()),
                 )
                 .md(
-                    anchor()
-                        .right()
+                    TAGLINE_MD_LEFT_PCT
+                        .pct()
                         .as_left()
-                        .adjust(TAGLINE_MD_GAP_PX)
-                        .with(TAGLINE_MD_WIDTH_PX.px().as_width()),
+                        .with(TAGLINE_MD_WIDTH_PCT.pct().as_width()),
                     TAGLINE_MD_TOP_PCT
                         .pct()
                         .as_top()
@@ -167,9 +143,8 @@ pub fn build(tree: &mut Tree, slot: Entity) {
                 ))
             .elevate(Elevation::up(2))
             .with((
-                HorizontalAlignment::Left,
+                HorizontalAlignment::Center,
                 VerticalAlignment::Middle,
-                Anchor::new(poly),
                 Opacity::new(0.0),
             )),
     );
@@ -183,77 +158,50 @@ pub fn build(tree: &mut Tree, slot: Entity) {
     );
 
     tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        move_up(&mut tree, poly, label);
+        stage_to_purple(&mut tree, poly, label);
     });
 }
 
-fn poly_location(top_pct: f32) -> Location {
+fn poly_location() -> Location {
     Location::new().xs(
         POLY_LEFT_PCT
             .pct()
             .as_left()
             .with(POLY_WIDTH_PCT.pct().as_width()),
-        top_pct.pct().as_top().with(POLY_HEIGHT_PCT.pct().as_height()),
+        POLY_TOP_PCT
+            .pct()
+            .as_top()
+            .with(POLY_HEIGHT_PCT.pct().as_height()),
     )
 }
 
-fn move_up(tree: &mut Tree, poly: Entity, label: Entity) {
+fn stage_to_purple(tree: &mut Tree, poly: Entity, label: Entity) {
     let seq = tree.sequence();
     tree.animate(
-        Animation::new(poly_location(UP_PCT))
+        Animation::new(Color::purple(STAGE_COLOR))
             .targeting(poly)
             .during(seq)
             .start(0)
-            .finish(LOCATION_MOVE_DURATION)
-            .eased(Ease::EMPHASIS),
+            .finish(STAGE_DURATION)
+            .eased(Ease::Linear),
     );
     tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        move_down(&mut tree, poly, label);
+        wait_before_stage2(&mut tree, poly, label);
     });
 }
 
-fn move_down(tree: &mut Tree, poly: Entity, label: Entity) {
+// a real waiting step, not a delay folded into `stage_to_amber`'s own animation -- same
+// reasoning `sequence.rs`'s own `pause_before_color` uses: the label switch and the
+// animation's actual start need to land at the same moment. A no-op `Color` tween (`poly`'s
+// already at purple) just gives this a timed `sequence_end`.
+fn wait_before_stage2(tree: &mut Tree, poly: Entity, label: Entity) {
     let seq = tree.sequence();
     tree.animate(
-        Animation::new(poly_location(DOWN_PCT))
-            .targeting(poly)
-            .during(seq)
-            .start(LOCATION_PAUSE)
-            .finish(LOCATION_PAUSE + LOCATION_MOVE_DURATION)
-            .eased(Ease::EMPHASIS),
-    );
-    tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        move_rest(&mut tree, poly, label);
-    });
-}
-
-fn move_rest(tree: &mut Tree, poly: Entity, label: Entity) {
-    let seq = tree.sequence();
-    tree.animate(
-        Animation::new(poly_location(POLY_TOP_PCT))
-            .targeting(poly)
-            .during(seq)
-            .start(LOCATION_PAUSE)
-            .finish(LOCATION_PAUSE + LOCATION_MOVE_DURATION)
-            .eased(Ease::EMPHASIS),
-    );
-    tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        wait_before_opacity(&mut tree, poly, label);
-    });
-}
-
-// a real waiting step, not a delay folded into `fade_out`'s own animation -- same
-// reasoning `wait_then_swap_back`/`pause_before_color` use elsewhere: the label switch
-// and the animation's actual start need to land at the same moment. A no-op `Location`
-// tween (`poly`'s already at `POLY_TOP_PCT`) just gives this a timed `sequence_end`.
-fn wait_before_opacity(tree: &mut Tree, poly: Entity, label: Entity) {
-    let seq = tree.sequence();
-    tree.animate(
-        Animation::new(poly_location(POLY_TOP_PCT))
+        Animation::new(Color::purple(STAGE_COLOR))
             .targeting(poly)
             .during(seq)
             .start(0)
-            .finish(BEFORE_OPACITY_PAUSE)
+            .finish(STAGE_PAUSE)
             .eased(Ease::Linear),
     );
     tree.sequence_end(
@@ -264,94 +212,58 @@ fn wait_before_opacity(tree: &mut Tree, poly: Entity, label: Entity) {
             // can still be pending after the page is gone (navigating away despawns
             // `label` along with the rest of it).
             if existing.contains(label) {
-                tree.write_to(label, TextValue("opacity".to_string()));
+                tree.write_to(label, TextValue("amber".to_string()));
             }
-            fade_out(&mut tree, poly, label);
+            stage_to_amber(&mut tree, poly, label);
         },
     );
 }
 
-fn fade_out(tree: &mut Tree, poly: Entity, label: Entity) {
+fn stage_to_amber(tree: &mut Tree, poly: Entity, label: Entity) {
     let seq = tree.sequence();
     tree.animate(
-        Animation::new(Opacity::new(0.0))
+        Animation::new(Color::amber(STAGE_COLOR))
             .targeting(poly)
             .during(seq)
             .start(0)
-            .finish(OPACITY_DURATION)
+            .finish(STAGE_DURATION)
             .eased(Ease::Linear),
     );
     tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        fade_in(&mut tree, poly, label);
+        wait_before_stage3(&mut tree, poly, label);
     });
 }
 
-fn fade_in(tree: &mut Tree, poly: Entity, label: Entity) {
+fn wait_before_stage3(tree: &mut Tree, poly: Entity, label: Entity) {
     let seq = tree.sequence();
     tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .targeting(poly)
-            .during(seq)
-            .start(OPACITY_PAUSE)
-            .finish(OPACITY_PAUSE + OPACITY_DURATION)
-            .eased(Ease::Linear),
-    );
-    tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        pause_before_color(&mut tree, poly, label);
-    });
-}
-
-// a real waiting step, not just a `.start(delay)` baked into `change_color`'s own
-// animation -- `write_to` and the color tween itself need to land at the *same* moment,
-// and a bare internal delay only pushes the animation's own start back, leaving the
-// label switched to "color" for the whole pause while the shape hasn't changed at all
-// yet. A no-op `Opacity` tween (poly's already at `1.0`) just gives this a timed
-// `sequence_end` to hang both off of together.
-fn pause_before_color(tree: &mut Tree, poly: Entity, label: Entity) {
-    let seq = tree.sequence();
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
+        Animation::new(Color::amber(STAGE_COLOR))
             .targeting(poly)
             .during(seq)
             .start(0)
-            .finish(AFTER_OPACITY_PAUSE)
+            .finish(STAGE_PAUSE)
             .eased(Ease::Linear),
     );
     tree.sequence_end(
         seq,
         move |_: Trigger<OnEnd>, mut tree: Tree, existing: Query<Entity>| {
             if existing.contains(label) {
-                tree.write_to(label, TextValue("color".to_string()));
+                tree.write_to(label, TextValue("green".to_string()));
             }
-            change_color(&mut tree, poly);
+            stage_to_green(&mut tree, poly);
         },
     );
 }
 
-fn change_color(tree: &mut Tree, poly: Entity) {
+// final phase -- nothing needs to react once this finishes, so no `sequence_end` at all.
+fn stage_to_green(tree: &mut Tree, poly: Entity) {
     let seq = tree.sequence();
     tree.animate(
-        Animation::new(Color::purple(CHANGED_COLOR))
+        Animation::new(Color::green(REST_COLOR))
             .targeting(poly)
             .during(seq)
             .start(0)
-            .finish(COLOR_DURATION)
-            .eased(Ease::Linear),
-    );
-    tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        change_color_back(&mut tree, poly);
-    });
-}
-
-// final phase -- nothing needs to react once this finishes, so no `sequence_end` at all.
-fn change_color_back(tree: &mut Tree, poly: Entity) {
-    let seq = tree.sequence();
-    tree.animate(
-        Animation::new(Color::green(POLY_COLOR))
-            .targeting(poly)
-            .during(seq)
-            .start(COLOR_PAUSE)
-            .finish(COLOR_PAUSE + COLOR_DURATION)
+            .finish(STAGE_DURATION)
             .eased(Ease::Linear),
     );
 }

@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::Trigger;
 use crate::{
-    AnchorDeps, Attachment, Branch, Foliage, InteractionListener, InteractionState, Tree, Write,
+    AnchorDeps, Attachment, Branch, Foliage, InteractionListener, InteractionState, Tree, Resolved,
 };
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::EntityEvent;
@@ -27,7 +27,7 @@ impl Enable {
         branches: Query<&Branch>,
         stacks: Query<&AnchorDeps>,
     ) {
-        tree.trigger_targets(Write::<Enable>::new(), trigger.event_target());
+        tree.trigger_targets(Resolved::<Enable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(
@@ -59,7 +59,7 @@ impl Enable {
 pub(crate) struct AutoEnable {}
 impl AutoEnable {
     fn user_signal(trigger: Trigger<Self>, mut tree: Tree) {
-        tree.trigger_targets(Write::<Enable>::new(), trigger.event_target());
+        tree.trigger_targets(Resolved::<Enable>::new(), trigger.event_target());
     }
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
@@ -80,7 +80,7 @@ impl InheritEnable {
         branches: Query<&Branch>,
         stacks: Query<&AnchorDeps>,
     ) {
-        tree.trigger_targets(Write::<Enable>::new(), trigger.event_target());
+        tree.trigger_targets(Resolved::<Enable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
                 tree.trigger_targets(

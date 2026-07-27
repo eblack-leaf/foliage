@@ -101,7 +101,7 @@ impl Attachment for TextInput {
         // Same shape, different staleness: the cursor's `Location` isn't "wherever
         // byte-offset N is" -- it's a snapshot, `(col, row)` numbers looked up in the glyph
         // layout at the time of the last click/keystroke. A parent resize re-triggers
-        // `Update<Location>` for the cursor (via `Section::on_insert`'s cascade) and
+        // `Resolve<Location>` for the cursor (via `Section::on_insert`'s cascade) and
         // correctly re-resolves that *same stored* `(col, row)` against the new context,
         // but nothing re-derives `(col, row)` from the cursor's actual byte-offset against
         // the *new* (rewrapped) glyph layout -- same offset, different row after a rewrap,
@@ -680,7 +680,7 @@ impl TextInput {
     ) -> (u32, u32) {
         let lfc = u32::from(can_go_past_end);
         let click = current_interaction.click.current;
-        let fsv = font_sizes.get(this).unwrap().resolve(layout).value;
+        let fsv = font_sizes.get(this).unwrap().resolve(layout);
         let dims = font.character_block(fsv);
         let handle = handles.get(this).unwrap();
         // `field`'s own resolved position is the letter-grid's true origin -- reading it
@@ -745,7 +745,7 @@ impl TextInput {
         // cursor's row genuinely changed and must redraw there) but `allow_scroll = false`:
         // forcing a scroll there isn't a real cursor move, and doing it anyway closed a loop
         // -- the `ViewAdjustment` it inserted cascaded through `Section::on_insert` back to
-        // the panel's children, re-triggering `Text::update`'s `Write<Section<Logical>>`
+        // the panel's children, re-triggering `Text::update`'s `Resolved<Section<Logical>>`
         // listener, which mutates `Glyphs` again, re-triggering this same resync forever,
         // full glyph-layout rescans every frame. The natural reclamp already in
         // `extent_check_v2` is what should settle the offset once the extent itself is
@@ -762,7 +762,7 @@ impl TextInput {
         // HiDPI/mobile. `location_from_click` is a different, unrelated computation (compares
         // against `Section<Logical>`-relative click position, not raw glyph data) and must
         // stay unscaled -- don't "fix" it to match this.
-        let fsv = font_sizes.get(this).unwrap().resolve(layout).value;
+        let fsv = font_sizes.get(this).unwrap().resolve(layout);
         let dims = font.character_block((fsv as f32 * scroll.scale_factor.value()) as u32);
         // Grid's own `.col()`/`.row()` resolution (`grid/location.rs`'s `calc`, the
         // `LocationValue::Column`/`Row`/`Letters` arms) sizes cells from `stem_letters`,
@@ -1125,7 +1125,7 @@ impl TextInput {
         layout: Layout,
     ) {
         let handle = handles.get(this).unwrap();
-        let fsv = font_sizes.get(this).unwrap().resolve(layout).value;
+        let fsv = font_sizes.get(this).unwrap().resolve(layout);
         let dims = font.character_block(fsv);
         let cursor = cursors.get(this).unwrap();
         let mut selection = selections.get_mut(this).unwrap();
@@ -1297,7 +1297,7 @@ impl TextInput {
         let mut handle = handles.get_mut(this).unwrap();
         let selection = selections.get(this).unwrap();
         let glyph = glyphs.get(handle.text).unwrap();
-        let fsv = font_sizes.get(this).unwrap().resolve(layout).value;
+        let fsv = font_sizes.get(this).unwrap().resolve(layout);
         let dims = font.character_block(fsv);
         let mut spans: HashMap<u32, (u32, u32)> = HashMap::new();
         for g in glyph
