@@ -17,6 +17,8 @@ pub(crate) struct Willow {
     pub(crate) min_size: Option<Area<Physical>>,
     pub(crate) requested_size: Option<Area<Physical>>,
     pub(crate) title: Option<String>,
+    /// Only read by `requested_area`, which is desktop-only.
+    #[allow(dead_code)]
     pub(crate) max_size: Option<Area<Physical>>,
     pub(crate) resizable: Option<bool>,
     pub(crate) starting_position: Option<Position<Numerical>>,
@@ -88,6 +90,13 @@ impl Willow {
     pub(crate) fn window(&self) -> Arc<Window> {
         self.handle.0.clone().unwrap()
     }
+    /// Desktop-only, like its one caller: the other platforms take their surface size from
+    /// the canvas or activity rather than requesting one.
+    #[cfg(all(
+        not(target_family = "wasm"),
+        not(target_os = "android"),
+        not(target_os = "ios")
+    ))]
     pub(crate) fn requested_area(&self) -> Area<Physical> {
         self.requested_size
             .unwrap_or_default()

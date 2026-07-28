@@ -11,10 +11,6 @@ use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowId;
 
-thread_local! {
-    static LAST_TICK: std::cell::Cell<Option<web_time::Instant>> = std::cell::Cell::new(None);
-}
-
 impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         trace!("resuming");
@@ -87,26 +83,9 @@ impl ApplicationHandler for Foliage {
                 // for seconds at a stretch (blocked further upstream, e.g. in winit/OS event
                 // dispatch before we even get control back)? A large `since_last` here narrows
                 // a multi-second stall to one side of that question.
-                let tick_start = web_time::Instant::now();
-                let since_last = LAST_TICK.with(|c| {
-                    let prev = c.get();
-                    c.set(Some(tick_start));
-                    prev.map(|p| tick_start.duration_since(p))
-                });
-                tracing::trace!(since_last = ?since_last, "photosynthesis: about_to_wait tick start");
                 self.main.run(&mut self.world);
-                let after_main = tick_start.elapsed();
                 self.user.run(&mut self.world);
-                let after_user = tick_start.elapsed();
                 self.diff.run(&mut self.world);
-                let after_diff = tick_start.elapsed();
-                tracing::trace!(
-                    main = ?after_main,
-                    user = ?(after_user - after_main),
-                    diff = ?(after_diff - after_user),
-                    total = ?after_diff,
-                    "photosynthesis: about_to_wait tick done"
-                );
                 self.willow.window().request_redraw();
                 self.ash.drawn = false;
                 self.tick_pending = true;
@@ -160,6 +139,7 @@ impl Foliage {
                         .expect("keys");
                     tracing::trace!(
                         logical_key = ?event.logical_key,
+                        physical_key = ?event.physical_key,
                         state = ?event.state,
                         repeat = event.repeat,
                         current_mods = ?adapter.mods,

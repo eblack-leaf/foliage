@@ -372,7 +372,18 @@ impl Text {
                     glyph_layout_height = glyphs.layout.height(),
                     "text: auto width/height adjusted section"
                 );
-                if current.section != scaled {
+                // Sub-pixel tolerance, not `!=`: `scaled` came back through a
+                // physical->logical->physical round trip, which is only bit-exact when the
+                // scale factor is a power of two (1.0, 2.0). At something like 1.73 it
+                // lands an ULP off every time, so an exact compare re-inserted the section
+                // on every update -- and each insert re-resolves and relays out, which
+                // reads as the text jittering a pixel per keystroke.
+                const ADJUST_EPSILON: f32 = 0.01;
+                let moved = (current.section.left() - scaled.left()).abs() > ADJUST_EPSILON
+                    || (current.section.top() - scaled.top()).abs() > ADJUST_EPSILON
+                    || (current.section.width() - scaled.width()).abs() > ADJUST_EPSILON
+                    || (current.section.height() - scaled.height()).abs() > ADJUST_EPSILON;
+                if moved {
                     insert_adjusted = true;
                     current.section = scaled;
                 }

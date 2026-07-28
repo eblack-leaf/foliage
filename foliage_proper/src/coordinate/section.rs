@@ -60,11 +60,17 @@ impl CReprSection {
     pub fn new(p: CReprPosition, a: CReprArea) -> Self {
         Self { pos: p, area: a }
     }
-    /// Rounds every component to the nearest whole device pixel.
+    /// Snaps all four edges to whole device pixels -- edge-derived, for the reason
+    /// [`Section::rounded`] documents.
     pub fn rounded(self) -> Self {
+        let left = self.pos.0.a().round();
+        let top = self.pos.0.b().round();
         Self::new(
-            CReprPosition(self.pos.0.rounded()),
-            CReprArea(self.area.0.rounded()),
+            CReprPosition(Coordinates::new(left, top)),
+            CReprArea(Coordinates::new(
+                (self.pos.0.a() + self.area.0.a()).round() - left,
+                (self.pos.0.b() + self.area.0.b()).round() - top,
+            )),
         )
     }
 }
@@ -234,10 +240,22 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn to_numerical(self) -> Section<Numerical> {
         Section::new(self.position.to_numerical(), self.area.to_numerical())
     }
-    /// Rounds every component to the nearest whole unit -- applied before rasterizing so
-    /// edges land on pixel boundaries instead of being resampled.
+    /// Snaps all four *edges* to whole units -- applied before rasterizing so edges land on
+    /// pixel boundaries instead of being resampled.
+    ///
+    /// Rounds `right`/`bottom` rather than the width/height, then derives the extent from
+    /// the snapped edges. Rounding position and area independently makes an edge land on
+    /// `round(left) + round(width)`, which is not `round(left + width)` -- so two entities
+    /// sharing a coordinate could snap to pixels 1 apart and leave a seam between them.
+    /// Deriving from edges means any two shapes that agree on a coordinate agree after
+    /// rounding, by construction.
     pub fn rounded(self) -> Self {
-        Self::new(self.position.rounded(), self.area.rounded())
+        let left = self.left().round();
+        let top = self.top().round();
+        Self::new(
+            (left, top),
+            (self.right().round() - left, self.bottom().round() - top),
+        )
     }
     /// Rounds every component down.
     pub fn floored(self) -> Self {
@@ -318,5 +336,35 @@ impl<Context: CoordinateContext> Mul<f32> for Section<Context> {
 
     fn mul(self, rhs: f32) -> Self::Output {
         Self::new(self.position * rhs, self.area * rhs)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Logical;
+
+    /// Two sections sharing an edge must still share it after rounding. Rounding position
+    /// and area independently broke this: the shared coordinate became
+    /// `round(left) + round(width)` on one side and `round(left)` on the other, leaving a
+    /// 1px seam between panels that were exactly contiguous.
+    #[test]
+    fn rounding_keeps_a_shared_edge_shared() {
+        let a = Section::<Logical>::new((10.4, 0.0), (20.4, 10.0));
+        let b = Section::<Logical>::new((30.8, 0.0), (20.0, 10.0));
+        assert_eq!(a.right(), b.left(), "precondition: contiguous before rounding");
+        assert_eq!(
+            a.rounded().right(),
+            b.rounded().left(),
+            "a's right edge and b's left edge must round to the same pixel"
+        );
+    }
+
+    #[test]
+    fn rounding_snaps_every_edge_to_a_whole_unit() {
+        let s = Section::<Logical>::new((10.4, 3.7), (20.4, 9.2)).rounded();
+        for edge in [s.left(), s.top(), s.right(), s.bottom()] {
+            assert_eq!(edge, edge.round(), "every edge lands on a whole unit");
+        }
     }
 }

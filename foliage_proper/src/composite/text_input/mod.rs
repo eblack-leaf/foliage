@@ -985,14 +985,25 @@ impl TextInput {
             // starts exactly at (or is straddling) the bottom edge: a row starting exactly
             // at `section.height()` has zero visible pixels, but `176 > 176` is false, so
             // no correction fired. That's what let the cursor sit rendered off-screen.
+            // The far-edge correction is skipped when the cell is bigger than the field on
+            // that axis, because then it can never be fully in view: pushing the far edge
+            // in takes the near edge out, the next pass corrects back, and the caret
+            // alternates by a pixel or two on every keystroke. `character_block` ceils both
+            // the advance and the line height, so a cell can exceed a field whose own box
+            // was not rounded the same way -- which is enough to trip it. When the cell does
+            // not fit, honoring the near edge alone is the stable choice.
             if window_relative.left() < 0.0 {
                 delta.set_left(window_relative.left());
-            } else if window_relative.left() + letter_block.a() > section.width() {
+            } else if letter_block.a() <= section.width()
+                && window_relative.left() + letter_block.a() > section.width()
+            {
                 delta.set_left(window_relative.left() + letter_block.a() - section.width());
             }
             if window_relative.top() < 0.0 {
                 delta.set_top(window_relative.top());
-            } else if window_relative.top() + letter_block.b() > section.height() {
+            } else if letter_block.b() <= section.height()
+                && window_relative.top() + letter_block.b() > section.height()
+            {
                 delta.set_top(window_relative.top() + letter_block.b() - section.height());
             }
             tracing::trace!(
