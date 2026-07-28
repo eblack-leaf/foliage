@@ -354,6 +354,13 @@ impl Ginkgo {
         self.configuration.is_some()
     }
     pub(crate) async fn acquire_context(&mut self, willow: &Willow) {
+        // TODO: no `BROWSER_WEBGPU`. Listing it makes Chrome select WebGPU even where it
+        // cannot actually deliver a device, and the failure is a panic rather than a
+        // fallback -- so web runs on WebGL2, which has never failed on its own. Revisit
+        // once the browser situation settles: the fix is to request the WebGPU adapter
+        // *and* its device, then fall back to GL on any error, rather than probing for
+        // experimental flags. Backend choice is invisible to the public API, so this can
+        // land in a patch/minor release.
         let instance = wgpu::Instance::new(InstanceDescriptor {
             backends: wgpu::Backends::VULKAN
                 | wgpu::Backends::METAL

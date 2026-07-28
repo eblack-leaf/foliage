@@ -14,6 +14,14 @@ impl Interpolations {
     pub fn new() -> Self {
         Self { scalars: vec![] }
     }
+    /// Flips every channel end-for-end, so the next pass runs back the way it came --
+    /// what [`Animation::backtrack`](crate::Animation::backtrack) does between passes.
+    pub(crate) fn reverse(&mut self) {
+        for scalar in self.scalars.iter_mut() {
+            std::mem::swap(&mut scalar.start, &mut scalar.finish);
+            scalar.diff = -scalar.diff;
+        }
+    }
     /// Appends a channel running from `s` to `e`. Its index is its position in the chain.
     pub fn with(mut self, s: f32, e: f32) -> Self {
         self.scalars.push(Interpolation::new(s, e));

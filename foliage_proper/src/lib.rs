@@ -1,3 +1,7 @@
+// TODO: `Display`/`Debug` across the public types. `Section` and `Coordinates` have
+// hand-written ones already (delegating Debug to the compact Display rather than the
+// derived nested-struct form); the rest are uncovered. Ergonomics for consumers, not
+// correctness, and purely additive -- so it can land any time after 1.0.
 mod alignment;
 mod anim;
 mod ash;
@@ -41,7 +45,7 @@ pub use crate::coordinate::{
     section::{CReprSection, Section},
 };
 pub use anim::{
-    Animate, Animation,
+    Animate, Animation, Repeat,
     ease::{ControlPoints, Ease, Easement},
     interpolation::{Interpolation, Interpolations},
 };

@@ -392,6 +392,8 @@ impl EcsExtension for Tree<'_, '_> {
             anim.ease,
             anim.seq,
             AnimationTime::from(anim.sequence_time_range),
+            anim.repeat,
+            anim.backtrack,
         );
         self.spawn(runner).id()
     }

@@ -18,6 +18,12 @@ pub(crate) struct AnimationTime {
 }
 
 impl AnimationTime {
+    /// Rewinds to the start of the range for the next loop pass. `delay` is deliberately
+    /// left consumed -- it offsets this tween within its sequence, so re-waiting it on
+    /// every pass would put a gap between them that the first pass never had.
+    pub(crate) fn rewind(&mut self) {
+        self.accumulated_time = Default::default();
+    }
     pub(crate) fn time_delta(&mut self, fd: TimeDelta) -> f32 {
         self.accumulated_time += fd;
         let delta = self.accumulated_time.as_millis() as f32 / self.total_time.as_millis() as f32;
