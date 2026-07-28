@@ -11,13 +11,6 @@ mod routes;
 mod toc;
 mod type_in;
 
-/// This app's own hosting convention -- `foliage_proper` makes no assumption about it, so it
-/// lives here, the one place that actually knows where these assets are served from.
-#[cfg(target_family = "wasm")]
-fn asset_url(path: &str) -> String {
-    format!("{}/foliage/{path}", Foliage::window_origin())
-}
-
 /// Shared by every platform's entry point -- desktop's `main`, wasm's `main` (compiled to
 /// `wasm32-unknown-unknown` and invoked by the generated JS glue), and `application_android`'s
 /// `android_main`. Only *how a `Foliage` gets constructed* differs per platform (see

@@ -62,6 +62,41 @@ remote-assets = ["dep:reqwest"]
 # (Button, Card, Router, Slider, TextInput) are unconditional.
 composite-extras = []
 
+# The tests that exercise the gated composites, skipped unless the feature is on -- same
+# arrangement `foliage`'s own examples use. Without these, `cargo test --workspace` (what
+# CI runs) fails to compile them against the default feature set.
+[[test]]
+name = "carousel"
+required-features = ["composite-extras"]
+
+[[test]]
+name = "checkbox"
+required-features = ["composite-extras"]
+
+[[test]]
+name = "composites"
+required-features = ["composite-extras"]
+
+[[test]]
+name = "dropdown"
+required-features = ["composite-extras"]
+
+[[test]]
+name = "pagination"
+required-features = ["composite-extras"]
+
+[[test]]
+name = "popover"
+required-features = ["composite-extras"]
+
+[[test]]
+name = "segmented_control"
+required-features = ["composite-extras"]
+
+[[test]]
+name = "tabs"
+required-features = ["composite-extras"]
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 pollster = "1.0.1"
 copypasta = "0.10.1"

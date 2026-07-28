@@ -12,7 +12,8 @@ use crate::{
     Area, Attachment, Component, Foliage, Layout, LeafSprout, Logical, Numerical,
     ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem, Resolved,
 };
-use crate::{AssetKey, AssetRetrieval};
+use crate::AssetKey;
+use crate::asset::AssetRetrieval;
 use crate::{Differential, EcsExtension, Tree, Visibility};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;

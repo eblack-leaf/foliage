@@ -8,6 +8,7 @@ use crate::leaf::Stem;
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::time::OnEnd;
+use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
 use crate::{Animate, Animation, AssetKey, OnClick, Sprout, TimeDelta, Timer};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
@@ -17,7 +18,7 @@ use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::message::Message;
 use bevy_ecs::observer::IntoEntityObserver;
 use bevy_ecs::prelude::{Commands, World};
-use bevy_ecs::system::Query;
+use bevy_ecs::system::{Query, Res};
 
 /// The handle systems and observers use to change the world: spawn entities, write
 /// components, start animations, register handlers.
@@ -141,6 +142,34 @@ pub trait EcsExtension: Sow {
     fn name<S: AsRef<str>>(&mut self, e: Entity, s: S);
     fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S);
     fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>);
+    /// Runs `afn` on `entity` once the asset `key` names has arrived, with its bytes --
+    /// the asset counterpart to [`on_click`](EcsExtension::on_click). Marks the wait and
+    /// registers the handler in one call, so the key can't disagree between them.
+    ///
+    /// On native a `Bytes` asset is already there and this fires almost immediately; on
+    /// wasm it fires whenever the fetch resolves. Either way anything that needs the bytes
+    /// belongs in `afn` rather than after the spawn.
+    fn on_asset<AFN: FnMut(&mut Tree, Entity, Vec<u8>) + Send + Sync + 'static>(
+        &mut self,
+        entity: Entity,
+        key: AssetKey,
+        mut afn: AFN,
+    ) where
+        Self: Sized,
+    {
+        self.write_to(entity, AssetRetrieval::new(key));
+        // written out here rather than built by a helper returning `impl FnMut(..)`: an
+        // opaque return type pins one set of lifetimes, and an entity observer has to be
+        // higher-ranked over `On<'a, 'b, _>`, so only a closure literal in argument
+        // position actually satisfies the bound.
+        self.subscribe(
+            entity,
+            move |trigger: Trigger<OnRetrieval>, mut tree: Tree, loader: Res<AssetLoader>| {
+                let asset = loader.retrieve(trigger.event().key).unwrap();
+                afn(&mut tree, trigger.event_target(), asset.data);
+            },
+        );
+    }
     /// Re-inserts `entity`'s current value(s) of `C` so any just-registered observer fires with
     /// real data -- the fire-once half of [`EcsExtension::react`]. Internal plumbing; authors
     /// use `react`.

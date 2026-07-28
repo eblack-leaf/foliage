@@ -47,7 +47,7 @@ pub use anim::{
     interpolation::{Interpolation, Interpolations},
 };
 pub(crate) use ash::differential::Differential;
-pub use asset::{AssetKey, AssetRetrieval, AssetSource, LoadAsset, asset_retrieval};
+pub use asset::{Asset, AssetKey, AssetLoader, AssetSource, OnRetrieval};
 pub use attachment::Attachment;
 pub use author::{LeafSprout, Sprout, With};
 pub use bevy_ecs::{self, prelude::*};

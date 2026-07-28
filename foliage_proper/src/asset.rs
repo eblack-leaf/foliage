@@ -39,14 +39,14 @@ pub enum AssetSource {
     Url(String),
 }
 
-/// The only door into `AssetLoader.assets` from outside this module -- `AssetLoader` itself
-/// stays unreachable (its module is private). `key` is caller-generated
-/// (`AssetLoader::generate_key`) so it's usable immediately (e.g. `Image::new(key)`)
-/// regardless of whether `Bytes` resolves this tick or `Url` is still in flight.
+/// The door into `AssetLoader.assets`. Internal: [`Foliage::load_asset`](crate::Foliage::load_asset)
+/// generates the key and sends this, which is the only thing an app ever needed it for --
+/// constructing one by hand just meant calling `generate_key` first and getting the pairing
+/// right yourself.
 #[derive(Event)]
-pub struct LoadAsset {
-    pub key: AssetKey,
-    pub source: AssetSource,
+pub(crate) struct LoadAsset {
+    pub(crate) key: AssetKey,
+    pub(crate) source: AssetSource,
 }
 
 fn handle_load_asset(trigger: Trigger<LoadAsset>, mut asset_loader: ResMut<AssetLoader>) {
@@ -110,13 +110,15 @@ pub struct AssetLoader {
 }
 #[derive(Component, Clone)]
 /// Marks an entity as waiting on `key`, so [`OnRetrieval`] can find it once the bytes
-/// land. Keeps the wait declarative rather than making callers poll.
-pub struct AssetRetrieval {
+/// land. Internal: inserted by [`on_asset`](crate::EcsExtension::on_asset) together with
+/// the observer that reads the result, since the two only ever made sense as a pair --
+/// a component naming one key and an observer expecting another is a silent no-op.
+pub(crate) struct AssetRetrieval {
     key: AssetKey,
 }
 impl AssetRetrieval {
     /// Waits on `key`.
-    pub fn new(key: AssetKey) -> Self {
+    pub(crate) fn new(key: AssetKey) -> Self {
         Self { key }
     }
 }
@@ -127,17 +129,6 @@ impl AssetRetrieval {
 /// depending on the bytes belongs here rather than after the spawn.
 pub struct OnRetrieval {
     pub key: AssetKey,
-}
-/// Builds an [`OnRetrieval`] observer that hands the loaded bytes to `afn`.
-pub fn asset_retrieval<'w, AFN: FnMut(&mut Tree, Entity, Vec<u8>) + 'static>(
-    mut afn: AFN,
-) -> impl FnMut(Trigger<OnRetrieval>, Tree, Res<AssetLoader>) {
-    let obs =
-        move |trigger: Trigger<OnRetrieval>, mut tree: Tree, asset_loader: Res<AssetLoader>| {
-            let asset = asset_loader.retrieve(trigger.event().key).unwrap();
-            afn(&mut tree, trigger.event_target(), asset.data);
-        };
-    obs
 }
 pub(crate) fn on_retrieve(
     retrievers: Query<(Entity, &AssetRetrieval)>,
@@ -177,8 +168,10 @@ impl AssetLoader {
     pub(crate) fn queue_fetch(&mut self, fetch: AssetFetch) {
         self.awaiting.insert(fetch.key, fetch);
     }
-    /// A fresh key, usable immediately -- before the asset it names has loaded.
-    pub fn generate_key() -> AssetKey {
+    /// A fresh key, usable immediately -- before the asset it names has loaded. Internal:
+    /// [`Foliage::load_asset`](crate::Foliage::load_asset) calls this and hands the key
+    /// back, so an app never has to mint one itself.
+    pub(crate) fn generate_key() -> AssetKey {
         Uuid::new_v4().as_u128()
     }
 }
@@ -211,27 +204,27 @@ impl AssetFetch {
 /// A bundled asset -- embedded via `include_bytes!` on native, fetched on wasm from a URL.
 /// Two forms:
 ///
-/// - `bundled_asset!(foliage, $path, $url_fn)` -- the common case, where the web build
-///   mirrors the same relative path (a build step copies `assets/` into the served dist
-///   output, say). `$path` is written once; `$url_fn` is the caller's own hosting-convention
-///   function (`fn(&str) -> String`), applied to that same `$path` internally, rather than
-///   the caller pre-applying it and passing the result -- so the same literal path can't
-///   drift between the two platform branches by a typo or a rename that only touches one.
+/// - `bundled_asset!(foliage, $path)` -- the common case, where the web build mirrors the
+///   same relative path (a build step copies `assets/` into the served dist output, say).
+///   `$path` is written once and both platform branches use it: native embeds it, wasm
+///   resolves it through [`Foliage::asset_url`](crate::Foliage::asset_url), so the two
+///   can't drift apart by a typo or a rename that only touches one. Declare the hosting
+///   convention once with [`Foliage::asset_base`](crate::Foliage::asset_base).
 /// - `bundled_asset!(foliage, $path, url: $url)` -- the escape hatch, for when the native
 ///   embed path and the wasm URL genuinely don't correspond to the same relative path (a
 ///   CDN, content-hashed filenames, any hosting layout that doesn't mirror the source tree).
-///   `$url` is used exactly as given, independent of `$path`.
+///   `$url` is used exactly as given, independent of `$path` and of `asset_base`.
 ///
 /// The *mechanics* of the platform split (which `AssetSource` variant) are the only thing
 /// this provides -- this crate still makes no assumption about where an app's assets are
-/// actually hosted.
+/// actually hosted, only about what the app told it.
 #[macro_export]
 macro_rules! bundled_asset {
-    ($foliage:expr, $path:literal, $url_fn:path) => {{
+    ($foliage:expr, $path:literal) => {{
         #[cfg(not(target_family = "wasm"))]
         let source = $crate::AssetSource::Bytes(include_bytes!($path).to_vec());
         #[cfg(target_family = "wasm")]
-        let source = $crate::AssetSource::Url($url_fn($path));
+        let source = $crate::AssetSource::Url($foliage.asset_url($path));
         $foliage.load_asset(source)
     }};
     ($foliage:expr, $path:literal, url: $url:expr) => {{

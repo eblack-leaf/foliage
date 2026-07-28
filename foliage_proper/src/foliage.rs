@@ -58,6 +58,10 @@ pub struct Foliage {
     pub(crate) receiver: Option<oneshot::Receiver<Ginkgo>>,
     pub(crate) ran_at_least_once: bool,
     pub(crate) suspended: bool,
+    /// This app's asset hosting convention, set once via [`asset_base`](Foliage::asset_base)
+    /// and applied by [`asset_url`](Foliage::asset_url). Empty by default -- an app that
+    /// never loads a `Url` asset never needs it.
+    pub(crate) asset_base: String,
     /// True from the moment `about_to_wait` requests a redraw until that redraw actually
     /// paints. Winit's `about_to_wait` isn't 1:1 with real paint frames -- high-frequency
     /// input (mouse move, wheel/scroll especially on web, where each DOM event tends to
@@ -121,6 +125,7 @@ impl Foliage {
             ran_at_least_once: false,
             suspended: false,
             tick_pending: false,
+            asset_base: String::new(),
         };
         foliage.main.configure_sets(
             (
@@ -354,6 +359,28 @@ impl Foliage {
         let key = AssetLoader::generate_key();
         self.send(LoadAsset { key, source });
         key
+    }
+    /// Declares where this app's assets are served from -- the path segment between the
+    /// page origin and an asset's own relative path. Set it once at startup and
+    /// [`bundled_asset!`](crate::bundled_asset) resolves every wasm URL through it, so no
+    /// call site repeats the convention and nothing has to define its own `fn(&str) ->
+    /// String` to pass along. Leading and trailing slashes are optional.
+    ///
+    /// This crate still assumes nothing about hosting; it only stores what the app says.
+    pub fn asset_base<S: AsRef<str>>(&mut self, base: S) {
+        self.asset_base = base.as_ref().trim_matches('/').to_string();
+    }
+    /// `path` resolved against the page origin and [`asset_base`](Self::asset_base) --
+    /// what [`bundled_asset!`](crate::bundled_asset) hands to `AssetSource::Url`. Public
+    /// because the macro expands at the call site, but an app rarely calls it directly.
+    #[cfg(target_family = "wasm")]
+    pub fn asset_url(&self, path: &str) -> String {
+        let path = path.trim_start_matches('/');
+        if self.asset_base.is_empty() {
+            format!("{}/{path}", Self::window_origin())
+        } else {
+            format!("{}/{}/{path}", Self::window_origin(), self.asset_base)
+        }
     }
     /// Installs a tracing subscriber for `targets`, e.g.
     /// `"foliage_proper::grid=trace".parse().unwrap()`. Call before
