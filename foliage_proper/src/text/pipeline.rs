@@ -472,11 +472,18 @@ impl Render for Text {
             .clip
             .intersection(group.group.bounds.0)
             .unwrap_or_default();
+        // Expanded outward to whole pixels, not truncated: `TextBounds` is an unrounded
+        // physical rect, and `as u32` on a fractional height shaves the bottom row -- which
+        // is where descenders sit.
+        let left = clip.left().floor().max(0.0);
+        let top = clip.top().floor().max(0.0);
+        let right = clip.right().ceil().max(left);
+        let bottom = clip.bottom().ceil().max(top);
         render_pass.set_scissor_rect(
-            clip.left() as u32,
-            clip.top() as u32,
-            clip.width() as u32,
-            clip.height() as u32,
+            left as u32,
+            top as u32,
+            (right - left) as u32,
+            (bottom - top) as u32,
         );
         render_pass.set_pipeline(&renderer.pipeline);
         render_pass.set_bind_group(0, &group.group.bind_group, &[]);
