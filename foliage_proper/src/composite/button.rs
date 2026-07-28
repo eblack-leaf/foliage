@@ -49,7 +49,7 @@ pub struct Engagement(pub bool);
 /// `None`/zero when no icon was configured -- text simply isn't offset to make room for one.
 fn restyle(
     tree: &mut Tree,
-    this: Entity,
+    _this: Entity,
     panel: Entity,
     icon: Option<Entity>,
     text: Entity,

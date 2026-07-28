@@ -10,7 +10,7 @@ use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::MonospacedFont;
 use crate::text::{Glyphs, LineMetrics};
 use crate::{
-    Attachment, Color, Component, Dragged, EcsExtension, Elevation, Engaged, Event, FocusBehavior,
+    Attachment, Color, Component, Dragged, EcsExtension, Elevation, Engaged, FocusBehavior,
     Foliage, FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
     InteractionPropagation, Key, Layout, Leaf, LeafSprout, Location, Logical, Opacity, Outline,
     OverscrollPropagation, Panel, Rounding, Section, Sprout, Stem, Text, TextContentHeight,
@@ -156,6 +156,10 @@ impl TextInput {
     /// Logical pixels of the caret that may sit outside the field before it scrolls to
     /// follow -- a small tolerance, so a caret resting exactly on the edge does not
     /// oscillate.
+    ///
+    /// Unused: this is the threshold for the auto-scroll behaviour still outstanding at the
+    /// TODOs further down (scroll-toward-cursor, and drag-selection near the box edges).
+    #[allow(dead_code)]
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
     /// Starts a [`TextInput`] entity:
     /// `tree.branch(parent, TextInput::new().hint_text("Search").at(loc))`.
@@ -602,13 +606,6 @@ pub(crate) struct Cursor {
     pub(crate) row: u32,
 }
 impl Cursor {
-    pub(crate) fn new() -> Self {
-        Self {
-            location: 0,
-            column: 0,
-            row: 0,
-        }
-    }
     // we clicked explicitly on cursor, start drag behavior
     pub(crate) fn engaged(
         trigger: Trigger<Engaged>,
@@ -1430,7 +1427,7 @@ impl Input {
         // rejected by bevy at `foliage.define(...)` time as conflicting access to the same
         // component. `.as_readonly()` covers every call site that only needs read access.
         mut handles: Query<&mut Handle>,
-        styles: Query<&TextInputStyle>,
+        _styles: Query<&TextInputStyle>,
         key_bindings: Res<KeyBindings>,
         scroll: ScrollContext,
     ) {

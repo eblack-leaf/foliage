@@ -4,9 +4,7 @@ use crate::ash::differential::RenderRemoveQueue;
 use crate::foliage::Foliage;
 use crate::{AnchorDeps, Attachment, Branch, Tree};
 use bevy_ecs::change_detection::ResMut;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::prelude::{Event, Query};
+use bevy_ecs::prelude::Query;
 
 impl Attachment for Remove {
     fn attach(foliage: &mut Foliage) {

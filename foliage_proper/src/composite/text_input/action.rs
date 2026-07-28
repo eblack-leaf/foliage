@@ -1,4 +1,3 @@
-use crate::Event;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum TextInputAction {

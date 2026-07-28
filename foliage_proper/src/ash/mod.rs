@@ -10,11 +10,9 @@ use crate::polygon::Polygon;
 use crate::willow::NearFarDescriptor;
 use crate::{Attachment, Color, Icon, Panel, ResolvedElevation, Stem, Text};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::IntoScheduleConfigs;
 use bevy_ecs::world::World;
 use node::Node;
 use render::{ContiguousSpan, PipelineId, Render, Renderer};
-use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use wgpu::{CommandEncoderDescriptor, RenderPassDescriptor, TextureViewDescriptor};
 

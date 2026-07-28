@@ -13,7 +13,6 @@ use crate::{
     Visibility, Resolved,
 };
 use bevy_ecs::change_detection::Res;
-use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
@@ -711,7 +710,7 @@ fn calc(
     stack: Option<Section<Logical>>,
     current: Section<Logical>,
     letter_dims: Coordinates,
-    view: View,
+    _view: View,
     stem_letters: Coordinates,
 ) -> Option<CoordinateUnit> {
     let calculated = match desc.value {
@@ -846,7 +845,7 @@ impl ValueDescriptor {
     }
     /// Pairs this value with the other one pinning the same axis -- a left with a width,
     /// a top with a bottom.
-    pub fn with(mut self, b: ValueDescriptor) -> ConfigurationDescriptor {
+    pub fn with(self, b: ValueDescriptor) -> ConfigurationDescriptor {
         ConfigurationDescriptor::new(self, b)
     }
     /// Shifts this value by a fixed number of logical pixels after it resolves -- for

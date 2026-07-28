@@ -30,7 +30,6 @@ pub(crate) mod tabs;
 pub(crate) mod text_input;
 #[cfg(feature = "composite-extras")]
 pub(crate) mod toggle;
-pub(crate) use text_input::keybindings::KeyBindings;
 
 /// THE slot convention: how a library composite hosts arbitrary author content (a Card's
 /// main region) without baking in what that content is. The composite calls the closure with a

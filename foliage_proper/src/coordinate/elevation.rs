@@ -3,8 +3,6 @@ use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
 use crate::ash::clip::ClipToViewport;
 use crate::{Animate, Attachment, Branch, Foliage, Stem, Tree, Resolve};
-use bevy_ecs::component::ComponentId;
-use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
@@ -296,7 +294,7 @@ impl ResolvedElevation {
 #[cfg(test)]
 mod stack_key_tests {
     use super::*;
-    use crate::{EcsExtension, Foliage, Grid, Leaf, Location, Sprout};
+    use crate::{EcsExtension, Entity, Foliage, Grid, Leaf, Location, Sprout};
 
     fn key_of(foliage: &mut Foliage, entity: Entity) -> StackKey {
         *foliage.world.get::<StackKey>(entity).unwrap()

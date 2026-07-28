@@ -4,7 +4,6 @@ use crate::coordinate::Physical;
 use crate::coordinate::section::Section;
 use crate::text::Text;
 use crate::{Color, Component, Differential, ResolvedVisibility, Resolve};
-use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::query::{Changed, With};

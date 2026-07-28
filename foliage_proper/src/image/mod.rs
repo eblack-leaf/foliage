@@ -16,12 +16,10 @@ use crate::AssetKey;
 use crate::asset::AssetRetrieval;
 use crate::{Differential, EcsExtension, Tree, Visibility};
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::ComponentId;
-use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
-use bevy_ecs::prelude::{Entity, IntoScheduleConfigs, Res};
+use bevy_ecs::prelude::{IntoScheduleConfigs, Res};
 use bevy_ecs::query::{Changed, Or};
-use bevy_ecs::system::{Query, ResMut};
+use bevy_ecs::system::Query;
 use bevy_ecs::world::DeferredWorld;
 use wgpu::TextureFormat;
 

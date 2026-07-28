@@ -2,10 +2,8 @@ use crate::EcsExtension;
 use crate::coordinate::Logical;
 use crate::coordinate::position::Position;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::EntityEvent;
 use bevy_ecs::message::{Message, MessageReader};
 use bevy_ecs::prelude::IntoScheduleConfigs;
-use bevy_ecs::query::With;
 use bevy_ecs::resource::Resource;
 use bevy_ecs::system::{Query, Res, ResMut};
 mod adapter;
@@ -318,7 +316,7 @@ pub(crate) fn interactive_elements(
                     .drain(..)
                     .filter(|ps| stack_keys.get(*ps).unwrap() >= stack_keys.get(p).unwrap())
                     .collect::<Vec<_>>();
-                if let Ok(mut listener) = listeners.get_mut(p) {
+                if let Ok(listener) = listeners.get_mut(p) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(
                             Engaged {
@@ -364,7 +362,7 @@ pub(crate) fn interactive_elements(
                 }
             }
             for ps in current.pass_through.iter() {
-                if let Ok(mut listener) = listeners.get_mut(*ps) {
+                if let Ok(listener) = listeners.get_mut(*ps) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(
                             Engaged {
@@ -459,7 +457,7 @@ pub(crate) fn interactive_elements(
                 }
                 current.last_drag = event.position;
                 current.click.current = event.position;
-                if let Ok(mut listener) = listeners.get_mut(p) {
+                if let Ok(listener) = listeners.get_mut(p) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(
                             Dragged {
@@ -471,7 +469,7 @@ pub(crate) fn interactive_elements(
                 }
             }
             for ps in current.pass_through.iter() {
-                if let Ok(mut listener) = listeners.get_mut(*ps) {
+                if let Ok(listener) = listeners.get_mut(*ps) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.trigger_targets(
                             Dragged {
@@ -593,7 +591,7 @@ pub(crate) fn interactive_elements(
                     }
                 }
                 current.click.end.replace(event.position);
-                if let Ok(mut listener) = listeners.get_mut(p) {
+                if let Ok(listener) = listeners.get_mut(p) {
                     let data = all.get(p).unwrap();
                     // `!current.past_drag` -- a real drag (crossed `DRAG_THRESHOLD`) that
                     // happens to release back over the same entity's own current bounds
@@ -624,7 +622,7 @@ pub(crate) fn interactive_elements(
             }
             let past_drag = current.past_drag;
             for ps in current.pass_through.drain(..) {
-                if let Ok(mut listener) = listeners.get_mut(ps) {
+                if let Ok(listener) = listeners.get_mut(ps) {
                     let data = all.get(ps).unwrap();
                     // same reasoning as the primary's own gate above.
                     if !listener.disabled()

@@ -1,4 +1,3 @@
-#![allow(unused)]
 mod alignment;
 mod anim;
 mod ash;

@@ -17,11 +17,10 @@ use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
 use crate::{
-    Attachment, Branch, Layout, Location, Physical, Resolve, Resolved, ResolvedElevation,
+    Attachment, Layout, Location, Physical, Resolve, Resolved, ResolvedElevation,
     ResolvedVisibility, Short, Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
@@ -444,7 +443,7 @@ impl Text {
             ),
             Or<(Changed<Glyphs>, Changed<ResolvedVisibility>)>,
         >,
-        mut tree: Tree,
+        _tree: Tree,
     ) {
         for (entity, mut glyphs, vis, mut resolved) in glyph_query.iter_mut() {
             if !vis.visible() {

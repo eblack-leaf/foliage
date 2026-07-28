@@ -8,8 +8,6 @@ use crate::{
     ResolvedElevation, Section, Sprout, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::ComponentId;
-use bevy_ecs::entity::Entity;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::world::DeferredWorld;
 use bytemuck::{Pod, Zeroable};

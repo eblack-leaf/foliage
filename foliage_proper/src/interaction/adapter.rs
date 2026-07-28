@@ -380,7 +380,7 @@ impl KeyboardAdapter {
         &mut self,
         key: WinitKey,
         state: ElementState,
-        repeat: bool,
+        _repeat: bool,
     ) -> Option<InputSequence> {
         if state.is_pressed() {
             Some(InputSequence::new(key.into(), self.mods))

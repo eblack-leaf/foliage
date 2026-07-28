@@ -333,7 +333,7 @@ pub(crate) fn extent_check(
         tracing::trace!(entity = ?entity, request = ?request, "grid::view: extent_check_v2 saw changed ScrollTo");
         to_check.insert(entity);
     }
-    for (entity, context) in contexts.iter() {
+    for (_entity, context) in contexts.iter() {
         if context.is_changed() {
             if let Some(id) = context.id {
                 to_check.insert(id);

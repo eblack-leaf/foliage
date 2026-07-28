@@ -13,9 +13,8 @@ use crate::{
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor, Extent3d, Origin3d,
-    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderStages,
-    TexelCopyBufferLayout, TexelCopyTextureInfo, Texture, TextureAspect, TextureSampleType,
+    BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
+    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderStages, Texture, TextureSampleType,
     TextureView, TextureViewDimension, VertexState, VertexStepMode, include_wgsl,
 };
 
@@ -37,12 +36,16 @@ impl Resources {
     }
 }
 pub(crate) struct Group {
+    /// Held for ownership, not read: dropping it destroys the GPU texture `bind_group`
+    /// still points at. Same reason `view` below is kept.
+    #[allow(dead_code)]
     texture: Texture,
-    #[allow(unused)]
+    #[allow(dead_code)]
     view: TextureView,
     bind_group: BindGroup,
     /// The texture is always allocated to exactly the decoded image's real size now, so
     /// there's no separate declared-vs-real extent to track -- one field, not two.
+    #[allow(dead_code)]
     extent: Area<Numerical>,
     texture_coordinates: TextureCoordinates,
     sections: InstanceBuffer<CReprSection>,

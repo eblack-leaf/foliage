@@ -122,6 +122,10 @@ impl<Context: CoordinateContext> Div<CoordinateUnit> for Points<Context> {
     type Output = Self;
 
     fn div(self, rhs: CoordinateUnit) -> Self::Output {
-        todo!()
+        let mut new = Points::default();
+        for i in 0..4 {
+            new.data[i] = self.data[i] / rhs;
+        }
+        new
     }
 }

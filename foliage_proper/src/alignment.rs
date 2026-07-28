@@ -8,7 +8,6 @@
 //! components read as Center/Middle inside `Icon::align_render_size`).
 
 use crate::{Component, EcsExtension, Resolve};
-use bevy_ecs::component::ComponentId;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::world::DeferredWorld;
 

@@ -2,8 +2,6 @@ use crate::EcsExtension;
 use crate::Trigger;
 use crate::ash::differential::RenderRemoveQueue;
 use crate::{AnchorDeps, Attachment, Branch, Component, Foliage, Stem, Tree, Resolve, Resolved};
-use bevy_ecs::component::ComponentId;
-use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;

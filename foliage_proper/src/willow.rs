@@ -49,6 +49,13 @@ impl Default for NearFarDescriptor {
 
 impl Willow {
     pub(crate) fn connect(&mut self, event_loop: &ActiveEventLoop) {
+        // only consumed by `with_inner_size` below, which is desktop-only -- the platforms
+        // without it size the surface from the canvas/activity instead.
+        #[cfg(all(
+            not(target_family = "wasm"),
+            not(target_os = "android"),
+            not(target_os = "ios")
+        ))]
         let requested_area = self.requested_area();
         let attributes = WindowAttributes::default()
             .with_title(self.title.clone().unwrap_or_default())

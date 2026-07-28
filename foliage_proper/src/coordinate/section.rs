@@ -4,8 +4,7 @@ use std::any::TypeId;
 use std::fmt::Display;
 use std::ops::{Add, AddAssign, Mul, Sub};
 
-use bevy_ecs::component::{Component, ComponentId};
-use bevy_ecs::entity::Entity;
+use bevy_ecs::component::Component;
 use bevy_ecs::world::DeferredWorld;
 use bytemuck::{Pod, Zeroable};
 

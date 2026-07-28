@@ -3,8 +3,6 @@ use crate::EcsExtension;
 use crate::foliage::{Foliage, MainMarkers};
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
-use bevy_ecs::event::EntityEvent;
-use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{ResMut, Resource};
 use bevy_ecs::system::{Commands, Query, Res};
 

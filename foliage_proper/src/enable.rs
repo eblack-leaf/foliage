@@ -3,8 +3,6 @@ use crate::Trigger;
 use crate::{
     AnchorDeps, Attachment, Branch, Foliage, InteractionListener, InteractionState, Tree, Resolved,
 };
-use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::EntityEvent;
 use bevy_ecs::system::Query;
 
 #[foliage_macros::targeted_event]

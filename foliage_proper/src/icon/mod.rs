@@ -12,7 +12,6 @@ use crate::{
     ResolvedElevation, Section, Sprout, Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
-use bevy_ecs::component::ComponentId;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;

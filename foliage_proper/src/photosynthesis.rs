@@ -330,7 +330,6 @@ impl Foliage {
                         let pos = vc.to_physical(self.ginkgo.configuration().scale_factor.value());
                         self.ginkgo.position_viewport(pos);
                     }
-                    // TODO extract
                     self.ash.prepare(&mut self.world, &self.ginkgo);
                     self.ash.render(&self.ginkgo);
                     self.ash.drawn = true;

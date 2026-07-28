@@ -1,10 +1,7 @@
 use crate::EcsExtension;
 use crate::Trigger;
-use crate::enable::InheritEnable;
 use crate::interaction::listener::InteractionListener;
-use crate::{AnchorDeps, Attachment, Branch, Event, Foliage, InteractionState, Tree, Resolved};
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::EntityEvent;
+use crate::{AnchorDeps, Attachment, Branch, Foliage, InteractionState, Tree, Resolved};
 use bevy_ecs::system::Query;
 
 #[foliage_macros::targeted_event]

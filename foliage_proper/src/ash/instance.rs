@@ -375,9 +375,6 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
             );
         }
     }
-    pub(crate) fn remove(&mut self, order: Order) {
-        *self.cpu.get_mut(order as usize).unwrap() = I::default();
-    }
 }
 
 pub(crate) type Order = i32;
