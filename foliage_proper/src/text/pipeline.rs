@@ -80,10 +80,15 @@ impl Render for Text {
                     .uniform_entry(),
                 Ginkgo::bind_group_layout_entry(1)
                     .at_stages(ShaderStages::FRAGMENT)
-                    .sampler_entry(false),
+                    .sampler_entry(true),
             ],
         });
-        let sampler = ginkgo.create_sampler(false);
+        // Filtered, like the icon and image atlases. At an exact 1:1 quad-to-pixel mapping
+        // this samples texel centers and returns the same values `Nearest` would; when the
+        // mapping drifts it degrades to slight softness instead of snapping whole texel
+        // rows the wrong way. The atlas's own 1-texel `PADDING` is what keeps neighbouring
+        // entries from bleeding in.
+        let sampler = ginkgo.create_sampler(true);
         let bind_group = ginkgo.create_bind_group(&BindGroupDescriptor {
             label: Some("text-bind-group"),
             layout: &bind_group_layout,
@@ -99,7 +104,7 @@ impl Render for Text {
                     .at_stages(ShaderStages::FRAGMENT)
                     .texture_entry(
                         TextureViewDimension::D2,
-                        TextureSampleType::Float { filterable: false },
+                        TextureSampleType::Float { filterable: true },
                     ),
                 Ginkgo::bind_group_layout_entry(1)
                     .at_stages(ShaderStages::VERTEX)
