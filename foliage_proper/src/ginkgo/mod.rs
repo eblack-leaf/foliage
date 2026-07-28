@@ -472,7 +472,7 @@ impl Default for ScaleFactor {
 impl ScaleFactor {
     /// The ratio itself.
     pub fn value(&self) -> f32 {
-        self.0.round()
+        self.0
     }
     pub(crate) fn new(f: f32) -> Self {
         Self(f)

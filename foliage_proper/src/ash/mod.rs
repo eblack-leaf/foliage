@@ -329,11 +329,18 @@ impl Ash {
                         )
                         .unwrap_or_default();
                 }
+                // Expanded outward to whole pixels rather than truncated: a fractional
+                // scale factor makes these physical rects fractional, and `as u32` would
+                // shave the right/bottom edge of every clipped region.
+                let left = section.left().floor().max(0.0);
+                let top = section.top().floor().max(0.0);
+                let right = section.right().ceil().max(left);
+                let bottom = section.bottom().ceil().max(top);
                 rpass.set_scissor_rect(
-                    section.left() as u32,
-                    section.top() as u32,
-                    section.width() as u32,
-                    section.height() as u32,
+                    left as u32,
+                    top as u32,
+                    (right - left) as u32,
+                    (bottom - top) as u32,
                 );
                 let parameters = span.parameters(section);
                 match span.pipeline {
