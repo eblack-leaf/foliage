@@ -19,6 +19,15 @@ use bevy_ecs::world::DeferredWorld;
     CachedVisibility,
     AutoVisibility
 )]
+/// Whether an entity is drawn -- the author's own switch, and the only one of the four
+/// visibility components meant to be written.
+///
+/// Hiding an entity hides everything beneath it: the flag is combined down the `Stem`
+/// chain into [`InheritedVisibility`], and the answer the renderer reads is
+/// [`ResolvedVisibility`]. A child therefore cannot show itself out of a hidden parent.
+///
+/// Hidden entities stay spawned and keep their state; they are skipped by drawing and by
+/// hit-testing. To take one out of the tree entirely, despawn it.
 pub struct Visibility {
     visible: bool,
 }
@@ -29,9 +38,12 @@ impl Attachment for Visibility {
     }
 }
 impl Visibility {
+    /// `true` to draw, `false` to hide this entity and its subtree.
     pub fn new(v: bool) -> Self {
         Self { visible: v }
     }
+    /// This entity's own flag, ignoring its ancestors. For the effective answer, read
+    /// [`ResolvedVisibility`].
     pub fn visible(&self) -> bool {
         self.visible
     }
@@ -122,6 +134,11 @@ impl Visibility {
         }
     }
 }
+/// The engine's own veto, held separately from the author's [`Visibility`] so the two
+/// never overwrite each other.
+///
+/// Cleared when an entity's `Location` cannot resolve -- an anchor pointing at something
+/// hidden or gone, leaving no box to draw in. Restored by the resolve that succeeds.
 #[derive(Component, Copy, Clone)]
 #[component(on_insert = Visibility::on_insert)]
 pub(crate) struct AutoVisibility {
@@ -137,6 +154,9 @@ impl Default for AutoVisibility {
         Self::new(true)
     }
 }
+/// Last frame's [`ResolvedVisibility`], so a change of state can be detected and acted on
+/// once -- sending render removals on hide, and re-sending cached attributes on show --
+/// rather than every frame it stays hidden.
 #[derive(Component, Copy, Clone)]
 pub(crate) struct CachedVisibility {
     pub(crate) visible: bool,
@@ -151,6 +171,9 @@ impl Default for Visibility {
         Self::new(true)
     }
 }
+/// What this entity's ancestors permit: `false` as soon as any one of them is hidden.
+/// Maintained by the engine; combined with the entity's own [`Visibility`] to give
+/// [`ResolvedVisibility`].
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
 #[component(on_insert = Visibility::on_insert)]
 pub struct InheritedVisibility {
@@ -161,11 +184,16 @@ impl Default for InheritedVisibility {
         Self { visible: true }
     }
 }
+/// Whether this entity is actually drawn: its own [`Visibility`], every ancestor's, and
+/// the engine's [`AutoVisibility`] veto, combined.
+///
+/// Read-only -- this is the answer, not a control. Write [`Visibility`] to change it.
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
 pub struct ResolvedVisibility {
     visible: bool,
 }
 impl ResolvedVisibility {
+    /// `true` when this entity is drawn and hit-tested.
     pub fn visible(&self) -> bool {
         self.visible
     }

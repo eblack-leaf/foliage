@@ -34,6 +34,20 @@ impl Attachment for Grid {
             .add_systems(extent_check.in_set(DiffMarkers::Prepare));
     }
 }
+/// The coordinate system a parent offers its children, per breakpoint.
+///
+/// Any entity whose children position themselves with `.col()`/`.row()` needs one -- and
+/// in fact **every** parent of a positioned child needs a `Grid`, even a single-cell
+/// `Grid::new(1.col().gap(0), 1.row().gap(0))`, since that is what a child's `Location`
+/// resolves against.
+///
+/// Columns and rows can be sized in fractions of the parent (`3.col()`), fixed pixels, or
+/// characters (`1.letters()`, taking its pitch from the parent's own
+/// [`FontSize`](crate::FontSize)). [`Gap`] is the space *between* tracks, never outside
+/// them.
+///
+/// Requires [`View`], so every grid-bearing entity can also be scrolled -- most never
+/// are, having nothing that overflows.
 #[derive(Component, Copy, Clone)]
 #[require(View)]
 pub struct Grid {
@@ -50,6 +64,8 @@ impl Default for Grid {
     }
 }
 impl Grid {
+    /// A grid used at every breakpoint: `Grid::new(3.col().gap(8), 2.row())`. Add
+    /// exceptions with [`sm`](Self::sm)/[`md`](Self::md)/[`lg`](Self::lg)/[`xl`](Self::xl).
     pub fn new<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(ha: HA, va: VA) -> Self {
         Self {
             xs: (ha.into(), va.into()).into(),
@@ -59,6 +75,7 @@ impl Grid {
             xl: None,
         }
     }
+    /// Overrides the configuration from the `sm` breakpoint up.
     pub fn sm<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(
         mut self,
         ha: HA,
@@ -67,6 +84,7 @@ impl Grid {
         self.sm.replace((ha.into(), va.into()).into());
         self
     }
+    /// Overrides the configuration from the `md` breakpoint up.
     pub fn md<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(
         mut self,
         ha: HA,
@@ -75,6 +93,7 @@ impl Grid {
         self.md.replace((ha.into(), va.into()).into());
         self
     }
+    /// Overrides the configuration from the `lg` breakpoint up.
     pub fn lg<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(
         mut self,
         ha: HA,
@@ -83,6 +102,7 @@ impl Grid {
         self.lg.replace((ha.into(), va.into()).into());
         self
     }
+    /// Overrides the configuration from the `xl` breakpoint up.
     pub fn xl<HA: Into<GridAxisDescriptor>, VA: Into<GridAxisDescriptor>>(
         mut self,
         ha: HA,
@@ -112,6 +132,7 @@ impl Grid {
             self.at_least_md()
         }
     }
+    /// The configuration in force at `layout`, falling back down the breakpoints to `xs`.
     pub fn config(&self, layout: Layout) -> GridConfiguration {
         match layout {
             Layout::Xs => self.xs,
@@ -128,6 +149,7 @@ impl Grid {
         }
     }
 }
+/// One breakpoint's worth of grid: how the horizontal and vertical axes are divided.
 #[derive(Copy, Clone)]
 pub struct GridConfiguration {
     pub columns: GridAxisDescriptor,
@@ -138,12 +160,14 @@ impl From<(GridAxisDescriptor, GridAxisDescriptor)> for GridConfiguration {
         Self { columns, rows }
     }
 }
+/// One axis of a [`Grid`]: how it is divided, and the space between the resulting tracks.
 #[derive(Copy, Clone)]
 pub struct GridAxisDescriptor {
     pub value: LocationValue,
     pub gap: Gap,
 }
 impl GridAxisDescriptor {
+    /// Sets the gap between tracks on this axis, in logical pixels.
     pub fn gap(mut self, g: CoordinateUnit) -> Self {
         self.gap = Gap { amount: g };
         self
@@ -157,6 +181,8 @@ impl From<LocationValue> for GridAxisDescriptor {
         }
     }
 }
+/// Space between adjacent tracks, in logical pixels. Applies only between tracks, so an
+/// n-track axis has n-1 gaps and no outer margin.
 #[derive(Copy, Clone, Debug)]
 pub struct Gap {
     pub amount: CoordinateUnit,

@@ -790,9 +790,8 @@ mod tests {
 
     #[test]
     fn coast_stops_immediately_once_the_same_view_is_grabbed_again() {
-        // the reported bug: starting a fresh drag on a still-coasting view (or on
-        // something inside it) shouldn't leave the coast still writing its own stale
-        // `ViewAdjustment` back over the new drag's real one.
+        // A fresh drag on a still-coasting view -- or on something inside it -- must not
+        // leave the coast writing its own stale `ViewAdjustment` over the new drag's.
         let mut foliage = Foliage::new();
         let parent = spawn_view(&mut foliage);
         foliage.world.entity_mut(parent).insert(Coasting {

@@ -9,18 +9,32 @@ pub mod points;
 pub mod position;
 pub mod section;
 
+/// Marker for which coordinate space a [`Position`](position::Position),
+/// [`Area`](area::Area), [`Section`](section::Section) or [`Points`](points::Points) is
+/// expressed in.
+///
+/// Carried as a type parameter so the two real spaces cannot be mixed by accident -- a
+/// `Section<Logical>` will not go where a `Section<Physical>` is wanted. Convert
+/// deliberately with `to_physical`/`to_logical` and the current
+/// [`ScaleFactor`](crate::ScaleFactor).
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone + Default,
 {
 }
 
+/// Device pixels -- what the GPU and the windowing system deal in. Logical units times
+/// the display's scale factor.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct Physical;
 
+/// Scale-factor-independent pixels, and the space all layout is authored in. A
+/// `Location` written in `px` means these, so a UI keeps its size across displays.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct Logical;
 
+/// Neither space: a bare pair of numbers reusing the same vector arithmetic, for
+/// quantities that are not positions on screen.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Default, Debug, Serialize, Deserialize)]
 pub struct Numerical;
 
@@ -30,8 +44,13 @@ impl CoordinateContext for Logical {}
 
 impl CoordinateContext for Numerical {}
 
+/// The scalar every coordinate type is built from.
 pub type CoordinateUnit = f32;
 
+/// Two [`CoordinateUnit`]s in GPU-upload layout -- the shared backing for
+/// [`Position`](position::Position) and [`Area`](area::Area), and the arithmetic they
+/// both inherit. Its fields are named `a`/`b` rather than x/y or width/height because
+/// which they mean depends on the wrapper.
 #[repr(C)]
 #[derive(Copy, Clone, PartialOrd, PartialEq, Pod, Zeroable, Default)]
 pub struct Coordinates(pub [CoordinateUnit; 2]);
@@ -40,10 +59,8 @@ impl Display for Coordinates {
         f.write_fmt(format_args!("[{} {}]", self.a(), self.b()))
     }
 }
-// `derive(Debug)` printed `Coordinates([12.0, -31092.0])` -- `{:?}` in `tracing::trace!`
-// fields (the `?field` shorthand) is what every trace call in this codebase uses, so that
-// verbosity was in every logged coordinate. `Display` above is already the compact form;
-// `Debug` just delegates to it instead of duplicating the formatting logic.
+// Delegated to `Display` so `{:?}` -- what every trace call here uses -- logs the compact
+// `[12 -31092]` rather than the derived `Coordinates([12.0, -31092.0])`.
 impl std::fmt::Debug for Coordinates {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(self, f)

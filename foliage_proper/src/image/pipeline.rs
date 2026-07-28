@@ -22,8 +22,8 @@ use wgpu::{
 pub(crate) struct Resources {
     group_layout: BindGroupLayout,
     entity_to_memory: HashMap<Entity, GroupId>,
-    /// Auto-allocated GPU group identity, keyed by `AssetKey` -- replaces the old
-    /// hand-assigned `MemoryId` the caller used to have to invent and keep in sync.
+    /// GPU group identity, allocated here and keyed by `AssetKey`, so callers never
+    /// invent or track one themselves.
     key_to_group: HashMap<AssetKey, GroupId>,
     next_group: GroupId,
 }

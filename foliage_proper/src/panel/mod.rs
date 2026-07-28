@@ -32,6 +32,17 @@ mod vertex;
 #[require(Differential<Self, ClipContext>)]
 #[component(on_add = Self::on_add)]
 #[component(on_insert = Self::on_insert)]
+/// A filled rectangle with optionally rounded corners and an optional outline -- the
+/// background primitive nearly every composite is built on.
+///
+/// Spawned through [`Panel::new`]. Shape comes from three independent components:
+/// [`Rounding`] (how much), [`Side`] (which corners), and [`Outline`] (ring instead of
+/// fill). The per-corner geometry the shader consumes is computed from those, never
+/// authored -- see `Panel::update`.
+///
+/// [`Rounding::Full`] also switches the entity's hit test to
+/// [`InteractionShape::Circle`](crate::InteractionShape), so a pill or dot only responds
+/// where it is actually drawn.
 pub struct Panel {
     pub(crate) corner_i: Corner,
     pub(crate) corner_ii: Corner,
@@ -39,6 +50,8 @@ pub struct Panel {
     pub(crate) corner_iv: Corner,
 }
 impl Panel {
+    /// Starts a [`Panel`] entity:
+    /// `tree.branch(parent, Panel::new().color(c).rounding(Rounding::Md).at(loc))`.
     pub fn new() -> PanelSprout {
         PanelSprout::default()
     }
@@ -103,15 +116,11 @@ impl Panel {
                 };
                 if let Ok(mut panel) = panels.get_mut(this) {
                     let edge_adjust = 0.15;
-                    // the vertex stage insets every corner's segment quad uniformly by
-                    // corner_i's own depth (panel.wgsl reads only corner_i.x for that), so a
-                    // squared corner can't shrink its mesh region independently -- instead it
-                    // gets a far/near pushed well past any distance reachable inside that
-                    // region, so the rounding curve never bends and it reads flush. A real
-                    // Outline on a squared corner degrades to a solid fill there (no mitered
-                    // right angle) rather than a hollow ring -- the ring math is radial-
-                    // distance based and can't produce a sharp corner; harmless for the
-                    // common unoutlined case this exists for (segmented control ends, etc).
+                    // A squared corner is expressed as an unreachable radius, not a
+                    // smaller mesh region: `panel.wgsl` insets every corner's quad by
+                    // `corner_i`'s depth alone, so the corners cannot size independently.
+                    // Pushing far/near past any distance inside the region leaves the
+                    // curve unbent, which reads flush.
                     let sentinel = depth * 4.0 + 10.0;
                     let far = |rounded: bool| {
                         if rounded {
@@ -171,6 +180,7 @@ impl Attachment for Panel {
         foliage.enable_animation::<Outline>();
     }
 }
+/// Builder for a [`Panel`] entity -- see [`Panel::new`].
 #[derive(Default)]
 pub struct PanelSprout {
     leaf: crate::LeafSprout,
@@ -194,18 +204,23 @@ impl crate::Sprout for PanelSprout {
     }
 }
 impl PanelSprout {
+    /// Fill color, or the ring's color when an [`Outline`] is set.
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self
     }
+    /// Corner radius bracket. Applies to the corners [`Side`] names; defaults to square.
     pub fn rounding(mut self, r: Rounding) -> Self {
         self.rounding = Some(r);
         self
     }
+    /// Restricts [`Rounding`] to particular corners. Defaults to all four.
     pub fn side(mut self, s: Side) -> Self {
         self.side = Some(s);
         self
     }
+    /// Draws a ring of this width in logical pixels instead of a solid fill. Squared
+    /// corners fill solid rather than mitering -- see [`Outline`].
     pub fn outline(mut self, w: i32) -> Self {
         self.outline = Some(w);
         self
@@ -291,6 +306,12 @@ impl Side {
         }
     }
 }
+/// Corner radius as a bracket rather than a raw pixel count, so radii stay consistent
+/// across a UI and scale with the panel.
+///
+/// Resolved against the panel's own shorter side, so `Md` on a small chip and on a large
+/// card read as the same treatment. [`Full`](Rounding::Full) rounds to a pill or circle
+/// and switches the hit test to match. Which corners are affected is [`Side`]'s job.
 #[derive(Component, Copy, Clone, Default, Eq, PartialEq)]
 #[component(on_insert = Self::on_insert)]
 pub enum Rounding {
@@ -341,6 +362,12 @@ impl Corner {
         }
     }
 }
+/// Draws the panel as a ring of this width in logical pixels instead of a solid fill;
+/// `0` is solid. Animatable, so a border can be drawn on.
+///
+/// The ring is computed from radial distance, which has no sharp-corner form: on a corner
+/// [`Side`] leaves squared, the outline fills solid there rather than mitering a right
+/// angle.
 #[derive(Component, Copy, Clone, PartialEq)]
 #[component(on_insert = Self::on_insert)]
 pub struct Outline {

@@ -150,9 +150,8 @@ impl Image {
             .observe(Remove::push_remove_packet::<Self>);
     }
     /// Decodes once bytes are available (native: always; wasm: once the async fetch
-    /// resolves) and pushes real dimensions + pixel data together -- there's no longer a
-    /// separately-declared size to keep in sync, and no window where a texture exists
-    /// without real data in it.
+    /// resolves) and pushes dimensions and pixel data together, so a size is never
+    /// declared separately from the data it describes and no texture exists unfilled.
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         let value = *world.get::<Image>(this).unwrap();

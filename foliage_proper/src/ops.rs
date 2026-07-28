@@ -5,6 +5,12 @@ use bevy_ecs::prelude::{EntityEvent, Event};
 use bevy_ecs::system::ResMut;
 use std::collections::HashMap;
 
+/// "`W` on this entity has settled to a new value" -- the completion half of the resolve
+/// protocol, paired with [`Resolve`].
+///
+/// Fired *by* whatever computed the value, *after* writing it, so an observer of
+/// `Resolved<Section<Logical>>` can read the fresh section. This is the event to watch to
+/// react to something; [`Resolve`] is the one to fire to request it.
 #[derive(EntityEvent)]
 pub struct Resolved<W: Send + Sync + 'static> {
     entity: Entity,
@@ -40,6 +46,12 @@ impl<W: Send + Sync + 'static> TargetedEvent for Resolved<W> {
         self.entity = entity;
     }
 }
+/// "Recompute `U` for this entity" -- the request half of the resolve protocol, paired
+/// with [`Resolved`].
+///
+/// Fired *at* whatever owns the computation, typically because an input it depends on
+/// changed. Handlers are expected to be idempotent: a redundant request should recompute
+/// the same answer rather than misbehave, since several inputs can each ask in one frame.
 #[derive(EntityEvent)]
 pub struct Resolve<U: Send + Sync + 'static> {
     entity: Entity,
@@ -75,11 +87,15 @@ impl<U: Send + Sync + 'static> TargetedEvent for Resolve<U> {
         self.entity = entity;
     }
 }
+/// Named entities, so one part of a UI can reach another without the spawning code
+/// having to hand the `Entity` down through every layer between them.
 #[derive(Resource, Default)]
 pub struct Named {
     map: HashMap<String, Entity>,
 }
 impl Named {
+    /// The entity stored under `n`. Panics if nothing was named that -- names are
+    /// expected to be a fixed, author-controlled set.
     pub fn get<S: AsRef<str>>(&self, n: S) -> Entity {
         self.map[n.as_ref()]
     }
@@ -100,11 +116,14 @@ impl Name {
         named.map.insert(event.0.clone(), event.1);
     }
 }
+/// Named [`AssetKey`]s, so a loaded asset can be reached by the string it was registered
+/// under instead of by threading its key through construction.
 #[derive(Resource, Default)]
 pub struct Keyring {
     map: HashMap<String, AssetKey>,
 }
 impl Keyring {
+    /// The asset key stored under `n`. Panics if nothing was registered under it.
     pub fn get<S: AsRef<str>>(&self, n: S) -> AssetKey {
         self.map[n.as_ref()]
     }

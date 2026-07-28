@@ -3,6 +3,14 @@ use crate::{Animate, Attachment, Component, Foliage};
 use bevy_color::Alpha;
 use bevy_color::palettes::tailwind;
 
+/// An sRGBA color, and the color channel every primitive reads.
+///
+/// Usually built from the Tailwind palette rather than raw channels --
+/// `Color::slate(500)`, `Color::amber(400)` -- so a UI draws from one consistent ramp.
+/// See [`Luminance`] for how the number is read. [`Color::new`] takes raw 0..1 channels
+/// when a palette entry won't do.
+///
+/// Animatable: tweening a `Color` interpolates each channel independently.
 #[derive(Component, Copy, Clone, PartialEq, Debug)]
 pub struct Color {
     pub value: bevy_color::Srgba,
@@ -38,6 +46,7 @@ impl Animate for Color {
         }
     }
 }
+/// [`Color`] as four contiguous floats, laid out for upload to the GPU.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CReprColor {
@@ -70,6 +79,12 @@ impl From<Color> for wgpu::Color {
         }
     }
 }
+/// A step on the Tailwind lightness ramp, from `Fifty` (lightest) to `NineHundredFifty`
+/// (darkest).
+///
+/// Written as a plain number at the call site -- `Color::blue(600)` -- via the `From<i32>`
+/// conversion, which rounds *down* to the nearest step, so any number in 600..700 gives
+/// `SixHundred` and anything under 100 gives `Fifty`.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Ord, Eq, Hash, Debug)]
 pub enum Luminance {
     Fifty,
@@ -111,6 +126,8 @@ impl From<i32> for Luminance {
         }
     }
 }
+/// Defines one palette constructor: `Color::$name(luminance)` picking the matching step
+/// off that hue's own ramp. One per Tailwind hue, generated below.
 macro_rules! color_fn {
     ($name:ident: $c50:expr, $c100:expr, $c200:expr, $c300:expr, $c400:expr, $c500:expr, $c600:expr, $c700:expr, $c800:expr, $c900:expr, $c950:expr) => {
         pub fn $name<L: Into<Luminance>>(l: L) -> Self {
@@ -133,39 +150,54 @@ macro_rules! color_fn {
     };
 }
 impl Color {
+    /// Raw sRGBA channels, each 0..1. Prefer a palette constructor
+    /// (`Color::slate(500)`) where one fits.
     pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
         Self {
             value: bevy_color::Srgba::new(red, green, blue, alpha),
         }
     }
+    /// Red channel, 0..1.
     pub fn r(&self) -> f32 {
         self.value.red
     }
+    /// Green channel, 0..1.
     pub fn g(&self) -> f32 {
         self.value.green
     }
+    /// Blue channel, 0..1.
     pub fn b(&self) -> f32 {
         self.value.blue
     }
+    /// Alpha channel, 0..1.
     pub fn a(&self) -> f32 {
         self.value.alpha
     }
+    /// Scales the existing alpha by `value` rather than replacing it, so this composes:
+    /// applying it twice at `0.5` leaves a quarter. For animating a whole subtree's
+    /// transparency, use [`Opacity`](crate::Opacity) instead -- this is a fixed property
+    /// of one color.
     pub fn with_opacity(mut self, value: f32) -> Self {
         self.value = self.value.with_alpha(value * self.a());
         self
     }
+    /// Sets the red channel, 0..1.
     pub fn set_red(&mut self, red: f32) {
         self.value.red = red;
     }
+    /// Sets the green channel, 0..1.
     pub fn set_green(&mut self, green: f32) {
         self.value.green = green;
     }
+    /// Sets the blue channel, 0..1.
     pub fn set_blue(&mut self, blue: f32) {
         self.value.blue = blue;
     }
+    /// Sets the alpha channel, 0..1.
     pub fn set_alpha(&mut self, alpha: f32) {
         self.value.alpha = alpha;
     }
+    /// This color in its GPU-upload layout.
     pub fn c_repr(&self) -> CReprColor {
         CReprColor::from(*self)
     }

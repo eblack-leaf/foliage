@@ -71,8 +71,14 @@ impl Default for Foliage {
 }
 
 impl Foliage {
+    /// Logical pixels one wheel notch scrolls, before a view's own
+    /// [`ScrollInertia`](crate::grid::view::ScrollInertia) scaling.
     pub const SCROLL_SENSITIVITY: f32 = 40.0;
+    /// Scroll direction multiplier where content follows the gesture -- push up, content
+    /// goes up. The touch convention.
     pub const NATURAL_SCROLLING: f32 = -1.0;
+    /// Scroll direction multiplier where the *viewport* follows the gesture -- push up,
+    /// you move down the page. The wheel convention.
     pub const VIEW_SCROLLING: f32 = 1.0;
     /// Every other platform's entry point owns nothing external -- this is the one place
     /// there's a real handle (the `AndroidApp` Android hands you at process start) that has
@@ -83,6 +89,8 @@ impl Foliage {
     pub fn android(app: crate::AndroidApp) -> Foliage {
         Self::build(AndroidConnection(app))
     }
+    /// A new engine instance. Attach what the app needs, build the tree, then hand
+    /// control over with [`photosynthesize`](Self::photosynthesize).
     #[cfg(not(target_os = "android"))]
     pub fn new() -> Foliage {
         Self::build(AndroidConnection::default())
@@ -192,6 +200,8 @@ impl Foliage {
             }
         }
     }
+    /// Requests an initial window size on desktop. Ignored where the platform owns the
+    /// window's size.
     pub fn desktop_size<V: Into<Area<Physical>>>(&mut self, v: V) {
         self.willow.requested_size.replace(v.into());
     }

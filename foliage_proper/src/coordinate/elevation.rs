@@ -205,12 +205,11 @@ impl Elevation {
         // This computes only `StackKey` -- the tree-structured *ordering* truth. It does NOT
         // write `ResolvedElevation`: that (the GPU depth scalar) is owned solely by
         // `ash::assign_elevations`, which derives it from `StackKey` order via a
-        // gapped/fractional-index scheme. Writing it here too used to fight that: the additive
-        // value could resolve outside the GPU's depth range (a deep `up(n)` chain), and since
-        // `assign_elevations` only re-derives on `StackKey` *change* (position-independent),
-        // any later re-run of this system would clobber the good rank value with the bad
-        // additive one and it would never get reclaimed -- an overlay flashing in for one
-        // frame then depth-culling away.
+        // gapped/fractional-index scheme. Writing it from here as well would fight that:
+        // the additive value can fall outside the GPU's depth range on a deep `up(n)`
+        // chain, and since `assign_elevations` only re-derives on `StackKey` *change*, a
+        // later re-run here would overwrite the good rank with the bad additive one and
+        // never reclaim it.
         //
         // `StackKey`: a `ClipToViewport`-marked entity resets its prefix (fresh top-level
         // baseline) instead of inheriting the parent's key; every other entity inherits it

@@ -3,6 +3,8 @@ use wasm_bindgen::JsCast;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::closure::Closure;
 
+/// A URL the app can navigate to. No-op off the web -- the whole type compiles away to
+/// nothing on native, so callers need no `cfg` of their own.
 #[derive(Clone)]
 #[allow(unused)]
 pub struct HrefLink {
@@ -10,11 +12,15 @@ pub struct HrefLink {
 }
 #[allow(unused)]
 impl HrefLink {
+    /// A link to `s`.
     pub fn new<S: AsRef<str>>(s: S) -> Self {
         Self {
             href: s.as_ref().to_string(),
         }
     }
+    /// Navigates the page to this URL, by synthesizing and clicking a hidden anchor --
+    /// an anchor click, unlike assigning `location`, is what browsers treat as
+    /// user-initiated, so it is not blocked as a popup.
     pub fn navigate(&self) {
         #[cfg(target_family = "wasm")]
         {
@@ -43,6 +49,12 @@ impl HrefLink {
     }
 }
 
+/// Browser capabilities with no engine equivalent -- downloads, and playing media in a
+/// DOM overlay above the canvas.
+///
+/// Every method is a no-op off the web, so calling code stays `cfg`-free. Media plays in
+/// a real DOM element rather than being rendered by the engine: the browser owns the
+/// codecs and the controls.
 pub struct Extensions {}
 impl Extensions {
     #[allow(unused)]
@@ -50,6 +62,7 @@ impl Extensions {
     #[allow(unused)]
     const BUTTON_HANDLE: &'static str = "media-overlay-trigger";
     #[allow(unused)]
+    /// Prompts the browser to download `href`.
     pub fn download(href: &str) {
         #[cfg(target_family = "wasm")]
         {
@@ -73,6 +86,8 @@ impl Extensions {
         }
     }
     #[allow(unused)]
+    /// Opens `src` as a `<video>` in the overlay, `ty` being its MIME type. Dismiss with
+    /// [`remove`](Self::remove).
     pub fn web_video(src: &str, ty: &str) {
         #[cfg(target_family = "wasm")]
         {
@@ -88,6 +103,8 @@ impl Extensions {
     }
     #[cfg(not(target_family = "wasm"))]
     #[allow(unused)]
+    /// Native counterpart to [`web_video`](Self::web_video): hands `src` to the system's
+    /// own player.
     pub fn native_video(src: &str) {
         #[cfg(not(target_family = "wasm"))]
         {
@@ -95,6 +112,8 @@ impl Extensions {
         }
     }
     #[allow(unused)]
+    /// Opens `src` as an embedded document in the overlay. Dismiss with
+    /// [`remove`](Self::remove).
     pub fn web_document(src: &str) {
         #[cfg(target_family = "wasm")]
         {
@@ -110,6 +129,8 @@ impl Extensions {
         }
     }
     #[allow(unused)]
+    /// Native counterpart to [`web_document`](Self::web_document): opens `src` in the
+    /// system's own viewer.
     pub fn native_document(src: &str) {
         #[cfg(not(target_family = "wasm"))]
         {
@@ -163,6 +184,7 @@ impl Extensions {
         }
     }
     #[allow(unused)]
+    /// Tears down the media overlay, restoring the canvas underneath.
     pub fn remove() {
         #[cfg(target_family = "wasm")]
         {

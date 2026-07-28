@@ -8,6 +8,14 @@ use bevy_ecs::world::DeferredWorld;
 
 #[derive(Component, Copy, Clone)]
 #[component(on_insert = Self::on_insert)]
+/// Forces a resolved [`Section`](crate::Section) to a width-over-height ratio, per
+/// breakpoint.
+///
+/// Applied after the entity's `Location` resolves, so it constrains whatever box the
+/// layout produced rather than replacing it. The constrained box stays centered on the
+/// original, so anchors pointing at its center or edges land where siblings expect.
+///
+/// Falls back down the breakpoints like every responsive type; unset means unconstrained.
 pub struct AspectRatio {
     pub xs: Option<f32>,
     pub sm: Option<f32>,
@@ -22,6 +30,7 @@ impl Default for AspectRatio {
 }
 
 impl AspectRatio {
+    /// An unconstrained ratio. Set at least one breakpoint for it to do anything.
     pub fn new() -> Self {
         Self {
             xs: None,
@@ -31,22 +40,27 @@ impl AspectRatio {
             xl: None,
         }
     }
+    /// Width over height at every breakpoint -- `1.0` square, `16.0 / 9.0` widescreen.
     pub fn xs(mut self, xs: f32) -> Self {
         self.xs = Some(xs);
         self
     }
+    /// Width over height from the `sm` breakpoint up -- `1.0` square, `16.0 / 9.0` widescreen.
     pub fn sm(mut self, sm: f32) -> Self {
         self.sm = Some(sm);
         self
     }
+    /// Width over height from the `md` breakpoint up -- `1.0` square, `16.0 / 9.0` widescreen.
     pub fn md(mut self, md: f32) -> Self {
         self.md = Some(md);
         self
     }
+    /// Width over height from the `lg` breakpoint up -- `1.0` square, `16.0 / 9.0` widescreen.
     pub fn lg(mut self, lg: f32) -> Self {
         self.lg = Some(lg);
         self
     }
+    /// Width over height at the `xl` breakpoint -- `1.0` square, `16.0 / 9.0` widescreen.
     pub fn xl(mut self, xl: f32) -> Self {
         self.xl = Some(xl);
         self
@@ -55,6 +69,8 @@ impl AspectRatio {
         let this = ctx.entity;
         world.trigger_targets(Resolve::<Location>::new(), this);
     }
+    /// The largest box of this ratio that fits *inside* `section`, centered on it.
+    /// `None` when no ratio applies at `layout`.
     pub fn constrain<Context: CoordinateContext>(
         &self,
         section: Section<Context>,
@@ -67,11 +83,9 @@ impl AspectRatio {
                 attempted_width -= 1.0;
                 attempted_height = attempted_width * 1.0 / c;
             }
-            // recenter the shrunk box within the original section on both axes -- leaving
-            // `section.position` untouched pins the result to the original top-left corner,
-            // silently shifting anything anchored to the shape's own center/edges away from
-            // where every non-anchored sibling (a fixed row, a percent-based line) assumes
-            // that center to be.
+            // Recentered on the original box rather than pinned to its top-left, so the
+            // shape's own center and edges stay where anchored siblings resolve against
+            // them.
             let diff = Position::from((
                 (section.width() - attempted_width) * 0.5,
                 (section.height() - attempted_height) * 0.5,
@@ -82,6 +96,8 @@ impl AspectRatio {
         }
         None
     }
+    /// The smallest box of this ratio that *covers* `section` -- the opposite of
+    /// [`constrain`](Self::constrain), overflowing rather than fitting within.
     pub fn fit<Context: CoordinateContext>(
         &self,
         section: Section<Context>,
@@ -137,6 +153,7 @@ impl AspectRatio {
             self.at_least_lg()
         }
     }
+    /// The ratio in force at `layout`, falling back down the breakpoints.
     pub fn config(&self, layout: Layout) -> Option<f32> {
         match layout {
             Layout::Xs => self.at_least_xs(),

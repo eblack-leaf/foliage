@@ -144,8 +144,8 @@ impl Sprout for CarouselSprout {
         // delta landing on the viewport's own offset too would fight that animation and
         // drift the strip out of sync with where paging thinks it put it (the extent
         // spans every slot, on- and off-screen, so a pan attempt here is not the no-op it
-        // used to look like once the interaction walk-up was taught to skip past disabled
-        // views and keep going instead of stopping dead at the first one it finds).
+        // is not a no-op: the interaction walk-up skips past disabled views and keeps
+        // going rather than stopping at the first one it finds).
         let viewport = tree.branch(
             this,
             Leaf::sprout()
@@ -219,12 +219,11 @@ impl Sprout for CarouselSprout {
                     // `disable_drag` (the same primitive Slider's knob already uses) stops
                     // drag from auto-panning this slot's own View at all -- there's nothing
                     // left to skew the carousel with, since paging is driven entirely by the
-                    // Disengaged subscribe below, not View panning. Unlike
-                    // `OverscrollPropagation(false)` (what used to be here), this doesn't
-                    // also block wheel-scroll from reaching the page behind the carousel --
-                    // wheel bypasses `disable_drag` unconditionally (see the fix already in
-                    // `interaction/mod.rs` for the same class of problem on text-input
-                    // cursors/slider knobs).
+                    // Disengaged subscribe below, not View panning. `disable_drag` rather
+                    // than `OverscrollPropagation(false)`, because wheel bypasses
+                    // `disable_drag` unconditionally -- so scrolling still reaches the page
+                    // behind the carousel, as it does past a text-input cursor or a slider
+                    // knob.
                     let slot = tree.branch(
                         viewport,
                         Leaf::sprout()

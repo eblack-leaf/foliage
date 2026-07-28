@@ -123,11 +123,9 @@ mod tests {
         );
     }
 
-    /// `LocationValue::gap` used to `debug_assert!` against `Letters`, even though
-    /// `calc()`'s column-pitch resolution reads `grid.columns.gap.amount` unconditionally
-    /// regardless of which value variant computed the pitch -- the assert disallowed a
-    /// combination the resolver already supported. This proves `N.letters().gap(g)` no
-    /// longer panics -- with only one column, there's nothing for the gap to sit *between*
+    /// `N.letters().gap(g)` is a legal combination: column-pitch resolution reads
+    /// `grid.columns.gap.amount` whichever value variant computed the pitch. With only one
+    /// column there is nothing for the gap to sit *between*
     /// (`grid/location.rs`'s own resolution now spends `(n - 1)` gaps across `n` columns,
     /// matching ordinary CSS grid, not `(n + 1)` -- a leading/trailing margin `gap`, on its
     /// own, was never supposed to add), so the single cell still spans the field's own full

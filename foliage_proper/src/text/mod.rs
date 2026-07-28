@@ -87,9 +87,26 @@ impl Attachment for Text {
 #[require(TextBounds, Differential<Text, TextBounds>)]
 #[component(on_add = Text::on_add)]
 #[component(on_insert = Text::on_insert)]
+/// A run of monospaced glyphs, laid out by fontdue into the entity's own
+/// [`Section`](crate::Section) and drawn from a per-entity glyph atlas.
+///
+/// This is the render marker and is spawned through [`Text::new`], not constructed
+/// directly. To change the string afterwards, write [`TextValue`](crate::TextValue) --
+/// the public value channel every text-bearing composite shares.
+///
+/// Layout is a fixed monospace grid: every glyph advances by the same width, taken from
+/// one reference character at the current [`FontSize`]. That pitch is also what
+/// [`.letters()`](crate::GridExt::letters) resolves against, so a `Location` can be sized
+/// in characters rather than pixels. A glyph wider than the reference advance overhangs
+/// its cell rather than widening it.
+///
+/// The entity's `Section` is the layout box: it bounds wrapping and doubles as the render
+/// scissor. [`TextContentWidth`]/[`TextContentHeight`] invert that, sizing the box from
+/// the glyphs instead.
 pub struct Text {
     pub value: String,
 }
+/// Builder for a [`Text`] entity -- see [`Text::new`].
 #[derive(Default)]
 pub struct TextSprout {
     leaf: crate::LeafSprout,
@@ -112,10 +129,14 @@ impl crate::Sprout for TextSprout {
     }
 }
 impl TextSprout {
+    /// Sets the glyph size, per breakpoint if the [`FontSize`] carries one. Defaults to
+    /// [`FontSize::DEFAULT_SIZE`].
     pub fn size(mut self, s: FontSize) -> Self {
         self.size = Some(s);
         self
     }
+    /// Sets one color for the whole run. For per-glyph colors, see
+    /// [`glyph_colors`](Self::glyph_colors), which overrides this at the indices it names.
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self
@@ -152,6 +173,12 @@ impl Text {
             }
         }
     }
+    /// Starts a [`Text`] entity carrying `value`:
+    /// `tree.branch(parent, Text::new("hello").size(FontSize::new(24)).at(loc))`.
+    ///
+    /// Chain [`size`](TextSprout::size)/[`color`](TextSprout::color)/
+    /// [`glyph_colors`](TextSprout::glyph_colors) here, and the usual
+    /// [`Sprout`](crate::Sprout) placement (`at`, `elevate`, `with`) as with any leaf.
     pub fn new<S: AsRef<str>>(value: S) -> TextSprout {
         TextSprout {
             value: value.as_ref().to_string(),
@@ -272,18 +299,13 @@ impl Text {
         let content_changed = cache.get(this).unwrap().text.value != current.text.value;
         if cache.get(this).unwrap() != &current {
             let old = cache.get(this).unwrap().clone();
-            // A pure position shift (this entity repositioned by a parent's scroll offset, its
-            // own `Section.position` changing with `width`/`height` untouched) doesn't affect
-            // wrapping or glyph shapes at all -- only where the already-laid-out glyphs get
-            // drawn. Re-running `layout.reset`/`.append` on *every* `UpdateCache` difference
-            // (position included) unconditionally re-marked `Glyphs` Changed even when the
-            // recomputed layout was byte-identical to before. During any scroll -- or the
-            // `Location` write `TextInput::move_cursor` does when following the cursor --
-            // that fired every single frame, and `TextInput::resync_on_glyphs_changed`
-            // reacting to `Changed<Glyphs>` fed straight back into another `Section` write,
-            // never settling (a real hang -- wayland eventually kills an unresponsive
-            // client). Gating the relayout on the fields that actually affect it breaks the
-            // loop at its source instead of trying to dampen it downstream.
+            // Only the inputs fontdue actually consumes; a pure position shift (a parent's
+            // scroll offset moving this box, width and height untouched) changes where the
+            // glyphs are drawn, not how they are laid out. The distinction has to hold:
+            // relayout marks `Glyphs` changed even when it recomputes an identical layout,
+            // and `TextInput::resync_on_glyphs_changed` answers that with another `Section`
+            // write -- so relaying out on position would spin that loop every frame it
+            // scrolls, with nothing to converge on.
             let layout_dirty = old.font_size != current.font_size
                 || old.text != current.text
                 || old.horizontal_alignment != current.horizontal_alignment
@@ -359,11 +381,8 @@ impl Text {
             let mut line_metrics = LineMetrics::default();
             if let Some(lines) = glyphs.layout.lines() {
                 for line in lines {
-                    // fontdue's `glyph_end` is the index of the *last* glyph in the line
-                    // (inclusive), not one-past-the-end -- `lines` here is meant to be a
-                    // glyph *count*, so the index distance alone undercounts by 1 (a 5-glyph
-                    // line has glyph_start=0/glyph_end=4, a distance of 4, not 5). That made
-                    // `TextInputAction::End` land one column short of the true end of line.
+                    // `+ 1` because fontdue's `glyph_end` is inclusive -- the index of the
+                    // last glyph, not one past it -- while `lines` holds counts.
                     line_metrics.lines.push(
                         (line
                             .glyph_end
@@ -407,17 +426,14 @@ impl Text {
                 .clear();
         }
     }
-    // Re-diffs on `Changed<ResolvedVisibility>` too, not just `Changed<Glyphs>` -- the bail
-    // below (`!vis.visible()`) skips the actual diff while hidden, but `clear_last_on_visibility`
-    // already zeroed `glyphs.glyphs` at that point. Going hidden->visible later touches only
-    // `ResolvedVisibility`, not `Glyphs` (the fontdue layout itself never changed), so without
-    // this the loop below never re-ran and `resolved`/`glyphs.glyphs` stayed at their
-    // last-computed-while-visible values forever -- `cached_differential`'s own
-    // visibility-restore path (ash/differential.rs) just re-sends whatever stale `ResolvedGlyphs`
-    // is already sitting there, it doesn't force a fresh diff. A `TextInput`'s hint text hitting
-    // this exact hidden->visible transition (typed text cleared back to empty) was the visible
-    // symptom: it wouldn't reappear until something else (a resize) forced a genuine relayout
-    // and therefore a real `Changed<Glyphs>`.
+    /// Diffs the fontdue layout against last frame's glyphs into [`ResolvedGlyphs`], the
+    /// per-glyph add/update/remove list the render pipeline consumes.
+    ///
+    /// Watches `ResolvedVisibility` as well as `Glyphs` because going hidden zeroes the
+    /// previous-glyph mirror (`clear_last_on_visibility`) while leaving the layout itself
+    /// untouched. Coming back visible therefore changes neither `Glyphs` nor anything
+    /// `cached_differential` would re-send, so this is the only thing that rebuilds the
+    /// list -- without it a re-shown run stays blank until some unrelated relayout.
     fn resolve_glyphs(
         mut glyph_query: Query<
             (
@@ -446,16 +462,11 @@ impl Text {
                         px: g.key.px as u32,
                         font_hash: g.key.font_hash,
                     },
-                    // rounded to whole physical pixels, same as the text element's own
-                    // container position (`text/pipeline.rs`'s own `.rounded()` on
-                    // `Section<Logical>::to_physical`) -- fontdue's own `(g.x, g.y)` are raw
-                    // sub-pixel floats (character advance widths at a given physical font
-                    // size are almost never whole numbers), and drawing a glyph's already-
-                    // rasterized bitmap at a sub-pixel offset resamples/blurs it slightly,
-                    // by a *different* fractional amount per glyph. At scale factors near a
-                    // round number (1.0, 2.0, 1.5) that remainder tends to be small; at an
-                    // odd one (e.g. 1.73) it drifts unpredictably character to character,
-                    // which is what actually read as "glitchy" rather than uniformly soft.
+                    // Snapped to whole physical pixels, matching the container's own
+                    // `.rounded()` in `text/pipeline.rs`. fontdue reports sub-pixel
+                    // positions -- advance widths rarely land on integers -- and sampling
+                    // an already-rasterized bitmap at a fractional offset softens it by a
+                    // different amount per glyph, which reads as uneven rather than blurry.
                     section: Section::physical((g.x, g.y), (g.width, g.height)).rounded(),
                     parent: g.parent,
                     offset: i,
@@ -464,15 +475,9 @@ impl Text {
             resolved.updated.clear();
             resolved.removed.clear();
             let len_last = glyphs.glyphs.len();
-            // Only glyphs that actually differ from last frame belong in `updated` -- this
-            // used to push *every* pre-existing glyph unconditionally on every relayout
-            // (never compared `n` against `g`), so appending a single character to an
-            // already-large document re-flagged the entire, mostly-unchanged glyph list as
-            // updated every time. That differential feeds the render pipeline's per-glyph
-            // instance sync (`text/pipeline.rs`), so it was re-touching every render
-            // instance for the whole document on every keystroke -- the real driver of the
-            // multi-second pastes into an already-large `TextInput` (relayout itself is only
-            // a fraction of that cost).
+            // Compared per index, not pushed wholesale: this list drives one render-instance
+            // write per entry, so a single keystroke in a long document must not re-flag
+            // every glyph in it.
             for (i, g) in glyphs.glyphs.iter().enumerate() {
                 if let Some(n) = new.get(i) {
                     if n != g {
@@ -501,18 +506,42 @@ impl Text {
         }
     }
 }
+/// Per-line glyph counts for the current layout, indexed by line. Cursor navigation reads
+/// these to answer "where does this line end" without re-walking the fontdue layout --
+/// see [`TextInput`](crate::TextInput)'s own `TextInputAction` handling.
 #[derive(Component, Clone, Default)]
 pub(crate) struct LineMetrics {
+    /// Glyph count per line, not an end index: a 5-glyph line stores `5`.
     pub(crate) lines: Vec<u32>,
+    /// Highest column index a cursor may occupy, from the box width over the glyph
+    /// advance. One past the last glyph when the width is content-driven, since there is
+    /// no fixed right edge to stop at.
     pub(crate) max_letter_idx_horizontal: u32,
+    /// Index of each line's final glyph, in the whole run's own index space.
     pub(crate) last_offsets: Vec<u32>,
 }
+/// The scissor the text renders under, in physical pixels -- the entity's own `Section`
+/// at the scale factor in force when the glyphs were last laid out. Kept as its own
+/// component so the renderer clips against the box the current glyphs were fitted to.
 #[derive(Component, Copy, Clone, PartialEq, Debug, Default)]
 pub(crate) struct TextBounds(pub(crate) Section<Physical>);
+/// Take the entity's height from the laid-out glyphs instead of its `Location`.
+///
+/// The `Location`'s own height still decides where the box starts and how wrapping is
+/// measured; this replaces the resulting height once the glyphs are placed. Pair with a
+/// [`text_content()`](crate::text_content) height on a *dependent* entity to have it
+/// follow along.
 #[derive(Component, Copy, Clone, Default)]
 pub struct TextContentHeight(pub bool);
+/// Take the entity's width from the laid-out glyphs instead of its `Location`.
+///
+/// Also disables wrapping: with no fixed right edge there is nothing to wrap against, so
+/// the run stays on one line and the box grows to the glyph advance times the glyph count.
 #[derive(Component, Copy, Clone, Default)]
 pub struct TextContentWidth(pub bool);
+/// How many distinct characters the run uses -- the number of atlas cells the renderer
+/// has to allocate, since the atlas is keyed per character rather than per glyph
+/// occurrence.
 #[derive(Copy, Clone, Component, Default, PartialEq)]
 pub(crate) struct UniqueCharacters(pub(crate) u32);
 impl UniqueCharacters {
@@ -524,6 +553,10 @@ impl UniqueCharacters {
         Self(set.len() as u32)
     }
 }
+/// [`FontSize`] collapsed to the one value the current [`Layout`] selects -- the size
+/// glyph layout and `.letters()` pitch actually use. Re-derived on every breakpoint change
+/// by `Text::responsive_font_size`; its insertion is the "this entity's size just settled"
+/// signal everything downstream keys off.
 #[derive(Component, Clone, Copy, PartialEq, Debug)]
 #[component(on_insert = ResolvedFontSize::on_insert)]
 pub(crate) struct ResolvedFontSize {
@@ -533,6 +566,8 @@ impl ResolvedFontSize {
     pub(crate) fn new(value: u32) -> Self {
         Self { value }
     }
+    /// Re-resolves whatever a settled font size feeds: this entity's glyphs, and its own
+    /// `Location` when that `Location` is sized in characters.
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         if world.get::<Text>(this).is_some() {
@@ -575,6 +610,18 @@ impl Default for ResolvedFontSize {
         }
     }
 }
+/// Glyph size in logical pixels, optionally per breakpoint.
+///
+/// Only `xs` is required; each larger breakpoint falls back to the nearest smaller one
+/// that was set, so `FontSize::new(14).lg(18)` is 14 through `md` and 18 from `lg` up.
+///
+/// Writing this at runtime re-lays-out the glyphs, and re-resolves the entity's own
+/// `Location` when that `Location` is sized in
+/// [`.letters()`](crate::GridExt::letters) -- character-sized boxes track the size that
+/// defines a character.
+///
+/// Useful beyond [`Text`]: any entity whose `Grid` or `Location` is expressed in
+/// characters needs a `FontSize` to give those characters a width.
 #[derive(Component, Clone, Copy, PartialEq)]
 #[component(on_insert = FontSize::on_insert)]
 pub struct FontSize {
@@ -585,7 +632,10 @@ pub struct FontSize {
     pub xl: Option<u32>,
 }
 impl FontSize {
+    /// Size used by anything that never sets one.
     pub const DEFAULT_SIZE: u32 = 16;
+    /// One size at every breakpoint. Add exceptions with
+    /// [`sm`](Self::sm)/[`md`](Self::md)/[`lg`](Self::lg)/[`xl`](Self::xl).
     pub fn new(value: u32) -> Self {
         Self {
             xs: value,
@@ -595,6 +645,7 @@ impl FontSize {
             xl: None,
         }
     }
+    /// The size in force at `layout`, falling back down the breakpoints to `xs`.
     pub(crate) fn resolve(&self, layout: Layout) -> u32 {
         match layout {
             Layout::Xs => self.xs,
@@ -616,18 +667,22 @@ impl FontSize {
         let resolved = comp.resolve(layout);
         world.commands().entity(this).insert(ResolvedFontSize::new(resolved));
     }
+    /// Overrides the size from the `sm` breakpoint up.
     pub fn sm(mut self, value: u32) -> Self {
         self.sm.replace(value);
         self
     }
+    /// Overrides the size from the `md` breakpoint up.
     pub fn md(mut self, value: u32) -> Self {
         self.md.replace(value);
         self
     }
+    /// Overrides the size from the `lg` breakpoint up.
     pub fn lg(mut self, value: u32) -> Self {
         self.lg.replace(value);
         self
     }
+    /// Overrides the size at the `xl` breakpoint.
     pub fn xl(mut self, value: u32) -> Self {
         self.xl.replace(value);
         self
@@ -644,6 +699,10 @@ impl Default for FontSize {
         }
     }
 }
+/// The inputs the last glyph layout was computed from. `Text::update` compares against
+/// this to decide whether anything needs redoing, and which parts: a change to the box's
+/// *position* alone moves already-placed glyphs, while a change to size, string, font size
+/// or alignment requires a fresh fontdue pass.
 #[derive(Component, Clone, PartialEq, Default, Debug)]
 pub(crate) struct UpdateCache {
     pub(crate) font_size: ResolvedFontSize,
@@ -658,8 +717,8 @@ pub(crate) struct UpdateCache {
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub(crate) struct TextContentChanged {}
-// The alignment vocabulary itself lives in `crate::alignment` (shared with `Icon`); only
-// the fontdue conversions are text's own concern.
+// The alignment vocabulary lives in `crate::alignment`, shared with `Icon`; only the
+// fontdue conversions belong to text.
 impl From<HorizontalAlignment> for fontdue::layout::HorizontalAlign {
     fn from(value: HorizontalAlignment) -> Self {
         match value {

@@ -34,19 +34,31 @@ impl Attachment for Interaction {
         foliage.enable_queued_event::<Interaction>();
     }
 }
+/// Where an [`Interaction`] sits in a gesture.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq)]
 pub enum InteractionPhase {
+    /// Pointer down, or a wheel notch. Picks the entity the gesture belongs to.
     Start,
+    /// Pointer moved while down.
     Moved,
+    /// Pointer released -- may resolve to a click, a coast, or nothing.
     End,
+    /// The gesture was taken away rather than completed (focus lost, touch cancelled).
+    /// Never produces a click.
     Cancel,
 }
+/// One raw input event, as the platform reported it, queued for `interactive_elements`
+/// to resolve against the tree.
 #[derive(Message, Debug, Copy, Clone)]
 pub struct Interaction {
     click_phase: InteractionPhase,
     position: Position<Logical>,
     method: InteractionMethod,
 }
+/// What produced an [`Interaction`]. Scroll is kept distinct because it is a discrete
+/// pulse rather than continuous tracking: it scales through
+/// [`ScrollInertia`](crate::grid::view::ScrollInertia), never drags, and never hands off
+/// to a coast.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Default)]
 pub enum InteractionMethod {
     ScrollWheel,
@@ -55,6 +67,8 @@ pub enum InteractionMethod {
     Mouse,
 }
 impl Interaction {
+    /// One input event. Platform adapters queue these; app code rarely builds one
+    /// outside tests.
     pub fn new(
         click_phase: InteractionPhase,
         position: Position<Logical>,
@@ -67,6 +81,9 @@ impl Interaction {
         }
     }
 }
+/// Where a gesture began, where it is now, and where it ended -- enough for a handler to
+/// judge direction and distance without tracking positions itself. `end` is `None` while
+/// the pointer is still down.
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Click {
     pub start: Position<Logical>,
@@ -82,6 +99,8 @@ impl Click {
         }
     }
 }
+/// The gesture in progress: which entity owns it, where it has travelled, and how fast.
+/// One pointer, so one of these for the whole app.
 #[derive(Resource, Default)]
 pub struct CurrentInteraction {
     pub(crate) primary: Option<Entity>,
@@ -110,51 +129,72 @@ pub struct CurrentInteraction {
     pub(crate) velocity: Position<Logical>,
 }
 impl CurrentInteraction {
+    /// The current gesture's own start/current/end positions.
     pub fn click(&self) -> Click {
         self.click
     }
 }
+/// A press and release on the same entity, without exceeding
+/// [`DRAG_THRESHOLD`](InteractionListener::DRAG_THRESHOLD). A gesture that became a drag
+/// does not also click, even if it happens to end back over the entity it started on.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct OnClick {}
+/// This entity has just been grabbed -- pointer down on it. The hook for a pressed
+/// visual state.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct Engaged {}
+/// The grabbed entity's gesture has passed
+/// [`DRAG_THRESHOLD`](InteractionListener::DRAG_THRESHOLD) and is now a drag, not a
+/// pending click.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct Dragged {}
+/// The gesture that grabbed this entity has ended, however it ended. Fires whether or
+/// not an [`OnClick`] also did, so a pressed visual always has somewhere to reset.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct Disengaged {}
+/// Whether an entity competes for a gesture or lets it through to whatever is beneath.
 #[derive(Component, Copy, Clone)]
 pub struct InteractionPropagation {
     grab: bool,
     disable_drag: bool,
 }
 impl InteractionPropagation {
+    /// Competes for the gesture; the topmost grabber under the pointer wins.
     pub fn grab() -> Self {
         Self {
             grab: true,
             disable_drag: false,
         }
     }
+    /// Still notified when a gesture crosses it, but never wins one -- for overlays and
+    /// decoration that must not eat input.
     pub fn pass_through() -> Self {
         Self {
             grab: false,
             disable_drag: false,
         }
     }
+    /// Refuses drag-panning through this entity, so a drag starting here scrolls nothing.
+    /// For a knob or slider that owns its own drag. Wheel scrolling is unaffected.
     pub fn disable_drag(mut self) -> Self {
         self.disable_drag = true;
         self
     }
 }
+/// Whether pressing this entity moves keyboard focus to it.
 #[derive(Component, Copy, Clone, Default)]
 pub struct FocusBehavior(pub(crate) bool);
 impl FocusBehavior {
+    /// Takes focus when pressed. The default.
     pub fn grab() -> Self {
         Self(false)
     }
+    /// Leaves focus where it is -- for controls pressed alongside a focused field, so a
+    /// text input keeps the caret while you press a button next to it.
     pub fn ignore() -> Self {
         Self(true)
     }
@@ -245,12 +285,10 @@ pub(crate) fn interactive_elements(
             }
             current.past_drag = false;
             for (entity, section, _elevation, clip, propagation, shape) in all.iter() {
-                // a disabled entity must not compete for the grab at all -- geometry and
-                // elevation alone used to decide this, so a disabled-but-still-elevated
-                // entity (an app hiding a page-level button behind a modal, say) could win
-                // it purely by sitting on top, silently eating clicks/scrolls meant for
-                // whatever's actually beneath it even though its own OnClick/Engaged/
-                // Dragged were already correctly gated off downstream.
+                // Disabled entities are out of the running entirely, not merely stopped
+                // from acting on a grab they won: a disabled overlay sitting on top would
+                // otherwise take the gesture on elevation alone and silently swallow
+                // input meant for what is underneath.
                 if listeners.get(entity).map(|l| l.disabled()).unwrap_or(false) {
                     continue;
                 }
@@ -1299,11 +1337,10 @@ mod tests {
 
     #[test]
     fn a_fast_drag_held_motionless_for_a_while_before_release_does_not_coast() {
-        // the exact bug report: drag fast, then hold perfectly still (no more Moved
-        // events at all, so `current.velocity`'s own EMA never gets a fresh sample) for
-        // a few real seconds, then release -- without decaying the stale velocity by how
-        // long it's actually been since the last real sample, this used to still read as
-        // a flick and coast off however fast the pointer *used to* be moving.
+        // Drag fast, hold perfectly still, release. No `Moved` events arrive while
+        // held, so the velocity EMA keeps its last sample -- the release has to be judged
+        // on how long ago that sample was, not on its magnitude alone, or a pointer that
+        // has been stationary for seconds still reads as a flick.
         let mut foliage = Foliage::new();
         let view = spawn_grabbable_view(&mut foliage);
 
@@ -1469,13 +1506,11 @@ mod tests {
 
     #[test]
     fn a_live_drag_move_on_a_coasting_view_is_not_overwritten_by_the_stale_coast() {
-        // the actual reported bug: `coast` and `interactive_elements` share no explicit
-        // ordering, so a fresh drag's own `ViewAdjustment` write on a still-coasting view
-        // could be immediately clobbered right back by the coast's own decaying write
-        // later the same frame, regardless of whether cancellation itself "worked" --
-        // `Coasting` needs to be gone by the time *this* system runs at all, not just
-        // eventually. Cleared inline, at the exact same place the live pan is written,
-        // not left for a separate system to notice and race against.
+        // `coast` and `interactive_elements` have no ordering between them, so a live
+        // pan and a still-running coast can both write the same view's `ViewAdjustment`
+        // in one frame, in either order. Cancellation therefore has to happen inline,
+        // where the pan is written, rather than being left to a system that might not run
+        // until after the stale write has already landed.
         let mut foliage = Foliage::new();
         let view = spawn_grabbable_view(&mut foliage);
         foliage.world.entity_mut(view).insert(Coasting {

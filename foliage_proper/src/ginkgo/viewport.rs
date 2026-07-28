@@ -75,6 +75,9 @@ impl Viewport {
 }
 
 #[derive(Default, Resource)]
+/// The visible window area and the camera looking at it -- the root context every
+/// root-level `Location` resolves against, and the source of the current
+/// [`Layout`](crate::Layout) breakpoint.
 pub struct ViewportHandle {
     translation: Position<Logical>,
     area: Area<Logical>,
@@ -92,6 +95,8 @@ impl ViewportHandle {
         }
     }
     #[allow(unused)]
+    /// Moves the viewport by `position`, panning what is on screen without moving any
+    /// entity.
     pub fn translate(&mut self, position: Position<Logical>) {
         self.translation += position;
         self.user_translated = true;
@@ -115,6 +120,7 @@ impl ViewportHandle {
         }
         val
     }
+    /// The visible area in logical pixels.
     pub fn section(&self) -> Section<Logical> {
         Section::new(self.translation.coordinates, self.area.coordinates)
     }

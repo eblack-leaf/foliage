@@ -6,40 +6,55 @@ use std::fmt::Display;
 use std::ops::{Add, AddAssign, Div, Mul, Sub};
 
 #[derive(Debug, Clone, Default, Component, Copy, PartialEq)]
+/// Up to four positions, for geometry defined by its corners rather than by a rectangle
+/// -- a [`Line`](crate::Line)'s two endpoints, a [`Polygon`](crate::Polygon)'s vertices.
+///
+/// An entity resolves to *either* a `Section` or `Points`, never both as inputs: a
+/// point-defined `Location` produces these, and its `Section` is then the
+/// [`bbox`](Points::bbox) around them, for clipping and hit-testing.
 pub struct Points<Context: CoordinateContext> {
     pub data: [Position<Context>; 4],
 }
 impl<Context: CoordinateContext> Points<Context> {
+    /// All four points at the origin.
     pub fn new() -> Self {
         Self {
             data: [Position::<Context>::default(); 4],
         }
     }
+    /// Sets point A, chaining.
     pub fn a<P: Into<Position<Context>>>(mut self, a: P) -> Self {
         self.data[0] = a.into();
         self
     }
+    /// Sets point A in place.
     pub fn set_a<P: Into<Position<Context>>>(&mut self, a: P) {
         self.data[0] = a.into();
     }
+    /// Sets point B, chaining.
     pub fn b<P: Into<Position<Context>>>(mut self, b: P) -> Self {
         self.data[1] = b.into();
         self
     }
+    /// Sets point B in place.
     pub fn set_b<P: Into<Position<Context>>>(&mut self, b: P) {
         self.data[1] = b.into();
     }
+    /// Sets point C, chaining.
     pub fn c<P: Into<Position<Context>>>(mut self, c: P) -> Self {
         self.data[2] = c.into();
         self
     }
+    /// Sets point C in place.
     pub fn set_c<P: Into<Position<Context>>>(&mut self, c: P) {
         self.data[2] = c.into();
     }
+    /// Sets point D, chaining.
     pub fn d<P: Into<Position<Context>>>(mut self, d: P) -> Self {
         self.data[3] = d.into();
         self
     }
+    /// Sets point D in place.
     pub fn set_d<P: Into<Position<Context>>>(&mut self, d: P) {
         self.data[3] = d.into();
     }
@@ -53,19 +68,16 @@ impl<Context: CoordinateContext> Display for Points<Context> {
     }
 }
 impl<Context: CoordinateContext> Points<Context> {
+    /// The bounding rectangle -- what the entity's own `Section` becomes, and so what
+    /// clipping and hit-testing use.
+    ///
+    /// Spans points A and B only, the two every point-defined primitive sets. C and D
+    /// are ignored.
     pub fn bbox(&self) -> Section<Logical> {
         let l = self.data[0].left().min(self.data[1].left());
-        // .min(self.data[2].left())
-        // .min(self.data[3].left());
         let r = self.data[0].left().max(self.data[1].left());
-        // .max(self.data[2].left())
-        // .max(self.data[3].left());
         let t = self.data[0].top().min(self.data[1].top());
-        // .min(self.data[2].top())
-        // .min(self.data[3].top());
         let b = self.data[0].top().max(self.data[1].top());
-        // .max(self.data[2].top())
-        // .max(self.data[3].top());
         Section::new((l, t), (r - l, b - t))
     }
 }

@@ -42,6 +42,29 @@ impl Animate for Location {
         }
     }
 }
+/// Where an entity sits and how big it is, expressed per breakpoint and resolved against
+/// its parent.
+///
+/// Each breakpoint takes two [`ConfigurationDescriptor`]s -- horizontal, then vertical --
+/// and each of those pairs two [`ValueDescriptor`]s joined by
+/// [`.with()`](ValueDescriptor::with). Two values per axis fully pin it: a left and a
+/// width, a left and a right, a center and a width.
+///
+/// ```ignore
+/// Location::new().xs(
+///     20.pct().as_left().with(60.pct().as_width()),
+///     1.row().as_top().with(1.row().as_bottom()),
+/// )
+/// ```
+///
+/// Values come from [`GridExt`] (`pct`, `px`, `col`, `row`, `letters`),
+/// [`anchor()`](anchor) for another entity's geometry, or
+/// [`text_content()`](text_content) for a text run's own measured size. Only `xs` is
+/// required; larger breakpoints fall back to the nearest smaller one set.
+///
+/// Resolves to a [`Section`], or to [`Points`] when built from `as_x`/`as_y` -- see
+/// [`Designator`]. Animating a `Location` tweens between the current resolved box and the
+/// new one.
 #[derive(Component, Copy, Clone, Default)]
 #[component(on_insert = Location::on_insert)]
 #[require(Diff, CreateDiff, Resolution)]
@@ -54,6 +77,8 @@ pub struct Location {
     pub(crate) animation_percent: CoordinateUnit,
 }
 impl Location {
+    /// An unconfigured `Location`. Set at least [`xs`](Self::xs) -- an entity with none is
+    /// treated as non-positional and skipped by layout rather than failing to resolve.
     pub fn new() -> Self {
         Self {
             xs: None,
@@ -64,6 +89,7 @@ impl Location {
             animation_percent: 0.0,
         }
     }
+    /// The base configuration, used at every breakpoint without its own. Takes horizontal then vertical.
     pub fn xs<HAD: Into<ConfigurationDescriptor>, VAD: Into<ConfigurationDescriptor>>(
         mut self,
         had: HAD,
@@ -72,6 +98,7 @@ impl Location {
         self.xs.replace((had.into(), vad.into()).into());
         self
     }
+    /// Overrides the configuration from the `sm` breakpoint up. Takes horizontal then vertical.
     pub fn sm<HAD: Into<ConfigurationDescriptor>, VAD: Into<ConfigurationDescriptor>>(
         mut self,
         had: HAD,
@@ -80,6 +107,7 @@ impl Location {
         self.sm.replace((had.into(), vad.into()).into());
         self
     }
+    /// Overrides the configuration from the `md` breakpoint up. Takes horizontal then vertical.
     pub fn md<HAD: Into<ConfigurationDescriptor>, VAD: Into<ConfigurationDescriptor>>(
         mut self,
         had: HAD,
@@ -88,6 +116,7 @@ impl Location {
         self.md.replace((had.into(), vad.into()).into());
         self
     }
+    /// Overrides the configuration from the `lg` breakpoint up. Takes horizontal then vertical.
     pub fn lg<HAD: Into<ConfigurationDescriptor>, VAD: Into<ConfigurationDescriptor>>(
         mut self,
         had: HAD,
@@ -96,6 +125,7 @@ impl Location {
         self.lg.replace((had.into(), vad.into()).into());
         self
     }
+    /// Overrides the configuration at the `xl` breakpoint. Takes horizontal then vertical.
     pub fn xl<HAD: Into<ConfigurationDescriptor>, VAD: Into<ConfigurationDescriptor>>(
         mut self,
         had: HAD,
@@ -765,6 +795,8 @@ fn calc(
     };
     calculated.and_then(|c| Some(c + desc.adjust.amount))
 }
+/// One resolved edge or extent: a [`LocationValue`] plus the [`Designator`] saying which
+/// part of the box it describes, and an optional pixel [`Adjust`].
 #[derive(Copy, Clone)]
 pub struct ValueDescriptor {
     designator: Designator,
@@ -772,6 +804,7 @@ pub struct ValueDescriptor {
     adjust: Adjust,
 }
 impl ValueDescriptor {
+    /// Usually written as `20.pct().as_left()` rather than called directly.
     pub fn new(designator: Designator, value: LocationValue) -> Self {
         Self {
             designator,
@@ -779,14 +812,20 @@ impl ValueDescriptor {
             adjust: Default::default(),
         }
     }
+    /// Pairs this value with the other one pinning the same axis -- a left with a width,
+    /// a top with a bottom.
     pub fn with(mut self, b: ValueDescriptor) -> ConfigurationDescriptor {
         ConfigurationDescriptor::new(self, b)
     }
+    /// Shifts this value by a fixed number of logical pixels after it resolves -- for
+    /// nudging off a grid line without abandoning the grid.
     pub fn adjust<P: Into<Adjust>>(mut self, adjust: P) -> Self {
         self.adjust = adjust.into();
         self
     }
 }
+/// One axis of a [`Location`]: the two [`ValueDescriptor`]s that pin it, plus optional
+/// size limits and a [`Justify`] for how to use any slack.
 #[derive(Copy, Clone)]
 pub struct ConfigurationDescriptor {
     pub(crate) a: ValueDescriptor,
@@ -796,6 +835,7 @@ pub struct ConfigurationDescriptor {
     pub(crate) justify: Justify,
 }
 impl ConfigurationDescriptor {
+    /// Usually produced by [`ValueDescriptor::with`] rather than called directly.
     pub fn new(a: ValueDescriptor, b: ValueDescriptor) -> Self {
         Self {
             a,
@@ -805,19 +845,25 @@ impl ConfigurationDescriptor {
             justify: Default::default(),
         }
     }
+    /// Floor on this axis's resolved extent, in logical pixels.
     pub fn min(mut self, min: CoordinateUnit) -> Self {
         self.min.replace(min);
         self
     }
+    /// Ceiling on this axis's resolved extent, in logical pixels. Where the box lands
+    /// within the leftover room is [`justify`](Self::justify)'s decision.
     pub fn max(mut self, max: CoordinateUnit) -> Self {
         self.max.replace(max);
         self
     }
+    /// Where the box sits within space a [`max`](Self::max) left over. Centered by
+    /// default.
     pub fn justify(mut self, justify: Justify) -> Self {
         self.justify = justify;
         self
     }
 }
+/// A fixed logical-pixel offset applied to a value after it resolves.
 #[derive(Copy, Clone)]
 pub struct Adjust {
     pub amount: CoordinateUnit,
@@ -834,11 +880,22 @@ impl From<i32> for Adjust {
         }
     }
 }
+/// The numeric literal vocabulary for layout: `20.pct()`, `8.px()`, `2.col()`.
+/// Implemented for every integer and float type, so a bare literal works.
 pub trait GridExt {
+    /// A percentage of the parent's own box on this axis. `100.pct()` is the full extent.
     fn pct(self) -> LocationValue;
+    /// A fixed number of logical pixels.
     fn px(self) -> LocationValue;
+    /// A 1-based column line in the parent's [`Grid`]. `1.col().as_left()` is the left
+    /// edge of column one; as a right edge the same index is inclusive, so
+    /// `1.col().as_left().with(1.col().as_right())` is exactly one column wide.
     fn col(self) -> LocationValue;
+    /// A 1-based row line in the parent's [`Grid`], inclusive as a bottom edge just as
+    /// [`col`](Self::col) is as a right edge.
     fn row(self) -> LocationValue;
+    /// A multiple of one character's advance at the entity's own
+    /// [`FontSize`](crate::FontSize) -- for sizing a box to the text it will hold.
     fn letters(self) -> LocationValue;
 }
 macro_rules! impl_grid_ext {
@@ -867,11 +924,19 @@ impl_grid_ext!(f32);
 impl_grid_ext!(u32);
 impl_grid_ext!(usize);
 impl_grid_ext!(isize);
+/// A single unresolved number in a [`Location`], before it is told which edge it
+/// describes. Built through [`GridExt`], [`anchor()`](anchor) or
+/// [`text_content()`](text_content), then given a [`Designator`] by `as_left()` and
+/// friends.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LocationValue {
+    /// Fraction of the parent's own extent on this axis.
     Percent(f32),
+    /// Fixed logical pixels.
     Px(CoordinateUnit),
+    /// 1-based column line in the parent's grid.
     Column(i32),
+    /// 1-based row line in the parent's grid.
     Row(i32),
     /// The `f32` is a scale factor, identity at `1.0` -- an anchor's resolved value isn't
     /// known until it's actually looked up against the target's live section, so `Mul`
@@ -879,7 +944,9 @@ pub enum LocationValue {
     /// multiplies this factor in place (same pattern, different field), and `calc()`
     /// applies it once the anchor's real value is finally in hand.
     Anchor(Designator, f32),
+    /// The entity's own measured text extent -- see [`text_content()`](text_content).
     TextContent,
+    /// Multiple of one character's advance at this entity's own font size.
     Letters(i32),
 }
 impl LocationValue {
@@ -889,36 +956,49 @@ impl LocationValue {
             _ => false,
         }
     }
+    /// Uses this value as the box's left edge.
     pub fn as_left(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Left, self)
     }
+    /// Uses this value as the box's right edge. Grid indices are inclusive here.
     pub fn as_right(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Right, self)
     }
+    /// Uses this value as the box's top edge.
     pub fn as_top(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Top, self)
     }
+    /// Uses this value as the box's bottom edge. Grid indices are inclusive here.
     pub fn as_bottom(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Bottom, self)
     }
+    /// Uses this value as the box's width.
     pub fn as_width(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Width, self)
     }
+    /// Uses this value as the box's height.
     pub fn as_height(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Height, self)
     }
+    /// Centers the box horizontally on this value.
     pub fn as_center_x(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::CenterX, self)
     }
+    /// Centers the box vertically on this value.
     pub fn as_center_y(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::CenterY, self)
     }
+    /// Uses this value as a point's X, putting the entity in point mode: it resolves to
+    /// [`Points`] rather than a box, and its `Section` becomes their bounding rectangle.
+    /// For [`Line`](crate::Line) and [`Polygon`](crate::Polygon).
     pub fn as_x(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::X, self)
     }
+    /// Uses this value as a point's Y -- see [`as_x`](Self::as_x).
     pub fn as_y(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::Y, self)
     }
+    /// Turns this value into a [`Grid`] axis with `g` logical pixels between tracks.
     pub fn gap<G: Into<Gap>>(self, g: G) -> GridAxisDescriptor {
         debug_assert!(match self {
             LocationValue::Px(_)
@@ -959,6 +1039,11 @@ impl Mul<f32> for LocationValue {
         }
     }
 }
+/// Which part of a box a [`ValueDescriptor`] describes. Set by the `as_*` methods rather
+/// than named directly.
+///
+/// `X`/`Y` are the odd pair: they put the entity in point mode, resolving to [`Points`]
+/// instead of a box.
 #[derive(Copy, Clone, Debug, PartialEq, Ord, PartialOrd, Eq, Hash)]
 pub enum Designator {
     X,
@@ -973,33 +1058,50 @@ pub enum Designator {
     CenterY,
 }
 #[derive(Copy, Clone, Debug, PartialEq)]
+/// Picks which part of an [`Anchor`] target's geometry to read. Produced by
+/// [`anchor()`](anchor); each method yields a [`LocationValue`] that then takes its own
+/// `as_*`, so the source and destination edges need not match --
+/// `anchor().bottom().as_top()` places this box directly below its target.
 pub struct AnchorDescriptor {}
 impl AnchorDescriptor {
+    /// The target's left edge.
     pub fn left(self) -> LocationValue {
         LocationValue::Anchor(Designator::Left, 1.0)
     }
+    /// The target's top edge.
     pub fn top(self) -> LocationValue {
         LocationValue::Anchor(Designator::Top, 1.0)
     }
+    /// The target's width.
     pub fn width(self) -> LocationValue {
         LocationValue::Anchor(Designator::Width, 1.0)
     }
+    /// The target's height.
     pub fn height(self) -> LocationValue {
         LocationValue::Anchor(Designator::Height, 1.0)
     }
+    /// The target's horizontal center.
     pub fn center_x(self) -> LocationValue {
         LocationValue::Anchor(Designator::CenterX, 1.0)
     }
+    /// The target's vertical center.
     pub fn center_y(self) -> LocationValue {
         LocationValue::Anchor(Designator::CenterY, 1.0)
     }
+    /// The target's right edge.
     pub fn right(self) -> LocationValue {
         LocationValue::Anchor(Designator::Right, 1.0)
     }
+    /// The target's bottom edge.
     pub fn bottom(self) -> LocationValue {
         LocationValue::Anchor(Designator::Bottom, 1.0)
     }
 }
+/// Reads geometry from the entity named by this one's [`Anchor`] component, letting a
+/// box position itself against another that is not its parent.
+///
+/// The anchor target must be visible and resolved; if it is not, this entity's own
+/// resolve fails and it is auto-hidden until the target comes back.
 pub fn anchor() -> AnchorDescriptor {
     AnchorDescriptor {}
 }
@@ -1034,13 +1136,19 @@ pub(crate) struct Resolution {
     pub(crate) points: Points<Logical>,
     pub(crate) from_points: bool,
 }
+/// Where a box sits inside space left over by a [`ConfigurationDescriptor::max`].
 #[derive(Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Hash)]
 pub enum Justify {
+    /// Against the leading edge -- left or top.
     Near,
+    /// Against the trailing edge -- right or bottom.
     Far,
+    /// Centered in the leftover space.
     #[default]
     Center,
 }
+/// The entities anchored *to* this one, maintained by the engine so a change to this
+/// entity's own `Section` can re-resolve everything positioned against it.
 #[derive(Clone, Component, Default)]
 pub struct AnchorDeps {
     pub ids: HashSet<Entity>,
@@ -1048,11 +1156,17 @@ pub struct AnchorDeps {
 #[derive(Component, Copy, Clone)]
 #[component(on_insert = Anchor::on_insert)]
 #[component(on_discard = Anchor::on_replace)]
+/// Names the entity this one's [`anchor()`](anchor) values resolve against.
+///
+/// Independent of parenting: an anchor target can be anywhere in the tree, and does not
+/// affect who owns or clips this entity. A box with `anchor()` values in its `Location`
+/// and no `Anchor` cannot resolve.
 #[derive(Default)]
 pub struct Anchor {
     pub id: Option<Entity>,
 }
 impl Anchor {
+    /// Anchors to `entity`.
     pub fn new(entity: Entity) -> Self {
         Self { id: Some(entity) }
     }
@@ -1186,10 +1300,10 @@ mod tests {
 
     /// Replicates `navigator.rs`'s `back_line`: a point-mode `Line` anchored to a target
     /// on X, spawned as a zero-length dot at the target's edge, then immediately animated
-    /// (via `tree.animate`) to a longer segment at the *same* fixed row. The reported bug:
-    /// the draw-in visually starts at some other row entirely while the target is still
-    /// mid-animation elsewhere. Drives the real `animate::<Location>` system (not just
-    /// `flush()`) across several ticks to see what the line's Y actually does.
+    /// (via `tree.animate`) to a longer segment at the *same* fixed row. Its Y must hold
+    /// that row for the whole draw-in, including while the target is itself mid-animation.
+    /// Drives the real `animate::<Location>` system across several ticks rather than
+    /// `flush()` alone.
     #[test]
     fn a_point_mode_line_animating_its_far_endpoint_keeps_its_anchored_row_throughout() {
         use crate::anim::Animation;

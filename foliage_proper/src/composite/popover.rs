@@ -275,8 +275,8 @@ impl Sprout for PopoverSprout {
                     // `trigger_slot` (`up(1)`) means `up(2)` here is compared the ordinary
                     // structural way, not a guessed absolute constant that risked colliding
                     // with any other composite reaching for the same "float above
-                    // everything" number (Dropdown's own option list used to guess the
-                    // identical `abs(90)`).
+                    // everything" number -- a constant any other composite could pick
+                    // identically.
                     let surface = tree.branch(
                         e,
                         Panel::new()
