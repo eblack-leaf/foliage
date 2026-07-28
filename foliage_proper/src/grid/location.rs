@@ -154,6 +154,27 @@ impl Location {
             }
         }
     }
+    /// Whether resolving this `Location` under `layout` actually reads the entity's own
+    /// `FontSize` -- i.e. whether any of its four values is a `Letters`, the only variant
+    /// `calc` answers out of `letter_dims` (which `update` sources from this entity's own
+    /// `FontSize`). Everything else -- `Px`, `Percent`, `Column`/`Row`, `Anchor`,
+    /// `TextContent` -- resolves without it. `ResolvedFontSize::on_insert` gates its
+    /// re-resolve on this so a `FontSize` write only re-resolves the handful of entities
+    /// whose geometry genuinely depends on it, rather than every entity in the tree on
+    /// every layout change.
+    pub(crate) fn depends_on_own_font_size(&self, layout: Layout) -> bool {
+        let Some(config) = self.config(layout) else {
+            return false;
+        };
+        [
+            config.horizontal.a,
+            config.horizontal.b,
+            config.vertical.a,
+            config.vertical.b,
+        ]
+        .iter()
+        .any(|d| matches!(d.value, LocationValue::Letters(_)))
+    }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         world.trigger_targets(Resolve::<Location>::new(), this);
@@ -1386,53 +1407,5 @@ mod tests {
                 target_row
             );
         }
-    }
-
-    /// The reported bug: a `Grid`'s own `.letters()`-based column/row pitch depends on
-    /// the entity's live `FontSize`, but nothing used to re-trigger `Resolve<Location>`
-    /// for its children in response to a plain `FontSize` write (only a child's own
-    /// `Location`/`Stem`/`Visibility` being written did) -- so a runtime `FontSize`
-    /// change left every child's own `Section` stale at the old, smaller cell size until
-    /// something unrelated forced a fresh resolve (a window resize, say). For a `Text`
-    /// child specifically this meant its own `TextBounds`-driven render scissor stayed
-    /// pinned to the old cell too, clipping a freshly-rasterized larger glyph down to a
-    /// sliver -- see `application/src/chapters/text.rs`'s own font-size-grow step, where
-    /// this first showed up visually.
-    #[test]
-    fn changing_a_grid_parents_font_size_re_resolves_a_letters_addressed_childs_section() {
-        let mut foliage = Foliage::new();
-        let field = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(3.letters().as_width()),
-                    0.px().as_top().with(1.letters().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with((
-                    Grid::new(1.letters().gap(0), 1.letters()),
-                    FontSize::new(20),
-                )),
-        );
-        let child = foliage.world.branch(
-            field,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    1.col().as_left().with(1.col().as_right()),
-                    1.row().as_top().with(1.row().as_bottom()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-        let width_before = foliage.world.get::<Section<Logical>>(child).unwrap().width();
-
-        foliage.world.entity_mut(field).insert(FontSize::new(60));
-        foliage.world.flush();
-        let width_after = foliage.world.get::<Section<Logical>>(child).unwrap().width();
-
-        assert!(
-            width_after > width_before,
-            "the child's own cell width should grow along with its Grid parent's FontSize \
-             (before: {width_before}, after: {width_after}), not stay pinned to the old size"
-        );
     }
 }

@@ -540,23 +540,31 @@ impl ResolvedFontSize {
                 .commands()
                 .trigger_targets(Resolve::<Text>::new(), this);
         }
-        // a `Grid`'s own `.letters()`-based column/row pitch depends on this entity's
-        // FontSize (see `grid/location.rs`'s own `letter_dims`/`stem_letter_dims`), so a
-        // change here can shift how every child's own `Location` ought to resolve -- but
-        // nothing else re-triggers `Resolve<Location>` for them in response to a plain
-        // `FontSize` write (only a child's own `Location`/`Stem`/`Visibility` being
-        // written does). Without this, a runtime `FontSize` change left every child's own
-        // `Section` (and so its `TextBounds`-driven render scissor, for a `Text` child
-        // specifically) stale until something unrelated forced a fresh resolve elsewhere
-        // (a window resize, say) -- a `Text` child would keep rendering clipped to its
-        // old, pre-change cell size.
-        if let Some(branch) = world.get::<Branch>(this) {
-            let children: Vec<Entity> = branch.ids.iter().copied().collect();
-            if !children.is_empty() {
-                world
-                    .commands()
-                    .trigger_targets(Resolve::<Location>::new(), children);
-            }
+        // A `.letters()`-sized `Location` resolves its numbers out of this entity's own
+        // `FontSize` (`grid/location.rs`'s own `letter_dims`), so this is the one place
+        // that dependency gets honored: the rest of the resolve triggers are structural
+        // (`Location`/`Stem`/`Visibility` written, or a parent's `Section` landing) and
+        // none of them fire for a plain `FontSize` write.
+        //
+        // Only this entity needs the trigger. Its own new `Section<Logical>` cascades
+        // `Resolve<Location>` to every child (that component's own `on_insert`), and each
+        // child's new `Section` in turn re-fires its `Resolve<Text>` via
+        // `Resolved<Section<Logical>>`, which re-cuts the `TextBounds` render scissor
+        // against the child's new cell. Reaching down to the children directly instead
+        // inverts that order -- they would resolve their columns against a parent box that
+        // has not moved yet.
+        //
+        // The gate keeps this narrow: the hook fires for every entity carrying a
+        // `FontSize` on every layout change, and `Letters` is the only `LocationValue`
+        // whose resolution reads the font size at all.
+        let layout = *world.get_resource::<Layout>().unwrap();
+        if world
+            .get::<Location>(this)
+            .is_some_and(|l| l.depends_on_own_font_size(layout))
+        {
+            world
+                .commands()
+                .trigger_targets(Resolve::<Location>::new(), this);
         }
     }
 }
@@ -667,6 +675,96 @@ impl From<VerticalAlignment> for fontdue::layout::VerticalAlign {
             VerticalAlignment::Top => fontdue::layout::VerticalAlign::Top,
             VerticalAlignment::Middle => fontdue::layout::VerticalAlign::Middle,
             VerticalAlignment::Bottom => fontdue::layout::VerticalAlign::Bottom,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::grid::Grid;
+    use crate::grid::location::GridExt;
+    use crate::{EcsExtension, Elevation, Foliage, Leaf, Sprout};
+
+    // Mirrors `application/src/chapters/text.rs` exactly: a `.letters()`-sized `Grid`
+    // parent holding one `Text` per column, then a runtime `FontSize` write to the parent
+    // *and* every child -- the "grow" step of that chapter.
+    const INITIAL: u32 = 40;
+    const GROWN: u32 = 64;
+    const GAP: i32 = 34;
+    const PAD: i32 = 4;
+    const COLS: i32 = 3;
+
+    fn cell(i: i32) -> Location {
+        let n = i + 1;
+        Location::new().xs(
+            n.col().as_left().adjust(-PAD).with(n.col().as_right().adjust(PAD)),
+            1.row().as_top().with(1.row().as_bottom()),
+        )
+    }
+
+    fn build(size: u32) -> (Foliage, Entity, Vec<Entity>) {
+        let mut foliage = Foliage::new();
+        let field = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    40.0.pct()
+                        .as_center_x()
+                        .with(COLS.letters().as_width().adjust((COLS - 1) * GAP)),
+                    42.0.pct().as_top().with(1.letters().as_height()),
+                ))
+                .elevate(Elevation::up(2))
+                .with((Grid::new(1.letters().gap(GAP), 1.letters()), FontSize::new(size))),
+        );
+        let letters = ['a', 'w', 'g']
+            .iter()
+            .enumerate()
+            .map(|(i, ch)| {
+                foliage.world.branch(
+                    field,
+                    Text::new(ch.to_string())
+                        .size(FontSize::new(size))
+                        .at(cell(i as i32))
+                        .elevate(Elevation::up(2))
+                        .with(HorizontalAlignment::Center),
+                )
+            })
+            .collect::<Vec<_>>();
+        foliage.world.flush();
+        (foliage, field, letters)
+    }
+
+    #[test]
+    fn growing_font_size_at_runtime_matches_building_at_that_size() {
+        let (mut foliage, field, letters) = build(INITIAL);
+        let (reference, ref_field, ref_letters) = build(GROWN);
+
+        for l in letters.iter().copied() {
+            foliage.world.entity_mut(l).insert(FontSize::new(GROWN));
+        }
+        foliage.world.entity_mut(field).insert(FontSize::new(GROWN));
+        foliage.world.flush();
+
+        let got_field = *foliage.world.get::<Section<Logical>>(field).unwrap();
+        let want_field = *reference.world.get::<Section<Logical>>(ref_field).unwrap();
+        assert_eq!(got_field, want_field, "field's own section after the grow");
+
+        for (i, (grown, built)) in letters.iter().zip(ref_letters.iter()).enumerate() {
+            let got = *foliage.world.get::<Section<Logical>>(*grown).unwrap();
+            let want = *reference.world.get::<Section<Logical>>(*built).unwrap();
+            assert_eq!(got, want, "letter {i}'s section after the grow");
+            let got_bounds = *foliage.world.get::<TextBounds>(*grown).unwrap();
+            let want_bounds = *reference.world.get::<TextBounds>(*built).unwrap();
+            assert_eq!(got_bounds, want_bounds, "letter {i}'s TextBounds after the grow");
+            // the fontdue layout itself, not `Glyphs::glyphs` -- that mirror is filled by
+            // `resolve_glyphs` in the diff schedule, which `flush()` alone never runs.
+            let got_glyph = foliage.world.get::<Glyphs>(*grown).unwrap().layout.glyphs()[0];
+            let want_glyph = reference.world.get::<Glyphs>(*built).unwrap().layout.glyphs()[0];
+            assert_eq!(
+                (got_glyph.x, got_glyph.y, got_glyph.width, got_glyph.height),
+                (want_glyph.x, want_glyph.y, want_glyph.width, want_glyph.height),
+                "letter {i}'s glyph placement after the grow"
+            );
         }
     }
 }

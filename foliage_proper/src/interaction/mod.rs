@@ -182,7 +182,7 @@ pub(crate) fn interactive_elements(
     mut listeners: Query<&mut InteractionListener>,
     mut current: ResMut<CurrentInteraction>,
     contexts: Query<&Stem>,
-    views: Query<Entity, With<View>>,
+    views: Query<&View>,
     inertias: Query<&ScrollInertia>,
     momentum: Res<ScrollMomentum>,
     mut tree: Tree,
@@ -293,24 +293,6 @@ pub(crate) fn interactive_elements(
                 current.last_drag = event.position;
                 current.last_drag_time = None;
                 current.velocity = Position::default();
-                // grabbing the content again stops any in-flight coast immediately, same
-                // as every native touch-scroll implementation -- walk the same stem chain
-                // a drag/release would use to find whichever view(s) might currently be
-                // coasting and cut them off, not just `p` itself.
-                if views.get(p).is_ok() {
-                    tree.entity(p).remove::<Coasting>();
-                }
-                let mut context = *contexts.get(p).unwrap();
-                while let Some(id) = context.id {
-                    if views.get(id).is_ok() {
-                        tree.entity(id).remove::<Coasting>();
-                    }
-                    if let Ok(up) = contexts.get(id) {
-                        context = *up;
-                    } else {
-                        break;
-                    }
-                }
             }
             // Focus reconciliation for a non-scroll press: move focus to the grabbed primary if
             // it can take focus, otherwise *clear* focus. Pressing a focus-ignoring element
@@ -399,7 +381,6 @@ pub(crate) fn interactive_elements(
                         // own stale, decaying write could land after (and overwrite) the
                         // live one right back, every single frame, for as long as the
                         // coast kept running -- reading as the coast fighting the drag.
-                        tree.entity(p).remove::<Coasting>();
                         tree.entity(p).insert(ViewAdjustment(diff));
                     } else {
                         let mut context = *contexts.get(p).unwrap();
@@ -422,8 +403,6 @@ pub(crate) fn interactive_elements(
                             let mut wrote = false;
                             if let Ok(_) = views.get(id) {
                                 if !all.get(id).unwrap().4.disable_drag {
-                                    // same reasoning as the direct-view case above.
-                                    tree.entity(id).remove::<Coasting>();
                                     tree.entity(id).insert(ViewAdjustment(diff));
                                     wrote = true;
                                 }
@@ -515,8 +494,17 @@ pub(crate) fn interactive_elements(
                     // hands off to a coast only for a real drag/touch release (not a
                     // wheel tick, which already has its own `ScrollInertia`) whose
                     // tracked release velocity clears `ScrollMomentum::velocity_threshold`
-                    // -- a slow, deliberate drag that was already settling just stops,
-                    // same as before this existed.
+                    // -- a slow, deliberate drag that was already settling just stops.
+                    //
+                    // Attached to the same entity the live pan targeted, so the coast
+                    // continues exactly the motion the drag was producing -- including
+                    // reaching the real scroller through `OverscrollPropagation` when that
+                    // target is a card whose own view has nowhere to go. Picking a
+                    // "better" target by walking up to the first view with real scrollable
+                    // extent does not work: a card's own content routinely overflows its
+                    // box by a hair, so such a walk stops on the card anyway, while the
+                    // cases where it does climb higher land the coast somewhere the drag
+                    // never touched.
                     let maybe_coast = |tree: &mut Tree, target: Entity| {
                         if event.method == InteractionMethod::ScrollWheel {
                             return;
@@ -1056,6 +1044,13 @@ mod tests {
         );
     }
 
+    /// A view that can genuinely be panned: a 200x200 box with a child overflowing it on
+    /// both axes, so `extent_check` grows `View::extent` past the view's own section and
+    /// `View::scrollable` holds. The overflow is the point -- a coast only ever attaches
+    /// to a view with somewhere to go, so a fixture with `extent == section` would never
+    /// receive one no matter how brisk the release. `diff` has to run for that: `extent`
+    /// is `extent_check`'s to compute (`DiffMarkers::Prepare`), and `world.flush()` alone
+    /// never invokes it.
     fn spawn_grabbable_view(foliage: &mut Foliage) -> Entity {
         let e = foliage.world.leaf(
             Leaf::sprout()
@@ -1066,6 +1061,17 @@ mod tests {
                 .elevate(Elevation::up(1))
                 .with((View::new(), Grid::default(), InteractionListener::new())),
         );
+        foliage.world.branch(
+            e,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(600.px().as_width()),
+                    0.px().as_top().with(600.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
         foliage.world.flush();
         e
     }
@@ -1088,12 +1094,16 @@ mod tests {
                 .elevate(Elevation::up(1))
                 .with((View::new(), Grid::new(1.col().gap(0), 1.row().gap(0)))),
         );
+        // 900 tall in a 400-tall `content`: a real overflowing card stack, so
+        // `extent_check` grows `content`'s extent past its own section and `content` is
+        // genuinely pannable. Without that overflow `content` has nowhere to scroll and
+        // never takes a coast at all, whatever the release velocity.
         let card = foliage.world.branch(
             content,
             Leaf::sprout()
                 .at(Location::new().xs(
                     0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(100.px().as_height()),
+                    0.px().as_top().with(900.px().as_height()),
                 ))
                 .elevate(Elevation::up(2))
                 .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
@@ -1110,9 +1120,11 @@ mod tests {
         );
         let _ = hepta;
         foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
 
         // gesture 1: grabbed at (300, 300) -- inside `content`'s own 400x400 box, well
-        // outside `card`'s 0..100 corner, so nothing but `content` itself covers this
+        // clear of `card`'s 0..100 column, so nothing but `content` itself covers this
         // point.
         send(
             &mut foliage,
@@ -1156,6 +1168,94 @@ mod tests {
             foliage.world.get::<Coasting>(content).is_none(),
             "touching the nested card should stop the outer list's own coast"
         );
+    }
+
+    #[test]
+    fn pressing_a_sibling_card_stops_a_coast_started_from_another_card() {
+        // `toc.rs`'s real shape and the real gesture: flick from card A, then press card B
+        // to stop it and drag back the other way. A coast attaches where the drag's own
+        // pan landed -- card A's own view, the first `View` up from the grab -- so card A
+        // and card B are siblings, and no ancestor walk from the press on B reaches the
+        // coast on A. Left running, A's decaying `ViewAdjustment` and B's live one both
+        // propagate into the same scroller every frame, in opposite directions.
+        let mut foliage = Foliage::new();
+        let viewport = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(400.px().as_width()),
+                    0.px().as_top().with(400.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((View::new(), Grid::new(1.col().gap(0), 1.row().gap(0)))),
+        );
+        let content = foliage.world.branch(
+            viewport,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(400.px().as_width()),
+                    0.px().as_top().with(1200.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 3.row().gap(0))),
+        );
+        let mut cards = vec![];
+        for row in 1..=3 {
+            let card = foliage.world.branch(
+                content,
+                Leaf::sprout()
+                    .at(Location::new().xs(
+                        1.col().as_left().with(1.col().as_right()),
+                        row.row().as_top().with(row.row().as_bottom()),
+                    ))
+                    .elevate(Elevation::up(2))
+                    .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+            );
+            foliage.world.branch(
+                card,
+                Leaf::sprout()
+                    .at(Location::new().xs(
+                        1.col().as_left().with(1.col().as_right()),
+                        1.row().as_top().with(1.row().as_bottom()),
+                    ))
+                    .elevate(Elevation::up(3))
+                    .with(InteractionListener::new()),
+            );
+            cards.push(card);
+        }
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
+
+        // flick inside card 0 (y 0..400)
+        send(&mut foliage, InteractionPhase::Start, point(200.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(200.0, 50.0 + InteractionListener::DRAG_THRESHOLD + 5.0),
+            InteractionMethod::Mouse,
+        );
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        send(&mut foliage, InteractionPhase::Moved, point(200.0, 140.0), InteractionMethod::Mouse);
+        send(&mut foliage, InteractionPhase::End, point(200.0, 140.0), InteractionMethod::Mouse);
+        let coasting: Vec<Entity> = [viewport, content, cards[0], cards[1], cards[2]]
+            .into_iter()
+            .filter(|e| foliage.world.get::<Coasting>(*e).is_some())
+            .collect();
+        assert!(
+            !coasting.is_empty(),
+            "sanity: the flick should have started a coast somewhere"
+        );
+
+        // press card 1 (y 400..800) -- a sibling of whatever is coasting
+        send(&mut foliage, InteractionPhase::Start, point(200.0, 500.0), InteractionMethod::Mouse);
+
+        for e in coasting {
+            assert!(
+                foliage.world.get::<Coasting>(e).is_none(),
+                "pressing a sibling card must stop the coast on {e:?}, not leave it \
+                 fighting the new drag"
+            );
+        }
     }
 
     #[test]

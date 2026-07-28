@@ -140,6 +140,15 @@ velocity is checked against
 [`ScrollMomentum::velocity_threshold`](./grid.md#scrollmomentum-coasting-after-a-dragtouch-release):
 above it, the same entity that would've received the final `ViewAdjustment` gets a
 `Coasting` component instead (the final 1:1 diff still applies first); below it, nothing
-further happens. Wheel-scroll release never coasts -- it already has its own per-tick
+further happens.
+
+That target is the first `View` walking up from the grab, and since `Grid` requires
+`View`, it is routinely a card carrying an internal layout rather than the list the
+content visibly scrolls -- the motion reaches the real scroller from there through
+`OverscrollPropagation`, exactly as the live drag's own pan did. Keeping the coast on the
+pan's own target is what makes it continue precisely the motion the drag was producing;
+it also means two cards in one list can each be a coast target, which is why stopping a
+coast can't be phrased in terms of the tree (see
+[`ScrollMomentum`](./grid.md#scrollmomentum-coasting-after-a-dragtouch-release)). Wheel-scroll release never coasts -- it already has its own per-tick
 `ScrollInertia` scaling, a different mechanism for a discrete-pulse input rather than
 continuous tracking.

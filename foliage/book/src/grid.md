@@ -210,22 +210,25 @@ independent) until it drops under `stop_epsilon`, at which point `Coasting` remo
 itself.
 
 `coast` also reads `CurrentInteraction` directly and removes a view's own `Coasting`
-outright, before any of the decay logic above runs, if the pointer is down right now
-(`current.pressed`) *and* that view is either the currently grabbed `current.primary`
-itself, or is reached by walking *up from* `current.primary` through its own `Stem`
-chain -- the same walk (starting at the grabbed entity, going toward the root)
-`interactive_elements` uses to find a view to pan (see
-[Interaction](./interaction.md)). The direction matters: grabbing something *inside* a
-coasting view (a row in a list, a nested scrollable region within it) walks up through
-that content and reaches the view, stopping it -- correct, you're interacting with its
-own content. Grabbing the coasting view's own *parent* directly does not stop it: walking
-up from that parent goes further toward the root, away from the view (which is *below*
-it, not above), so an unrelated container being touched never reaches down into a
-completely different view's own coast. `interactive_elements` separately clears
-`Coasting` off the same chain right on `Start` too, but that's a `Tree`-queued command
-with no guaranteed same-frame ordering against `coast`'s own run within the same
-schedule; `coast`'s own resource read is what actually guarantees a fresh drag's real
-`ViewAdjustment` never gets overwritten by a stale coasting one on the same view.
+outright, before any of the decay logic above runs, whenever the pointer is down right
+now (`current.pressed`). One pointer means one gesture and so one coast worth keeping;
+putting a finger down is how a user says "stop."
+
+No relation between the press and the coasting view is tested, because no useful one
+exists. A coast attaches wherever the drag's own pan landed -- the first `View` up from
+the grab, routinely a card rather than the list (see
+[Interaction](./interaction.md)) -- so two cards in the same list are *siblings*, and a
+press on one is reachable from a coast on the other by no walk in either direction.
+Requiring an ancestor relationship therefore fails to stop exactly the case that matters,
+leaving the old coast and the new drag pushing the same scroller opposite ways every
+frame. Loosening it to "shares any ancestor" fails the other way: `entry.rs` roots the
+whole app under a single `router`, making every pair of entities related and killing
+every coast regardless.
+
+Reading the resource in place, rather than trusting a `Tree`-queued removal from
+`interactive_elements`, is what guarantees a fresh drag's real `ViewAdjustment` is never
+overwritten by a stale coasting one -- both systems sit in `MainMarkers::Process` with no
+ordering between them.
 
 `current.pressed` matters here specifically because `current.primary` isn't cleared on
 release -- it's deliberately left set between gestures (only the *next* `Start` clears

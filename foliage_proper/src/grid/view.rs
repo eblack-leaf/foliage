@@ -146,67 +146,38 @@ pub(crate) fn coast(
     mut coasting: Query<(Entity, &mut Coasting)>,
     momentum: Res<ScrollMomentum>,
     current: Res<CurrentInteraction>,
-    contexts: Query<&Stem>,
     mut tree: Tree,
 ) {
     for (entity, mut c) in coasting.iter_mut() {
-        // A real, in-place resource read, not a component removal that might still be a
-        // queued command elsewhere this same frame -- `interactive_elements` also clears
-        // `Coasting` off the touched view/ancestor chain directly on `Start`, but that's a
-        // `Tree`-queued command whose actual application relative to this system's own
-        // run order isn't guaranteed same-frame.
+        // One pointer, one momentum: a press anywhere ends every coast in flight. There is
+        // only ever one gesture at a time, so there is only ever one coast worth keeping,
+        // and putting a finger down is how a user says "stop."
         //
-        // `current.pressed`, not just `current.primary.is_some()`: `primary` is
-        // deliberately left set *between* gestures (cleared only by the *next* `Start`,
-        // so a released entity's own `Disengaged`/click can still be judged against it
-        // afterward) -- checking its presence alone would be true immediately after
-        // every release too, for the exact entity that was just released, killing a
-        // just-started coast on its very first tick, every single time. `pressed` is the
-        // one field that actually reflects "is the pointer down right now."
+        // No relation is tested between the press and this view, because no useful one
+        // exists to test. A coast attaches wherever the drag's own pan landed, which is
+        // the first `View` walking up from the grab -- and since `Grid` requires `View`,
+        // that is routinely a card holding an internal layout, reaching the real scroller
+        // only through `OverscrollPropagation`. Two cards in the same list are siblings:
+        // no ancestor walk from a press on one will ever reach a coast parked on the
+        // other, so an ancestry test simply fails to stop it, and the coast keeps writing
+        // its own decaying `ViewAdjustment` into the same scroller the new drag is pushing
+        // the other way. Loosening the relation instead (any shared ancestor) degenerates
+        // the opposite direction: `application/src/entry.rs` roots the whole app under one
+        // `router`, so every pair of entities is "related" and every coast dies anyway.
         //
-        // Scoped to whatever's actually grabbed, not *any* grab anywhere: an unrelated
-        // view's own coast shouldn't die just because some other, completely different
-        // part of the screen got touched (see `coast_is_not_stopped_by_grabbing_an_
-        // unrelated_entity_elsewhere`). But "related" has to cover more than a direct
-        // ancestor/descendant relationship: `entity` and `primary` can also be *cousins*
-        // -- two sibling cards each with their own `Grid` (hence their own `View`, for
-        // purely internal single-cell layout -- see `application/src/toc.rs`'s own
-        // `ContentsItem`), neither an ancestor of the other, related only through a
-        // shared parent further up (`content`). Stop if:
-        //   1. `entity` == `primary` (grabbed the exact coasting view), or
-        //   2. `entity` is an ancestor of `primary` (grabbed something *inside* it), or
-        //   3. neither is an ancestor of the other, but they share *some* common
-        //      ancestor (cousins under the same list) -- explicitly excluding the case
-        //      where `primary` is an ancestor of `entity` (grabbing the coasting view's
-        //      own *parent* directly shouldn't stop it: that grab was never going to
-        //      pan this view at all, see `coast_is_not_stopped_by_grabbing_the_coasting_
-        //      views_own_parent`) since every entity's own ancestors are trivially
-        //      "shared" with anything further down that exact same chain.
+        // `current.pressed`, not `current.primary.is_some()`: `primary` is deliberately
+        // left set *between* gestures (cleared only by the next `Start`, so a released
+        // entity's own `Disengaged`/click can still be judged against it) -- its mere
+        // presence is true immediately after every release too, which would kill a
+        // just-started coast on its first tick, every time. `pressed` is the one field
+        // that answers "is the pointer down right now."
+        //
+        // Read here in-place rather than trusting `interactive_elements`' own removal on
+        // `Start`: that is a `Tree`-queued command, and both systems sit in
+        // `MainMarkers::Process` with no ordering between them.
         if current.pressed {
-            if let Some(primary) = current.primary {
-                let ancestors_of = |start: Entity| -> HashSet<Entity> {
-                    let mut found = HashSet::new();
-                    let mut context = contexts.get(start).copied();
-                    while let Ok(c) = context {
-                        let Some(id) = c.id else { break };
-                        found.insert(id);
-                        context = contexts.get(id).copied();
-                    }
-                    found
-                };
-                let primary_ancestors = ancestors_of(primary);
-                let entity_ancestors = ancestors_of(entity);
-                let entity_is_ancestor_of_primary = primary_ancestors.contains(&entity);
-                let primary_is_ancestor_of_entity = entity_ancestors.contains(&primary);
-                let grabbing_this_view = primary == entity
-                    || entity_is_ancestor_of_primary
-                    || (!primary_is_ancestor_of_entity
-                        && primary_ancestors.intersection(&entity_ancestors).next().is_some());
-                if grabbing_this_view {
-                    tree.entity(entity).remove::<Coasting>();
-                    continue;
-                }
-            }
+            tree.entity(entity).remove::<Coasting>();
+            continue;
         }
         let now = Moment::now();
         let elapsed_ms = now.duration_since(c.last_tick).as_secs_f32() * 1000.0;
@@ -458,6 +429,16 @@ pub(crate) fn extent_check(
             tracing::trace!(entity = ?entity, request = ?request, after = ?view.offset, "grid::view: applied ScrollTo to offset");
             to_trigger.insert(*entity);
             tree.entity(*entity).remove::<ScrollTo>();
+            // A `ScrollTo` states outright where this view belongs, so any momentum still
+            // running on it is stale by definition -- one authority over `offset` at a
+            // time, the same reason the request is consumed immediately just above. The
+            // caller is typically nowhere near the view in the tree (a scrollbar has to
+            // sit *outside* the view it drives -- see `application/src/toc.rs` -- so it is
+            // neither the grabbed view nor inside it), which puts it out of reach of every
+            // stem-walk that otherwise cancels a coast. Left running, the coast keeps
+            // writing its own decaying `ViewAdjustment` into the same `offset` this
+            // request just set, once per frame, and the two visibly fight.
+            tree.entity(*entity).remove::<Coasting>();
         }
     }
     let to_check_final = to_check.clone();
@@ -907,127 +888,40 @@ mod tests {
     }
 
     #[test]
-    fn grabbing_a_sibling_cousin_view_stops_an_unrelated_cards_own_coast() {
-        // the real `toc.rs` shape: `content` holds several cards, and each card carries
-        // its own `Grid` (hence its own `View`, for purely internal single-cell layout --
-        // see `ContentsItem`), not just `content` itself. `card_a` and `card_b` are
-        // siblings under `content` -- neither is an ancestor of the other, only related
-        // through that shared parent. Card A's own view is coasting; Card B is grabbed
-        // directly. Neither the old "is entity an ancestor of primary" check nor its
-        // mirror would ever connect two siblings -- this needs the cousin/shared-ancestor
-        // path specifically.
+    fn a_scroll_to_request_cancels_the_views_own_coast() {
+        // a scrollbar's own door: it drives the view by `ScrollTo` while deliberately
+        // living *outside* that view in the tree (`application/src/toc.rs`'s own
+        // `build_scrollbar` -- it can't be inside the thing it scrolls), so it is neither
+        // the coasting view nor anything within it, and no stem-walk from the grab ever
+        // reaches the coast. Dragging the knob against a live coast otherwise leaves both
+        // writing to the same `offset` every frame.
         let mut foliage = Foliage::new();
-        let content = spawn_view(&mut foliage);
-        let card_a = foliage.world.branch(
-            content,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(100.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        let card_b = foliage.world.branch(
-            content,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    100.px().as_top().with(200.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        foliage.world.flush();
-        foliage.world.entity_mut(card_a).insert(Coasting {
-            velocity: Position::logical((2.0, 0.0)),
+        let view = spawn_view(&mut foliage);
+        foliage.world.entity_mut(view).insert(Coasting {
+            velocity: Position::logical((0.0, 1.0)),
             last_tick: Moment::now(),
         });
         foliage.world.flush();
-        {
-            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
-            current.primary = Some(card_b);
-            current.pressed = true;
-        }
 
-        foliage.main.run(&mut foliage.world);
+        foliage.world.entity_mut(view).insert(ScrollTo::y(0.5));
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
 
         assert!(
-            foliage.world.get::<Coasting>(card_a).is_none(),
-            "grabbing a sibling card should stop an unrelated card's own coast, since \
-             both are part of the same list even though neither is the other's ancestor"
+            foliage.world.get::<Coasting>(view).is_none(),
+            "a ScrollTo states where the view belongs -- any momentum still running on it \
+             is stale and must not keep writing over it"
         );
     }
 
     #[test]
-    fn coast_is_not_stopped_by_grabbing_the_coasting_views_own_parent() {
-        // the "click next to it" case: a plain container *above* the list in the tree
-        // (not inside it) getting grabbed directly shouldn't stop the list's own coast --
-        // only the list itself, or something inside it, should. `page` deliberately has
-        // its own parent (`root`) above it -- if `page` were root-level (no `Stem.id` at
-        // all), the walk-up loop would break on its very first check without ever really
-        // iterating, which wouldn't actually distinguish "correctly walked up and found
-        // nothing" from "the walk never runs" -- this exercises at least one real step.
-        let mut foliage = Foliage::new();
-        let root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(400.px().as_width()),
-                    0.px().as_top().with(400.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        let page = foliage.world.branch(
-            root,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(400.px().as_width()),
-                    0.px().as_top().with(400.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        let list = foliage.world.branch(
-            page,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(200.px().as_width()),
-                    0.px().as_top().with(200.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        foliage.world.flush();
-        foliage.world.entity_mut(list).insert(Coasting {
-            velocity: Position::logical((2.0, 0.0)),
-            last_tick: Moment::now(),
-        });
-        foliage.world.flush();
-        // `page` (the list's own parent) grabbed directly -- not the list, not anything
-        // inside it.
-        {
-            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
-            current.primary = Some(page);
-            current.pressed = true;
-        }
-
-        foliage.main.run(&mut foliage.world);
-
-        assert!(
-            foliage.world.get::<Coasting>(list).is_some(),
-            "grabbing the list's own parent (an ancestor, not the list or a descendant \
-             of it) shouldn't stop the list's unrelated coast"
-        );
-    }
-
-    #[test]
-    fn coast_is_not_stopped_by_grabbing_an_unrelated_entity_elsewhere() {
-        // `unrelated` deliberately has its own real parent, in a completely separate tree
-        // from `list` -- if `unrelated` were root-level (no `Stem.id` at all, the way
-        // `spawn_view` alone produces), the walk-up loop would break on its very first
-        // check without ever really iterating, the same trivial-zero-iteration problem
-        // the parent test above had to be fixed for.
+    fn a_press_anywhere_stops_an_in_flight_coast() {
+        // One pointer, one momentum. `unrelated` is deliberately in a separate subtree
+        // from the coasting view -- not its parent, not its child, no useful relation at
+        // all -- because the press still has to stop it. Anything narrower fails the case
+        // that actually matters: two sibling cards in one list, where a coast parked on
+        // the first (that is where the drag's own pan landed) is reachable from a press on
+        // the second by no walk in either direction.
         let mut foliage = Foliage::new();
         let list = spawn_view(&mut foliage);
         let other_root = foliage.world.leaf(
@@ -1064,8 +958,35 @@ mod tests {
         foliage.main.run(&mut foliage.world);
 
         assert!(
+            foliage.world.get::<Coasting>(list).is_none(),
+            "a press with the pointer down should end the coast"
+        );
+    }
+
+    #[test]
+    fn a_coast_survives_the_release_that_created_it() {
+        // The counterpart to the rule above, and the reason it keys off `pressed` rather
+        // than `primary`: `primary` stays set after release (cleared only by the next
+        // `Start`, so the released entity's own click can still be judged), so a coast
+        // would be killed on its very first tick by the gesture that just created it.
+        let mut foliage = Foliage::new();
+        let list = spawn_view(&mut foliage);
+        foliage.world.entity_mut(list).insert(Coasting {
+            velocity: Position::logical((2.0, 0.0)),
+            last_tick: Moment::now(),
+        });
+        foliage.world.flush();
+        {
+            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
+            current.primary = Some(list);
+            current.pressed = false;
+        }
+
+        foliage.main.run(&mut foliage.world);
+
+        assert!(
             foliage.world.get::<Coasting>(list).is_some(),
-            "a completely unrelated grab elsewhere on screen shouldn't stop this view's own coast"
+            "with the pointer up, a fresh coast must keep running"
         );
     }
 
