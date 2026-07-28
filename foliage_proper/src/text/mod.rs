@@ -462,12 +462,10 @@ impl Text {
                         px: g.key.px as u32,
                         font_hash: g.key.font_hash,
                     },
-                    // Snapped to whole physical pixels, matching the container's own
-                    // `.rounded()` in `text/pipeline.rs`. fontdue reports sub-pixel
-                    // positions -- advance widths rarely land on integers -- and sampling
-                    // an already-rasterized bitmap at a fractional offset softens it by a
-                    // different amount per glyph, which reads as uneven rather than blurry.
-                    section: Section::physical((g.x, g.y), (g.width, g.height)).rounded(),
+                    // Position snapped to whole physical pixels; area left exactly as
+                    // fontdue reported it, since the atlas bitmap was rasterized at that
+                    // size and the blit has to stay 1:1 texel-to-pixel.
+                    section: Section::physical((g.x.round(), g.y.round()), (g.width, g.height)),
                     parent: g.parent,
                     offset: i,
                 })
