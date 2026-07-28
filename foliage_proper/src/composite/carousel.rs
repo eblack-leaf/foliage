@@ -1,5 +1,6 @@
 use crate::Trigger;
-use crate::composite::pagination::{PageChanged, Pagination, PaginationMode};
+use crate::composite::PageChanged;
+use crate::composite::pagination::{Pagination, PaginationMode};
 use crate::composite::{IndexedSlotFn, PageCount, PageIndex};
 use crate::{
     Animation, Color, Component, CurrentInteraction, Disengaged, Ease, EcsExtension, Elevation,

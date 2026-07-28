@@ -1,5 +1,5 @@
 use crate::Trigger;
-use crate::composite::pagination::PageChanged;
+use crate::composite::PageChanged;
 use crate::composite::{PageCount, PageIndex};
 use crate::{
     Component, EcsExtension, Elevation, Entity, Grid, GridExt, LeafSprout, Location, Sprout, Tree,

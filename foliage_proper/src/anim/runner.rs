@@ -50,9 +50,18 @@ impl<A: Animate> AnimationRunner<A> {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         let value = world.get::<Self>(this).unwrap();
+        let sequence_entity = value.sequence_entity;
         world
-            .get_mut::<SequenceMarker>(value.sequence_entity)
-            .unwrap()
+            .get_mut::<SequenceMarker>(sequence_entity)
+            .unwrap_or_else(|| {
+                panic!(
+                    "this `Animation`'s sequence {sequence_entity:?} has no `SequenceMarker` -- \
+                     every animation belongs to a sequence, so it needs \
+                     `.during(tree.sequence())`. Without it the sequence entity is left as a \
+                     placeholder and there is nothing to count this animation against (see \
+                     `Animation::during`)"
+                )
+            })
             .animations_to_finish += 1;
     }
 }

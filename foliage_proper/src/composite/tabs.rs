@@ -1,5 +1,5 @@
 use crate::Trigger;
-use crate::composite::pagination::PageChanged;
+use crate::composite::PageChanged;
 use crate::composite::segmented_control::{SegmentChanged, SegmentedControl};
 use crate::composite::{IndexedSlotFn, PageCount, PageIndex};
 use crate::{

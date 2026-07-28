@@ -1,5 +1,25 @@
 # The Slot Convention
 
+## Which composites ship by default
+
+Five are unconditional -- `Button`, `Card`, `Router`, `Slider`, `TextInput`. What makes
+them worth having in the framework is *behavior* you would not want to rebuild: route
+state and history, caret and selection handling, drag math and clamping. None of them has
+a house style to disagree with.
+
+The rest -- `Carousel`, `Checkbox`, `Dropdown`, `List`, `Pagination`, `Polyline`,
+`Popover`, `RadioGroup`, `SegmentedControl`, `Tabs`, `Toggle` -- sit behind the
+`composite-extras` feature, off by default:
+
+```toml
+foliage = { version = "1", features = ["composite-extras"] }
+```
+
+Their hard part is arrangement and appearance, and an unopinionated version of that is
+rarely a head start over building the shape you actually want. They remain available and
+supported; they are simply not part of the surface every dependent carries.
+
+
 Every composite in the crate -- `Modal`, `List`, `Dropdown`, `Carousel`, and so on --
 needs to host arbitrary author content without baking in what that content is. A
 `Modal` doesn't know or care whether its body is a form, an image, or another composite;

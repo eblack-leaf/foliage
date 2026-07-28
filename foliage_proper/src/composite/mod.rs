@@ -5,19 +5,30 @@ use std::sync::Arc;
 
 pub(crate) mod button;
 pub(crate) mod card;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod carousel;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod checkbox;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod dropdown;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod list;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod pagination;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod polyline;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod popover;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod radio_group;
 pub(crate) mod router;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod segmented_control;
 pub(crate) mod slider;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod tabs;
 pub(crate) mod text_input;
+#[cfg(feature = "composite-extras")]
 pub(crate) mod toggle;
 pub(crate) use text_input::keybindings::KeyBindings;
 
@@ -56,3 +67,16 @@ pub struct PageIndex(pub usize);
 /// A paged widget's page-count channel, the other half of [`PageIndex`].
 #[derive(Component, Copy, Clone, Default)]
 pub struct PageCount(pub usize);
+/// Emitted at a paged widget's root whenever its [`PageIndex`] changes -- an indicator
+/// click, a prev/next step, or a programmatic write -- including once at spawn with the
+/// initial value, since the reaction that fires it re-fires initial state like every
+/// `react`.
+///
+/// Lives here rather than with `Pagination` because it is the shared page-change channel:
+/// `Router`, `Tabs` and `Carousel` all listen for it without necessarily hosting a
+/// pagination strip.
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct PageChanged {
+    pub index: usize,
+}

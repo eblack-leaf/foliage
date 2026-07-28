@@ -60,10 +60,21 @@ pub use ash::clip::ClipToViewport;
 pub use clipboard::Clipboard;
 pub use color::{CReprColor, Color, Luminance};
 pub use composite::text_input::action::{InputAction, TextInputAction};
-pub use composite::{IconValue, IndexedSlotFn, PageCount, PageIndex, Progress, SlotFn, TextValue};
+pub use composite::{
+    IconValue, IndexedSlotFn, PageChanged, PageCount, PageIndex, Progress, SlotFn, TextValue,
+};
 pub use composite::{
     button::{Button, ButtonSprout, ButtonStyle, Engagement},
     card::{Card, CardSprout, CardStyle},
+    router::{RouteFn, Router, RouterHandle, RouterRoutes, RouterSprout},
+    slider::{ProgressChanged, Slider, SliderBehavior, SliderSprout, SliderStyle},
+    text_input::{
+        HintColor, HintText, InsertText, LineConstraint, TextChanged, TextInput, TextInputSprout,
+        TextInputStyle, keybindings::KeyBindings,
+    },
+};
+#[cfg(feature = "composite-extras")]
+pub use composite::{
     carousel::{Carousel, CarouselConfig, CarouselPages, CarouselSprout, CarouselStyle},
     checkbox::{Checkbox, CheckboxSprout, CheckboxState, CheckboxStyle, Checked},
     dropdown::{
@@ -71,7 +82,7 @@ pub use composite::{
         Selected, SelectionChanged,
     },
     list::{List, ListItems, ListLayout, ListSprout},
-    pagination::{PageChanged, Pagination, PaginationMode, PaginationSprout, PaginationStyle},
+    pagination::{Pagination, PaginationMode, PaginationSprout, PaginationStyle},
     polyline::{
         DashPattern, Polyline, PolylineDrawProgress, PolylineDroppedPoints, PolylinePoints,
         PolylineSprout, PolylineStyle,
@@ -83,17 +94,11 @@ pub use composite::{
     radio_group::{
         RadioChanged, RadioGroup, RadioGroupSprout, RadioOptions, RadioSelected, RadioStyle,
     },
-    router::{RouteFn, Router, RouterHandle, RouterRoutes, RouterSprout},
     segmented_control::{
         SegmentChanged, SegmentedControl, SegmentedControlSprout, SegmentedOptions,
         SegmentedSelected, SegmentedStyle,
     },
-    slider::{ProgressChanged, Slider, SliderBehavior, SliderSprout, SliderStyle},
     tabs::{Tabs, TabsPages, TabsSprout, TabsStyle},
-    text_input::{
-        HintColor, HintText, InsertText, LineConstraint, TextChanged, TextInput, TextInputSprout,
-        TextInputStyle, keybindings::KeyBindings,
-    },
     toggle::{Toggle, ToggleSprout, ToggleState, ToggleStyle, Toggled},
 };
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
@@ -101,7 +106,8 @@ pub use disable::Disable;
 pub use enable::Enable;
 pub use foliage::Foliage;
 pub use grid::{
-    Anchor, AnchorDeps, AnchorDescriptor, GridExt, Justify, LocationValue, ValueDescriptor,
+    Adjust, Anchor, AnchorDeps, AnchorDescriptor, ConfigurationDescriptor, GridExt, Justify,
+    LocationValue, ValueDescriptor,
 };
 pub use grid::{
     AspectRatio, Grid, Layout, Location, ScrollMomentum, ScrollProgress, ScrollTo, View, anchor,
@@ -112,9 +118,9 @@ pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
 pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
 pub use interaction::{
-    FocusBehavior, InputSequence, Interaction, InteractionPhase, InteractionPropagation, Key,
-    Modifiers, OnClick, PhysicalInputSequence, PhysicalKey, listener::InteractionListener,
-    listener::InteractionShape, listener::InteractionState,
+    FocusBehavior, InputSequence, Interaction, InteractionMethod, InteractionPhase,
+    InteractionPropagation, Key, Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
+    listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
 };
 pub use leaf::{Branch, Leaf, Stem};
 pub use line::{Line, LineSprout};

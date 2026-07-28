@@ -8,6 +8,7 @@ use crate::{
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
+use crate::composite::PageChanged;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::system::Query;
 
@@ -74,14 +75,6 @@ pub struct PaginationStyle {
     pub dot_size: Option<(i32, i32)>,
 }
 
-/// Emitted at the pagination root whenever [`PageIndex`] changes (indicator click,
-/// prev/next, or programmatic write) -- including once at spawn with the initial value,
-/// since the reaction that fires it re-fires initial state like every `react`.
-#[foliage_macros::targeted_event]
-#[derive(Copy)]
-pub struct PageChanged {
-    pub index: usize,
-}
 
 /// Private child registry: the patch reaction and click handlers need the stable slot
 /// entities the structure reaction built. Each slot is (the entity to despawn on rebuild,

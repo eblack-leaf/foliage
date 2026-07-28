@@ -12,11 +12,14 @@
 
 pub mod anchor;
 pub mod animate;
+pub mod breakpoints;
 pub mod elevate;
 pub mod grid;
 pub mod interact;
 pub mod location;
+pub mod momentum;
 pub mod relative;
+pub mod scroll;
 pub mod sequence;
 pub mod text;
 

@@ -34,6 +34,9 @@ pub fn build(foliage: &mut Foliage) {
                 chapters::sequence::build as RouteFn,
                 chapters::interact::build as RouteFn,
                 chapters::text::build as RouteFn,
+                chapters::breakpoints::build as RouteFn,
+                chapters::scroll::build as RouteFn,
+                chapters::momentum::build as RouteFn,
             ]))
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),

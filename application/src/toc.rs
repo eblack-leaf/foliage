@@ -364,6 +364,18 @@ const ROUTES: &[(usize, &str)] = &[
         10,
         "Font size, per-character color, and the monospace grid's own pitch",
     ),
+    (
+        11,
+        "One declaration, resolved differently per breakpoint -- nothing respawns",
+    ),
+    (
+        12,
+        "A window onto content taller than itself, clipped at its own edge",
+    ),
+    (
+        13,
+        "Release fast and it keeps going; press once and it stops",
+    ),
 ];
 
 const COLS_XS: i32 = 1;

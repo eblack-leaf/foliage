@@ -42,8 +42,10 @@ pub struct Animation<A: Animate> {
     pub(crate) seq: Entity,
 }
 impl<A: Animate> Animation<A> {
-    /// A tween ending at `a`. Defaults to [`Ease::DECELERATE`]; still needs a target and
-    /// a time range.
+    /// A tween ending at `a`. Defaults to [`Ease::DECELERATE`], and still needs a target,
+    /// a time range, and a sequence -- [`during`](Self::during) is required, not optional.
+    /// A single animation with no other timing to coordinate against still gets one of its
+    /// own: `.during(tree.sequence())`.
     pub fn new(a: A) -> Self {
         Self {
             anim_target: Default::default(),
@@ -80,6 +82,9 @@ impl<A: Animate> Animation<A> {
     /// Joins the sequence from [`sequence`](crate::EcsExtension::sequence), so
     /// [`start`](Self::start)/[`finish`](Self::finish) are measured from its origin and
     /// its [`OnEnd`](crate::OnEnd) waits for this tween.
+    ///
+    /// Required. Every animation is counted against a sequence, so one that never joins a
+    /// real sequence entity has nothing to register with and panics when it starts.
     pub fn during(mut self, seq: Entity) -> Self {
         self.seq = seq;
         self
