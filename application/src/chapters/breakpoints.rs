@@ -264,9 +264,15 @@ pub fn build(tree: &mut Tree, slot: Entity) {
             .eased(Ease::Linear),
     );
 
-    tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        hold_then_advance(&mut tree, cells, name_label, note_label, 1);
-    });
+    tree.sequence_end(
+        seq,
+        move |_: Trigger<OnEnd>, mut tree: Tree, existing: Query<Entity>| {
+            if !existing.contains(cells[0]) {
+                return;
+            }
+            hold_then_advance(&mut tree, cells, name_label, note_label, 1);
+        },
+    );
 }
 
 // `(first_col, last_col, row)` -> the `Location` that spans it. `.col()` is exclusive as a
@@ -285,7 +291,11 @@ fn cell_location((first, last, row): (i32, i32, i32)) -> Location {
 // of looking like a respawn.
 //
 // Same guard `text.rs`'s own grow step uses: `write_to` inserts by entity id with no
-// existence check, and this chain can still be pending after the page is gone.
+// existence check, and this chain -- unlike the other chapters', which terminate -- loops
+// forever, so it can still be pending after the page is gone. Callers check before
+// entering as well as the write being guarded below: not for safety (a dead-target
+// `Animation` cleans itself up, so the extra lap is harmless) but so the loop stops at the
+// hop where the page went away instead of one cycle later.
 fn hold_then_advance(
     tree: &mut Tree,
     cells: [Entity; CELLS],
@@ -324,9 +334,15 @@ fn hold_then_advance(
                         .eased(Ease::DECELERATE),
                 );
             }
-            tree.sequence_end(reflow, move |_: Trigger<OnEnd>, mut tree: Tree| {
-                hold_then_advance(&mut tree, cells, name_label, note_label, next + 1);
-            });
+            tree.sequence_end(
+                reflow,
+                move |_: Trigger<OnEnd>, mut tree: Tree, existing: Query<Entity>| {
+                    if !existing.contains(cells[0]) {
+                        return;
+                    }
+                    hold_then_advance(&mut tree, cells, name_label, note_label, next + 1);
+                },
+            );
         },
     );
 }

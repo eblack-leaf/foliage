@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="An `EntityEvent` is an `Event` that is triggered for a specific `EntityEvent::event_target` entity:"><title>EntityEvent in foliage - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="foliage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.96.0 (ac68faa20 2026-05-25)" data-channel="1.96.0" data-search-js="search-b5634cc7.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-5013f961.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">EntityEvent</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../foliage/index.html">foliage</a><span class="version">1.0.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Entity<wbr>Event</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#trigger-behavior" title="Trigger Behavior">Trigger Behavior</a></li><li><a href="#entityevent-propagation" title="`EntityEvent` Propagation"><code>EntityEvent</code> Propagation</a></li><li><a href="#best-practices-for-event-propagation" title="Best practices for event propagation">Best practices for event propagation</a></li><li><a href="#naming-and-usage-conventions" title="Naming and Usage Conventions">Naming and Usage Conventions</a></li><li><a href="#manually-spawning-entityevent-observers" title="Manually spawning `EntityEvent` observers">Manually spawning <code>EntityEvent</code> observers</a></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.event_target" title="event_target">event_target</a></li></ul><h3><a href="#dyn-compatibility">Dyn Compatibility</a></h3><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate foliage</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">foliage</a></div><h1>Trait <span class="trait">Entity<wbr>Event</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"></span></div><pre class="rust item-decl"><code>pub trait EntityEvent: <a class="trait" href="trait.Event.html" title="trait foliage::Event">Event</a> {
+    // Required method
+    fn <a href="#tymethod.event_target" class="fn">event_target</a>(&amp;self) -&gt; <a class="struct" href="struct.Entity.html" title="struct foliage::Entity">Entity</a>;
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>An <a href="trait.EntityEvent.html" title="trait foliage::EntityEvent"><code>EntityEvent</code></a> is an <a href="trait.Event.html" title="trait foliage::Event"><code>Event</code></a> that is triggered for a specific <a href="trait.EntityEvent.html#tymethod.event_target" title="method foliage::EntityEvent::event_target"><code>EntityEvent::event_target</code></a> entity:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(EntityEvent)]
+</span><span class="kw">struct </span>Explode {
+    entity: Entity,
+}
+
+world.add_observer(|event: On&lt;Explode&gt;, <span class="kw-2">mut </span>commands: Commands| {
+    <span class="macro">println!</span>(<span class="string">"Entity {} goes BOOM!"</span>, event.entity);
+    commands.entity(event.entity).despawn();
+});
+
+world.trigger(Explode { entity });</code></pre></div>
+<p><a href="trait.EntityEvent.html" title="trait foliage::EntityEvent"><code>EntityEvent</code></a> will set <a href="trait.EntityEvent.html#tymethod.event_target" title="method foliage::EntityEvent::event_target"><code>EntityEvent::event_target</code></a> automatically for named structs with an <code>entity</code> field name (as seen above). It also works for tuple structs
+whose only field is <a href="struct.Entity.html" title="struct foliage::Entity"><code>Entity</code></a>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(EntityEvent)]
+</span><span class="kw">struct </span>Explode(Entity);</code></pre></div>
+<p>The <a href="trait.EntityEvent.html#tymethod.event_target" title="method foliage::EntityEvent::event_target"><code>EntityEvent::event_target</code></a> can also be manually set using the <code>#[event_target]</code> field attribute:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(EntityEvent)]
+</span><span class="kw">struct </span>Explode {
+    <span class="attr">#[event_target]
+    </span>exploded_entity: Entity,
+}</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(EntityEvent)]
+</span><span class="kw">struct </span>Explode(<span class="attr">#[event_target] </span>Entity);</code></pre></div>
+<p>You may also use any type which implements <a href="trait.ContainsEntity.html" title="trait foliage::ContainsEntity"><code>ContainsEntity</code></a> as the event target:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">struct </span>Bomb(Entity);
+
+<span class="kw">impl </span>ContainsEntity <span class="kw">for </span>Bomb {
+    <span class="kw">fn </span>entity(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Entity {
+        <span class="self">self</span>.<span class="number">0
+    </span>}
+}
+
+<span class="attr">#[derive(EntityEvent)]
+</span><span class="kw">struct </span>Explode(Bomb);</code></pre></div>
+<p>By default, an <a href="trait.EntityEvent.html" title="trait foliage::EntityEvent"><code>EntityEvent</code></a> is immutable. This means the event data, including the target, does not change while the event
+is triggered. However, to support event propagation, your event must also implement the <a href="bevy_ecs/event/trait.SetEntityEventTarget.html" title="trait foliage::bevy_ecs::event::SetEntityEventTarget"><code>SetEntityEventTarget</code></a> trait.</p>
+<p>This trait is automatically implemented for you if you enable event propagation:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(EntityEvent)]
+#[entity_event(propagate)]
+</span><span class="kw">struct </span>Explode(Entity);</code></pre></div><h3 id="trigger-behavior"><a class="doc-anchor" href="#trigger-behavior">§</a>Trigger Behavior</h3>
+<p>When derived, <a href="trait.EntityEvent.html" title="trait foliage::EntityEvent"><code>EntityEvent</code></a> defaults to setting <a href="trait.Event.html#associatedtype.Trigger" title="associated type foliage::Event::Trigger"><code>Event::Trigger</code></a> to <a href="bevy_ecs/event/struct.EntityTrigger.html" title="struct foliage::bevy_ecs::event::EntityTrigger"><code>EntityTrigger</code></a>, which will run all normal “untargeted”
+observers added via <a href="struct.World.html#method.add_observer" title="method foliage::World::add_observer"><code>World::add_observer</code></a>, just like a default <a href="trait.Event.html" title="trait foliage::Event"><code>Event</code></a> would (see the example above).</p>
+<p>However it will <em>also</em> run all observers that watch <em>specific</em> entities, which enables you to assign entity-specific logic:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>world.entity_mut(e1).observe(|event: On&lt;Explode&gt;, <span class="kw-2">mut </span>commands: Commands| {
+    <span class="macro">println!</span>(<span class="string">"Boom!"</span>);
+    commands.entity(event.entity).despawn();
+});
+
+world.entity_mut(e2).observe(|event: On&lt;Explode&gt;, <span class="kw-2">mut </span>commands: Commands| {
+    <span class="macro">println!</span>(<span class="string">"The explosion fizzles! This entity is immune!"</span>);
+});</code></pre></div><h3 id="entityevent-propagation"><a class="doc-anchor" href="#entityevent-propagation">§</a><a href="trait.EntityEvent.html" title="trait foliage::EntityEvent"><code>EntityEvent</code></a> Propagation</h3>
+<p>When deriving <a href="trait.EntityEvent.html" title="trait foliage::EntityEvent"><code>EntityEvent</code></a>, you can enable “event propagation” (also known as “event bubbling”) by
+specifying the <code>#[entity_event(propagate)]</code> attribute:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(EntityEvent)]
+#[entity_event(propagate)]
+</span><span class="kw">struct </span>Click {
+    entity: Entity,
+}</code></pre></div>
+<p>This will default to using the <a href="struct.ChildOf.html" title="struct foliage::ChildOf"><code>ChildOf</code></a> component to propagate the <a href="trait.Event.html" title="trait foliage::Event"><code>Event</code></a> “up”
+the hierarchy (from child to parent).</p>
+<p>You can also specify your own <a href="bevy_ecs/traversal/trait.Traversal.html" title="trait foliage::bevy_ecs::traversal::Traversal"><code>Traversal</code></a> implementation. A common pattern is to use
+<a href="bevy_ecs/relationship/trait.Relationship.html" title="trait foliage::bevy_ecs::relationship::Relationship"><code>Relationship</code></a> components, which will follow the relationships to their root
+(just be sure to avoid cycles … these aren’t detected for performance reasons):</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Component)]
+#[relationship(relationship_target = ClickableBy)]
+</span><span class="kw">struct </span>Clickable(Entity);
+
+<span class="attr">#[derive(Component)]
+#[relationship_target(relationship = Clickable)]
+</span><span class="kw">struct </span>ClickableBy(Vec&lt;Entity&gt;);
+
+<span class="attr">#[derive(EntityEvent)]
+#[entity_event(propagate = <span class="kw-2">&amp;</span><span class="lifetime">'static </span>Clickable)]
+</span><span class="kw">struct </span>Click {
+    entity: Entity,
+}</code></pre></div>
+<p>By default, propagation requires observers to opt-in:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(EntityEvent)]
+#[entity_event(propagate)]
+</span><span class="kw">struct </span>Click {
+    entity: Entity,
+}
+
+world.add_observer(|<span class="kw-2">mut </span>click: On&lt;Click&gt;| {
+  <span class="comment">// this will propagate the event up to the parent, using `ChildOf`
+  </span>click.propagate(<span class="bool-val">true</span>);
+});</code></pre></div>
+<p>But you can enable auto propagation using the <code>#[entity_event(auto_propagate)]</code> attribute:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(EntityEvent)]
+#[entity_event(propagate, auto_propagate)]
+</span><span class="kw">struct </span>Click {
+    entity: Entity,
+}</code></pre></div>
+<p>You can also <em>stop</em> propagation like this:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>world.add_observer(|<span class="kw-2">mut </span>click: On&lt;Click&gt;| {
+  <span class="kw">if </span>is_finished_propagating() {
+    click.propagate(<span class="bool-val">false</span>);
+  }
+});</code></pre></div><h3 id="best-practices-for-event-propagation"><a class="doc-anchor" href="#best-practices-for-event-propagation">§</a>Best practices for event propagation</h3>
+<p>Propagation is useful for events that should be handled by multiple entities in a hierarchy, such as UI events.
+In these cases, it is common for the event to be triggered on a “leaf” entity, and then propagate up to “root” entities.
+In this pattern, it is generally recommended to trigger the event on the most specific entity possible (the leaf), and then use propagation to have it handled by more general entities (the roots).</p>
+<p>Once an event is handled by a given entity, you should stop propagation.
+This ensures that only a single “behavior” resolves per event sent,
+avoiding unexpected behavior from entities higher up the hierarchy.</p>
+<p>This advice has one notable wrinkle:
+if an entity is “disabled” (e.g. if a UI node is grayed out),
+the event should still be considered “handled” by that entity,
+even though the observer logic should not be run.
+This ensures consistent behavior regardless of the enabled/disabled state of entities.</p>
+<h3 id="naming-and-usage-conventions"><a class="doc-anchor" href="#naming-and-usage-conventions">§</a>Naming and Usage Conventions</h3>
+<p>In most cases, it is recommended to use a named struct field for the “event target” entity, and to use
+a name that is descriptive as possible, as this makes events easier to understand and read.</p>
+<p>For events with only one <a href="struct.Entity.html" title="struct foliage::Entity"><code>Entity</code></a> field, <code>entity</code> is often a reasonable name. But if there are multiple
+<a href="struct.Entity.html" title="struct foliage::Entity"><code>Entity</code></a> fields, it is often a good idea to use a more descriptive name.</p>
+<p>It is also generally recommended to <em>consume</em> “event target” entities directly via their named field, as this
+can make the context clearer, allows for more specific documentation hints in IDEs, and it generally reads better.</p>
+<h3 id="manually-spawning-entityevent-observers"><a class="doc-anchor" href="#manually-spawning-entityevent-observers">§</a>Manually spawning <a href="trait.EntityEvent.html" title="trait foliage::EntityEvent"><code>EntityEvent</code></a> observers</h3>
+<p>The examples above that call <a href="struct.EntityWorldMut.html#method.observe" title="method foliage::EntityWorldMut::observe"><code>EntityWorldMut::observe</code></a> to add entity-specific observer logic are
+just shorthand for spawning an <a href="struct.Observer.html" title="struct foliage::Observer"><code>Observer</code></a> directly and manually watching the entity:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span><span class="kw-2">mut </span>observer = Observer::new(|event: On&lt;Explode&gt;| {});
+observer.watch_entity(entity);
+world.spawn(observer);</code></pre></div>
+<p>Note that the <a href="struct.Observer.html" title="struct foliage::Observer"><code>Observer</code></a> component is not added to the entity it is observing. Observers should always be their own entities, as there
+can be multiple observers of the same entity!</p>
+<p>You can call <a href="struct.Observer.html#method.watch_entity" title="method foliage::Observer::watch_entity"><code>Observer::watch_entity</code></a> more than once or <a href="struct.Observer.html#method.watch_entities" title="method foliage::Observer::watch_entities"><code>Observer::watch_entities</code></a> to watch multiple entities with the same <a href="struct.Observer.html" title="struct foliage::Observer"><code>Observer</code></a>.</p>
+</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.event_target" class="method"><h4 class="code-header">fn <a href="#tymethod.event_target" class="fn">event_target</a>(&amp;self) -&gt; <a class="struct" href="struct.Entity.html" title="struct foliage::Entity">Entity</a></h4></section></summary><div class="docblock"><p>The <a href="struct.Entity.html" title="struct foliage::Entity"><code>Entity</code></a> “target” of this <a href="trait.EntityEvent.html" title="trait foliage::EntityEvent"><code>EntityEvent</code></a>. When triggered, this will run observers that watch for this specific entity.</p>
+</div></details></div><h2 id="dyn-compatibility" class="section-header">Dyn Compatibility<a href="#dyn-compatibility" class="anchor">§</a></h2><div class="dyn-compatibility-info"><p>This trait is <b>not</b> <a href="https://doc.rust-lang.org/1.96.0/reference/items/traits.html#dyn-compatibility">dyn compatible</a>.</p><p><i>In older versions of Rust, dyn compatibility was called "object safety", so this trait is not object safe.</i></p></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><div class="negative-marker"></div><section id="impl-EntityEvent-for-Add" class="impl"><a href="#impl-EntityEvent-for-Add" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Add.html" title="struct foliage::Add">Add</a><div class="where">where
+    <a class="struct" href="struct.Add.html" title="struct foliage::Add">Add</a>: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,</div></h3></section><section id="impl-EntityEvent-for-Despawn" class="impl"><a href="#impl-EntityEvent-for-Despawn" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Despawn.html" title="struct foliage::Despawn">Despawn</a><div class="where">where
+    <a class="struct" href="struct.Despawn.html" title="struct foliage::Despawn">Despawn</a>: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,</div></h3></section><section id="impl-EntityEvent-for-Disable" class="impl"><a href="#impl-EntityEvent-for-Disable" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Disable.html" title="struct foliage::Disable">Disable</a></h3></section><section id="impl-EntityEvent-for-Discard" class="impl"><a href="#impl-EntityEvent-for-Discard" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Discard.html" title="struct foliage::Discard">Discard</a><div class="where">where
+    <a class="struct" href="struct.Discard.html" title="struct foliage::Discard">Discard</a>: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,</div></h3></section><section id="impl-EntityEvent-for-Disengaged" class="impl"><a href="#impl-EntityEvent-for-Disengaged" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Disengaged.html" title="struct foliage::Disengaged">Disengaged</a></h3></section><section id="impl-EntityEvent-for-Dragged" class="impl"><a href="#impl-EntityEvent-for-Dragged" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Dragged.html" title="struct foliage::Dragged">Dragged</a></h3></section><section id="impl-EntityEvent-for-Enable" class="impl"><a href="#impl-EntityEvent-for-Enable" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Enable.html" title="struct foliage::Enable">Enable</a></h3></section><section id="impl-EntityEvent-for-Engaged" class="impl"><a href="#impl-EntityEvent-for-Engaged" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Engaged.html" title="struct foliage::Engaged">Engaged</a></h3></section><section id="impl-EntityEvent-for-Focused" class="impl"><a href="#impl-EntityEvent-for-Focused" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Focused.html" title="struct foliage::Focused">Focused</a></h3></section><section id="impl-EntityEvent-for-InputAction" class="impl"><a href="#impl-EntityEvent-for-InputAction" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.InputAction.html" title="struct foliage::InputAction">InputAction</a></h3></section><section id="impl-EntityEvent-for-Insert" class="impl"><a href="#impl-EntityEvent-for-Insert" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Insert.html" title="struct foliage::Insert">Insert</a><div class="where">where
+    <a class="struct" href="struct.Insert.html" title="struct foliage::Insert">Insert</a>: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,</div></h3></section><section id="impl-EntityEvent-for-InsertText" class="impl"><a href="#impl-EntityEvent-for-InsertText" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.InsertText.html" title="struct foliage::InsertText">InsertText</a></h3></section><section id="impl-EntityEvent-for-OnClick" class="impl"><a href="#impl-EntityEvent-for-OnClick" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.OnClick.html" title="struct foliage::OnClick">OnClick</a></h3></section><section id="impl-EntityEvent-for-OnEnd" class="impl"><a href="#impl-EntityEvent-for-OnEnd" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.OnEnd.html" title="struct foliage::OnEnd">OnEnd</a></h3></section><section id="impl-EntityEvent-for-PageChanged" class="impl"><a href="#impl-EntityEvent-for-PageChanged" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.PageChanged.html" title="struct foliage::PageChanged">PageChanged</a></h3></section><section id="impl-EntityEvent-for-ProgressChanged" class="impl"><a href="#impl-EntityEvent-for-ProgressChanged" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.ProgressChanged.html" title="struct foliage::ProgressChanged">ProgressChanged</a></h3></section><section id="impl-EntityEvent-for-Remove" class="impl"><a href="#impl-EntityEvent-for-Remove" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Remove.html" title="struct foliage::Remove">Remove</a><div class="where">where
+    <a class="struct" href="struct.Remove.html" title="struct foliage::Remove">Remove</a>: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,</div></h3></section><section id="impl-EntityEvent-for-TextChanged" class="impl"><a href="#impl-EntityEvent-for-TextChanged" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.TextChanged.html" title="struct foliage::TextChanged">TextChanged</a></h3></section><section id="impl-EntityEvent-for-Unfocused" class="impl"><a href="#impl-EntityEvent-for-Unfocused" class="anchor">§</a><h3 class="code-header">impl <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Unfocused.html" title="struct foliage::Unfocused">Unfocused</a></h3></section><section id="impl-EntityEvent-for-Resolve%3CU%3E" class="impl"><a href="#impl-EntityEvent-for-Resolve%3CU%3E" class="anchor">§</a><h3 class="code-header">impl&lt;U&gt; <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Resolve.html" title="struct foliage::Resolve">Resolve</a>&lt;U&gt;<div class="where">where
+    U: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,
+    <a class="struct" href="struct.Resolve.html" title="struct foliage::Resolve">Resolve</a>&lt;U&gt;: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,</div></h3></section><section id="impl-EntityEvent-for-Resolved%3CW%3E" class="impl"><a href="#impl-EntityEvent-for-Resolved%3CW%3E" class="anchor">§</a><h3 class="code-header">impl&lt;W&gt; <a class="trait" href="trait.EntityEvent.html" title="trait foliage::EntityEvent">EntityEvent</a> for <a class="struct" href="struct.Resolved.html" title="struct foliage::Resolved">Resolved</a>&lt;W&gt;<div class="where">where
+    W: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,
+    <a class="struct" href="struct.Resolved.html" title="struct foliage::Resolved">Resolved</a>&lt;W&gt;: <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + <a class="trait" href="https://doc.rust-lang.org/1.96.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> + 'static,</div></h3></section></div><script src="../trait.impl/bevy_ecs/event/trait.EntityEvent.js" data-ignore-extern-crates="foliage_proper,bevy_ecs" async></script></section></div></main></body></html>

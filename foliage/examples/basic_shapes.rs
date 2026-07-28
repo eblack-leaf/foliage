@@ -8,7 +8,7 @@ use foliage::{
 
 fn main() {
     let mut foliage = Foliage::new();
-    foliage.desktop_size((420, 220));
+    foliage.desktop_size((420, 290));
 
     foliage.world.leaf(
         Panel::new()

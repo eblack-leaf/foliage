@@ -344,7 +344,9 @@ fn draw_line_and_subtitle(
     letter_time - SUBTITLE_LETTER_STAGGER + SUBTITLE_REVEAL_SNAP
 }
 
-/// A "Docs" link below everything else the type-in builds, restyled to match the
+/// One of the two links ("docs" -> rustdoc, "book" -> the mdbook) below everything else
+/// the type-in builds -- see [`LinkButton`] for what differs between them and
+/// `draw_link_button`'s own body for how the pair is laid out. Restyled to match the
 /// decorative heptagon chain's own visual language instead of looking like a plain
 /// stock button: a morphed-in heptagon (same triangle -> `sides: 7.0` technique as
 /// `draw_heptagon`) is the actual clickable target (`InteractionListener` +
@@ -357,8 +359,8 @@ fn draw_line_and_subtitle(
 /// it renders visibly on top of the fill), which would otherwise let it win the hit-test
 /// and swallow clicks meant for the heptagon underneath -- `InteractionPropagation::
 /// pass_through()` on the icon is what lets the click fall through to it instead. Plus a
-/// separate "Docs" label, the whole group centered under `field`, `Anchor`-pinned the
-/// same way the underline/subtitle/heptagons already are. `start` should be well after
+/// separate text label, both groups `Anchor`-pinned under `field` the same way the
+/// underline/subtitle/heptagons already are. `start` should be well after
 /// everything else has landed (see `type_in`'s own call site) -- it showed up alongside
 /// the very first letter before, which read as competing with content that hadn't
 /// finished yet.
@@ -381,37 +383,75 @@ const DOCS_FONT_SIZE: u32 = 22;
 const DOCS_GAP_FROM_FIELD_BOTTOM: i32 = 90; // px -- clears the line + subtitle below field
 const DOCS_MORPH_DURATION: u64 = 700;
 const DOCS_START_GAP: u64 = 400; // ms after the subtitle finishes before the Docs link appears
-// a real absolute URL (scheme + host), not just a root-relative path -- matches
-// `foliage_proper/Cargo.toml`'s own `documentation` field exactly: `book.sh` copies the
-// built mdbook into `docs/book/`, a sibling of `docs/index.html`, which GitHub Pages
-// serves at this exact address.
+const DOCS_PAIR_GAP_PX: i32 = 24; // md and up: between the two groups sitting side by side
+const DOCS_ROW_GAP_PX: i32 = 20; // xs: between the two groups once they stack instead
+// Real absolute URLs (scheme + host), not root-relative paths. Both are siblings of
+// `docs/index.html`, which GitHub Pages serves at `https://eblack-leaf.github.io/foliage/`:
+// `api.sh` writes rustdoc into `docs/api/` and `book.sh` writes the mdbook into
+// `docs/book/` (`web-release.sh` runs both, since its own `rm -rf ../docs/*` clears them).
+// The api link points at the crate page rather than `docs/api/` itself -- `cargo doc` emits
+// no root index.html, so the directory alone would 404.
+const DOCS_API_HREF: &str = "https://eblack-leaf.github.io/foliage/api/foliage/index.html";
 const DOCS_BOOK_HREF: &str = "https://eblack-leaf.github.io/foliage/book/";
 
-fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity, start: u64) {
+/// One of the two link buttons -- everything that differs between them. `slot` is the
+/// position in the pair: `0` is left (md) / top (xs), `1` is right / bottom.
+struct LinkButton {
+    label: &'static str,
+    icon: IconHandles,
+    href: &'static str,
+    slot: i32,
+}
+
+fn draw_link_button(
+    tree: &mut Tree,
+    parent: Entity,
+    field: Entity,
+    seq: Entity,
+    start: u64,
+    link: LinkButton,
+) {
     let group_width = DOCS_BTN_PX + DOCS_LABEL_GAP_PX + DOCS_LABEL_WIDTH_PX;
-    let icon_offset = -(group_width / 2);
-    let label_offset = icon_offset + DOCS_BTN_PX + DOCS_LABEL_GAP_PX;
+    // md and up the two groups sit side by side, so the *pair* is what gets centered and
+    // each group is offset within it. On xs that would be ~300px of button in a viewport
+    // that may not have it, so they stack instead: each group centered on its own row,
+    // the second dropped by one button height plus the gap.
+    let pair_width = 2 * group_width + DOCS_PAIR_GAP_PX;
+    let md_icon_offset = -(pair_width / 2) + link.slot * (group_width + DOCS_PAIR_GAP_PX);
+    let md_label_offset = md_icon_offset + DOCS_BTN_PX + DOCS_LABEL_GAP_PX;
+    let xs_icon_offset = -(group_width / 2);
+    let xs_label_offset = xs_icon_offset + DOCS_BTN_PX + DOCS_LABEL_GAP_PX;
+    let xs_row_drop = link.slot * (DOCS_BTN_PX + DOCS_ROW_GAP_PX);
 
     let left = anchor().center_x().as_left();
-    let btn_left = left.adjust(icon_offset);
-    let label_left = left.adjust(label_offset);
-    let row_top = anchor()
-        .bottom()
-        .as_top()
-        .adjust(DOCS_GAP_FROM_FIELD_BOTTOM);
-    let btn_box = Location::new().xs(
-        btn_left.with(DOCS_BTN_PX.px().as_width()),
-        row_top.with(DOCS_BTN_PX.px().as_height()),
-    );
-    let shadow_box = Location::new().xs(
-        left.adjust(icon_offset - DOCS_SHADOW_OFFSET_PX)
-            .with(DOCS_BTN_PX.px().as_width()),
+    let row_top = |drop: i32| {
         anchor()
             .bottom()
             .as_top()
-            .adjust(DOCS_GAP_FROM_FIELD_BOTTOM + DOCS_SHADOW_Y_OFFSET_PX)
-            .with(DOCS_BTN_PX.px().as_height()),
-    );
+            .adjust(DOCS_GAP_FROM_FIELD_BOTTOM + drop)
+    };
+    let btn_box = Location::new()
+        .xs(
+            left.adjust(xs_icon_offset)
+                .with(DOCS_BTN_PX.px().as_width()),
+            row_top(xs_row_drop).with(DOCS_BTN_PX.px().as_height()),
+        )
+        .md(
+            left.adjust(md_icon_offset)
+                .with(DOCS_BTN_PX.px().as_width()),
+            row_top(0).with(DOCS_BTN_PX.px().as_height()),
+        );
+    let shadow_box = Location::new()
+        .xs(
+            left.adjust(xs_icon_offset - DOCS_SHADOW_OFFSET_PX)
+                .with(DOCS_BTN_PX.px().as_width()),
+            row_top(xs_row_drop + DOCS_SHADOW_Y_OFFSET_PX).with(DOCS_BTN_PX.px().as_height()),
+        )
+        .md(
+            left.adjust(md_icon_offset - DOCS_SHADOW_OFFSET_PX)
+                .with(DOCS_BTN_PX.px().as_width()),
+            row_top(DOCS_SHADOW_Y_OFFSET_PX).with(DOCS_BTN_PX.px().as_height()),
+        );
 
     let shadow = tree.branch(
         parent,
@@ -445,7 +485,7 @@ fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity,
         .eased(Ease::DECELERATE),
     );
 
-    let docs_btn = tree.branch(
+    let link_btn = tree.branch(
         parent,
         Polygon::new()
             .sides(3.0)
@@ -463,7 +503,7 @@ fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity,
     );
     tree.animate(
         Animation::new(Opacity::new(1.0))
-            .targeting(docs_btn)
+            .targeting(link_btn)
             .during(seq)
             .start(start)
             .finish(start + DOCS_MORPH_DURATION)
@@ -475,19 +515,20 @@ fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity,
             rounding: DOCS_HEPTA_ROUNDING,
             rotation: 0.0,
         })
-        .targeting(docs_btn)
+        .targeting(link_btn)
         .during(seq)
         .start(start)
         .finish(start + DOCS_MORPH_DURATION)
         .eased(Ease::DECELERATE),
     );
-    tree.on_click(docs_btn, move |_: Trigger<OnClick>, _: Tree| {
-        HrefLink::new(DOCS_BOOK_HREF).navigate();
+    let href = link.href;
+    tree.on_click(link_btn, move |_: Trigger<OnClick>, _: Tree| {
+        HrefLink::new(href).navigate();
     });
 
     let icon = tree.branch(
         parent,
-        Icon::new(IconHandles::BookOpen)
+        Icon::new(link.icon)
             .color(Color::gray(950))
             .at(Location::new().xs(
                 anchor()
@@ -502,7 +543,7 @@ fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity,
             .elevate(Elevation::up(3))
             .with((
                 Opacity::new(0.0),
-                Anchor::new(docs_btn),
+                Anchor::new(link_btn),
                 InteractionPropagation::pass_through(),
             )),
     );
@@ -515,15 +556,22 @@ fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity,
             .eased(Ease::Linear),
     );
 
-    let docs_label = tree.branch(
+    let link_label = tree.branch(
         parent,
-        Text::new("docs")
+        Text::new(link.label)
             .size(FontSize::new(DOCS_FONT_SIZE))
             .color(Color::stone(500))
-            .at(Location::new().xs(
-                label_left.with(DOCS_LABEL_WIDTH_PX.px().as_width()),
-                row_top.with(DOCS_BTN_PX.px().as_height()),
-            ))
+            .at(Location::new()
+                .xs(
+                    left.adjust(xs_label_offset)
+                        .with(DOCS_LABEL_WIDTH_PX.px().as_width()),
+                    row_top(xs_row_drop).with(DOCS_BTN_PX.px().as_height()),
+                )
+                .md(
+                    left.adjust(md_label_offset)
+                        .with(DOCS_LABEL_WIDTH_PX.px().as_width()),
+                    row_top(0).with(DOCS_BTN_PX.px().as_height()),
+                ))
             .elevate(Elevation::up(2))
             .with((
                 HorizontalAlignment::Left,
@@ -534,7 +582,7 @@ fn draw_docs_button(tree: &mut Tree, parent: Entity, field: Entity, seq: Entity,
     );
     tree.animate(
         Animation::new(Opacity::new(1.0))
-            .targeting(docs_label)
+            .targeting(link_label)
             .during(seq)
             .start(start)
             .finish(start + DOCS_MORPH_DURATION)
@@ -637,7 +685,33 @@ pub fn type_in(tree: &mut Tree, parent: Entity, seq: Entity, start: u64) {
     }
 
     let subtitle_end = draw_line_and_subtitle(tree, parent, field, seq, letter_time + REVEAL_SNAP);
-    draw_docs_button(tree, parent, field, seq, subtitle_end + DOCS_START_GAP);
+    let links_start = subtitle_end + DOCS_START_GAP;
+    draw_link_button(
+        tree,
+        parent,
+        field,
+        seq,
+        links_start,
+        LinkButton {
+            label: "docs",
+            icon: IconHandles::Code,
+            href: DOCS_API_HREF,
+            slot: 0,
+        },
+    );
+    draw_link_button(
+        tree,
+        parent,
+        field,
+        seq,
+        links_start,
+        LinkButton {
+            label: "book",
+            icon: IconHandles::BookOpen,
+            href: DOCS_BOOK_HREF,
+            slot: 1,
+        },
+    );
 
     // cursor blink: a snapped on/off toggle at a steady cadence, running through the
     // whole typing pass and a while after it settles.

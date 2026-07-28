@@ -239,7 +239,7 @@ pub fn build(tree: &mut Tree, slot: Entity) {
     );
 
     tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        wait(&mut tree, BEFORE_FLICK_MS, move |tree| {
+        wait(&mut tree, window, BEFORE_FLICK_MS, move |tree| {
             flick(tree, window, cues, false)
         });
     });
@@ -288,8 +288,23 @@ fn cue(
 
 // A timed step with nothing to animate -- the same no-op-tween-for-timing pattern
 // `text.rs` and `breakpoints.rs` use, wrapped up since this page needs it repeatedly.
-fn wait(tree: &mut Tree, ms: u64, then: impl Fn(&mut Tree) + Send + Sync + 'static) {
-    tree.timer(ms, move |_: Trigger<OnEnd>, mut tree: Tree| then(&mut tree));
+//
+// Guarded on `window` like every other step in the chain, and for the same reason: this
+// is the one chapter whose loop never terminates, so its timers outlive the page.
+// Navigating away despawns the slot subtree, but the pending timer still fires, and
+// `reset`'s `write_to(window, ScrollTo)` -- a raw insert by entity id -- then lands on a
+// despawned entity and hard-errors. `window` stands in for the cues and blip too: all
+// siblings under `frame`, so they die together.
+fn wait(tree: &mut Tree, window: Entity, ms: u64, then: impl Fn(&mut Tree) + Send + Sync + 'static) {
+    tree.timer(
+        ms,
+        move |_: Trigger<OnEnd>, mut tree: Tree, existing: Query<Entity>| {
+            if !existing.contains(window) {
+                return;
+            }
+            then(&mut tree)
+        },
+    );
 }
 
 // Each cue fade gets a sequence of its own. Every animation belongs to one -- there is no
@@ -375,11 +390,11 @@ fn drag(
             show(&mut tree, cues.velocity);
             show(&mut tree, cues.decay);
             if interrupt {
-                wait(&mut tree, INTERRUPT_AFTER_MS, move |tree| {
+                wait(&mut tree, window, INTERRUPT_AFTER_MS, move |tree| {
                     interrupt_coast(tree, window, cues)
                 });
             } else {
-                wait(&mut tree, CUE_HOLD, move |tree| {
+                wait(&mut tree, window, CUE_HOLD, move |tree| {
                     hide(tree, cues.velocity);
                     settle(tree, window, cues);
                 });
@@ -419,7 +434,7 @@ fn wait_for_rest(tree: &mut Tree, window: Entity, cues: Cues, last: f32) {
             }
             hide(&mut tree, cues.decay);
             show(&mut tree, cues.stop);
-            wait(&mut tree, AFTER_STOP_MS, move |tree| {
+            wait(&mut tree, window, AFTER_STOP_MS, move |tree| {
                 hide(tree, cues.stop);
                 reset(tree, window, cues, true);
             });
@@ -454,9 +469,9 @@ fn interrupt_coast(tree: &mut Tree, window: Entity, cues: Cues) {
             show(&mut tree, cues.press);
             blip(&mut tree, cues.blip);
             // Release the synthetic press so the pointer isn't left down afterwards.
-            wait(&mut tree, 120, move |tree| {
+            wait(&mut tree, window, 120, move |tree| {
                 queue_at(tree, InteractionPhase::End, at.left(), at.top());
-                wait(tree, AFTER_INTERRUPT_MS, move |tree| {
+                wait(tree, window, AFTER_INTERRUPT_MS, move |tree| {
                     hide(tree, cues.press);
                     reset(tree, window, cues, false);
                 });
@@ -490,7 +505,7 @@ fn blip(tree: &mut Tree, marker: Entity) {
 // Back to the top and around again, alternating which beat runs.
 fn reset(tree: &mut Tree, window: Entity, cues: Cues, next_interrupts: bool) {
     tree.write_to(window, ScrollTo::y(0.0));
-    wait(tree, BEFORE_FLICK_MS, move |tree| {
+    wait(tree, window, BEFORE_FLICK_MS, move |tree| {
         flick(tree, window, cues, next_interrupts)
     });
 }

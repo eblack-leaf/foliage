@@ -188,9 +188,15 @@ pub fn build(tree: &mut Tree, slot: Entity) {
             .eased(Ease::Linear),
     );
 
-    tree.sequence_end(seq, move |_: Trigger<OnEnd>, mut tree: Tree| {
-        wait_before_grow(&mut tree, frame, field, letters);
-    });
+    tree.sequence_end(
+        seq,
+        move |_: Trigger<OnEnd>, mut tree: Tree, existing: Query<Entity>| {
+            if !existing.contains(field) {
+                return;
+            }
+            wait_before_grow(&mut tree, frame, field, letters);
+        },
+    );
 }
 
 fn cell_location(i: i32) -> Location {
@@ -248,12 +254,15 @@ fn wait_before_grow(tree: &mut Tree, frame: Entity, field: Entity, letters: [Ent
             // same reasoning as `location.rs`'s own guard: `write_to` is a raw `.insert()`
             // by entity ID with no existence check, unsafe only here because this chain
             // can still be pending after the page is gone (navigating away despawns
-            // `field`/`letters` along with the rest of it).
-            if existing.contains(field) {
-                tree.write_to(field, FontSize::new(GROWN_FONT_SIZE));
-                for letter in letters {
-                    tree.write_to(letter, FontSize::new(GROWN_FONT_SIZE));
-                }
+            // `field`/`letters` along with the rest of it). An early return rather than a
+            // wrapping `if`, so `grow_label` is covered too -- it branches onto `frame`
+            // and anchors to `field`, both just as gone as the entities written above.
+            if !existing.contains(field) {
+                return;
+            }
+            tree.write_to(field, FontSize::new(GROWN_FONT_SIZE));
+            for letter in letters {
+                tree.write_to(letter, FontSize::new(GROWN_FONT_SIZE));
             }
             grow_label(&mut tree, frame, field);
         },

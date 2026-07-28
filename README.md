@@ -41,8 +41,11 @@ returns a `ButtonSprout` -- a config builder, not yet an entity -- and `.at(..)`
 `.elevate(..)`/`.text(..)`/`.colors(..)` all just set fields on it. It only becomes a
 real, spawned entity once handed to `leaf`/`branch`. More runnable examples (composing
 several widgets, click handling, animation, text input) live in
-[`foliage/examples`](foliage/examples) -- `cargo run --example controls -p foliage` is a
-good first one to try.
+[`foliage/examples`](foliage/examples) -- `cargo run --example card -p foliage` is a
+good first one to try. The examples demoing the off-by-default arrangement composites
+(`carousel`, `controls`, `dropdown_and_pagination`, `polyline`, `popover`, `tabs`) need
+that feature turned on: `cargo run --example controls -p foliage --features
+composite-extras`.
 
 ## Composing and reacting
 
