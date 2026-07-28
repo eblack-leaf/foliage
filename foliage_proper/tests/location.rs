@@ -8,8 +8,8 @@
 //! headless with no schedule run required.
 
 use foliage_proper::{
-    EcsExtension, Elevation, Foliage, Grid, GridExt, Layout, Leaf, Location, Logical, Section,
-    Sprout,
+    EcsExtension, Elevation, Foliage, Grid, GridExt, Layout, Leaf, Location, Logical, Position,
+    Section, Short, Sprout,
 };
 
 fn section_of(foliage: &mut Foliage, entity: foliage_proper::Entity) -> Section<Logical> {
@@ -239,4 +239,131 @@ fn a_specific_breakpoint_config_wins_over_the_fallback_when_it_is_the_active_lay
         150.0,
         "Md is explicitly configured and active -- it should win over the xs fallback"
     );
+}
+
+/// A `Location` carrying both `.md()` and `.short()`, under an `Md` layout, with the
+/// viewport short: the landscape-phone case the whole feature exists for.
+#[test]
+fn short_wins_over_the_active_width_breakpoint_when_the_viewport_is_short() {
+    let mut foliage = Foliage::new();
+    foliage.world.insert_resource(Layout::Md);
+    foliage.world.insert_resource(Short::Yes);
+    let leaf = foliage.world.leaf(
+        Leaf::sprout()
+            .at(Location::new()
+                .xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                )
+                .md(
+                    0.px().as_left().with(150.px().as_width()),
+                    0.px().as_top().with(150.px().as_height()),
+                )
+                .short(
+                    0.px().as_left().with(90.px().as_width()),
+                    0.px().as_top().with(90.px().as_height()),
+                ))
+            .elevate(Elevation::up(1)),
+    );
+    foliage.world.flush();
+
+    let section = section_of(&mut foliage, leaf);
+    assert_eq!(
+        section.width(),
+        90.0,
+        "short is set and the viewport is short -- it should win over the active Md config"
+    );
+}
+
+/// The same `Location`, same `Md` layout, viewport *not* short -- `short` must stay
+/// entirely out of the way rather than leaking into the normal width chain.
+#[test]
+fn short_is_ignored_when_the_viewport_is_not_short() {
+    let mut foliage = Foliage::new();
+    foliage.world.insert_resource(Layout::Md);
+    foliage.world.insert_resource(Short::No);
+    let leaf = foliage.world.leaf(
+        Leaf::sprout()
+            .at(Location::new()
+                .xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                )
+                .md(
+                    0.px().as_left().with(150.px().as_width()),
+                    0.px().as_top().with(150.px().as_height()),
+                )
+                .short(
+                    0.px().as_left().with(90.px().as_width()),
+                    0.px().as_top().with(90.px().as_height()),
+                ))
+            .elevate(Elevation::up(1)),
+    );
+    foliage.world.flush();
+
+    let section = section_of(&mut foliage, leaf);
+    assert_eq!(section.width(), 150.0, "not short -- Md should still win");
+}
+
+/// The regression guard that matters most: every `Location` in every existing app has no
+/// `short` configured, and a short viewport must not change any of them.
+#[test]
+fn a_location_without_short_is_unaffected_by_a_short_viewport() {
+    let mut foliage = Foliage::new();
+    foliage.world.insert_resource(Layout::Md);
+    foliage.world.insert_resource(Short::Yes);
+    let leaf = foliage.world.leaf(
+        Leaf::sprout()
+            .at(Location::new()
+                .xs(
+                    0.px().as_left().with(50.px().as_width()),
+                    0.px().as_top().with(50.px().as_height()),
+                )
+                .md(
+                    0.px().as_left().with(150.px().as_width()),
+                    0.px().as_top().with(150.px().as_height()),
+                ))
+            .elevate(Elevation::up(1)),
+    );
+    foliage.world.flush();
+
+    let section = section_of(&mut foliage, leaf);
+    assert_eq!(
+        section.width(),
+        150.0,
+        "no short config -- the width chain should resolve exactly as it always did"
+    );
+}
+
+fn viewport(h: f32) -> Section<Logical> {
+    Section::new(Position::logical((0.0, 0.0)), (1000.0, h))
+}
+
+/// The Schmitt trigger. A single threshold would flip on every scroll for a viewport
+/// resting near it (mobile address bar hiding/showing), re-firing `Resolve<Location>`
+/// across the whole tree each time.
+#[test]
+fn short_enters_below_the_enter_threshold_and_holds_through_the_deadband() {
+    // crosses ENTER going down
+    assert_eq!(Short::No.next(viewport(479.0)), Short::Yes);
+    assert_eq!(Short::No.next(viewport(481.0)), Short::No);
+    // inside the deadband the answer is whatever it already was -- both directions
+    assert_eq!(Short::Yes.next(viewport(500.0)), Short::Yes);
+    assert_eq!(Short::No.next(viewport(500.0)), Short::No);
+    // only clearing EXIT releases it
+    assert_eq!(Short::Yes.next(viewport(519.0)), Short::Yes);
+    assert_eq!(Short::Yes.next(viewport(520.0)), Short::No);
+}
+
+/// The actual failure mode the deadband exists for: an address bar toggling a viewport
+/// between 460 and 500 must not oscillate the breakpoint.
+#[test]
+fn an_address_bar_toggling_across_the_enter_threshold_does_not_oscillate() {
+    let mut state = Short::No;
+    for _ in 0..8 {
+        state = state.next(viewport(460.0)); // bar shown
+        assert_eq!(state, Short::Yes);
+        state = state.next(viewport(500.0)); // bar hidden, still under EXIT
+        assert_eq!(state, Short::Yes, "must not release inside the deadband");
+    }
 }

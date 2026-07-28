@@ -4,7 +4,7 @@ use crate::anim::interpolation::Interpolations;
 use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration};
+use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration, Short};
 use crate::text::monospaced::MonospacedFont;
 use crate::visibility::AutoVisibility;
 use crate::{
@@ -74,6 +74,7 @@ pub struct Location {
     md: Option<LocationDescriptor>,
     lg: Option<LocationDescriptor>,
     xl: Option<LocationDescriptor>,
+    short: Option<LocationDescriptor>,
     pub(crate) animation_percent: CoordinateUnit,
 }
 impl Location {
@@ -86,8 +87,29 @@ impl Location {
             md: None,
             lg: None,
             xl: None,
+            short: None,
             animation_percent: 0.0,
         }
+    }
+    /// Overrides every width breakpoint while the viewport is vertically cramped (see
+    /// [`Short`]). Takes horizontal then vertical.
+    ///
+    /// The escape hatch for the case width alone gets wrong: a phone held landscape is
+    /// `Md`-wide with almost no height, so a `Location` that spends vertical room at `md`
+    /// runs off the bottom. Set this and that one value switches; leave it off and the
+    /// entity resolves purely by width exactly as before.
+    ///
+    /// Off by default and never inferred -- the width answer is right far more often than
+    /// not (a tagline moving *beside* its subject at `md` is the correct landscape layout
+    /// precisely because it stops spending height), so this is opt-in per value rather
+    /// than a blanket demotion of the whole breakpoint.
+    pub fn short<HAD: Into<ConfigurationDescriptor>, VAD: Into<ConfigurationDescriptor>>(
+        mut self,
+        had: HAD,
+        vad: VAD,
+    ) -> Self {
+        self.short.replace((had.into(), vad.into()).into());
+        self
     }
     /// The base configuration, used at every breakpoint without its own. Takes horizontal then vertical.
     pub fn xs<HAD: Into<ConfigurationDescriptor>, VAD: Into<ConfigurationDescriptor>>(
@@ -168,8 +190,15 @@ impl Location {
             && self.md.is_none()
             && self.lg.is_none()
             && self.xl.is_none()
+            && self.short.is_none()
     }
-    fn config(&self, layout: Layout) -> Option<LocationDescriptor> {
+    fn config(&self, layout: Layout, short: Short) -> Option<LocationDescriptor> {
+        // One extra link on the front of the same chain, not a second dimension: `short`
+        // wins when it is both relevant and set, and otherwise this is the width lookup
+        // untouched.
+        if short == Short::Yes && let Some(s) = &self.short {
+            return Some(*s);
+        }
         match layout {
             Layout::Xs => self.at_least_xs(),
             Layout::Sm => self.at_least_sm(),
@@ -192,8 +221,8 @@ impl Location {
     /// re-resolve on this so a `FontSize` write only re-resolves the handful of entities
     /// whose geometry genuinely depends on it, rather than every entity in the tree on
     /// every layout change.
-    pub(crate) fn depends_on_own_font_size(&self, layout: Layout) -> bool {
-        let Some(config) = self.config(layout) else {
+    pub(crate) fn depends_on_own_font_size(&self, layout: Layout, short: Short) -> bool {
+        let Some(config) = self.config(layout, short) else {
             return false;
         };
         [
@@ -219,6 +248,7 @@ impl Location {
         trigger: Trigger<Resolve<Location>>,
         mut tree: Tree,
         layout: Res<Layout>,
+        short: Res<Short>,
         locations: Query<&Location>,
         sections: Query<&Section<Logical>>,
         grids: Query<(&Grid, &View)>,
@@ -291,6 +321,7 @@ impl Location {
             };
             if let Some(mut resolution) = resolve(
                 *layout,
+                *short,
                 location,
                 grid,
                 view,
@@ -374,6 +405,7 @@ impl Location {
 }
 fn resolve(
     layout: Layout,
+    short: Short,
     location: &Location,
     grid: GridConfiguration,
     view: View,
@@ -384,7 +416,7 @@ fn resolve(
     aspect_ratio: Option<AspectRatio>,
     stem_letters: Coordinates,
 ) -> Option<Resolution> {
-    if let Some(config) = location.config(layout) {
+    if let Some(config) = location.config(layout, short) {
         let mut resolution = Resolution::default();
         let a = calc(
             config.horizontal.a,

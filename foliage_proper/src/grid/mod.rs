@@ -14,7 +14,7 @@ use crate::grid::view::{coast, extent_check};
 use crate::{Attachment, Component, CoordinateUnit};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoScheduleConfigs;
-pub use layout::Layout;
+pub use layout::{Layout, Short};
 pub use location::Anchor;
 pub use location::AnchorDeps;
 pub use location::Location;
@@ -23,6 +23,7 @@ pub use view::{ScrollMomentum, ScrollProgress, ScrollTo, View};
 impl Attachment for Grid {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(Layout::Xs);
+        foliage.world.insert_resource(Short::No);
         foliage.world.insert_resource(ScrollMomentum::default());
         foliage
             .main

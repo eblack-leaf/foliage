@@ -18,7 +18,7 @@ use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::MonospacedFont;
 use crate::{
     Attachment, Branch, Layout, Location, Physical, Resolve, Resolved, ResolvedElevation,
-    ResolvedVisibility, Tree, Visibility,
+    ResolvedVisibility, Short, Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::ComponentId;
@@ -593,9 +593,10 @@ impl ResolvedFontSize {
         // `FontSize` on every layout change, and `Letters` is the only `LocationValue`
         // whose resolution reads the font size at all.
         let layout = *world.get_resource::<Layout>().unwrap();
+        let short = *world.get_resource::<Short>().unwrap();
         if world
             .get::<Location>(this)
-            .is_some_and(|l| l.depends_on_own_font_size(layout))
+            .is_some_and(|l| l.depends_on_own_font_size(layout, short))
         {
             world
                 .commands()

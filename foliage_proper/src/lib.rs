@@ -110,8 +110,8 @@ pub use grid::{
     LocationValue, ValueDescriptor,
 };
 pub use grid::{
-    AspectRatio, Grid, Layout, Location, ScrollMomentum, ScrollProgress, ScrollTo, View, anchor,
-    text_content, view::OverscrollPropagation,
+    AspectRatio, Grid, Layout, Location, ScrollMomentum, ScrollProgress, ScrollTo, Short, View,
+    anchor, text_content, view::OverscrollPropagation,
 };
 pub use icon::{Icon, IconId, IconMemory, IconSprout};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
