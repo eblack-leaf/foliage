@@ -304,9 +304,8 @@ impl Sprout for DropdownSprout {
                 // tree structurally to get that. Being a real sibling of `panel`/`text`/
                 // `chevron` means its elevation is just `up(3)` (more in front than any of
                 // them), compared the ordinary structural way against its real siblings --
-                // not a guessed absolute constant that risked colliding with any other
-                // composite reaching for the same "float above everything" number (Popover's
-                // own content surface used to guess the identical `abs(90)`).
+                // not a guessed absolute constant, which any other composite reaching for
+                // the same "float above everything" number could pick identically.
                 if let Some(existing) = handle.options.take() {
                     tree.remove(existing);
                 }

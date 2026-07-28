@@ -15,6 +15,8 @@ impl Attachment for Remove {
 }
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
+/// Despawns an entity and everything beneath it, and tells each renderer to drop the
+/// instances it held -- so nothing lingers on the GPU after the entity is gone.
 pub struct Remove {}
 impl Remove {
     pub(crate) fn push_remove_packet<R: Clone + Send + Sync + 'static>(

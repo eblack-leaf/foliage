@@ -39,12 +39,17 @@ use wgpu::TextureFormat;
 pub struct Image {
     pub key: AssetKey,
 }
+/// How an image's own pixels are fitted into the box its `Location` resolved to.
 #[derive(Component, Copy, Clone, PartialEq, Default)]
 #[component(on_insert = Self::on_insert)]
 pub enum ImageView {
+    /// Scale to fit inside the box, preserving the image's aspect ratio and leaving the
+    /// remainder of the box empty.
     #[default]
     Aspect,
+    /// Fill the box, preserving aspect ratio and cropping the overflowing axis.
     Crop,
+    /// Fill the box exactly, distorting the image where the ratios disagree.
     Stretch,
 }
 impl ImageView {
@@ -98,7 +103,10 @@ impl Attachment for Image {
     }
 }
 impl Image {
+    /// Pixel format every image is decoded into before upload.
     pub const FORMAT: TextureFormat = TextureFormat::Rgba8Unorm;
+    /// Starts an [`Image`] entity drawing the asset behind `key`. The key is valid
+    /// immediately; the image appears once the bytes load and decode.
     pub fn new(key: AssetKey) -> ImageSprout {
         ImageSprout {
             leaf: LeafSprout::default(),
@@ -231,6 +239,7 @@ impl Image {
         }
     }
 }
+/// Builder for an [`Image`] entity -- see [`Image::new`].
 pub struct ImageSprout {
     leaf: LeafSprout,
     key: AssetKey,
@@ -245,11 +254,14 @@ impl Sprout for ImageSprout {
     }
 }
 impl ImageSprout {
+    /// How the pixels fit the box. [`ImageView::Aspect`] by default.
     pub fn view(mut self, v: ImageView) -> Self {
         self.view = Some(v);
         self
     }
 }
+/// The decoded image's own pixel dimensions, written once the asset resolves. Read it to
+/// size a box to the real image rather than guessing.
 #[derive(Component, Copy, Clone, PartialEq, Default)]
 pub struct ImageMetrics {
     pub extent: Area<Numerical>,

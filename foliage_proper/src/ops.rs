@@ -23,6 +23,7 @@ impl<W: Send + Sync + 'static> Default for Resolved<W> {
 }
 
 impl<W: Send + Sync + 'static> Resolved<W> {
+    /// The event; its target is filled in when it is sent.
     pub fn new() -> Resolved<W> {
         Resolved {
             entity: Entity::PLACEHOLDER,
@@ -64,6 +65,7 @@ impl<U: Send + Sync + 'static> Default for Resolve<U> {
 }
 
 impl<U: Send + Sync + 'static> Resolve<U> {
+    /// The event; its target is filled in when it is sent.
     pub fn new() -> Resolve<U> {
         Resolve {
             entity: Entity::PLACEHOLDER,

@@ -199,6 +199,8 @@ impl VirtualKeyboardAdapter {
         }
     }
     #[allow(unused)]
+    /// Raises the on-screen keyboard in the mode `ty` asks for. No-op on platforms with
+    /// no virtual keyboard.
     pub fn open(&self, ty: VirtualKeyboardType) {
         Self::trigger_hook(ty);
         #[cfg(target_os = "android")]
@@ -236,6 +238,7 @@ impl VirtualKeyboardAdapter {
         }
     }
     #[allow(unused)]
+    /// Dismisses the on-screen keyboard.
     pub fn close(&self) {
         #[cfg(target_arch = "wasm32")]
         {

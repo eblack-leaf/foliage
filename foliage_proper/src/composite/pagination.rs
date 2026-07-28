@@ -87,10 +87,9 @@ pub struct PageChanged {
 /// entities the structure reaction built. Each slot is (the entity to despawn on rebuild,
 /// the entity the patch reaction recolors/retexts) -- for `Dots` these differ (the outer,
 /// invisible hit-region vs. the inner visual pip it parents); for `Numbered` one text
-/// entity plays both roles. Removing only the recolor target and never its hit-region
-/// parent used to leak an orphaned `InteractionListener` entity per slot on every
-/// structural rebuild after the first (count or style change) -- caught by a test that
-/// rebuilt twice and found the earlier hit-regions still hanging around, un-removed.
+/// entity plays both roles. Both are tracked because a structural rebuild has to despawn
+/// the hit region as well as the visual it parents; removing only the recolor target
+/// leaks an `InteractionListener` per slot on every rebuild.
 #[derive(Component, Clone)]
 pub(crate) struct PaginationHandle {
     slots: Vec<(Entity, Entity)>,

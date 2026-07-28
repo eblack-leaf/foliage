@@ -16,6 +16,7 @@ use wgpu::{
 
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
+/// One corner of the unit quad each line instance is stretched across.
 pub struct Vertex {
     position: Coordinates,
 }

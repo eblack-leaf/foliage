@@ -30,9 +30,9 @@ impl Attachment for Asset {
 /// filesystem path or http(s) URL: wasm: a full, already-resolved URL) owns that entirely.
 ///
 /// `Url` only exists as a variant at all on wasm (fetch is unconditional there) or when the
-/// `remote-assets` feature is enabled on native -- an app that disabled it to shed
-/// `reqwest`/`rustls` (see `Cargo.toml`) gets a compile error at the construction site if it
-/// still tries to build one, instead of the runtime panic `handle_load_asset` used to raise.
+/// `remote-assets` feature is enabled on native. An app that disables it to shed
+/// `reqwest`/`rustls` (see `Cargo.toml`) therefore fails to compile at the construction
+/// site rather than panicking at load time.
 pub enum AssetSource {
     Bytes(Vec<u8>),
     #[cfg(any(target_family = "wasm", feature = "remote-assets"))]
@@ -103,24 +103,32 @@ fn handle_load_asset(trigger: Trigger<LoadAsset>, mut asset_loader: ResMut<Asset
     }
 }
 #[derive(Resource, Default)]
+/// Holds loaded assets by [`AssetKey`], and drives the fetches still in flight.
 pub struct AssetLoader {
     pub(crate) assets: HashMap<AssetKey, Asset>,
     awaiting: HashMap<AssetKey, AssetFetch>,
 }
 #[derive(Component, Clone)]
+/// Marks an entity as waiting on `key`, so [`OnRetrieval`] can find it once the bytes
+/// land. Keeps the wait declarative rather than making callers poll.
 pub struct AssetRetrieval {
     key: AssetKey,
 }
 impl AssetRetrieval {
+    /// Waits on `key`.
     pub fn new(key: AssetKey) -> Self {
         Self { key }
     }
 }
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
+/// Fired at an entity once the asset its [`AssetRetrieval`] names has arrived. On native
+/// that is effectively immediate; on wasm it is whenever the fetch resolves, so anything
+/// depending on the bytes belongs here rather than after the spawn.
 pub struct OnRetrieval {
     pub key: AssetKey,
 }
+/// Builds an [`OnRetrieval`] observer that hands the loaded bytes to `afn`.
 pub fn asset_retrieval<'w, AFN: FnMut(&mut Tree, Entity, Vec<u8>) + 'static>(
     mut afn: AFN,
 ) -> impl FnMut(Trigger<OnRetrieval>, Tree, Res<AssetLoader>) {
@@ -161,6 +169,7 @@ pub(crate) fn await_assets(mut asset_loader: ResMut<AssetLoader>) {
     }
 }
 impl AssetLoader {
+    /// The asset for `key`, or `None` while it is still loading.
     pub fn retrieve(&self, key: AssetKey) -> Option<Asset> {
         self.assets.get(&key).cloned()
     }
@@ -168,16 +177,21 @@ impl AssetLoader {
     pub(crate) fn queue_fetch(&mut self, fetch: AssetFetch) {
         self.awaiting.insert(fetch.key, fetch);
     }
+    /// A fresh key, usable immediately -- before the asset it names has loaded.
     pub fn generate_key() -> AssetKey {
         Uuid::new_v4().as_u128()
     }
 }
+/// Handle to an asset, valid from the moment it is issued and independent of whether the
+/// bytes have arrived.
 pub type AssetKey = u128;
 #[derive(Clone)]
+/// Loaded asset bytes, undecoded -- whatever consumes them decides what they mean.
 pub struct Asset {
     pub data: Vec<u8>,
 }
 impl Asset {
+    /// Wraps already-loaded bytes.
     pub fn new(data: Vec<u8>) -> Self {
         Self { data }
     }

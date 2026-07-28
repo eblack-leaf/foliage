@@ -165,8 +165,8 @@ impl Sprout for PolylineSprout {
     }
     fn build<T: EcsExtension>(this: Entity, tree: &mut T) {
         // Persistent pools, one entity per segment/joint -- reconciled in place on every
-        // write instead of torn down and rebuilt (the old List/Dropdown-style pattern this
-        // used to follow). Pool size is driven by the *full* point list only, never by
+        // write rather than torn down and rebuilt. Pool size is driven by the *full* point
+        // list only, never by
         // `PolylineDrawProgress` -- see below -- so an existing polyline's points moving,
         // or its draw-in progress advancing, is nothing more than new `Location`/`Color`/
         // `Opacity` values on entities that already exist. `Location` already implements

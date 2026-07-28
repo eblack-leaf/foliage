@@ -24,18 +24,21 @@ pub struct ScrollTo {
     pub y: Option<f32>,
 }
 impl ScrollTo {
+    /// Scroll horizontally to `percent` of the range, leaving the vertical position be.
     pub fn x(percent: f32) -> Self {
         Self {
             x: Some(percent.clamp(0.0, 1.0)),
             y: None,
         }
     }
+    /// Scroll vertically to `percent` of the range, leaving the horizontal position be.
     pub fn y(percent: f32) -> Self {
         Self {
             x: None,
             y: Some(percent.clamp(0.0, 1.0)),
         }
     }
+    /// Scroll both axes.
     pub fn xy(x: f32, y: f32) -> Self {
         Self {
             x: Some(x.clamp(0.0, 1.0)),
@@ -44,6 +47,10 @@ impl ScrollTo {
     }
 }
 #[derive(Component, Copy, Clone, Debug)]
+/// Whether scroll this view cannot consume passes outward to an ancestor view.
+///
+/// On by default, which is what lets a drag on inner content still scroll the page behind
+/// it once the inner view hits its own end. Turn it off to trap scrolling inside a region.
 pub struct OverscrollPropagation(pub bool);
 impl Default for OverscrollPropagation {
     fn default() -> Self {
@@ -192,11 +199,27 @@ pub(crate) fn coast(
 }
 #[derive(Component, Copy, Clone, Debug)]
 #[require(ViewAdjustment, OverscrollPropagation, ScrollInertia, ScrollProgress)]
+/// A scrollable window onto content larger than itself: how far it is scrolled, and how
+/// far it may be.
+///
+/// Required by [`Grid`](crate::Grid), and universal for that reason. Two things depend on
+/// every parent having one, whether or not it can actually scroll: a child's `Location`
+/// resolve reads its parent's `offset` and folds it into every resolved coordinate, and
+/// `ovrscrl` steps parent-by-parent through `View`s when passing unconsumed scroll
+/// outward. A gap in either chain is not a skipped step -- it is a missing component the
+/// code unwraps.
+///
+/// `extent` is grown from the children by `extent_check` each frame; `offset` is clamped
+/// to it. Most views hold an offset of zero for their whole life.
+///
+/// Carrying a `View` therefore says nothing about being scrollable, and `With<View>` is
+/// not a test for it.
 pub struct View {
     pub(crate) offset: Position<Logical>,
     pub(crate) extent: Section<Logical>,
 }
 impl View {
+    /// An unscrolled view. Its extent is computed from its children.
     pub fn new() -> View {
         View {
             offset: Default::default(),
@@ -235,9 +258,11 @@ pub struct ScrollProgress {
     y: f32,
 }
 impl ScrollProgress {
+    /// Horizontal scroll position, 0..1 of the available range.
     pub fn x(&self) -> f32 {
         self.x
     }
+    /// Vertical scroll position, 0..1 of the available range.
     pub fn y(&self) -> f32 {
         self.y
     }

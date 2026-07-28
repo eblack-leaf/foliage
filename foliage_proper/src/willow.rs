@@ -24,12 +24,14 @@ pub(crate) struct Willow {
 }
 
 #[derive(Copy, Clone)]
+/// The near and far depth planes the renderer maps [`ResolvedElevation`] into.
 pub struct NearFarDescriptor {
     pub(crate) near: ResolvedElevation,
     pub(crate) far: ResolvedElevation,
 }
 
 impl NearFarDescriptor {
+    /// A depth range from `near` to `far`.
     pub fn new(near: ResolvedElevation, far: ResolvedElevation) -> Self {
         Self { near, far }
     }

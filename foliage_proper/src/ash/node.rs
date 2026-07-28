@@ -40,6 +40,8 @@ pub(crate) struct RemoveNode {
 }
 
 impl RemoveNode {
+    /// Locates one drawable: which pipeline draws it, which group it batches into, and
+    /// which instance it is within that group.
     pub fn new(pipeline_id: PipelineId, group_id: GroupId, instance_id: InstanceId) -> Self {
         Self {
             pipeline_id,

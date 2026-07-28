@@ -19,6 +19,7 @@ impl Default for Clipboard {
     }
 }
 impl Clipboard {
+    /// Opens the system clipboard.
     pub fn new() -> Self {
         Self {
             local: String::new(),
@@ -26,6 +27,7 @@ impl Clipboard {
             provider: copypasta::ClipboardContext::new().ok(),
         }
     }
+    /// Puts `s` on the system clipboard.
     pub fn write<S: Into<String>>(&mut self, s: S) {
         let s = s.into();
         self.local = s.clone();
@@ -43,6 +45,7 @@ impl Clipboard {
             }
         }
     }
+    /// Reads the system clipboard, empty if it holds no text or is unavailable.
     pub fn read(&mut self) -> String {
         #[cfg(not(target_family = "wasm"))]
         {

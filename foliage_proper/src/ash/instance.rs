@@ -16,6 +16,8 @@ pub(crate) struct Instance {
 }
 
 impl Instance {
+    /// An instance's sort key: depth first, then clip context, so draws sharing a
+    /// scissor stay batched together.
     pub fn new(elevation: ResolvedElevation, clip_context: Stem, id: InstanceId) -> Self {
         Self {
             elevation,
@@ -273,10 +275,9 @@ mod tests {
 
     #[test]
     fn remove_reindexes_the_relocated_instance_and_drops_the_removed_one() {
-        // the exact property the `swap_remove`-based rewrite (see `remove`'s own doc
-        // comment -- this used to be an O(n) `Vec::remove` per call, causing real
-        // multi-second freezes deleting a large selection) has to preserve: every
-        // *surviving* id still resolves to a valid, correct order afterward.
+        // The property `remove`'s `swap_remove` has to preserve while relocating an
+        // instance out of the middle: every *surviving* id still resolves to a valid,
+        // correct order afterward.
         let mut c = InstanceCoordinator::new(4);
         c.add(instance(1, 0.0));
         c.add(instance(2, 0.0));

@@ -200,12 +200,15 @@ impl From<ModifiersState> for Modifiers {
 }
 
 #[derive(Event, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+/// A logical key plus modifiers -- what the user typed, after the layout has been
+/// applied. Bind shortcuts against this so they follow the keyboard layout.
 pub struct InputSequence {
     pub key: Key,
     pub mods: Modifiers,
 }
 
 impl InputSequence {
+    /// A binding for `key` held with `mods`.
     pub fn new(key: Key, mods: Modifiers) -> Self {
         Self { key, mods }
     }
@@ -354,11 +357,14 @@ impl From<WinitPhysicalKey> for PhysicalKey {
 }
 
 #[derive(Event, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+/// A physical key position plus modifiers, independent of layout -- for bindings that
+/// should stay where the finger goes (WASD) rather than follow the letters.
 pub struct PhysicalInputSequence {
     pub code: PhysicalKey,
     pub mods: Modifiers,
 }
 impl PhysicalInputSequence {
+    /// A binding for the key at `code` held with `mods`.
     pub fn new(code: PhysicalKey, mods: Modifiers) -> Self {
         Self { code, mods }
     }

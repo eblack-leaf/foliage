@@ -14,6 +14,8 @@ use bevy_ecs::world::DeferredWorld;
 
 #[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
 #[component(on_insert = on_alignment_insert)]
+/// How a text run sits within its box horizontally. Shared with [`Icon`](crate::Icon),
+/// which uses it to place its artwork in an oversized box.
 pub enum HorizontalAlignment {
     #[default]
     Left,
@@ -22,6 +24,7 @@ pub enum HorizontalAlignment {
 }
 #[derive(Component, Copy, Clone, Default, PartialEq, Debug)]
 #[component(on_insert = on_alignment_insert)]
+/// How a text run sits within its box vertically. Shared with [`Icon`](crate::Icon).
 pub enum VerticalAlignment {
     #[default]
     Top,

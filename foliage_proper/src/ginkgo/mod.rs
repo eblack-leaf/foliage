@@ -459,6 +459,8 @@ pub(crate) struct ViewConfiguration {
     pub(crate) config: SurfaceConfiguration,
 }
 #[derive(Copy, Clone, PartialEq, Resource)]
+/// The display's logical-to-physical pixel ratio, and the multiplier every
+/// `to_physical`/`to_logical` conversion takes.
 pub struct ScaleFactor(f32);
 
 impl Default for ScaleFactor {
@@ -468,6 +470,7 @@ impl Default for ScaleFactor {
 }
 
 impl ScaleFactor {
+    /// The ratio itself.
     pub fn value(&self) -> f32 {
         self.0.round()
     }

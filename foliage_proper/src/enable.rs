@@ -9,6 +9,8 @@ use bevy_ecs::system::Query;
 
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
+/// Turns interaction back on for an entity and its subtree, undoing
+/// [`Disable`](crate::Disable). A child disabled in its own right stays disabled.
 pub struct Enable {}
 impl Attachment for Enable {
     fn attach(foliage: &mut Foliage) {

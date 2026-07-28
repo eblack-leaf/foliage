@@ -17,8 +17,11 @@ use std::ops::{Add, Sub};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable, Component, Debug)]
+/// The depth value the GPU actually sorts on, derived from [`StackKey`] order rather
+/// than from [`Elevation`] arithmetic. Read-only; write [`Elevation`] to change it.
 pub struct ResolvedElevation(pub(crate) f32);
 impl ResolvedElevation {
+    /// The raw depth scalar.
     pub fn value(&self) -> f32 {
         self.0
     }
@@ -158,6 +161,16 @@ impl PartialOrd for ResolvedElevation {
 #[derive(Copy, Clone, PartialEq, PartialOrd, Component, Debug)]
 #[require(ResolvedElevation, StackKey)]
 #[component(on_insert = Self::on_insert)]
+/// Where an entity sits in draw order, relative to its parent or pinned to an absolute
+/// layer.
+///
+/// Lower draws in front. [`up`](Elevation::up)/[`down`](Elevation::down) are relative to
+/// the parent and compose down the tree, which is what makes a subtree movable in depth as
+/// a unit; [`abs`](Elevation::abs) leaves the hierarchy and names a fixed layer, for
+/// something that must float above everything regardless of where it is parented.
+///
+/// Prefer relative: absolute values from unrelated composites can collide at the same
+/// number with nothing to arbitrate them.
 pub struct Elevation {
     pub amount: f32,
     pub(crate) absolute: bool,
@@ -168,18 +181,21 @@ impl Default for Elevation {
     }
 }
 impl Elevation {
+    /// A fixed layer, ignoring the parent's own elevation. Higher `e` draws in front.
     pub fn abs(e: i32) -> Self {
         Self {
             amount: 100f32 - e as f32,
             absolute: true,
         }
     }
+    /// `u` steps in front of the parent.
     pub fn up(u: i32) -> Self {
         Self {
             amount: u as f32 * -1f32,
             absolute: false,
         }
     }
+    /// `d` steps behind the parent.
     pub fn down(d: i32) -> Self {
         Self {
             amount: d as f32,
@@ -270,6 +286,8 @@ impl Sub for ResolvedElevation {
     }
 }
 impl ResolvedElevation {
+    /// Wraps a raw depth scalar. Written by `ash::assign_elevations` from [`StackKey`]
+    /// order -- set [`Elevation`] instead.
     pub fn new(l: f32) -> Self {
         Self(l)
     }

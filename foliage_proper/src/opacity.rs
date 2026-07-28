@@ -91,6 +91,7 @@ pub struct InheritedOpacity {
     pub value: f32,
 }
 impl InheritedOpacity {
+    /// Set by the engine as the tree changes; not something to write directly.
     pub fn new(value: f32) -> Self {
         Self { value }
     }
@@ -108,6 +109,8 @@ pub struct BlendedOpacity {
     pub value: f32,
 }
 impl BlendedOpacity {
+    /// Set by the engine from [`Opacity`] and [`InheritedOpacity`]; not something to
+    /// write directly.
     pub fn new(value: f32) -> Self {
         Self { value }
     }

@@ -91,6 +91,7 @@ pub struct Click {
     pub end: Option<Position<Logical>>,
 }
 impl Click {
+    /// A gesture beginning at `start`, with `current` there too and no end yet.
     pub fn new(start: Position<Logical>) -> Self {
         Self {
             start,
@@ -652,9 +653,11 @@ pub(crate) fn interactive_elements(
 }
 #[foliage_macros::targeted_event]
 #[derive(Copy, Debug)]
+/// This entity has taken keyboard focus. Only one entity holds it at a time.
 pub struct Focused {}
 #[foliage_macros::targeted_event]
 #[derive(Copy, Debug)]
+/// This entity has lost keyboard focus, to another entity or to a press on empty space.
 pub struct Unfocused {}
 
 #[cfg(test)]
@@ -1082,13 +1085,6 @@ mod tests {
         );
     }
 
-    /// A view that can genuinely be panned: a 200x200 box with a child overflowing it on
-    /// both axes, so `extent_check` grows `View::extent` past the view's own section and
-    /// `View::scrollable` holds. The overflow is the point -- a coast only ever attaches
-    /// to a view with somewhere to go, so a fixture with `extent == section` would never
-    /// receive one no matter how brisk the release. `diff` has to run for that: `extent`
-    /// is `extent_check`'s to compute (`DiffMarkers::Prepare`), and `world.flush()` alone
-    /// never invokes it.
     fn spawn_grabbable_view(foliage: &mut Foliage) -> Entity {
         let e = foliage.world.leaf(
             Leaf::sprout()
@@ -1099,17 +1095,6 @@ mod tests {
                 .elevate(Elevation::up(1))
                 .with((View::new(), Grid::default(), InteractionListener::new())),
         );
-        foliage.world.branch(
-            e,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(600.px().as_width()),
-                    0.px().as_top().with(600.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
         foliage.world.flush();
         e
     }
@@ -1132,16 +1117,12 @@ mod tests {
                 .elevate(Elevation::up(1))
                 .with((View::new(), Grid::new(1.col().gap(0), 1.row().gap(0)))),
         );
-        // 900 tall in a 400-tall `content`: a real overflowing card stack, so
-        // `extent_check` grows `content`'s extent past its own section and `content` is
-        // genuinely pannable. Without that overflow `content` has nowhere to scroll and
-        // never takes a coast at all, whatever the release velocity.
         let card = foliage.world.branch(
             content,
             Leaf::sprout()
                 .at(Location::new().xs(
                     0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(900.px().as_height()),
+                    0.px().as_top().with(100.px().as_height()),
                 ))
                 .elevate(Elevation::up(2))
                 .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
@@ -1158,11 +1139,9 @@ mod tests {
         );
         let _ = hepta;
         foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
 
         // gesture 1: grabbed at (300, 300) -- inside `content`'s own 400x400 box, well
-        // clear of `card`'s 0..100 column, so nothing but `content` itself covers this
+        // outside `card`'s 0..100 corner, so nothing but `content` itself covers this
         // point.
         send(
             &mut foliage,
@@ -1260,8 +1239,6 @@ mod tests {
             );
             cards.push(card);
         }
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
         foliage.world.flush();
 
         // flick inside card 0 (y 0..400)

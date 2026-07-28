@@ -54,6 +54,9 @@ impl Default for Polygon {
     }
 }
 impl Polygon {
+    /// Starts a [`Polygon`] entity. Set [`sides`](PolygonSprout::sides) and the rest on
+    /// the builder; placed by a bounding box like [`Panel`](crate::Panel), not in point
+    /// mode like [`Line`](crate::Line).
     pub fn new() -> PolygonSprout {
         PolygonSprout::default()
     }
@@ -97,6 +100,7 @@ impl Attachment for Polygon {
         foliage.enable_animation::<Self>();
     }
 }
+/// Builder for a [`Polygon`] entity -- see [`Polygon::new`].
 pub struct PolygonSprout {
     leaf: LeafSprout,
     color: Option<Color>,
@@ -130,6 +134,7 @@ impl Sprout for PolygonSprout {
     }
 }
 impl PolygonSprout {
+    /// Fill color.
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self
@@ -147,6 +152,7 @@ impl PolygonSprout {
         self.polygon.rounding = r.clamp(0.0, 1.0);
         self
     }
+    /// Rotation about the shape's own center, in radians.
     pub fn rotation(mut self, radians: f32) -> Self {
         self.polygon.rotation = radians;
         self

@@ -243,6 +243,7 @@ impl Default for Side {
     }
 }
 impl Side {
+    /// Round every corner. The default.
     pub fn all() -> Self {
         Self {
             top_left: true,
@@ -251,6 +252,7 @@ impl Side {
             bottom_right: true,
         }
     }
+    /// Square every corner, leaving [`Rounding`] with nothing to apply to.
     pub fn none() -> Self {
         Self {
             top_left: false,
@@ -259,6 +261,7 @@ impl Side {
             bottom_right: false,
         }
     }
+    /// Round the two left corners only -- the leading end of a segmented row.
     pub fn left() -> Self {
         Self {
             top_left: true,
@@ -267,6 +270,7 @@ impl Side {
             bottom_right: false,
         }
     }
+    /// Round the two right corners only -- the trailing end of a segmented row.
     pub fn right() -> Self {
         Self {
             top_left: false,
@@ -275,6 +279,7 @@ impl Side {
             bottom_right: true,
         }
     }
+    /// Round the two top corners only.
     pub fn top() -> Self {
         Self {
             top_left: true,
@@ -283,6 +288,7 @@ impl Side {
             bottom_right: false,
         }
     }
+    /// Round the two bottom corners only.
     pub fn bottom() -> Self {
         Self {
             top_left: false,
@@ -291,6 +297,7 @@ impl Side {
             bottom_right: true,
         }
     }
+    /// Name each corner individually, for combinations the presets do not cover.
     pub fn corners(top_left: bool, top_right: bool, bottom_left: bool, bottom_right: bool) -> Self {
         Self {
             top_left,
@@ -374,6 +381,7 @@ pub struct Outline {
     pub value: i32,
 }
 impl Outline {
+    /// A ring `value` logical pixels wide; `0` is a solid fill.
     pub fn new(value: i32) -> Outline {
         Outline { value }
     }

@@ -19,6 +19,15 @@ use bevy_ecs::observer::IntoEntityObserver;
 use bevy_ecs::prelude::{Commands, World};
 use bevy_ecs::system::Query;
 
+/// The handle systems and observers use to change the world: spawn entities, write
+/// components, start animations, register handlers.
+///
+/// A `Commands`, so everything through it is deferred to the end of the current step
+/// rather than applied in place. Two consequences worth holding onto: an entity is
+/// spawned by the time you get its `Entity` back, but its components are not yet
+/// readable through a `Query` in the same system; and a component written here lands
+/// before the next system runs. The same vocabulary is available on
+/// [`Foliage`](crate::Foliage) before startup -- see [`EcsExtension`].
 pub type Tree<'w, 's> = Commands<'w, 's>;
 
 /// Replacement for bevy's removed `TriggerTargets`: the things `send_to`/`remove`/`enable`/
@@ -91,6 +100,15 @@ pub(crate) trait Sow {
 // implemented for `Tree`/`DeferredWorld`/`World` below, all within this crate, so an external
 // crate being unable to name the supertrait (and thus unable to implement `EcsExtension` itself)
 // is the intended effect, not an oversight.
+/// The shared vocabulary for building and changing a tree, implemented for
+/// [`Tree`], `World` and `DeferredWorld` so the same calls work from a system, an
+/// observer, a component hook, or startup.
+///
+/// [`leaf`](EcsExtension::leaf) and [`branch`](EcsExtension::branch) spawn;
+/// [`write_to`](EcsExtension::write_to) changes a live value;
+/// [`animate`](EcsExtension::animate) and [`sequence`](EcsExtension::sequence) move
+/// things; [`react`](EcsExtension::react) and [`subscribe`](EcsExtension::subscribe)
+/// respond.
 #[allow(private_bounds)]
 pub trait EcsExtension: Sow {
     fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
@@ -229,25 +247,31 @@ pub struct Graft<'t, T: EcsExtension + ?Sized> {
     tree: &'t mut T,
 }
 impl<'t, T: EcsExtension + ?Sized> Graft<'t, T> {
+    /// The entity being configured.
     pub fn id(&self) -> Entity {
         self.entity
     }
+    /// Runs `o` when this entity is clicked.
     pub fn on_click<M>(self, o: impl IntoEntityObserver<M>) -> Self {
         self.tree.on_click(self.entity, o);
         self
     }
+    /// Starts `anim` against this entity -- no `targeting` needed, it is already known.
     pub fn animate<A: Animate>(self, anim: Animation<A>) -> Self {
         self.tree.animate(anim.targeting(self.entity));
         self
     }
+    /// Inserts components on this entity.
     pub fn write<B: Bundle>(self, b: B) -> Self {
         self.tree.write_to(self.entity, b);
         self
     }
+    /// Re-enables interaction on this entity and its subtree.
     pub fn enable(self) -> Self {
         self.tree.enable(self.entity);
         self
     }
+    /// Disables interaction on this entity and its subtree.
     pub fn disable(self) -> Self {
         self.tree.disable(self.entity);
         self
@@ -268,17 +292,23 @@ pub struct Sequence<'t, T: EcsExtension + ?Sized> {
     tree: &'t mut T,
 }
 impl<'t, T: EcsExtension + ?Sized> Sequence<'t, T> {
+    /// Opens a sequence to chain animations onto.
     pub fn new(tree: &'t mut T) -> Self {
         let id = tree.sequence();
         Self { id, tree }
     }
+    /// The sequence entity, for anything that needs to name it directly.
     pub fn id(&self) -> Entity {
         self.id
     }
+    /// Adds `anim` to this sequence. Its own `start`/`finish` still apply, so entries may
+    /// overlap freely -- joining a sequence does not order them.
     pub fn animate<A: Animate>(self, anim: Animation<A>) -> Self {
         self.tree.animate(anim.during(self.id));
         self
     }
+    /// Runs `end` once every animation in the sequence has finished, returning the
+    /// sequence entity.
     pub fn end<M>(self, end: impl IntoEntityObserver<M>) -> Entity {
         self.tree.sequence_end(self.id, end);
         self.id

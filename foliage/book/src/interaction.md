@@ -129,26 +129,26 @@ to diff its first real move against, or it could never compute a nonzero velocit
 
 On release, `current.velocity` is first zeroed outright if more than
 `ScrollMomentum::stillness_cutoff_ms` has passed since the last actual move sample -- a
-hard recency cutoff, not a continued exponential decay. Decaying by `coast`'s own
-`decay.powf(elapsed_ms)` here was tried and rejected: it can't guarantee a settled stop
-for *any* fixed real-world pause, since a fast enough original swipe always needs
-proportionally longer to decay under the same fraction (`decay.powf` approaches zero but
-never reaches it) -- a pause long enough to neutralize a typical flick still isn't enough
-for an unusually fast one. Only past the cutoff is the pointer read as having genuinely
-stopped, independent of how fast it was moving before that. Then the (possibly-zeroed)
+hard recency cutoff, not a continued exponential decay. Decay cannot do this job: it
+guarantees a settled stop for no fixed real-world pause, since a faster original swipe
+always needs proportionally longer to fall under the same threshold (`decay.powf`
+approaches zero without reaching it), so a pause long enough to neutralize a typical
+flick still leaves an unusually fast one coasting. Past the cutoff the pointer is read as
+having stopped, independent of how fast it was moving before that. Then the (possibly-zeroed)
 velocity is checked against
 [`ScrollMomentum::velocity_threshold`](./grid.md#scrollmomentum-coasting-after-a-dragtouch-release):
 above it, the same entity that would've received the final `ViewAdjustment` gets a
 `Coasting` component instead (the final 1:1 diff still applies first); below it, nothing
-further happens.
-
-That target is the first `View` walking up from the grab, and since `Grid` requires
-`View`, it is routinely a card carrying an internal layout rather than the list the
-content visibly scrolls -- the motion reaches the real scroller from there through
-`OverscrollPropagation`, exactly as the live drag's own pan did. Keeping the coast on the
-pan's own target is what makes it continue precisely the motion the drag was producing;
-it also means two cards in one list can each be a coast target, which is why stopping a
-coast can't be phrased in terms of the tree (see
-[`ScrollMomentum`](./grid.md#scrollmomentum-coasting-after-a-dragtouch-release)). Wheel-scroll release never coasts -- it already has its own per-tick
+further happens. Wheel-scroll release never coasts -- it already has its own per-tick
 `ScrollInertia` scaling, a different mechanism for a discrete-pulse input rather than
 continuous tracking.
+
+That target is the first `View` walking up from the grab, which is routinely a card
+carrying an internal layout rather than the list the content visibly scrolls -- every
+`Grid`-bearing entity has a `View`, for reasons that have nothing to do with scrolling
+(see [Grid](./grid.md)). The motion reaches the real scroller from there through
+`OverscrollPropagation`, exactly as the live drag's own pan did, and keeping the coast on
+the pan's own target is what makes it continue precisely the motion the drag was
+producing. It also means two cards in one list can each be a coast target, which is why
+stopping a coast can't be phrased in terms of the tree -- see
+[`ScrollMomentum`](./grid.md#scrollmomentum-coasting-after-a-dragtouch-release).

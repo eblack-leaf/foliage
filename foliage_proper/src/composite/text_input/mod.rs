@@ -115,6 +115,17 @@ impl Attachment for TextInput {
             .add_systems(TextInput::resync_on_glyphs_changed.in_set(MainMarkers::Process));
     }
 }
+/// An editable text field: a backdrop panel, the text itself, a caret, selection
+/// highlights, and the keyboard and pointer handling that drives them.
+///
+/// Spawned through [`TextInput::new`]. Read and write its contents with
+/// [`TextValue`](crate::TextValue), the same channel every text-bearing composite uses,
+/// and watch [`TextContentChanged`](crate::TextValue) for edits. Appearance is one
+/// [`TextInputStyle`] written as a unit.
+///
+/// The field lays out on a character grid taken from its own
+/// [`FontSize`](crate::FontSize), which is what lets the caret address a column and row
+/// rather than a pixel. [`LineConstraint`] decides whether it wraps.
 #[derive(Component, Copy, Clone)]
 #[require(LineConstraint, Cursor, Selection, HintText, HintColor)]
 #[require(TextInputStyle, FontSize, TextValue)]
@@ -142,7 +153,12 @@ pub struct TextInputStyle {
     pub outline: Outline,
 }
 impl TextInput {
+    /// Logical pixels of the caret that may sit outside the field before it scrolls to
+    /// follow -- a small tolerance, so a caret resting exactly on the edge does not
+    /// oscillate.
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
+    /// Starts a [`TextInput`] entity:
+    /// `tree.branch(parent, TextInput::new().hint_text("Search").at(loc))`.
     pub fn new() -> TextInputSprout {
         TextInputSprout::default()
     }
@@ -150,6 +166,7 @@ impl TextInput {
         TextInput {}
     }
 }
+/// Builder for a [`TextInput`] entity -- see [`TextInput::new`].
 #[derive(Default)]
 pub struct TextInputSprout {
     leaf: LeafSprout,
@@ -296,38 +313,47 @@ impl Sprout for TextInputSprout {
     }
 }
 impl TextInputSprout {
+    /// Initial contents. Change it later by writing [`TextValue`](crate::TextValue).
     pub fn text(mut self, t: impl Into<String>) -> Self {
         self.text = Some(t.into());
         self
     }
+    /// Color of the text and the hint.
     pub fn foreground(mut self, c: Color) -> Self {
         self.style.foreground = c;
         self
     }
+    /// Color of the backdrop panel.
     pub fn background(mut self, c: Color) -> Self {
         self.style.background = c;
         self
     }
+    /// Color of the caret and the selection highlight.
     pub fn accent(mut self, c: Color) -> Self {
         self.style.accent = c;
         self
     }
+    /// Corner rounding of the backdrop panel.
     pub fn rounding(mut self, r: Rounding) -> Self {
         self.style.rounding = r;
         self
     }
+    /// Outline width on the backdrop panel, in logical pixels.
     pub fn outline(mut self, w: i32) -> Self {
         self.style.outline = Outline::new(w);
         self
     }
+    /// Glyph size, which also sets the character grid the caret addresses.
     pub fn font_size(mut self, f: FontSize) -> Self {
         self.font_size = Some(f);
         self
     }
+    /// Placeholder shown only while the field is empty.
     pub fn hint_text(mut self, t: impl Into<String>) -> Self {
         self.hint_text = Some(t.into());
         self
     }
+    /// Whether the field is a single line or wraps. Single by default.
     pub fn line_constraint(mut self, l: LineConstraint) -> Self {
         self.line_constraint = Some(l);
         self
@@ -559,10 +585,14 @@ impl TextInputState {
         }
     }
 }
+/// Whether a [`TextInput`] is one line or many.
 #[derive(Component, Copy, Clone, Default)]
 pub enum LineConstraint {
+    /// One line: no wrapping, and Enter is not a newline -- it leaves the text alone for
+    /// a submit handler to act on.
     #[default]
     Single,
+    /// Wraps at the field's width, and Enter inserts a newline.
     Multiple,
 }
 #[derive(Component, Copy, Clone, Default)]
@@ -797,22 +827,16 @@ impl TextInput {
                         (found.byte_offset, col, row)
                     }
                     Err(insert_idx) => {
-                        // `location` is always the requested offset -- it's the authoritative
-                        // value `after_edit` just computed from the real (post-write) text
-                        // length, whereas `text_glyphs` here can still be lagging one edit
-                        // behind (glyph layout hasn't caught up to a just-applied, still-
-                        // deferred text write). Letting the nearest-glyph interpolation below
-                        // override `location` made every keystroke land the cursor one
-                        // character behind where it was just typed. Only `col`/`row` (visual
-                        // placement) are worth best-effort interpolating from a stale glyph;
-                        // they can be a frame late without corrupting where the next
-                        // character actually gets inserted.
+                        // `location` stays the requested offset, never the interpolated
+                        // one: it is what `after_edit` computed from the real post-write
+                        // text, while `text_glyphs` can lag an edit behind a still-deferred
+                        // write. Only `col`/`row` -- visual placement -- are worth
+                        // estimating from a stale glyph, since being a frame late there
+                        // cannot corrupt where the next character is inserted.
                         //
-                        // `insert_idx` is where `offset` would land to keep the list sorted,
-                        // so `text_glyphs[insert_idx - 1]` (if any) is the nearest earlier
-                        // settled glyph -- the same one the old backward scan would have
-                        // walked to, just found directly instead of by stepping through
-                        // every position in between.
+                        // `insert_idx` is the sorted-insert position for `offset`, so
+                        // `text_glyphs[insert_idx - 1]` is the nearest earlier settled
+                        // glyph.
                         let (col, row) = if insert_idx > 0 {
                             let found = &text_glyphs[insert_idx - 1];
                             // however many positions back that glyph is -- stale `Glyphs` can
@@ -823,18 +847,14 @@ impl TextInput {
                             let distance = (offset - found.byte_offset) as u32;
                             let row = (found.y / dims.b()) as u32;
                             if found.parent == '\n' {
-                                // fontdue only performs a hard linebreak while processing the
-                                // character *after* the `\n` (its own linebreak-opportunity
-                                // check reports one token late, see `layout.rs`'s `append`) --
-                                // a `\n` with nothing typed after it yet (pressing Enter at the
-                                // very end of the text) never gets a `LinePosition` of its own
-                                // at all; its glyph is silently absorbed into the *previous*
-                                // line by fontdue's post-loop finalize, keeping `found.y` on
-                                // the old row. Trusting that `y` directly left the cursor
-                                // parked on the old line instead of dropping to the new
-                                // (still-empty) one -- the actual reported bug. The newline
-                                // itself doesn't occupy a column on the new row, so column is
-                                // `distance - 1`, not `distance`.
+                                // `row + 1`, not `found.y`'s row: fontdue performs a hard
+                                // linebreak only while processing the character *after* a
+                                // `\n`, so a trailing newline with nothing typed after it
+                                // gets no `LinePosition` of its own and is absorbed into
+                                // the previous line, leaving `found.y` on the old row.
+                                //
+                                // The newline occupies no column on the new row, so the
+                                // column is `distance - 1`.
                                 let col = distance
                                     .saturating_sub(1)
                                     .min(metrics.max_letter_idx_horizontal);
@@ -931,28 +951,18 @@ impl TextInput {
         cursor.column = col;
         cursor.row = row;
 
-        // The *visual* placement (writing `Location` onto the cursor/visible entities, and
-        // the scroll-into-view check) is gated on `follow` and skipped entirely when col/row
-        // might still be stale-glyph-derived (`after_edit`'s own synchronous call, which
-        // runs before `Text::update` has settled). Writing it there anyway created a real
-        // race: that write is deferred into the *outer* system's command buffer, while the
-        // guaranteed-fresh reactive follow-up (`Selection::reselect`, via
-        // `TextContentChanged`) runs its own nested trigger cascade and applies its Commands
-        // essentially immediately -- so the outer, stale write was landing *after* the
-        // fresher one and clobbering it. Only ever writing the visual position from the
-        // fresh call removes the race instead of trying to win it.
+        // Visual placement -- writing `Location` onto the cursor entities and checking
+        // scroll-into-view -- happens only when `follow` is set, meaning the glyphs behind
+        // `col`/`row` are known fresh. `after_edit`'s synchronous call runs before
+        // `Text::update` has settled, and its write would be deferred into the outer
+        // system's command buffer while the reactive follow-up (`Selection::reselect`, via
+        // `TextContentChanged`) applies its own nested commands almost immediately -- so
+        // the staler write would land last and win. Writing the visual position only from
+        // the fresh call avoids that ordering entirely.
         //
-        // This used to also skip the write when col/row hadn't moved, to stop
-        // `resync_on_glyphs_changed`'s per-frame calls from cascading back into another
-        // `Section` write -- but the comparison was against `cursor.column`/`row`, which
-        // *every* call updates regardless of `follow` (including `after_edit`'s stale one),
-        // so the following genuine `follow=true` call frequently saw "no change" against a
-        // value `after_edit` had just quietly set, and skipped the real visual write
-        // entirely (cursor never rendered, or froze after the first edit). The actual
-        // feedback loop is fixed at its source now: `Text::update` no longer marks `Glyphs`
-        // Changed on a pure position shift (see its own comment), so this insert cascading
-        // into a `Section` write on the text entity no longer re-triggers a relayout. No
-        // gate needed here.
+        // No further gate on col/row being unchanged: `Text::update` does not mark `Glyphs`
+        // changed for a pure position shift, so this write cannot cascade back into another
+        // relayout.
         if follow {
             let visual_location = Location::new().xs(
                 (col + 1).col().as_left().with((col + 1).col().as_right()),
@@ -1147,14 +1157,11 @@ impl TextInput {
             if let Some(glyph) = target {
                 // The anchor is the *fixed* end of an already-in-progress selection --
                 // whichever end isn't the one that's been moving -- falling back to the
-                // cursor's own position only when starting a fresh selection (empty range).
-                // Using `cursor.location` unconditionally here relied on it never changing
-                // across repeated Shift+Arrow presses; now that `extend_and_reselect`
-                // correctly moves the cursor to the selection's moving edge after every
-                // press (fixing "stops after one"), treating that moving position as the
-                // anchor again made every press replace the selection with a sliver near
-                // wherever the cursor currently was, instead of extending from where it
-                // started.
+                // cursor's own position only when starting a fresh selection (empty
+                // range). Once a selection exists the anchor is its *fixed* edge, not the
+                // cursor: `extend_and_reselect` moves the cursor to the moving edge on
+                // every press, so anchoring to it would make each Shift+Arrow re-anchor
+                // where the last one left off and collapse the selection to a sliver.
                 let anchor = if selection.range.is_empty() {
                     cursor.location
                 } else if selection.inverted {
@@ -1162,15 +1169,11 @@ impl TextInput {
                 } else {
                     selection.range.start
                 };
-                // The target glyph's byte offset is a cursor-equivalent *boundary* (same as
-                // what `move_cursor` treats it as), not "a character to include" -- wrapping
-                // it in `next_boundary` used to pad the range by one extra character on
-                // whichever side was just touched (e.g. one Shift+Right from a fresh
-                // selection selected two characters, not one), compounding on every
-                // repeated press at a boundary the target couldn't move past (e.g.
-                // Shift+Down at the bottom row kept growing the range by one more character
-                // each press instead of no-op'ing). The range is just the plain span
-                // between anchor and target.
+                // The target glyph's byte offset is a cursor-equivalent *boundary*, the
+                // same way `move_cursor` treats it -- not a character to include. The range
+                // is the plain span between anchor and target; advancing it to the next
+                // boundary would over-select by one on the side just touched, and keep
+                // growing on repeated presses at an edge the target cannot move past.
                 if anchor < glyph.byte_offset {
                     selection.inverted = false;
                     selection.range = anchor..glyph.byte_offset;
@@ -2112,6 +2115,12 @@ impl InsertText {
 }
 // No teardown hook: every child (highlights included -- reselect_range spawns them via
 // `tree.branch(panel, ..)`) is `Stem`-parented, so `Remove`'s cascade reaches them all.
+/// The entities a [`TextInput`] spawned for itself, so an app can reach a part directly
+/// -- restyling the panel, or anchoring something to the field.
+///
+/// Not something to modify structurally: the composite's own systems own these and will
+/// write over changes. Every one is `Stem`-parented to the input, so despawning the input
+/// takes them all with it.
 #[derive(Component, Clone, Debug)]
 pub struct Handle {
     pub panel: Entity,
@@ -2136,13 +2145,18 @@ pub struct Handle {
     // multi-second freezes/crashes on resize-while-selected, Ctrl+A, and deselect.
     pub highlights: HashMap<u32, (Entity, u32, u32)>,
 }
+/// Placeholder text, shown only while the field is empty. Write it to change the hint on
+/// a live field.
 #[derive(Component, Clone, Default)]
 pub struct HintText(pub(crate) String);
 impl HintText {
+    /// A hint reading `text`.
     pub fn new(text: impl Into<String>) -> Self {
         Self(text.into())
     }
 }
+/// Color of the hint text, separate from [`TextInputStyle::foreground`] so a placeholder
+/// can be muted against real content.
 #[derive(Component, Clone, Default)]
 pub struct HintColor(pub Color);
 
@@ -2205,19 +2219,19 @@ mod tests {
         foliage.world.get::<TextValue>(this).unwrap().0.clone()
     }
 
-    /// The actual reported bug: pressing Enter at the very end of a field's text left the
-    /// cursor on the old row instead of dropping to the new (empty) one. Root cause was in
-    /// `move_cursor`'s `Offset` arm (`Err(insert_idx)` branch): fontdue only performs a hard
-    /// linebreak while processing the character *after* a `'\n'`, so a trailing `'\n'` with
-    /// nothing typed after it never gets its own line -- its glyph's `y` stays on the old
-    /// row, and that `y` was trusted directly for the cursor's row.
+    /// Enter at the very end of the text must drop the cursor to the new, still-empty
+    /// row.
+    ///
+    /// The case `move_cursor`'s `Offset` arm has to special-case: fontdue performs a hard
+    /// linebreak only while processing the character *after* a `'\n'`, so a trailing
+    /// `'\n'` with nothing yet typed after it never gets a line of its own and its glyph's
+    /// `y` still reads as the old row.
     #[test]
     fn pressing_enter_at_the_end_of_text_moves_the_cursor_to_a_new_row() {
         let mut foliage = Foliage::new();
         let this = spawn_multiline(&mut foliage, "hello");
-        // place the cursor at the end of "hello" -- the exact precondition ("just typed
-        // some text, cursor trails it") the reported bug needs. `Cursor` has no reactive
-        // hook of its own, so a direct write is safe test setup, not fighting anything.
+        // Cursor at the end of "hello" -- just-typed text with the cursor trailing it.
+        // `Cursor` has no reactive hook, so writing it directly is ordinary setup.
         foliage.world.entity_mut(this).insert(Cursor {
             location: 5,
             column: 5,

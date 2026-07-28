@@ -67,28 +67,36 @@ impl std::fmt::Debug for Coordinates {
     }
 }
 impl Coordinates {
+    /// A pair from two components.
     pub const fn new(a: CoordinateUnit, b: CoordinateUnit) -> Self {
         Self([a, b])
     }
+    /// First component -- left, or width, depending on the wrapper.
     pub const fn a(&self) -> CoordinateUnit {
         self.0[0]
     }
+    /// Second component -- top, or height, depending on the wrapper.
     pub const fn b(&self) -> CoordinateUnit {
         self.0[1]
     }
+    /// Component-wise division by `c`, expressing this pair as a fraction of it.
     pub fn normalized<C: Into<Coordinates>>(&self, c: C) -> Self {
         let c = c.into();
         Self::new(self.a() / c.a(), self.b() / c.b())
     }
+    /// Sets the first component.
     pub fn set_horizontal(&mut self, h: f32) {
         self.0[0] = h;
     }
+    /// Sets the second component.
     pub fn set_vertical(&mut self, v: f32) {
         self.0[1] = v;
     }
+    /// Both components clamped into `min..max`.
     pub fn clamped(&self, min: CoordinateUnit, max: CoordinateUnit) -> Self {
         Self::new(self.a().clamp(min, max), self.b().clamp(min, max))
     }
+    /// Both components rounded to the nearest whole unit.
     pub fn rounded(self) -> Self {
         Self([self.0[0].round(), self.0[1].round()])
     }

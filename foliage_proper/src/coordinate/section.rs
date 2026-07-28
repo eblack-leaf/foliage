@@ -57,6 +57,7 @@ pub struct CReprSection {
     pub area: CReprArea,
 }
 impl CReprSection {
+    /// A GPU-layout rectangle from an already-converted position and area.
     pub fn new(p: CReprPosition, a: CReprArea) -> Self {
         Self { pos: p, area: a }
     }

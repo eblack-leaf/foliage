@@ -37,6 +37,8 @@ impl Display for Glyph {
         ))
     }
 }
+/// A character index into a text run, 0-based -- the index space
+/// [`GlyphColors`] and a text cursor both address.
 pub type GlyphOffset = usize;
 #[derive(Component)]
 pub(crate) struct Glyphs {
@@ -76,6 +78,8 @@ impl Default for ResolvedGlyphs {
 }
 #[derive(Component, Default)]
 #[component(on_insert = Self::on_insert)]
+/// Per-character color overrides for one [`Text`](crate::Text), on top of its own single
+/// [`Color`](crate::Color). Characters with no override keep the run's color.
 pub struct GlyphColors {
     pub exceptions: HashMap<GlyphOffset, Color>,
 }
@@ -84,9 +88,11 @@ impl GlyphColors {
         let this = ctx.entity;
         world.trigger_targets(Resolve::<Self>::new(), this);
     }
+    /// No overrides.
     pub fn new() -> Self {
         Self::default()
     }
+    /// Colors the characters in `offsets`. Ranges added later win where they overlap.
     pub fn add(mut self, offsets: Range<GlyphOffset>, color: Color) -> Self {
         for o in offsets {
             self.exceptions.insert(o, color);
@@ -100,6 +106,8 @@ pub(crate) struct GlyphColor {
     pub(crate) offset: GlyphOffset,
 }
 #[derive(Component, Default, PartialEq, Clone)]
+/// One color per laid-out glyph, combining the run's [`Color`](crate::Color) with any
+/// [`GlyphColors`] overrides -- what the renderer uploads.
 pub struct ResolvedColors {
     pub colors: Vec<GlyphColor>,
 }

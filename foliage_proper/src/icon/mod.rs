@@ -21,6 +21,8 @@ use bevy_ecs::query::With;
 use bevy_ecs::system::{Query, Res, ResMut};
 use bevy_ecs::world::DeferredWorld;
 
+/// Identifies a registered icon. Apps pick their own numbering and register the matching
+/// [`IconMemory`] at startup.
 pub type IconId = i32;
 #[derive(Component, Copy, Clone, PartialEq, Default)]
 #[component(on_add = Self::on_add)]
@@ -30,6 +32,12 @@ pub type IconId = i32;
 #[require(Differential<Icon, Icon>)]
 #[require(Differential<Icon, ResolvedElevation>)]
 #[require(Differential<Icon, BlendedOpacity>)]
+/// A vector glyph drawn from a signed-distance field, so it stays sharp at any size and
+/// takes a [`Color`](crate::Color) like text does.
+///
+/// Spawned through [`Icon::new`] with an [`IconId`] whose [`IconMemory`] has been
+/// registered. Sized by its `Location` like any other primitive; the artwork is fitted
+/// into that box.
 pub struct Icon {
     pub id: IconId,
 }
@@ -52,6 +60,7 @@ impl Attachment for Icon {
     }
 }
 impl Icon {
+    /// Starts an [`Icon`] entity drawing the registered `id`.
     pub fn new<ID: Into<IconId>>(id: ID) -> IconSprout {
         IconSprout {
             id: id.into(),
@@ -152,6 +161,7 @@ impl Icon {
     }
 }
 #[derive(Default)]
+/// Builder for an [`Icon`] entity -- see [`Icon::new`].
 pub struct IconSprout {
     leaf: LeafSprout,
     id: IconId,
@@ -174,6 +184,7 @@ impl Sprout for IconSprout {
     }
 }
 impl IconSprout {
+    /// Tint. The distance field carries shape only, so the color is entirely this.
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self
@@ -193,6 +204,8 @@ impl Default for IconSource {
 
 #[derive(Component, Clone, Default)]
 #[component(on_add = Self::on_add)]
+/// A registered icon's artwork: the distance field itself, plus the id [`Icon`] entities
+/// name it by. Insert one per icon at startup, before anything draws it.
 pub struct IconMemory {
     pub id: IconId,
     pub(crate) source: IconSource,

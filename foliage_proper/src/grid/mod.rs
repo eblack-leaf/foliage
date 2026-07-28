@@ -46,8 +46,12 @@ impl Attachment for Grid {
 /// [`FontSize`](crate::FontSize)). [`Gap`] is the space *between* tracks, never outside
 /// them.
 ///
-/// Requires [`View`], so every grid-bearing entity can also be scrolled -- most never
-/// are, having nothing that overflows.
+/// Requires [`View`], which is not optional plumbing: a parent's `View` is read on every
+/// child's own `Location` resolve, and its offset is folded into each resolved
+/// coordinate -- that is how children move when a parent scrolls. It also carries the
+/// extent the overscroll chain walks. Both are total, which is why every positioned
+/// child's parent needs a `Grid`: it is what guarantees the `View` exists. Most carry an
+/// offset of zero forever, and that is fine.
 #[derive(Component, Copy, Clone)]
 #[require(View)]
 pub struct Grid {

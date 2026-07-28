@@ -30,6 +30,15 @@ use tracing_subscriber::util::SubscriberInitExt;
 use winit::event::WindowEvent;
 use winit::event_loop::{ControlFlow, EventLoop};
 
+/// The engine instance: the ECS world, the frame schedules, the window, and the renderer.
+///
+/// Built with [`Foliage::new`], configured by attaching what the app needs and spawning
+/// the initial tree, then handed control with
+/// [`photosynthesize`](Foliage::photosynthesize), which does not return.
+///
+/// Before that call it doubles as a [`Tree`](crate::Tree)-like builder -- `leaf`, `branch`,
+/// `animate`, `on_click` are all available here through the same
+/// [`EcsExtension`](crate::EcsExtension) vocabulary systems use at runtime.
 pub struct Foliage {
     pub world: World,
     pub(crate) main: Schedule,
@@ -165,6 +174,9 @@ impl Foliage {
         crate::Clipboard::attach(&mut foliage);
         foliage
     }
+    /// Installs an [`Attachment`]'s components, systems and resources. The built-in
+    /// primitives are already attached by [`new`](Self::new); this is for an app's or a
+    /// library's own.
     pub fn attach<A: Attachment>(&mut self) {
         A::attach(self);
     }
@@ -213,9 +225,14 @@ impl Foliage {
     pub fn window_origin() -> String {
         web_sys::window().expect("window").origin()
     }
+    /// Registers a global observer -- one that watches an event across all entities,
+    /// rather than being bound to one. Entity-scoped handlers go through
+    /// [`subscribe`](Self::subscribe).
     pub fn define<M>(&mut self, obs: impl IntoObserver<M>) {
         self.world.add_observer(obs);
     }
+    /// Fires a targeted event at one or more entities, delivered immediately to their
+    /// observers.
     pub fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
     where
         E: TargetedEvent,
@@ -223,6 +240,7 @@ impl Foliage {
     {
         self.world.send_to(e, targets);
     }
+    /// Fires an untargeted event, delivered immediately to global observers.
     pub fn send<E>(&mut self, e: E)
     where
         E: Event,
@@ -230,27 +248,40 @@ impl Foliage {
     {
         self.world.send(e);
     }
+    /// Queues a message for whichever system reads it this frame -- deferred, unlike
+    /// [`send`](Self::send). Requires [`enable_queued_event`](Self::enable_queued_event)
+    /// for the type first.
     pub fn queue<E: Message>(&mut self, e: E) {
         self.world.queue(e);
     }
+    /// Registers a message type so [`queue`](Self::queue) can carry it. Idempotent.
     pub fn enable_queued_event<E: Message + Clone + Send + Sync + 'static>(&mut self) {
         if self.world.get_resource::<Messages<E>>().is_none() {
             self.world.insert_resource(Messages::<E>::default());
             MessageRegistry::register_message::<E>(&mut self.world);
         }
     }
+    /// Inserts components on an existing entity -- the way a live value is changed after
+    /// spawn. Unchecked by entity ID, so a caller holding an id across a possible despawn
+    /// should confirm the entity still exists.
     pub fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
         self.world.write_to(entity, b);
     }
+    /// Despawns entities and everything beneath them.
     pub fn remove(&mut self, targets: impl IntoTargets) {
         self.world.remove(targets);
     }
+    /// Re-enables interaction on entities and their subtrees.
     pub fn enable(&mut self, targets: impl IntoTargets) {
         self.world.enable(targets);
     }
+    /// Disables interaction on entities and their subtrees. They still draw; they stop
+    /// competing for input.
     pub fn disable(&mut self, targets: impl IntoTargets) {
         self.world.disable(targets);
     }
+    /// Registers the systems that tween `A`, letting `Animation<A>` run. Needed once per
+    /// custom [`Animate`] type; the built-in ones do it themselves.
     pub fn enable_animation<A: Animate + Component<Mutability = bevy_ecs::component::Mutable>>(
         &mut self,
     ) {
@@ -262,27 +293,41 @@ impl Foliage {
             .add_systems(animate::<A>.in_set(MainMarkers::Animation));
         self.world.insert_resource(AnimationLimiter::<A>::new());
     }
+    /// Starts a sequence -- a group of animations sharing a timeline, whose completion
+    /// fires one [`OnEnd`](crate::OnEnd). Pass it to
+    /// [`Animation::during`](crate::Animation::during).
     pub fn sequence(&mut self) -> Entity {
         self.world.sequence()
     }
+    /// Starts an animation, returning its entity.
     pub fn animate<A: Animate + Component>(&mut self, anim: Animation<A>) -> Entity {
         self.world.animate(anim)
     }
+    /// Runs `end` once every animation in `seq` has finished -- how one stage of motion
+    /// is chained onto the next.
     pub fn sequence_end<M>(&mut self, seq: Entity, end: impl IntoEntityObserver<M>) {
         self.world.sequence_end(seq, end);
     }
+    /// Registers an observer scoped to one entity.
     pub fn subscribe<M>(&mut self, e: Entity, sub: impl IntoEntityObserver<M>) {
         self.world.subscribe(e, sub);
     }
+    /// Runs `o` when `e` is clicked. Shorthand for subscribing to
+    /// [`OnClick`](crate::OnClick).
     pub fn on_click<M>(&mut self, e: Entity, o: impl IntoEntityObserver<M>) {
         self.world.on_click(e, o);
     }
+    /// Records `e` under `s` in [`Named`](crate::Named), so other code can find it
+    /// without the id being threaded through.
     pub fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
         self.world.name(e, s);
     }
+    /// Records an asset key under `s` in [`Keyring`](crate::Keyring).
     pub fn store<S: AsRef<str>>(&mut self, key: AssetKey, s: S) {
         self.world.store(key, s);
     }
+    /// Runs `tf` once after `t` milliseconds. Backed by a [`Timer`](crate::Timer) entity
+    /// that despawns itself when it fires.
     pub fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
         self.world.timer(t, tf);
     }
@@ -310,6 +355,10 @@ impl Foliage {
         self.send(LoadAsset { key, source });
         key
     }
+    /// Installs a tracing subscriber for `targets`, e.g.
+    /// `"foliage_proper::grid=trace".parse().unwrap()`. Call before
+    /// [`photosynthesize`](Self::photosynthesize); on wasm the logs go to the browser
+    /// console.
     pub fn enable_tracing(&self, targets: Targets) {
         #[cfg(not(target_family = "wasm"))]
         tracing_subscriber::registry()

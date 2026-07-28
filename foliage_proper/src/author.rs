@@ -24,6 +24,8 @@ impl Default for LeafSprout {
     }
 }
 impl LeafSprout {
+    /// An unconfigured leaf builder. Authors reach this through
+    /// [`Leaf::sprout`](crate::Leaf::sprout).
     pub fn new() -> Self {
         Self::default()
     }

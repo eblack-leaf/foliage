@@ -9,6 +9,8 @@ use bevy_ecs::system::Query;
 
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
+/// Turns off interaction for an entity and everything beneath it. It still draws; it
+/// stops competing for input. Paired with [`Enable`](crate::Enable).
 pub struct Disable {}
 impl Attachment for Disable {
     fn attach(foliage: &mut Foliage) {

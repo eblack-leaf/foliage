@@ -158,12 +158,10 @@ mod tests {
     #[test]
     fn a_grandchild_of_a_clip_to_viewport_ancestor_clips_to_its_own_bounds_not_the_tiny_real_ancestor_or_the_whole_viewport()
      {
-        // reproduces the real bug (the grandchild used to get silently re-clipped to the
-        // tiny real trigger further up), while also pinning down the correct, non-coarse
-        // fix: an unmarked descendant of a `ClipToViewport` entity should clip to *that
-        // entity's own real bounds* -- not the tiny trigger further up (the bug), and not
-        // the entire viewport either (too coarse -- would let overflow content leak out
-        // over the rest of the page instead of staying inside the marked entity's own box).
+        // An unmarked descendant of a `ClipToViewport` entity clips to *that entity's own
+        // bounds*. Not the tiny trigger further up, which would cut the grandchild down to
+        // nothing; and not the whole viewport either, which would let overflow leak across
+        // the rest of the page instead of staying inside the marked entity's box.
         let mut foliage = Foliage::new();
         set_realistic_viewport(&mut foliage);
 

@@ -320,6 +320,7 @@ impl Render for Icon {
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Default)]
+/// One corner of the unit quad each icon instance is stretched across.
 pub struct Vertex {
     position: Coordinates,
 }

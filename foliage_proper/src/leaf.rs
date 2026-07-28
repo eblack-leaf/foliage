@@ -25,6 +25,13 @@ use std::collections::HashSet;
 #[require(Section<Logical>, Elevation, InteractionShape, InteractionPropagation, FocusBehavior)]
 #[component(on_add = Self::on_add)]
 #[component(on_remove = Self::on_remove)]
+/// Marks an entity as part of the display tree, bringing in the components everything
+/// positioned and drawn needs -- a `Section`, an `Elevation`, and the interaction
+/// defaults.
+///
+/// Added automatically by every spawn through [`EcsExtension`](crate::EcsExtension), so
+/// authors meet it as [`Leaf::sprout`] -- a node with no primitive of its own, used to
+/// group children or to be a bare hit area.
 pub struct Leaf {}
 
 impl Default for Leaf {
@@ -34,6 +41,7 @@ impl Default for Leaf {
 }
 
 impl Leaf {
+    /// The bare marker. To spawn one, use [`Leaf::sprout`].
     pub fn new() -> Leaf {
         Leaf {}
     }
@@ -100,6 +108,12 @@ impl Leaf {
 #[derive(Component, Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[component(on_insert = Stem::on_insert)]
 #[component(on_discard = Stem::on_replace)]
+/// This entity's parent, and so what its `Location` resolves against, what clips it,
+/// what its opacity and visibility inherit from, and where it sits in draw order.
+///
+/// `None` is a root, resolving against the viewport. Set by
+/// [`branch`](crate::EcsExtension::branch); rewriting it reparents the entity, and the
+/// old and new parents' [`Branch`] sets are updated to match.
 pub struct Stem {
     pub id: Option<Entity>,
 }
@@ -110,12 +124,15 @@ impl Default for Stem {
 }
 
 impl Stem {
+    /// A stem that may or may not have a parent.
     pub fn new(id: Option<Entity>) -> Self {
         Self { id }
     }
+    /// Parents this entity to `entity`.
     pub fn some(entity: Entity) -> Self {
         Self { id: Some(entity) }
     }
+    /// Makes this entity a root, resolving against the viewport.
     pub fn none() -> Self {
         Self { id: None }
     }
@@ -163,6 +180,8 @@ impl Stem {
     }
 }
 
+/// This entity's children -- the reverse of [`Stem`], maintained by the engine so a
+/// change here can be cascaded down without searching the world.
 #[derive(Component, Clone, Default)]
 pub struct Branch {
     pub ids: HashSet<Entity>,

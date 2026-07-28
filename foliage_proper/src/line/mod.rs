@@ -21,6 +21,12 @@ use bytemuck::{Pod, Zeroable};
 mod pipeline;
 #[derive(Component, Copy, Clone)]
 #[require(LineQuad)]
+/// A straight segment of fixed weight between two points.
+///
+/// Positioned in point mode rather than as a box: its `Location` uses
+/// [`as_x`](crate::ValueDescriptor)/`as_y` pairs, and its `Section` is the bounding
+/// rectangle around the result. Animating the `Location` moves the endpoints, which is
+/// how a line draws itself in.
 pub struct Line {
     pub weight: i32,
 }
@@ -38,6 +44,7 @@ impl Attachment for Line {
     }
 }
 impl Line {
+    /// Starts a [`Line`] entity `w` logical pixels thick.
     pub fn new(w: i32) -> LineSprout {
         LineSprout {
             leaf: LeafSprout::default(),
@@ -82,6 +89,7 @@ impl Line {
         }
     }
 }
+/// Builder for a [`Line`] entity -- see [`Line::new`].
 pub struct LineSprout {
     leaf: LeafSprout,
     weight: i32,
@@ -99,6 +107,7 @@ impl Sprout for LineSprout {
     }
 }
 impl LineSprout {
+    /// Stroke color.
     pub fn color(mut self, c: Color) -> Self {
         self.color = Some(c);
         self
