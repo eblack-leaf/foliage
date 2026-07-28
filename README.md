@@ -124,6 +124,16 @@ Licensed under either of
 
 at your option.
 
+### Bundled fonts
+
+foliage embeds **JetBrains Mono** as its default font, so a binary built with it redistributes
+that font — see [LICENSE-JETBRAINS-MONO](LICENSE-JETBRAINS-MONO) (SIL OFL 1.1), which its terms
+require to accompany the binary. Registering your own font with `Foliage::font` does not remove
+it; the bundled face remains the default.
+
+**DejaVu Sans** and **DejaVu Sans Mono** ([LICENSE-DEJAVU](LICENSE-DEJAVU)) are used only by a
+unit test and an example respectively, and are never compiled into a dependent's binary.
+
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion
 in this work by you shall be dual licensed as above, without any additional terms or
 conditions.

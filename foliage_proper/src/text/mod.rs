@@ -15,7 +15,7 @@ use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
-use crate::text::monospaced::MonospacedFont;
+use crate::text::monospaced::{FontId, MonospacedFont};
 use crate::{
     Attachment, Layout, Location, Physical, Resolve, Resolved, ResolvedElevation,
     ResolvedVisibility, Short, Tree, Visibility,
@@ -48,6 +48,7 @@ impl Attachment for Text {
         );
         foliage.remove_queue::<Text>();
         foliage.differential::<Text, ResolvedFontSize>();
+        foliage.differential::<Text, FontId>();
         foliage.differential::<Text, BlendedOpacity>();
         foliage.differential::<Text, Section<Logical>>();
         foliage.differential::<Text, ResolvedElevation>();
@@ -67,6 +68,7 @@ impl Attachment for Text {
 }
 #[derive(Component, Clone, PartialEq, Default, Debug)]
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
+#[require(FontId, Differential<Text, FontId>)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
 #[require(
     ResolvedGlyphs,
@@ -272,11 +274,13 @@ impl Text {
         sections: Query<&mut Section<Logical>>,
         cache: Query<&mut UpdateCache>,
         font: Res<MonospacedFont>,
+        font_ids: Query<&FontId>,
         scale_factor: Res<ScaleFactor>,
         auto_heights: Query<&TextContentHeight>,
         auto_widths: Query<&TextContentWidth>,
     ) {
         let this = trigger.event_target();
+        let font_id = font_ids.get(this).copied().unwrap_or_default();
         let mut current = UpdateCache {
             font_size: ResolvedFontSize::new(
                 (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
@@ -328,7 +332,7 @@ impl Text {
                     ..fontdue::layout::LayoutSettings::default()
                 });
                 glyphs.layout.append(
-                    &[&font.0],
+                    &[font.get(font_id).as_ref()],
                     &fontdue::layout::TextStyle::new(
                         current.text.value.as_str(),
                         current.font_size.value as f32,
@@ -342,7 +346,7 @@ impl Text {
                     "text: fontdue relayout"
                 );
             }
-            let dims = font.character_block(current.font_size.value);
+            let dims = font.character_block(font_id, current.font_size.value);
             let adjusted = if auto_height.0 {
                 Some(
                     current

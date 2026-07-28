@@ -6,7 +6,8 @@ use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, R
 use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::opacity::BlendedOpacity;
 use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
-use crate::text::monospaced::MonospacedFont;
+use crate::text::monospaced::{FontId, MonospacedFont};
+use std::sync::Arc;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, VERTICES, Vertex};
 use crate::{CReprColor, CReprSection, Logical, ResolvedElevation, Section, Stem, Text};
@@ -21,7 +22,6 @@ use wgpu::{
 pub(crate) struct Resources {
     pub(crate) entity_to_group: HashMap<Entity, GroupId>,
     pub(crate) group_layout: wgpu::BindGroupLayout,
-    pub(crate) font: MonospacedFont,
 }
 
 pub(crate) struct Group {
@@ -37,6 +37,9 @@ pub(crate) struct Group {
     pub(crate) write_uniform: bool,
     pub(crate) unique_characters: UniqueCharacters,
     pub(crate) font_size: ResolvedFontSize,
+    /// The font this text draws with, lifted out of the registry when its `FontId` arrives.
+    /// Held per group rather than once on `Resources` because the font is per entity now.
+    pub(crate) font: Option<std::sync::Arc<fontdue::Font>>,
     pub(crate) queued_tex_reads: Vec<(GlyphKey, InstanceId)>,
     pub(crate) bounds: TextBounds,
     pub(crate) last_reference: HashMap<InstanceId, GlyphKey>,
@@ -59,6 +62,7 @@ impl Group {
             write_uniform: false,
             unique_characters: Default::default(),
             font_size: Default::default(),
+            font: None,
             queued_tex_reads: vec![],
             bounds: TextBounds::default(),
             last_reference: Default::default(),
@@ -161,7 +165,6 @@ impl Render for Text {
             resources: Resources {
                 entity_to_group: Default::default(),
                 group_layout,
-                font: MonospacedFont::new(Text::OPT_SCALE),
             },
         }
     }
@@ -171,6 +174,12 @@ impl Render for Text {
         ginkgo: &Ginkgo,
     ) -> Nodes {
         tracing::trace!("pipeline: text prepare");
+        // Custom read rather than a differential: the registry is ECS-side and immutable
+        // after startup, and every font use in this pipeline is at rasterize time -- which
+        // is here. Cloning the `Arc`s drops the resource borrow before the queue drains
+        // below, which need `&mut World`.
+        let registry: Vec<Arc<fontdue::Font>> =
+            queues.world.resource::<MonospacedFont>().0.clone();
         let mut nodes = Nodes::new();
         // read-attrs
         for entity in queues.removes::<Text>() {
@@ -248,13 +257,21 @@ impl Render for Text {
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.unique_characters = packet; // prevents under-growth
         }
+        for (entity, packet) in queues.attribute::<Text, FontId>() {
+            let id = renderer.resources.entity_to_group.get(&entity).unwrap();
+            let group = &mut renderer.groups.get_mut(id).unwrap().group;
+            group.font = registry.get(packet.0 as usize).or(registry.first()).cloned();
+        }
         for (entity, packet) in queues.attribute::<Text, ResolvedFontSize>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
             group.font_size = packet;
             group.texture_atlas.replace(TextureAtlas::new(
                 ginkgo,
-                renderer.resources.font.character_block(packet.value),
+                MonospacedFont::block_of(
+                    group.font.as_ref().unwrap_or(&registry[0]),
+                    packet.value,
+                ),
                 group.unique_characters.0,
                 wgpu::TextureFormat::R8Unorm,
             ));
@@ -309,10 +326,15 @@ impl Render for Text {
                     .unwrap()
                     .has_key(glyph.key)
                 {
-                    let (metrics, rasterization) = renderer.resources.font.0.rasterize_indexed(
-                        glyph.key.glyph_index,
-                        group.group.font_size.value as f32,
-                    );
+                    let (metrics, rasterization) = group
+                        .group
+                        .font
+                        .as_ref()
+                        .unwrap_or(&registry[0])
+                        .rasterize_indexed(
+                            glyph.key.glyph_index,
+                            group.group.font_size.value as f32,
+                        );
                     let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
                     group
                         .group
@@ -362,10 +384,11 @@ impl Render for Text {
         for (_id, group) in renderer.groups.iter_mut() {
             let (changed, grown) = group.group.texture_atlas.as_mut().unwrap().resolve(ginkgo);
             for key in changed {
-                let (metrics, rasterization) = renderer
-                    .resources
+                let (metrics, rasterization) = group
+                    .group
                     .font
-                    .0
+                    .as_ref()
+                    .unwrap_or(&registry[0])
                     .rasterize_indexed(key.glyph_index, group.group.font_size.value as f32);
                 let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
                 for updated in group

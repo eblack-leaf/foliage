@@ -7,7 +7,7 @@ use crate::foliage::MainMarkers;
 use crate::ginkgo::ScaleFactor;
 use crate::grid::view::ViewAdjustment;
 use crate::interaction::CurrentInteraction;
-use crate::text::monospaced::MonospacedFont;
+use crate::text::monospaced::{FontContext, FontId, FontRef};
 use crate::text::{Glyphs, LineMetrics};
 use crate::{
     Attachment, Color, Component, Dragged, EcsExtension, Elevation, Engaged, FocusBehavior,
@@ -313,6 +313,7 @@ impl Sprout for TextInputSprout {
         tree.react::<TextValue, _>(this, TextInput::update_text_value);
         tree.react::<TextInputStyle, _>(this, TextInput::update_style);
         tree.react::<FontSize, _>(this, TextInput::update_font_size);
+        tree.react::<FontId, _>(this, TextInput::update_font_id);
         tree.react::<HintText, _>(this, TextInput::update_hint);
     }
 }
@@ -465,6 +466,25 @@ impl TextInput {
         // FontSize to interpret `1.letters()` sizing.
         tree.entity(handle.field)
             .insert(font_sizes.get(trigger.event_target()).unwrap().clone());
+    }
+    /// Forwards the root's [`FontId`] to everything that measures or draws in it. The caret
+    /// addresses columns through `character_block`, so if the glyphs were drawn in one font
+    /// and the columns measured in another the cursor would drift from the text -- these
+    /// have to move together.
+    fn update_font_id(
+        trigger: Trigger<Insert, FontId>,
+        mut tree: Tree,
+        font_ids: Query<&FontId>,
+        handles: Query<&Handle>,
+    ) {
+        let this = trigger.event_target();
+        let Ok(handle) = handles.get(this) else {
+            return;
+        };
+        let id = *font_ids.get(this).unwrap();
+        tree.entity(handle.text).insert(id);
+        tree.entity(handle.hint_text).insert(id);
+        tree.entity(handle.field).insert(id);
     }
     fn update_style(
         trigger: Trigger<Insert, TextInputStyle>,
@@ -653,8 +673,7 @@ impl PlaceCursor {
         trigger: Trigger<PlaceCursor>,
         mut tree: Tree,
         current_interaction: Res<CurrentInteraction>,
-        font: Res<MonospacedFont>,
-        font_sizes: Query<&FontSize>,
+        fonts: FontContext,
         layout: Res<Layout>,
         handles: Query<&Handle>,
         mut cursor: Query<&mut Cursor>,
@@ -664,6 +683,7 @@ impl PlaceCursor {
         scroll: ScrollContext,
     ) {
         let this = trigger.event_target();
+        let font = fonts.font_ref(this);
         // TODO: every click unconditionally restarts the selection here, even Shift+Click --
         // some editors instead extend the existing selection to the click point when Shift
         // is held. Not implemented; scoping only, not clear this is wanted yet.
@@ -673,8 +693,8 @@ impl PlaceCursor {
             this,
             true,
             &current_interaction,
-            &font,
-            &font_sizes,
+            font,
+            &fonts.sizes,
             *layout,
             &scroll.sections,
             &scroll.views,
@@ -686,8 +706,8 @@ impl PlaceCursor {
             &mut tree,
             RequestedLocation::ColRow((col, row)),
             &glyphs,
-            &font,
-            &font_sizes,
+            font,
+            &fonts.sizes,
             *layout,
             &handles,
             &mut cursor,
@@ -712,7 +732,7 @@ impl TextInput {
         this: Entity,
         can_go_past_end: bool,
         current_interaction: &CurrentInteraction,
-        font: &MonospacedFont,
+        font: FontRef,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
         sections: &Query<&Section<Logical>>,
@@ -765,7 +785,7 @@ impl TextInput {
         tree: &mut Tree,
         req: RequestedLocation,
         glyphs: &Query<&Glyphs>,
-        font: &MonospacedFont,
+        font: FontRef,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
         handles: &Query<&Handle>,
@@ -1052,8 +1072,7 @@ impl Selection {
         stems: Query<&Stem>,
         text_inputs: Query<&TextInput>,
         glyphs: Query<&Glyphs>,
-        font: Res<MonospacedFont>,
-        font_sizes: Query<&FontSize>,
+        fonts: FontContext,
         layout: Res<Layout>,
         handles: Query<&mut Handle>,
         // single mutable Query -- see the comment on `Input::obs`'s `handles` param.
@@ -1062,14 +1081,15 @@ impl Selection {
         scroll: ScrollContext,
     ) {
         let root = Stem::ascend_to::<TextInput>(trigger.event_target(), &stems, &text_inputs);
+        let font = fonts.font_ref(root);
         let offset = cursor.get(root).unwrap().location;
         TextInput::move_cursor(
             root,
             &mut tree,
             RequestedLocation::Offset(offset),
             &glyphs,
-            &font,
-            &font_sizes,
+            font,
+            &fonts.sizes,
             *layout,
             &handles.as_readonly(),
             &mut cursor,
@@ -1100,8 +1120,7 @@ impl Selection {
         stems: Query<&Stem>,
         text_inputs: Query<&TextInput>,
         current_interaction: Res<CurrentInteraction>,
-        font: Res<MonospacedFont>,
-        font_sizes: Query<&FontSize>,
+        fonts: FontContext,
         layout: Res<Layout>,
         sections: Query<&Section<Logical>>,
         views: Query<&View>,
@@ -1113,12 +1132,13 @@ impl Selection {
         glyphs: Query<&Glyphs>,
     ) {
         let root = Stem::ascend_to::<TextInput>(trigger.event_target(), &stems, &text_inputs);
+        let font = fonts.font_ref(root);
         let (col, row) = TextInput::location_from_click(
             root,
             false,
             &current_interaction,
-            &font,
-            &font_sizes,
+            font,
+            &fonts.sizes,
             *layout,
             &sections,
             &views,
@@ -1133,8 +1153,8 @@ impl Selection {
             &mut selections,
             &glyphs,
             &handles.as_readonly(),
-            &font,
-            &font_sizes,
+            font,
+            &fonts.sizes,
             *layout,
         );
         // No direct `reselect_range` call -- `sync_highlights_to_selection` (a
@@ -1153,7 +1173,7 @@ impl TextInput {
         selections: &mut Query<&mut Selection>,
         glyphs: &Query<&Glyphs>,
         handles: &Query<&Handle>,
-        font: &MonospacedFont,
+        font: FontRef,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
     ) {
@@ -1217,20 +1237,20 @@ impl TextInput {
         mut handles: Query<&mut Handle>,
         glyphs: Query<&Glyphs>,
         selections: Query<&Selection>,
-        font: Res<MonospacedFont>,
-        font_sizes: Query<&FontSize>,
+        fonts: FontContext,
         layout: Res<Layout>,
         styles: Query<&TextInputStyle>,
     ) {
         for this in changed.iter() {
+            let font = fonts.font_ref(this);
             TextInput::reselect_range(
                 this,
                 &mut tree,
                 &mut handles,
                 &glyphs,
                 &selections,
-                &font,
-                &font_sizes,
+                font,
+                &fonts.sizes,
                 *layout,
                 &styles,
             );
@@ -1251,8 +1271,7 @@ impl TextInput {
         mut cursor: Query<&mut Cursor>,
         mut handles: Query<&mut Handle>,
         glyphs: Query<&Glyphs>,
-        font: Res<MonospacedFont>,
-        font_sizes: Query<&FontSize>,
+        fonts: FontContext,
         layout: Res<Layout>,
         line_metrics: Query<&LineMetrics>,
         scroll: ScrollContext,
@@ -1261,6 +1280,7 @@ impl TextInput {
     ) {
         for text_entity in changed.iter() {
             let this = Stem::ascend_to::<TextInput>(text_entity, &stems, &text_inputs);
+            let font = fonts.font_ref(this);
             let offset = if let Ok(cursor_val) = cursor.get(this) {
                 cursor_val.location
             } else {
@@ -1271,8 +1291,8 @@ impl TextInput {
                 &mut tree,
                 RequestedLocation::Offset(offset),
                 &glyphs,
-                &font,
-                &font_sizes,
+                font,
+                &fonts.sizes,
                 *layout,
                 &handles.as_readonly(),
                 &mut cursor,
@@ -1290,8 +1310,8 @@ impl TextInput {
                 &mut handles,
                 &glyphs,
                 &selections,
-                &font,
-                &font_sizes,
+                font,
+                &fonts.sizes,
                 *layout,
                 &styles,
             );
@@ -1315,7 +1335,7 @@ impl TextInput {
         handles: &mut Query<&mut Handle>,
         glyphs: &Query<&Glyphs>,
         selections: &Query<&Selection>,
-        font: &MonospacedFont,
+        font: FontRef,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
         styles: &Query<&TextInputStyle>,
@@ -1446,8 +1466,7 @@ impl Input {
         mut selections: Query<&mut Selection>,
         mut clipboard: bevy_ecs::system::ResMut<crate::Clipboard>,
         glyphs: Query<&Glyphs>,
-        font: Res<MonospacedFont>,
-        font_sizes: Query<&FontSize>,
+        fonts: FontContext,
         layout: Res<Layout>,
         // single mutable Query -- a second, immutable `Query<&Handle>` alongside this one is
         // rejected by bevy at `foliage.define(...)` time as conflicting access to the same
@@ -1458,6 +1477,7 @@ impl Input {
         scroll: ScrollContext,
     ) {
         let this = trigger.event_target();
+        let font = fonts.font_ref(this);
         let cursor_val = *cursor.get(this).unwrap();
         let lc = *line_constraints.get(this).unwrap();
         let handle = handles.get(this).unwrap().clone();
@@ -1485,8 +1505,8 @@ impl Input {
                             &handles.as_readonly(),
                             &mut cursor,
                             &glyphs,
-                            &font,
-                            &font_sizes,
+                            font,
+                            &fonts.sizes,
                             *layout,
                             &line_metrics,
                             &mut selections,
@@ -1512,8 +1532,8 @@ impl Input {
                             &handles.as_readonly(),
                             &mut cursor,
                             &glyphs,
-                            &font,
-                            &font_sizes,
+                            font,
+                            &fonts.sizes,
                             *layout,
                             &line_metrics,
                             &mut selections,
@@ -1536,8 +1556,8 @@ impl Input {
                                 &mut tree,
                                 RequestedLocation::Offset(idx),
                                 &glyphs,
-                                &font,
-                                &font_sizes,
+                                font,
+                                &fonts.sizes,
                                 *layout,
                                 &handles.as_readonly(),
                                 &mut cursor,
@@ -1569,8 +1589,8 @@ impl Input {
                             &handles.as_readonly(),
                             &mut cursor,
                             &glyphs,
-                            &font,
-                            &font_sizes,
+                            font,
+                            &fonts.sizes,
                             *layout,
                             &line_metrics,
                             &mut selections,
@@ -1591,8 +1611,8 @@ impl Input {
                             &mut tree,
                             RequestedLocation::Offset(cursor_val.location),
                             &glyphs,
-                            &font,
-                            &font_sizes,
+                            font,
+                            &fonts.sizes,
                             *layout,
                             &handles.as_readonly(),
                             &mut cursor,
@@ -1616,8 +1636,8 @@ impl Input {
                         &mut tree,
                         RequestedLocation::ColRow((col, cursor_val.row)),
                         &glyphs,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1635,8 +1655,8 @@ impl Input {
                         &mut tree,
                         RequestedLocation::ColRow((0, cursor_val.row)),
                         &glyphs,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1679,8 +1699,8 @@ impl Input {
                             &handles.as_readonly(),
                             &mut cursor,
                             &glyphs,
-                            &font,
-                            &font_sizes,
+                            font,
+                            &fonts.sizes,
                             *layout,
                             &line_metrics,
                             &mut selections,
@@ -1700,8 +1720,8 @@ impl Input {
                             &mut tree,
                             RequestedLocation::Offset(len),
                             &glyphs,
-                            &font,
-                            &font_sizes,
+                            font,
+                            &fonts.sizes,
                             *layout,
                             &handles.as_readonly(),
                             &mut cursor,
@@ -1729,8 +1749,8 @@ impl Input {
                         &mut selections,
                         &glyphs,
                         &mut handles,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &line_metrics,
                         &scroll,
@@ -1749,8 +1769,8 @@ impl Input {
                         &mut selections,
                         &glyphs,
                         &mut handles,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &line_metrics,
                         &scroll,
@@ -1769,8 +1789,8 @@ impl Input {
                         &mut selections,
                         &glyphs,
                         &mut handles,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &line_metrics,
                         &scroll,
@@ -1788,8 +1808,8 @@ impl Input {
                         &mut selections,
                         &glyphs,
                         &mut handles,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &line_metrics,
                         &scroll,
@@ -1805,8 +1825,8 @@ impl Input {
                             cursor_val.row.checked_sub(1).unwrap_or_default(),
                         )),
                         &glyphs,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1826,8 +1846,8 @@ impl Input {
                         &mut tree,
                         RequestedLocation::ColRow((cursor_val.column, target_row)),
                         &glyphs,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1850,8 +1870,8 @@ impl Input {
                         &mut tree,
                         RequestedLocation::Offset(offset),
                         &glyphs,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1872,8 +1892,8 @@ impl Input {
                         &mut tree,
                         RequestedLocation::Offset(offset),
                         &glyphs,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1899,8 +1919,8 @@ impl Input {
                         &handles.as_readonly(),
                         &mut cursor,
                         &glyphs,
-                        &font,
-                        &font_sizes,
+                        font,
+                        &fonts.sizes,
                         *layout,
                         &line_metrics,
                         &mut selections,
@@ -1929,8 +1949,8 @@ impl Input {
                     &handles.as_readonly(),
                     &mut cursor,
                     &glyphs,
-                    &font,
-                    &font_sizes,
+                    font,
+                    &fonts.sizes,
                     *layout,
                     &line_metrics,
                     &mut selections,
@@ -1983,7 +2003,7 @@ impl TextInput {
         handles: &Query<&Handle>,
         cursor: &mut Query<&mut Cursor>,
         glyphs: &Query<&Glyphs>,
-        font: &MonospacedFont,
+        font: FontRef,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
         line_metrics: &Query<&LineMetrics>,
@@ -2028,7 +2048,7 @@ impl TextInput {
         // parameters) is what lets the caller pass one `Query<&mut Handle>` instead of two
         // conflicting borrows of it in the same call.
         handles: &mut Query<&mut Handle>,
-        font: &MonospacedFont,
+        font: FontRef,
         font_sizes: &Query<&FontSize>,
         layout: Layout,
         line_metrics: &Query<&LineMetrics>,
@@ -2104,13 +2124,13 @@ impl InsertText {
         handles: Query<&Handle>,
         mut cursor: Query<&mut Cursor>,
         glyphs: Query<&Glyphs>,
-        font: Res<MonospacedFont>,
-        font_sizes: Query<&FontSize>,
+        fonts: FontContext,
         layout: Res<Layout>,
         line_metrics: Query<&LineMetrics>,
         scroll: ScrollContext,
     ) {
         let this = trigger.event_target();
+        let font = fonts.font_ref(this);
         let cursor_location = cursor.get(this).unwrap().location;
         let end = TextInput::insert_text(
             this,
@@ -2127,8 +2147,8 @@ impl InsertText {
             &handles,
             &mut cursor,
             &glyphs,
-            &font,
-            &font_sizes,
+            font,
+            &fonts.sizes,
             *layout,
             &line_metrics,
             &mut selections,
@@ -2201,6 +2221,30 @@ mod tests {
         );
         foliage.world.flush();
         this
+    }
+
+    /// The caret addresses columns through `character_block` while the glyphs are drawn from
+    /// the atlas, so both have to resolve the *same* font. `field` matters as much as the
+    /// text itself -- it carries the letter-metric `Grid` those columns measure against.
+    #[test]
+    fn a_font_id_on_the_root_reaches_the_text_hint_and_field() {
+        let mut foliage = Foliage::new();
+        let id = foliage.font(include_bytes!("../../text/JetBrainsMonoNL-Medium.ttf").as_slice());
+        let this = spawn_multiline(&mut foliage, "abc");
+        foliage.world.entity_mut(this).insert(id);
+        foliage.world.flush();
+
+        let (text, hint_text, field) = {
+            let handle = foliage.world.get::<Handle>(this).unwrap();
+            (handle.text, handle.hint_text, handle.field)
+        };
+        for (name, entity) in [("text", text), ("hint_text", hint_text), ("field", field)] {
+            assert_eq!(
+                foliage.world.get::<FontId>(entity).copied(),
+                Some(id),
+                "{name} should draw/measure in the root's font, not the default"
+            );
+        }
     }
 
     fn press_enter(foliage: &mut Foliage, this: Entity) {

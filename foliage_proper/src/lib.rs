@@ -136,6 +136,7 @@ pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use polygon::{Polygon, PolygonSprout};
 pub use text::GlyphOffset;
+pub use text::monospaced::FontId;
 pub use text::{FontSize, GlyphColors, Text, TextContentHeight, TextContentWidth, TextSprout};
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
 pub use tree::{EcsExtension, Graft, IntoTargets, Refire, Sequence, TargetedEvent, Tree};

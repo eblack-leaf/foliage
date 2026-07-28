@@ -7,6 +7,10 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/eblack-leaf/foliage"
 homepage = "https://eblack-leaf.github.io/foliage/"
 documentation = "https://eblack-leaf.github.io/foliage/book/"
+# a 760KB proportional font used only by the `#[cfg(test)]` check that `Foliage::font`
+# rejects non-monospace input -- no reason for every download to carry it. Tests still see
+# it locally; only the published tarball drops it.
+exclude = ["src/text/test_fonts/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

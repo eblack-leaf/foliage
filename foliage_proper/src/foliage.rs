@@ -3,6 +3,7 @@ use crate::ash::Ash;
 use crate::ash::differential::{RenderQueue, RenderRemoveQueue, cached_differential};
 use crate::asset::{Asset, AssetKey, AssetLoader, AssetSource, LoadAsset};
 use crate::ginkgo::Ginkgo;
+use crate::text::monospaced::{FontId, MonospacedFont};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::remove::Remove;
 use crate::time::Time;
@@ -359,6 +360,26 @@ impl Foliage {
         let key = AssetLoader::generate_key();
         self.send(LoadAsset { key, source });
         key
+    }
+    /// Registers a monospace font and hands back the [`FontId`] naming it. Put that id on a
+    /// [`Text`] entity (composites forward it like [`FontSize`](crate::FontSize)) to draw
+    /// with it; anything that never sets one uses the bundled JetBrains Mono.
+    ///
+    /// **Panics if `bytes` is not monospaced.** foliage sizes and addresses text by a fixed
+    /// character cell -- `.letters()`, the caret's columns -- so a proportional font does
+    /// not merely look different, it mispositions. Checked here, where the offending font
+    /// can still be identified.
+    ///
+    /// Registration is startup-only: this takes `&mut Foliage`, which no longer exists once
+    /// [`photosynthesize`](Self::photosynthesize) has been called. That keeps a `Text` from
+    /// ever naming a font that has not been registered yet, but it also means a font fetched
+    /// at runtime cannot be registered -- bundle it with `include_bytes!` instead.
+    pub fn font(&mut self, bytes: &[u8]) -> FontId {
+        let font = MonospacedFont::parse(bytes, Text::OPT_SCALE);
+        self.world
+            .get_resource_mut::<MonospacedFont>()
+            .expect("fonts")
+            .add(font)
     }
     /// Declares where this app's assets are served from -- the path segment between the
     /// page origin and an asset's own relative path. Set it once at startup and

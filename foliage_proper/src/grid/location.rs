@@ -5,10 +5,10 @@ use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration, Short};
-use crate::text::monospaced::MonospacedFont;
+use crate::text::monospaced::FontContext;
 use crate::visibility::AutoVisibility;
 use crate::{
-    Animate, AspectRatio, Attachment, Component, CoordinateUnit, Coordinates, Foliage, FontSize,
+    Animate, AspectRatio, Attachment, Component, CoordinateUnit, Coordinates, Foliage,
     Grid, Layout, Line, Logical, Points, ResolvedVisibility, Section, Stem, Tree, Resolve, View,
     Visibility, Resolved,
 };
@@ -259,8 +259,7 @@ impl Location {
         viewport: Res<ViewportHandle>,
         create_diff_and_last: Query<(&CreateDiff, &Resolution)>,
         diffs: Query<&Diff>,
-        font: Res<MonospacedFont>,
-        font_sizes: Query<&FontSize>,
+        fonts: FontContext,
     ) {
         let this = trigger.event_target();
         if let Ok(location) = locations.get(this) {
@@ -285,11 +284,9 @@ impl Location {
                     )
                 });
                 let context = sections.get(id).unwrap();
-                let stem_letter_dims = if let Ok(fs) = font_sizes.get(id) {
-                    font.character_block(fs.resolve(*layout))
-                } else {
-                    Coordinates::default()
-                };
+                // the stem's own font/size -- `.letters()` measures against the cell the
+                // parent lays out in
+                let stem_letter_dims = fonts.character_block(id, *layout).unwrap_or_default();
                 (val.0.config(*layout), *val.1, *context, stem_letter_dims)
             } else {
                 (
@@ -313,11 +310,7 @@ impl Location {
                 }
             };
             let current = *sections.get(this).unwrap();
-            let letter_dims = if let Ok(fs) = font_sizes.get(this) {
-                font.character_block(fs.resolve(*layout))
-            } else {
-                Coordinates::default()
-            };
+            let letter_dims = fonts.character_block(this, *layout).unwrap_or_default();
             if let Some(mut resolution) = resolve(
                 *layout,
                 *short,
