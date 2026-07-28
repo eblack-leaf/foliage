@@ -383,31 +383,9 @@ impl KeyboardAdapter {
         _repeat: bool,
     ) -> Option<InputSequence> {
         if state.is_pressed() {
-            Some(InputSequence::new(
-                Self::decontrol(key.into(), self.mods),
-                self.mods,
-            ))
+            Some(InputSequence::new(key.into(), self.mods))
         } else {
             None
-        }
-    }
-    /// Maps a C0 control character back to the letter that produced it while CONTROL is
-    /// held: browsers report Ctrl+A as `Character("\u{1}")` rather than `Character("a")`,
-    /// so a `Character("a") + CONTROL` binding never matches. The character is also
-    /// unprintable, so the keystroke does nothing at all rather than misbehaving visibly.
-    /// Native backends hand over the letter directly and are unaffected.
-    fn decontrol(key: Key, mods: Modifiers) -> Key {
-        if !mods.contains(Modifiers::CONTROL) {
-            return key;
-        }
-        let Key::Character(s) = &key else { return key };
-        let mut chars = s.chars();
-        match (chars.next(), chars.next()) {
-            // U+0001..=U+001A are Ctrl+A through Ctrl+Z, in order.
-            (Some(c @ '\u{1}'..='\u{1a}'), None) => {
-                Key::Character(((b'a' + c as u8 - 1) as char).to_string())
-            }
-            _ => key,
         }
     }
     pub(crate) fn parse_physical(

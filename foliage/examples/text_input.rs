@@ -16,6 +16,24 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((280, 500));
 
+    // Single line, deliberately given a box taller than one line of text: `Single` stretches
+    // its text to the field's full height, so this is where vertical placement shows. The
+    // glyphs should sit centered in the box, not hugging an edge.
+    foliage.world.leaf(
+        TextInput::new()
+            .line_constraint(LineConstraint::Single)
+            .hint_text("single line...")
+            .foreground(Color::gray(200))
+            .background(Color::gray(800))
+            .accent(Color::green(600))
+            .rounding(Rounding::None)
+            .at(Location::new().xs(
+                20.px().as_left().with(90.pct().as_right()),
+                30.px().as_top().with(44.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)),
+    );
+
     foliage.world.leaf(
         TextInput::new()
             .line_constraint(LineConstraint::Multiple)
@@ -26,7 +44,7 @@ fn main() {
             .rounding(Rounding::None)
             .at(Location::new().xs(
                 20.px().as_left().with(90.pct().as_right()),
-                30.px().as_top().with(90.pct().as_bottom()),
+                90.px().as_top().with(90.pct().as_bottom()),
             ))
             .elevate(Elevation::up(1)),
     );

@@ -1,9 +1,6 @@
 use crate::navigator::NavigatorLanded;
 use crate::type_in;
-use foliage::{
-    Color, EcsExtension, Elevation, Entity, FontSize, GridExt, Location, Rounding, Sprout,
-    TextInput, Tree, Trigger,
-};
+use foliage::{EcsExtension, Entity, Tree, Trigger};
 
 /// The polygon/lines/icon "navigator" moved out to its own persistent module -- it
 /// survives route switches, so it can no longer live inside any one scene. This route's
@@ -25,23 +22,4 @@ pub fn home(tree: &mut Tree, slot: Entity) {
         let seq = tree.sequence();
         type_in::type_in(&mut tree, slot, seq, 0);
     });
-    // TEMP: a focusable field for checking keyboard handling in a real browser via
-    // `web-debug.sh` -- Ctrl+A/C/V in particular. Remove once that is settled.
-    tree.branch(
-        slot,
-        TextInput::new()
-            .text("select all me")
-            .hint_text("ctrl+a here")
-            .font_size(FontSize::new(16))
-            .foreground(Color::gray(100))
-            .background(Color::gray(800))
-            .accent(Color::cyan(400))
-            .rounding(Rounding::Sm)
-            .outline(1)
-            .at(Location::new().xs(
-                10.0.pct().as_left().with(90.0.pct().as_right()),
-                86.0.pct().as_top().with(34.px().as_height()),
-            ))
-            .elevate(Elevation::up(10)),
-    );
 }

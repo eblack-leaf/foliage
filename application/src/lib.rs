@@ -23,14 +23,6 @@ mod type_in;
 /// that calls this from its own `android_main`.
 pub fn run(mut foliage: Foliage) {
     foliage.desktop_size((360, 800));
-    // TEMP: logs every KeyboardInput's raw `logical_key` and the live modifier state to the
-    // browser console, to settle what Ctrl+A actually delivers on web. Remove with the temp
-    // `TextInput` in `home.rs`.
-    foliage.enable_tracing(
-        "foliage_proper::photosynthesis=trace"
-            .parse()
-            .expect("trace-filter"),
-    );
     icons::register(&mut foliage);
     entry::build(&mut foliage);
     foliage.photosynthesize();

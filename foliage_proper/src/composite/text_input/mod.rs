@@ -418,6 +418,21 @@ impl TextInput {
             LineConstraint::Single => TextContentHeight(false),
             LineConstraint::Multiple => TextContentHeight(true),
         };
+        // Vertical centering is done to the *field*, not to the text inside it: text,
+        // cursor and highlights all measure row/column from field's own origin (see above),
+        // so shifting the text alone would desync the caret from the glyphs it tracks.
+        // Sizing field to exactly one line and centering that keeps them together.
+        // `Multiple` keeps the full-height field it needs to scroll within.
+        let field_location = Location::new().xs(
+            8.px().as_left().with(100.pct().as_right().adjust(-8)),
+            match line_constraint {
+                LineConstraint::Single => 50.pct().as_center_y().with(1.letters().as_height()),
+                LineConstraint::Multiple => {
+                    4.px().as_top().with(100.pct().as_bottom().adjust(-4))
+                }
+            },
+        );
+        tree.entity(handle.field).insert(field_location);
         tree.entity(handle.text)
             .insert((text_location, auto_width, auto_height));
         tree.entity(handle.hint_text)

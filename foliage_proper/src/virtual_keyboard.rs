@@ -141,28 +141,39 @@ impl VirtualKeyboardAdapter {
 
             let key_queue = queue.clone();
             let on_keydown = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
-                if let Some(key) = VirtualKeyboardAdapter::map_control_key(&e.key()) {
+                // Built fresh from this DOM event, not read off `KeyboardAdapter.mods`
+                // (winit's `ModifiersChanged` tracker) -- that resource only updates
+                // from canvas-focused events, which this trigger input's focus already
+                // starves it of, same as the raw key events themselves.
+                let mut mods = crate::Modifiers::empty();
+                if e.shift_key() {
+                    mods |= crate::Modifiers::SHIFT;
+                }
+                if e.ctrl_key() {
+                    mods |= crate::Modifiers::CONTROL;
+                }
+                if e.alt_key() {
+                    mods |= crate::Modifiers::ALT;
+                }
+                if e.meta_key() {
+                    mods |= crate::Modifiers::SUPER;
+                }
+                let key = VirtualKeyboardAdapter::map_control_key(&e.key()).or_else(|| {
+                    // A single character held with Ctrl/Cmd is a shortcut, not text, so the
+                    // browser fires no `input` event for it -- and `map_control_key` only
+                    // names non-character keys, so without this the whole combo was dropped
+                    // and Ctrl+A did nothing at all. Lowercased to match `KeyBindings`,
+                    // which spells its entries `Character("a")`.
+                    let pressed = e.key();
+                    (mods.intersects(crate::Modifiers::CONTROL | crate::Modifiers::SUPER)
+                        && pressed.chars().count() == 1)
+                        .then(|| crate::Key::Character(pressed.to_lowercase()))
+                });
+                if let Some(key) = key {
                     // stop the trigger input's own native editing (e.g. Backspace deleting
                     // its already-empty value) -- this key is handled via `InputSequence`
                     // instead, same as a real physical keystroke would be.
                     e.prevent_default();
-                    // Built fresh from this DOM event, not read off `KeyboardAdapter.mods`
-                    // (winit's `ModifiersChanged` tracker) -- that resource only updates
-                    // from canvas-focused events, which this trigger input's focus already
-                    // starves it of, same as the raw key events themselves.
-                    let mut mods = crate::Modifiers::empty();
-                    if e.shift_key() {
-                        mods |= crate::Modifiers::SHIFT;
-                    }
-                    if e.ctrl_key() {
-                        mods |= crate::Modifiers::CONTROL;
-                    }
-                    if e.alt_key() {
-                        mods |= crate::Modifiers::ALT;
-                    }
-                    if e.meta_key() {
-                        mods |= crate::Modifiers::SUPER;
-                    }
                     key_queue
                         .0
                         .borrow_mut()
