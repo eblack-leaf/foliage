@@ -5,9 +5,9 @@
 
 use foliage::{
     Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    HorizontalAlignment, Icon, IconId, InteractionListener, InteractionPropagation,
-    InteractionShape, Leaf, Location, OnClick, Opacity, PageIndex, Query, Sprout, Text,
-    TextContentHeight, Tree, Trigger, VerticalAlignment, With, anchor,
+    HorizontalAlignment, Icon, IconId, InteractionListener, InteractionPropagation, Leaf, Location,
+    OnClick, Opacity, PageIndex, Query, Sprout, Text, TextContentHeight, Tree, Trigger,
+    VerticalAlignment, With, anchor,
 };
 
 use crate::entry::AppRouter;
@@ -55,6 +55,9 @@ const SHORT_BUTTONS_LEFT_PCT: f32 = 52.0;
 const SHORT_BUTTONS_TOP_PCT: f32 = 46.0;
 
 const HINT_TEXT: &str = "more";
+/// The word's own box. Shared with the hit band, which derives its top from it -- as a literal
+/// in the label's `Location` it was invisible to the band, and the band guessed wrong.
+const HINT_H: i32 = 24;
 const CHEVRON: i32 = 22;
 /// A breath, not a bounce.
 const BOB_PX: i32 = 8;
@@ -258,7 +261,62 @@ fn chevron_at(drift: i32) -> Location {
 }
 
 /// "more", with a chevron breathing under it at the fold.
+///
+/// Both are one control. The word and the chevron sit in a contiguous band -- the label's box
+/// ends exactly where the chevron's begins -- so a single target spanning the pair is the same
+/// reach the label already claimed, minus the dead gap between them and the dead margin either
+/// side of a centred chevron. It is also static while the chevron bobs, so the thing you are
+/// aiming at holds still.
 fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
+    // Both the word and the chevron are placed by their *bottom* edge, so the band has to be
+    // derived the same way rather than guessed from the chevron's inset: the word's top is a
+    // label-height above its own gap, and the chevron's bottom is a bob lower than its resting
+    // one. Written from the wrong end, the band sat below the word entirely and hung into the
+    // empty strip under the chevron.
+    //
+    // Top and bottom, not bottom twice -- both edges are measured from the foot of the hero,
+    // but a pair has to name two different edges or the resolver has nothing to solve.
+    let band = |label_gap: i32, chevron_gap: i32| {
+        100.pct()
+            .as_top()
+            .adjust(-(CHEVRON + label_gap + HINT_H))
+            .with(
+                100.pct()
+                    .as_bottom()
+                    .adjust(-(CHEVRON + chevron_gap) + BOB_PX),
+            )
+    };
+    let target = tree.branch(
+        hero,
+        Leaf::sprout()
+            .at(Location::new()
+                .xs(
+                    0.pct().as_left().with(100.pct().as_right()),
+                    band(space::XL, space::MD),
+                )
+                .short(
+                    0.pct()
+                        .as_left()
+                        .with(SHORT_TEXT_RIGHT_PCT.pct().as_right()),
+                    band(space::LG, space::SM),
+                ))
+            .elevate(Elevation::up(2))
+            .with(InteractionListener::new()),
+    );
+    // armed on the label's fade, the earlier of the two -- once the word is legible the
+    // control means something, and the chevron joining it 120ms later does not change that
+    crate::site::arm_at(tree, target, AT_HINT + crate::site::motion::FADE);
+    // the route fn only gets its slot, so the router is found by its marker -- which is what
+    // `AppRouter` is for
+    tree.on_click(
+        target,
+        move |_: Trigger<OnClick>, routers: Query<Entity, With<AppRouter>>, mut tree: Tree| {
+            if let Ok(router) = routers.single() {
+                tree.write_to(router, PageIndex(1));
+            }
+        },
+    );
+
     let label = tree.branch(
         hero,
         Text::new(HINT_TEXT)
@@ -270,7 +328,7 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
                     100.pct()
                         .as_bottom()
                         .adjust(-(CHEVRON + space::XL))
-                        .with(24.px().as_height()),
+                        .with(HINT_H.px().as_height()),
                 )
                 // stays under the text column, clear of the buttons on the right
                 .short(
@@ -280,27 +338,19 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
                     100.pct()
                         .as_bottom()
                         .adjust(-(CHEVRON + space::LG))
-                        .with(24.px().as_height()),
+                        .with(HINT_H.px().as_height()),
                 ))
             .elevate(Elevation::up(3))
             .with((
                 HorizontalAlignment::Center,
                 VerticalAlignment::Middle,
-                InteractionListener::new(),
+                // both pass through to the band behind them, or each would win the hit-test on
+                // its own pixels and split the one control back into two
+                InteractionPropagation::pass_through(),
                 Opacity::new(0.0),
             )),
     );
     fade_in(tree, label, seq, AT_HINT);
-    // the word is the affordance as much as the chevron is -- people aim at whichever is
-    // nearer their thumb
-    tree.on_click(
-        label,
-        move |_: Trigger<OnClick>, routers: Query<Entity, With<AppRouter>>, mut tree: Tree| {
-            if let Ok(router) = routers.single() {
-                tree.write_to(router, PageIndex(1));
-            }
-        },
-    );
 
     let chevron = tree.branch(
         hero,
@@ -308,23 +358,9 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
             .color(role::accent())
             .at(chevron_at(0))
             .elevate(Elevation::up(3))
-            .with((
-                InteractionListener::new(),
-                InteractionShape::Circle,
-                Opacity::new(0.0),
-            )),
+            .with((InteractionPropagation::pass_through(), Opacity::new(0.0))),
     );
     fade_in(tree, chevron, seq, AT_HINT + 120);
-    // people reach for the affordance rather than scrolling past it. The route fn only gets
-    // its slot, so the router is found by its marker -- which is what `AppRouter` is for.
-    tree.on_click(
-        chevron,
-        move |_: Trigger<OnClick>, routers: Query<Entity, With<AppRouter>>, mut tree: Tree| {
-            if let Ok(router) = routers.single() {
-                tree.write_to(router, PageIndex(1));
-            }
-        },
-    );
 
     // Its own sequence, forever, backtracking so it returns rather than snapping -- a plain
     // loop would jerk back to the top every cycle. Tied to the chevron's own lifetime, so

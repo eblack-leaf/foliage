@@ -25,6 +25,7 @@ pub fn build(foliage: &mut Foliage) {
             .routes(RouterRoutes::new([
                 site::hero::build as RouteFn,
                 site::overview::build as RouteFn,
+                site::stub::leaf as RouteFn,
                 site::stub::layout as RouteFn,
                 site::stub::motion as RouteFn,
                 site::stub::composites as RouteFn,

@@ -3,15 +3,23 @@
 //! This is the page that has to work on its own -- an unpublished library's site is mostly
 //! a signpost, so the destination row matters more than anything else here.
 //!
-//! Laid out the way a reference page is: a lead paragraph, a blueprint plate, then a card
-//! grid, then a ruled break before the destinations. The plate is the page's own
-//! demonstration of its aesthetic -- measured lines and annotations around expressive shapes.
+//! Laid out the way a reference page is, in two movements. The lead and the plate are the
+//! opener -- what the name means and what the thing feels like. Then a heading, a plain
+//! statement of what the library is, and cards breaking that into parts. A ruled break, and
+//! the destinations.
+//!
+//! The split matters: the lead is thematic and the cards are specifics, and with nothing
+//! between them the page went from a metaphor straight to a list with no sentence anywhere
+//! saying what foliage actually is.
+//!
+//! The plate is the page's own demonstration of its aesthetic -- measured lines and
+//! annotations around expressive shapes.
 
 use foliage::{Color, Entity, Tree};
 
 use crate::icons::IconHandles;
 use crate::site::cards::CardSpec;
-use crate::site::figure::{Label, Node, PlateSpec};
+use crate::site::figure::{Label, Node, PlateSpec, Side};
 use crate::site::{
     Column, POLY_BUTTON_ROW_H, PolyButton, SCROLL_TAIL, cards, figure, motion, poly_button, role,
     space,
@@ -21,56 +29,57 @@ const DOCS_HREF: &str = "https://eblack-leaf.github.io/foliage/api/foliage/index
 const BOOK_HREF: &str = "https://eblack-leaf.github.io/foliage/book/";
 const REPO_HREF: &str = "https://github.com/eblack-leaf/foliage";
 
-/// The opener's figure. Nodes are placed where they compose and where their leaders have room
-/// to run, not where a trend line would put them -- this is a drawing, not a plot.
+/// The opener's figure. Nodes are placed where they compose and where their labels have room,
+/// not where a trend line would put them -- this is a drawing, not a plot.
 const PLATE: PlateSpec = PlateSpec {
-    // Both labelled nodes are at a turn in the path, with their label offset into the open
-    // side of that turn -- above the first, below the last. Nothing is placed where the path
-    // has to run through it at either breakpoint.
+    // Labels are centred on their node and clear of it, so the only placement decision left is
+    // the *node's*: each labelled one is a turning point, with its label thrown into the open
+    // side of the turn. The peak near the top takes its label above, the trough near the bottom
+    // takes its under, and the path enters neither band at either breakpoint.
     //
-    // The run starts at 0.16 rather than hard left: at `xs` the field is barely 256px, so a
+    // The run starts at 0.14 rather than hard left: at `xs` the field is barely 300px, so a
     // node any further left had its leftmost point sitting on the tick at the "16" row.
     nodes: &[
         Node {
-            at: (0.16, 0.66),
+            at: (0.14, 0.62),
             sides: 6.0,
-            size: 26,
+            size: 24,
             label: None,
         },
         Node {
-            at: (0.31, 0.34),
+            at: (0.28, 0.26),
             sides: 8.0,
             size: 38,
             label: Some(Label {
                 text: "resolve 0.4ms",
-                offset: (10, -36),
+                side: Side::Above,
             }),
         },
         Node {
-            at: (0.48, 0.72),
+            at: (0.45, 0.66),
             sides: 5.0,
-            size: 22,
-            label: None,
-        },
-        Node {
-            at: (0.65, 0.30),
-            sides: 7.0,
             size: 26,
             label: None,
         },
         Node {
-            at: (0.81, 0.74),
+            at: (0.59, 0.40),
+            sides: 7.0,
+            size: 20,
+            label: None,
+        },
+        Node {
+            at: (0.75, 0.72),
             sides: 6.0,
             size: 34,
             label: Some(Label {
                 text: "reflow xs -> md",
-                offset: (-30, 26),
+                side: Side::Under,
             }),
         },
         Node {
-            at: (0.94, 0.44),
+            at: (0.91, 0.34),
             sides: 5.0,
-            size: 22,
+            size: 24,
             label: None,
         },
     ],
@@ -85,8 +94,13 @@ const PLATE: PlateSpec = PlateSpec {
     ],
     caption: "fig. 01  shape resolve",
 };
+/// The plate grows in both directions with the window: it runs on the figure measure, so past
+/// the reading cap it keeps widening while the prose stops, and it gets taller to match. A
+/// drawing that only widened would go letterboxed on a big screen, which wastes exactly the
+/// room it was given.
 const PLATE_H_XS: i32 = 210;
 const PLATE_H_MD: i32 = 248;
+const PLATE_H_LG: i32 = 340;
 
 const CAPABILITIES: [CardSpec; 5] = [
     CardSpec {
@@ -126,9 +140,10 @@ const CAPABILITIES: [CardSpec; 5] = [
 ];
 
 pub fn build(tree: &mut Tree, slot: Entity) {
+    // straight into the scroll container -- elements carry the measure themselves, so the
+    // side gutters are part of the same scrollable box as the text
     let container = crate::site::shell::content_area(tree, slot);
-    let content = crate::site::shell::measured_column(tree, container, None);
-    let mut column = Column::new(tree, content);
+    let mut column = Column::new(tree, container);
 
     column.display(tree, "overview");
     column.lead(
@@ -137,10 +152,20 @@ pub fn build(tree: &mut Tree, slot: Entity) {
          to its parent is what its position, its clipping and its lifetime all resolve \
          against. That tree is the whole model, and the name.",
     );
-    let plate = column.region(tree, (PLATE_H_XS, PLATE_H_MD, PLATE_H_MD), space::LG);
+    let plate = column.figure(tree, (PLATE_H_XS, PLATE_H_MD, PLATE_H_LG), space::LG);
     figure::plate(tree, plate, &PLATE, column.sequence(), motion::STAGGER * 2);
 
-    column.heading(tree, "what it gives you");
+    // The lead is thematic -- it explains the name and the shape of the model, which is what
+    // an opener should do and not what an overview is. This is the overview: what the thing
+    // actually is, stated plainly, with the cards below breaking it into parts.
+    column.heading(tree, "the library");
+    column.prose(
+        tree,
+        "foliage is a UI framework for Rust. It renders through wgpu and runs the same source \
+         on desktop, on the web and on Android. State lives in an ECS world rather than a \
+         component tree, layout resolves per breakpoint against the stem, and there is no \
+         markup language or build step standing between a change and the frame that shows it.",
+    );
     cards::grid(tree, &mut column, &CAPABILITIES);
 
     column.rule(tree);

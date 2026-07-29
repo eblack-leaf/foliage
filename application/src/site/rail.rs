@@ -2,8 +2,8 @@
 
 use foliage::{
     EcsExtension, Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon, IconId,
-    InteractionListener, Location, OnClick, PageIndex, Panel, Rounding, Sprout, Text, Tree,
-    Trigger, VerticalAlignment,
+    InteractionListener, InteractionPropagation, Leaf, Location, OnClick, PageIndex, Panel,
+    Rounding, Sprout, Text, Tree, Trigger, VerticalAlignment,
 };
 
 use crate::icons::IconHandles;
@@ -11,7 +11,13 @@ use crate::site::shell::rail_surface;
 use crate::site::{role, space, type_scale};
 
 /// One entry per route, in the order `entry.rs` registers them.
-pub(crate) const SECTIONS: [&str; 5] = ["overview", "layout", "motion", "composites", "text"];
+/// Order matters twice over: it is the reading order of the site, and the index into the
+/// router's own route list (offset by one, since route 0 is the hero).
+///
+/// `leaf` sits second because it is the model the overview only gestures at -- everything
+/// after it is a thing you do *to* a leaf, and none of it lands without that first.
+pub(crate) const SECTIONS: [&str; 6] =
+    ["overview", "leaf", "layout", "motion", "composites", "text"];
 
 const ENTRY_H: i32 = 40;
 const ENTRY_GAP: i32 = space::XS;
@@ -42,7 +48,33 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
     };
     let surface = rail_surface(tree, parent);
 
-    let chevron = tree.branch(
+    // One target covering the chevron and the wordmark together, rather than a listener on
+    // each. They are one control -- "back to the hero" -- and as two they had two dead strips
+    // between and around them where the obvious click did nothing. Unpainted: the rail's own
+    // surface is the background here, so a panel would only be a shape to keep in sync.
+    let back = tree.branch(
+        surface,
+        Leaf::sprout()
+            .at(Location::new().xs(
+                space::SM
+                    .px()
+                    .as_left()
+                    .with(100.pct().as_right().adjust(-space::SM)),
+                space::SM
+                    .px()
+                    .as_top()
+                    .with((DIVIDER_TOP - space::SM).px().as_bottom()),
+            ))
+            .elevate(Elevation::up(1))
+            .with(InteractionListener::new()),
+    );
+    tree.on_click(back, move |_: Trigger<OnClick>, mut tree: Tree| {
+        tree.write_to(router, PageIndex(0));
+    });
+
+    // both pass through, or each would win the hit-test on the pixels it covers and split the
+    // one control back into three
+    tree.branch(
         surface,
         Icon::new(IconId::from(IconHandles::ChevronUp))
             .color(role::accent())
@@ -54,13 +86,10 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
                     .with(BRAND_CHEVRON.px().as_height()),
             ))
             .elevate(Elevation::up(2))
-            .with(InteractionListener::new()),
+            .with(InteractionPropagation::pass_through()),
     );
-    tree.on_click(chevron, move |_: Trigger<OnClick>, mut tree: Tree| {
-        tree.write_to(router, PageIndex(0));
-    });
 
-    let brand = tree.branch(
+    tree.branch(
         surface,
         Text::new(BRAND)
             .size(FontSize::new(type_scale::TITLE))
@@ -83,12 +112,9 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
             .with((
                 HorizontalAlignment::Left,
                 VerticalAlignment::Middle,
-                InteractionListener::new(),
+                InteractionPropagation::pass_through(),
             )),
     );
-    tree.on_click(brand, move |_: Trigger<OnClick>, mut tree: Tree| {
-        tree.write_to(router, PageIndex(0));
-    });
 
     tree.branch(
         surface,

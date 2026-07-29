@@ -1,19 +1,21 @@
 //! Blueprint plates: the site's analytical layer.
 //!
-//! A plate is a technical drawing, not a chart. A ruled scale down the left edge, an empty
-//! field, a dashed path traversing a set of shapes, and annotations floating beside a chosen
-//! few of them. It is the counterweight to the poly shapes: the shapes are fluid and
-//! expressive, and the measure around them is exact, so each makes the other read stronger
-//! than it does alone.
+//! A plate is a technical drawing, not a chart. A ruled scale down the left edge, dashed rows
+//! running out from its ticks, a dashed path traversing a set of shapes, and annotations
+//! centred on a chosen few of them. It is the counterweight to the poly shapes: the shapes are
+//! fluid and expressive, and the measure around them is exact, so each makes the other read
+//! stronger than it does alone.
 //!
 //! Deliberately not a line plot. A plot has to be *about* its data or it reads as a chart
 //! someone made up, and it spends the whole field on a trend line -- where a drawing can put
-//! its shapes where they compose and leave the space between them empty.
+//! its shapes where they compose.
 //!
-//! Empty is the operative word. The field carried faint ruled rows and every annotation
-//! carried a leader line, and the result was three families of line -- ticks, rows, leaders --
-//! with nothing left as the subject. The rule is now the only structure, and proximity does
-//! what a leader was doing.
+//! Everything here is one of three weights, and which family a mark belongs to has to be
+//! legible at a glance: ticks are solid and full strength, rows are dashed and muted, the
+//! traverse is dashed and coloured. When the rows were solid they argued with the ticks at any
+//! opacity that made them visible; broken line is what separates them. Leader lines out to the
+//! annotations were a fourth family and there was no room for it, so proximity does that job
+//! instead.
 //!
 //! The annotations are pseudo-metrics on purpose. They are not instrumentation -- they are
 //! the *look* of instrumentation, which is what makes a still figure feel mid-calculation.
@@ -43,16 +45,26 @@ pub(crate) struct Node {
     pub(crate) label: Option<Label>,
 }
 
-/// Text floating beside a node, close enough that the pairing is obvious without a line
-/// drawn between them.
+/// Text centred on a node and clear of it, close enough that the pairing is obvious without a
+/// line drawn between them.
+///
+/// Always centred, only ever above or under -- no per-label placement. Free placement made
+/// every label a separate decision to get right and a separate thing to re-check at each
+/// breakpoint; this makes the *node* the thing to place well, which is one job instead of two.
+/// Put a labelled node at a turning point and the open side of the turn is clear by
+/// construction.
 pub(crate) struct Label {
     pub(crate) text: &'static str,
-    /// From the node's center to the label's *near* edge, in px -- so a negative x puts the
-    /// label left of its node and grows it leftward rather than back across the shape.
-    ///
-    /// Placed by the author rather than derived: only the author knows which part of the
-    /// field is empty, and every rule for guessing it eventually drops a label on the path.
-    pub(crate) offset: (i32, i32),
+    /// Which way it sits off the node. Centred either way -- only the direction changes, so
+    /// this is the one call a labelled node still makes, and it is decided by where the node
+    /// is in the field rather than by nudging px.
+    pub(crate) side: Side,
+}
+
+/// Above or under, for a node near the top or the bottom of its path.
+pub(crate) enum Side {
+    Above,
+    Under,
 }
 
 /// Everything a plate draws. Static so a page declares its figures as consts and the builder
@@ -84,13 +96,34 @@ const TICK_MINOR: i32 = 10;
 /// squeezed against the last rule of the drawing.
 const CAPTION_H: i32 = 22;
 
-/// Wide enough for the longest annotation. Only the box -- the text is edge-aligned inside
-/// it, so an over-wide box costs nothing visually.
+/// Wide enough for the longest annotation. Only the box -- the text is centred inside it, so
+/// an over-wide box costs nothing visually.
 const LABEL_W: i32 = 128;
+const LABEL_H: i32 = 16;
+/// Between a marker's edge and its label.
+const LABEL_GAP: i32 = space::SM;
+
+/// How much bigger a node gets once the plate has `lg`'s room. Matched to the plate's own
+/// height step (248 -> 340), so the shapes keep their share of the field rather than the field
+/// growing away from them.
+fn scaled(size: i32) -> i32 {
+    size * 7 / 5
+}
 
 const PATH_WEIGHT: i32 = 3;
 const DASH_ON: f32 = 11.0;
 const DASH_OFF: f32 = 7.0;
+
+/// The ruled rows. `MIN_LINE_WEIGHT` is the floor for anything a polyline draws, so tone and
+/// dash length are the only ways down from the traverse -- a shorter dash with more gap than
+/// [`DASH_ON`]/[`DASH_OFF`] reads as finer even at the same weight.
+const ROW_WEIGHT: i32 = foliage::MIN_LINE_WEIGHT;
+const ROW_DASH_ON: f32 = 4.0;
+const ROW_DASH_OFF: f32 = 8.0;
+/// Well under the ticks, which sit at full opacity. Major rows carry a number in the gutter,
+/// so they earn a little more presence than the halves between them.
+const ROW_MAJOR: f32 = 0.5;
+const ROW_MINOR: f32 = 0.3;
 
 /// Annotated nodes take the warm tones; everything else takes this. With no leader lines,
 /// the muting is the *only* thing pairing a label with its shape, so the gap between the two
@@ -187,6 +220,18 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
             .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
     );
 
+    // fades rather than draws: the traverse is the thing that draws itself in, and a drawing
+    // whose every line animated would be a race rather than a gesture
+    let fade_to = |tree: &mut Tree, entity: Entity, alpha: f32, delay: u64| {
+        tree.animate(
+            Animation::new(Opacity::new(alpha))
+                .targeting(entity)
+                .during(seq)
+                .start(start + delay)
+                .finish(start + delay + motion::FADE)
+                .eased(Ease::Linear),
+        );
+    };
     let rule = |tree: &mut Tree,
                 parent: Entity,
                 from: (i32, f32),
@@ -204,29 +249,53 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                 .elevate(Elevation::up(1))
                 .with(Opacity::new(0.0)),
         );
-        // the rule fades rather than draws: the traverse is the thing that draws itself in,
-        // and a drawing whose every line animated would be a race rather than a gesture
-        tree.animate(
-            Animation::new(Opacity::new(1.0))
-                .targeting(entity)
-                .during(seq)
-                .start(start + delay)
-                .finish(start + delay + motion::FADE)
-                .eased(Ease::Linear),
-        );
+        fade_to(tree, entity, 1.0, delay);
     };
 
-    // A tick per row and a number per major row, and nothing else.
+    // A tick per row, a number per major row, and a dashed run continuing from each tick
+    // across the field.
     //
-    // Two things came out on the way here. Faint full-width runs across the field, on the
-    // theory that ruled paper needs rules -- never legible enough to read as paper, and
-    // raising them just put a second family of horizontals against the ticks. Then the axis
-    // they all hung off, which turned out to be doing nothing: a column of ticks at a shared
-    // left edge already reads as a scale, and the line joining them was one more vertical in
-    // a drawing that has no other verticals.
+    // The runs were solid hairlines once, and at any opacity that made them visible they read
+    // as a second family of horizontals arguing with the ticks. Dashed is what fixes that:
+    // broken line is legibly *not* a rule you are meant to read along, so it can sit well under
+    // the ticks in tone and still be seen. It is the paper the drawing sits on.
+    //
+    // The axis they used to hang off is gone for its own reason: a column of ticks at a shared
+    // left edge already reads as a scale, and the line joining them was the one vertical in a
+    // drawing that has no other verticals.
     for (i, &(y, number)) in spec.scale.iter().enumerate() {
         let major = !number.is_empty();
         let delay = i as u64 * 30;
+        let row = tree.branch(
+            field,
+            Polyline::new()
+                .points(vec![(0, 0); 2])
+                .weight(ROW_WEIGHT)
+                .color(role::outline())
+                .dash(DashPattern::new(ROW_DASH_ON, ROW_DASH_OFF))
+                // starts past the tick, so the two read as one mark continuing rather than as
+                // a rule with a heavier stub sitting on its left end
+                .at(Location::new().xs(
+                    (TICK_MAJOR + space::SM)
+                        .px()
+                        .as_left()
+                        .with(100.pct().as_right()),
+                    0.pct().as_top().with(100.pct().as_bottom()),
+                ))
+                .elevate(Elevation::up(1))
+                .with((
+                    Traverse {
+                        vertices: vec![(0.0, y), (1.0, y)],
+                        // already drawn -- `elapsed` past the duration skips the draw-in and
+                        // leaves only the point resolve. Seven rows racing the traverse would
+                        // bury the one line that is meant to be watched.
+                        elapsed: DRAW_SECS,
+                        resolved: None,
+                    },
+                    Opacity::new(0.0),
+                )),
+        );
+        fade_to(tree, row, if major { ROW_MAJOR } else { ROW_MINOR }, delay);
         rule(
             tree,
             field,
@@ -290,6 +359,26 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
             }
             None => muted(),
         };
+        // Positions are fractions and so scale with the field on their own; sizes are px and
+        // do not, which left the shapes as specks once a wide window gave the plate a third
+        // more height. The subject of a drawing has to grow with the drawing.
+        let sized = |s: i32| {
+            Location::new()
+                .xs(
+                    (x * 100.0).pct().as_center_x().with(s.px().as_width()),
+                    (y * 100.0).pct().as_center_y().with(s.px().as_height()),
+                )
+                .lg(
+                    (x * 100.0)
+                        .pct()
+                        .as_center_x()
+                        .with(scaled(s).px().as_width()),
+                    (y * 100.0)
+                        .pct()
+                        .as_center_y()
+                        .with(scaled(s).px().as_height()),
+                )
+        };
         let marker = tree.branch(
             field,
             Polygon::new()
@@ -297,16 +386,7 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                 .rounding(0.3)
                 .rotation(0.22)
                 .color(tone)
-                .at(Location::new().xs(
-                    (x * 100.0)
-                        .pct()
-                        .as_center_x()
-                        .with(node.size.px().as_width()),
-                    (y * 100.0)
-                        .pct()
-                        .as_center_y()
-                        .with(node.size.px().as_height()),
-                ))
+                .at(sized(node.size))
                 .elevate(Elevation::up(3))
                 .with(Opacity::new(0.0)),
         );
@@ -325,7 +405,28 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
         // No leader. Proximity is enough to say which shape a label belongs to, and a leader
         // put a third family of lines into a drawing that already has an axis, seven ticks and
         // a traverse -- at which point nothing reads as the subject.
-        let leading = label.offset.0 >= 0;
+        //
+        // Clear of the marker by its own half-width, which scales with it at `lg` -- a fixed
+        // offset would have the label creeping under a grown shape on a wide window.
+        let off = |s: i32| match label.side {
+            Side::Above => -(s / 2 + LABEL_GAP + LABEL_H),
+            Side::Under => s / 2 + LABEL_GAP,
+        };
+        let centred = |s: i32| {
+            (
+                (x * 100.0)
+                    .pct()
+                    .as_center_x()
+                    .with(LABEL_W.px().as_width()),
+                (y * 100.0)
+                    .pct()
+                    .as_top()
+                    .adjust(off(s))
+                    .with(LABEL_H.px().as_height()),
+            )
+        };
+        let (h_xs, v_xs) = centred(node.size);
+        let (h_lg, v_lg) = centred(scaled(node.size));
         let caption = tree.branch(
             field,
             Text::new(label.text)
@@ -333,31 +434,10 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                 // the shapes are the subject of a plate; an annotation is a note about one,
                 // and reading brighter than what it annotates inverted that
                 .color(role::on_surface_variant())
-                .at(Location::new().xs(
-                    // the offset is to the label's *near* edge, so a label left of its node
-                    // grows leftward rather than back across it
-                    (x * 100.0)
-                        .pct()
-                        .as_left()
-                        .adjust(if leading {
-                            label.offset.0
-                        } else {
-                            label.offset.0 - LABEL_W
-                        })
-                        .with(LABEL_W.px().as_width()),
-                    (y * 100.0)
-                        .pct()
-                        .as_center_y()
-                        .adjust(label.offset.1)
-                        .with(16.px().as_height()),
-                ))
+                .at(Location::new().xs(h_xs, v_xs).lg(h_lg, v_lg))
                 .elevate(Elevation::up(4))
                 .with((
-                    if leading {
-                        HorizontalAlignment::Left
-                    } else {
-                        HorizontalAlignment::Right
-                    },
+                    HorizontalAlignment::Center,
                     VerticalAlignment::Middle,
                     Opacity::new(0.0),
                 )),

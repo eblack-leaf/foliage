@@ -4,8 +4,8 @@
 //! without rebuilding the frame around it.
 
 use foliage::{
-    Anchor, EcsExtension, Elevation, Entity, Grid, GridExt, Leaf, Location, Panel, Rounding,
-    Sprout, Tree, ValueDescriptor, anchor,
+    ConfigurationDescriptor, EcsExtension, Elevation, Entity, Grid, GridExt, Leaf, Location, Panel,
+    Rounding, Sprout, Tree,
 };
 
 use crate::site::{role, space};
@@ -15,6 +15,9 @@ pub(crate) const RAIL_W: i32 = 148;
 /// Prose never runs wider than this -- long lines are hard to read, and a docs page on a
 /// 1600px monitor should not span it.
 pub(crate) const MEASURE_MAX: i32 = 720;
+/// One step wider than the reading measure -- enough that a drawing visibly breaks out of the
+/// text block, not so much that it becomes a letterbox strip across the window.
+pub(crate) const FIGURE_MAX: i32 = 900;
 
 /// The scroll container a route renders into: full viewport width, so a hero can bleed
 /// edge to edge.
@@ -34,49 +37,46 @@ pub(crate) fn content_area(tree: &mut Tree, parent: Entity) -> Entity {
     )
 }
 
-/// The measured column inside the scroll container -- where prose and cards go.
+/// How wide an element in the content column runs, at `xs` and at `md`+.
 ///
-/// The inset lives here rather than on the container so full-bleed content (the hero) can
-/// span the viewport while text stays readable. `md`+ clears the rail and caps the measure;
-/// `xs` just takes a margin, since the rail is a drawer there.
+/// This used to be a box: a measured column inside the scroll container, with everything
+/// written into it. A box needs a `Grid`, a `Grid` brings a `View`, and a second view inside
+/// the scroll container is what stopped the page scrolling when the pointer sat in the side
+/// gutters -- the wheel walks up to the *first* view under it, found the inner one over the
+/// text and the outer one (with no extent of its own) over the gutters. So the measure is a
+/// pair of descriptors applied per element instead, and the container is the only view.
 ///
-/// `below` stacks this under something already in the container -- the hero. Both are
-/// children of the same scroll container, so without it they share `top: 0` and render on
-/// top of each other.
-pub(crate) fn measured_column(tree: &mut Tree, container: Entity, below: Option<Entity>) -> Entity {
-    let top = |height: ValueDescriptor| match below {
-        Some(_) => anchor().bottom().as_top().with(height),
-        None => 0.px().as_top().with(height),
-    };
-    let column = tree.branch(
-        container,
-        Leaf::sprout()
-            .at(Location::new()
-                .xs(
-                    space::MD
-                        .px()
-                        .as_left()
-                        .with(100.pct().as_right().adjust(-space::MD)),
-                    top(100.pct().as_height()),
-                )
-                // fluid up to the cap rather than a fixed width -- `max` keeps the column
-                // filling a narrow window and only stops growing once prose would get too
-                // wide to read
-                .md(
-                    (RAIL_W + space::XL)
-                        .px()
-                        .as_left()
-                        .with(100.pct().as_right().adjust(-space::XL))
-                        .max(MEASURE_MAX as f32),
-                    top(100.pct().as_height()),
-                ))
-            .elevate(Elevation::up(1))
-            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-    );
-    if let Some(anchor_to) = below {
-        tree.write_to(column, Anchor::new(anchor_to));
-    }
-    column
+/// `md`+ clears the rail and caps the measure; `xs` just takes a margin, since the rail is a
+/// drawer there. Fluid up to the cap rather than a fixed width -- `max` keeps the column
+/// filling a narrow window and only stops growing once prose would get too wide to read.
+pub(crate) fn measure() -> (ConfigurationDescriptor, ConfigurationDescriptor) {
+    capped(MEASURE_MAX)
+}
+
+/// The measure a figure runs at: the same insets, capped wider than the reading one.
+///
+/// Prose is capped because long lines are hard to read. A drawing has no such limit -- but it
+/// does have a point past which more width is just a thinner drawing, and uncapped it simply
+/// ran the whole window. So it breaks the measure by a step and stops.
+///
+/// Both caps centre in the same span, so a figure grows symmetrically past the paragraphs
+/// around it rather than hanging off one side.
+pub(crate) fn figure_measure() -> (ConfigurationDescriptor, ConfigurationDescriptor) {
+    capped(FIGURE_MAX)
+}
+
+fn capped(max: i32) -> (ConfigurationDescriptor, ConfigurationDescriptor) {
+    (
+        space::MD
+            .px()
+            .as_left()
+            .with(100.pct().as_right().adjust(-space::MD)),
+        (RAIL_W + space::XL)
+            .px()
+            .as_left()
+            .with(100.pct().as_right().adjust(-space::XL))
+            .max(max as f32),
+    )
 }
 
 /// Where the rail host sits, open or closed.

@@ -19,7 +19,7 @@ use foliage::{
     Anchor, Animation, Color, ConfigurationDescriptor, Ease, EcsExtension, Elevation, Entity,
     FontId, FontSize, Grid, GridExt, HorizontalAlignment, HrefLink, Icon, IconId,
     InteractionListener, InteractionPropagation, InteractionShape, Leaf, Location, OnClick,
-    Opacity, Panel, Polygon, Rounding, Sprout, Text, TextContentHeight, Tree, Trigger,
+    Opacity, Panel, Polygon, Query, Rounding, Sprout, Text, TextContentHeight, Tree, Trigger,
     VerticalAlignment, anchor,
 };
 
@@ -51,11 +51,16 @@ pub(crate) mod role {
     pub(crate) fn on_surface() -> Color {
         Color::stone(200)
     }
-    /// The page title only. A step down from [`on_surface`] because at `DISPLAY` size the
-    /// full tone shouts -- a title that large is already the loudest thing on the page from
-    /// its size alone, and does not need the brightness too.
-    pub(crate) fn on_surface_title() -> Color {
+    /// Section headings. Structure, not content -- they say where you are, and the prose under
+    /// them is what you came to read.
+    pub(crate) fn on_surface_heading() -> Color {
         Color::stone(400)
+    }
+    /// The page title only. Quieter still: set in caps at `DISPLAY` size it is already the
+    /// loudest thing on the page from its shape alone, and the brightness on top of that made
+    /// it shout over everything it was introducing.
+    pub(crate) fn on_surface_title() -> Color {
+        Color::stone(500)
     }
     /// Prose, captions, inactive rail entries.
     pub(crate) fn on_surface_variant() -> Color {
@@ -76,9 +81,12 @@ pub(crate) mod type_scale {
     pub(crate) const DISPLAY: u32 = 32;
     pub(crate) const HEADLINE: u32 = 22;
     pub(crate) const TITLE: u32 = 16;
-    /// A page's opening paragraph. One step over body -- enough that it is visibly the first
-    /// thing to read, not so much that a paragraph starts behaving like a heading.
-    pub(crate) const LEAD: u32 = 16;
+    /// A page's opening paragraph -- the same size as body.
+    ///
+    /// It was a step larger, and at that size a paragraph starts behaving like a heading and
+    /// crowds the one under it. The lead is marked by its accent rule and its indent instead,
+    /// which say "start here" without competing for the type scale.
+    pub(crate) const LEAD: u32 = BODY;
     pub(crate) const BODY: u32 = 14;
     pub(crate) const LABEL: u32 = 12;
 }
@@ -330,6 +338,9 @@ pub(crate) fn poly_button(
             )),
     );
     morph_in(tree, button, seq, spec.sides, 0.15, start);
+    // armed on the fade, not the morph: the shape keeps resolving for another second after
+    // the button is plainly visible, and a button you can see but cannot press is its own bug
+    arm_at(tree, button, start + motion::FADE);
     let href = spec.href;
     tree.on_click(button, move |_: Trigger<OnClick>, _: Tree| {
         HrefLink::new(href).navigate();
@@ -385,6 +396,29 @@ pub(crate) fn poly_button(
     button
 }
 
+/// Holds an entity out of the hit-test until `at` ms into the page's entrance -- the moment
+/// its own fade finishes and it is actually on screen.
+///
+/// Entrances animate `Opacity` up from zero, and an entity at zero opacity still draws and
+/// still competes for input. So every control on this site was live for the length of its own
+/// entrance delay while invisible: on the hero that is about 1.4s of a chevron you cannot see
+/// but can navigate with, and the poly buttons carry [`HrefLink`]s, which makes it an
+/// invisible link to another site.
+///
+/// Guarded on the way back in. A route change despawns the page mid-entrance and the timer
+/// still fires, and `Enable` on a despawned entity panics.
+pub(crate) fn arm_at(tree: &mut Tree, entity: Entity, at: u64) {
+    tree.disable(entity);
+    tree.timer(
+        at,
+        move |_: Trigger<foliage::OnEnd>, existing: Query<Entity>, mut tree: Tree| {
+            if existing.contains(entity) {
+                tree.enable(entity);
+            }
+        },
+    );
+}
+
 /// Fades an entity in without a shape change, for text and panels.
 pub(crate) fn fade_in(tree: &mut Tree, entity: Entity, seq: Entity, start: u64) {
     tree.animate(
@@ -397,11 +431,17 @@ pub(crate) fn fade_in(tree: &mut Tree, entity: Entity, seq: Entity, start: u64) 
     );
 }
 
-/// A vertical stack of content inside a scrollable column.
+/// A vertical stack of content written straight into the page's scroll container.
 ///
 /// Each element anchors to the bottom of the one before it rather than sitting at a
 /// computed offset, so prose that wraps to three lines on a phone pushes everything below
 /// it down instead of being overlapped. Nothing here needs to know the viewport width.
+///
+/// Elements carry the measure themselves ([`shell::measure`]) rather than sitting inside a
+/// measured box. The box was the obvious shape and the wrong one: it needed a `Grid`, which
+/// brings a `View`, which made the page's middle and its side gutters two different scroll
+/// targets -- the gutters resolving to a container with no extent, so the wheel did nothing
+/// there. One container, one view, and the inset travels with each element.
 pub(crate) struct Column {
     parent: Entity,
     last: Option<Entity>,
@@ -439,6 +479,16 @@ impl Column {
     fn anchor_to_last(&self) -> Anchor {
         Anchor::new(self.last.unwrap_or(self.parent))
     }
+    /// This element's box, measured horizontally and stacked vertically.
+    ///
+    /// `md` carries the `lg`/`xl` steps too by falling through, so an element that does not
+    /// reflow only spells out two.
+    fn placed(&self, gap: i32, seed_height: i32) -> Location {
+        let (xs, md) = shell::measure();
+        Location::new()
+            .xs(xs, self.below(gap, seed_height))
+            .md(md, self.below(gap, seed_height))
+    }
     fn stagger(&mut self) -> u64 {
         let at = self.step;
         self.step += motion::STAGGER;
@@ -459,10 +509,7 @@ impl Column {
             Text::new(value)
                 .size(FontSize::new(size))
                 .color(tone)
-                .at(Location::new().xs(
-                    0.pct().as_left().with(100.pct().as_right()),
-                    self.below(gap, size as i32 + space::SM),
-                ))
+                .at(self.placed(gap, size as i32 + space::SM))
                 .elevate(Elevation::up(2))
                 .with((
                     HorizontalAlignment::Left,
@@ -478,10 +525,15 @@ impl Column {
         entity
     }
     /// The page's own title. One per page.
+    ///
+    /// Upper-cased here rather than at the call sites, so a page cannot spell its title in a
+    /// case the rest of the site does not use. Same for [`heading`](Self::heading) -- caps are
+    /// the site's structural voice, and the prose beneath them is the only thing in sentence
+    /// case, which is what keeps the two from blurring.
     pub(crate) fn display(&mut self, tree: &mut Tree, value: &str) -> Entity {
         self.text(
             tree,
-            value,
+            &value.to_uppercase(),
             type_scale::DISPLAY,
             role::on_surface_title(),
             space::XL,
@@ -492,9 +544,9 @@ impl Column {
     pub(crate) fn heading(&mut self, tree: &mut Tree, value: &str) -> Entity {
         self.text(
             tree,
-            value,
+            &value.to_uppercase(),
             type_scale::HEADLINE,
-            role::on_surface(),
+            role::on_surface_heading(),
             space::XL,
             FontId::default(),
         )
@@ -515,23 +567,23 @@ impl Column {
             italic(),
         )
     }
-    /// A page's opening paragraph: set larger than body prose and marked with an accent rule
-    /// down its left edge.
+    /// A page's opening paragraph, marked with an accent rule down its left edge.
     ///
     /// Deliberately not a filled surface. The slabs on these pages are the card grids, and an
-    /// opener built as one more slab reads as the first card rather than as the lead -- so
-    /// the emphasis here is a rule and a type step, which are the two things a slab is not.
+    /// opener built as one more slab reads as the first card rather than as the lead -- so the
+    /// emphasis is a rule, which is the one thing a slab is not.
+    ///
+    /// On the measure like every other paragraph, with the rule sitting out in the gutter
+    /// beside it. It used to be indented instead, which cost it alignment with the prose under
+    /// it; now that the container is full-bleed there is somewhere for the rule to go.
     pub(crate) fn lead(&mut self, tree: &mut Tree, value: &str) -> Entity {
         let start = self.stagger();
         let entity = tree.branch(
             self.parent,
             Text::new(value)
-                .size(FontSize::new(type_scale::LEAD).short(type_scale::TITLE))
+                .size(FontSize::new(type_scale::LEAD))
                 .color(role::on_surface())
-                .at(Location::new().xs(
-                    space::LG.px().as_left().with(100.pct().as_right()),
-                    self.below(space::MD, type_scale::LEAD as i32 + space::SM),
-                ))
+                .at(self.placed(space::MD, type_scale::LEAD as i32 + space::SM))
                 .elevate(Elevation::up(2))
                 .with((
                     HorizontalAlignment::Left,
@@ -574,10 +626,7 @@ impl Column {
             Panel::new()
                 .color(role::outline())
                 .rounding(Rounding::None)
-                .at(Location::new().xs(
-                    0.pct().as_left().with(100.pct().as_right()),
-                    self.below(space::XL, 1),
-                ))
+                .at(self.placed(space::XL, 1))
                 .elevate(Elevation::up(1))
                 .with((self.anchor_to_last(), Opacity::new(0.0))),
         );
@@ -592,15 +641,32 @@ impl Column {
     /// All three steps are spelled out because the two callers reflow at different widths: a
     /// plate just gets taller at `md`, while the card grid stays one-up until `lg`.
     pub(crate) fn region(&mut self, tree: &mut Tree, heights: (i32, i32, i32), gap: i32) -> Entity {
+        self.region_on(tree, shell::measure(), heights, gap)
+    }
+    /// A region on the figure measure: uncapped, so a drawing widens with the window while the
+    /// prose above and below it stays at a readable line length.
+    ///
+    /// Give it a taller `lg` than `md`. A figure that only gets wider goes letterboxed on a
+    /// big screen, and the whole point of the extra room is that the drawing gets to use it.
+    pub(crate) fn figure(&mut self, tree: &mut Tree, heights: (i32, i32, i32), gap: i32) -> Entity {
+        self.region_on(tree, shell::figure_measure(), heights, gap)
+    }
+    fn region_on(
+        &mut self,
+        tree: &mut Tree,
+        measure: (ConfigurationDescriptor, ConfigurationDescriptor),
+        heights: (i32, i32, i32),
+        gap: i32,
+    ) -> Entity {
         let start = self.stagger();
-        let full = || 0.pct().as_left().with(100.pct().as_right());
+        let (xs, wide) = measure;
         let entity = tree.branch(
             self.parent,
             Leaf::sprout()
                 .at(Location::new()
-                    .xs(full(), self.below(gap, heights.0))
-                    .md(full(), self.below(gap, heights.1))
-                    .lg(full(), self.below(gap, heights.2)))
+                    .xs(xs, self.below(gap, heights.0))
+                    .md(wide, self.below(gap, heights.1))
+                    .lg(wide, self.below(gap, heights.2)))
                 .elevate(Elevation::up(1))
                 .with((
                     Grid::new(1.col().gap(0), 1.row().gap(0)),
@@ -618,10 +684,7 @@ impl Column {
             Panel::new()
                 .color(background())
                 .rounding(Rounding::Xs)
-                .at(Location::new().xs(
-                    0.pct().as_left().with(100.pct().as_right()),
-                    self.below(gap, height),
-                ))
+                .at(self.placed(gap, height))
                 .elevate(Elevation::up(1))
                 .with((
                     Grid::new(1.col().gap(0), 1.row().gap(0)),
@@ -647,10 +710,7 @@ impl Column {
         let entity = tree.branch(
             self.parent,
             Leaf::sprout()
-                .at(Location::new().xs(
-                    0.pct().as_left().with(100.pct().as_right()),
-                    self.below(0, height),
-                ))
+                .at(self.placed(0, height))
                 .elevate(Elevation::up(1))
                 .with((
                     self.anchor_to_last(),

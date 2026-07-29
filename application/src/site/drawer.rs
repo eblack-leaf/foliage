@@ -159,10 +159,21 @@ fn apply(tree: &mut Tree, host: Entity, controls: Controls, state: Drawer) {
     let scrim = controls.scrim;
 
     tree.write_to(scrim, Visibility::new(state.available));
-    // the button hides while open: the scrim is the way out, and a menu button over an open
-    // menu controls something already in front of you
+    // The button hides while the rail is in: the scrim is the way out, and a menu button over
+    // an open menu controls something already in front of you.
+    //
+    // Disabled as well as hidden. `Visibility` stops it drawing but not competing for input,
+    // and its 44px target sits at the top-left corner -- exactly on top of the rail's own
+    // "back to the hero" area once the rail slides in, and above it in elevation, so an
+    // invisible button was swallowing that click.
+    let controls_live = state.available && !state.open;
     for entity in [controls.backing, controls.menu] {
-        tree.write_to(entity, Visibility::new(state.available && !state.open));
+        tree.write_to(entity, Visibility::new(controls_live));
+    }
+    if controls_live {
+        tree.enable(controls.backing);
+    } else {
+        tree.disable(controls.backing);
     }
 
     let seq = tree.sequence();

@@ -101,7 +101,9 @@ pub(crate) fn card(
     );
     tree.branch(
         card,
-        Text::new(spec.title)
+        // caps like every other title on the site -- a card's title is a heading for the
+        // paragraph under it, and was the one that stayed in sentence case
+        Text::new(spec.title.to_uppercase())
             .size(FontSize::new(type_scale::TITLE))
             .color(role::on_surface())
             // full width, not inset for the badge: the badge sits in the top-right corner

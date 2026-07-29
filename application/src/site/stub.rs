@@ -7,14 +7,24 @@ use crate::site::Column;
 
 fn placeholder(tree: &mut Tree, slot: Entity, title: &str, summary: &str) {
     let container = crate::site::shell::content_area(tree, slot);
-    let content = crate::site::shell::measured_column(tree, container, None);
-    let mut column = Column::new(tree, content);
+    let mut column = Column::new(tree, container);
     column.display(tree, title);
-    column.prose(tree, summary);
+    column.lead(tree, summary);
     column.prose(
         tree,
         "Not written yet. Demos here are inlined beside the prose that explains them, \
          rather than being a page of their own.",
+    );
+    column.tail(tree, crate::site::SCROLL_TAIL);
+}
+
+pub fn leaf(tree: &mut Tree, slot: Entity) {
+    placeholder(
+        tree,
+        slot,
+        "leaf",
+        "Leaf, branch and stem -- what a thing on screen is, how one gets under another, and \
+         what the link between them decides.",
     );
 }
 
