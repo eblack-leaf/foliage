@@ -224,6 +224,15 @@ impl Ash {
         let polygon_nodes = Render::prepare(self.polygon.as_mut().unwrap(), &mut queues, ginkgo);
         nodes.extend(polygon_nodes.updated);
         to_remove.extend(polygon_nodes.removed);
+        // Removals stay readable for the whole pass so `attribute` can skip entities that
+        // were torn down this frame; this is where the frame ends for them. Before the early
+        // return below, or a frame with nothing to draw would leave them queued forever.
+        queues.clear_removes::<Text>();
+        queues.clear_removes::<Panel>();
+        queues.clear_removes::<Image>();
+        queues.clear_removes::<Icon>();
+        queues.clear_removes::<LineQuad>();
+        queues.clear_removes::<Polygon>();
         if nodes.is_empty() && to_remove.is_empty() {
             return;
         }

@@ -20,6 +20,27 @@ use bevy_ecs::world::DeferredWorld;
 /// context: the actual window. Cascades normally to this entity's own children afterward
 /// (the viewport becomes *their* inherited base, not something they need their own marker
 /// for).
+///
+/// TODO: this marker means two independent things, and callers can only get both.
+///
+/// 1. *clip escape* -- do not intersect with ancestor clips.
+/// 2. *overlay tier* -- `coordinate/elevation.rs` resets this entity's `StackKey` prefix,
+///    making it a fresh subtree root in the FRONT tier, in front of all ordinary content.
+///
+/// A dropdown or popover wants both. Something that merely overhangs its neighbour -- a
+/// badge on a card's corner, a shape breaking out of a column -- wants only (1), and taking
+/// (2) with it floats the thing over the entire page. There is currently no way to ask for
+/// one without the other, so such callers have to be re-parented to a wider container
+/// instead, which contorts the tree around a rendering concern.
+///
+/// Refactor to `ClipTo { Viewport, Entity(Entity) }` -- clip against the window, or against
+/// a *named ancestor* (a scroll container, say), rather than only the two extremes of
+/// "immediate chain" and "whole window". `Entity(..)` is what the overhang cases actually
+/// want: unclipped by the narrow parent, still clipped by the region that owns the content.
+///
+/// The work is two systems, not a rename: `elevation.rs`'s tier reset must key off a
+/// separate opt-in (an `Overlay` marker) rather than off this component, or every `ClipTo`
+/// user silently keeps the front-tier behaviour that motivated the split.
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 pub struct ClipToViewport;
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]

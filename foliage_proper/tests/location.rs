@@ -345,25 +345,29 @@ fn viewport(h: f32) -> Section<Logical> {
 #[test]
 fn short_enters_below_the_enter_threshold_and_holds_through_the_deadband() {
     // crosses ENTER going down
-    assert_eq!(Short::No.next(viewport(479.0)), Short::Yes);
-    assert_eq!(Short::No.next(viewport(481.0)), Short::No);
+    // derived from the constants, so retuning the thresholds does not break the test that
+    // describes their *behaviour*
+    let deadband = (Short::ENTER + Short::EXIT) / 2.0;
+    assert_eq!(Short::No.next(viewport(Short::ENTER - 1.0)), Short::Yes);
+    assert_eq!(Short::No.next(viewport(Short::ENTER + 1.0)), Short::No);
     // inside the deadband the answer is whatever it already was -- both directions
-    assert_eq!(Short::Yes.next(viewport(500.0)), Short::Yes);
-    assert_eq!(Short::No.next(viewport(500.0)), Short::No);
+    assert_eq!(Short::Yes.next(viewport(deadband)), Short::Yes);
+    assert_eq!(Short::No.next(viewport(deadband)), Short::No);
     // only clearing EXIT releases it
-    assert_eq!(Short::Yes.next(viewport(519.0)), Short::Yes);
-    assert_eq!(Short::Yes.next(viewport(520.0)), Short::No);
+    assert_eq!(Short::Yes.next(viewport(Short::EXIT - 1.0)), Short::Yes);
+    assert_eq!(Short::Yes.next(viewport(Short::EXIT)), Short::No);
 }
 
 /// The actual failure mode the deadband exists for: an address bar toggling a viewport
-/// between 460 and 500 must not oscillate the breakpoint.
+/// across `ENTER` must not oscillate the breakpoint.
 #[test]
 fn an_address_bar_toggling_across_the_enter_threshold_does_not_oscillate() {
     let mut state = Short::No;
     for _ in 0..8 {
-        state = state.next(viewport(460.0)); // bar shown
+        state = state.next(viewport(Short::ENTER - 20.0)); // bar shown
         assert_eq!(state, Short::Yes);
-        state = state.next(viewport(500.0)); // bar hidden, still under EXIT
+        // bar hidden -- taller, but still inside the deadband
+        state = state.next(viewport((Short::ENTER + Short::EXIT) / 2.0));
         assert_eq!(state, Short::Yes, "must not release inside the deadband");
     }
 }

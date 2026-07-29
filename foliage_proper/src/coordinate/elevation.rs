@@ -87,6 +87,11 @@ impl StackKey {
     /// field occupies byte `1 + depth` (byte 0 is the tier), so ordinary structural nesting
     /// never touches the tier -- descendants inherit the parent's whole key (tier included),
     /// keeping an overlay's children in the overlay tier.
+    /// TODO: `resets` is driven by `ClipToViewport`, which conflates "escape ancestor clips"
+    /// with "become a front-tier overlay" -- see that type's own TODO. When it splits into
+    /// `ClipTo`, this tier reset needs its own opt-in (an `Overlay` marker) rather than
+    /// riding along with a clipping choice, or everything that only wanted to overhang its
+    /// parent silently floats in front of the whole page.
     fn compute(parent: Option<StackKey>, resets: bool, amount: f32) -> StackKey {
         let (base_key, parent_depth) = if resets {
             // ClipToViewport: fresh overlay subtree root in the FRONT tier.

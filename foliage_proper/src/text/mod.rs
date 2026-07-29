@@ -214,9 +214,10 @@ impl Text {
         _trigger: Trigger<Resolved<Layout>>,
         mut font_sizes: Query<(&FontSize, &mut ResolvedFontSize)>,
         layout: Res<Layout>,
+        short: Res<Short>,
     ) {
         for (font_size, mut resolved_font_size) in font_sizes.iter_mut() {
-            resolved_font_size.value = font_size.resolve(*layout);
+            resolved_font_size.value = font_size.resolve(*layout, *short);
         }
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
@@ -643,6 +644,8 @@ pub struct FontSize {
     pub md: Option<u32>,
     pub lg: Option<u32>,
     pub xl: Option<u32>,
+    /// Overrides all of the above on a vertically cramped viewport -- see [`short`](Self::short).
+    pub short: Option<u32>,
 }
 impl FontSize {
     /// Size used by anything that never sets one.
@@ -656,10 +659,25 @@ impl FontSize {
             md: None,
             lg: None,
             xl: None,
+            short: None,
         }
     }
-    /// The size in force at `layout`, falling back down the breakpoints to `xs`.
-    pub(crate) fn resolve(&self, layout: Layout) -> u32 {
+    /// Overrides every width breakpoint while the viewport is vertically cramped, exactly
+    /// as [`Location::short`](crate::Location::short) does.
+    ///
+    /// Width alone gets type badly wrong in landscape: a phone on its side is `md`-wide, so
+    /// it takes the `md` size -- but has a fraction of the height to put it in, and large
+    /// type is what runs out of room first.
+    pub fn short(mut self, value: u32) -> Self {
+        self.short.replace(value);
+        self
+    }
+    /// The size in force at `layout`, falling back down the breakpoints to `xs`. `short`
+    /// wins outright when the viewport is cramped and one was set.
+    pub(crate) fn resolve(&self, layout: Layout, short: Short) -> u32 {
+        if short == Short::Yes && let Some(value) = self.short {
+            return value;
+        }
         match layout {
             Layout::Xs => self.xs,
             Layout::Sm => self.sm.unwrap_or(self.xs),
@@ -676,8 +694,9 @@ impl FontSize {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         let layout = *world.get_resource::<Layout>().unwrap();
+        let short = *world.get_resource::<Short>().unwrap();
         let comp = world.get::<FontSize>(this).unwrap();
-        let resolved = comp.resolve(layout);
+        let resolved = comp.resolve(layout, short);
         world.commands().entity(this).insert(ResolvedFontSize::new(resolved));
     }
     /// Overrides the size from the `sm` breakpoint up.
@@ -705,6 +724,7 @@ impl Default for FontSize {
     fn default() -> Self {
         Self {
             xs: FontSize::DEFAULT_SIZE,
+            short: None,
             sm: None,
             md: None,
             lg: None,

@@ -6,6 +6,7 @@
 //! instead of hue. `Color::slate(n)` is already a tonal palette in M3's sense, so `role`
 //! below just names the tones this app should use.
 
+pub(crate) mod drawer;
 pub(crate) mod hero;
 pub(crate) mod overview;
 pub(crate) mod rail;
@@ -13,26 +14,46 @@ pub(crate) mod shell;
 pub(crate) mod stub;
 
 use foliage::{
-    Anchor, Animation, ClipToViewport, Color, ConfigurationDescriptor, Ease, EcsExtension,
-    Elevation, Entity,
-    FontSize, Grid, GridExt, HorizontalAlignment, Location, Opacity, Panel, Polygon, Rounding,
-    Sprout, Text, TextContentHeight, Tree, VerticalAlignment, anchor,
+    Anchor, Animation, Color, ConfigurationDescriptor, Ease, EcsExtension, Elevation, Entity,
+    FontSize, Grid, GridExt, HorizontalAlignment, HrefLink, Icon, IconId, InteractionListener,
+    InteractionPropagation, InteractionShape, Location, OnClick, Opacity, Panel, Polygon, Rounding,
+    Sprout, Text, TextContentHeight, Tree, Trigger, VerticalAlignment, anchor,
 };
 
-/// Named by role, so retheming is this block rather than every call site.
+/// Roles return whole `Color`s rather than tone numbers, so the palette genuinely lives
+/// here -- as bare tones, every call site still spelled out `Color::slate(..)`, and changing
+/// hue meant touching all of them.
+///
+/// Neutrals are `stone`: warm and sandy, where `slate` carries a blue cast.
 pub(crate) mod role {
+    use foliage::Color;
+
     /// Raised surfaces -- cards, the rail.
-    pub(crate) const SURFACE: i32 = 800;
+    pub(crate) fn surface() -> Color {
+        Color::stone(800)
+    }
     /// Hairlines and card borders. Present, never competing.
-    pub(crate) const OUTLINE: i32 = 600;
+    pub(crate) fn outline() -> Color {
+        Color::stone(600)
+    }
     /// Headings and anything that must read first.
-    pub(crate) const ON_SURFACE: i32 = 200;
+    pub(crate) fn on_surface() -> Color {
+        Color::stone(200)
+    }
     /// Prose, captions, inactive rail entries.
-    pub(crate) const ON_SURFACE_VARIANT: i32 = 400;
+    pub(crate) fn on_surface_variant() -> Color {
+        Color::stone(400)
+    }
+    /// The one accent: active rail entry, primary actions, motif shapes. Scarce enough that
+    /// it always means "this one".
+    pub(crate) fn accent() -> Color {
+        Color::orange(400)
+    }
+    /// Text and icons sitting *on* the accent.
+    pub(crate) fn on_accent() -> Color {
+        Color::stone(950)
+    }
 }
-/// The one accent. Used for the active rail entry, primary actions, and the motif shapes --
-/// scarce enough that it always means "this one".
-pub(crate) const ACCENT: i32 = 400; // green
 
 pub(crate) mod type_scale {
     pub(crate) const DISPLAY: u32 = 32;
@@ -54,11 +75,14 @@ pub(crate) mod space {
 /// Crisp, not floaty. Entrances are short and decisively eased; nothing drifts in from
 /// offscreen -- things resolve in place, from a rough shape into their real one.
 pub(crate) mod motion {
-    pub(crate) const ENTRANCE: u64 = 340;
-    pub(crate) const FADE: u64 = 200;
+    /// Long enough to watch a shape resolve. The morph is the site's one piece of real
+    /// character, and at a third of a second it was over before it registered -- a fade
+    /// with extra steps.
+    pub(crate) const ENTRANCE: u64 = 1400;
+    pub(crate) const FADE: u64 = 260;
     /// Each successive element in a group starts this much later. Small enough to read as
     /// one gesture rather than a queue.
-    pub(crate) const STAGGER: u64 = 60;
+    pub(crate) const STAGGER: u64 = 90;
 }
 
 /// The site's entrance: a polygon resolves from a rough triangle into its real shape while
@@ -110,10 +134,14 @@ pub(crate) fn background() -> Color {
 /// every side, then the badge itself. The backdrop is the whole trick -- it interrupts the
 /// card's edge, so the eye reads a hole with something sitting in it.
 ///
-/// Both layers carry [`ClipToViewport`]: they deliberately render outside the column that
-/// contains them, and without it the column's own box slices the overhang clean off -- the
-/// half-badges. The marker keeps them ordinary `Stem` children (normal elevation, normal
-/// removal cascade) while bounding them by the window instead of by their parent.
+/// `parent` should be a container *wider* than the card -- the scroll container, not the
+/// measured column -- since the badge overhangs the card's edge and would otherwise be
+/// sliced by the column's own box.
+///
+/// Deliberately not `ClipToViewport`: that marker also resets the entity's elevation prefix
+/// into the front overlay tier (see `coordinate/elevation.rs`), which floats the badges over
+/// everything including the hero. It is for dropdowns and popovers, not for a shape that
+/// merely overhangs its neighbour.
 pub(crate) fn cutout_badge(
     tree: &mut Tree,
     parent: Entity,
@@ -140,7 +168,7 @@ pub(crate) fn cutout_badge(
             .color(background())
             .at(corner(backdrop_size))
             .elevate(Elevation::up(3))
-            .with((Anchor::new(card), Opacity::new(0.0), ClipToViewport)),
+            .with((Anchor::new(card), Opacity::new(0.0))),
     );
     let badge = tree.branch(
         parent,
@@ -148,16 +176,146 @@ pub(crate) fn cutout_badge(
             .sides(3.0)
             .rounding(0.0)
             .rotation(-0.12)
-            .color(Color::green(ACCENT))
+            .color(role::accent())
             .at(corner(size))
             .elevate(Elevation::up(4))
-            .with((Anchor::new(card), Opacity::new(0.0), ClipToViewport)),
+            .with((Anchor::new(card), Opacity::new(0.0))),
     );
     // the backdrop just appears -- morphing it would animate the hole itself, which reads
     // as the card tearing rather than as something arriving in it
     fade_in(tree, backdrop, seq, start);
     morph_in(tree, badge, seq, sides, 0.35, start);
     badge
+}
+
+/// The site's one button: a shadowed polygon with an icon in it and a label beneath.
+///
+/// The offset shadow gives depth without a blur, and the shape morphing in is the site's
+/// signature. Shared rather than duplicated so the hero and the sections cannot drift into
+/// two different-looking buttons.
+pub(crate) struct PolyButton {
+    pub(crate) label: &'static str,
+    pub(crate) icon: crate::icons::IconHandles,
+    pub(crate) href: &'static str,
+    /// Final side count. Each button in a row gets its own, so they resolve into visibly
+    /// different shapes rather than one repeated three times.
+    pub(crate) sides: f32,
+    pub(crate) face: Color,
+}
+
+/// Button diameter, and the row height a caller should reserve for one plus its label.
+pub(crate) const POLY_BUTTON: i32 = 56;
+pub(crate) const POLY_BUTTON_ROW_H: i32 = POLY_BUTTON + space::SM + 24;
+const POLY_SHADOW_OFF: i32 = 7;
+const POLY_ICON_SCALE: f32 = 0.44;
+
+/// Places one at `center_pct` across `row`, which should be [`POLY_BUTTON_ROW_H`] tall.
+pub(crate) fn poly_button(
+    tree: &mut Tree,
+    row: Entity,
+    spec: &PolyButton,
+    center_pct: f32,
+    seq: Entity,
+    start: u64,
+) -> Entity {
+    let shadow = tree.branch(
+        row,
+        Polygon::new()
+            .sides(3.0)
+            .rounding(0.0)
+            .rotation(-0.16)
+            .color(role::surface())
+            .at(Location::new().xs(
+                center_pct
+                    .pct()
+                    .as_center_x()
+                    .adjust(-POLY_SHADOW_OFF)
+                    .with(POLY_BUTTON.px().as_width()),
+                POLY_SHADOW_OFF
+                    .px()
+                    .as_top()
+                    .with(POLY_BUTTON.px().as_height()),
+            ))
+            .elevate(Elevation::up(2))
+            .with(Opacity::new(0.0)),
+    );
+    morph_in(tree, shadow, seq, spec.sides, 0.15, start);
+
+    let button = tree.branch(
+        row,
+        Polygon::new()
+            .sides(3.0)
+            .rounding(0.0)
+            .rotation(-0.16)
+            .color(spec.face)
+            .at(Location::new().xs(
+                center_pct
+                    .pct()
+                    .as_center_x()
+                    .with(POLY_BUTTON.px().as_width()),
+                0.px().as_top().with(POLY_BUTTON.px().as_height()),
+            ))
+            .elevate(Elevation::up(3))
+            .with((
+                InteractionListener::new(),
+                InteractionShape::Circle,
+                Opacity::new(0.0),
+            )),
+    );
+    morph_in(tree, button, seq, spec.sides, 0.15, start);
+    let href = spec.href;
+    tree.on_click(button, move |_: Trigger<OnClick>, _: Tree| {
+        HrefLink::new(href).navigate();
+    });
+
+    let icon = tree.branch(
+        row,
+        Icon::new(IconId::from(spec.icon))
+            .color(role::on_accent())
+            .at(Location::new().xs(
+                anchor()
+                    .center_x()
+                    .as_center_x()
+                    .with((anchor().width() * POLY_ICON_SCALE).as_width()),
+                anchor()
+                    .center_y()
+                    .as_center_y()
+                    .with((anchor().height() * POLY_ICON_SCALE).as_height()),
+            ))
+            .elevate(Elevation::up(4))
+            .with((
+                Anchor::new(button),
+                // the icon draws above the button, so without this it wins the hit-test and
+                // swallows the click meant for the shape under it
+                InteractionPropagation::pass_through(),
+                Opacity::new(0.0),
+            )),
+    );
+    fade_in(tree, icon, seq, start);
+
+    let label = tree.branch(
+        row,
+        Text::new(spec.label)
+            .size(FontSize::new(type_scale::TITLE))
+            .color(role::on_surface_variant())
+            .at(Location::new().xs(
+                center_pct.pct().as_center_x().with(90.px().as_width()),
+                anchor()
+                    .bottom()
+                    .as_top()
+                    .adjust(space::SM)
+                    .with(24.px().as_height()),
+            ))
+            .elevate(Elevation::up(3))
+            .with((
+                HorizontalAlignment::Center,
+                VerticalAlignment::Middle,
+                Anchor::new(button),
+                Opacity::new(0.0),
+            )),
+    );
+    fade_in(tree, label, seq, start);
+    button
 }
 
 /// Fades an entity in without a shape change, for text and panels.
@@ -219,13 +377,13 @@ impl Column {
         self.step += motion::STAGGER;
         at
     }
-    fn text(&mut self, tree: &mut Tree, value: &str, size: u32, tone: i32, gap: i32) -> Entity {
+    fn text(&mut self, tree: &mut Tree, value: &str, size: u32, tone: Color, gap: i32) -> Entity {
         let start = self.stagger();
         let entity = tree.branch(
             self.parent,
             Text::new(value)
                 .size(FontSize::new(size))
-                .color(Color::slate(tone))
+                .color(tone)
                 .at(Location::new().xs(
                     0.pct().as_left().with(100.pct().as_right()),
                     self.below(gap, size as i32 + space::SM),
@@ -249,7 +407,7 @@ impl Column {
             tree,
             value,
             type_scale::DISPLAY,
-            role::ON_SURFACE,
+            role::on_surface(),
             space::XL,
         )
     }
@@ -259,7 +417,7 @@ impl Column {
             tree,
             value,
             type_scale::HEADLINE,
-            role::ON_SURFACE,
+            role::on_surface(),
             space::XL,
         )
     }
@@ -269,7 +427,7 @@ impl Column {
             tree,
             value,
             type_scale::BODY,
-            role::ON_SURFACE_VARIANT,
+            role::on_surface_variant(),
             space::MD,
         )
     }
@@ -280,7 +438,7 @@ impl Column {
     /// short side), so a filled card at this size would read as a pill. `Xs` is the only
     /// step that looks like a corner.
     pub(crate) fn surface(&mut self, tree: &mut Tree, height: i32, gap: i32) -> Entity {
-        self.panel(tree, height, gap, Some(Color::slate(role::OUTLINE)))
+        self.panel(tree, height, gap, Some(role::outline()))
     }
     /// A bare region in the stack -- no surface of its own, just space the caller owns.
     pub(crate) fn surface_plain(&mut self, tree: &mut Tree, height: i32, gap: i32) -> Entity {
@@ -325,7 +483,7 @@ impl Column {
             tree,
             value,
             type_scale::LABEL,
-            role::ON_SURFACE_VARIANT,
+            role::on_surface_variant(),
             space::SM,
         )
     }

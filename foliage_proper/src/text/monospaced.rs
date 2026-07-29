@@ -30,6 +30,9 @@ pub(crate) struct FontContext<'w, 's> {
     pub(crate) fonts: Res<'w, MonospacedFont>,
     pub(crate) ids: Query<'w, 's, &'static FontId>,
     pub(crate) sizes: Query<'w, 's, &'static crate::FontSize>,
+    /// Bundled so a caller resolving a size never has to remember to consult it separately
+    /// -- a `FontSize::short` that only some call sites honoured would be worse than none.
+    pub(crate) short: Res<'w, crate::Short>,
 }
 impl FontContext<'_, '_> {
     /// The registry paired with whichever font `entity` draws in, for handing to helpers
@@ -47,9 +50,15 @@ impl FontContext<'_, '_> {
         entity: bevy_ecs::entity::Entity,
         layout: crate::Layout,
     ) -> Option<Coordinates> {
-        let size = self.sizes.get(entity).ok()?;
-        let id = self.ids.get(entity).copied().unwrap_or_default();
-        Some(self.fonts.character_block(id, size.resolve(layout)))
+        Some(self.fonts.character_block(
+            self.ids.get(entity).copied().unwrap_or_default(),
+            self.size(entity, layout)?,
+        ))
+    }
+    /// `entity`'s resolved font size, honouring `short`. The one place that decision is
+    /// made, so no caller can forget it.
+    pub(crate) fn size(&self, entity: bevy_ecs::entity::Entity, layout: crate::Layout) -> Option<u32> {
+        Some(self.sizes.get(entity).ok()?.resolve(layout, *self.short))
     }
 }
 

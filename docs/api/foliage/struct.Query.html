@@ -130,7 +130,7 @@ mutable component access.</p>
 </span><span class="kw">fn </span>invalid_query(query: Query&lt;(EntityRef, <span class="kw-2">&amp;mut </span>ComponentA)&gt;) {
     <span class="comment">// ...
 </span>}</code></pre></div>
-<p>It is strongly advised to couple <a href="struct.EntityRef.html" title="struct foliage::EntityRef"><code>EntityRef</code></a> queries with the use of either <a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With</code></a> /
+<p>It is strongly advised to couple <a href="struct.EntityRef.html" title="struct foliage::EntityRef"><code>EntityRef</code></a> queries with the use of either <a href="struct.With.html" title="struct foliage::With"><code>With</code></a> /
 <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a> filters or <a href="struct.ParamSet.html" title="struct foliage::ParamSet"><code>ParamSet</code></a>s. Not only does this improve the performance and
 parallelization of the system, but it enables systems to gain mutable access to other
 components:</p>
@@ -145,7 +145,7 @@ components:</p>
     <span class="comment">// ...
 </span>}</code></pre></div>
 <p>The fundamental rule: <a href="struct.EntityRef.html" title="struct foliage::EntityRef"><code>EntityRef</code></a>’s ability to read all components means it can never
-coexist with mutable access. <a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With</code></a> / <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a> filters can guarantee this by keeping the
+coexist with mutable access. <a href="struct.With.html" title="struct foliage::With"><code>With</code></a> / <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a> filters can guarantee this by keeping the
 queries on completely separate entities.</p>
 <h2 id="accessing-query-items"><a class="doc-anchor" href="#accessing-query-items">§</a>Accessing query items</h2>
 <p>The following table summarizes the behavior of safe methods that can be used to get query
@@ -169,7 +169,7 @@ data from the world and generates items, which can have a significant computatio
 <p>Two systems cannot be executed in parallel if both access the same component type where at
 least one of the accesses is mutable. Because of this, it is recommended for queries to only
 fetch mutable access to components when necessary, since immutable access can be parallelized.</p>
-<p>Query filters (<a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With</code></a> / <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>) can improve performance because they narrow the kinds of
+<p>Query filters (<a href="struct.With.html" title="struct foliage::With"><code>With</code></a> / <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>) can improve performance because they narrow the kinds of
 entities that can be fetched. Systems that access fewer kinds of entities are more likely to be
 parallelized by the scheduler.</p>
 <p>On the other hand, be careful using optional components (<code>Option&lt;&amp;ComponentA&gt;</code>) and
@@ -199,7 +199,7 @@ elements that can be taken from a set of <em>n</em> elements.</li>
 <tr><td><a href="struct.Query.html#method.get" title="method foliage::Query::get"><code>get</code></a>[<a href="struct.Query.html#method.get_mut" title="method foliage::Query::get_mut"><code>_mut</code></a>]</td><td>O(1)</td></tr>
 <tr><td><a href="struct.Query.html#method.get_many" title="method foliage::Query::get_many"><code>get_many</code></a></td><td>O(k)</td></tr>
 <tr><td><a href="struct.Query.html#method.get_many_mut" title="method foliage::Query::get_many_mut"><code>get_many_mut</code></a></td><td>O(k<sup>2</sup>)</td></tr>
-<tr><td>Archetype-based filtering (<a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With</code></a>, <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>, <a href="struct.Or.html" title="struct foliage::Or"><code>Or</code></a>)</td><td>O(a)</td></tr>
+<tr><td>Archetype-based filtering (<a href="struct.With.html" title="struct foliage::With"><code>With</code></a>, <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>, <a href="struct.Or.html" title="struct foliage::Or"><code>Or</code></a>)</td><td>O(a)</td></tr>
 <tr><td>Change detection filtering (<a href="struct.Added.html" title="struct foliage::Added"><code>Added</code></a>, <a href="struct.Changed.html" title="struct foliage::Changed"><code>Changed</code></a>, <a href="bevy_ecs/query/struct.Spawned.html" title="struct foliage::bevy_ecs::query::Spawned"><code>Spawned</code></a>)</td><td>O(a + n)</td></tr>
 </tbody></table>
 </div><h2 id="iteratorfor_each"><a class="doc-anchor" href="#iteratorfor_each">§</a><code>Iterator::for_each</code></h2>
@@ -1234,7 +1234,7 @@ terms see <a href="struct.Query.html#method.transmute_lens_filtered" title="meth
 filter type - the access required by filter parameters are as follows.</p>
 <div><table><thead><tr><th><code>QueryFilter</code> parameter type</th><th>Access required</th></tr></thead><tbody>
 <tr><td><a href="struct.Added.html" title="struct foliage::Added"><code>Added&lt;T&gt;</code></a>, <a href="struct.Changed.html" title="struct foliage::Changed"><code>Changed&lt;T&gt;</code></a></td><td>Read and required access to <code>T</code></td></tr>
-<tr><td><a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With&lt;T&gt;</code></a>, <a href="struct.Without.html" title="struct foliage::Without"><code>Without&lt;T&gt;</code></a></td><td>No access</td></tr>
+<tr><td><a href="struct.With.html" title="struct foliage::With"><code>With&lt;T&gt;</code></a>, <a href="struct.Without.html" title="struct foliage::Without"><code>Without&lt;T&gt;</code></a></td><td>No access</td></tr>
 <tr><td><a href="struct.Or.html" title="struct foliage::Or"><code>Or&lt;(T, ...)&gt;</code></a></td><td>Read access of the subqueries, but no required access</td></tr>
 <tr><td>Tuples of query filters and <code>#[derive(QueryFilter)]</code> structs</td><td>The union of the access of their subqueries</td></tr>
 </tbody></table>
@@ -1333,7 +1333,7 @@ access to the entities matched by the current query.</p>
     NewF: <a class="trait" href="bevy_ecs/query/trait.QueryFilter.html" title="trait foliage::bevy_ecs::query::QueryFilter">QueryFilter</a>,</div></h4></section></summary><div class="docblock"><p>Equivalent to <a href="struct.Query.html#method.transmute_lens" title="method foliage::Query::transmute_lens"><code>Self::transmute_lens</code></a> but also includes a <a href="bevy_ecs/query/trait.QueryFilter.html" title="trait foliage::bevy_ecs::query::QueryFilter"><code>QueryFilter</code></a> type.</p>
 <p>See <a href="struct.Query.html#method.transmute_lens" title="method foliage::Query::transmute_lens"><code>Self::transmute_lens</code></a> for a description of allowed transmutes.</p>
 <p>Note that the lens will iterate the same tables and archetypes as the original query. This means that
-additional archetypal query terms like <a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With</code></a> and <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>
+additional archetypal query terms like <a href="struct.With.html" title="struct foliage::With"><code>With</code></a> and <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>
 will not necessarily be respected and non-archetypal terms like <a href="struct.Added.html" title="struct foliage::Added"><code>Added</code></a>,
 <a href="struct.Changed.html" title="struct foliage::Changed"><code>Changed</code></a> and <a href="bevy_ecs/query/struct.Spawned.html" title="struct foliage::bevy_ecs::query::Spawned"><code>Spawned</code></a> will only be respected if they
 are in the type signature.</p>
@@ -1345,7 +1345,7 @@ are in the type signature.</p>
 This consumes the <a href="struct.Query.html" title="struct foliage::Query"><code>Query</code></a> to return results with the actual “inner” world lifetime.</p>
 <p>See <a href="struct.Query.html#method.transmute_lens" title="method foliage::Query::transmute_lens"><code>Self::transmute_lens</code></a> for a description of allowed transmutes.</p>
 <p>Note that the lens will iterate the same tables and archetypes as the original query. This means that
-additional archetypal query terms like <a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With</code></a> and <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>
+additional archetypal query terms like <a href="struct.With.html" title="struct foliage::With"><code>With</code></a> and <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>
 will not necessarily be respected and non-archetypal terms like <a href="struct.Added.html" title="struct foliage::Added"><code>Added</code></a>,
 <a href="struct.Changed.html" title="struct foliage::Changed"><code>Changed</code></a> and <a href="bevy_ecs/query/struct.Spawned.html" title="struct foliage::bevy_ecs::query::Spawned"><code>Spawned</code></a> will only be respected if they
 are in the type signature.</p>

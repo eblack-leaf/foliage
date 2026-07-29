@@ -69,8 +69,8 @@ pub trait Sprout: Sized {
     }
     /// Folds extra components (interaction flags, end-user data, ...) into the same
     /// one-shot bundle that gets inserted -- not a separate `write_to` after spawn.
-    fn with<X: Bundle>(self, extra: X) -> With<Self, X> {
-        With { inner: self, extra }
+    fn with<X: Bundle>(self, extra: X) -> WithExtras<Self, X> {
+        WithExtras { inner: self, extra }
     }
 }
 
@@ -86,11 +86,16 @@ impl Sprout for LeafSprout {
 }
 
 /// See [`Sprout::with`].
-pub struct With<S: Sprout, X: Bundle> {
+///
+/// Named `WithExtras` rather than `With` because `foliage::*` re-exports bevy's prelude,
+/// and a `With` here shadows the query filter every consumer writes
+/// (`Query<Entity, With<Marker>>`). Nothing ever names this type -- it is only what `.with()`
+/// returns -- so the collision was all cost.
+pub struct WithExtras<S: Sprout, X: Bundle> {
     inner: S,
     extra: X,
 }
-impl<S: Sprout, X: Bundle> Sprout for With<S, X> {
+impl<S: Sprout, X: Bundle> Sprout for WithExtras<S, X> {
     fn seed(&mut self) -> &mut LeafSprout {
         self.inner.seed()
     }

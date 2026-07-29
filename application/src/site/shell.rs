@@ -4,7 +4,7 @@
 //! without rebuilding the frame around it.
 
 use foliage::{
-    Anchor, Color, EcsExtension, Elevation, Entity, Grid, GridExt, Leaf, Location, Panel, Rounding,
+    Anchor, EcsExtension, Elevation, Entity, Grid, GridExt, Leaf, Location, Panel, Rounding,
     Sprout, Tree, ValueDescriptor, anchor,
 };
 
@@ -59,11 +59,15 @@ pub(crate) fn measured_column(tree: &mut Tree, container: Entity, below: Option<
                         .with(100.pct().as_right().adjust(-space::MD)),
                     top(100.pct().as_height()),
                 )
+                // fluid up to the cap rather than a fixed width -- `max` keeps the column
+                // filling a narrow window and only stops growing once prose would get too
+                // wide to read
                 .md(
                     (RAIL_W + space::XL)
                         .px()
                         .as_left()
-                        .with(MEASURE_MAX.px().as_width()),
+                        .with(100.pct().as_right().adjust(-space::XL))
+                        .max(MEASURE_MAX as f32),
                     top(100.pct().as_height()),
                 ))
             .elevate(Elevation::up(1))
@@ -75,16 +79,48 @@ pub(crate) fn measured_column(tree: &mut Tree, container: Entity, below: Option<
     column
 }
 
-/// The rail's own surface -- a full-height panel behind the section entries.
+/// Where the rail host sits, open or closed.
+///
+/// `xs` is the drawer: off-canvas by its own width plus the inset, so no sliver shows.
+/// `md`+ ignores `open` entirely -- the rail is permanent there, and a menu button would be
+/// a control for something already on screen.
+pub(crate) fn rail_host_location(open: bool) -> Location {
+    let closed_left = -(RAIL_W + space::SM * 2);
+    Location::new()
+        .xs(
+            if open { 0 } else { closed_left }
+                .px()
+                .as_left()
+                .with(RAIL_W.px().as_width()),
+            0.pct().as_top().with(100.pct().as_bottom()),
+        )
+        .md(
+            0.px().as_left().with(RAIL_W.px().as_width()),
+            0.pct().as_top().with(100.pct().as_bottom()),
+        )
+}
+
+/// The rail's own surface -- a panel behind the section entries.
+///
+/// Inset from the window on every side so it reads as a floating surface, which is what
+/// makes the rounding visible at all: flush to the edges, three of the four corners are
+/// offscreen. `Xs` because `Rounding` is proportional -- `Md` is half the short side, which
+/// on a 148px rail is a 74px radius, i.e. a lozenge.
 pub(crate) fn rail_surface(tree: &mut Tree, parent: Entity) -> Entity {
     tree.branch(
         parent,
         Panel::new()
-            .color(Color::slate(role::SURFACE))
-            .rounding(Rounding::None)
+            .color(role::surface())
+            .rounding(Rounding::Xs)
             .at(Location::new().xs(
-                0.px().as_left().with(100.pct().as_right()),
-                0.px().as_top().with(100.pct().as_bottom()),
+                space::SM
+                    .px()
+                    .as_left()
+                    .with(100.pct().as_right().adjust(-space::SM)),
+                space::SM
+                    .px()
+                    .as_top()
+                    .with(100.pct().as_bottom().adjust(-space::SM)),
             ))
             .elevate(Elevation::up(6))
             .with(Grid::new(1.col().gap(0), 1.row().gap(0))),

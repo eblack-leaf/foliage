@@ -837,7 +837,7 @@ terms see <a href="struct.Query.html#method.transmute_lens_filtered" title="meth
 filter type - the access required by filter parameters are as follows.</p>
 <div><table><thead><tr><th><code>QueryFilter</code> parameter type</th><th>Access required</th></tr></thead><tbody>
 <tr><td><a href="struct.Added.html" title="struct foliage::Added"><code>Added&lt;T&gt;</code></a>, <a href="struct.Changed.html" title="struct foliage::Changed"><code>Changed&lt;T&gt;</code></a></td><td>Read and required access to <code>T</code></td></tr>
-<tr><td><a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With&lt;T&gt;</code></a>, <a href="struct.Without.html" title="struct foliage::Without"><code>Without&lt;T&gt;</code></a></td><td>No access</td></tr>
+<tr><td><a href="struct.With.html" title="struct foliage::With"><code>With&lt;T&gt;</code></a>, <a href="struct.Without.html" title="struct foliage::Without"><code>Without&lt;T&gt;</code></a></td><td>No access</td></tr>
 <tr><td><a href="struct.Or.html" title="struct foliage::Or"><code>Or&lt;(T, ...)&gt;</code></a></td><td>Read access of the subqueries, but no required access</td></tr>
 <tr><td>Tuples of query filters and <code>#[derive(QueryFilter)]</code> structs</td><td>The union of the access of their subqueries</td></tr>
 </tbody></table>
@@ -909,7 +909,7 @@ assert_valid_transmute_filtered::&lt;<span class="kw-2">&amp;mut </span>T, (), <
     NewF: <a class="trait" href="bevy_ecs/query/trait.QueryFilter.html" title="trait foliage::bevy_ecs::query::QueryFilter">QueryFilter</a>,</div></h4></section></summary><div class="docblock"><p>Equivalent to <a href="struct.Query.html#method.transmute_lens" title="method foliage::Query::transmute_lens"><code>Self::transmute_lens</code></a> but also includes a <a href="bevy_ecs/query/trait.QueryFilter.html" title="trait foliage::bevy_ecs::query::QueryFilter"><code>QueryFilter</code></a> type.</p>
 <p>See <a href="struct.Query.html#method.transmute_lens" title="method foliage::Query::transmute_lens"><code>Self::transmute_lens</code></a> for a description of allowed transmutes.</p>
 <p>Note that the lens will iterate the same tables and archetypes as the original query. This means that
-additional archetypal query terms like <a href="bevy_ecs/query/struct.With.html" title="struct foliage::bevy_ecs::query::With"><code>With</code></a> and <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>
+additional archetypal query terms like <a href="struct.With.html" title="struct foliage::With"><code>With</code></a> and <a href="struct.Without.html" title="struct foliage::Without"><code>Without</code></a>
 will not necessarily be respected and non-archetypal terms like <a href="struct.Added.html" title="struct foliage::Added"><code>Added</code></a>,
 <a href="struct.Changed.html" title="struct foliage::Changed"><code>Changed</code></a> and <a href="bevy_ecs/query/struct.Spawned.html" title="struct foliage::bevy_ecs::query::Spawned"><code>Spawned</code></a> will only be respected if they
 are in the type signature.</p>

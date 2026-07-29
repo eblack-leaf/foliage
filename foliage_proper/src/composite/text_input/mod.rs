@@ -694,7 +694,7 @@ impl PlaceCursor {
             true,
             &current_interaction,
             font,
-            &fonts.sizes,
+            &fonts,
             *layout,
             &scroll.sections,
             &scroll.views,
@@ -707,7 +707,7 @@ impl PlaceCursor {
             RequestedLocation::ColRow((col, row)),
             &glyphs,
             font,
-            &fonts.sizes,
+            &fonts,
             *layout,
             &handles,
             &mut cursor,
@@ -733,7 +733,7 @@ impl TextInput {
         can_go_past_end: bool,
         current_interaction: &CurrentInteraction,
         font: FontRef,
-        font_sizes: &Query<&FontSize>,
+        fonts: &FontContext,
         layout: Layout,
         sections: &Query<&Section<Logical>>,
         views: &Query<&View>,
@@ -742,7 +742,7 @@ impl TextInput {
     ) -> (u32, u32) {
         let lfc = u32::from(can_go_past_end);
         let click = current_interaction.click.current;
-        let fsv = font_sizes.get(this).unwrap().resolve(layout);
+        let fsv = fonts.size(this, layout).unwrap();
         let dims = font.character_block(fsv);
         let handle = handles.get(this).unwrap();
         // `field`'s own resolved position is the letter-grid's true origin -- reading it
@@ -786,7 +786,7 @@ impl TextInput {
         req: RequestedLocation,
         glyphs: &Query<&Glyphs>,
         font: FontRef,
-        font_sizes: &Query<&FontSize>,
+        fonts: &FontContext,
         layout: Layout,
         handles: &Query<&Handle>,
         cursor: &mut Query<&mut Cursor>,
@@ -824,7 +824,7 @@ impl TextInput {
         // HiDPI/mobile. `location_from_click` is a different, unrelated computation (compares
         // against `Section<Logical>`-relative click position, not raw glyph data) and must
         // stay unscaled -- don't "fix" it to match this.
-        let fsv = font_sizes.get(this).unwrap().resolve(layout);
+        let fsv = fonts.size(this, layout).unwrap();
         let dims = font.character_block((fsv as f32 * scroll.scale_factor.value()) as u32);
         // Grid's own `.col()`/`.row()` resolution (`grid/location.rs`'s `calc`, the
         // `LocationValue::Column`/`Row`/`Letters` arms) sizes cells from `stem_letters`,
@@ -1089,7 +1089,7 @@ impl Selection {
             RequestedLocation::Offset(offset),
             &glyphs,
             font,
-            &fonts.sizes,
+            &fonts,
             *layout,
             &handles.as_readonly(),
             &mut cursor,
@@ -1138,7 +1138,7 @@ impl Selection {
             false,
             &current_interaction,
             font,
-            &fonts.sizes,
+            &fonts,
             *layout,
             &sections,
             &views,
@@ -1154,7 +1154,7 @@ impl Selection {
             &glyphs,
             &handles.as_readonly(),
             font,
-            &fonts.sizes,
+            &fonts,
             *layout,
         );
         // No direct `reselect_range` call -- `sync_highlights_to_selection` (a
@@ -1174,11 +1174,11 @@ impl TextInput {
         glyphs: &Query<&Glyphs>,
         handles: &Query<&Handle>,
         font: FontRef,
-        font_sizes: &Query<&FontSize>,
+        fonts: &FontContext,
         layout: Layout,
     ) {
         let handle = handles.get(this).unwrap();
-        let fsv = font_sizes.get(this).unwrap().resolve(layout);
+        let fsv = fonts.size(this, layout).unwrap();
         let dims = font.character_block(fsv);
         let cursor = cursors.get(this).unwrap();
         let mut selection = selections.get_mut(this).unwrap();
@@ -1250,7 +1250,7 @@ impl TextInput {
                 &glyphs,
                 &selections,
                 font,
-                &fonts.sizes,
+                &fonts,
                 *layout,
                 &styles,
             );
@@ -1292,7 +1292,7 @@ impl TextInput {
                 RequestedLocation::Offset(offset),
                 &glyphs,
                 font,
-                &fonts.sizes,
+                &fonts,
                 *layout,
                 &handles.as_readonly(),
                 &mut cursor,
@@ -1311,7 +1311,7 @@ impl TextInput {
                 &glyphs,
                 &selections,
                 font,
-                &fonts.sizes,
+                &fonts,
                 *layout,
                 &styles,
             );
@@ -1336,14 +1336,14 @@ impl TextInput {
         glyphs: &Query<&Glyphs>,
         selections: &Query<&Selection>,
         font: FontRef,
-        font_sizes: &Query<&FontSize>,
+        fonts: &FontContext,
         layout: Layout,
         styles: &Query<&TextInputStyle>,
     ) {
         let mut handle = handles.get_mut(this).unwrap();
         let selection = selections.get(this).unwrap();
         let glyph = glyphs.get(handle.text).unwrap();
-        let fsv = font_sizes.get(this).unwrap().resolve(layout);
+        let fsv = fonts.size(this, layout).unwrap();
         let dims = font.character_block(fsv);
         let mut spans: HashMap<u32, (u32, u32)> = HashMap::new();
         for g in glyph
@@ -1506,7 +1506,7 @@ impl Input {
                             &mut cursor,
                             &glyphs,
                             font,
-                            &fonts.sizes,
+                            &fonts,
                             *layout,
                             &line_metrics,
                             &mut selections,
@@ -1533,7 +1533,7 @@ impl Input {
                             &mut cursor,
                             &glyphs,
                             font,
-                            &fonts.sizes,
+                            &fonts,
                             *layout,
                             &line_metrics,
                             &mut selections,
@@ -1557,7 +1557,7 @@ impl Input {
                                 RequestedLocation::Offset(idx),
                                 &glyphs,
                                 font,
-                                &fonts.sizes,
+                                &fonts,
                                 *layout,
                                 &handles.as_readonly(),
                                 &mut cursor,
@@ -1590,7 +1590,7 @@ impl Input {
                             &mut cursor,
                             &glyphs,
                             font,
-                            &fonts.sizes,
+                            &fonts,
                             *layout,
                             &line_metrics,
                             &mut selections,
@@ -1612,7 +1612,7 @@ impl Input {
                             RequestedLocation::Offset(cursor_val.location),
                             &glyphs,
                             font,
-                            &fonts.sizes,
+                            &fonts,
                             *layout,
                             &handles.as_readonly(),
                             &mut cursor,
@@ -1637,7 +1637,7 @@ impl Input {
                         RequestedLocation::ColRow((col, cursor_val.row)),
                         &glyphs,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1656,7 +1656,7 @@ impl Input {
                         RequestedLocation::ColRow((0, cursor_val.row)),
                         &glyphs,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1700,7 +1700,7 @@ impl Input {
                             &mut cursor,
                             &glyphs,
                             font,
-                            &fonts.sizes,
+                            &fonts,
                             *layout,
                             &line_metrics,
                             &mut selections,
@@ -1721,7 +1721,7 @@ impl Input {
                             RequestedLocation::Offset(len),
                             &glyphs,
                             font,
-                            &fonts.sizes,
+                            &fonts,
                             *layout,
                             &handles.as_readonly(),
                             &mut cursor,
@@ -1750,7 +1750,7 @@ impl Input {
                         &glyphs,
                         &mut handles,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &line_metrics,
                         &scroll,
@@ -1770,7 +1770,7 @@ impl Input {
                         &glyphs,
                         &mut handles,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &line_metrics,
                         &scroll,
@@ -1790,7 +1790,7 @@ impl Input {
                         &glyphs,
                         &mut handles,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &line_metrics,
                         &scroll,
@@ -1809,7 +1809,7 @@ impl Input {
                         &glyphs,
                         &mut handles,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &line_metrics,
                         &scroll,
@@ -1826,7 +1826,7 @@ impl Input {
                         )),
                         &glyphs,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1847,7 +1847,7 @@ impl Input {
                         RequestedLocation::ColRow((cursor_val.column, target_row)),
                         &glyphs,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1871,7 +1871,7 @@ impl Input {
                         RequestedLocation::Offset(offset),
                         &glyphs,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1893,7 +1893,7 @@ impl Input {
                         RequestedLocation::Offset(offset),
                         &glyphs,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &handles.as_readonly(),
                         &mut cursor,
@@ -1920,7 +1920,7 @@ impl Input {
                         &mut cursor,
                         &glyphs,
                         font,
-                        &fonts.sizes,
+                        &fonts,
                         *layout,
                         &line_metrics,
                         &mut selections,
@@ -1950,7 +1950,7 @@ impl Input {
                     &mut cursor,
                     &glyphs,
                     font,
-                    &fonts.sizes,
+                    &fonts,
                     *layout,
                     &line_metrics,
                     &mut selections,
@@ -2004,7 +2004,7 @@ impl TextInput {
         cursor: &mut Query<&mut Cursor>,
         glyphs: &Query<&Glyphs>,
         font: FontRef,
-        font_sizes: &Query<&FontSize>,
+        fonts: &FontContext,
         layout: Layout,
         line_metrics: &Query<&LineMetrics>,
         selections: &mut Query<&mut Selection>,
@@ -2017,7 +2017,7 @@ impl TextInput {
             RequestedLocation::Offset(new_location),
             glyphs,
             font,
-            font_sizes,
+            fonts,
             layout,
             handles,
             cursor,
@@ -2049,7 +2049,7 @@ impl TextInput {
         // conflicting borrows of it in the same call.
         handles: &mut Query<&mut Handle>,
         font: FontRef,
-        font_sizes: &Query<&FontSize>,
+        fonts: &FontContext,
         layout: Layout,
         line_metrics: &Query<&LineMetrics>,
         scroll: &ScrollContext,
@@ -2064,7 +2064,7 @@ impl TextInput {
                 glyphs,
                 &handles.as_readonly(),
                 font,
-                font_sizes,
+                fonts,
                 layout,
             );
         }
@@ -2088,7 +2088,7 @@ impl TextInput {
             RequestedLocation::Offset(edge),
             glyphs,
             font,
-            font_sizes,
+            fonts,
             layout,
             &handles.as_readonly(),
             cursor,
@@ -2148,7 +2148,7 @@ impl InsertText {
             &mut cursor,
             &glyphs,
             font,
-            &fonts.sizes,
+            &fonts,
             *layout,
             &line_metrics,
             &mut selections,

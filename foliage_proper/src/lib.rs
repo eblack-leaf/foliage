@@ -52,7 +52,7 @@ pub use anim::{
 pub(crate) use ash::differential::Differential;
 pub use asset::{Asset, AssetKey, AssetLoader, AssetSource, OnRetrieval};
 pub use attachment::Attachment;
-pub use author::{LeafSprout, Sprout, With};
+pub use author::{LeafSprout, Sprout, WithExtras};
 pub use bevy_ecs::{self, prelude::*};
 /// bevy 0.17+ renamed the observer parameter `Trigger` to `On`. Every observer in foliage and
 /// its consumers is written against the `Trigger<E>` spelling, so keep it as the canonical

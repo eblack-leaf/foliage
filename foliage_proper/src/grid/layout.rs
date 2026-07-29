@@ -70,9 +70,10 @@ pub enum Short {
 }
 impl Short {
     /// Below this height (logical px) the viewport becomes [`Short::Yes`]. Sized to catch
-    /// phones in landscape (~330-390 after browser chrome) and short desktop windows,
-    /// while leaving landscape tablets (768+) alone.
-    pub const ENTER: CoordinateUnit = 480.0;
+    /// phones in landscape (~330-390 after browser chrome) and little else -- at 480 it also
+    /// claimed ordinary short desktop windows, which have plenty of room and only want the
+    /// normal layout.
+    pub const ENTER: CoordinateUnit = 400.0;
     /// At or above this height it returns to [`Short::No`]. The gap between the two is a
     /// deliberate deadband, and it is asymmetric on purpose -- *sticky toward short*.
     ///
@@ -83,7 +84,7 @@ impl Short {
     /// that is merely more conservative than it needed to be, while a false `No` is
     /// content running off the bottom of the screen, which is the failure this exists to
     /// prevent.
-    pub const EXIT: CoordinateUnit = 520.0;
+    pub const EXIT: CoordinateUnit = 440.0;
     /// The next state, given the current one -- the hysteresis. Between [`ENTER`](Self::ENTER)
     /// and [`EXIT`](Self::EXIT) the answer is whatever it already was.
     pub fn next(self, section: Section<Logical>) -> Self {
