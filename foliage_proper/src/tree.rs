@@ -4,7 +4,7 @@ use crate::anim::sequence::{AnimationTime, SequenceMarker};
 use crate::disable::Disable;
 use crate::enable::Enable;
 use crate::leaf::Leaf;
-use crate::leaf::Stem;
+use crate::leaf::{SpawnedAt, Stem};
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
 use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
@@ -77,6 +77,9 @@ pub(crate) trait Sow {
     /// [`Sow::sow`], then runs `Sprout::build`. `pub(crate)` alongside `sow` for the same
     /// reason -- an external `Sprout` impl gets no way to skip the mandatory `.elevate(...)` or
     /// hand-roll a child that forgets its parent.
+    /// `#[track_caller]` here and on `leaf`/`branch` is what makes [`SpawnedAt`] name the
+    /// author's own call rather than this line.
+    #[track_caller]
     fn grow<S: Sprout>(&mut self, mut spec: S, parent: Option<Entity>) -> Entity
     where
         Self: EcsExtension + Sized,
@@ -90,6 +93,7 @@ pub(crate) trait Sow {
             leaf.stem,
             leaf.elevation
                 .expect("elevation not set -- call .elevate(...) before spawning"),
+            SpawnedAt(core::panic::Location::caller()),
             spec.root(),
         ));
         S::build(this, self);
@@ -175,6 +179,7 @@ pub trait EcsExtension: Sow {
     fn refire<C: Refire>(&mut self, entity: Entity);
     /// Grows `spec` as a top-level entity -- no parent, the [`EcsExtension::branch`] counterpart
     /// for roots (a screen, a one-off widget): `let root = tree.leaf(Icon::new(0).elevate(..));`
+    #[track_caller]
     fn leaf<S: Sprout>(&mut self, spec: S) -> Entity
     where
         Self: Sized,
@@ -185,6 +190,7 @@ pub trait EcsExtension: Sow {
     /// child can't be spawned orphaned by forgetting a chained call. THE way to build a
     /// composite's structure, in `Sprout::build` and one-off screens alike:
     /// `let icon = tree.branch(this, Icon::new(0).elevate(..));`
+    #[track_caller]
     fn branch<S: Sprout>(&mut self, parent: Entity, spec: S) -> Entity
     where
         Self: Sized,

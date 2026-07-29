@@ -5,6 +5,7 @@ use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration, Short};
+use crate::leaf::SpawnedAt;
 use crate::text::monospaced::FontContext;
 use crate::visibility::AutoVisibility;
 use crate::{
@@ -248,7 +249,7 @@ impl Location {
         mut tree: Tree,
         layout: Res<Layout>,
         short: Res<Short>,
-        locations: Query<&Location>,
+        locations: Query<(&Location, Option<&SpawnedAt>)>,
         sections: Query<&Section<Logical>>,
         grids: Query<(&Grid, &View)>,
         stems: Query<&Stem>,
@@ -262,7 +263,7 @@ impl Location {
         fonts: FontContext,
     ) {
         let this = trigger.event_target();
-        if let Ok(location) = locations.get(this) {
+        if let Ok((location, spawned_at)) = locations.get(this) {
             if location.unset() {
                 // never configured -- not a positional element (a coordinator root, say);
                 // nothing to resolve, so leave AutoVisibility at its default true instead of
@@ -274,13 +275,20 @@ impl Location {
             let stem = stems.get(this).unwrap();
             let (grid, view, context, stem_letters) = if let Some(id) = stem.id {
                 let val = grids.get(id).unwrap_or_else(|_| {
+                    // The entity ids alone are unusable from an app -- point at the
+                    // `branch`/`leaf` call that spawned the child instead, since that call
+                    // names the very parent that needs the `Grid`.
+                    let at = spawned_at
+                        .map(|s| format!("\n  spawned at {}", s.0))
+                        .unwrap_or_default();
                     panic!(
-                        "{this:?}'s `Location` resolves relative to its parent {id:?}, but \
-                        {id:?} has no `Grid` component -- ANY child with a `Location` needs its \
-                        parent to carry one, regardless of what values that `Location` actually \
-                        uses (e.g. spawn the parent `.with(Grid::new(1.col().gap(0), 1.row().gap(0)))` \
-                        for a plain single-cell grid, or a real column/row split if the parent \
-                        actually lays out multiple children)"
+                        "a `Location` resolves relative to its parent, but that parent has no \
+                        `Grid` component -- ANY child with a `Location` needs its parent to \
+                        carry one, regardless of what values that `Location` actually uses.\
+                        {at}\n  fix: give the parent `.with(Grid::new(1.col().gap(0), \
+                        1.row().gap(0)))` for a plain single-cell grid, or a real column/row \
+                        split if it actually lays out multiple children.\n  (child {this:?}, \
+                        parent {id:?})"
                     )
                 });
                 let context = sections.get(id).unwrap();

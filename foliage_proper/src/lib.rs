@@ -125,7 +125,7 @@ pub use interaction::{
     InteractionPropagation, Key, Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
 };
-pub use leaf::{Branch, Leaf, Stem};
+pub use leaf::{Branch, Leaf, SpawnedAt, Stem};
 pub use line::{Line, LineSprout};
 pub use opacity::Opacity;
 pub use ops::Named;

@@ -103,15 +103,27 @@ impl Leaf {
     }
 }
 
-#[derive(Component, Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
-#[component(on_insert = Stem::on_insert)]
-#[component(on_discard = Stem::on_replace)]
+/// The source location of the `leaf`/`branch` call that spawned this entity.
+///
+/// Layout failures surface long after the spawn, in a system that only knows entity ids --
+/// and `188v0 resolves relative to 187v0` tells an author nothing about their own code.
+/// Recording the call site at spawn is what lets those panics point back at the line that
+/// actually needs changing.
+///
+/// A `&'static Location` is a pointer the compiler already materialised for the panic
+/// machinery, so carrying it costs one word per entity and nothing at runtime.
+#[derive(Component, Copy, Clone, Debug)]
+pub struct SpawnedAt(pub &'static core::panic::Location<'static>);
+
 /// This entity's parent, and so what its `Location` resolves against, what clips it,
 /// what its opacity and visibility inherit from, and where it sits in draw order.
 ///
 /// `None` is a root, resolving against the viewport. Set by
 /// [`branch`](crate::EcsExtension::branch); rewriting it reparents the entity, and the
 /// old and new parents' [`Branch`] sets are updated to match.
+#[derive(Component, Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[component(on_insert = Stem::on_insert)]
+#[component(on_discard = Stem::on_replace)]
 pub struct Stem {
     pub id: Option<Entity>,
 }
