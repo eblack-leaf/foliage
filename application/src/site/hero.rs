@@ -4,11 +4,14 @@
 //! becoming their real form -- which reads as arrival rather than as travel.
 
 use foliage::{
-    Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
-    HorizontalAlignment, Icon, IconId, InteractionListener, InteractionPropagation, Leaf, Location,
-    OnClick, Opacity, PageIndex, Query, Sprout, Text, TextContentHeight, Tree, Trigger,
-    VerticalAlignment, With, anchor,
+    Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, Foliage, FontSize,
+    GlyphColors, Grid, GridExt, HorizontalAlignment, Icon, IconId, InteractionListener,
+    InteractionPropagation, Layout, Leaf, Location, Logical, OnClick, Opacity, PageIndex, Query,
+    Res, Section, Short, Sprout, Text, TextContentHeight, Time, Tree, Trigger, VerticalAlignment,
+    With, anchor, component,
 };
+
+use std::ops::Range;
 
 use crate::entry::AppRouter;
 use crate::icons::IconHandles;
@@ -24,14 +27,17 @@ const EXTENSION_AT: usize = 7;
 /// monospace characters run about 6x the font size, which is what caps each step.
 const WORDMARK_XS: u32 = 40;
 const WORDMARK_MD: u32 = 76;
-/// Landscape is `md`-wide, so it would otherwise take `WORDMARK_MD` in a ~250px-tall
-/// viewport. Still clips on something both very short *and* narrow -- accepted, since the
-/// name earns its size everywhere else.
-const WORDMARK_SHORT: u32 = 30;
+/// Landscape is `md`-wide, so it would otherwise take `WORDMARK_MD` in a ~250px-tall viewport.
+///
+/// `short` is a single size with no width steps under it -- it wins over the whole `xs`/`md`
+/// chain -- so this one number has to survive the narrowest window that is also short. The
+/// wordmark gets `SHORT_TEXT_RIGHT_PCT` of the width there, and ten monospace characters run
+/// about 6x the font size, so 26 needs ~156px of column: comfortable down to a 300px-wide
+/// window. At 30 it clipped its own last character on anything under ~350.
+const WORDMARK_SHORT: u32 = 26;
 
 const TAGLINE: &str = "cross-platform UI in Rust";
 
-const BUTTONS_TOP_PCT: f32 = 62.0;
 /// The buttons live in their own row so `max` has something to constrain. Positioned as
 /// thirds of the *hero*, they drifted to the far corners of a wide monitor -- a max on the
 /// hero could never fix that, because the hero is supposed to be full width.
@@ -45,6 +51,7 @@ const AT_BUTTONS: u64 = 700;
 /// Between one button and the next. Wide enough to watch each shape become itself, which is
 /// the whole reason they are three different shapes.
 const BUTTON_STEP: u64 = 300;
+const AT_READOUT: u64 = 520;
 const AT_HINT: u64 = AT_BUTTONS + BUTTON_STEP * 3 + 260;
 /// Short viewports get the hero side by side instead of stacked: wordmark and tagline on
 /// the left, destinations on the right. Stacked, the wordmark, buttons and the fold hint
@@ -53,6 +60,153 @@ const AT_HINT: u64 = AT_BUTTONS + BUTTON_STEP * 3 + 260;
 const SHORT_TEXT_RIGHT_PCT: f32 = 52.0;
 const SHORT_BUTTONS_LEFT_PCT: f32 = 52.0;
 const SHORT_BUTTONS_TOP_PCT: f32 = 46.0;
+
+const ROW_H: i32 = 16;
+
+/// The readings. Every one changes when the window does, which is the only reason there are
+/// three and not six: an `entities` count that never moves on a static page and a `renderer`
+/// that is always `wgpu` are decoration wearing a measurement's clothes.
+///
+/// The breakpoint tail is the whole scale, not just the current step -- one name on its own
+/// says nothing about what it is one of, and the set makes the line readable as a ruler with a
+/// position on it. `short` leads because it is orthogonal to the rest: it can be lit at the
+/// same time as any of them.
+///
+/// Every field is padded to a fixed width so the character indices in [`hud_colors`] hold. The
+/// two clamps are what keep that true at the edges -- five digits of width or three of
+/// milliseconds would shift every index after them.
+fn hud_line(width: f32, height: f32, ms: f32) -> String {
+    format!(
+        "{:>4}x{:<4}  {:>4.1}ms  short xs sm md lg xl",
+        (width.round() as i32).min(9999),
+        (height.round() as i32).min(9999),
+        ms.min(99.9),
+    )
+}
+
+/// Character spans in the line built by [`hud_line`].
+const AT_W: Range<usize> = 0..4;
+const AT_H: Range<usize> = 5..9;
+const AT_MS: Range<usize> = 11..15;
+const AT_SHORT: Range<usize> = 19..24;
+const AT_BREAKPOINT: [Range<usize>; 5] = [25..27, 28..30, 31..33, 34..36, 37..39];
+
+/// Which glyphs are lit. Rebuilt alongside the string rather than fixed at spawn, since the
+/// step that is lit is itself a reading.
+fn hud_colors(layout: Layout, short: Short) -> GlyphColors {
+    // One colour per metric, taken from the three destination buttons directly below. Three
+    // readings in one tone read as one number that happens to have spaces in it; borrowing the
+    // row's own palette makes them three things and costs the page no new hues.
+    let size = Color::amber(400);
+    let frame = Color::rose(400);
+    let breakpoint = role::accent();
+    // Dimmer than the separators, so an unlit step reads as part of a scale rather than as a
+    // word someone left there. The `x` and the `ms` unit stay at the base tone.
+    let unlit = Color::stone(700);
+    let step = match layout {
+        Layout::Xs => 0,
+        Layout::Sm => 1,
+        Layout::Md => 2,
+        Layout::Lg => 3,
+        Layout::Xl => 4,
+    };
+    let mut colors = GlyphColors::new()
+        .add(AT_W, size)
+        .add(AT_H, size)
+        .add(AT_MS, frame)
+        .add(
+            AT_SHORT,
+            if short == Short::Yes {
+                breakpoint
+            } else {
+                unlit
+            },
+        );
+    for (i, span) in AT_BREAKPOINT.iter().enumerate() {
+        colors = colors.add(
+            span.clone(),
+            if i == step { breakpoint } else { unlit },
+        );
+    }
+    colors
+}
+
+/// Weight of each new frame-time sample against the running value. It jitters by a millisecond
+/// or two every frame, and an unsmoothed readout strobes through digits too fast to read --
+/// which looks like decoration rather than a measurement.
+const SMOOTHING: f32 = 0.06;
+/// How often the *displayed* value is allowed to change.
+///
+/// Smoothing alone was not enough: the average still moves a tenth of a millisecond most
+/// frames, so the last digit flickered continuously and the eye went straight to it. The value
+/// keeps averaging every frame; only the string it renders to is held. Twice a second is fast
+/// enough to read as live and slow enough to actually read.
+const REFRESH: f32 = 0.5;
+
+/// The live line. `source` is the full-bleed hero, whose own `Section` is the viewport -- the
+/// framework's `ViewportHandle` is not public, and reading the box that already spans the
+/// window is the same number without reaching for one.
+#[component]
+pub(crate) struct Readout {
+    source: Entity,
+    ms: f32,
+    since: f32,
+    shown: Option<String>,
+    /// Which step was last lit, so the colour map is only rebuilt when it actually moves.
+    lit: Option<(Layout, Short)>,
+}
+
+fn drive_readouts(
+    time: Res<Time>,
+    layout: Res<Layout>,
+    short: Res<Short>,
+    sections: Query<&Section<Logical>>,
+    mut rows: Query<(Entity, &mut Readout)>,
+    mut tree: Tree,
+) {
+    if rows.is_empty() {
+        return;
+    }
+    let dt = time.frame_diff().as_secs_f32();
+    let frame_ms = dt * 1000.0;
+    for (entity, mut row) in rows.iter_mut() {
+        // first sample lands whole rather than easing up from zero, or the number spends its
+        // first second visibly wrong
+        let first = row.ms == 0.0;
+        row.ms = if first {
+            frame_ms
+        } else {
+            row.ms + (frame_ms - row.ms) * SMOOTHING
+        };
+        // averaging runs every frame; the *rendered* value is held between refreshes
+        row.since += dt;
+        if !first && row.since < REFRESH {
+            continue;
+        }
+        row.since = 0.0;
+        let Ok(viewport) = sections.get(row.source) else {
+            continue;
+        };
+        let line = hud_line(viewport.width(), viewport.height(), row.ms);
+        // repaint only on a real change -- a `Text` write re-shapes the whole string, and most
+        // refreshes round to the same digits
+        if row.shown.as_deref() != Some(line.as_str()) {
+            row.shown = Some(line.clone());
+            tree.write_to(entity, Text { value: line });
+        }
+        // colours change far less often than the string, and only ever together -- one write
+        // when the breakpoint moves, not one every refresh
+        let lit = (*layout, *short);
+        if row.lit != Some(lit) {
+            row.lit = Some(lit);
+            tree.write_to(entity, hud_colors(*layout, *short));
+        }
+    }
+}
+
+pub(crate) fn attach(foliage: &mut Foliage) {
+    foliage.user.add_systems(drive_readouts);
+}
 
 const HINT_TEXT: &str = "more";
 /// The word's own box. Shared with the hit band, which derives its top from it -- as a literal
@@ -155,12 +309,17 @@ pub fn build(tree: &mut Tree, slot: Entity) {
             .size(FontSize::new(type_scale::BODY))
             .color(role::on_surface_variant())
             .at(Location::new()
+                // A step more than a nudge, and no more than that. The wordmark's box is a
+                // single letter-height, so its descenders sit close to the bottom edge and 16px
+                // read as the two lines touching -- but the tagline hangs off the wordmark in
+                // px while the buttons sit at a percentage, so every px added here eats into a
+                // gap that is already smallest on the shortest window that is not `short`.
                 .xs(
                     0.pct().as_left().with(100.pct().as_right()),
                     anchor()
                         .bottom()
                         .as_top()
-                        .adjust(space::MD)
+                        .adjust(space::LG)
                         .with(20.px().as_height()),
                 )
                 .short(
@@ -170,7 +329,7 @@ pub fn build(tree: &mut Tree, slot: Entity) {
                     anchor()
                         .bottom()
                         .as_top()
-                        .adjust(space::SM)
+                        .adjust(space::MD)
                         .with(20.px().as_height()),
                 ))
             .elevate(Elevation::up(3))
@@ -185,17 +344,26 @@ pub fn build(tree: &mut Tree, slot: Entity) {
             )),
     );
     fade_in(tree, tagline, seq, AT_TAGLINE);
+    readout(tree, hero, wordmark, seq);
 
-    // capped and centred, so three buttons stay a group instead of drifting to the corners
+    // Capped and centred, so three buttons stay a group instead of drifting to the corners.
+    //
+    // Stacked under the tagline rather than pinned to a percentage of the hero. The tagline
+    // hangs off the wordmark in px and wraps to two lines when it is narrow, while a
+    // percentage does not move for either -- so the two were guaranteed to meet at some
+    // height, and did, just above the `short` threshold. Chaining costs the row its place on a
+    // very tall window, where it now sits higher than a percentage would put it. That is the
+    // cheaper of the two: too high is a look, overlapping is a bug.
     let row = tree.branch(
         hero,
         Leaf::sprout()
             .at(Location::new()
                 .xs(
                     0.pct().as_left().with(100.pct().as_right()).max(ROW_MAX),
-                    BUTTONS_TOP_PCT
-                        .pct()
-                        .as_center_y()
+                    anchor()
+                        .bottom()
+                        .as_top()
+                        .adjust(space::XL)
                         .with(POLY_BUTTON_ROW_H.px().as_height()),
                 )
                 .short(
@@ -212,6 +380,7 @@ pub fn build(tree: &mut Tree, slot: Entity) {
             .elevate(Elevation::up(1))
             .with((
                 Grid::new(1.col().gap(0), 1.row().gap(0)),
+                Anchor::new(tagline),
                 InteractionPropagation::pass_through(),
             )),
     );
@@ -229,6 +398,67 @@ pub fn build(tree: &mut Tree, slot: Entity) {
         );
     }
     hint(tree, hero, seq);
+}
+
+/// One line of live readings, sitting directly above the wordmark.
+///
+/// One line, deliberately. A block of key/value rows is a fixed height that has to be fitted
+/// somewhere, and this screen has nowhere for it -- under the tagline it crowded the line
+/// above it, above the wordmark it ran off the top, and clearing a path pushed the button row
+/// into the fold hint. Scattering the rows into the margins instead only traded that for four
+/// unrelated texts floating in the corners. A single line has no block to place and nothing to
+/// read as a set: it is a caption on the name.
+///
+/// Every field changes when the window does, which is why there are three and not six. An
+/// `entities` count that never moves on a static page, or a `renderer` that is always `wgpu`,
+/// is decoration wearing a measurement's clothes -- the whole point of putting real numbers
+/// here is that they are doing something.
+///
+/// Parked on `short`, where the hero has already spent its height.
+fn readout(tree: &mut Tree, hero: Entity, wordmark: Entity, seq: Entity) {
+    let above = anchor()
+        .top()
+        .as_top()
+        .adjust(-(ROW_H + space::LG))
+        .with(ROW_H.px().as_height());
+    let line = tree.branch(
+        hero,
+        // Seeded at its final character count, and left with no glyph colours: the first tick
+        // writes both. `glyph_colors` on the builder fixes a map at spawn, which cannot express
+        // a highlight that moves.
+        Text::new(hud_line(0.0, 0.0, 0.0))
+            .size(FontSize::new(type_scale::LABEL))
+            .color(role::on_surface_variant())
+            // On `short` it goes to the very top of the screen instead of above the wordmark.
+            // Landscape puts the wordmark in the left column and the buttons in the right, and
+            // a line this wide centred over both would run straight through them -- but the
+            // strip above both columns is empty, and the line is the one piece of the hero
+            // that needs no room made for it.
+            .at(Location::new()
+                .xs(0.pct().as_left().with(100.pct().as_right()), above)
+                .short(
+                    0.pct().as_left().with(100.pct().as_right()),
+                    space::SM.px().as_top().with(ROW_H.px().as_height()),
+                ))
+            .elevate(Elevation::up(3))
+            .with((
+                HorizontalAlignment::Center,
+                VerticalAlignment::Middle,
+                Anchor::new(wordmark),
+                Opacity::new(0.0),
+            )),
+    );
+    fade_in(tree, line, seq, AT_READOUT);
+    tree.write_to(
+        line,
+        Readout {
+            source: hero,
+            ms: 0.0,
+            since: 0.0,
+            shown: None,
+            lit: None,
+        },
+    );
 }
 
 /// A destination: shadow polygon behind, front polygon on top, icon centred in it, label

@@ -20,6 +20,7 @@ pub fn run(mut foliage: Foliage) {
     icons::register(&mut foliage);
     site::register_fonts(&mut foliage);
     site::figure::attach(&mut foliage);
+    site::hero::attach(&mut foliage);
     entry::build(&mut foliage);
     foliage.photosynthesize();
 }
