@@ -69,6 +69,10 @@ pub use composite::{
 pub use composite::{
     button::{Button, ButtonSprout, ButtonStyle, Engagement},
     card::{Card, CardSprout, CardStyle},
+    polyline::{
+        DashPattern, Polyline, PolylineDrawProgress, PolylineDroppedPoints, PolylinePoints,
+        PolylineSprout, PolylineStyle,
+    },
     router::{RouteFn, Router, RouterHandle, RouterRoutes, RouterSprout},
     slider::{ProgressChanged, Slider, SliderBehavior, SliderSprout, SliderStyle},
     text_input::{
@@ -86,10 +90,6 @@ pub use composite::{
     },
     list::{List, ListItems, ListLayout, ListSprout},
     pagination::{Pagination, PaginationMode, PaginationSprout, PaginationStyle},
-    polyline::{
-        DashPattern, Polyline, PolylineDrawProgress, PolylineDroppedPoints, PolylinePoints,
-        PolylineSprout, PolylineStyle,
-    },
     popover::{
         Popover, PopoverClosed, PopoverExpanded, PopoverOpened, PopoverPlacement, PopoverSprout,
         PopoverStyle,
@@ -126,7 +126,7 @@ pub use interaction::{
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
 };
 pub use leaf::{Branch, Leaf, SpawnedAt, Stem};
-pub use line::{Line, LineSprout};
+pub use line::{Line, LineSprout, MIN_LINE_WEIGHT};
 pub use opacity::Opacity;
 pub use ops::Named;
 pub use ops::{Keyring, Resolve, Resolved};

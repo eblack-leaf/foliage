@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::grid::location::CreateDiff;
 use crate::time::{OnEnd, Time, TimeDelta};
-use crate::{Component, Location, Tree, Resolve};
+use crate::{Component, Location, Resolve, Tree};
 use bevy_ecs::change_detection::{Mut, ResMut};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Query;

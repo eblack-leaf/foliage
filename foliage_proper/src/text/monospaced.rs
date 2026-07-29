@@ -1,7 +1,7 @@
 use crate::{Coordinates, Resource};
+use bevy_ecs::component::Component;
 use bevy_ecs::prelude::Query;
 use bevy_ecs::system::Res;
-use bevy_ecs::component::Component;
 use std::sync::Arc;
 
 /// Which registered font a [`Text`](crate::Text) draws with. Put it on a text entity --
@@ -57,7 +57,11 @@ impl FontContext<'_, '_> {
     }
     /// `entity`'s resolved font size, honouring `short`. The one place that decision is
     /// made, so no caller can forget it.
-    pub(crate) fn size(&self, entity: bevy_ecs::entity::Entity, layout: crate::Layout) -> Option<u32> {
+    pub(crate) fn size(
+        &self,
+        entity: bevy_ecs::entity::Entity,
+        layout: crate::Layout,
+    ) -> Option<u32> {
         Some(self.sizes.get(entity).ok()?.resolve(layout, *self.short))
     }
 }

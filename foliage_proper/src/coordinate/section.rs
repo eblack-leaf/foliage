@@ -352,7 +352,11 @@ mod tests {
     fn rounding_keeps_a_shared_edge_shared() {
         let a = Section::<Logical>::new((10.4, 0.0), (20.4, 10.0));
         let b = Section::<Logical>::new((30.8, 0.0), (20.0, 10.0));
-        assert_eq!(a.right(), b.left(), "precondition: contiguous before rounding");
+        assert_eq!(
+            a.right(),
+            b.left(),
+            "precondition: contiguous before rounding"
+        );
         assert_eq!(
             a.rounded().right(),
             b.rounded().left(),

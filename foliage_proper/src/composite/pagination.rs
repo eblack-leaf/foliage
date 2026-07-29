@@ -1,4 +1,5 @@
 use crate::Trigger;
+use crate::composite::PageChanged;
 use crate::composite::{PageCount, PageIndex};
 use crate::{
     Button, ButtonStyle, Color, Component, EcsExtension, Elevation, Entity, FocusBehavior, Grid,
@@ -8,7 +9,6 @@ use crate::{
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;
-use crate::composite::PageChanged;
 use bevy_ecs::lifecycle::Insert;
 use bevy_ecs::system::Query;
 
@@ -74,7 +74,6 @@ pub struct PaginationStyle {
     /// (16, 4)
     pub dot_size: Option<(i32, i32)>,
 }
-
 
 /// Private child registry: the patch reaction and click handlers need the stable slot
 /// entities the structure reaction built. Each slot is (the entity to despawn on rebuild,

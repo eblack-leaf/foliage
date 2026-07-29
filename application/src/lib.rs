@@ -1,9 +1,9 @@
 use foliage::Foliage;
 
-mod site;
 mod entry;
 #[path = "assets/icons/gen/generated.rs"]
 mod icons;
+mod site;
 
 /// Shared by every platform's entry point -- desktop's `main`, wasm's `main` (compiled to
 /// `wasm32-unknown-unknown` and invoked by the generated JS glue), and `application_android`'s
@@ -18,6 +18,8 @@ mod icons;
 pub fn run(mut foliage: Foliage) {
     foliage.desktop_size((360, 800));
     icons::register(&mut foliage);
+    site::register_fonts(&mut foliage);
+    site::figure::attach(&mut foliage);
     entry::build(&mut foliage);
     foliage.photosynthesize();
 }

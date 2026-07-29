@@ -59,11 +59,13 @@ default = ["remote-assets"]
 # how bundled assets load there at all, not an optional extra), so this only affects native.
 remote-assets = ["dep:reqwest"]
 # Composites whose hard part is arrangement and appearance rather than behavior --
-# Carousel, Checkbox, Dropdown, List, Pagination, Polyline, Popover, RadioGroup,
-# SegmentedControl, Tabs, Toggle. Off by default: an unstyled one of these is rarely a
-# head start over building the shape you actually want, so they stay available without
-# being part of the surface every dependent carries. The behavioral composites
-# (Button, Card, Router, Slider, TextInput) are unconditional.
+# Carousel, Checkbox, Dropdown, List, Pagination, Popover, RadioGroup, SegmentedControl,
+# Tabs, Toggle. Off by default: an unstyled one of these is rarely a head start over
+# building the shape you actually want, so they stay available without being part of the
+# surface every dependent carries. The behavioral composites (Button, Card, Router,
+# Slider, TextInput) are unconditional, as is Polyline -- it is a drawing primitive that
+# happens to be assembled from Line and Polygon rather than an arrangement of widgets, and
+# gating a primitive behind a widget feature was the wrong seam.
 composite-extras = []
 
 # The tests that exercise the gated composites, skipped unless the feature is on -- same

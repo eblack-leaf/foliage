@@ -41,17 +41,32 @@ impl Attachment for Line {
         foliage.differential::<LineQuad, Color>();
     }
 }
+/// Thinnest line this renders cleanly. Below it, `distill_descriptor`'s half-weight normal
+/// offset falls under a texel and the quad's two long edges land on the same pixel row at
+/// some angles and straddle two at others -- so a line visibly thins, thickens and shimmers
+/// along its own length, worst at the shallow angles where it is most noticeable.
+///
+/// Clamped rather than documented as a caveat: a thinner line is never what someone wanted,
+/// it is what they asked for before seeing it, and leaving the floor at 1 only moves the
+/// discovery to whoever draws the first diagonal. Same reasoning and same value as
+/// [`PolylineSprout::weight`](crate::PolylineSprout::weight), which needs the floor for its
+/// joints as well.
+pub const MIN_LINE_WEIGHT: i32 = 3;
+
 impl Line {
-    /// Starts a [`Line`] entity `w` logical pixels thick.
+    /// Starts a [`Line`] entity `w` logical pixels thick, clamped to
+    /// [`MIN_LINE_WEIGHT`].
     pub fn new(w: i32) -> LineSprout {
         LineSprout {
             leaf: LeafSprout::default(),
-            weight: w.max(1),
+            weight: w.max(MIN_LINE_WEIGHT),
             color: None,
         }
     }
     pub(crate) fn new_marker(w: i32) -> Self {
-        Self { weight: w.max(1) }
+        Self {
+            weight: w.max(MIN_LINE_WEIGHT),
+        }
     }
     pub(crate) fn distill_descriptor(
         mut lines: Query<

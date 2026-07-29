@@ -189,7 +189,8 @@ pub(crate) fn coast(
         let now = Moment::now();
         let elapsed_ms = now.duration_since(c.last_tick).as_secs_f32() * 1000.0;
         c.last_tick = now;
-        tree.entity(entity).insert(ViewAdjustment(c.velocity * elapsed_ms));
+        tree.entity(entity)
+            .insert(ViewAdjustment(c.velocity * elapsed_ms));
         let decayed = momentum.decay.powf(elapsed_ms);
         c.velocity = c.velocity * decayed;
         if c.velocity.left().hypot(c.velocity.top()) < momentum.stop_epsilon {

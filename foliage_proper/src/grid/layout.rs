@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::Location;
-use crate::{CoordinateUnit, Logical, Section, Stem, Tree, Resolve, Resolved};
+use crate::{CoordinateUnit, Logical, Resolve, Resolved, Section, Stem, Tree};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::With;
 use bevy_ecs::resource::Resource;

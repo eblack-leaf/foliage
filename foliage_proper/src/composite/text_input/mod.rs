@@ -428,9 +428,7 @@ impl TextInput {
             8.px().as_left().with(100.pct().as_right().adjust(-8)),
             match line_constraint {
                 LineConstraint::Single => 50.pct().as_center_y().with(1.letters().as_height()),
-                LineConstraint::Multiple => {
-                    4.px().as_top().with(100.pct().as_bottom().adjust(-4))
-                }
+                LineConstraint::Multiple => 4.px().as_top().with(100.pct().as_bottom().adjust(-4)),
             },
         );
         tree.entity(handle.field).insert(field_location);

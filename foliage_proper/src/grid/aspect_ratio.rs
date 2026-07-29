@@ -1,5 +1,5 @@
 use crate::EcsExtension;
-use crate::{CoordinateContext, Layout, Location, Position, Section, Resolve};
+use crate::{CoordinateContext, Layout, Location, Position, Resolve, Section};
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::prelude::Component;
 use bevy_ecs::world::DeferredWorld;

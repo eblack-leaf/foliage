@@ -2,126 +2,157 @@
 //!
 //! This is the page that has to work on its own -- an unpublished library's site is mostly
 //! a signpost, so the destination row matters more than anything else here.
+//!
+//! Laid out the way a reference page is: a lead paragraph, a blueprint plate, then a card
+//! grid, then a ruled break before the destinations. The plate is the page's own
+//! demonstration of its aesthetic -- measured lines and annotations around expressive shapes.
 
-use foliage::{
-    Color, EcsExtension, Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Location,
-    Sprout, Text, Tree, VerticalAlignment,
-};
+use foliage::{Color, Entity, Tree};
 
 use crate::icons::IconHandles;
+use crate::site::cards::CardSpec;
+use crate::site::figure::{Label, Node, PlateSpec};
 use crate::site::{
-    Column, POLY_BUTTON_ROW_H, PolyButton, cutout_badge, poly_button, role, space, type_scale,
+    Column, POLY_BUTTON_ROW_H, PolyButton, SCROLL_TAIL, cards, figure, motion, poly_button, role,
+    space,
 };
 
 const DOCS_HREF: &str = "https://eblack-leaf.github.io/foliage/api/foliage/index.html";
 const BOOK_HREF: &str = "https://eblack-leaf.github.io/foliage/book/";
 const REPO_HREF: &str = "https://github.com/eblack-leaf/foliage";
 
-const CARD_H: i32 = 132;
-const CARD_GAP: i32 = space::MD;
-const BADGE: i32 = 26;
+/// The opener's figure. Nodes are placed where they compose and where their leaders have room
+/// to run, not where a trend line would put them -- this is a drawing, not a plot.
+const PLATE: PlateSpec = PlateSpec {
+    // Both labelled nodes are at a turn in the path, with their label offset into the open
+    // side of that turn -- above the first, below the last. Nothing is placed where the path
+    // has to run through it at either breakpoint.
+    //
+    // The run starts at 0.16 rather than hard left: at `xs` the field is barely 256px, so a
+    // node any further left had its leftmost point sitting on the tick at the "16" row.
+    nodes: &[
+        Node {
+            at: (0.16, 0.66),
+            sides: 6.0,
+            size: 26,
+            label: None,
+        },
+        Node {
+            at: (0.31, 0.34),
+            sides: 8.0,
+            size: 38,
+            label: Some(Label {
+                text: "resolve 0.4ms",
+                offset: (10, -36),
+            }),
+        },
+        Node {
+            at: (0.48, 0.72),
+            sides: 5.0,
+            size: 22,
+            label: None,
+        },
+        Node {
+            at: (0.65, 0.30),
+            sides: 7.0,
+            size: 26,
+            label: None,
+        },
+        Node {
+            at: (0.81, 0.74),
+            sides: 6.0,
+            size: 34,
+            label: Some(Label {
+                text: "reflow xs -> md",
+                offset: (-30, 26),
+            }),
+        },
+        Node {
+            at: (0.94, 0.44),
+            sides: 5.0,
+            size: 22,
+            label: None,
+        },
+    ],
+    scale: &[
+        (0.06, "32"),
+        (0.20, ""),
+        (0.34, "24"),
+        (0.48, ""),
+        (0.62, "16"),
+        (0.76, ""),
+        (0.90, "8"),
+    ],
+    caption: "fig. 01  shape resolve",
+};
+const PLATE_H_XS: i32 = 210;
+const PLATE_H_MD: i32 = 248;
 
-/// Three capability cards, each badged with a cutout shape, then the destination row.
+const CAPABILITIES: [CardSpec; 5] = [
+    CardSpec {
+        title: "a leaf is an entity",
+        body: "Shape, text, position and behaviour are components on it. Changing one is a \
+               write, and the next frame is already different.",
+        icon: IconHandles::Box,
+        sides: 6.0,
+    },
+    CardSpec {
+        title: "layout that resolves",
+        body: "Locations are written per breakpoint and against the stem, not computed once \
+               and pinned.",
+        icon: IconHandles::Grid,
+        sides: 4.0,
+    },
+    CardSpec {
+        title: "motion that belongs",
+        body: "Animations are sequenced, easable, and tied to the lifetime of what they \
+               animate.",
+        icon: IconHandles::Repeat,
+        sides: 7.0,
+    },
+    CardSpec {
+        title: "composites you drive",
+        body: "Buttons, cards, inputs and routers all react to plain component writes.",
+        icon: IconHandles::Layers,
+        sides: 5.0,
+    },
+    CardSpec {
+        title: "one codebase",
+        body: "Native, web and Android from the same source, with an ECS underneath all \
+               three.",
+        icon: IconHandles::Terminal,
+        sides: 8.0,
+    },
+];
+
 pub fn build(tree: &mut Tree, slot: Entity) {
     let container = crate::site::shell::content_area(tree, slot);
     let content = crate::site::shell::measured_column(tree, container, None);
     let mut column = Column::new(tree, content);
 
-    column.heading(tree, "what it gives you");
-    column.prose(
+    column.display(tree, "overview");
+    column.lead(
         tree,
-        "Every value below is a component you write at runtime -- there is no separate \
-         markup pass, and no rebuild step to see a change.",
+        "Everything on screen is a leaf. You branch one under another, and the stem it keeps \
+         to its parent is what its position, its clipping and its lifetime all resolve \
+         against. That tree is the whole model, and the name.",
     );
+    let plate = column.region(tree, (PLATE_H_XS, PLATE_H_MD, PLATE_H_MD), space::LG);
+    figure::plate(tree, plate, &PLATE, column.sequence(), motion::STAGGER * 2);
 
-    let seq = column.sequence();
-    for (i, (title, body, sides)) in [
-        (
-            "layout that resolves",
-            "Locations are expressed per breakpoint and against a parent, not computed once.",
-            6.0,
-        ),
-        (
-            "motion that belongs",
-            "Animations are sequenced, easable, and tied to the entity's own lifetime.",
-            7.0,
-        ),
-        (
-            "composites you can drive",
-            "Buttons, cards, inputs and routers all react to plain component writes.",
-            5.0,
-        ),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let card = card(tree, content, &mut column, title, body);
-        // parented to the full-width scroll container, not the measured column -- the badge
-        // overhangs the card's edge and the column's own box would slice it
-        cutout_badge(
-            tree,
-            container,
-            card,
-            sides,
-            BADGE,
-            seq,
-            i as u64 * crate::site::motion::STAGGER,
-        );
-    }
+    column.heading(tree, "what it gives you");
+    cards::grid(tree, &mut column, &CAPABILITIES);
 
+    column.rule(tree);
     column.heading(tree, "where to go");
     column.prose(
         tree,
-        "The API reference is generated from the source. The book is the long-form \
-         explanation. The examples are runnable.",
+        "The reference is generated from the source and is the exhaustive answer. The book is \
+         the one that explains why. Everything in the repository runs -- every example is a \
+         `cargo run` away.",
     );
     destinations(tree, &mut column);
-}
-
-/// One capability card: a surface with a title and a line of body copy.
-fn card(
-    tree: &mut Tree,
-    parent: Entity,
-    column: &mut Column,
-    title: &str,
-    body: &str,
-) -> Entity {
-    let surface = column.surface(tree, CARD_H, CARD_GAP);
-    tree.branch(
-        surface,
-        Text::new(title)
-            .size(FontSize::new(type_scale::TITLE))
-            .color(role::on_surface())
-            .at(Location::new().xs(
-                space::MD
-                    .px()
-                    .as_left()
-                    .with(100.pct().as_right().adjust(-(BADGE + space::LG))),
-                space::MD.px().as_top().with(24.px().as_height()),
-            ))
-            .elevate(Elevation::up(2))
-            .with((HorizontalAlignment::Left, VerticalAlignment::Middle)),
-    );
-    tree.branch(
-        surface,
-        Text::new(body)
-            .size(FontSize::new(type_scale::BODY))
-            .color(role::on_surface_variant())
-            .at(Location::new().xs(
-                space::MD
-                    .px()
-                    .as_left()
-                    .with(100.pct().as_right().adjust(-space::MD)),
-                (space::MD + 28)
-                    .px()
-                    .as_top()
-                    .with(100.pct().as_bottom().adjust(-space::MD)),
-            ))
-            .elevate(Elevation::up(2))
-            .with((HorizontalAlignment::Left, VerticalAlignment::Top)),
-    );
-    let _ = parent;
-    surface
+    column.tail(tree, SCROLL_TAIL);
 }
 
 /// The row this page exists for -- the same poly buttons the hero uses, so the two pages

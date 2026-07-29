@@ -12,9 +12,7 @@ use foliage::{
 
 use crate::entry::AppRouter;
 use crate::icons::IconHandles;
-use crate::site::{
-    POLY_BUTTON_ROW_H, PolyButton, fade_in, poly_button, role, space, type_scale,
-};
+use crate::site::{POLY_BUTTON_ROW_H, PolyButton, fade_in, poly_button, role, space, type_scale};
 
 const WORDMARK: &str = "foliage.rs";
 /// Where ".rs" starts, so the extension carries the accent while the name stays plain.
@@ -191,10 +189,7 @@ pub fn build(tree: &mut Tree, slot: Entity) {
         Leaf::sprout()
             .at(Location::new()
                 .xs(
-                    0.pct()
-                        .as_left()
-                        .with(100.pct().as_right())
-                        .max(ROW_MAX),
+                    0.pct().as_left().with(100.pct().as_right()).max(ROW_MAX),
                     BUTTONS_TOP_PCT
                         .pct()
                         .as_center_y()
@@ -337,12 +332,12 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
     let bob = tree.sequence();
     tree.animate(
         Animation::new(chevron_at(BOB_PX))
-        .targeting(chevron)
-        .during(bob)
-        .start(AT_HINT + 200)
-        .finish(AT_HINT + 200 + BOB_MS)
-        .eased(Ease::DECELERATE)
-        .forever()
-        .backtrack(),
+            .targeting(chevron)
+            .during(bob)
+            .start(AT_HINT + 200)
+            .finish(AT_HINT + 200 + BOB_MS)
+            .eased(Ease::DECELERATE)
+            .forever()
+            .backtrack(),
     );
 }

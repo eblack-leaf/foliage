@@ -14,8 +14,9 @@ use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderStages, Texture, TextureSampleType,
-    TextureView, TextureViewDimension, VertexState, VertexStepMode, include_wgsl,
+    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderStages, Texture,
+    TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
+    include_wgsl,
 };
 
 pub(crate) struct Resources {

@@ -11,8 +11,8 @@ use foliage::{
 };
 
 use crate::icons::IconHandles;
-use crate::site::shell::rail_host_location;
 use crate::site::role;
+use crate::site::shell::rail_host_location;
 
 /// The drawer's whole state, on the rail host so it survives the rail being rebuilt on every
 /// route change -- exactly when a captured `bool` would reset and leave the drawer open with

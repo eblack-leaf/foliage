@@ -2,7 +2,7 @@ use crate::EcsExtension;
 use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
 use crate::ash::clip::ClipToViewport;
-use crate::{Animate, Attachment, Branch, Foliage, Stem, Tree, Resolve};
+use crate::{Animate, Attachment, Branch, Foliage, Resolve, Stem, Tree};
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;

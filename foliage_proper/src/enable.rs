@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::Trigger;
 use crate::{
-    AnchorDeps, Attachment, Branch, Foliage, InteractionListener, InteractionState, Tree, Resolved,
+    AnchorDeps, Attachment, Branch, Foliage, InteractionListener, InteractionState, Resolved, Tree,
 };
 use bevy_ecs::system::Query;
 

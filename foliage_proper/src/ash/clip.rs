@@ -1,7 +1,7 @@
 use crate::EcsExtension;
 use crate::Trigger;
 use crate::ginkgo::viewport::ViewportHandle;
-use crate::{Branch, Component, Logical, Section, Tree, Resolve, Resolved};
+use crate::{Branch, Component, Logical, Resolve, Resolved, Section, Tree};
 use crate::{Differential, Stem};
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;

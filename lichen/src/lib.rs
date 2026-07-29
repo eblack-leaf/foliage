@@ -1,24 +1,15 @@
-//! Opinionated `Polygon`-based motifs distilled from `application`, the `foliage` repo's
-//! own demo app -- deliberately *not* part of `foliage_proper::composite`, which stays
-//! unopinionated (a `Slider` has no house style; this crate's [`scrollbar`] has exactly
-//! one). Depend on this only if you want this app's specific look; `foliage` alone is the
-//! framework, this is one taste applied to it.
+//! One taste applied to `foliage`, extracted from the repo's own site once the site has
+//! earned it -- deliberately *not* part of `foliage_proper::composite`, which stays
+//! unopinionated (a `Slider` has no house style; anything in here has exactly one). Depend on
+//! this only if you want that specific look; `foliage` alone is the framework.
 //!
-//! Three pieces so far, each usable standalone or together:
-//! - [`shadow_of`] -- an offset, muted `Polygon` copy anchored to a target.
-//! - [`morph_in`] -- fade + step a `Polygon` through triangle -> ... -> its real shape.
-//! - [`scrollbar`] -- a vertical, heptagon-knobbed scrollbar over any `View`.
+//! Currently empty, and intentionally so. The previous contents were distilled from an
+//! earlier iteration of the app that has since been rebuilt from scratch, which left them
+//! describing a look nothing uses -- a house style for a house that was torn down.
 //!
-//! Rough first pass: plain functions, not `Sprout`-based composites with their own
-//! reactive config -- extracted from one real app with each technique only used once or
-//! twice so far, so guessing a config-struct-and-reactivity shape now would be guessing
-//! ahead of real pressure on the API. `ScrollbarStyle` is the one exception, since
-//! `scrollbar` already had several tunable constants worth naming as a group.
-
-mod morph;
-mod scrollbar;
-mod shadow;
-
-pub use morph::morph_in;
-pub use scrollbar::{ScrollbarStyle, scrollbar};
-pub use shadow::{SHADOW_OFFSET_PX, SHADOW_Y_OFFSET_PX, shadow_of};
+//! The refill comes from `application/src/site`, where the patterns are being written against
+//! a real page first: the card, the blueprint plate, the cutout badge, the morph entrance.
+//! Each of those already takes its placement as a `Location` rather than deciding where it
+//! lives, which is the property that makes one movable here at all. They stay in the app
+//! until the polish settles, so that what lands here is a shape proven by use rather than one
+//! guessed at ahead of the second call site.

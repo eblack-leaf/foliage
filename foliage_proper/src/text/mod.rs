@@ -675,7 +675,9 @@ impl FontSize {
     /// The size in force at `layout`, falling back down the breakpoints to `xs`. `short`
     /// wins outright when the viewport is cramped and one was set.
     pub(crate) fn resolve(&self, layout: Layout, short: Short) -> u32 {
-        if short == Short::Yes && let Some(value) = self.short {
+        if short == Short::Yes
+            && let Some(value) = self.short
+        {
             return value;
         }
         match layout {
@@ -697,7 +699,10 @@ impl FontSize {
         let short = *world.get_resource::<Short>().unwrap();
         let comp = world.get::<FontSize>(this).unwrap();
         let resolved = comp.resolve(layout, short);
-        world.commands().entity(this).insert(ResolvedFontSize::new(resolved));
+        world
+            .commands()
+            .entity(this)
+            .insert(ResolvedFontSize::new(resolved));
     }
     /// Overrides the size from the `sm` breakpoint up.
     pub fn sm(mut self, value: u32) -> Self {
@@ -790,7 +795,10 @@ mod tests {
     fn cell(i: i32) -> Location {
         let n = i + 1;
         Location::new().xs(
-            n.col().as_left().adjust(-PAD).with(n.col().as_right().adjust(PAD)),
+            n.col()
+                .as_left()
+                .adjust(-PAD)
+                .with(n.col().as_right().adjust(PAD)),
             1.row().as_top().with(1.row().as_bottom()),
         )
     }
@@ -806,7 +814,10 @@ mod tests {
                     42.0.pct().as_top().with(1.letters().as_height()),
                 ))
                 .elevate(Elevation::up(2))
-                .with((Grid::new(1.letters().gap(GAP), 1.letters()), FontSize::new(size))),
+                .with((
+                    Grid::new(1.letters().gap(GAP), 1.letters()),
+                    FontSize::new(size),
+                )),
         );
         let letters = ['a', 'w', 'g']
             .iter()
@@ -847,14 +858,27 @@ mod tests {
             assert_eq!(got, want, "letter {i}'s section after the grow");
             let got_bounds = *foliage.world.get::<TextBounds>(*grown).unwrap();
             let want_bounds = *reference.world.get::<TextBounds>(*built).unwrap();
-            assert_eq!(got_bounds, want_bounds, "letter {i}'s TextBounds after the grow");
+            assert_eq!(
+                got_bounds, want_bounds,
+                "letter {i}'s TextBounds after the grow"
+            );
             // the fontdue layout itself, not `Glyphs::glyphs` -- that mirror is filled by
             // `resolve_glyphs` in the diff schedule, which `flush()` alone never runs.
             let got_glyph = foliage.world.get::<Glyphs>(*grown).unwrap().layout.glyphs()[0];
-            let want_glyph = reference.world.get::<Glyphs>(*built).unwrap().layout.glyphs()[0];
+            let want_glyph = reference
+                .world
+                .get::<Glyphs>(*built)
+                .unwrap()
+                .layout
+                .glyphs()[0];
             assert_eq!(
                 (got_glyph.x, got_glyph.y, got_glyph.width, got_glyph.height),
-                (want_glyph.x, want_glyph.y, want_glyph.width, want_glyph.height),
+                (
+                    want_glyph.x,
+                    want_glyph.y,
+                    want_glyph.width,
+                    want_glyph.height
+                ),
                 "letter {i}'s glyph placement after the grow"
             );
         }

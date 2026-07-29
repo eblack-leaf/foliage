@@ -15,7 +15,6 @@ pub(crate) mod dropdown;
 pub(crate) mod list;
 #[cfg(feature = "composite-extras")]
 pub(crate) mod pagination;
-#[cfg(feature = "composite-extras")]
 pub(crate) mod polyline;
 #[cfg(feature = "composite-extras")]
 pub(crate) mod popover;

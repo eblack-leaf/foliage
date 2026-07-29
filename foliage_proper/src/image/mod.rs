@@ -1,19 +1,19 @@
 mod pipeline;
 
+use crate::AssetKey;
 use crate::Trigger;
 use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueue;
+use crate::asset::AssetRetrieval;
 use crate::asset::{AssetLoader, OnRetrieval};
 use crate::foliage::DiffMarkers;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Area, Attachment, Component, Foliage, Layout, LeafSprout, Logical, Numerical,
-    ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem, Resolved,
+    Area, Attachment, Component, Foliage, Layout, LeafSprout, Logical, Numerical, Resolved,
+    ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem,
 };
-use crate::AssetKey;
-use crate::asset::AssetRetrieval;
 use crate::{Differential, EcsExtension, Tree, Visibility};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::lifecycle::HookContext;

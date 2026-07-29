@@ -7,12 +7,12 @@ use crate::ginkgo::{Ginkgo, VectorUniform};
 use crate::opacity::BlendedOpacity;
 use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::{FontId, MonospacedFont};
-use std::sync::Arc;
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, VERTICES, Vertex};
 use crate::{CReprColor, CReprSection, Logical, ResolvedElevation, Section, Stem, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
+use std::sync::Arc;
 use wgpu::{
     BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor, RenderPass,
     RenderPipelineDescriptor, ShaderStages, TextureSampleType, TextureViewDimension, VertexState,
@@ -178,8 +178,7 @@ impl Render for Text {
         // after startup, and every font use in this pipeline is at rasterize time -- which
         // is here. Cloning the `Arc`s drops the resource borrow before the queue drains
         // below, which need `&mut World`.
-        let registry: Vec<Arc<fontdue::Font>> =
-            queues.world.resource::<MonospacedFont>().0.clone();
+        let registry: Vec<Arc<fontdue::Font>> = queues.world.resource::<MonospacedFont>().0.clone();
         let mut nodes = Nodes::new();
         // read-attrs
         for entity in queues.removes::<Text>() {
@@ -260,7 +259,10 @@ impl Render for Text {
         for (entity, packet) in queues.attribute::<Text, FontId>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
             let group = &mut renderer.groups.get_mut(id).unwrap().group;
-            group.font = registry.get(packet.0 as usize).or(registry.first()).cloned();
+            group.font = registry
+                .get(packet.0 as usize)
+                .or(registry.first())
+                .cloned();
         }
         for (entity, packet) in queues.attribute::<Text, ResolvedFontSize>() {
             let id = renderer.resources.entity_to_group.get(&entity).unwrap();
@@ -268,10 +270,7 @@ impl Render for Text {
             group.font_size = packet;
             group.texture_atlas.replace(TextureAtlas::new(
                 ginkgo,
-                MonospacedFont::block_of(
-                    group.font.as_ref().unwrap_or(&registry[0]),
-                    packet.value,
-                ),
+                MonospacedFont::block_of(group.font.as_ref().unwrap_or(&registry[0]), packet.value),
                 group.unique_characters.0,
                 wgpu::TextureFormat::R8Unorm,
             ));

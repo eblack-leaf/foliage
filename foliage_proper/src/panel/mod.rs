@@ -7,8 +7,8 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
     Animate, Animation, Attachment, Color, Component, CoordinateUnit, Coordinates, Differential,
-    Foliage, InteractionShape, Logical, Position, ResolvedElevation, Section, Tree, Resolve,
-    Visibility, Resolved,
+    Foliage, InteractionShape, Logical, Position, Resolve, Resolved, ResolvedElevation, Section,
+    Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::lifecycle::HookContext;

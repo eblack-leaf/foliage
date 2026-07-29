@@ -1,7 +1,7 @@
 use crate::site;
 use foliage::{
-    Branch, EcsExtension, Elevation, Entity, Foliage, GridExt,
-    Location, PageChanged, Query, RouteFn, Router, RouterRoutes, Sprout, Tree, Trigger, component,
+    Branch, EcsExtension, Elevation, Entity, Foliage, GridExt, Location, PageChanged, Query,
+    RouteFn, Router, RouterRoutes, Sprout, Tree, Trigger, component,
 };
 
 /// Tags the app's one-and-only `Router`, so anything that needs to find it can query for

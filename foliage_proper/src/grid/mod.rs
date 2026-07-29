@@ -28,9 +28,7 @@ impl Attachment for Grid {
         foliage
             .main
             .add_systems(viewport_changed.in_set(MainMarkers::External));
-        foliage
-            .main
-            .add_systems(coast.in_set(MainMarkers::Process));
+        foliage.main.add_systems(coast.in_set(MainMarkers::Process));
         foliage
             .diff
             .add_systems(extent_check.in_set(DiffMarkers::Prepare));

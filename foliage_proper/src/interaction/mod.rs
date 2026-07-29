@@ -1240,7 +1240,12 @@ mod tests {
         foliage.world.flush();
 
         // flick inside card 0 (y 0..400)
-        send(&mut foliage, InteractionPhase::Start, point(200.0, 50.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(200.0, 50.0),
+            InteractionMethod::Mouse,
+        );
         send(
             &mut foliage,
             InteractionPhase::Moved,
@@ -1248,8 +1253,18 @@ mod tests {
             InteractionMethod::Mouse,
         );
         std::thread::sleep(std::time::Duration::from_millis(5));
-        send(&mut foliage, InteractionPhase::Moved, point(200.0, 140.0), InteractionMethod::Mouse);
-        send(&mut foliage, InteractionPhase::End, point(200.0, 140.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Moved,
+            point(200.0, 140.0),
+            InteractionMethod::Mouse,
+        );
+        send(
+            &mut foliage,
+            InteractionPhase::End,
+            point(200.0, 140.0),
+            InteractionMethod::Mouse,
+        );
         let coasting: Vec<Entity> = [viewport, content, cards[0], cards[1], cards[2]]
             .into_iter()
             .filter(|e| foliage.world.get::<Coasting>(*e).is_some())
@@ -1260,7 +1275,12 @@ mod tests {
         );
 
         // press card 1 (y 400..800) -- a sibling of whatever is coasting
-        send(&mut foliage, InteractionPhase::Start, point(200.0, 500.0), InteractionMethod::Mouse);
+        send(
+            &mut foliage,
+            InteractionPhase::Start,
+            point(200.0, 500.0),
+            InteractionMethod::Mouse,
+        );
 
         for e in coasting {
             assert!(
@@ -1342,8 +1362,10 @@ mod tests {
         );
         // back-dated, same trick `grid::view`'s own coast-decay tests use -- simulates
         // having stood motionless for 3 real seconds without an actual `sleep`.
-        foliage.world.resource_mut::<CurrentInteraction>().last_drag_time =
-            Some(Moment::now() - crate::TimeDelta::from_secs(3));
+        foliage
+            .world
+            .resource_mut::<CurrentInteraction>()
+            .last_drag_time = Some(Moment::now() - crate::TimeDelta::from_secs(3));
         send(
             &mut foliage,
             InteractionPhase::End,
@@ -1393,8 +1415,10 @@ mod tests {
         );
         // just past `ScrollMomentum::default().stillness_cutoff_ms` (150ms) -- nowhere
         // near the multi-second holds the other tests use.
-        foliage.world.resource_mut::<CurrentInteraction>().last_drag_time =
-            Some(Moment::now() - crate::TimeDelta::from_millis(200));
+        foliage
+            .world
+            .resource_mut::<CurrentInteraction>()
+            .last_drag_time = Some(Moment::now() - crate::TimeDelta::from_millis(200));
         send(
             &mut foliage,
             InteractionPhase::End,

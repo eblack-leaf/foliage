@@ -32,6 +32,16 @@ impl Polyline {
 
 /// Polyline's content: the vertex chain, rewritten as one unit like `ListItems` --
 /// `tree.write_to(polyline, PolylinePoints(vec![..]))` re-derives every segment and joint.
+///
+/// TODO: points are local px only, so a polyline in a percentage-width box does not stretch
+/// with it -- every responsive caller ends up running the same system, reading the resolved
+/// `Section` back and rewriting the whole chain on resize (`application`'s `drive_traverses`
+/// is exactly this). A fraction-of-the-box vertex would make that the composite's problem
+/// instead of every author's. The obvious shape is a per-point unit -- `Position` of px vs. a
+/// normalized pair -- resolved in `build` against the polyline's own `Section`, which already
+/// has to be read there. The open question is `PolylineDroppedPoints`' sliding window: a
+/// window that evicts from the front is authored in real units, so mixed chains need to say
+/// what a fraction means when the box has not resolved yet.
 #[derive(Component, Clone, Default)]
 pub struct PolylinePoints(pub Vec<Position<Logical>>);
 
@@ -76,7 +86,7 @@ pub struct PolylineStyle {
 impl Default for PolylineStyle {
     fn default() -> Self {
         Self {
-            weight: 3,
+            weight: crate::MIN_LINE_WEIGHT,
             color: Color::default(),
             dash: None,
         }
@@ -126,11 +136,12 @@ impl PolylineSprout {
         self.points = Some(PolylinePoints(points.into_iter().map(Into::into).collect()));
         self
     }
-    /// Clamped to >= 3: below that, the joint's rounded-to-a-whole-px diameter (see
-    /// `PolylineSprout::build`) can't track `Line`'s perceived width closely enough to look
-    /// clean at a bend -- same reasoning as `Polygon::sides`' own floor.
+    /// Clamped to [`MIN_LINE_WEIGHT`]: below that, the joint's rounded-to-a-whole-px diameter
+    /// (see `PolylineSprout::build`) can't track `Line`'s perceived width closely enough to
+    /// look clean at a bend -- and the segments themselves have their own reason for the same
+    /// floor, which is why they share the constant rather than each carrying a `3`.
     pub fn weight(mut self, w: i32) -> Self {
-        self.style.weight = w.max(3);
+        self.style.weight = w.max(crate::MIN_LINE_WEIGHT);
         self
     }
     pub fn color(mut self, c: Color) -> Self {
