@@ -32,9 +32,10 @@ const WORDMARK_MD: u32 = 76;
 /// `short` is a single size with no width steps under it -- it wins over the whole `xs`/`md`
 /// chain -- so this one number has to survive the narrowest window that is also short. The
 /// wordmark gets `SHORT_TEXT_RIGHT_PCT` of the width there, and ten monospace characters run
-/// about 6x the font size, so 26 needs ~156px of column: comfortable down to a 300px-wide
-/// window. At 30 it clipped its own last character on anything under ~350.
-const WORDMARK_SHORT: u32 = 26;
+/// about 6x the font size, so 22 needs ~132px of column -- which a 260px-wide window still
+/// has. Short *and* `xs` is the case that sets this: at 30 the name lost its last character
+/// on anything under ~350px, and 26 only moved that to ~300.
+const WORDMARK_SHORT: u32 = 22;
 
 const TAGLINE: &str = "cross-platform UI in Rust";
 
@@ -62,6 +63,10 @@ const SHORT_BUTTONS_LEFT_PCT: f32 = 52.0;
 const SHORT_BUTTONS_TOP_PCT: f32 = 46.0;
 
 const ROW_H: i32 = 16;
+/// One step down from `LABEL`, not two. 39 characters at ~0.6em each is ~281px at 12 and
+/// ~257px at 11 -- enough to keep the line on one row on a narrow window without it reading as
+/// a different, smaller thing than it is everywhere else.
+const HUD_SHORT: u32 = 11;
 
 /// The readings. Every one changes when the window does, which is the only reason there are
 /// three and not six: an `entities` count that never moves on a static page and a `renderer`
@@ -427,7 +432,11 @@ fn readout(tree: &mut Tree, hero: Entity, wordmark: Entity, seq: Entity) {
         // writes both. `glyph_colors` on the builder fixes a map at spawn, which cannot express
         // a highlight that moves.
         Text::new(hud_line(0.0, 0.0, 0.0))
-            .size(FontSize::new(type_scale::LABEL))
+            // The line is a fixed 39 characters, so its width is purely a function of the
+            // size: at `LABEL` that is ~280px, which is wider than a short *and* narrow
+            // window has to give. It is the one element here that cannot wrap or truncate
+            // gracefully -- the breakpoint scale only means anything whole.
+            .size(FontSize::new(type_scale::LABEL).short(HUD_SHORT))
             .color(role::on_surface_variant())
             // On `short` it goes to the very top of the screen instead of above the wordmark.
             // Landscape puts the wordmark in the left column and the buttons in the right, and
@@ -438,7 +447,7 @@ fn readout(tree: &mut Tree, hero: Entity, wordmark: Entity, seq: Entity) {
                 .xs(0.pct().as_left().with(100.pct().as_right()), above)
                 .short(
                     0.pct().as_left().with(100.pct().as_right()),
-                    space::SM.px().as_top().with(ROW_H.px().as_height()),
+                    space::XL.px().as_top().with(ROW_H.px().as_height()),
                 ))
             .elevate(Elevation::up(3))
             .with((

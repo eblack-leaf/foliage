@@ -549,7 +549,7 @@ pub(crate) fn interactive_elements(
                         let speed = current.velocity.left().hypot(current.velocity.top());
                         if speed > momentum.velocity_threshold {
                             tree.entity(target).insert(Coasting {
-                                velocity: current.velocity,
+                                velocity: current.velocity * momentum.launch,
                                 last_tick: Moment::now(),
                             });
                         }
