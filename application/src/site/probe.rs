@@ -80,6 +80,7 @@ pub(crate) fn build(tree: &mut Tree) {
 }
 
 fn drive(
+    time: Res<foliage::Time>,
     current: Res<CurrentInteraction>,
     scrollers: Query<&View, foliage::With<Scroller>>,
     mut probes: Query<(Entity, &mut Probe)>,
@@ -105,9 +106,15 @@ fn drive(
         }
         probe.last = Some(offset);
 
+        // frame time here rather than inferred from peak/v: the hero's own readout is on a
+        // route with nothing to scroll, so it can never be on screen while this is happening
         let line = format!(
-            "v {:>6.2}/ms   now {:>6.1}   peak {:>6.1}   off {:>6.0}",
-            probe.release, probe.per_tick, probe.peak, offset
+            "v {:>5.2}  now {:>6.1}  peak {:>6.1}  {:>4.1}ms  off {:>5.0}",
+            probe.release,
+            probe.per_tick,
+            probe.peak,
+            time.frame_diff().as_secs_f32() * 1000.0,
+            offset
         );
         if probe.shown.as_deref() == Some(line.as_str()) {
             continue;
