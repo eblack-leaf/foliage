@@ -8,7 +8,7 @@
 //! router it would scroll away with the content it is measuring.
 
 use foliage::{
-    Color, CurrentInteraction, EcsExtension, Elevation, Entity, FontSize, GridExt,
+    Color, CurrentInteraction, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
     HorizontalAlignment, Location, Panel, Query, Res, Rounding, Sprout, Text, Tree,
     VerticalAlignment, View, component,
 };
@@ -52,7 +52,8 @@ pub(crate) fn build(tree: &mut Tree) {
                 0.pct().as_left().with(100.pct().as_right()),
                 100.pct().as_bottom().with(H.px().as_height()),
             ))
-            .elevate(Elevation::up(9)),
+            .elevate(Elevation::up(9))
+            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
     );
     tree.branch(
         backing,
