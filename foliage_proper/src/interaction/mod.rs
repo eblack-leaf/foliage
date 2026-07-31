@@ -132,6 +132,11 @@ impl CurrentInteraction {
     pub fn click(&self) -> Click {
         self.click
     }
+    /// The current drag's smoothed px/ms rate -- the same value a release hands off as a
+    /// coast's starting velocity.
+    pub fn velocity(&self) -> Position<Logical> {
+        self.velocity
+    }
 }
 /// A press and release on the same entity, without exceeding
 /// [`DRAG_THRESHOLD`](InteractionListener::DRAG_THRESHOLD). A gesture that became a drag
@@ -549,7 +554,7 @@ pub(crate) fn interactive_elements(
                         let speed = current.velocity.left().hypot(current.velocity.top());
                         if speed > momentum.velocity_threshold {
                             tree.entity(target).insert(Coasting {
-                                velocity: current.velocity * momentum.launch,
+                                velocity: current.velocity,
                                 last_tick: Moment::now(),
                             });
                         }

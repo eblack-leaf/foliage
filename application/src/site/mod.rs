@@ -11,6 +11,7 @@ pub(crate) mod drawer;
 pub(crate) mod figure;
 pub(crate) mod hero;
 pub(crate) mod overview;
+pub(crate) mod probe;
 pub(crate) mod rail;
 pub(crate) mod shell;
 pub(crate) mod stub;

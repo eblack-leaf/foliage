@@ -33,7 +33,10 @@ pub(crate) fn content_area(tree: &mut Tree, parent: Entity) -> Entity {
                 0.px().as_top().with(100.pct().as_bottom()),
             ))
             .elevate(Elevation::up(1))
-            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+            .with((
+                Grid::new(1.col().gap(0), 1.row().gap(0)),
+                crate::site::probe::Scroller,
+            )),
     )
 }
 

@@ -128,10 +128,7 @@ fn hud_colors(layout: Layout, short: Short) -> GlyphColors {
             },
         );
     for (i, span) in AT_BREAKPOINT.iter().enumerate() {
-        colors = colors.add(
-            span.clone(),
-            if i == step { breakpoint } else { unlit },
-        );
+        colors = colors.add(span.clone(), if i == step { breakpoint } else { unlit });
     }
     colors
 }

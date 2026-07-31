@@ -114,9 +114,6 @@ pub struct ScrollMomentum {
     /// px/ms magnitude of release velocity below which a drag just stops -- reads as "the
     /// last motion before lifting off was already slow/settled", not a flick.
     pub velocity_threshold: f32,
-    /// Multiplier applied to the release velocity when a coast starts. The only knob that
-    /// changes how fast a coast begins; `decay` and `stop_epsilon` govern how it ends.
-    pub launch: f32,
     /// Fraction of velocity retained per elapsed ms while *actively coasting* (exponential
     /// decay, applied as `decay.powf(elapsed_ms)` each tick so it's frame-rate independent).
     pub decay: f32,
@@ -136,7 +133,6 @@ impl Default for ScrollMomentum {
     fn default() -> Self {
         Self {
             velocity_threshold: 0.15,
-            launch: 2.0,
             decay: 0.998,
             stop_epsilon: 0.02,
             stillness_cutoff_ms: 150.0,

@@ -42,6 +42,7 @@ pub fn build(foliage: &mut Foliage) {
     // Sized to the rail's own footprint, never the whole screen -- a full-screen host sat on
     // top of the content, and `Leaf` grabs interaction by default, so every click died in
     // it. Off-canvas on `xs` until the drawer brings it in.
+    site::probe::build(&mut foliage.world.commands());
     let host = site::drawer::host(&mut foliage.world.commands());
     let controls = site::drawer::build(&mut foliage.world.commands(), host);
     // nothing on the hero route -- the rail, and the button that opens it, appear once you

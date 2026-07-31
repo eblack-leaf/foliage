@@ -21,6 +21,7 @@ pub fn run(mut foliage: Foliage) {
     site::register_fonts(&mut foliage);
     site::figure::attach(&mut foliage);
     site::hero::attach(&mut foliage);
+    site::probe::attach(&mut foliage);
     entry::build(&mut foliage);
     foliage.photosynthesize();
 }
