@@ -273,7 +273,7 @@ impl Text {
         horizontal_alignment: Query<&HorizontalAlignment>,
         vertical_alignment: Query<&VerticalAlignment>,
         sections: Query<&mut Section<Logical>>,
-        cache: Query<&mut UpdateCache>,
+        mut cache: Query<&mut UpdateCache>,
         font: Res<MonospacedFont>,
         font_ids: Query<&FontId>,
         scale_factor: Res<ScaleFactor>,
@@ -284,71 +284,83 @@ impl Text {
     ) {
         let this = trigger.event_target();
         let font_id = font_ids.get(this).copied().unwrap_or_default();
+        let font_size = ResolvedFontSize::new(
+            (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
+        );
+        let section = sections
+            .get(this)
+            .unwrap()
+            .to_physical(scale_factor.value());
+        let horizontal = *horizontal_alignment.get(this).unwrap();
+        let vertical = *vertical_alignment.get(this).unwrap();
+        let text = texts.get(this).unwrap();
+        // Compared against the cache field by field rather than by building a whole
+        // `UpdateCache` up front: doing that clones the string on every call, and a scroll
+        // calls this once per text entity per frame purely because the box moved.
+        //
+        // `content_changed` is the distinction consumers that care about "the text *value*
+        // changed, glyphs are freshly laid out" (like `TextInput`'s scroll-into-view) need
+        // -- `Resolved<Text>` fires for a pure move too and can't make it.
+        let cached = cache.get(this).unwrap();
+        let content_changed = cached.text.value != text.value;
+        // Only the inputs fontdue actually consumes. A pure position shift (a parent's
+        // scroll offset moving this box, width and height untouched) changes where the
+        // glyphs are drawn, not how they are laid out. The distinction has to hold:
+        // relayout marks `Glyphs` changed even when it recomputes an identical layout,
+        // and `TextInput::resync_on_glyphs_changed` answers that with another `Section`
+        // write -- so relaying out on position would spin that loop every frame it
+        // scrolls, with nothing to converge on.
+        let layout_dirty = cached.font_size != font_size
+            || content_changed
+            || cached.horizontal_alignment != horizontal
+            || cached.vertical_alignment != vertical
+            || cached.section.width() != section.width()
+            || cached.section.height() != section.height();
+        let moved = cached.section.position != section.position;
+        if !layout_dirty && !moved {
+            return;
+        }
+        // A move alone: the glyphs keep their relative places, so the only things that
+        // change are where the run is drawn and where it is scissored. Everything below --
+        // the character-set count, the line metrics, the auto-size measure -- is a function
+        // of the string, the font size and the box's *extent*, none of which a move touches.
+        // This is the whole of a scrolling frame's text work.
+        if !layout_dirty {
+            cache.get_mut(this).unwrap().section = section;
+            tree.entity(this).insert(TextBounds(section));
+            tree.trigger_targets(Resolved::<Text>::new(), this);
+            return;
+        }
         let mut current = UpdateCache {
-            font_size: ResolvedFontSize::new(
-                (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
-            ),
-            text: texts.get(this).unwrap().clone(),
-            section: sections
-                .get(this)
-                .unwrap()
-                .to_physical(scale_factor.value()),
-            horizontal_alignment: *horizontal_alignment.get(this).unwrap(),
-            vertical_alignment: *vertical_alignment.get(this).unwrap(),
+            font_size,
+            text: text.clone(),
+            section,
+            horizontal_alignment: horizontal,
+            vertical_alignment: vertical,
         };
-        // Captured before the cache comparison/overwrite below -- `UpdateCache` also
-        // changes on a pure `Section` shift (e.g. the entity repositioning as a side
-        // effect of a parent's scroll offset), not just a genuine content edit. Consumers
-        // that care specifically about "the text *value* changed, glyphs are freshly
-        // laid out" (like `TextInput`'s scroll-into-view) need that distinction --
-        // `Resolved<Text>` below fires for both cases and can't make it.
-        let content_changed = cache.get(this).unwrap().text.value != current.text.value;
-        if cache.get(this).unwrap() != &current {
-            let old = cache.get(this).unwrap().clone();
-            // Only the inputs fontdue actually consumes; a pure position shift (a parent's
-            // scroll offset moving this box, width and height untouched) changes where the
-            // glyphs are drawn, not how they are laid out. The distinction has to hold:
-            // relayout marks `Glyphs` changed even when it recomputes an identical layout,
-            // and `TextInput::resync_on_glyphs_changed` answers that with another `Section`
-            // write -- so relaying out on position would spin that loop every frame it
-            // scrolls, with nothing to converge on.
-            let layout_dirty = old.font_size != current.font_size
-                || old.text != current.text
-                || old.horizontal_alignment != current.horizontal_alignment
-                || old.vertical_alignment != current.vertical_alignment
-                || old.section.width() != current.section.width()
-                || old.section.height() != current.section.height();
+        {
             let mut glyphs = glyph_query.get_mut(this).unwrap();
             let auto_width = auto_widths.get(this).unwrap();
             let auto_height = auto_heights.get(this).unwrap();
-            if layout_dirty {
-                let relayout_start = web_time::Instant::now();
-                glyphs.layout.reset(&fontdue::layout::LayoutSettings {
-                    horizontal_align: current.horizontal_alignment.into(),
-                    vertical_align: current.vertical_alignment.into(),
-                    max_width: if auto_width.0 {
-                        None
-                    } else {
-                        Some(current.section.width())
-                    },
-                    max_height: Some(current.section.height()),
-                    ..fontdue::layout::LayoutSettings::default()
-                });
-                glyphs.layout.append(
-                    &[font.get(font_id).as_ref()],
-                    &fontdue::layout::TextStyle::new(
-                        current.text.value.as_str(),
-                        current.font_size.value as f32,
-                        0,
-                    ),
-                );
-                tracing::trace!(
-                    entity = ?this,
-                    text_len = current.text.value.len(),
-                    elapsed = ?relayout_start.elapsed(),
-                    "text: fontdue relayout"
-                );
-            }
+            glyphs.layout.reset(&fontdue::layout::LayoutSettings {
+                horizontal_align: current.horizontal_alignment.into(),
+                vertical_align: current.vertical_alignment.into(),
+                max_width: if auto_width.0 {
+                    None
+                } else {
+                    Some(current.section.width())
+                },
+                max_height: Some(current.section.height()),
+                ..fontdue::layout::LayoutSettings::default()
+            });
+            glyphs.layout.append(
+                &[font.get(font_id).as_ref()],
+                &fontdue::layout::TextStyle::new(
+                    current.text.value.as_str(),
+                    current.font_size.value as f32,
+                    0,
+                ),
+            );
             let dims = font.character_block(font_id, current.font_size.value);
             let adjusted = if auto_height.0 {
                 Some(
@@ -416,8 +428,11 @@ impl Text {
             tree.entity(this)
                 .insert(UniqueCharacters::count(&current.text))
                 .insert(TextBounds(current.section))
-                .insert(line_metrics)
-                .insert(current.clone());
+                .insert(line_metrics);
+            // Written in place rather than inserted: nothing observes `UpdateCache`, it is
+            // this function's own record of what the last layout was computed from, and an
+            // insert would clone the string a second time.
+            *cache.get_mut(this).unwrap() = current;
             if let Some(adjusted) = adjusted {
                 if insert_adjusted {
                     // `adjusted` came from this entity's own `Section`, so it is screen

@@ -531,7 +531,6 @@ pub(crate) fn extent_check(
         }
     }
     for entity in to_trigger.difference(&in_chain) {
-        tracing::trace!(entity = ?entity, "grid::view: queueing subtree offset propagation");
         scrolled.0.insert(*entity);
     }
     // a real `Insert`, not a `Query`-mutation -- `tree.react::<ScrollProgress, _>(..)`
