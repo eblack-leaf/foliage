@@ -17,8 +17,8 @@ use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::{FontId, MonospacedFont};
 use crate::{
-    Attachment, Layout, Location, Physical, Resolve, Resolved, ResolvedElevation,
-    ResolvedVisibility, Short, Tree, Visibility,
+    Attachment, Layout, LayoutSection, Location, Physical, Resolve, Resolved, ResolvedElevation,
+    ResolvedVisibility, Short, Stem, Tree, View, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -279,6 +279,8 @@ impl Text {
         scale_factor: Res<ScaleFactor>,
         auto_heights: Query<&TextContentHeight>,
         auto_widths: Query<&TextContentWidth>,
+        stems: Query<&Stem>,
+        views: Query<&View>,
     ) {
         let this = trigger.event_target();
         let font_id = font_ids.get(this).copied().unwrap_or_default();
@@ -418,7 +420,27 @@ impl Text {
                 .insert(current.clone());
             if let Some(adjusted) = adjusted {
                 if insert_adjusted {
-                    tree.entity(this).insert(adjusted);
+                    // `adjusted` came from this entity's own `Section`, so it is screen
+                    // space. Writing only that would leave `LayoutSection` holding the
+                    // pre-glyph size -- which is both what children resolve against and
+                    // what carries the re-resolve cascade, so the caret and highlight
+                    // panels inside a text input would keep laying out against a box the
+                    // text has already outgrown. State the same box in both spaces.
+                    let accumulated = stems
+                        .get(this)
+                        .ok()
+                        .and_then(|s| s.id)
+                        .and_then(|p| views.get(p).ok().map(|v| v.accumulated_offset))
+                        .unwrap_or_default();
+                    let mut in_layout_space = adjusted;
+                    in_layout_space.position += accumulated;
+                    // `Section` first: `LayoutSection`'s insert is what re-resolves whatever
+                    // is anchored to this box, and an anchor value is read out of the
+                    // target's `Section`. Inserted the other way round, a dependent resolves
+                    // against the box this adjustment is in the middle of replacing.
+                    tree.entity(this)
+                        .insert(adjusted)
+                        .insert(LayoutSection(in_layout_space));
                 }
             }
             tree.trigger_targets(Resolved::<Text>::new(), this);
@@ -781,6 +803,7 @@ mod tests {
     use super::*;
     use crate::grid::Grid;
     use crate::grid::location::GridExt;
+
     use crate::{EcsExtension, Elevation, Foliage, Leaf, Sprout};
 
     // Mirrors `application/src/chapters/text.rs` exactly: a `.letters()`-sized `Grid`

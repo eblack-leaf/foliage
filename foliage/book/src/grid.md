@@ -126,23 +126,34 @@ non-obvious at a glance) -- `Column`/`Row`/`Letters`/`TextContent` have no numer
 scaling could mean anything for, and hit a loud `debug_assert!` instead of silently
 no-op'ing if multiplied.
 
-## `View`: the scroll/pan state a `Location` resolves *through*
+## `View`: the scroll/pan state that moves a subtree on screen
 
 ```rust
 // foliage_proper/src/grid/view.rs
 #[derive(Component, Copy, Clone, Debug)]
 #[require(ViewAdjustment, OverscrollPropagation, ScrollInertia, ScrollProgress)]
 pub struct View {
-    offset: Position<Logical>, // pub(crate) -- only `extent_check`'s own clamp writes it
-    extent: Section<Logical>,  // read externally via `.offset()`/`.extent()`
+    offset: Position<Logical>,  // pub(crate) -- only `extent_check`'s own clamp writes it
+    extent: Section<Logical>,   // read externally via `.offset()`/`.extent()`
+    accumulated_offset: Position<Logical>, // this offset plus every ancestor view's
 }
 ```
 
-`View` (required by `Grid`, so every `Grid`-carrying entity has one whether or not it
-ever actually scrolls) is what `resolution.section.position -= view.offset` in
-`grid/location.rs` subtracts from *every* resolved child underneath it -- this is why an
-entity meant to stay visually fixed (chrome, a scrollbar) can't be spawned as a structural
-child of something that scrolls: it would get panned right along with the content.
+`View` (required by `Grid`, so every `Grid`-carrying entity has one whether or not it ever
+actually scrolls) is what moves everything underneath it: each child's on-screen
+`Section<Logical>` is its `LayoutSection` minus the parent's `accumulated_offset`. This is
+why an entity meant to stay visually fixed (chrome, a scrollbar) can't be spawned as a
+structural child of something that scrolls -- it would get panned right along with the
+content.
+
+The two coordinates are deliberately separate components. `LayoutSection` is where the
+layout put a box; `Section<Logical>` is where it currently appears. A write to the first
+means children have to resolve again (that cascade lives on its insert hook); a write to
+the second means only that the box moved on screen, which is what the clip chain, the text
+scissor and hit-testing listen for. A scroll is purely the second kind of change, so
+`propagate_offsets` walks the moved view's subtree and rewrites `Section`s directly instead
+of re-entering the layout solver. Reading exact on-screen geometry is unaffected: `Section`
+is still the answer, still exact, still written before anything renders that frame.
 `.offset()` is the current pan in px; `.extent()` is the union of the entity's own
 `Section` with every `Stem`-descendant's live (offset-adjusted) bounds -- effectively "how
 big the scrollable content actually is," recomputed by `extent_check`

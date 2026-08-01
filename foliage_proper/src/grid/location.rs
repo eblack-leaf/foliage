@@ -10,15 +10,15 @@ use crate::text::monospaced::FontContext;
 use crate::visibility::AutoVisibility;
 use crate::{
     Animate, AspectRatio, Attachment, Component, CoordinateUnit, Coordinates, Foliage,
-    Grid, Layout, Line, Logical, Points, ResolvedVisibility, Section, Stem, Tree, Resolve, View,
-    Visibility, Resolved,
+    Grid, Layout, LayoutSection, Line, Logical, Points, Position, ResolvedVisibility, Section,
+    Stem, Tree, Resolve, View, Visibility, Resolved,
 };
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
-use bevy_ecs::prelude::Query;
+use bevy_ecs::prelude::{ParamSet, Query};
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
 use std::ops::Mul;
@@ -251,7 +251,8 @@ impl Location {
         short: Res<Short>,
         locations: Query<(&Location, Option<&SpawnedAt>)>,
         sections: Query<&Section<Logical>>,
-        grids: Query<(&Grid, &View)>,
+        layout_sections: Query<&LayoutSection>,
+        mut grids: ParamSet<(Query<(&Grid, &View)>, Query<&mut View>)>,
         stems: Query<&Stem>,
         stacks: Query<&Anchor>,
         visibilities: Query<(&ResolvedVisibility, &AutoVisibility)>,
@@ -263,6 +264,21 @@ impl Location {
         fonts: FontContext,
     ) {
         let this = trigger.event_target();
+        // Ahead of everything else, and deliberately not inside the `unset` guard below: an
+        // entity that never resolves a `Location` of its own still sits in the middle of the
+        // view chain, and its children read their accumulated offset off it. Skipping it
+        // here would hand a whole subtree a zero offset -- placing it as though nothing
+        // above it were scrolled at all. A non-panicking lookup, since an entity with no
+        // layout of its own is under no obligation to have a `Grid`-carrying parent.
+        let inherited = stems
+            .get(this)
+            .ok()
+            .and_then(|s| s.id)
+            .and_then(|p| grids.p0().get(p).ok().map(|(_, v)| v.accumulated_offset))
+            .unwrap_or_default();
+        if let Ok(mut view) = grids.p1().get_mut(this) {
+            view.accumulated_offset = inherited + view.offset;
+        }
         if let Ok((location, spawned_at)) = locations.get(this) {
             if location.unset() {
                 // never configured -- not a positional element (a coordinator root, say);
@@ -273,8 +289,11 @@ impl Location {
             let (_, auto_vis) = visibilities.get(this).unwrap();
             tracing::trace!(entity = ?this, visible = auto_vis.visible, "location: resolve start");
             let stem = stems.get(this).unwrap();
-            let (grid, view, context, stem_letters) = if let Some(id) = stem.id {
-                let val = grids.get(id).unwrap_or_else(|_| {
+            // `accumulated` is what this entity subtracts to go from layout space to screen
+            // space: every scroll offset between it and the root, which is exactly what its
+            // parent's `View` already carries for its children.
+            let (grid, accumulated, context, stem_letters) = if let Some(id) = stem.id {
+                let val = grids.p0().get(id).map(|(g, v)| (*g, *v)).unwrap_or_else(|_| {
                     // The entity ids alone are unusable from an app -- point at the
                     // `branch`/`leaf` call that spawned the child instead, since that call
                     // names the very parent that needs the `Grid`.
@@ -291,15 +310,22 @@ impl Location {
                         parent {id:?})"
                     )
                 });
-                let context = sections.get(id).unwrap();
+                // layout space on both sides: a child is placed relative to where the layout
+                // put its parent, not to where a scroll currently shows it
+                let context = layout_sections.get(id).unwrap().0;
                 // the stem's own font/size -- `.letters()` measures against the cell the
                 // parent lays out in
                 let stem_letter_dims = fonts.character_block(id, *layout).unwrap_or_default();
-                (val.0.config(*layout), *val.1, *context, stem_letter_dims)
+                (
+                    val.0.config(*layout),
+                    val.1.accumulated_offset,
+                    context,
+                    stem_letter_dims,
+                )
             } else {
                 (
                     Grid::default().config(*layout),
-                    View::default(),
+                    Position::default(),
                     viewport.section(),
                     Coordinates::default(),
                 )
@@ -309,7 +335,15 @@ impl Location {
             if let Ok(s) = stacks.get(this) {
                 if let Some(id) = s.id {
                     if visibilities.get(id).unwrap().0.visible() {
-                        stack.replace(*sections.get(id).unwrap());
+                        // An anchor target is read in screen space, since it can sit
+                        // anywhere in the tree -- under a different view, or under none.
+                        // Adding back what this entity subtracts states the target in *this*
+                        // entity's own layout space, which is the only space the resolve
+                        // below works in. Two entities in the same view cancel out exactly;
+                        // across a scroll boundary this is the real distance between them.
+                        let mut target = *sections.get(id).unwrap();
+                        target.position += accumulated;
+                        stack.replace(target);
                     } else {
                         tracing::trace!(entity = ?this, target = ?id, "location: anchor target not visible, ignoring");
                     }
@@ -317,14 +351,13 @@ impl Location {
                     tracing::trace!(entity = ?this, "location: has Anchor with no target");
                 }
             };
-            let current = *sections.get(this).unwrap();
+            let current = layout_sections.get(this).unwrap().0;
             let letter_dims = fonts.character_block(this, *layout).unwrap_or_default();
             if let Some(mut resolution) = resolve(
                 *layout,
                 *short,
                 location,
                 grid,
-                view,
                 context,
                 stack,
                 current,
@@ -354,15 +387,24 @@ impl Location {
                     };
                     let anim_diff = diff * location.animation_percent;
                     resolution.section += anim_diff;
+                    let mut screen = resolution.section;
+                    screen.position -= accumulated;
                     tracing::trace!(
                         entity = ?this,
-                        view_offset = ?view.offset,
+                        accumulated = ?accumulated,
                         context = ?context,
                         resolved_section = ?resolution.section,
+                        screen_section = ?screen,
                         "location: resolved section"
                     );
+                    // `LayoutSection` last: its insert is what re-resolves this entity's
+                    // children and everything anchored to it, and both read values that the
+                    // other two inserts carry -- a child reads this `LayoutSection` as its
+                    // context, an anchored entity reads this `Section`. Cascading before
+                    // either has landed resolves them against the previous box.
                     tree.entity(this).insert(resolution);
-                    tree.entity(this).insert(resolution.section);
+                    tree.entity(this).insert(screen);
+                    tree.entity(this).insert(LayoutSection(resolution.section));
                 } else {
                     // points
                     let diff = if cd.0 {
@@ -390,10 +432,17 @@ impl Location {
                         bbox.set_height(h);
                     }
                     resolution.section = bbox;
+                    let mut screen = resolution.section;
+                    screen.position -= accumulated;
+                    let mut screen_points = resolution.points;
+                    for pt in screen_points.data.iter_mut() {
+                        *pt -= accumulated;
+                    }
                     tree.entity(this)
                         .insert(resolution)
-                        .insert(resolution.points)
-                        .insert(resolution.section);
+                        .insert(screen_points)
+                        .insert(screen)
+                        .insert(LayoutSection(resolution.section));
                 }
             } else if auto_vis.visible {
                 tracing::trace!(entity = ?this, "location: resolve failed, auto-disabling");
@@ -403,12 +452,14 @@ impl Location {
         }
     }
 }
+/// Resolves a `Location` entirely in layout space -- no scroll offset appears anywhere in
+/// here. What an ancestor's scroll does to the result is a translation applied afterwards,
+/// by the one caller that knows the accumulated total.
 fn resolve(
     layout: Layout,
     short: Short,
     location: &Location,
     grid: GridConfiguration,
-    view: View,
     context: Section<Logical>,
     stack: Option<Section<Logical>>,
     current: Section<Logical>,
@@ -425,7 +476,6 @@ fn resolve(
             stack,
             current,
             letter_dims,
-            view,
             stem_letters,
         )?;
         let b = calc(
@@ -435,7 +485,6 @@ fn resolve(
             stack,
             current,
             letter_dims,
-            view,
             stem_letters,
         )?;
         let (pair, data) = if config.horizontal.a.designator > config.horizontal.b.designator {
@@ -467,51 +516,32 @@ fn resolve(
         };
         match pair {
             (Designator::X, Designator::Y) => {
-                resolution.points.set_a((
-                    data.0 + view.offset.left() * f32::from(data.1),
-                    data.2 + view.offset.top() * f32::from(data.3),
-                ));
+                resolution.points.set_a((data.0, data.2));
                 resolution.from_points = true;
             }
             (Designator::Left, Designator::Width) => {
-                resolution
-                    .section
-                    .position
-                    .set_left(data.0 + view.offset.left() * f32::from(data.1));
+                resolution.section.position.set_left(data.0);
                 resolution.section.area.set_width(data.2);
             }
             (Designator::Left, Designator::Right) => {
-                resolution
-                    .section
-                    .position
-                    .set_left(data.0 + view.offset.left() * f32::from(data.1));
+                resolution.section.position.set_left(data.0);
                 resolution.section.area.set_width(data.2 - data.0);
             }
             (Designator::Left, Designator::CenterX) => {
-                resolution
-                    .section
-                    .position
-                    .set_left(data.0 + view.offset.left() * f32::from(data.1));
+                resolution.section.position.set_left(data.0);
                 resolution.section.area.set_width((data.2 - data.0) * 2.0);
             }
             (Designator::Width, Designator::Right) => {
-                resolution
-                    .section
-                    .set_left(data.2 - data.0 + view.offset.left() * f32::from(data.3));
+                resolution.section.set_left(data.2 - data.0);
                 resolution.section.set_width(data.0);
             }
             (Designator::Width, Designator::CenterX) => {
-                let left = data.2 - data.0 / 2.0;
-                resolution
-                    .section
-                    .set_left(left + view.offset.left() * f32::from(data.3));
+                resolution.section.set_left(data.2 - data.0 / 2.0);
                 resolution.section.set_width(data.0);
             }
             (Designator::Right, Designator::CenterX) => {
                 let diff = data.0 - data.2;
-                resolution
-                    .section
-                    .set_left(data.2 - diff + view.offset.left() * f32::from(data.1));
+                resolution.section.set_left(data.2 - diff);
                 resolution.section.set_width(diff * 2.0);
             }
             _ => panic!("unsupported combination"),
@@ -523,7 +553,6 @@ fn resolve(
             stack,
             current,
             letter_dims,
-            view,
             stem_letters,
         )?;
         let d = calc(
@@ -533,7 +562,6 @@ fn resolve(
             stack,
             current,
             letter_dims,
-            view,
             stem_letters,
         )?;
         let (pair, data) = if config.vertical.a.designator > config.vertical.b.designator {
@@ -559,57 +587,35 @@ fn resolve(
         };
         match pair {
             (Designator::X, Designator::Y) => {
-                resolution.points.set_b((
-                    data.0 + view.offset.left() * f32::from(data.1),
-                    data.2 + view.offset.top() * f32::from(data.3),
-                ));
+                resolution.points.set_b((data.0, data.2));
                 resolution.from_points = true;
             }
             (Designator::Top, Designator::Height) => {
-                resolution
-                    .section
-                    .position
-                    .set_top(data.0 + view.offset.top() * f32::from(data.1));
+                resolution.section.position.set_top(data.0);
                 resolution.section.area.set_height(data.2);
             }
             (Designator::Top, Designator::Bottom) => {
-                resolution
-                    .section
-                    .position
-                    .set_top(data.0 + view.offset.top() * f32::from(data.1));
+                resolution.section.position.set_top(data.0);
                 resolution.section.area.set_height(data.2 - data.0);
             }
             (Designator::Top, Designator::CenterY) => {
-                resolution
-                    .section
-                    .position
-                    .set_top(data.0 + view.offset.top() * f32::from(data.1));
+                resolution.section.position.set_top(data.0);
                 resolution.section.area.set_height((data.2 - data.0) * 2.0);
             }
             (Designator::Height, Designator::Bottom) => {
-                resolution
-                    .section
-                    .set_top(data.2 - data.0 + view.offset.top() * f32::from(data.3));
+                resolution.section.set_top(data.2 - data.0);
                 resolution.section.set_height(data.0);
             }
             (Designator::Height, Designator::CenterY) => {
-                resolution
-                    .section
-                    .set_top(data.2 - data.0 / 2.0 + view.offset.top() * f32::from(data.3));
+                resolution.section.set_top(data.2 - data.0 / 2.0);
                 resolution.section.set_height(data.0);
             }
             (Designator::Bottom, Designator::CenterY) => {
                 let diff = data.0 - data.2;
-                resolution
-                    .section
-                    .set_top(data.2 - diff + view.offset.top() * f32::from(data.1));
+                resolution.section.set_top(data.2 - diff);
                 resolution.section.set_height(diff * 2.0);
             }
             _ => panic!("unsupported combination"),
-        }
-        resolution.section.position -= view.offset;
-        for pt in resolution.points.data.iter_mut() {
-            *pt -= view.offset;
         }
         let unconstrained = resolution.section;
         if let Some(a) = aspect_ratio {
@@ -711,7 +717,6 @@ fn calc(
     stack: Option<Section<Logical>>,
     current: Section<Logical>,
     letter_dims: Coordinates,
-    _view: View,
     stem_letters: Coordinates,
 ) -> Option<CoordinateUnit> {
     let calculated = match desc.value {
@@ -1229,7 +1234,157 @@ impl Anchor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{EcsExtension, Elevation, Foliage, Leaf, Location, Logical, Section, Sprout};
+    use crate::{EcsExtension, Elevation, Foliage, Leaf, Location, Logical, ScrollTo, Section, Sprout};
+
+    /// The prose-column pattern from `application/src/site/mod.rs`: a text whose height
+    /// comes from its glyphs (`TextContentHeight`, its `Location` carrying only a seed
+    /// height), with the next element anchored to its *bottom*. The anchored element must
+    /// land below the glyph-derived bottom, not the seed one -- before and after a resize
+    /// alike, or it overlaps the text and everything under it shifts.
+    #[test]
+    fn an_element_anchored_below_a_content_height_text_stays_below_it_across_a_resize() {
+        use crate::coordinate::area::Area;
+        use crate::text::{Text, TextContentHeight};
+        use crate::{FontSize, Sprout as _};
+        const SEED: i32 = 20;
+        const GAP: i32 = 8;
+        let mut foliage = Foliage::new();
+        foliage
+            .world
+            .insert_resource(ViewportHandle::new(Area::logical((1000.0, 1000.0))));
+        let column = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(400.px().as_width()),
+                    0.px().as_top().with(800.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        let prose = foliage.world.branch(
+            column,
+            Text::new(
+                "a paragraph long enough that it wraps onto several lines at this width"
+                    .to_string(),
+            )
+            .size(FontSize::new(24))
+            .at(Location::new().xs(
+                0.px().as_left().with(100.pct().as_width()),
+                0.px().as_top().with(SEED.px().as_height()),
+            ))
+            .elevate(Elevation::up(2))
+            .with(TextContentHeight(true)),
+        );
+        let follower = foliage.world.branch(
+            column,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.pct().as_width()),
+                    anchor()
+                        .bottom()
+                        .as_top()
+                        .adjust(GAP)
+                        .with(30.px().as_height()),
+                ))
+                .elevate(Elevation::up(2))
+                .with(Anchor::new(prose)),
+        );
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
+
+        let prose_box = *foliage.world.get::<Section<Logical>>(prose).unwrap();
+        let follower_box = *foliage.world.get::<Section<Logical>>(follower).unwrap();
+        assert!(
+            prose_box.height() > SEED as f32,
+            "precondition: the glyphs made it taller than its seed height, got {}",
+            prose_box.height()
+        );
+        assert_eq!(
+            follower_box.top(),
+            prose_box.bottom() + GAP as f32,
+            "precondition: it sits below the wrapped text, not below the seed"
+        );
+
+        foliage
+            .world
+            .resource_mut::<ViewportHandle>()
+            .resize(Area::logical((999.0, 1000.0)));
+        foliage.main.run(&mut foliage.world);
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
+
+        let prose_after = *foliage.world.get::<Section<Logical>>(prose).unwrap();
+        let follower_after = *foliage.world.get::<Section<Logical>>(follower).unwrap();
+        assert_eq!(
+            follower_after.top(),
+            prose_after.bottom() + GAP as f32,
+            "after the resize it must still clear the text, not fall back onto the seed height"
+        );
+    }
+
+    /// Anchoring across a scroll boundary: the anchored entity sits outside the view, its
+    /// target inside it. Every other anchor pair cancels out -- both sides carry the same
+    /// accumulated offset -- but here the two really do move apart, so the anchored entity
+    /// has to resolve again when the view scrolls rather than being translated along with
+    /// the subtree it is not part of.
+    #[test]
+    fn an_anchor_from_outside_a_scrolled_view_tracks_its_target() {
+        let mut foliage = Foliage::new();
+        let view = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        let target = foliage.world.branch(
+            view,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(300.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        // outside the view entirely -- a sibling of it, not a descendant
+        let follower = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(20.px().as_width()),
+                    anchor().top().as_top().with(20.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Anchor::new(target)),
+        );
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
+        let target_before = *foliage.world.get::<Section<Logical>>(target).unwrap();
+        let follower_before = *foliage.world.get::<Section<Logical>>(follower).unwrap();
+        assert_eq!(follower_before.top(), target_before.top(), "precondition");
+
+        foliage.write_to(view, ScrollTo::y(0.5));
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
+
+        let target_after = *foliage.world.get::<Section<Logical>>(target).unwrap();
+        let follower_after = *foliage.world.get::<Section<Logical>>(follower).unwrap();
+        assert_ne!(
+            target_after.top(),
+            target_before.top(),
+            "precondition: the view really scrolled"
+        );
+        assert_eq!(
+            follower_after.top(),
+            target_after.top(),
+            "the follower has to land on the target's new position, not its old one"
+        );
+    }
 
     /// `Mul<f32>` on an `Anchor`-sourced value scales the *factor* it carries (identity
     /// `1.0`), applied once the anchor's real value is resolved against its live target --

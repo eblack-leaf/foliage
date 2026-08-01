@@ -1,8 +1,13 @@
+use crate::EcsExtension;
 use crate::ash::clip::ClipToViewport;
+use crate::grid::location::Resolution;
 use crate::interaction::CurrentInteraction;
-use crate::{Component, Logical, Moment, Position, Section, Stem, Tree};
+use crate::{
+    AnchorDeps, Branch, Component, LayoutSection, Location, Logical, Moment, Position, Resolve,
+    Section, Stem, Tree,
+};
 use bevy_ecs::entity::Entity;
-use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref, Res, Resource};
+use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref, Res, ResMut, Resource};
 use std::collections::HashSet;
 
 #[derive(Component, Copy, Clone, Debug, Default)]
@@ -204,11 +209,10 @@ pub(crate) fn coast(
 /// far it may be.
 ///
 /// Required by [`Grid`](crate::Grid), and universal for that reason. Two things depend on
-/// every parent having one, whether or not it can actually scroll: a child's `Location`
-/// resolve reads its parent's `offset` and folds it into every resolved coordinate, and
-/// `ovrscrl` steps parent-by-parent through `View`s when passing unconsumed scroll
-/// outward. A gap in either chain is not a skipped step -- it is a missing component the
-/// code unwraps.
+/// every parent having one, whether or not it can actually scroll: `accumulated_offset` is
+/// read off the parent to place each child on screen, and `ovrscrl` steps parent-by-parent
+/// through `View`s when passing unconsumed scroll outward. A gap in either chain is not a
+/// skipped step -- it is a missing component the code unwraps.
 ///
 /// `extent` is grown from the children by `extent_check` each frame; `offset` is clamped
 /// to it. Most views hold an offset of zero for their whole life.
@@ -216,39 +220,29 @@ pub(crate) fn coast(
 /// Carrying a `View` therefore says nothing about being scrollable, and `With<View>` is
 /// not a test for it.
 ///
-/// TODO: scrolling costs a full subtree relayout. Because `offset` is folded into every
-/// descendant's resolved coordinates (see above), moving it invalidates the resolved layout
-/// of everything under the view -- so a scroll tick re-resolves N entities and then feeds
-/// whatever moved through the differential and the render queues, where an animation touching
-/// three entities costs three. Measured on a 2021 Android running the site's own overview
-/// page: animation frames sit under budget and vary around 16.7ms, while scroll frames pin to
-/// a flat 33.0ms -- reliably over 16.7 and therefore presenting on every second vsync. Same
-/// page on an iPhone 12 stays at 16.7 throughout, so it is a cost problem on slower hardware
-/// rather than a correctness one, and nothing in the scroll math itself is implicated (the
-/// coast is time-based and covers the right distance either way; it is the sampling that goes
-/// coarse).
+/// Scrolling never re-resolves anything. An offset is a translation of a whole subtree,
+/// which is why it is kept out of the layout entirely: `Location` resolves into
+/// [`LayoutSection`](crate::LayoutSection), and `propagate_offsets` subtracts
+/// `accumulated_offset` from it to produce the on-screen [`Section`]. Moving a view rewrites
+/// its descendants' `Section`s and nothing else -- no `Location` is resolved, no glyph is
+/// laid out again.
 ///
-/// The shape of the fix: an offset is a *uniform translation of a whole subtree*, which is
-/// exactly the kind of thing that does not need to be baked into each entity's resolved
-/// coordinates. Applying it at draw time instead -- folded into the vertex path per clip
-/// group, alongside the scissor rect `ash/clip.rs` already derives per `ClipContext` -- would
-/// make a scroll tick one uniform write rather than N resolves, and a scrolling frame as
-/// cheap as an idle one.
-///
-/// Interaction does not break, because the fix there is to translate the *pointer* rather
-/// than the entities: hit-testing compares one position against N sections, so subtracting the
-/// accumulated offset from the pointer once per clip group is the same comparison with the
-/// other side moved. That is the same win again -- the count of views holding a nonzero offset
-/// is tiny (usually one, the page scroller) where the count of entities under them is
-/// hundreds, so hit-testing goes O(views) too.
-///
-/// `Anchor` mostly takes care of itself: when the anchor and the anchored sit in the same
-/// view, both sections lose the offset and the difference between them is unchanged. Only
-/// anchoring *across* a scroll boundary needs the delta reapplied, and that is the one place
-/// this change adds a case rather than removing one.
+/// The cost that remains is one write per descendant, plus the differential and the instance
+/// buffer behind it. That floor is deliberate: pushing the offset past the differential (a
+/// per-clip-group translation applied while drawing) would leave the renderer without
+/// clipping known ahead of time, which is what drives visibility -- and a clip group holds
+/// many instances at many offsets, so there is no single translation to hand it anyway.
 pub struct View {
     pub(crate) offset: Position<Logical>,
     pub(crate) extent: Section<Logical>,
+    /// This view's own [`offset`](Self::offset) plus every ancestor view's -- the total a
+    /// child of this view subtracts from its [`LayoutSection`](crate::LayoutSection) to
+    /// land on screen.
+    ///
+    /// Not the same number as `offset` whenever views nest: a card scrolled 40px inside a
+    /// page scrolled 300px has an `offset` of 40 and hands 340 down to its children. Kept
+    /// here rather than walked per entity so deriving a child's `Section` is one lookup.
+    pub(crate) accumulated_offset: Position<Logical>,
 }
 impl View {
     /// An unscrolled view. Its extent is computed from its children.
@@ -256,6 +250,7 @@ impl View {
         View {
             offset: Default::default(),
             extent: Default::default(),
+            accumulated_offset: Default::default(),
         }
     }
     /// Current pan, in px -- raw state, `pub(crate)`-write only (`extent_check`'s clamp
@@ -354,6 +349,7 @@ pub(crate) fn extent_check(
     contexts: Query<(Entity, Ref<Stem>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
     clip_to_viewport: Query<&ClipToViewport>,
+    mut scrolled: ResMut<ScrolledViews>,
     mut tree: Tree,
 ) {
     let mut to_check = HashSet::new();
@@ -535,9 +531,8 @@ pub(crate) fn extent_check(
         }
     }
     for entity in to_trigger.difference(&in_chain) {
-        let section = *sections.get(*entity).unwrap().1;
-        tracing::trace!(entity = ?entity, section = ?section, "grid::view: re-inserting Section<Logical> to cascade");
-        tree.entity(*entity).insert(section);
+        tracing::trace!(entity = ?entity, "grid::view: queueing subtree offset propagation");
+        scrolled.0.insert(*entity);
     }
     // a real `Insert`, not a `Query`-mutation -- `tree.react::<ScrollProgress, _>(..)`
     // needs to see every one of these, not just the first (see `ScrollProgress`'s own doc).
@@ -562,10 +557,106 @@ pub(crate) fn extent_check(
     }
 }
 
+/// Views whose `offset` moved this frame, handed from [`extent_check`] to
+/// [`propagate_offsets`].
+///
+/// Separate systems because the clamp that settles an offset and the pass that moves a
+/// subtree to match it are separate jobs, and the second needs the first to have finished
+/// for every view before it walks anything -- a nested view's own clamp changes what its
+/// children end up subtracting.
+#[derive(Resource, Default)]
+pub(crate) struct ScrolledViews(pub(crate) HashSet<Entity>);
+/// Re-derives the on-screen `Section` of everything under a view that just scrolled.
+///
+/// Top-down, because [`View::accumulated_offset`] is built up on the way: each level hands
+/// its children its own accumulated total, and a nested view adds its own `offset` to what
+/// it was handed before passing it on. The subtraction itself is the whole of the work per
+/// entity -- no `Location` is resolved, no `LayoutSection` is written, and nothing here
+/// re-enters the layout solver.
+///
+/// `Section` is *inserted*, not mutated: everything that watches for an entity's box moving
+/// on screen -- the clip chain, the text scissor, panel corners -- listens for
+/// `Resolved<Section<Logical>>`, and a `Query` mutation does not fire it.
+pub(crate) fn propagate_offsets(
+    mut scrolled: ResMut<ScrolledViews>,
+    stems: Query<&Stem>,
+    branches: Query<&Branch>,
+    mut views: Query<&mut View>,
+    layouts: Query<&LayoutSection>,
+    resolutions: Query<&Resolution>,
+    anchor_deps: Query<&AnchorDeps>,
+    mut tree: Tree,
+) {
+    if scrolled.0.is_empty() {
+        return;
+    }
+    let roots = scrolled.0.drain().collect::<Vec<_>>();
+    let mut touched = HashSet::new();
+    let mut anchored = HashSet::new();
+    for root in roots {
+        let inherited = stems
+            .get(root)
+            .ok()
+            .and_then(|s| s.id)
+            .and_then(|p| views.get(p).ok().map(|v| v.accumulated_offset))
+            .unwrap_or_default();
+        let accumulated = {
+            let mut view = views.get_mut(root).unwrap();
+            view.accumulated_offset = inherited + view.offset;
+            view.accumulated_offset
+        };
+        tracing::trace!(entity = ?root, accumulated = ?accumulated, "grid::view: propagating offset into subtree");
+        // the root's own box does not move when the root scrolls -- only what is inside it
+        let mut stack = vec![(root, accumulated)];
+        while let Some((entity, accumulated)) = stack.pop() {
+            let Ok(branch) = branches.get(entity) else {
+                continue;
+            };
+            for child in branch.ids.iter().copied() {
+                touched.insert(child);
+                if let Ok(layout) = layouts.get(child) {
+                    let mut section = layout.0;
+                    section.position -= accumulated;
+                    tree.entity(child).insert(section);
+                }
+                if let Ok(resolution) = resolutions.get(child) {
+                    if resolution.from_points {
+                        let mut points = resolution.points;
+                        for pt in points.data.iter_mut() {
+                            *pt -= accumulated;
+                        }
+                        tree.entity(child).insert(points);
+                    }
+                }
+                if let Ok(deps) = anchor_deps.get(child) {
+                    anchored.extend(deps.ids.iter().copied());
+                }
+                let inherited = if let Ok(mut view) = views.get_mut(child) {
+                    view.accumulated_offset = accumulated + view.offset;
+                    view.accumulated_offset
+                } else {
+                    accumulated
+                };
+                stack.push((child, inherited));
+            }
+        }
+    }
+    // Anchored from *outside* the subtree that moved: the two are no longer the same
+    // distance apart, which is the one case a translation cannot express -- so those really
+    // do have to resolve again. Anything anchored from inside moved with the rest of the
+    // subtree already.
+    let outside = anchored.difference(&touched).copied().collect::<Vec<_>>();
+    if !outside.is_empty() {
+        tracing::trace!(entities = ?outside, "grid::view: re-resolving anchors across the scroll boundary");
+        tree.trigger_targets(Resolve::<Location>::new(), outside);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::TimeDelta;
+    use crate::ash::clip::ResolvedClip;
     use crate::{EcsExtension, Elevation, Foliage, Grid, GridExt, Leaf, Location, Sprout};
     use bevy_ecs::prelude::{ResMut, Resource};
 
@@ -601,6 +692,163 @@ mod tests {
         foliage.world.flush();
         foliage.diff.run(&mut foliage.world);
         parent
+    }
+
+    /// The same tree, handing back the child too -- the scroll tests assert on where the
+    /// content ends up, not just on the view's own readout.
+    fn spawn_overflowing_pair(foliage: &mut Foliage) -> (Entity, Entity) {
+        let parent = spawn_overflowing(foliage);
+        let child = *foliage
+            .world
+            .get::<Branch>(parent)
+            .unwrap()
+            .ids
+            .iter()
+            .next()
+            .unwrap();
+        (parent, child)
+    }
+
+    /// Scrolls `parent` to `percent` of its range and settles the frame.
+    fn scroll_to(foliage: &mut Foliage, parent: Entity, percent: f32) {
+        foliage.write_to(parent, ScrollTo::y(percent));
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
+    }
+
+    fn scroll_halfway(foliage: &mut Foliage, parent: Entity) {
+        scroll_to(foliage, parent, 0.5);
+    }
+
+    #[test]
+    fn scrolling_moves_a_descendants_section_without_touching_its_layout_section() {
+        // The split, stated as a test: content that scrolls is somewhere else on screen,
+        // and in the same place as far as layout is concerned. A 100-tall view over
+        // 300-tall content has 200px of range, so halfway is 100px up.
+        let mut foliage = Foliage::new();
+        let (parent, child) = spawn_overflowing_pair(&mut foliage);
+        let before = *foliage.world.get::<Section<Logical>>(child).unwrap();
+
+        scroll_halfway(&mut foliage, parent);
+
+        let after = *foliage.world.get::<Section<Logical>>(child).unwrap();
+        let layout = foliage.world.get::<LayoutSection>(child).unwrap().0;
+        assert_eq!(
+            after.top(),
+            before.top() - 100.0,
+            "the child should be drawn 100px higher"
+        );
+        assert_eq!(
+            layout.top(),
+            before.top(),
+            "but the layout never moved it -- that is what stops the subtree re-resolving"
+        );
+        assert_eq!(after.height(), before.height(), "a scroll only translates");
+    }
+
+    #[test]
+    fn a_scrolled_descendants_resolved_clip_is_recut_against_the_view() {
+        // `ResolvedClip` is what decides which glyphs are cut off and what can still be
+        // grabbed, and it is an intersection with the view -- so an entity scrolled halfway
+        // out the top keeps only the part still inside. That only holds if the pass keeps
+        // *inserting* `Section` rather than quietly mutating it, since the clip chain is
+        // driven by the insert.
+        let mut foliage = Foliage::new();
+        let parent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        // a short row at the very top, plus something tall enough to make the view scroll
+        let row = foliage.world.branch(
+            parent,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(40.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.branch(
+            parent,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(300.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        let before = foliage.world.get::<ResolvedClip>(row).unwrap().0;
+        assert_eq!(before.height(), 40.0, "unscrolled, the whole row is visible");
+
+        // 200px of range, so 10% is 20px -- half the row goes above the view's top edge
+        scroll_to(&mut foliage, parent, 0.1);
+
+        let after = foliage.world.get::<ResolvedClip>(row).unwrap().0;
+        assert_eq!(
+            after.height(),
+            20.0,
+            "only the half still inside the view survives the intersection"
+        );
+        assert_eq!(
+            after.top(),
+            0.0,
+            "and it is cut at the view's own top edge, not at the row's"
+        );
+    }
+
+    #[test]
+    fn a_nested_view_accumulates_its_own_offset_on_top_of_its_ancestors() {
+        // The reason `accumulated_offset` is a separate number from `offset`: an inner view
+        // hands its children what it was handed *plus* its own pan.
+        let mut foliage = Foliage::new();
+        let (outer, inner) = spawn_overflowing_pair(&mut foliage);
+        // give the inner box a grid so it can hold content of its own, and overflow it
+        foliage.write_to(inner, Grid::new(1.col().gap(0), 1.row().gap(0)));
+        let leaf = foliage.world.branch(
+            inner,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(100.px().as_width()),
+                    0.px().as_top().with(900.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        let before = *foliage.world.get::<Section<Logical>>(leaf).unwrap();
+
+        scroll_halfway(&mut foliage, outer);
+        let outer_only = *foliage.world.get::<Section<Logical>>(leaf).unwrap();
+        scroll_halfway(&mut foliage, inner);
+        let both = *foliage.world.get::<Section<Logical>>(leaf).unwrap();
+
+        let outer_shift = before.top() - outer_only.top();
+        let inner_shift = outer_only.top() - both.top();
+        assert!(outer_shift > 0.0, "the outer scroll moved it");
+        assert!(inner_shift > 0.0, "the inner scroll moved it further");
+        assert_eq!(
+            foliage
+                .world
+                .get::<View>(inner)
+                .unwrap()
+                .accumulated_offset
+                .top(),
+            outer_shift + inner_shift,
+            "the inner view hands its children both offsets, not just its own"
+        );
+        assert_eq!(
+            before.top() - both.top(),
+            outer_shift + inner_shift,
+            "and the leaf ends up moved by exactly that total"
+        );
     }
 
     #[test]

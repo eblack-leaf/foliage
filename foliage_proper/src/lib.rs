@@ -42,7 +42,7 @@ pub use crate::coordinate::{
     area::{Area, CReprArea},
     points::Points,
     position::{CReprPosition, Position},
-    section::{CReprSection, Section},
+    section::{CReprSection, LayoutSection, Section},
 };
 pub use anim::{
     Animate, Animation, Repeat,

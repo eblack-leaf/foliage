@@ -10,7 +10,7 @@ pub use crate::grid::location::{
     text_content,
 };
 pub use crate::grid::location::{GridExt, LocationValue};
-use crate::grid::view::{coast, extent_check};
+use crate::grid::view::{ScrolledViews, coast, extent_check, propagate_offsets};
 use crate::{Attachment, Component, CoordinateUnit};
 pub use aspect_ratio::AspectRatio;
 use bevy_ecs::prelude::IntoScheduleConfigs;
@@ -25,13 +25,14 @@ impl Attachment for Grid {
         foliage.world.insert_resource(Layout::Xs);
         foliage.world.insert_resource(Short::No);
         foliage.world.insert_resource(ScrollMomentum::default());
+        foliage.world.insert_resource(ScrolledViews::default());
         foliage
             .main
             .add_systems(viewport_changed.in_set(MainMarkers::External));
         foliage.main.add_systems(coast.in_set(MainMarkers::Process));
         foliage
             .diff
-            .add_systems(extent_check.in_set(DiffMarkers::Prepare));
+            .add_systems((extent_check, propagate_offsets).chain().in_set(DiffMarkers::Prepare));
     }
 }
 /// The coordinate system a parent offers its children, per breakpoint.
@@ -46,12 +47,12 @@ impl Attachment for Grid {
 /// [`FontSize`](crate::FontSize)). [`Gap`] is the space *between* tracks, never outside
 /// them.
 ///
-/// Requires [`View`], which is not optional plumbing: a parent's `View` is read on every
-/// child's own `Location` resolve, and its offset is folded into each resolved
-/// coordinate -- that is how children move when a parent scrolls. It also carries the
-/// extent the overscroll chain walks. Both are total, which is why every positioned
-/// child's parent needs a `Grid`: it is what guarantees the `View` exists. Most carry an
-/// offset of zero forever, and that is fine.
+/// Requires [`View`], which is not optional plumbing: a parent's `View` carries the
+/// accumulated scroll offset every child subtracts to land on screen -- that is how
+/// children move when a parent scrolls -- as well as the extent the overscroll chain
+/// walks. Both are total, which is why every positioned child's parent needs a `Grid`: it
+/// is what guarantees the `View` exists. Most carry an offset of zero forever, and that is
+/// fine.
 #[derive(Component, Copy, Clone)]
 #[require(View)]
 pub struct Grid {

@@ -23,6 +23,11 @@ use crate::{Anchor, AnchorDeps, Branch, Location, Resolve, Resolved};
 /// produces, what the renderer draws into, and what hit-testing and clipping compare
 /// against. Authors read it; the layout pass writes it.
 ///
+/// `Section<Logical>` is *screen* space: any scroll offset between here and the root has
+/// already been applied, so it can be compared directly against a pointer position or a
+/// clip rect. [`LayoutSection`] is the same box before that, and is what children resolve
+/// against -- see its own doc for why the two are separate.
+///
 /// Construct via [`Section::logical`]/[`physical`](Section::physical) or from a
 /// `(position, area)` tuple. Conversions between spaces are explicit and take the current
 /// [`ScaleFactor`](crate::ScaleFactor).
@@ -266,12 +271,42 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn abs(self) -> Self {
         Self::new(self.position.abs(), self.area.abs())
     }
+    /// Announces that the entity's on-screen box moved, and nothing more. Re-resolving the
+    /// children that lay out *against* that box hangs off [`LayoutSection`], so a scroll --
+    /// which moves every descendant on screen without changing anyone's layout -- can write
+    /// this without dragging the subtree back through `Location::update`.
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         if TypeId::of::<Self>() != TypeId::of::<Section<Logical>>() {
             return;
         }
         world.trigger_targets(Resolved::<Self>::new(), this);
+    }
+}
+/// An entity's box in *layout* space: where the layout put it, before any ancestor's scroll
+/// offset moved it on screen.
+///
+/// The pair to [`Section`], which is the same box after those offsets are applied. Two
+/// components because a write to one means something a write to the other does not:
+///
+/// - `LayoutSection` changing means the layout itself changed, so every child resolving
+///   against it (and everything anchored to it) has to re-resolve. That cascade lives on
+///   this component's own insert hook.
+/// - `Section` changing means only that the box is somewhere else on screen -- what the
+///   renderer, the clip chain and hit-testing care about, none of which need a re-resolve.
+///
+/// A scroll is purely the second kind of change, which is why it can move a whole subtree
+/// without re-entering the layout solver. With nothing scrolled anywhere the two hold the
+/// same value, which is the case for most trees.
+///
+/// Authors want [`Section`] -- it is the one that answers "where is this on screen", and
+/// the one a pointer position can be compared against.
+#[derive(Copy, Clone, Default, Component, PartialEq, PartialOrd, Debug)]
+#[component(on_insert = LayoutSection::on_insert)]
+pub struct LayoutSection(pub Section<Logical>);
+impl LayoutSection {
+    fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
+        let this = ctx.entity;
         let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
         for d in deps.clone().iter() {
             if let Some(stack) = world.get::<Anchor>(*d) {
@@ -287,7 +322,7 @@ impl<Context: CoordinateContext> Section<Context> {
             return;
         }
         let dep_vec = deps.iter().copied().collect::<Vec<_>>();
-        tracing::trace!(entity = ?this, deps = ?dep_vec, "coordinate::section: Section<Logical> on_insert cascading Resolve<Location>");
+        tracing::trace!(entity = ?this, deps = ?dep_vec, "coordinate::section: LayoutSection on_insert cascading Resolve<Location>");
         world
             .commands()
             .trigger_targets(Resolve::<Location>::new(), dep_vec);

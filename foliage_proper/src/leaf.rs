@@ -1,5 +1,6 @@
 use crate::EcsExtension;
 use crate::Elevation;
+use crate::LayoutSection;
 use crate::Logical;
 use crate::Opacity;
 use crate::Section;
@@ -20,7 +21,8 @@ use std::collections::HashSet;
 #[derive(Component)]
 #[require(Stem, Branch)]
 #[require(Opacity, Visibility, ClipSection)]
-#[require(Section<Logical>, Elevation, InteractionShape, InteractionPropagation, FocusBehavior)]
+#[require(Section<Logical>, LayoutSection, Elevation, InteractionShape, InteractionPropagation)]
+#[require(FocusBehavior)]
 #[component(on_add = Self::on_add)]
 #[component(on_remove = Self::on_remove)]
 /// Marks an entity as part of the display tree, bringing in the components everything

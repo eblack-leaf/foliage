@@ -6,6 +6,10 @@
 <p>This is the resolved geometry of an entity – what a <a href="struct.Location.html" title="struct foliage::Location"><code>Location</code></a>
 produces, what the renderer draws into, and what hit-testing and clipping compare
 against. Authors read it; the layout pass writes it.</p>
+<p><code>Section&lt;Logical&gt;</code> is <em>screen</em> space: any scroll offset between here and the root has
+already been applied, so it can be compared directly against a pointer position or a
+clip rect. <a href="struct.LayoutSection.html" title="struct foliage::LayoutSection"><code>LayoutSection</code></a> is the same box before that, and is what children resolve
+against – see its own doc for why the two are separate.</p>
 <p>Construct via <a href="struct.Section.html#method.logical" title="associated function foliage::Section::logical"><code>Section::logical</code></a>/<a href="struct.Section.html#method.physical" title="associated function foliage::Section::physical"><code>physical</code></a> or from a
 <code>(position, area)</code> tuple. Conversions between spaces are explicit and take the current
 <a href="crate::ScaleFactor"><code>ScaleFactor</code></a>.</p>

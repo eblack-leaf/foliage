@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-8d1cde1b.js";
+            window.path_to_searchindex_js = "searchindex-39b46bed.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8e99452e.js"></script>
@@ -1098,22 +1098,32 @@ target needs, but easy to get backwards (only some anchors mid-formula being sca
 non-obvious at a glance) – <code>Column</code>/<code>Row</code>/<code>Letters</code>/<code>TextContent</code> have no numeric value
 scaling could mean anything for, and hit a loud <code>debug_assert!</code> instead of silently
 no-op’ing if multiplied.</p>
-<h2 id="view-the-scrollpan-state-a-location-resolves-through"><a class="header" href="#view-the-scrollpan-state-a-location-resolves-through"><code>View</code>: the scroll/pan state a <code>Location</code> resolves <em>through</em></a></h2>
+<h2 id="view-the-scrollpan-state-that-moves-a-subtree-on-screen"><a class="header" href="#view-the-scrollpan-state-that-moves-a-subtree-on-screen"><code>View</code>: the scroll/pan state that moves a subtree on screen</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/grid/view.rs
 #[derive(Component, Copy, Clone, Debug)]
 #[require(ViewAdjustment, OverscrollPropagation, ScrollInertia, ScrollProgress)]
 pub struct View {
-    offset: Position&lt;Logical&gt;, // pub(crate) -- only `extent_check`'s own clamp writes it
-    extent: Section&lt;Logical&gt;,  // read externally via `.offset()`/`.extent()`
+    offset: Position&lt;Logical&gt;,  // pub(crate) -- only `extent_check`'s own clamp writes it
+    extent: Section&lt;Logical&gt;,   // read externally via `.offset()`/`.extent()`
+    accumulated_offset: Position&lt;Logical&gt;, // this offset plus every ancestor view's
 }
 <span class="boring">}</span></code></pre>
-<p><code>View</code> (required by <code>Grid</code>, so every <code>Grid</code>-carrying entity has one whether or not it
-ever actually scrolls) is what <code>resolution.section.position -= view.offset</code> in
-<code>grid/location.rs</code> subtracts from <em>every</em> resolved child underneath it – this is why an
-entity meant to stay visually fixed (chrome, a scrollbar) can’t be spawned as a structural
-child of something that scrolls: it would get panned right along with the content.
+<p><code>View</code> (required by <code>Grid</code>, so every <code>Grid</code>-carrying entity has one whether or not it ever
+actually scrolls) is what moves everything underneath it: each child’s on-screen
+<code>Section&lt;Logical&gt;</code> is its <code>LayoutSection</code> minus the parent’s <code>accumulated_offset</code>. This is
+why an entity meant to stay visually fixed (chrome, a scrollbar) can’t be spawned as a
+structural child of something that scrolls – it would get panned right along with the
+content.</p>
+<p>The two coordinates are deliberately separate components. <code>LayoutSection</code> is where the
+layout put a box; <code>Section&lt;Logical&gt;</code> is where it currently appears. A write to the first
+means children have to resolve again (that cascade lives on its insert hook); a write to
+the second means only that the box moved on screen, which is what the clip chain, the text
+scissor and hit-testing listen for. A scroll is purely the second kind of change, so
+<code>propagate_offsets</code> walks the moved view’s subtree and rewrites <code>Section</code>s directly instead
+of re-entering the layout solver. Reading exact on-screen geometry is unaffected: <code>Section</code>
+is still the answer, still exact, still written before anything renders that frame.
 <code>.offset()</code> is the current pan in px; <code>.extent()</code> is the union of the entity’s own
 <code>Section</code> with every <code>Stem</code>-descendant’s live (offset-adjusted) bounds – effectively “how
 big the scrollable content actually is,” recomputed by <code>extent_check</code>
