@@ -248,6 +248,66 @@ pub fn main_activity_java(app_id: &str, lib_name: &str) -> String {
     out
 }
 
+/// `Cargo.toml` for the cdylib the Gradle project loads. Two dependencies and nothing else --
+/// the app crate that owns the real entry function, and `foliage` for the `AndroidApp` handle
+/// and `Foliage::android`.
+pub fn entry_crate_cargo_toml(
+    lib_name: &str,
+    app_crate: &str,
+    app_crate_dep: &str,
+    foliage_dep: &str,
+) -> String {
+    let mut out = String::new();
+    out.push_str("[package]\n");
+    out.push_str(&format!("name = \"{lib_name}\"\n"));
+    out.push_str("version = \"0.1.0\"\n");
+    out.push_str("edition = \"2024\"\n\n");
+    out.push_str("# `cdylib` is the whole point: Android loads this as a `.so` and calls\n");
+    out.push_str("# `android_main` through JNI. The crate name is what `System.loadLibrary`\n");
+    out.push_str("# and the manifest's `android.app.lib_name` both resolve.\n");
+    out.push_str("[lib]\n");
+    out.push_str("crate-type = [\"cdylib\"]\n\n");
+    out.push_str("[dependencies]\n");
+    out.push_str(&format!("{app_crate} = {app_crate_dep}\n"));
+    out.push_str(&format!("foliage = {foliage_dep}\n"));
+    out
+}
+
+/// The JNI entry point itself. Deliberately a separate crate from the app: a `cdylib` target
+/// also emits a `wasm32-unknown-unknown` artifact sharing the app crate's binary name, which
+/// breaks trunk's artifact selection for a real wasm build of the same app.
+pub fn entry_crate_lib_rs(app_crate: &str, app_entry: &str) -> String {
+    let mut out = String::new();
+    out.push_str(
+        "//! Android's process entry point, kept in its own `crate-type = [\"cdylib\"]` crate\n",
+    );
+    out.push_str(
+        "//! rather than in the app crate itself -- a cdylib target also produces a competing\n",
+    );
+    out.push_str(
+        "//! `wasm32-unknown-unknown` artifact sharing the app's own binary name, which breaks\n",
+    );
+    out.push_str(
+        "//! trunk's artifact selection for the real wasm build. Only ever built through\n",
+    );
+    out.push_str("//! `cargo ndk ... -p <this crate>`; nothing else should depend on it.\n\n");
+    out.push_str(
+        "/// The Java `GameActivity` shim loads this crate as a `.so` and calls this through\n",
+    );
+    out.push_str(
+        "/// JNI, handing over the one thing `Foliage::android` needs and no other platform\n",
+    );
+    out.push_str("/// has: a live `AndroidApp`.\n");
+    out.push_str("#[cfg(target_os = \"android\")]\n");
+    out.push_str("#[unsafe(no_mangle)]\n");
+    out.push_str("fn android_main(app: foliage::AndroidApp) {\n");
+    out.push_str(&format!(
+        "    {app_crate}::{app_entry}(foliage::Foliage::android(app));\n"
+    ));
+    out.push_str("}\n");
+    out
+}
+
 /// Setup and build instructions, written next to the project they describe. A generated Gradle
 /// directory is not self-explanatory, and none of the SDK-side setup it needs is discoverable
 /// from the files themselves.
@@ -553,9 +613,14 @@ install. For a real signed release:
   different versions. The `NoSuchMethodError` names the method and the signature the *native*
   side expects, which tells you which half is stale. Match the AAR to whatever
   `android-activity` your `Cargo.lock` resolved -- grep `GAMEACTIVITY_MAJOR_VERSION` from the
-  `GameActivity.h` it vendors. Prefer updating the lock over downgrading the AAR; an old
-  `android-activity` pins you to a GameActivity years behind current Android. Note this
-  aborts before any Rust runs, so it is not a bug in your app.
+  `GameActivity.h` it vendors. Note this aborts before any Rust runs, so it is not a bug in
+  your app.
+
+  **Update the lock rather than downgrading the AAR.** Matching them at the *older* version
+  also stops the crash, which makes it look like a fix -- but a GameActivity several years
+  behind the platform you're running on can deliver no input at all: the app launches, draws
+  correctly, and ignores every touch, with nothing in logcat. `cargo update -p
+  android-activity` within the same semver range is usually all it takes.
 
 ## Regenerating
 

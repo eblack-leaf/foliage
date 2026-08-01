@@ -71,6 +71,36 @@ enum Cli {
         agp_version: String,
         #[arg(long, default_value = "9.3.1")]
         gradle_version: String,
+        /// Also scaffold the cdylib entry crate at this path -- the `android_main` shim the
+        /// Gradle project loads. Off unless given, and unlike `--out` this writes *outside*
+        /// the generated project, so it refuses to touch a directory that already holds a
+        /// `Cargo.toml` unless `--overwrite-entry-crate` is set.
+        #[arg(long)]
+        entry_crate: Option<PathBuf>,
+        /// Crate holding the real entry function. Defaults to `--lib-name` minus a trailing
+        /// `_android`, which is the usual pairing.
+        #[arg(long)]
+        app_crate: Option<String>,
+        /// Function in `--app-crate` taking a `Foliage`, called from `android_main`.
+        #[arg(long, default_value = "run")]
+        app_entry: String,
+        /// Cargo dependency spec for `--app-crate`, as it should appear after the `=`.
+        /// Defaults to a path dep pointing at a sibling directory.
+        #[arg(long)]
+        app_crate_dep: Option<String>,
+        /// Cargo dependency spec for `foliage`, as it should appear after the `=`. Spliced in
+        /// verbatim and never parsed, so anything cargo accepts works -- add `tag = "v1.0.0"`
+        /// to pin a release, or pass `{{ path = "../foliage" }}` when generating inside the
+        /// foliage repo itself. Defaults to a git dependency because foliage isn't published.
+        #[arg(
+            long,
+            default_value = "{ git = \"https://github.com/eblack-leaf/foliage\" }"
+        )]
+        foliage_dep: String,
+        /// Let `--entry-crate` overwrite an existing crate. Off by default: that directory is
+        /// yours, not generated output, and may hold edits worth keeping.
+        #[arg(long)]
+        overwrite_entry_crate: bool,
         /// Don't fetch gradlew/gradlew.bat/gradle-wrapper.jar -- e.g. if you already have a
         /// wrapper set up elsewhere, or have no network access right now.
         #[arg(long)]
@@ -91,6 +121,12 @@ fn main() -> Result<(), String> {
         ndk_version,
         build_tools_version,
         host,
+        entry_crate,
+        app_crate,
+        app_entry,
+        app_crate_dep,
+        foliage_dep,
+        overwrite_entry_crate,
         agp_version,
         gradle_version,
         skip_wrapper,
@@ -152,6 +188,41 @@ fn main() -> Result<(), String> {
         ),
     )?;
 
+    if let Some(entry_crate) = entry_crate.as_ref() {
+        // `--out` is generated output and safe to clobber; this isn't. Refuse rather than
+        // silently replacing a crate someone has edited.
+        let manifest = entry_crate.join("Cargo.toml");
+        if manifest.exists() && !overwrite_entry_crate {
+            return Err(format!(
+                "{} already exists -- refusing to overwrite an entry crate that may hold your \
+                 edits. Pass --overwrite-entry-crate to replace it, or point --entry-crate \
+                 somewhere else.",
+                manifest.display()
+            ));
+        }
+        let app_crate = app_crate.unwrap_or_else(|| {
+            lib_name
+                .strip_suffix("_android")
+                .unwrap_or(&lib_name)
+                .to_string()
+        });
+        let app_crate_dep =
+            app_crate_dep.unwrap_or_else(|| format!("{{ path = \"../{app_crate}\" }}"));
+        write(
+            &manifest,
+            &templates::entry_crate_cargo_toml(
+                &lib_name,
+                &app_crate,
+                &app_crate_dep,
+                &foliage_dep,
+            ),
+        )?;
+        write(
+            &entry_crate.join("src/lib.rs"),
+            &templates::entry_crate_lib_rs(&app_crate, &app_entry),
+        )?;
+    }
+
     if skip_wrapper {
         println!(
             "skipped wrapper download -- run `gradle wrapper --gradle-version {gradle_version}` \
@@ -171,6 +242,14 @@ fn main() -> Result<(), String> {
     }
 
     println!();
+    if let Some(entry_crate) = entry_crate.as_ref() {
+        println!(
+            "note: add \"{}\" to your workspace's `members` if it isn't covered already -- \
+             cargo won't build it otherwise.",
+            entry_crate.display()
+        );
+        println!();
+    }
     println!(
         "next: compile your app's cdylib per-ABI into {}/app/src/main/jniLibs/<abi>/, e.g.:",
         out.display()

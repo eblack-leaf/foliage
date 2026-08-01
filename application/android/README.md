@@ -275,9 +275,14 @@ install. For a real signed release:
   different versions. The `NoSuchMethodError` names the method and the signature the *native*
   side expects, which tells you which half is stale. Match the AAR to whatever
   `android-activity` your `Cargo.lock` resolved -- grep `GAMEACTIVITY_MAJOR_VERSION` from the
-  `GameActivity.h` it vendors. Prefer updating the lock over downgrading the AAR; an old
-  `android-activity` pins you to a GameActivity years behind current Android. Note this
-  aborts before any Rust runs, so it is not a bug in your app.
+  `GameActivity.h` it vendors. Note this aborts before any Rust runs, so it is not a bug in
+  your app.
+
+  **Update the lock rather than downgrading the AAR.** Matching them at the *older* version
+  also stops the crash, which makes it look like a fix -- but a GameActivity several years
+  behind the platform you're running on can deliver no input at all: the app launches, draws
+  correctly, and ignores every touch, with nothing in logcat. `cargo update -p
+  android-activity` within the same semver range is usually all it takes.
 
 ## Regenerating
 
