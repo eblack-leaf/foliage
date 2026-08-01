@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-9c32f7c7.js";
+            window.path_to_searchindex_js = "searchindex-8d1cde1b.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8e99452e.js"></script>
@@ -231,9 +231,9 @@ implements the android-game-activity backend) rather than a maintained fork of i
 non-interactively from a terminal, no Android Studio required).</li>
 </ul>
 <p>Still no Android job in CI (<code>.github/workflows/ci.yml</code> has a comment on this, itself
-written before this local wiring existed) – the SDK’s interactive license-acceptance step
-is doable non-interactively there too (<code>android-actions/setup-android</code> +
-<code>yes | sdkmanager --licenses</code>), just not yet done.</p>
+written before this local wiring existed). Provisioning an SDK in Actions is the open
+question there – <code>sdkmanager</code> is deprecated in favor of the <code>android</code> CLI, and how much
+setup that actually takes on a runner hasn’t been tried.</p>
 <h2 id="ios"><a class="header" href="#ios">iOS</a></h2>
 <p>No toolchain is currently available to compile or run against an iOS target. The one
 <code>cfg(not(target_os = "ios"))</code> branch in the crate (in <a href="../willow.html"><code>Willow::connect</code></a>,
