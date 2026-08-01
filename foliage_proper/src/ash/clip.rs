@@ -43,6 +43,33 @@ use bevy_ecs::world::DeferredWorld;
 /// user silently keeps the front-tier behaviour that motivated the split.
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 pub struct ClipToViewport;
+/// The one statement of what an entity's clip is, and what its children inherit -- returned
+/// together because the two differ for a marked entity and getting that pairing wrong is the
+/// whole bug class this exists to prevent.
+///
+/// Called from two places, which is why it is a free function over plain values rather than
+/// logic inside the hook: `ClipSection::on_insert` for an ordinary box change, and
+/// `grid::view::propagate_offsets` for a scroll, where the whole subtree is walked top-down
+/// and the clips come out of that walk directly.
+///
+/// A marked entity resolves to the viewport -- unbounded by real ancestors -- but hands its
+/// children its own real bounds, since ordinary clipping resumes inside it.
+pub(crate) fn clip_of(
+    section: Section<Logical>,
+    inherited: Option<Section<Logical>>,
+    marked: bool,
+    viewport: Section<Logical>,
+) -> (ResolvedClip, Section<Logical>) {
+    let resolved = if marked {
+        ResolvedClip(viewport)
+    } else if let Some(i) = inherited {
+        ResolvedClip(i.intersection(section).unwrap_or_default())
+    } else {
+        ResolvedClip(section)
+    };
+    let cascade_base = if marked { section } else { resolved.0 };
+    (resolved, cascade_base)
+}
 #[derive(Component, Debug, Clone, Copy, Default, PartialEq)]
 #[require(InheritedClip, ResolvedClip, Differential<(), ResolvedClip>)]
 // #[component(on_add = Self::on_add)]
@@ -108,23 +135,12 @@ impl ClipSection {
         let this = ctx.entity;
         let current = *world.get::<Section<Logical>>(this).unwrap();
         let is_marked = world.get::<ClipToViewport>(this).is_some();
-        let resolved = if is_marked {
-            // unbounded by real ancestors -- but NOT by its own section; that's still
-            // exactly what gets handed down to its children below.
-            ResolvedClip(
-                world
-                    .get_resource::<ViewportHandle>()
-                    .expect("ViewportHandle")
-                    .section(),
-            )
-        } else {
-            let inherited = *world.get::<InheritedClip>(this).unwrap();
-            if let Some(i) = inherited.0 {
-                ResolvedClip(i.intersection(current).unwrap_or_default())
-            } else {
-                ResolvedClip(current)
-            }
-        };
+        let viewport = world
+            .get_resource::<ViewportHandle>()
+            .expect("ViewportHandle")
+            .section();
+        let inherited = world.get::<InheritedClip>(this).unwrap().0;
+        let (resolved, _) = clip_of(current, inherited, is_marked, viewport);
         world.commands().entity(this).insert(resolved);
         let clip_context = if is_marked {
             ClipContext(Stem::some(this))
@@ -133,11 +149,7 @@ impl ClipSection {
         };
         world.commands().entity(this).insert(clip_context);
         let deps = world.get::<Branch>(this).unwrap().ids.clone();
-        // children inherit this entity's own real bounds, not its (possibly
-        // viewport-wide) resolved clip -- a `ClipToViewport` entity isn't restricted by
-        // its own ancestors, but ordinary clipping resumes from its own section for
-        // everything nested inside it (unless a child is itself independently marked).
-        let cascade_base = if is_marked { current } else { resolved.0 };
+        let (_, cascade_base) = clip_of(current, inherited, is_marked, viewport);
         for d in deps {
             world
                 .commands()

@@ -41,6 +41,12 @@ impl Attachment for Text {
         foliage.define(Text::update);
         foliage.define(Text::apply_text_value);
         foliage.define(Text::responsive_font_size);
+        // `update_from_section` sits at `Prepare`, ahead of the glyph work at `Finalize`:
+        // the scroll pass runs in the same set and the `ApplyDeferred` between the two is
+        // what lands the `TextBounds` it triggers, in time for `Extract` to ship it.
+        foliage
+            .diff
+            .add_systems(Text::update_from_section.in_set(DiffMarkers::Prepare));
         foliage.diff.add_systems(
             (Text::resolve_glyphs, Text::resolve_colors)
                 .chain()
@@ -204,10 +210,6 @@ impl Text {
         world
             .commands()
             .entity(this)
-            .observe(Self::update_from_section);
-        world
-            .commands()
-            .entity(this)
             .observe(Self::clear_last_on_visibility);
     }
     fn responsive_font_size(
@@ -226,8 +228,18 @@ impl Text {
             .commands()
             .trigger_targets(Resolve::<Text>::new(), this);
     }
-    fn update_from_section(trigger: Trigger<Resolved<Section<Logical>>>, mut tree: Tree) {
-        tree.trigger_targets(Resolve::<Text>::new(), trigger.event_target());
+    /// Driven by change detection rather than by `Resolved<Section<Logical>>`, because that
+    /// event only fires on an *insert*: a scroll moves a whole subtree by mutating `Section`
+    /// (see `grid::view::propagate_offsets`), and an observer would never hear about it, so
+    /// the render scissor would sit where the text used to be. `Changed` covers both, since
+    /// an insert marks the component changed too.
+    fn update_from_section(
+        moved: Query<Entity, (Changed<Section<Logical>>, With<Text>)>,
+        mut tree: Tree,
+    ) {
+        for entity in moved.iter() {
+            tree.trigger_targets(Resolve::<Text>::new(), entity);
+        }
     }
     fn resolve_colors(
         mut glyph_colors: ParamSet<(Query<&GlyphColors>, Query<Entity, Changed<GlyphColors>>)>,
@@ -871,8 +883,18 @@ mod tests {
                 )
             })
             .collect::<Vec<_>>();
-        foliage.world.flush();
+        settle(&mut foliage);
         (foliage, field, letters)
+    }
+
+    /// `TextBounds` follows `Section` through `Text::update_from_section`, which is a system
+    /// rather than an observer -- a scroll moves a box by mutating `Section`, and only change
+    /// detection sees that. So a text tree needs the frame run, not just its commands
+    /// applied, the same way `Glyphs`' own mirror already did.
+    fn settle(foliage: &mut Foliage) {
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
     }
 
     #[test]
@@ -884,7 +906,7 @@ mod tests {
             foliage.world.entity_mut(l).insert(FontSize::new(GROWN));
         }
         foliage.world.entity_mut(field).insert(FontSize::new(GROWN));
-        foliage.world.flush();
+        settle(&mut foliage);
 
         let got_field = *foliage.world.get::<Section<Logical>>(field).unwrap();
         let want_field = *reference.world.get::<Section<Logical>>(ref_field).unwrap();

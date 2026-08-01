@@ -1,10 +1,11 @@
 use crate::EcsExtension;
-use crate::ash::clip::ClipToViewport;
+use crate::ash::clip::{ClipToViewport, InheritedClip, ResolvedClip, clip_of};
+use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::location::Resolution;
 use crate::interaction::CurrentInteraction;
 use crate::{
-    AnchorDeps, Branch, Component, LayoutSection, Location, Logical, Moment, Position, Resolve,
-    Section, Stem, Tree,
+    AnchorDeps, Branch, Component, LayoutSection, Location, Logical, Moment, Points, Position,
+    Resolve, Section, Stem, Tree,
 };
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref, Res, ResMut, Resource};
@@ -341,6 +342,24 @@ fn ovrscrl(
     }
     (contexts.get(entity).unwrap().1.id, over)
 }
+/// Recomputes each view's scrollable extent from its children and clamps `offset` to it.
+///
+/// TODO: this walks the whole tree twice every frame regardless of what changed. Both
+/// `contexts.iter()` and `sections.iter()` are full scans, filtered afterwards by
+/// `is_changed()` -- so the cost is paid on an idle frame the same as a busy one, and it
+/// scales with the size of the tree rather than with how much of it moved.
+///
+/// It stands out only because the work around it has gone: with layout resolution and the
+/// clip cascade off the scroll path, this is the only part of the framework left above 1% in
+/// a scroll profile, under the texture atlas (whose own inner cost is syscalls, not
+/// framework code). At that size it is not worth changing.
+///
+/// The shape of the fix, when it is worth it: the same set the walk below already builds.
+/// `propagate_offsets` knows exactly which entities moved, and a `Changed`-filtered query
+/// (`Query<(Entity, &Stem), Changed<Section<Logical>>>`) would hand back the changed
+/// entities directly instead of every entity plus a test. The reason it is written this way
+/// is that the check needs the *parents* of changed entities, not the entities themselves,
+/// and the parent lookup is what the scan currently provides.
 pub(crate) fn extent_check(
     adjustments: Query<(Entity, &ViewAdjustment), Changed<ViewAdjustment>>,
     scroll_requests: Query<(Entity, &ScrollTo), Changed<ScrollTo>>,
@@ -573,9 +592,20 @@ pub(crate) struct ScrolledViews(pub(crate) HashSet<Entity>);
 /// entity -- no `Location` is resolved, no `LayoutSection` is written, and nothing here
 /// re-enters the layout solver.
 ///
-/// `Section` is *inserted*, not mutated: everything that watches for an entity's box moving
-/// on screen -- the clip chain, the text scissor, panel corners -- listens for
-/// `Resolved<Section<Logical>>`, and a `Query` mutation does not fire it.
+/// `Section` is *mutated*, not inserted, and that is the point: an insert is a queued
+/// command, and every one of them costs an archetype touch plus whatever hooks and observers
+/// hang off it. A scroll issuing one per descendant put the frame's cost in the flush rather
+/// than in any computation.
+///
+/// What a mutation still reaches: everything written as a system over
+/// `Changed<Section<Logical>>` -- the render differentials, image cropping -- because change
+/// detection fires on mutation. What it does not reach is the insert-only
+/// `Resolved<Section<Logical>>` event, so its two consumers that matter while scrolling are
+/// handled directly. `ResolvedClip` is computed here, top-down, where a parent's clip is
+/// guaranteed to be settled before its children read it; the text scissor rides
+/// `Text::update_from_section`, which is a `Changed`-driven system for exactly this reason.
+/// The third consumer, `Panel::update_from_section`, recomputes corner radii from the box's
+/// *size*, which a scroll never changes -- not firing it is the correct outcome, not a gap.
 pub(crate) fn propagate_offsets(
     mut scrolled: ResMut<ScrolledViews>,
     stems: Query<&Stem>,
@@ -584,12 +614,19 @@ pub(crate) fn propagate_offsets(
     layouts: Query<&LayoutSection>,
     resolutions: Query<&Resolution>,
     anchor_deps: Query<&AnchorDeps>,
+    mut sections: Query<&mut Section<Logical>>,
+    mut points: Query<&mut Points<Logical>>,
+    mut clips: Query<&mut ResolvedClip>,
+    mut inherited_clips: Query<&mut InheritedClip>,
+    marked: Query<&ClipToViewport>,
+    viewport: Res<ViewportHandle>,
     mut tree: Tree,
 ) {
     if scrolled.0.is_empty() {
         return;
     }
     let roots = scrolled.0.drain().collect::<Vec<_>>();
+    let viewport = viewport.section();
     let mut touched = HashSet::new();
     let mut anchored = HashSet::new();
     for root in roots {
@@ -604,39 +641,72 @@ pub(crate) fn propagate_offsets(
             view.accumulated_offset = inherited + view.offset;
             view.accumulated_offset
         };
-        tracing::trace!(entity = ?root, accumulated = ?accumulated, "grid::view: propagating offset into subtree");
-        // the root's own box does not move when the root scrolls -- only what is inside it
-        let mut stack = vec![(root, accumulated)];
-        while let Some((entity, accumulated)) = stack.pop() {
+        // The root's own box does not move when the root scrolls -- only what is inside it --
+        // so its clip is already right, and what descends is the base its children clip
+        // against.
+        let base = clip_of(
+            *sections.get(root).unwrap(),
+            inherited_clips.get(root).unwrap().0,
+            marked.get(root).is_ok(),
+            viewport,
+        )
+        .1;
+        let mut stack = vec![(root, accumulated, base)];
+        while let Some((entity, accumulated, base)) = stack.pop() {
             let Ok(branch) = branches.get(entity) else {
                 continue;
             };
             for child in branch.ids.iter().copied() {
                 touched.insert(child);
+                let mut moved = None;
                 if let Ok(layout) = layouts.get(child) {
                     let mut section = layout.0;
                     section.position -= accumulated;
-                    tree.entity(child).insert(section);
+                    if let Ok(mut current) = sections.get_mut(child) {
+                        *current = section;
+                    }
+                    moved = Some(section);
                 }
                 if let Ok(resolution) = resolutions.get(child) {
                     if resolution.from_points {
-                        let mut points = resolution.points;
-                        for pt in points.data.iter_mut() {
+                        let mut translated = resolution.points;
+                        for pt in translated.data.iter_mut() {
                             *pt -= accumulated;
                         }
-                        tree.entity(child).insert(points);
+                        if let Ok(mut current) = points.get_mut(child) {
+                            *current = translated;
+                        }
                     }
                 }
                 if let Ok(deps) = anchor_deps.get(child) {
                     anchored.extend(deps.ids.iter().copied());
                 }
+                // `InheritedClip` is kept in step as well as `ResolvedClip`: it is what the
+                // observer path reads the next time this entity's box changes for a reason
+                // other than scrolling, and a stale one there would resolve against the box
+                // this walk already moved past.
+                let child_base = if let Some(section) = moved {
+                    let (resolved, next) =
+                        clip_of(section, Some(base), marked.get(child).is_ok(), viewport);
+                    if let Ok(mut current) = clips.get_mut(child) {
+                        if *current != resolved {
+                            *current = resolved;
+                        }
+                    }
+                    if let Ok(mut current) = inherited_clips.get_mut(child) {
+                        current.0.replace(base);
+                    }
+                    next
+                } else {
+                    base
+                };
                 let inherited = if let Ok(mut view) = views.get_mut(child) {
                     view.accumulated_offset = accumulated + view.offset;
                     view.accumulated_offset
                 } else {
                     accumulated
                 };
-                stack.push((child, inherited));
+                stack.push((child, inherited, child_base));
             }
         }
     }
@@ -800,6 +870,65 @@ mod tests {
             after.top(),
             0.0,
             "and it is cut at the view's own top edge, not at the row's"
+        );
+    }
+
+    /// `TextBounds` is the scissor the glyphs render under, and it is the one thing a text
+    /// entity has to update when its box merely moves. It follows `Section`, so it has to
+    /// keep following it however `Section` is written.
+    #[test]
+    fn a_scrolled_texts_bounds_follow_its_box() {
+        use crate::text::TextBounds;
+        use crate::{FontSize, Text};
+        let mut foliage = Foliage::new();
+        let parent = foliage.world.leaf(
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(100.px().as_height()),
+                ))
+                .elevate(Elevation::up(1))
+                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+        );
+        let text = foliage.world.branch(
+            parent,
+            Text::new("scrolling text".to_string())
+                .size(FontSize::new(24))
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(40.px().as_height()),
+                ))
+                .elevate(Elevation::up(2)),
+        );
+        // something tall enough underneath to give the view a range to scroll through
+        foliage.world.branch(
+            parent,
+            Leaf::sprout()
+                .at(Location::new().xs(
+                    0.px().as_left().with(200.px().as_width()),
+                    0.px().as_top().with(300.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+        foliage.world.flush();
+        foliage.diff.run(&mut foliage.world);
+        foliage.world.flush();
+        let before_section = *foliage.world.get::<Section<Logical>>(text).unwrap();
+        let before_bounds = foliage.world.get::<TextBounds>(text).unwrap().0;
+
+        scroll_halfway(&mut foliage, parent);
+
+        let after_section = *foliage.world.get::<Section<Logical>>(text).unwrap();
+        let after_bounds = foliage.world.get::<TextBounds>(text).unwrap().0;
+        assert_ne!(
+            after_section.top(),
+            before_section.top(),
+            "precondition: the scroll moved the text"
+        );
+        assert_eq!(
+            after_bounds.top() - before_bounds.top(),
+            after_section.top() - before_section.top(),
+            "the scissor moved with the box, by the same amount"
         );
     }
 
