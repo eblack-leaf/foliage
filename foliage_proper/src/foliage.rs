@@ -406,13 +406,27 @@ impl Foliage {
     /// Installs a tracing subscriber for `targets`, e.g.
     /// `"foliage_proper::grid=trace".parse().unwrap()`. Call before
     /// [`photosynthesize`](Self::photosynthesize); on wasm the logs go to the browser
-    /// console.
+    /// console, and on Android to logcat (`adb logcat -s foliage`).
     pub fn enable_tracing(&self, targets: Targets) {
-        #[cfg(not(target_family = "wasm"))]
+        #[cfg(all(not(target_family = "wasm"), not(target_os = "android")))]
         tracing_subscriber::registry()
             .with(
                 tracing_subscriber::fmt::layer()
                     .compact()
+                    .with_filter(targets),
+            )
+            .init();
+        // Android drops stdout/stderr, so the default `fmt` writer reaches nothing at all --
+        // logs have to go through `__android_log_write` to show up in logcat. Same shape as
+        // the wasm arm below: only the writer changes.
+        #[cfg(target_os = "android")]
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_writer(paranoid_android::AndroidLogMakeWriter::new(
+                        "foliage".to_string(),
+                    ))
+                    .without_time()
                     .with_filter(targets),
             )
             .init();

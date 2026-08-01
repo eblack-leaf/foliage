@@ -40,9 +40,32 @@ enum Cli {
         compile_sdk: u32,
         #[arg(long, default_value_t = 35)]
         target_sdk: u32,
-        /// `androidx.games:games-activity` version.
+        /// `androidx.games:games-activity` version. Must match the GameActivity C++ that
+        /// `android-activity` bundles -- grep `GAMEACTIVITY_{MAJOR,MINOR,BUGFIX}_VERSION` out
+        /// of its vendored `GameActivity.h` to check. `GameActivity_register` registers its
+        /// whole JNI table in one call, so one changed signature fails `RegisterNatives` and
+        /// aborts the process at launch, before any Rust runs.
+        ///
+        /// 4.4.0 matches android-activity 0.6.1. Note 0.6.0 bundles 2.0.2 instead, so a stale
+        /// `Cargo.lock` resolving to 0.6.0 is what makes this default look wrong -- update the
+        /// lock rather than downgrading this, since 2.0.2 predates current Android by years.
         #[arg(long, default_value = "4.4.0")]
         games_activity_version: String,
+        /// NDK the README tells people to install. Any reasonably recent one works --
+        /// cargo-ndk doesn't care which -- so this is a known-good default, not a pin.
+        #[arg(long, default_value = "27.3.13750724")]
+        ndk_version: String,
+        /// Build-tools package for the README's install line. Defaults to
+        /// `<compile-sdk>.0.0`, which is the usual shape but not a rule -- point releases
+        /// exist (35.0.1, 36.1.0). `android sdk list --all` shows what's real.
+        #[arg(long)]
+        build_tools_version: Option<String>,
+        /// Host the README's `android` CLI download URL targets, as `<os>_<arch>`:
+        /// `linux_x86_64`, `darwin_arm64`, `darwin_x86_64`, `windows_x86_64`. Defaults to
+        /// the machine running `gen`. Also picks the emulator system-image ABI, since an
+        /// emulator runs the host's architecture.
+        #[arg(long)]
+        host: Option<String>,
         /// Android Gradle Plugin version.
         #[arg(long, default_value = "9.1.0")]
         agp_version: String,
@@ -65,11 +88,16 @@ fn main() -> Result<(), String> {
         compile_sdk,
         target_sdk,
         games_activity_version,
+        ndk_version,
+        build_tools_version,
+        host,
         agp_version,
         gradle_version,
         skip_wrapper,
     } = Cli::parse();
     let app_name = app_name.unwrap_or_else(|| lib_name.clone());
+    let build_tools_version = build_tools_version.unwrap_or_else(|| format!("{compile_sdk}.0.0"));
+    let host = host.unwrap_or_else(default_host);
     let package_path = app_id.replace('.', "/");
 
     write(
@@ -109,6 +137,20 @@ fn main() -> Result<(), String> {
         )),
         &templates::main_activity_java(&app_id, &lib_name),
     )?;
+    write(
+        &out.join("README.md"),
+        &templates::readme(
+            &app_name,
+            &lib_name,
+            &out.display().to_string(),
+            min_sdk,
+            compile_sdk,
+            target_sdk,
+            &ndk_version,
+            &build_tools_version,
+            &host,
+        ),
+    )?;
 
     if skip_wrapper {
         println!(
@@ -141,6 +183,22 @@ fn main() -> Result<(), String> {
     println!("  cd {} && ./gradlew assembleDebug", out.display());
     println!("  # -> app/build/outputs/apk/debug/app-debug.apk, transfer it however you like");
     Ok(())
+}
+
+/// `<os>_<arch>` for the machine running `gen`, matching the naming
+/// `dl.google.com/android/cli/latest/<host>/android` uses. Only a default -- `--host`
+/// overrides it, which is what you want when generating for someone else's machine.
+fn default_host() -> String {
+    let os = match std::env::consts::OS {
+        "macos" => "darwin",
+        "windows" => "windows",
+        _ => "linux",
+    };
+    let arch = match std::env::consts::ARCH {
+        "aarch64" => "arm64",
+        _ => "x86_64",
+    };
+    format!("{os}_{arch}")
 }
 
 fn write(path: &Path, contents: &str) -> Result<(), String> {

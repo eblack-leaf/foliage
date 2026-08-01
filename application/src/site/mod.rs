@@ -201,12 +201,19 @@ pub(crate) const BADGE_OVERHANG: i32 = 20;
 /// is the effect; a badge that stays politely inside the card is just a badge.
 ///
 /// `cell` is a box reaching [`BADGE_OVERHANG`] past the card on the top and right, and the
-/// badge is centered on the card's corner *inside* it. That indirection is the point: the
-/// badge has to cross the card's boundary, so it cannot be the card's child, and the obvious
-/// alternative -- parenting it to the scroll container with an `Anchor` back at the card --
-/// anchors across a scroll boundary and desyncs under the wheel, stranding badges at their
-/// pre-scroll positions while the cards move out from under them. A cell keeps the whole thing
-/// local: one clip, no anchor, and nothing to fall out of step with.
+/// badge is centered on the card's corner *inside* it. That indirection is the point: the badge
+/// has to cross the card's boundary, so it cannot be the card's child.
+///
+/// The obvious alternative is to parent it to the scroll container and `Anchor` it back at the
+/// card -- the workaround `ClipToViewport`'s own TODO describes, forced by there being no way
+/// to escape one clip without also being lifted into the front overlay tier. It puts the badge
+/// on a *wider clip than the thing it belongs to*: the badge tracks its card exactly, but once
+/// the card scrolls past the edge of the box that clips it, the card stops being drawn and the
+/// badge does not. Badges go on floating over empty page, still perfectly in position, above
+/// cards that are no longer visible.
+///
+/// A cell keeps the badge on the same clip as its card, so the two can only ever appear and
+/// disappear together.
 ///
 /// Interaction passes through both layers -- they are decoration, and a shape that swallows
 /// the scroll wheel where it happens to sit is a worse bug than the one it was drawn to fix.

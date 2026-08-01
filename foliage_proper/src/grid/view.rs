@@ -215,6 +215,37 @@ pub(crate) fn coast(
 ///
 /// Carrying a `View` therefore says nothing about being scrollable, and `With<View>` is
 /// not a test for it.
+///
+/// TODO: scrolling costs a full subtree relayout. Because `offset` is folded into every
+/// descendant's resolved coordinates (see above), moving it invalidates the resolved layout
+/// of everything under the view -- so a scroll tick re-resolves N entities and then feeds
+/// whatever moved through the differential and the render queues, where an animation touching
+/// three entities costs three. Measured on a 2021 Android running the site's own overview
+/// page: animation frames sit under budget and vary around 16.7ms, while scroll frames pin to
+/// a flat 33.0ms -- reliably over 16.7 and therefore presenting on every second vsync. Same
+/// page on an iPhone 12 stays at 16.7 throughout, so it is a cost problem on slower hardware
+/// rather than a correctness one, and nothing in the scroll math itself is implicated (the
+/// coast is time-based and covers the right distance either way; it is the sampling that goes
+/// coarse).
+///
+/// The shape of the fix: an offset is a *uniform translation of a whole subtree*, which is
+/// exactly the kind of thing that does not need to be baked into each entity's resolved
+/// coordinates. Applying it at draw time instead -- folded into the vertex path per clip
+/// group, alongside the scissor rect `ash/clip.rs` already derives per `ClipContext` -- would
+/// make a scroll tick one uniform write rather than N resolves, and a scrolling frame as
+/// cheap as an idle one.
+///
+/// Interaction does not break, because the fix there is to translate the *pointer* rather
+/// than the entities: hit-testing compares one position against N sections, so subtracting the
+/// accumulated offset from the pointer once per clip group is the same comparison with the
+/// other side moved. That is the same win again -- the count of views holding a nonzero offset
+/// is tiny (usually one, the page scroller) where the count of entities under them is
+/// hundreds, so hit-testing goes O(views) too.
+///
+/// `Anchor` mostly takes care of itself: when the anchor and the anchored sit in the same
+/// view, both sections lose the offset and the difference between them is unchanged. Only
+/// anchoring *across* a scroll boundary needs the delta reapplied, and that is the one place
+/// this change adds a case rather than removing one.
 pub struct View {
     pub(crate) offset: Position<Logical>,
     pub(crate) extent: Section<Logical>,

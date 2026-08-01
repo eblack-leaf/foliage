@@ -44,7 +44,7 @@ impl Attachment for VirtualKeyboardAdapter {
         }
         foliage
             .world
-            .insert_resource(VirtualKeyboardAdapter::new(foliage.android_connection));
+            .insert_resource(VirtualKeyboardAdapter::new(foliage.android_connection.clone()));
         foliage
             .main
             .add_systems(VirtualKeyboardAdapter::drain_virtual_input.in_set(MainMarkers::External));
@@ -216,7 +216,7 @@ impl VirtualKeyboardAdapter {
         Self::trigger_hook(ty);
         #[cfg(target_os = "android")]
         {
-            self.interface.0.as_ref().unwrap().show_soft_input(true);
+            self.interface.0.show_soft_input(true);
             tracing::info!("opening keyboard");
         }
     }
@@ -280,7 +280,7 @@ impl VirtualKeyboardAdapter {
         }
         #[cfg(target_os = "android")]
         {
-            self.interface.0.as_ref().unwrap().hide_soft_input(true);
+            self.interface.0.hide_soft_input(true);
             tracing::info!("closing keyboard");
         }
     }

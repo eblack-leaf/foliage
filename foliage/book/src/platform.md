@@ -62,9 +62,9 @@ An actual app project *is* now wired up end to end -- three pieces:
   non-interactively from a terminal, no Android Studio required).
 
 Still no Android job in CI (`.github/workflows/ci.yml` has a comment on this, itself
-written before this local wiring existed) -- the SDK's interactive license-acceptance step
-is doable non-interactively there too (`android-actions/setup-android` +
-`yes | sdkmanager --licenses`), just not yet done.
+written before this local wiring existed). Provisioning an SDK in Actions is the open
+question there -- `sdkmanager` is deprecated in favor of the `android` CLI, and how much
+setup that actually takes on a runner hasn't been tried.
 
 ## iOS
 

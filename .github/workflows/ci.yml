@@ -55,10 +55,10 @@ jobs:
 
 # Android: real code exists (AndroidConnection, cfg(target_os = "android") branches,
 # winit's android-game-activity feature) but there's no actual app project wired up yet, and
-# a real build needs the Android SDK's interactive license-acceptance step, which is doable
-# in Actions (android-actions/setup-android + `yes | sdkmanager --licenses`) but is real
-# setup work for a target that isn't finished locally either -- add this job once the app
-# side exists to build against.
+# a real build needs an Android SDK provisioned on the runner, which is real setup work for
+# a target that isn't finished locally either -- add this job once the app side exists to
+# build against. Note `sdkmanager` is deprecated in favor of the `android` CLI, so the usual
+# recipes for this are stale.
 #
 # iOS: no toolchain available to compile or run against (no Xcode) -- the code that touches
 # `cfg(not(target_os = "ios"))` is a single branch with no iOS-specific implementation behind
