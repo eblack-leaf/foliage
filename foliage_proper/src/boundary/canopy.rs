@@ -40,6 +40,8 @@ pub(crate) struct Reads<'w, 's> {
     pub(crate) interaction: Res<'w, CurrentInteraction>,
     pub(crate) assets: Res<'w, AssetLoader>,
     pub(crate) viewport: Res<'w, crate::ginkgo::viewport::ViewportHandle>,
+    pub(crate) named: Res<'w, crate::Named>,
+    pub(crate) keyring: Res<'w, crate::Keyring>,
 }
 
 /// Exactly what a frame may observe about an element.
@@ -248,6 +250,14 @@ impl<'w, 's> Canopy<'w, 's> {
     /// The current drag's smoothed speed, in logical pixels per millisecond.
     pub fn pointer_velocity(&self) -> Position<Logical> {
         self.reads.interaction.velocity()
+    }
+    /// The element recorded under `name` by [`Grows::name`](crate::Grows::name), if one is.
+    pub fn named(&self, name: impl AsRef<str>) -> Option<Leaf> {
+        self.reads.named.lookup(name.as_ref()).map(Leaf)
+    }
+    /// The asset key recorded under `name`, if one is.
+    pub fn asset_named(&self, name: impl AsRef<str>) -> Option<AssetKey> {
+        self.reads.keyring.lookup(name.as_ref())
     }
     /// An asset's bytes, or `None` while it is still loading.
     pub fn asset(&self, key: AssetKey) -> Option<Vec<u8>> {

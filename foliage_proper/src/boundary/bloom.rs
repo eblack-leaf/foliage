@@ -55,6 +55,11 @@ pub enum Bloom {
     },
     /// A tween reached its end and will report no further values.
     TweenDone(Tween),
+    /// A countdown ran out. The `Leaf` names the timer and is spent -- it will never name
+    /// anything again.
+    TimerFinished(Leaf),
+    /// Every animation joined to this sequence has finished.
+    SequenceFinished(Leaf),
     /// An asset's bytes arrived and can now be read with
     /// [`Canopy::asset`](crate::Canopy::asset).
     AssetLoaded {

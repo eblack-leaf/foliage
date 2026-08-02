@@ -1,6 +1,6 @@
 use crate::Trigger;
 use crate::anim::runner::AnimationRunner;
-use crate::anim::sequence::AnimationTime;
+use crate::anim::sequence::{AnimationTime, SequenceMarker};
 use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
 use crate::disable::Disable;
 use crate::enable::Enable;
@@ -191,6 +191,26 @@ impl<'w, 's> Tree<'w, 's> {
             C::refire(entity, world);
         });
     }
+    /// Opens a sequence at an already-allocated id: animations joined to it report their
+    /// completion, and it fires [`OnEnd`](crate::OnEnd) once the last one finishes.
+    pub(crate) fn sequence_at(&mut self, at: Entity) {
+        self.commands.queue(move |world: &mut World| {
+            let _ = world.spawn_at(at, (SequenceMarker::default(), crate::boundary::leaf::Grown));
+        });
+    }
+    /// A countdown at an already-allocated id, firing [`OnEnd`](crate::OnEnd) and despawning
+    /// itself when it runs out.
+    pub(crate) fn timer_at(&mut self, at: Entity, millis: u64) {
+        self.commands.queue(move |world: &mut World| {
+            let _ = world.spawn_at(
+                at,
+                (
+                    Timer::new(TimeDelta::from_millis(millis)),
+                    crate::boundary::leaf::Grown,
+                ),
+            );
+        });
+    }
     /// Spawns a scalar tween runner. Not a [`Node`] -- it holds no place in the tree and is
     /// never drawn; it exists to be ticked and to report numbers.
     pub(crate) fn spawn_tween(&mut self, tweening: crate::boundary::tween::Tweening) {
@@ -250,6 +270,9 @@ impl<'w, 's> Tree<'w, 's> {
         }
         if let Some(aspect) = seed.aspect {
             self.write_to(this, aspect);
+        }
+        if let Some(overscroll) = seed.overscroll {
+            self.write_to(this, overscroll);
         }
         if let Some(font) = seed.font {
             self.write_to(this, font);

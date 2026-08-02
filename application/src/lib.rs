@@ -1,4 +1,4 @@
-use foliage::Foliage;
+use foliage::{Bloom, Canopy, Foliage};
 
 mod entry;
 #[path = "assets/icons/gen/generated.rs"]
@@ -17,11 +17,27 @@ mod site;
 /// that calls this from its own `android_main`.
 pub fn run(mut foliage: Foliage) {
     foliage.desktop_size((360, 800));
+    // Startup-only: artwork and faces have to be registered before anything drawn with them
+    // is grown, and neither is something the frame can change.
     icons::register(&mut foliage);
     site::register_fonts(&mut foliage);
-    site::figure::attach(&mut foliage);
-    site::hero::attach(&mut foliage);
-    site::probe::attach(&mut foliage);
-    entry::build(&mut foliage);
-    foliage.photosynthesize();
+
+    // Everything else is the app, and the app is a struct plus a closure. Nothing here is
+    // handed to the engine, and the engine has no way to reach it.
+    let mut site: Option<entry::Site> = None;
+    foliage.photosynthesize(move |canopy: &mut Canopy| {
+        let site = site.get_or_insert_with(|| entry::Site::grow(canopy));
+        for bloom in canopy.take() {
+            site.respond(canopy, bloom);
+        }
+        site.tick(canopy);
+    });
+}
+
+/// What every part of the site needs to answer an emission: the state it kept, and the
+/// canopy to act through.
+pub(crate) trait Responds {
+    /// Answers one emission. Returns whether it was consumed, so a chain of handlers can stop
+    /// at the first that recognises the `Leaf` rather than every one re-checking.
+    fn respond(&mut self, canopy: &mut Canopy, bloom: &Bloom) -> bool;
 }

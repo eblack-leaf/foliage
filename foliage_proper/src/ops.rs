@@ -101,6 +101,11 @@ impl Named {
     pub fn get<S: AsRef<str>>(&self, n: S) -> Entity {
         self.map[n.as_ref()]
     }
+    /// The entity stored under `n`, or `None`. What the boundary uses -- an app naming
+    /// something that was pruned should get an absence, not a panic.
+    pub(crate) fn lookup(&self, n: &str) -> Option<Entity> {
+        self.map.get(n).copied()
+    }
 }
 impl Attachment for Named {
     fn attach(foliage: &mut Foliage) {
@@ -128,6 +133,10 @@ impl Keyring {
     /// The asset key stored under `n`. Panics if nothing was registered under it.
     pub fn get<S: AsRef<str>>(&self, n: S) -> AssetKey {
         self.map[n.as_ref()]
+    }
+    /// The key stored under `n`, or `None` -- the non-panicking form the boundary uses.
+    pub(crate) fn lookup(&self, n: &str) -> Option<AssetKey> {
+        self.map.get(n).copied()
     }
 }
 #[derive(Event)]

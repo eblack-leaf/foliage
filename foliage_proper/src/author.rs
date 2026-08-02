@@ -29,6 +29,7 @@ pub struct LeafSprout {
     pub(crate) aspect: Option<crate::AspectRatio>,
     pub(crate) content_size: Option<(bool, bool)>,
     pub(crate) font: Option<crate::FontId>,
+    pub(crate) overscroll: Option<crate::OverscrollPropagation>,
 }
 impl Default for LeafSprout {
     fn default() -> Self {
@@ -46,6 +47,7 @@ impl Default for LeafSprout {
             aspect: None,
             content_size: None,
             font: None,
+            overscroll: None,
         }
     }
 }
@@ -151,6 +153,14 @@ pub trait Sprout: Author {
     /// Hit-tests as a circle rather than a rectangle.
     fn round_hit_area(mut self) -> Self {
         self.seed().shape = Some(crate::InteractionShape::Circle);
+        self
+    }
+    /// Whether scroll this element cannot consume passes outward to an ancestor.
+    ///
+    /// On by default -- which is what lets a drag inside a region still move the page behind
+    /// it once the region hits its own end. Turn it off to trap scrolling inside.
+    fn overscroll(mut self, passes: bool) -> Self {
+        self.seed().overscroll = Some(crate::OverscrollPropagation(passes));
         self
     }
     /// Clips this element to the viewport rather than to its nearest scrolling ancestor.

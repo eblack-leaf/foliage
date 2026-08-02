@@ -95,6 +95,26 @@ fn text_action(
     }
 }
 
+/// `OnEnd` means two different things -- a countdown ran out, or a sequence's last animation
+/// finished -- and an app answers them differently, so the two are told apart here by which
+/// component the entity carries rather than left for the app to work out.
+///
+/// The `Leaf` is read before the despawn that follows immediately after, which is the only
+/// reason it is still nameable at this point.
+fn ended(
+    trigger: Trigger<crate::OnEnd>,
+    timers: Query<&crate::Timer>,
+    mut emissions: ResMut<Emissions>,
+) {
+    let entity = trigger.event_target();
+    let leaf = Leaf(entity);
+    emissions.push(if timers.contains(entity) {
+        Bloom::TimerFinished(leaf)
+    } else {
+        Bloom::SequenceFinished(leaf)
+    });
+}
+
 fn asset_loaded(trigger: Trigger<OnRetrieval>, mut emissions: ResMut<Emissions>) {
     emissions.push(Bloom::AssetLoaded {
         key: trigger.event().key,
@@ -134,6 +154,7 @@ impl crate::Attachment for Funnel {
         foliage.define(physical_key);
         foliage.define(text_changed);
         foliage.define(text_action);
+        foliage.define(ended);
         foliage.define(asset_loaded);
         foliage.define(resized);
     }

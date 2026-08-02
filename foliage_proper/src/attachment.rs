@@ -9,3 +9,30 @@ use crate::foliage::Foliage;
 pub(crate) trait Attachment {
     fn attach(foliage: &mut Foliage);
 }
+
+/// A setting an app may install before the loop starts.
+///
+/// Deliberately a closed set rather than "any resource": these are the knobs the engine reads
+/// and never writes, so handing one over cannot desynchronise anything. Sealed by
+/// [`Attachment`] being `pub(crate)` -- nothing outside can add a member.
+#[allow(private_bounds)]
+pub trait Tuning: Sealed {
+    #[doc(hidden)]
+    fn install(self, foliage: &mut Foliage);
+}
+
+pub(crate) trait Sealed {}
+
+macro_rules! tuning {
+    ($($t:ty),+ $(,)?) => {
+        $(
+            impl Sealed for $t {}
+            impl Tuning for $t {
+                fn install(self, foliage: &mut Foliage) {
+                    foliage.world.insert_resource(self);
+                }
+            }
+        )+
+    };
+}
+tuning!(crate::ScrollMomentum, crate::KeyBindings);

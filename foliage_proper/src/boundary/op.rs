@@ -150,10 +150,28 @@ pub(crate) enum Op {
         leaf: Leaf,
         to: Polygon,
     },
+    Icon {
+        leaf: Leaf,
+        to: crate::IconId,
+    },
     Animate {
         leaf: Leaf,
         to: Motion,
         timing: Timing,
+        sequence: Option<Leaf>,
+    },
+    Sequence(Leaf),
+    Timer {
+        leaf: Leaf,
+        millis: u64,
+    },
+    Hint {
+        leaf: Leaf,
+        text: String,
+    },
+    InputStyle {
+        leaf: Leaf,
+        style: crate::TextInputStyle,
     },
     Tween {
         tween: crate::Tween,
@@ -190,10 +208,16 @@ impl Op {
             | Op::Points { leaf, .. }
             | Op::DrawProgress { leaf, .. }
             | Op::Polygon { leaf, .. }
+            | Op::Icon { leaf, .. }
             | Op::Animate { leaf, .. }
             | Op::Scroll { leaf, .. }
             | Op::Name { leaf, .. } => Some(*leaf),
+            Op::Timer { leaf, .. } | Op::Hint { leaf, .. } | Op::InputStyle { leaf, .. } => {
+                Some(*leaf)
+            }
             Op::Prune(leaf) | Op::Enable(leaf) | Op::Disable(leaf) => Some(*leaf),
+            // Its own leaf names something that does not exist yet, like a grow.
+            Op::Sequence(_) => None,
             // Neither names an element: a tween is a stream of numbers, an asset is bytes.
             Op::Tween { .. } | Op::LoadAsset { .. } => None,
         }
@@ -213,6 +237,10 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
         return;
     }
     for op in queue.drain(..) {
+        // The sequence an `Animate` joins, if it still exists. Resolved with the subject
+        // because both are liveness questions and both have to be answered before the tree
+        // below takes the world.
+        let mut joined = None;
         // A grow's own leaf is *supposed* to name nothing yet -- that is what the op is for.
         // Everything else, including a grow's parent, has to still be alive.
         let subject = match &op {
@@ -222,7 +250,16 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
                 Some(parent) => Some(parent.0),
                 None => None,
             },
-            Op::Tween { .. } | Op::LoadAsset { .. } => None,
+            Op::Sequence(_) | Op::Tween { .. } | Op::LoadAsset { .. } => None,
+            // Resolved here, alongside every other liveness check, because the tree below
+            // borrows the world mutably and this reads it.
+            Op::Animate { leaf, sequence, .. } => {
+                if !alive(world, *leaf) {
+                    continue;
+                }
+                joined = sequence.filter(|seq| alive(world, *seq)).map(|seq| seq.0);
+                Some(leaf.0)
+            }
             _ => match op.subject() {
                 Some(leaf) if alive(world, leaf) => Some(leaf.0),
                 _ => continue,
@@ -247,7 +284,18 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
                 tree.write_to(subject.unwrap(), crate::PolylineDrawProgress(to))
             }
             Op::Polygon { to, .. } => tree.write_to(subject.unwrap(), to),
-            Op::Animate { to, timing, .. } => animate(&mut tree, subject.unwrap(), to, timing),
+            Op::Icon { to, .. } => tree.write_to(subject.unwrap(), crate::IconValue(to)),
+            // A sequence whose leaf has withered is simply no sequence -- the animation still
+            // runs, it just reports to nothing.
+            Op::Animate { to, timing, .. } => {
+                animate(&mut tree, subject.unwrap(), to, timing, joined)
+            }
+            Op::Sequence(leaf) => tree.sequence_at(leaf.0),
+            Op::Timer { millis, leaf } => tree.timer_at(leaf.0, millis),
+            Op::Hint { text, .. } => {
+                tree.write_to(subject.unwrap(), crate::HintText::new(text))
+            }
+            Op::InputStyle { style, .. } => tree.write_to(subject.unwrap(), style),
             Op::Tween {
                 tween,
                 channels,
@@ -277,7 +325,13 @@ fn alive(world: &World, leaf: Leaf) -> bool {
     world.entities().contains(leaf.0)
 }
 
-fn animate(tree: &mut Tree, entity: Entity, to: Motion, timing: Timing) {
+fn animate(
+    tree: &mut Tree,
+    entity: Entity,
+    to: Motion,
+    timing: Timing,
+    sequence: Option<Entity>,
+) {
     macro_rules! run {
         ($value:expr) => {{
             let anim = crate::Animation::new($value)
@@ -285,6 +339,10 @@ fn animate(tree: &mut Tree, entity: Entity, to: Motion, timing: Timing) {
                 .start(timing.start)
                 .finish(timing.finish)
                 .eased(timing.ease);
+            let anim = match sequence {
+                Some(seq) => anim.during(seq),
+                None => anim,
+            };
             let anim = if timing.backtrack {
                 anim.backtrack()
             } else {

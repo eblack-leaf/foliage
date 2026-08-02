@@ -2,6 +2,7 @@ use crate::boundary::leaf::Leaf;
 use crate::boundary::op::{Motion, Op, Spec, Timing};
 use crate::boundary::tween::{Channel, Tween};
 use crate::coordinate::position::Position;
+use crate::TextInputStyle;
 use crate::{
     AssetKey, AssetSource, Color, Elevation, FontSize, GlyphColors, Location, Logical, Polygon,
     ScrollTo,
@@ -105,9 +106,58 @@ pub trait Grows: Queues {
     fn polygon(&mut self, leaf: Leaf, to: Polygon) {
         self.push(Op::Polygon { leaf, to });
     }
+    /// Swaps which registered artwork an icon draws.
+    fn icon(&mut self, leaf: Leaf, to: crate::IconId) {
+        self.push(Op::Icon { leaf, to });
+    }
     /// Tweens one of an element's own values.
     fn animate(&mut self, leaf: Leaf, to: Motion, timing: Timing) {
-        self.push(Op::Animate { leaf, to, timing });
+        self.push(Op::Animate {
+            leaf,
+            to,
+            timing,
+            sequence: None,
+        });
+    }
+    /// [`animate`](Grows::animate), joined to a sequence so its completion counts toward
+    /// that sequence's [`Bloom::SequenceFinished`](crate::Bloom::SequenceFinished).
+    ///
+    /// Entries keep their own timing and may overlap freely -- joining a sequence groups
+    /// them, it does not order them.
+    fn animate_during(&mut self, leaf: Leaf, to: Motion, timing: Timing, sequence: Leaf) {
+        self.push(Op::Animate {
+            leaf,
+            to,
+            timing,
+            sequence: Some(sequence),
+        });
+    }
+    /// Opens a sequence. Animations joined to it with
+    /// [`animate_during`](Grows::animate_during) report completion, and once the last one
+    /// finishes it emits [`Bloom::SequenceFinished`](crate::Bloom::SequenceFinished) -- the
+    /// hook for chaining one stage of motion onto the next.
+    fn sequence(&mut self) -> Leaf {
+        let leaf = self.allocate();
+        self.push(Op::Sequence(leaf));
+        leaf
+    }
+    /// Emits [`Bloom::TimerFinished`](crate::Bloom::TimerFinished) once, `millis` from now.
+    /// One-shot: repeating means starting another from the emission.
+    fn timer(&mut self, millis: u64) -> Leaf {
+        let leaf = self.allocate();
+        self.push(Op::Timer { leaf, millis });
+        leaf
+    }
+    /// A text input's placeholder, shown while it is empty.
+    fn hint(&mut self, leaf: Leaf, text: impl Into<String>) {
+        self.push(Op::Hint {
+            leaf,
+            text: text.into(),
+        });
+    }
+    /// A text input's colors, rounding and outline, rewritten as one unit.
+    fn input_style(&mut self, leaf: Leaf, style: TextInputStyle) {
+        self.push(Op::InputStyle { leaf, style });
     }
     /// Scrolls a view, as a fraction of its scrollable range.
     fn scroll(&mut self, leaf: Leaf, to: ScrollTo) {

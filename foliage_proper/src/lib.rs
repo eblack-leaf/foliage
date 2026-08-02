@@ -53,6 +53,7 @@ pub use anim::{
 };
 pub(crate) use ash::differential::Differential;
 pub use asset::{Asset, AssetKey, AssetLoader, AssetSource, OnRetrieval};
+pub use attachment::Tuning;
 pub(crate) use attachment::Attachment;
 pub use author::Sprout;
 pub(crate) use author::{Author, LeafSprout};

@@ -354,6 +354,17 @@ impl Foliage {
         self.tree().send(LoadAsset { key, source });
         key
     }
+    /// Registers an icon's artwork, so every [`Icon`] drawn with that id has a field to draw
+    /// from. Startup-only, like [`font`](Self::font) -- the generated module `foliage_icons`
+    /// emits calls a `register(&mut Foliage)` makes in one go.
+    pub fn icon(&mut self, memory: crate::IconMemory) {
+        self.world.spawn(memory);
+    }
+    /// Sets a startup resource an app is allowed to tune: scroll momentum, the text input's
+    /// key bindings, and anything else the engine reads once and never writes.
+    pub fn tune<R: crate::Tuning>(&mut self, value: R) {
+        value.install(self);
+    }
     /// Registers a monospace font and hands back the [`FontId`] naming it. Put that id on a
     /// [`Text`] entity (composites forward it like [`FontSize`](crate::FontSize)) to draw
     /// with it; anything that never sets one uses the bundled JetBrains Mono.

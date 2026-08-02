@@ -41,7 +41,7 @@ pub fn generate(entries: &[IconEntry], cfg: &CodegenConfig) -> String {
     for e in entries {
         let id = format!("IconId::from({}::{})", cfg.enum_name, e.variant);
         out.push_str(&format!(
-            "    foliage.world.spawn(Icon::msdf({id}, include_bytes!(\"{stem}.icon\"), FIELD_SIZE, PX_RANGE));\n",
+            "    foliage.icon(Icon::msdf({id}, include_bytes!(\"{stem}.icon\"), FIELD_SIZE, PX_RANGE));\n",
             stem = e.file_stem
         ));
     }
