@@ -28,7 +28,8 @@ pub(crate) struct AnimationRunner<A: Animate> {
     pub(crate) created_at: Option<TimeDelta>,
     /// Passes still to run after the current one. See [`Repeat`].
     pub(crate) repeat: Repeat,
-    /// Whether each replay runs back the way it came -- see [`Animation::backtrack`].
+    /// Whether each replay runs back the way it came -- see
+    /// [`Animation::backtrack`](crate::Animation::backtrack).
     pub(crate) backtrack: bool,
     /// Whether this animation has already decremented its sequence. A looping animation
     /// settles its sequence on its *first* completed pass and then keeps running, so every

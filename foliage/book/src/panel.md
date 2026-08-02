@@ -1,11 +1,12 @@
 # Panel
 
 `Panel` is the filled/outlined/rounded rectangle primitive -- the thing most composites
-(`Button`, `Checkbox`, `Modal`'s backdrop, ...) actually draw as their visible surface.
-It's a normal rendering primitive in the sense [Leaf](./leaf.md) describes: it does
-**not** `#[require(Leaf, ...)]` -- `Leaf` gets unioned in at spawn time regardless of
-what's being spawned. What `Panel` *does* require is its own render-relevant state, plus
-one `Differential` per attribute a change to it should be able to trigger a redraw for:
+actually draw as their visible surface: a button's background, a card's backdrop, a
+toggle's track. It's a normal rendering primitive in the sense [Inside the Engine](./tree.md)
+describes: it does **not** `#[require(Node, ...)]` -- `Node` gets unioned in at spawn
+time regardless of what's being spawned. What `Panel` *does* require is its own
+render-relevant state, plus one `Differential` per attribute a change to it should be
+able to trigger a redraw for:
 
 ```rust
 // foliage_proper/src/panel/mod.rs

@@ -1,70 +1,52 @@
-# Every Widget Is an Entity: Leaf
+# A Name for an Element: Leaf
 
-Start from nothing: a bare `bevy_ecs::Entity` with no components. It has no position, so
-nothing can lay it out. It has no parent, so nothing knows it belongs to a screen. It has
-no draw order, so a renderer wouldn't know when to draw it relative to anything else. It
-can't be hidden, faded, or clipped, and it can't receive a click. None of that is
-optional for something that's going to appear on screen -- so `Leaf` bundles exactly
-that set of requirements onto every entity that needs them, via `bevy_ecs`'s
-`#[require(...)]`:
+An app never holds an entity -- it holds a `Leaf`:
 
 ```rust
-// foliage_proper/src/leaf.rs
-#[derive(Component)]
-#[require(Stem, Branch)]
-#[require(Opacity, Visibility, ClipSection)]
-#[require(Section<Logical>, Elevation, InteractionShape, InteractionPropagation, FocusBehavior)]
-#[component(on_add = Self::on_add)]
-#[component(on_remove = Self::on_remove)]
-pub struct Leaf {}
+// foliage_proper/src/boundary/leaf.rs
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct Leaf(pub(crate) Entity);
 ```
 
-Each piece solves one of the problems above:
+The wrapped `Entity` is `pub(crate)` -- nothing outside the crate can read, construct, or
+match on it. A `Leaf` is opaque by construction: the only things you can do with one are
+name it as a parent, pass it to a [`Grows`](./canopy.md) verb, or compare it for
+equality. `Leaf::id()` hands back a stable `u64` for logging or as a map key -- not an
+address, nothing to dereference, just a way to tell two elements apart.
 
-- **`Stem`/`Branch`** -- explicit, ECS-visible parent/child. Not "which entity happens
-  to be near this one in a tree structure kept elsewhere" -- an actual component, so any
-  system can query "what's my parent" or "what are my children" without a side table.
-- **`Opacity`/`Visibility`/`ClipSection`** -- fade, show/hide, and the ancestor-derived
-  region an entity is allowed to draw within. All three are things any renderable entity
-  needs regardless of what it renders.
-- **`Section<Logical>`/`Elevation`** -- where an entity is (position + size, in
-  logical/DPI-independent units) and how far forward or back it draws relative to
-  siblings.
-- **`InteractionShape`/`InteractionPropagation`/`FocusBehavior`** -- the hit-testing
-  shape, whether a click passes through to something behind it, and how focus behaves --
-  present on every leaf whether or not it ever actually receives input, so the
-  interaction system doesn't need to special-case entities that opted out.
+## Usable before it exists
 
-Every one of these is required, not optional-with-a-default-if-forgotten: an entity
-missing any of them isn't a valid on-screen thing, so `Leaf` doesn't let you spawn one
-without them.
+A `Leaf` is allocated the moment you ask for one, from a shared allocator
+[`Canopy`](./canopy.md) and [`Sprig`](./canopy.md) both draw from -- which is what lets a
+name minted on a background thread never collide with one minted in the frame closure.
+The element it names doesn't come into being until that frame's commands are applied, but
+the name is real immediately: it can be used as a parent for a child grown in the same
+breath, or as the target of a write queued right after.
 
-## Leaf attaches itself, not the other way around
-
-You might expect a rendering primitive like `Panel` to declare `#[require(Leaf, ...)]`
--- but it doesn't. Grep `foliage_proper/src/panel/mod.rs` and `text/mod.rs` and neither
-one mentions `Leaf` at all. Instead, `Leaf` is unioned onto every entity the *library's
-own* spawn path produces, at the moment it's spawned:
+## Presence, not panics
 
 ```rust
-// foliage_proper/src/tree.rs
-impl Sow for Tree<'_, '_> {
-    fn sow<B: Bundle>(&mut self, b: B) -> Entity {
-        let entity = self.spawn((Leaf::new(), b)).id();
-        entity
-    }
+// foliage_proper/src/boundary/leaf.rs
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Presence {
+    Planted,
+    Live,
+    Withered,
 }
 ```
 
-So `Panel`, `Text`, `Button`, and every other widget are components that describe *what*
-an entity is, while `Leaf` is inserted alongside them, unconditionally, describing what
-*any* on-screen entity needs regardless of what it is. This is why `Leaf`'s own
-`on_add`/`on_remove` hooks (registering `anim_opacity`/`anim_elevation`/`anim_location`
-observers, and cleaning up `CurrentInteraction` state on removal) run for literally every
-widget spawned through `Sprout`, without each widget type needing to remember to
-register them itself. It's a guarantee about the library's *own* spawn path, not a wall
-nothing can get past -- see the note at the end of [Spawning](./spawning.md) for why, and
-where the actual boundary sits.
+A `Leaf` naming something that was pruned, or never grew, is inert rather than dangerous.
+Every command targeting a withered `Leaf` is silently dropped; every sample of one reads
+`None`. Nothing panics, and a name is never reused within its generation, so a stale
+handle held past its element's lifetime cannot silently address whatever grew after it.
+[`Canopy::presence`](./canopy.md) reads which of the three states a `Leaf` is currently
+in.
 
-The next chapter, [Spawning](./spawning.md), covers exactly how `sow` gets called, and
-why an entity can't be spawned any other way.
+## What's underneath
+
+Every element a `Leaf` names is, on the engine's own side of the boundary, a `bevy_ecs`
+entity carrying `Node` -- the internal marker that brings in the position, draw order,
+and interaction defaults anything on screen needs. None of that is reachable from an app:
+`Node`, the entity itself, and the `bevy_ecs` crate it comes from are all `pub(crate)`.
+See [Inside the Engine](./tree.md) for what `Node` actually is and why spawning one is
+funneled through a single door.

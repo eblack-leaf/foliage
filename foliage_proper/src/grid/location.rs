@@ -63,8 +63,8 @@ impl Animate for Location {
 /// required; larger breakpoints fall back to the nearest smaller one set.
 ///
 /// Resolves to a [`Section`], or to [`Points`] when built from `as_x`/`as_y` -- see
-/// [`Designator`]. Animating a `Location` tweens between the current resolved box and the
-/// new one.
+/// `Designator` (engine-internal). Animating a `Location` tweens between the current
+/// resolved box and the new one.
 #[derive(Component, Copy, Clone, Default)]
 #[component(on_insert = Location::on_insert)]
 #[require(Diff, CreateDiff, Resolution)]
@@ -839,8 +839,8 @@ fn calc(
     };
     calculated.and_then(|c| Some(c + desc.adjust.amount))
 }
-/// One resolved edge or extent: a [`LocationValue`] plus the [`Designator`] saying which
-/// part of the box it describes, and an optional pixel [`Adjust`].
+/// One resolved edge or extent: a [`LocationValue`] plus the `Designator` (engine-internal)
+/// saying which part of the box it describes, and an optional pixel [`Adjust`].
 #[derive(Copy, Clone)]
 pub struct ValueDescriptor {
     designator: Designator,
@@ -970,8 +970,8 @@ impl_grid_ext!(usize);
 impl_grid_ext!(isize);
 /// A single unresolved number in a [`Location`], before it is told which edge it
 /// describes. Built through [`GridExt`], [`anchor()`](anchor) or
-/// [`text_content()`](text_content), then given a [`Designator`] by `as_left()` and
-/// friends.
+/// [`text_content()`](text_content), then given a `Designator` (engine-internal) by
+/// `as_left()` and friends.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LocationValue {
     /// Fraction of the parent's own extent on this axis.
@@ -1034,7 +1034,7 @@ impl LocationValue {
     }
     /// Uses this value as a point's X, putting the entity in point mode: it resolves to
     /// [`Points`] rather than a box, and its `Section` becomes their bounding rectangle.
-    /// For [`Line`](crate::Line) and [`Polygon`](crate::Polygon).
+    /// For [`Line`] and [`Polygon`](crate::Polygon).
     pub fn as_x(self) -> ValueDescriptor {
         ValueDescriptor::new(Designator::X, self)
     }

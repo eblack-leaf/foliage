@@ -1,9 +1,12 @@
 # Interaction and Focus
 
-[Leaf](./leaf.md) requires `InteractionShape`/`InteractionPropagation`/`FocusBehavior`
-on every entity unconditionally -- so the interaction system never needs to special-case
-"this entity might not be able to receive input." Whether it actually *does* is a
-separate question, answered by `InteractionListener`.
+[`Node`](./tree.md) requires `InteractionShape`/`InteractionPropagation`/`FocusBehavior`
+on every on-screen entity unconditionally -- so the interaction system never needs to
+special-case "this entity might not be able to receive input." Whether it actually
+*does* is a separate question, answered by `InteractionListener`. From an app, this
+whole system is what turns into [`Sprout::interactive`/`Sprout::pass_through`/etc.](./spawning.md)
+on the way in and [`Bloom::Clicked`/`Engaged`/`Dragged`/etc.](./canopy.md) on the way
+out.
 
 ## Hit-testing: shape + clip, not bounding-box-only
 
@@ -50,25 +53,24 @@ opt-outs untouched and independently restorable.
 
 ## `InteractionPropagation`: pass-through and grab
 
-Every entity defaults to `grab: true` (per `Leaf`'s unconditional requirement) -- a plain
+Every entity defaults to `grab: true` (per `Node`'s unconditional requirement) -- a plain
 `Panel`/`Text`/`Icon` with no `InteractionListener` still competes to *own* a click even
 though it does nothing with it, since hit-testing is a flat, elevation-ranked scan over
-every `Leaf`, not ancestor-bubbling (see [Popover](./composites/popover.md)'s doc comment
-on exactly this constraint). `InteractionPropagation::pass_through()` is how a rendering
-child (`Button`'s own `Panel`/`Text`) opts back out, so the click reaches the composite
-root's own listener instead of being swallowed by whichever visual child happened to be
-on top. `disable_drag()` (used by `Carousel`'s viewport, `Slider`'s knob) is the
-narrower version -- still grabs for click purposes, but excludes drag-panning
-specifically, so a composite that drives its own drag logic doesn't fight the generic
-view-panning behavior a `Grid`-bearing entity gets by default.
+every on-screen entity, not ancestor-bubbling. `InteractionPropagation::pass_through()`
+is how a purely-visual child (a widget's own inner `Panel`/`Text`) opts back out, so the
+click reaches the widget root's own listener instead of being swallowed by whichever
+visual child happened to be on top. `disable_drag()` is the narrower version -- still
+grabs for click purposes, but excludes drag-panning specifically, so a widget that drives
+its own drag logic (a knob, a swipeable page) doesn't fight the generic view-panning
+behavior a `Grid`-bearing entity gets by default.
 
 ## `FocusBehavior`
 
-`FocusBehavior::ignore()` (used the same places `pass_through()` is, on `Button`'s
-`Panel`/`Text` children) keeps a purely-visual child from stealing keyboard focus away
-from the composite root that should actually hold it -- the same "rendering children
-shouldn't compete with their own composite root" pattern `InteractionPropagation`
-follows, applied to focus instead of clicks.
+`FocusBehavior::ignore()` (used the same places `pass_through()` is, on a widget's own
+purely-visual children) keeps a rendering child from stealing keyboard focus away from
+the widget root that should actually hold it -- the same "rendering children shouldn't
+compete with their own root" pattern `InteractionPropagation` follows, applied to focus
+instead of clicks.
 
 ## After the grab: walking up to find a `View` to pan
 
@@ -76,9 +78,9 @@ Hit-testing itself (deciding *which* entity wins the grab, above) is a flat scan
 ancestor walking involved. But once something's grabbed and actually dragged or
 scrolled, a second, separate question comes up: *which* entity's `View` (see
 [Grid](./grid.md)) actually gets panned? The grabbed entity itself might have no `View`
-of its own (a `Slider`'s knob, a `TextInput`'s cursor) -- so `interactive_elements`
-walks up the grabbed entity's real `Stem` chain looking for the nearest ancestor that
-does:
+of its own (a widget's own draggable knob, a `TextInput`'s cursor) -- so
+`interactive_elements` walks up the grabbed entity's real `Parent` chain looking for the
+nearest ancestor that does:
 
 ```rust
 // foliage_proper/src/interaction/mod.rs (abridged, the drag-move case)
@@ -100,10 +102,10 @@ The crate's own comments call this the interaction system's "LCA walk" (see
 walk from the grabbed entity outward, not a two-entity lowest-common-ancestor
 computation in the strict graph-theory sense. A disabled view along the way doesn't stop
 the search either -- it keeps walking further out, since touch has no separate
-wheel-scroll channel: a drag not meant for the nearest view (a `Carousel` swiping its own
+wheel-scroll channel: a drag not meant for the nearest view (a widget swiping its own
 pages) must still be able to reach whatever scrollable ancestor further out *is* meant to
-receive it (the page behind the `Carousel`, on a platform where dragging is the only
-scroll input there is).
+receive it (the page behind it, on a platform where dragging is the only scroll input
+there is).
 
 ## After the release: velocity, and handing off to a coast
 

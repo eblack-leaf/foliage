@@ -22,7 +22,7 @@ use bevy_ecs::system::Query;
 /// it, the standard round-join technique (each segment's near corners sit exactly `weight /
 /// 2` from the vertex, so the circle's radius reaches precisely to them). This holds
 /// whether or not the line is dashed, so joints aren't a plain-line-only option -- see
-/// [`dashed_segments`] for how dashing keeps them.
+/// `dashed_segments` (engine-internal) for how dashing keeps them.
 #[derive(Component, Copy, Clone)]
 pub struct Polyline {}
 impl Polyline {
@@ -31,8 +31,8 @@ impl Polyline {
     }
 }
 
-/// Polyline's content: the vertex chain, rewritten as one unit like `ListItems` --
-/// `tree.write_to(polyline, PolylinePoints(vec![..]))` re-derives every segment and joint.
+/// Polyline's content: the vertex chain, rewritten as one unit --
+/// `canopy.points(polyline, vec![..])` re-derives every segment and joint.
 ///
 /// TODO: points are local px only, so a polyline in a percentage-width box does not stretch
 /// with it -- every responsive caller ends up running the same system, reading the resolved
@@ -48,10 +48,11 @@ pub struct PolylinePoints(pub Vec<Position<Logical>>);
 
 /// How much of the path (by arc length, 0.0..=1.0) is currently drawn -- the "draw the
 /// line in" effect, distilled into the composite itself rather than left for every author
-/// to hand-roll. `tree.write_to(polyline, PolylineDrawProgress(0.4))` reveals the first 40%
-/// of the path; a caller driving this every frame (their own system, or eventually
-/// `tree.animate` once `Animate` covers it) gets a smooth draw-in with the same zero-churn
-/// property `PolylinePoints` writes already have -- see `PolylineSprout::build`: the full
+/// to hand-roll. `canopy.draw_progress(polyline, 0.4)` reveals the first 40% of the path;
+/// a caller driving this every frame (their own per-frame write, or eventually a
+/// [`Motion`](crate::Motion) variant once one covers it) gets a smooth draw-in with the
+/// same zero-churn property `PolylinePoints` writes already have -- see
+/// `PolylineSprout::build`: the full
 /// point list always determines segment/joint *count* (and therefore the entity pool),
 /// completely independent of progress, so animating this from 0 to 1 never spawns or
 /// despawns anything after the first frame. Defaults to fully drawn, so ignoring this
@@ -76,8 +77,9 @@ impl Default for PolylineDrawProgress {
 #[derive(Component, Copy, Clone, Default)]
 pub struct PolylineDroppedPoints(pub usize);
 
-/// Polyline's OWN appearance vocabulary, poked as one unit:
-/// `tree.write_to(polyline, PolylineStyle { .. })`.
+/// Polyline's OWN appearance vocabulary, held as one component rather than field-by-field.
+/// Set at spawn through [`PolylineSprout`]'s builder; there is no post-spawn rewrite for it
+/// yet, unlike [`PolylinePoints`]/[`PolylineDrawProgress`].
 #[derive(Component, Copy, Clone)]
 pub struct PolylineStyle {
     pub weight: i32,
@@ -95,7 +97,7 @@ impl Default for PolylineStyle {
 }
 
 /// A repeating on/off run length along the path, in px, continuous across vertices (the
-/// pattern doesn't reset at a bend) -- see [`dashed_segments`].
+/// pattern doesn't reset at a bend) -- see `dashed_segments` (engine-internal).
 #[derive(Copy, Clone)]
 pub struct DashPattern {
     pub(crate) on: f32,
@@ -137,7 +139,7 @@ impl PolylineSprout {
         self.points = Some(PolylinePoints(points.into_iter().map(Into::into).collect()));
         self
     }
-    /// Clamped to [`MIN_LINE_WEIGHT`]: below that, the joint's rounded-to-a-whole-px diameter
+    /// Clamped to [`MIN_LINE_WEIGHT`](crate::MIN_LINE_WEIGHT): below that, the joint's rounded-to-a-whole-px diameter
     /// (see `PolylineSprout::build`) can't track `Line`'s perceived width closely enough to
     /// look clean at a bend -- and the segments themselves have their own reason for the same
     /// floor, which is why they share the constant rather than each carrying a `3`.

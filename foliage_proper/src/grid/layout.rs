@@ -9,7 +9,7 @@ use bevy_ecs::system::{Query, ResMut};
 /// The current breakpoint, from the viewport's width -- a `Resource`, so there is one
 /// answer for the whole app at any moment.
 ///
-/// Every responsive type keys off this: a [`Location`](crate::Location)'s `.xs()`/`.md()`
+/// Every responsive type keys off this: a [`Location`]'s `.xs()`/`.md()`
 /// variants, a [`Grid`](crate::Grid)'s per-breakpoint configurations, and
 /// [`FontSize`](crate::FontSize)'s per-breakpoint sizes. Each falls back to the nearest
 /// smaller breakpoint that was given, so only `xs` is ever required.

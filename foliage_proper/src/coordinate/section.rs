@@ -19,7 +19,7 @@ use crate::{Anchor, AnchorDeps, Children, Location, Resolve, Resolved};
 #[component(on_insert = Section::<Logical>::on_insert)]
 /// A rectangle: a top-left [`Position`] plus an [`Area`], in one coordinate space.
 ///
-/// This is the resolved geometry of an entity -- what a [`Location`](crate::Location)
+/// This is the resolved geometry of an entity -- what a [`Location`]
 /// produces, what the renderer draws into, and what hit-testing and clipping compare
 /// against. Authors read it; the layout pass writes it.
 ///
@@ -30,7 +30,7 @@ use crate::{Anchor, AnchorDeps, Children, Location, Resolve, Resolved};
 ///
 /// Construct via [`Section::logical`]/[`physical`](Section::physical) or from a
 /// `(position, area)` tuple. Conversions between spaces are explicit and take the current
-/// [`ScaleFactor`](crate::ScaleFactor).
+/// `ScaleFactor` (engine-internal).
 pub struct Section<Context: CoordinateContext> {
     pub position: Position<Context>,
     pub area: Area<Context>,

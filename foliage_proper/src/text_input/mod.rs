@@ -120,12 +120,12 @@ impl Attachment for TextInput {
 /// highlights, and the keyboard and pointer handling that drives them.
 ///
 /// Spawned through [`TextInput::new`]. Read and write its contents with
-/// [`TextValue`](crate::TextValue), the same channel every text-bearing composite uses,
+/// [`TextValue`], the same channel every text-bearing composite uses,
 /// and watch [`TextContentChanged`](crate::TextValue) for edits. Appearance is one
 /// [`TextInputStyle`] written as a unit.
 ///
 /// The field lays out on a character grid taken from its own
-/// [`FontSize`](crate::FontSize), which is what lets the caret address a column and row
+/// [`FontSize`], which is what lets the caret address a column and row
 /// rather than a pixel. [`LineConstraint`] decides whether it wraps.
 #[derive(Component, Copy, Clone)]
 #[require(LineConstraint, Cursor, Selection, HintText, HintColor)]
@@ -139,7 +139,7 @@ pub struct TextInput {}
 #[derive(Component, Copy, Clone)]
 pub(crate) struct TextInputField;
 /// TextInput's OWN config vocabulary (widgets each own theirs -- nothing is library-blessed),
-/// poked as one unit: `tree.write_to(input, TextInputStyle { .. })`.
+/// poked as one unit: `canopy.input_style(input, TextInputStyle { .. })`.
 #[derive(Component, Copy, Clone, Default)]
 pub struct TextInputStyle {
     /// text + hint content color
@@ -163,7 +163,7 @@ impl TextInput {
     #[allow(dead_code)]
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
     /// Starts a [`TextInput`] entity:
-    /// `tree.branch(parent, TextInput::new().hint_text("Search").at(loc))`.
+    /// `canopy.branch(parent, TextInput::new().hint_text("Search").at(loc))`.
     pub fn new() -> TextInputSprout {
         TextInputSprout::default()
     }
@@ -319,7 +319,7 @@ impl Author for TextInputSprout {
     }
 }
 impl TextInputSprout {
-    /// Initial contents. Change it later by writing [`TextValue`](crate::TextValue).
+    /// Initial contents. Change it later by writing [`TextValue`].
     pub fn text(mut self, t: impl Into<String>) -> Self {
         self.text = Some(t.into());
         self
@@ -2111,12 +2111,14 @@ impl TextInput {
     }
 }
 /// Fired at the `TextInput` root whenever its text content changes (typing, deletion, paste,
-/// programmatic `TextValue` writes). Subscribe with `tree.subscribe(input, ...)`.
+/// programmatic `TextValue` writes). Reported across the boundary as
+/// [`Bloom::TextChanged`](crate::Bloom::TextChanged).
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct TextChanged {}
-/// Programmatically inserts text at the cursor (or replaces the active selection). Public: any
-/// composite/consumer can trigger this directly, not just this file's own key-handling arms.
+/// Programmatically inserts text at the cursor (or replaces the active selection). No
+/// [`Grows`](crate::Grows) verb sends this yet -- only this crate's own key-handling arms
+/// trigger it today.
 #[foliage_macros::targeted_event]
 pub struct InsertText {
     pub text: String,

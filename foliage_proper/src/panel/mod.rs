@@ -48,7 +48,7 @@ pub struct Panel {
 }
 impl Panel {
     /// Starts a [`Panel`] entity:
-    /// `tree.branch(parent, Panel::new().color(c).rounding(Rounding::Md).at(loc))`.
+    /// `canopy.branch(parent, Panel::new().color(c).rounding(Rounding::Md).at(loc))`.
     pub fn new() -> PanelSprout {
         PanelSprout::default()
     }

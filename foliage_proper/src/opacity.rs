@@ -16,7 +16,7 @@ use bevy_ecs::world::DeferredWorld;
 ///
 /// Multiplies down the `Parent` chain: a child at `0.5` inside a parent at `0.5` renders at
 /// `0.25`, so fading a container fades everything in it as one. The product the renderer
-/// reads is [`BlendedOpacity`].
+/// reads is `BlendedOpacity` (engine-internal).
 ///
 /// Animatable, and the usual way to fade UI in and out. Distinct from a color's own alpha
 /// ([`Color::with_opacity`](crate::Color::with_opacity)), which is a fixed property of

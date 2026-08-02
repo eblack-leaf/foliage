@@ -24,6 +24,6 @@ too. The same doc comment notes a real future path if that gap ever needs closin
 events on the hidden virtual-keyboard inputs [Virtual Keyboard](./virtual-keyboard.md)
 already maintains for IME/soft-keyboard support.
 
-`tree_input.rs`/`TextInput` reads and writes through this `Resource` directly for
+`text_input/mod.rs`'s `TextInput` reads and writes through this `Resource` directly for
 copy/cut/paste -- there's no widget-specific clipboard handling anywhere else in the
 crate.

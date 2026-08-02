@@ -1,10 +1,10 @@
 # Icon
 
-An icon needs to render crisply at any size an author gives it -- a `Button`'s icon might
-be 16px or 48px depending on the surrounding text, and a raster image would blur or
-pixelate at the wrong end of that range. `Icon` renders MTSDF (multi-channel signed
-distance field) fields instead of raster bitmaps, which is what makes it
-resolution-independent: one baked field serves every on-screen size.
+An icon needs to render crisply at any size an author gives it -- next to a small label
+or blown up as a hero graphic, and a raster image would blur or pixelate at the wrong end
+of that range. `Icon` renders MTSDF (multi-channel signed distance field) fields instead
+of raster bitmaps, which is what makes it resolution-independent: one baked field serves
+every on-screen size.
 
 ```rust
 // foliage_proper/src/icon/mod.rs
@@ -21,8 +21,8 @@ pub struct Icon {
 }
 ```
 
-The same shape every primitive follows -- required color/differentials, no `Leaf`
-mentioned (see [Leaf](./leaf.md) for why). `id` is a plain `i32`, not a string or enum:
+The same shape every primitive follows -- required color/differentials, no `Node`
+mentioned (see [Inside the Engine](./tree.md) for why). `id` is a plain `i32`, not a string or enum:
 icons are registered by id up front (typically generated code from `foliage_icons`, the
 separate SVG-to-MTSDF CLI tool in this workspace), and referenced by that id afterward.
 
@@ -64,8 +64,9 @@ controls how sharp vs. soft the rendered edge looks regardless of on-screen size
 
 ## The public value channel
 
-An icon entity's actual glyph is driven by [`IconValue`](./composites-overview.md), the
-same shared value-channel convention `TextValue` follows:
+An icon entity's actual glyph is driven by `IconValue`, the same shared value-channel
+convention `TextValue` follows -- across the boundary this is
+[`Grows::icon`](./canopy.md):
 
 ```rust
 // foliage_proper/src/icon/mod.rs
@@ -83,7 +84,6 @@ fn apply_icon_value(
 ```
 
 The `With<Icon>` filter matters: `IconValue` is also carried by entities that merely use
-it as *config* rather than render it directly -- a `Button` root holds `IconValue` and
-forwards it to its own lazily-spawned `Icon` child (see [Button](./composite-button.md)) --
-so this observer has to skip those and only act where an `Icon` component is actually
-present to update.
+it as *config* rather than render it directly -- a composite root can hold `IconValue`
+and forward it to its own lazily-spawned `Icon` child -- so this observer has to skip
+those and only act where an `Icon` component is actually present to update.

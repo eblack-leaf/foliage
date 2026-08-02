@@ -6,7 +6,7 @@ use bevy_ecs::world::DeferredWorld;
 
 #[derive(Component, Copy, Clone)]
 #[component(on_insert = Self::on_insert)]
-/// Forces a resolved [`Section`](crate::Section) to a width-over-height ratio, per
+/// Forces a resolved [`Section`] to a width-over-height ratio, per
 /// breakpoint.
 ///
 /// Applied after the entity's `Location` resolves, so it constrains whatever box the

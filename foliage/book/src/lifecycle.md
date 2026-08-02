@@ -11,9 +11,10 @@ its own copy of the same logic.
 
 Covered in depth in [Interaction](./interaction.md) -- `InteractionState`'s `ENABLED`/
 `AUTO_ENABLED`/`INHERIT_ENABLED` bits are what let a parent's `Disable` cascade to every
-descendant (via `InheritDisable`, walking `Branch`/`AnchorDeps`) without touching the
+descendant (via `InheritDisable`, walking `Children`/`AnchorDeps`) without touching the
 author's own `ENABLED` bit or the library's own internal `AUTO_ENABLED` opt-outs. `Enable`
-is the exact mirror, setting the same three bits back.
+is the exact mirror, setting the same three bits back. Across the boundary this is
+[`Grows::enable`/`Grows::disable`](./canopy.md).
 
 ## Visibility: own flag, inherited flag, resolved
 
@@ -24,14 +25,15 @@ is the exact mirror, setting the same three bits back.
 pub struct Visibility { visible: bool }
 ```
 
-`Visibility::stem_insert` (an observer on `Insert<Stem>`, so it fires the moment an
+`Visibility::stem_insert` (an observer on `Insert<Parent>`, so it fires the moment an
 entity gets a parent) captures the parent's already-`ResolvedVisibility` into this
 entity's own `InheritedVisibility` -- hiding a parent after the fact still needs to
 cascade to already-spawned children, which is exactly what
 [`Differential`](./differential.md)'s visibility-restore path (`cached_differential`'s
 `visible: bool` branch) exists to handle for the *render* side: a value that goes
 invisible then visible again gets re-sent to the renderer even though it didn't itself
-change, since the renderer may have dropped it while hidden.
+change, since the renderer may have dropped it while hidden. Across the boundary this is
+[`Grows::visible`](./canopy.md).
 
 ## Opacity: multiplicative blend, not an override
 
@@ -47,29 +49,28 @@ fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
 ```
 
 A 50%-opaque child of a 50%-opaque parent renders at 25%, not 50% -- `BlendedOpacity` is
-the product of the whole ancestor chain, propagated to every `Branch` descendant on
-change, the same cascade shape `Visibility` follows. This is what
-`examples/opacity_and_elevation.rs` demonstrates directly: three nested panels, each less
-opaque than the last, blending as a soft stack rather than three independent flat values.
-`Opacity` implements [`Animate`](./anim.md), so fading is `tree.animate(Animation::new(Opacity::new(0.0)).targeting(e))`,
-the same call every other animatable component uses.
+the product of the whole ancestor chain, propagated to every `Children` descendant on
+change, the same cascade shape `Visibility` follows. `Opacity` implements
+[`Animate`](./anim.md); across the boundary, fading is
+`canopy.animate(leaf, Motion::Opacity(0.0), Timing::over(300))` -- the same
+[`Grows::animate`](./canopy.md) call every other animatable value uses.
 
 ## Remove: a cascade, not a per-entity despawn
 
 ```rust
 // foliage_proper/src/remove.rs
-fn observer(trigger: Trigger<Self>, mut tree: Tree, branches: Query<&Branch>, stack_deps: Query<&AnchorDeps>) {
-    tree.entity(trigger.event_target()).despawn();
+fn observer(trigger: Trigger<Self>, mut tree: Tree, branches: Query<&Children>, stack_deps: Query<&AnchorDeps>) {
+    tree.despawn(trigger.event_target());
     let mut deps = branches.get(trigger.event_target()).unwrap().ids.clone();
     // + AnchorDeps
-    tree.trigger_targets(Remove::new(), deps.drain().collect::<Vec<_>>());
+    tree.send_to(Remove::new(), deps.drain().collect::<Vec<_>>());
 }
 ```
 
-`tree.remove(entity)` despawns that entity, then re-triggers `Remove` on every `Branch`
-child *and* every `AnchorDeps` dependent (an entity that anchored itself to this one via
-[`Anchor::new`](./grid.md), even if it isn't a structural `Stem`-child) -- recursively,
-until the whole subtree is gone. This is why [Router](./composites/router.md) can say
-"navigating tears the current scene down" as a single `tree.remove(old_root)` call: one
-`Remove` event reaches everything the old scene ever spawned, structural or anchored,
-with no manual teardown list to maintain per composite.
+Despawning an entity re-triggers `Remove` on every `Children` child *and* every
+`AnchorDeps` dependent (an entity that anchored itself to this one via
+[`Anchor::new`](./grid.md), even if it isn't a structural `Parent`-child) --
+recursively, until the whole subtree is gone. Across the boundary this whole cascade is
+one call: [`Grows::prune`](./canopy.md), which emits
+[`Bloom::Withered`](./canopy.md) for every `Leaf` that goes, with no manual teardown list
+to maintain per widget.

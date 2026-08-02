@@ -4,16 +4,18 @@ The smallest file in the crate, and one of the most load-bearing:
 
 ```rust
 // foliage_proper/src/attachment.rs
-pub trait Attachment {
+pub(crate) trait Attachment {
     fn attach(foliage: &mut Foliage);
 }
 ```
 
-One method, no default, no associated types. Every subsystem in the crate implements it
-once -- `Panel::attach` ([Panel](./panel.md)), `Text::attach` ([Text](./text.md)),
-`Ash::attach` ([Ash](./ash.md)), `Disable::attach`/`Visibility::attach`
-([Lifecycle](./lifecycle.md)), `Asset::attach` ([Assets](./asset.md)), and dozens more --
-and [`Foliage::new()`](./app.md) calls every one of them, in sequence, at startup:
+One method, no default, no associated types, and `pub(crate)` -- engine-internal setup,
+not something an app or an external library implements. Every subsystem in the crate
+implements it once -- `Panel::attach` ([Panel](./panel.md)), `Text::attach`
+([Text](./text.md)), `Ash::attach` ([Ash](./ash.md)), `Disable::attach`/
+`Visibility::attach` ([Lifecycle](./lifecycle.md)), `Asset::attach` ([Assets](./asset.md)),
+and dozens more -- and [`Foliage::new()`](./app.md) calls every one of them, in sequence,
+at startup:
 
 ```rust
 // foliage_proper/src/foliage.rs
@@ -31,9 +33,9 @@ resource to an existing widget never requires touching `foliage.rs` itself. `att
 *is* the registration point -- each type owns exactly what it needs to set up about
 itself (systems, resources, differentials), and `Foliage::new()`'s job is only to call
 every one of them, not to know what any of them actually do. A brand new primitive or
-composite becomes fully wired into the app the moment its own `Attachment` impl is added
-to that one call list -- nothing elsewhere in the engine needs to change to accommodate
-it.
+composite becomes fully wired in the moment its own `Attachment` impl is added to that
+one call list -- nothing elsewhere in the engine needs to change to accommodate it.
 
-Application code can use the same door: `foliage.attach::<MyType>()` runs any
-`Attachment` impl, library-provided or app-defined, through the identical path.
+An app has no equivalent setup to register -- it configures a `Foliage` through the
+public calls on the type itself (`desktop_size`, `font`, `icon`, `tune`, `asset_base`,
+...), not through `Attachment`.

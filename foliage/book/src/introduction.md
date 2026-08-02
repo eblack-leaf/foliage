@@ -1,37 +1,52 @@
 # Introduction
 
-Foliage is a cross-platform UI framework built on one idea: **a widget is an entity**.
-Not a widget tree of custom types with their own lifecycle rules, and not a retained
-scene graph bolted onto a game engine's ECS as an afterthought -- literally one
-[`bevy_ecs`](https://crates.io/crates/bevy_ecs) `Entity`, carrying plain components,
-observed by plain systems. `Button` isn't a special case the framework understands;
-it's a config struct that spawns three ordinary entities (its own root, a `Panel`, a
-`Text`) and wires a couple of reactions between them, using exactly the same tools an
-application author has.
+Foliage is a cross-platform UI framework. An app built with it does not touch an ECS,
+does not hold an entity, and cannot construct one -- it describes what should be on
+screen, using a small closed vocabulary, and gets back what happened.
 
-This book builds that idea up from nothing, in the order a from-scratch implementation
-would actually need it, rather than starting from a finished API and describing its
-shape. Each chapter exists because the previous one runs into a problem it can't solve
-alone:
+- [**Leaf**](./leaf.md) is that vocabulary's name for a thing on screen: an opaque
+  handle, allocated the moment you ask for one, usable immediately even though the
+  element it names doesn't exist until the frame's commands are applied.
+- [**Canopy**](./canopy.md) is the surface an app actually holds, once per frame: grow
+  and change elements by `Leaf`, read back what a frame produced as
+  [`Bloom`](./canopy.md)s, sample current state directly. [**Sprig**](./canopy.md) is
+  the same command set from another thread.
+- [**Sprout**](./spawning.md) is how an element gets configured before it exists --
+  `Panel::new().color(..).at(..).elevate(..)` -- and [**Specs**](./spawning.md) are the
+  closed set of things `Canopy`/`Sprig` know how to grow: `Panel`, `Text`, `Icon`,
+  `Image`, `Line`, `Polygon`, `Polyline`, `TextInput`, and a bare container.
 
-- An `Entity` by itself has no position, no parent, no draw order, and can't receive
-  input -- [**Leaf**](./leaf.md) is the fixed set of components every on-screen entity
-  needs, and why each one is there.
-- Something has to turn a config struct into a spawned entity without letting authors
-  forget the required pieces -- [**Sprout**](./spawning.md) is that builder, and
-  [**Tree**](./tree.md) is how you act on an entity after it exists.
-- ECS state changes every tick; re-uploading everything to the GPU every tick would be
-  wasteful -- [**Differential**](./differential.md) is the change-tracking layer that
-  makes only-what-changed cheap.
-- Something has to own the window, the GPU device, and the frame loop that ties input,
-  ECS updates, and rendering together -- [**Foliage**](./app.md),
-  [**Ash**](./ash.md), [**Ginkgo**](./ginkgo.md), [**Willow**](./willow.md), and
-  [**Photosynthesis**](./photosynthesis.md) are that machinery.
-- With the machinery in place, the actual rendering primitives (`Panel`, `Text`,
-  `Icon`, ...) and the composites built from them (`Button`, `Dropdown`, `Router`, ...)
-  are just ordinary uses of everything above -- the [**Composites**](./composites-overview.md)
-  section, ending with [building `Button` from scratch](./composite-button.md), is
-  where every earlier chapter's concept gets used together.
+That's the whole surface. Underneath it, the [**Inside the Engine**](./tree.md) section
+covers how a `Spec` actually becomes a `bevy_ecs` entity, how per-tick state changes turn
+into GPU uploads, and how a window and a render loop come together -- useful for
+understanding *why* the API is shaped the way it is, and required reading if you're
+extending the engine itself, but nothing an app needs in order to use it. The seam
+between the two is deliberate: an app cannot reach the ECS from its side of `Canopy`,
+which is what lets it run its own `bevy_ecs`, at whatever version it likes, without the
+two ever meeting.
+
+This book builds that picture up from nothing, in the order a from-scratch
+implementation would actually need it, rather than starting from a finished API and
+describing its shape. Each chapter exists because the previous one runs into a problem
+it can't solve alone:
+
+- Something has to name an element before it exists, so a `Leaf` handed back immediately
+  can still be used as a parent or a write target in the same frame --
+  [**Leaf**](./leaf.md) is that name.
+- Something has to collect what an app wants done and hand back what happened, once per
+  frame -- [**Canopy**](./canopy.md) is that surface, and [`Bloom`](./canopy.md) is what
+  comes back out.
+- Something has to turn a config struct like `Panel::new()` into a spec `Canopy` can
+  grow, without an app ever assembling one by hand --
+  [**Sprout**](./spawning.md) is that builder.
+- Underneath all of it, an actual entity has to exist, with a position, a parent, a draw
+  order, and a way to receive input -- [**Inside the Engine**](./tree.md) covers how a
+  `Spec` crosses into `bevy_ecs`, and the machinery (`Differential`, `Ash`, `Ginkgo`,
+  `Willow`, `Photosynthesis`) that turns the result into pixels on a screen, tick after
+  tick.
+- With the machinery in place, the actual rendering primitives (`Panel`, `Text`, `Icon`,
+  ...) covered in [**Core Types**](./coordinate.md) and
+  [**Rendering Primitives**](./panel.md) are just ordinary uses of everything above.
 
 If you only want to *use* foliage, the [README](https://github.com/eblack-leaf/foliage)
 has a short version of this same arc. This book is the depth version -- for

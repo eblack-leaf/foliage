@@ -33,7 +33,7 @@ spawns a local future and boots once a channel receives the finished `Ginkgo` --
 `about_to_wait` drains a queued backlog of window events once that boot completes, so
 nothing that arrived during the async wait is lost.
 
-## Every tick: `main` → `user` → `diff`
+## Every tick: `main` → `frame` → `diff`
 
 `about_to_wait` is where a tick actually runs, gated by `tick_pending` -- a flag that's
 true from the moment a redraw is requested until it actually paints:
@@ -42,13 +42,18 @@ true from the moment a redraw is requested until it actually paints:
 // foliage_proper/src/photosynthesis.rs
 if !self.tick_pending {
     self.main.run(&mut self.world);
-    self.user.run(&mut self.world);
+    self.frame();
     self.diff.run(&mut self.world);
     self.willow.window().request_redraw();
     self.ash.drawn = false;
     self.tick_pending = true;
 }
 ```
+
+`self.frame()` is where the app's own closure runs -- see [The App](./app.md) for what
+it does before and after calling out to [`Canopy`](./canopy.md). There is no separate
+`user` schedule; app code is not an ECS system, so it has no slot among `main`'s or
+`diff`'s own `SystemSet`s to run in.
 
 The gate exists because `about_to_wait` isn't 1:1 with real paint frames -- high-frequency
 input (mouse move, and especially web, where each DOM event tends to pump its own cycle

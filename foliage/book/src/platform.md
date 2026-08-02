@@ -14,12 +14,12 @@ in CI to execute a WASM test binary against, and the crate's real test suite is 
 native/headless (`Foliage::new()` never touches `wgpu`/`winit` either way, so the tests
 that matter don't need a browser).
 
-A handful of code paths are wasm-specific by necessity, not by choice: [`Willow::connect`](../willow.md)
+A handful of code paths are wasm-specific by necessity, not by choice: [`Willow::connect`](./willow.md)
 appends the window's canvas into the DOM itself, since a `winit` window on the web *is*
-a canvas element; [`Ginkgo::acquire_context`](../ginkgo.md) requests
+a canvas element; [`Ginkgo::acquire_context`](./ginkgo.md) requests
 `Limits::downlevel_webgl2_defaults()` instead of `Limits::default()`, a real
 capability ceiling of WebGL2 relative to native backends; and device acquisition in
-[Photosynthesis](../photosynthesis.md)'s `resumed` handler is async-via-channel rather
+[Photosynthesis](./photosynthesis.md)'s `resumed` handler is async-via-channel rather
 than `pollster::block_on`, since blocking isn't available on the web.
 
 ## Android
@@ -69,7 +69,7 @@ setup that actually takes on a runner hasn't been tried.
 ## iOS
 
 No toolchain is currently available to compile or run against an iOS target. The one
-`cfg(not(target_os = "ios"))` branch in the crate (in [`Willow::connect`](../willow.md),
+`cfg(not(target_os = "ios"))` branch in the crate (in [`Willow::connect`](./willow.md),
 gating the desktop-only `.with_inner_size(..)` window attribute) has no iOS-specific
 implementation behind it -- it's a single exclusion, not a maintained alternate path. A
 native macOS build already compiles the same shared source an `aarch64-apple-ios`
@@ -80,10 +80,6 @@ unverified rather than confirmed working.
 
 ## `TextInput` gaps
 
-See [TextInput](./composites/text-input.md) for the two specific, scoped-but-not-yet-implemented
-selection gaps (Shift+Click range-extend and auto-scroll during an edge-adjacent drag).
-
-## Router's no-URL-history design
-
-See [Router](./composites/router.md) -- not a gap, a deliberate, documented rejection of
-URL/browser-history sync after a full design was worked through.
+Two specific, scoped-but-not-yet-implemented selection behaviors are marked with `TODO`s
+directly in `text_input/mod.rs`: Shift+Click range-extend, and auto-scroll while dragging
+a selection near the field's edge.

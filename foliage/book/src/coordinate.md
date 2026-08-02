@@ -19,10 +19,11 @@ pub struct Coordinates(pub [CoordinateUnit; 2]);
 `Position<Context>`, `Area<Context>`, and `Section<Context>` (position + area) are all
 generic over one of these three marker types, so `Position<Logical>` and
 `Position<Physical>` are different types -- passing one where the other is expected is a
-compile error, not a runtime scaling bug. `Section<Logical>` is the one every `Leaf`
-carries (see [Leaf](./leaf.md)); `ResolvedElevation`/`ScaleFactor` (see
-[Ginkgo](./ginkgo.md)) are what convert between contexts when a value actually needs to
-cross the boundary (author-facing logical units in, physical pixels out to the GPU).
+compile error, not a runtime scaling bug. `Section<Logical>` is the one every on-screen
+entity carries -- read it back through [`Canopy::section`](./canopy.md), by
+[`Leaf`](./leaf.md). `ResolvedElevation`/`ScaleFactor` (see [Ginkgo](./ginkgo.md)) are
+what convert between contexts when a value actually needs to cross into the render
+backend (logical units in, physical pixels out to the GPU).
 
 ## Elevation: symbolic order in, `StackKey` underneath
 
@@ -41,17 +42,17 @@ pub(crate) struct StackKey {
 ```
 
 This gives genuine CSS-stacking-context semantics: comparing two `StackKey`s only looks
-at the first level where two entities' ancestry actually diverges, so a composite
-author's own local sibling ordering can never be numerically overridden by unrelated
-content elsewhere in the tree, no matter how deep either branch is nested. The crate's
-own test suite documents the real bug this replaced -- two unrelated branches off the
-same root whose *flat* elevation sums happened to coincide exactly, so a Carousel page
-could render behind chrome it should have been in front of. A dedicated `FRONT_TIER`
-(the top byte) also exists specifically so a `ClipToViewport` overlay (a Dropdown's
-option list, a Popover's content) always outranks *every* ordinary `abs()`-elevated
-entity, regardless of how far forward that entity's own absolute value claims to be --
-without it, an overlay nested inside a modal at `abs(50)` lost to a page button at
-`abs(95)`, rendering behind (and losing clicks to) chrome it should have floated above.
+at the first level where two entities' ancestry actually diverges, so a widget's own
+local sibling ordering can never be numerically overridden by unrelated content elsewhere
+in the tree, no matter how deep either branch is nested. This replaces a real class of
+bug a flat elevation sum has: two unrelated branches off the same root whose *flat*
+elevation sums happen to coincide exactly, so one entity renders behind chrome it should
+have been in front of, purely by numeric accident. A dedicated `FRONT_TIER` (the top
+byte) also exists specifically so a `ClipToViewport` overlay always outranks *every*
+ordinary `abs()`-elevated entity, regardless of how far forward that entity's own
+absolute value claims to be -- without it, an overlay nested inside a deeply-elevated
+parent could still lose to a shallower entity with a numerically larger `abs()`,
+rendering behind (and losing clicks to) chrome it should have floated above.
 
 `StackKey` only decides *ordering* (who's in front of whom); it does not decide the
 actual GPU depth value. That conversion -- symbolic order to a real `ResolvedElevation`

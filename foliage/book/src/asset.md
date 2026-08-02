@@ -18,10 +18,14 @@ pub enum AssetSource {
 }
 ```
 
-`foliage.load_asset(AssetSource::Bytes(data))` or `::Url(url)` returns a key
-immediately -- `Image::new(key)` can be spawned that same tick, before a `Url` fetch has
-even started, because loading is decoupled from rendering: the entity exists and starts
-rendering once the key resolves behind it, not before.
+`foliage.load_asset(AssetSource::Bytes(data))`/`::Url(url)` -- called during setup,
+before [`photosynthesize`](./app.md) -- or [`Grows::load_asset`](./canopy.md) --
+called on a `Canopy`/`Sprig` from inside a running app -- both return a key immediately.
+`Image::new(key)` can be spawned that same tick, before a `Url` fetch has even started,
+because loading is decoupled from rendering: the entity exists and starts rendering once
+the key resolves behind it, not before. Across the boundary, an app finds out a key has
+resolved via [`Bloom::AssetLoaded`](./canopy.md), then reads the bytes with
+[`Canopy::asset`](./canopy.md).
 
 `Url` only *exists* as a variant on wasm (the browser's fetch is unconditional there) or
 when the `remote-assets` Cargo feature is enabled on native (`default = ["remote-assets"]`
@@ -68,13 +72,15 @@ pub(crate) fn on_retrieve(retrievers: Query<(Entity, &AssetRetrieval)>, mut cmd:
 }
 ```
 
-An entity waiting on a key attaches `AssetRetrieval::new(key)` to itself and observes
-`OnRetrieval`; `on_retrieve` runs every tick, checking whether the key has resolved yet
-and firing the event (then removing the marker, so it only ever fires once) the moment
-it has. `asset_retrieval(closure)` wraps this into a ready-made observer for the common
-case of "give me the raw bytes once they land." Both [Image](./image.md) and
-[Icon](./icon.md)'s `msdf_from_asset` path use exactly this -- no separate, per-primitive
-loading logic.
+Engine-internal: an entity waiting on a key attaches `AssetRetrieval::new(key)`
+(`pub(crate)`) to itself and observes `OnRetrieval`; `on_retrieve` runs every tick,
+checking whether the key has resolved yet and firing the event (then removing the
+marker, so it only ever fires once) the moment it has. `Tree::on_asset` wraps this into a
+ready-made observer for the common case of "give me the raw bytes once they land." Both
+[Image](./image.md) and [Icon](./icon.md)'s `msdf_from_asset` path use exactly this -- no
+separate, per-primitive loading logic. An app reaches the same information across the
+boundary via [`Bloom::AssetLoaded`](./canopy.md)/[`Canopy::asset`](./canopy.md), covered
+above.
 
 ## `bundled_asset!`: the common case, without repeating yourself
 

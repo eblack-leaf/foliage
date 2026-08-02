@@ -108,7 +108,7 @@ impl ScrollInertia {
 /// End-user-tunable knobs for drag/touch release momentum -- a real `Resource`, the same
 /// "insert your own before `photosynthesize`" pattern [`Layout`](crate::Layout)'s own
 /// breakpoints use, since the right feel here genuinely depends on the app (a dense list
-/// vs. a wide gallery, say). Distinct from [`ScrollInertia`], which scales each *new*
+/// vs. a wide gallery, say). Distinct from `ScrollInertia` (engine-internal), which scales each *new*
 /// wheel tick while ticks keep arriving -- this instead governs what happens once a
 /// drag/touch release has *no more input to scale*: whether it just stops (a slow,
 /// deliberate drag) or keeps coasting on its own release velocity (a flick, i.e. real
@@ -221,7 +221,7 @@ pub(crate) fn coast(
 ///
 /// Scrolling never re-resolves anything. An offset is a translation of a whole subtree,
 /// which is why it is kept out of the layout entirely: `Location` resolves into
-/// [`LayoutSection`](crate::LayoutSection), and `propagate_offsets` subtracts
+/// [`LayoutSection`], and `propagate_offsets` subtracts
 /// `accumulated_offset` from it to produce the on-screen [`Section`]. Moving a view rewrites
 /// its descendants' `Section`s and nothing else -- no `Location` is resolved, no glyph is
 /// laid out again.
@@ -235,7 +235,7 @@ pub struct View {
     pub(crate) offset: Position<Logical>,
     pub(crate) extent: Section<Logical>,
     /// This view's own [`offset`](Self::offset) plus every ancestor view's -- the total a
-    /// child of this view subtracts from its [`LayoutSection`](crate::LayoutSection) to
+    /// child of this view subtracts from its [`LayoutSection`] to
     /// land on screen.
     ///
     /// Not the same number as `offset` whenever views nest: a card scrolled 40px inside a
@@ -275,9 +275,10 @@ impl Default for View {
 /// scrollable range per axis -- the resolved counterpart to the [`ScrollTo`] request, the
 /// same "author states intent, a resolved value is what everything else reads" split
 /// `Visibility`/`ResolvedVisibility` already uses. Kept live by `extent_check` (a real
-/// `Insert`, not a `Query`-mutation, so `tree.react::<ScrollProgress, _>(..)` sees every
-/// update, not just the first) -- a scrollbar just queries this directly instead of
-/// re-deriving it from `View`/`Section` itself. 0 on an axis with nothing to scroll.
+/// `Insert` on every change, not a `Query`-mutation, so nothing reacting to it misses an
+/// update) -- read it with [`Canopy::sample`](crate::Canopy::sample)/
+/// [`Canopy::scroll_offset`](crate::Canopy::scroll_offset)-style sampling rather than
+/// re-deriving it from `View`/`Section` yourself. 0 on an axis with nothing to scroll.
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub struct ScrollProgress {
     x: f32,

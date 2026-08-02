@@ -77,8 +77,8 @@ impl Default for ResolvedGlyphs {
 }
 #[derive(Component, Default)]
 #[component(on_insert = Self::on_insert)]
-/// Per-character color overrides for one [`Text`](crate::Text), on top of its own single
-/// [`Color`](crate::Color). Characters with no override keep the run's color.
+/// Per-character color overrides for one [`Text`], on top of its own single
+/// [`Color`]. Characters with no override keep the run's color.
 pub struct GlyphColors {
     pub exceptions: HashMap<GlyphOffset, Color>,
 }
@@ -105,7 +105,7 @@ pub(crate) struct GlyphColor {
     pub(crate) offset: GlyphOffset,
 }
 #[derive(Component, Default, PartialEq, Clone)]
-/// One color per laid-out glyph, combining the run's [`Color`](crate::Color) with any
+/// One color per laid-out glyph, combining the run's [`Color`] with any
 /// [`GlyphColors`] overrides -- what the renderer uploads.
 pub struct ResolvedColors {
     pub colors: Vec<GlyphColor>,

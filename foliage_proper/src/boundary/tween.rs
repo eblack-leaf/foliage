@@ -46,7 +46,7 @@ impl From<(f32, f32)> for Channel {
 ///
 /// The engine already reduces every animation to scalar channels, so this exposes that
 /// directly: hand over start/end pairs and a [`Timing`], receive
-/// [`Bloom::Tween`](crate::Bloom::Tween) each frame with the current value of each channel,
+/// [`Bloom::Tween`] each frame with the current value of each channel,
 /// and apply them to whatever you like -- including things foliage has no concept of. This is
 /// what lets a library build its own animatable properties without any engine cooperation.
 #[derive(Component)]

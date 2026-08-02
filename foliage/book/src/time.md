@@ -43,13 +43,14 @@ pub(crate) fn timers(time: Res<Time>, mut timers: Query<(Entity, &mut Timer)>, m
 }
 ```
 
-`tree.timer(ms, observer)` (an [`EcsExtension`](./tree.md) method) spawns a bare `Timer`
-entity and observes `OnEnd` on it -- when the countdown reaches zero, `OnEnd` fires
-*before* the entity despawns (verified by its own test,
+`Tree::timer(ms, observer)` (engine-internal; see [Inside the Engine](./tree.md)) spawns
+a bare `Timer` entity and observes `OnEnd` on it -- when the countdown reaches zero,
+`OnEnd` fires *before* the entity despawns (verified by its own test,
 `a_timer_reaching_zero_triggers_on_end_before_despawning`), then the entity is gone. No
 handle to cancel or a separate scheduler resource to manage -- the timer entity *is* the
-whole lifecycle, and removing it (`tree.remove(timer_entity)`) before it fires is
-cancellation, the same [Remove](./lifecycle.md) mechanism every other teardown uses.
+whole lifecycle, and pruning it before it fires is cancellation, the same
+[Remove](./lifecycle.md) mechanism every other teardown uses. Across the boundary this is
+[`Grows::timer`](./canopy.md)/[`Bloom::TimerFinished`](./canopy.md).
 
 ## `Moment`/`TimeDelta`: not `std::time`
 

@@ -15,8 +15,8 @@ use std::ops::{Add, Sub};
 
 #[repr(C)]
 #[derive(Copy, Clone, Default, PartialEq, Pod, Zeroable, Component, Debug)]
-/// The depth value the GPU actually sorts on, derived from [`StackKey`] order rather
-/// than from [`Elevation`] arithmetic. Read-only; write [`Elevation`] to change it.
+/// The depth value the GPU actually sorts on, derived from `StackKey` order (engine-internal)
+/// rather than from [`Elevation`] arithmetic. Read-only; write [`Elevation`] to change it.
 pub struct ResolvedElevation(pub(crate) f32);
 impl ResolvedElevation {
     /// The raw depth scalar.
@@ -287,7 +287,7 @@ impl Sub for ResolvedElevation {
     }
 }
 impl ResolvedElevation {
-    /// Wraps a raw depth scalar. Written by `ash::assign_elevations` from [`StackKey`]
+    /// Wraps a raw depth scalar. Written by `ash::assign_elevations` from `StackKey`
     /// order -- set [`Elevation`] instead.
     pub fn new(l: f32) -> Self {
         Self(l)

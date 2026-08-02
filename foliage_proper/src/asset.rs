@@ -108,7 +108,7 @@ pub struct AssetLoader {
 }
 #[derive(Component, Clone)]
 /// Marks an entity as waiting on `key`, so [`OnRetrieval`] can find it once the bytes
-/// land. Internal: inserted by [`on_asset`](crate::EcsExtension::on_asset) together with
+/// land. Internal: inserted by [`Tree::on_asset`](crate::Tree::on_asset) together with
 /// the observer that reads the result, since the two only ever made sense as a pair --
 /// a component naming one key and an observer expecting another is a silent no-op.
 pub(crate) struct AssetRetrieval {
@@ -122,7 +122,8 @@ impl AssetRetrieval {
 }
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
-/// Fired at an entity once the asset its [`AssetRetrieval`] names has arrived. On native
+/// Fired at an entity once the asset its `AssetRetrieval` marker (`pub(crate)`) names has
+/// arrived. On native
 /// that is effectively immediate; on wasm it is whenever the fetch resolves, so anything
 /// depending on the bytes belongs here rather than after the spawn.
 pub struct OnRetrieval {
@@ -205,7 +206,7 @@ impl AssetFetch {
 /// - `bundled_asset!(foliage, $path)` -- the common case, where the web build mirrors the
 ///   same relative path (a build step copies `assets/` into the served dist output, say).
 ///   `$path` is written once and both platform branches use it: native embeds it, wasm
-///   resolves it through [`Foliage::asset_url`](crate::Foliage::asset_url), so the two
+///   resolves it through `Foliage::asset_url` (wasm-only), so the two
 ///   can't drift apart by a typo or a rename that only touches one. Declare the hosting
 ///   convention once with [`Foliage::asset_base`](crate::Foliage::asset_base).
 /// - `bundled_asset!(foliage, $path, url: $url)` -- the escape hatch, for when the native

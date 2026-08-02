@@ -32,13 +32,11 @@ use winit::event_loop::{ControlFlow, EventLoop};
 
 /// The engine instance: the ECS world, the frame schedules, the window, and the renderer.
 ///
-/// Built with [`Foliage::new`], configured by attaching what the app needs and spawning
-/// the initial tree, then handed control with
-/// [`photosynthesize`](Foliage::photosynthesize), which does not return.
-///
-/// Before that call it doubles as a [`Tree`](crate::Tree)-like builder -- `leaf`, `branch`,
-/// `animate`, `on_click` are all available here through the same
-/// [`EcsExtension`](crate::EcsExtension) vocabulary systems use at runtime.
+/// Built with [`Foliage::new`], configured with the setup calls below -- artwork and font
+/// registration, desktop sizing, tuning -- then handed control with
+/// [`photosynthesize`](Foliage::photosynthesize), which does not return. The tree itself
+/// is never touched here: an app grows and changes it from inside the frame closure,
+/// through the [`Canopy`] that closure is handed each frame.
 pub struct Foliage {
     pub(crate) world: World,
     pub(crate) main: Schedule,
@@ -69,8 +67,8 @@ pub struct Foliage {
     pub(crate) ran_at_least_once: bool,
     pub(crate) suspended: bool,
     /// This app's asset hosting convention, set once via [`asset_base`](Foliage::asset_base)
-    /// and applied by [`asset_url`](Foliage::asset_url). Empty by default -- an app that
-    /// never loads a `Url` asset never needs it.
+    /// and applied by `asset_url` (wasm-only). Empty by default -- an app that never loads
+    /// a `Url` asset never needs it.
     pub(crate) asset_base: String,
     /// True from the moment `about_to_wait` requests a redraw until that redraw actually
     /// paints. Winit's `about_to_wait` isn't 1:1 with real paint frames -- high-frequency

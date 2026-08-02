@@ -195,7 +195,7 @@ impl Default for InheritedVisibility {
     }
 }
 /// Whether this entity is actually drawn: its own [`Visibility`], every ancestor's, and
-/// the engine's [`AutoVisibility`] veto, combined.
+/// the engine's `AutoVisibility` (engine-internal) veto, combined.
 ///
 /// Read-only -- this is the answer, not a control. Write [`Visibility`] to change it.
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]

@@ -22,7 +22,7 @@ pub(crate) trait Queues {
 ///
 /// Carried identically by [`Canopy`](crate::Canopy) and [`Sprig`](crate::Sprig), so code that
 /// changes the tree reads the same whether it runs in the frame or on another thread. Sealed
-/// -- [`Queues`] is `pub(crate)`, so this can be called but never implemented, which is what
+/// -- `Queues` is `pub(crate)`, so this can be called but never implemented, which is what
 /// keeps the set of things an app can do closed and reviewable.
 #[allow(private_bounds)]
 pub trait Grows: Queues {

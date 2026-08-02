@@ -6,9 +6,11 @@
 //! what lets an app run its own `bevy_ecs`, at whatever version it likes, without the two
 //! meeting.
 //!
-//! - [`Leaf`] names an element. [`Canopy`] is the per-frame surface.
-//! - [`Sprig`] is the same command set, `Send`, for another thread.
-//! - [`Bloom`] is what comes back out; [`Sap`]/[`Sample`] is what may be looked at.
+//! - [`Leaf`](crate::Leaf) names an element. [`Canopy`](crate::Canopy) is the per-frame
+//!   surface.
+//! - [`Sprig`](crate::Sprig) is the same command set, `Send`, for another thread.
+//! - [`Bloom`](crate::Bloom) is what comes back out; [`Sap`](crate::Sap)/
+//!   [`Sample`](crate::Sample) is what may be looked at.
 
 pub(crate) mod bloom;
 pub(crate) mod canopy;

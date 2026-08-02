@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, viewport-fit=cover, initial-scale=1.0" name="viewport"/>
+    <style type="text/css">
+        html, body {
+            margin: 0px;
+            border: 0px;
+            padding: 0px;
+            height: 100%;
+            background: #000000;
+        }
+    </style>
+    
+<script type="module">
+import init, * as bindings from '/foliage/application-622b6bf50428af45.js';
+const wasm = await init({ module_or_path: '/foliage/application-622b6bf50428af45_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+    
+<link rel="modulepreload" href="/foliage/application-622b6bf50428af45.js" crossorigin="anonymous" integrity="sha384-Va+/UPqs1y5dPVWGm4wHeuD6sHOSxRSGMoFSF4/XvevWq2q3wVFuWPkAZfXeMU3L"><link rel="preload" href="/foliage/application-622b6bf50428af45_bg.wasm" crossorigin="anonymous" integrity="sha384-v83mWx4SFVIAHi27a5Am2ycWdOPw0zUSPxC/QXL6WvM1xLW25hlRrz3rE/Tly2Ti" as="fetch" type="application/wasm"></head>
+<body>
+<!--<div id="loading" style="background: transparent; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" >-->
+<!--    <h1 style="color: white; background: transparent; font-family: Monospaced,monospace">generating aesthetics...</h1>-->
+<!--</div>-->
+</body>
+</html>

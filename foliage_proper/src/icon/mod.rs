@@ -37,7 +37,7 @@ pub struct IconValue(pub IconId);
 #[require(Differential<Icon, ResolvedElevation>)]
 #[require(Differential<Icon, BlendedOpacity>)]
 /// A vector glyph drawn from a signed-distance field, so it stays sharp at any size and
-/// takes a [`Color`](crate::Color) like text does.
+/// takes a [`Color`] like text does.
 ///
 /// Spawned through [`Icon::new`] with an [`IconId`] whose [`IconMemory`] has been
 /// registered. Sized by its `Location` like any other primitive; the artwork is fitted

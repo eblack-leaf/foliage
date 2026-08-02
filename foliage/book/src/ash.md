@@ -90,7 +90,7 @@ for span in self.contiguous.iter() {
 }
 ```
 
-Clip is resolved per span from a `HashMap<Stem, ClipSection>` built earlier in `prepare`
+Clip is resolved per span from a `HashMap<Parent, ClipSection>` built earlier in `prepare`
 from the `((), ResolvedClip)` differential -- `Ash::attach` registers that one directly
 (`foliage.differential::<(), ResolvedClip>()`), since clip isn't owned by any one
 pipeline the way `Color`/`Section` are owned by their widget type.

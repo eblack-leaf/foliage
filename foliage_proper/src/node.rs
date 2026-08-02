@@ -29,7 +29,7 @@ use std::collections::HashSet;
 /// positioned and drawn needs -- a `Section`, an `Elevation`, and the interaction
 /// defaults.
 ///
-/// Added automatically by every spawn through [`EcsExtension`](crate::EcsExtension), so
+/// Added automatically by every spawn through [`Author`](crate::Author), so
 /// authors meet it as [`Node::sprout`] -- a node with no primitive of its own, used to
 /// group children or to be a bare hit area.
 pub struct Node {}
@@ -45,7 +45,7 @@ impl Node {
     pub fn new() -> Node {
         Node {}
     }
-    /// Internal spelling of [`Stem::new`].
+    /// Internal spelling of [`Parent::new`].
     pub(crate) fn sprout() -> crate::LeafSprout {
         crate::LeafSprout::new()
     }
@@ -116,10 +116,8 @@ impl Node {
 /// The counterpart to `Panel::new()`/`Text::new()` for the cases where nothing is drawn.
 /// Takes the same `.at()`/`.elevate()`/`.grid()` chain as any other spec.
 ///
-/// Named plainly rather than botanically on purpose: every plant word that fits already means
-/// something here -- a stem is what connects an element to its parent, a branch is what hangs
-/// off it -- and reusing one for "an element with nothing on it" is how the vocabulary starts
-/// meaning two things at once.
+/// Named plainly rather than botanically: it has no content of its own to describe, so
+/// unlike `Panel`/`Text`/`Icon` there's nothing for a more evocative name to point at.
 pub struct Bare;
 impl Bare {
     /// Starts a bare element.
@@ -149,7 +147,7 @@ pub struct SpawnedAt(pub &'static core::panic::Location<'static>);
 /// what its opacity and visibility inherit from, and where it sits in draw order.
 ///
 /// `None` is a root, resolving against the viewport. Set by
-/// [`branch`](crate::EcsExtension::branch); rewriting it reparents the entity, and the
+/// [`Tree::branch`](crate::Tree::branch); rewriting it reparents the entity, and the
 /// old and new parents' [`Children`] sets are updated to match.
 #[derive(Component, Copy, Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[component(on_insert = Parent::on_insert)]

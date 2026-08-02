@@ -1,7 +1,7 @@
 # Text
 
 `Text` follows the same shape [Panel](./panel.md) does -- a rendering primitive with no
-`#[require(Leaf)]` of its own, a pile of `Differential`-tracked attributes, and an
+`#[require(Node)]` of its own, a pile of `Differential`-tracked attributes, and an
 `Attachment` that registers them -- but it's noticeably larger, because rendering text
 well involves more moving parts than filling a rounded rectangle: glyph layout, a
 monospaced-font metric table, per-character color runs, and content-driven sizing.
@@ -85,8 +85,8 @@ fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
 (re-)inserted. The `Resolve<Text>` half is the expected one -- new size, new glyph layout.
 The second half is there because a [`.letters()`](./grid.md)-sized `Location` resolves its
 numbers out of the entity's own `FontSize`, so a size change is a geometry change. Every
-other resolve trigger in the engine is structural (`Location`/`Stem`/`Visibility` written,
-or a parent's `Section` landing); this hook is the only one that fires for a bare
+other resolve trigger in the engine is structural (`Location`/`Parent`/`Visibility`
+written, or a parent's `Section` landing); this hook is the only one that fires for a bare
 `FontSize` write, which makes it the place that dependency is honored.
 
 Only the entity itself is triggered; its children follow from the existing cascade, in
@@ -118,6 +118,6 @@ pub struct TextSprout {
 `Text::new("...")` seeds `value`; `.size(..)`/`.color(..)` are the optional builder
 methods. Like `Panel`, `Text` has no `build()` of its own -- it's a primitive, not a
 composite -- but unlike most other primitives, `Text`'s *content* itself can drive
-layout (a `Button`'s text width depends on the string it holds, which is exactly why
-[Button's own reaction](./composite-button.md) to `TextValue` stays an explicit `react`
-rather than a `forward`).
+layout: a composite whose text width should shape its own box can't just forward
+`TextValue` to its label unchanged, it has to `react` to it, since [`forward`](./tree.md)
+is a pure copy and this needs to also recompute a size from the new string.

@@ -18,6 +18,10 @@ pub(crate) mod sequence;
 /// A tween of one [`Animate`] component from its current value to a target, over a
 /// window of time.
 ///
+/// Engine-internal: only this crate's own primitives build and start one directly. An app
+/// drives the same machinery from across the boundary with
+/// [`Grows::animate`](crate::Grows::animate)/[`Motion`](crate::Motion) instead.
+///
 /// ```ignore
 /// tree.animate(
 ///     Animation::new(Opacity::new(1.0))
@@ -84,18 +88,17 @@ impl<A: Animate> Animation<A> {
     /// Replays this tween `n` more times after its first pass, snapping back to the start
     /// value each time.
     ///
-    /// Looping lives inside the animation rather than being rebuilt from a
-    /// [`sequence_end`](crate::EcsExtension::sequence_end) chain, and that is the safety
-    /// difference: a runner checks its target every frame and tears itself down when the
-    /// entity is gone, so a loop *cannot* outlive what it animates. A hand-rolled chain
-    /// keeps firing after its page is despawned.
+    /// Looping lives inside the animation rather than being rebuilt from a hand-rolled
+    /// chain of observers watching for completion, and that is the safety difference: a
+    /// runner checks its target every frame and tears itself down when the entity is gone,
+    /// so a loop *cannot* outlive what it animates. A hand-rolled chain keeps firing after
+    /// its target is despawned.
     ///
-    /// Stop one early by removing the entity [`animate`](crate::EcsExtension::animate)
-    /// returned, or just start another animation on the same target -- the newer one
-    /// supersedes it.
+    /// Stop one early by despawning its runner entity, or just start another animation on
+    /// the same target -- the newer one supersedes it.
     ///
     /// A looping tween settles its sequence on its *first* completed pass, so
-    /// [`OnEnd`](crate::OnEnd) still fires once and chains behind it still run; it simply
+    /// [`OnEnd`] still fires once and chains behind it still run; it simply
     /// keeps going afterwards.
     pub fn loops(mut self, n: u32) -> Self {
         self.repeat = Repeat::Times(n);
@@ -107,8 +110,7 @@ impl<A: Animate> Animation<A> {
         self.repeat = Repeat::Forever;
         self
     }
-    /// The entity whose component is tweened. Implied when going through
-    /// [`Graft::animate`](crate::Graft::animate).
+    /// The entity whose component is tweened.
     pub fn targeting(mut self, lh: Entity) -> Self {
         self.anim_target.replace(lh);
         self
@@ -131,9 +133,8 @@ impl<A: Animate> Animation<A> {
         self.ease = ease;
         self
     }
-    /// Joins the sequence from [`sequence`](crate::EcsExtension::sequence), so
-    /// [`start`](Self::start)/[`finish`](Self::finish) are measured from its origin and
-    /// its [`OnEnd`](crate::OnEnd) waits for this tween.
+    /// Joins the sequence entity `seq` names, so [`start`](Self::start)/[`finish`](Self::finish)
+    /// are measured from its origin and its [`OnEnd`] waits for this tween.
     ///
     /// Required. Every animation is counted against a sequence, so one that never joins a
     /// real sequence entity has nothing to register with and panics when it starts.
@@ -148,9 +149,9 @@ impl<A: Animate> Animation<A> {
 /// channel *order* is the contract between the two halves -- `apply` must read the same
 /// indices `interpolations` wrote, since nothing else enforces the correspondence.
 ///
-/// Register a custom implementation with
-/// [`enable_animation`](crate::Foliage::enable_animation); the built-in animatable types
-/// do this themselves.
+/// Register a custom implementation with `Foliage::enable_animation` (`pub(crate)` --
+/// engine-internal registration; the built-in animatable types do this themselves, and an
+/// app never implements `Animate` for its own types).
 pub trait Animate
 where
     Self: Sized + Send + Sync + 'static + Clone,

@@ -88,64 +88,37 @@ fn api() -> Result<(), String> {
     clear_dir(&out)?;
     copy_dir(&target, &out)?;
 
-    // foliage_proper re-exports bevy_ecs wholesale (`pub use bevy_ecs::{self, prelude::*}`),
-    // and --no-deps leaves rustdoc no external docs to link to, so it inlines the entire crate
-    // -- 74M of the ~98M output. Dropped: links to bevy's own types 404, but every foliage item
-    // documents fine and docs/ stays a sane size to keep in git.
-    rm_rf(&out.join("foliage/bevy_ecs"))?;
-    // another ~8M of index nobody asked for: search.index powers the search box (which stops
-    // working without it) and type.impl the "Implementations on Foreign Types" sections.
+    // search.index powers the search box (which stops working without it) and type.impl the
+    // "Implementations on Foreign Types" sections -- ~1M of index for a crate this size, judged
+    // not worth keeping in git.
     rm_rf(&out.join("search.index"))?;
     rm_rf(&out.join("type.impl"))?;
-    // trait.impl/<crate>/ holds the "Implementors" lists rendered onto that crate's trait
-    // pages. The bevy ones are dead weight for the same reason the inlined bevy_ecs docs were
-    // -- those trait pages aren't published here, so nothing loads them. Only ~568K, which is
-    // why `api.sh` never noticed it was leaving them behind. trait.impl/foliage_proper stays.
-    rm_rf(&out.join("trait.impl/bevy_ecs"))?;
-    rm_rf(&out.join("trait.impl/bevy_ptr"))?;
     // cargo's lock for `target/doc`, not output. The `cp -r target/doc/*` this replaced never
     // copied it because a shell glob skips dotfiles; `copy_dir` walks the directory instead.
     rm_rf(&out.join(".lock"))?;
 
-    let bevy_ecs = bevy_ecs_version(&root)?;
-    let (relinked, unwrapped) = fix_links(&out, &bevy_ecs)?;
-    println!("relinked {relinked} bevy_ecs links, unwrapped {unwrapped} unresolvable ones");
-
-    // The sidebar's module list is built by rustdoc's `main.js` from `sidebar-items.js`, so the
-    // `foliage::bevy_ecs` entry points at the deleted directory no matter what the HTML says.
-    // A redirect stub is the one target both it and any stale bookmark can still land on.
-    redirect(&out.join("foliage/bevy_ecs/index.html"), &bevy_ecs)?;
+    let unwrapped = fix_links(&out)?;
+    println!("unwrapped {unwrapped} unresolvable links");
 
     println!("built api docs -> {}", out.display());
     Ok(())
 }
 
-/// Repair the links the trimming above (and rustdoc itself) leaves pointing at nothing.
-///
-/// Two kinds:
-/// - `href="bevy_ecs/..."`, ~21k of them, one on nearly every page: every foliage type impls
-///   `Component`, and rustdoc points that at the inlined copy we just deleted. Rewritten to
-///   docs.rs at the exact locked version, so they resolve *and* the ECS layer underneath is
-///   visible rather than half-erased.
-/// - Unresolvable intra-doc links (`href="crate::Span"`, `href="super::Subscriber"`) that
-///   rustdoc emits verbatim when it cannot resolve them -- inherited from the inlined bevy and
-///   tracing docs. Nothing to point them at, so the `<a>` is dropped and its text kept.
-///
-/// Anything else that fails to resolve gets the same treatment, so this stays correct if a
-/// later trim deletes something new: the test is whether the target file exists on disk.
-fn fix_links(out: &Path, bevy_ecs: &str) -> Result<(usize, usize), String> {
-    let docs_rs = format!("href=\"https://docs.rs/bevy_ecs/{bevy_ecs}/bevy_ecs/");
-    let mut relinked = 0;
+/// Repair the links rustdoc itself leaves pointing at nothing: `--no-deps` means the crate's
+/// own dependencies (`tracing`, `winit`, `bytemuck`, ...) get no doc pages of their own to link
+/// to, so an intra-doc link to one of their items (`href="crate::Span"`,
+/// `href="super::Subscriber"`) is emitted verbatim, unresolved. Nothing to point those at, so
+/// the `<a>` is dropped and its text kept -- the test is whether the target file exists on disk,
+/// so this stays correct if a later trim deletes something new.
+fn fix_links(out: &Path) -> Result<usize, String> {
     let mut unwrapped = 0;
     for page in html_files(out)? {
         let source = fs::read_to_string(&page).map_err(|e| format!("{}: {e}", page.display()))?;
-        relinked += source.matches("href=\"bevy_ecs/").count();
-        let source = source.replace("href=\"bevy_ecs/", &docs_rs);
         let (fixed, dropped) = unwrap_dead_links(&source, page.parent().expect("file has a dir"));
         unwrapped += dropped;
         fs::write(&page, fixed).map_err(|e| format!("writing {}: {e}", page.display()))?;
     }
-    Ok((relinked, unwrapped))
+    Ok(unwrapped)
 }
 
 /// Replace every `<a href="...">text</a>` whose target does not exist with just `text`.
@@ -181,23 +154,6 @@ fn unwrap_dead_links(page: &str, dir: &Path) -> (String, usize) {
     (fixed, dropped)
 }
 
-/// Write a page that bounces straight to bevy_ecs's own docs.rs reference.
-fn redirect(page: &Path, bevy_ecs: &str) -> Result<(), String> {
-    let url = format!("https://docs.rs/bevy_ecs/{bevy_ecs}/bevy_ecs/index.html");
-    let dir = page.parent().expect("page has a dir");
-    fs::create_dir_all(dir).map_err(|e| format!("creating {}: {e}", dir.display()))?;
-    fs::write(
-        page,
-        format!(
-            "<!DOCTYPE html><html><head><meta charset=\"utf-8\">\
-             <meta http-equiv=\"refresh\" content=\"0;URL={url}\">\
-             <title>Redirection</title></head>\
-             <body><p>Redirecting to <a href=\"{url}\">{url}</a>...</p></body></html>"
-        ),
-    )
-    .map_err(|e| format!("writing {}: {e}", page.display()))
-}
-
 fn attribute<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     let value = tag.split_once(&format!("{name}=\""))?.1;
     Some(value.split_once('"')?.0)
@@ -226,19 +182,6 @@ fn html_files(dir: &Path) -> Result<Vec<PathBuf>, String> {
         }
     }
     Ok(found)
-}
-
-/// The bevy_ecs version cargo actually resolved, read straight out of `Cargo.lock` so the
-/// docs.rs links above cannot drift from what the docs were built against.
-fn bevy_ecs_version(root: &Path) -> Result<String, String> {
-    let lock = root.join("Cargo.lock");
-    let text = fs::read_to_string(&lock).map_err(|e| format!("reading {}: {e}", lock.display()))?;
-    text.split("[[package]]")
-        .find(|package| package.contains("name = \"bevy_ecs\""))
-        .and_then(|package| package.split_once("version = \""))
-        .and_then(|(_, version)| version.split_once('"'))
-        .map(|(version, _)| version.to_string())
-        .ok_or_else(|| format!("no bevy_ecs version in {}", lock.display()))
 }
 
 fn changelog() -> Result<(), String> {

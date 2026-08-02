@@ -70,18 +70,22 @@ impl LeafSprout {
 ///   The library folds the [`LeafSprout`] seed fields in itself; `root` returns only
 ///   widget components.
 /// - `build` is the private, config-INDEPENDENT skeleton (default empty == a primitive),
-///   grown with [`EcsExtension::branch`]. Everything data-dependent -- values and
-///   structure -- goes through [`EcsExtension::react`], which runs once at spawn and
-///   again on every later write, so initial state and updates share one code path.
+///   grown with [`Tree::branch`](crate::Tree::branch). Everything data-dependent --
+///   values and structure -- goes through [`Tree::react`](crate::Tree::react), which
+///   runs once at spawn and again on every later write, so initial state and updates
+///   share one code path.
 ///
 /// The former `Seed`/`Author`/`Photosynthesis` split existed because single-bundle
 /// primitives and multi-entity composites had different spawn paths; `root`+`build`
 /// erases the difference, so the three traits collapsed into this one.
 ///
-/// There is no `stem`/`photosynthesize` here on purpose -- spawning is `Sow::grow`'s job
-/// (`pub(crate)`), reached only through [`EcsExtension::leaf`]/[`EcsExtension::branch`], so a
-/// widget can't be spawned orphaned or skip the mandatory `.elevate(...)` by hand-rolling
-/// the chain outside this crate.
+/// There is no `stem`/`photosynthesize` here on purpose -- spawning is `Tree::grow`'s job
+/// (private), reached only through [`Tree::leaf`](crate::Tree::leaf)/[`Tree::branch`](crate::Tree::branch),
+/// both `pub(crate)`, so a widget can't be spawned orphaned or skip the mandatory
+/// `.elevate(...)` by hand-rolling the chain outside this crate. Nothing outside this
+/// crate can spawn a `Leaf`-bearing entity at all: an app reaches the tree only through
+/// [`Canopy`](crate::Canopy)/[`Sprig`](crate::Sprig), which queue [`Spec`](crate::Spec)
+/// values for the engine to grow on its own side of the boundary.
 pub(crate) trait Author: Sized {
     fn seed(&mut self) -> &mut LeafSprout;
     /// config -> components on the root entity. This IS the widget's public API.
@@ -98,8 +102,8 @@ pub(crate) trait Author: Sized {
 
 /// How an element is set up before it grows: where it sits, how it stacks, how it behaves.
 ///
-/// Every spec carries the same set, so `Panel::new()`, `Text::new()` and [`Bare::new`] are
-/// configured identically. Sealed -- [`Author`] is `pub(crate)`, so this can be called but
+/// Every spec carries the same set, so `Panel::new()`, `Text::new()` and [`Bare::new`](crate::Bare::new) are
+/// configured identically. Sealed -- `Author` is `pub(crate)`, so this can be called but
 /// never implemented, and the set stays exactly what the engine knows how to apply.
 #[allow(private_bounds)]
 pub trait Sprout: Author {
@@ -206,7 +210,8 @@ impl<S: Author> Sprout for S {}
 /// `LeafSprout` is itself a `Author` -- the "no named marker component" case, for a child with
 /// no reusable type of its own (a bare interaction hit-area, say). Its marker component, if
 /// any, is attached the same way every other extra component is: `.with(...)`. This is what
-/// makes [`EcsExtension::branch`] uniform for *every* child instead of needing a raw path.
+/// makes [`Tree::branch`](crate::Tree::branch) uniform for *every* child instead of needing
+/// a raw path.
 impl Author for LeafSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         self

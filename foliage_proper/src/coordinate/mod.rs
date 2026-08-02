@@ -15,8 +15,8 @@ pub mod section;
 ///
 /// Carried as a type parameter so the two real spaces cannot be mixed by accident -- a
 /// `Section<Logical>` will not go where a `Section<Physical>` is wanted. Convert
-/// deliberately with `to_physical`/`to_logical` and the current
-/// [`ScaleFactor`](crate::ScaleFactor).
+/// deliberately with `to_physical`/`to_logical` and the current `ScaleFactor`
+/// (engine-internal).
 pub trait CoordinateContext
 where
     Self: Send + Sync + 'static + Copy + Clone + Default,

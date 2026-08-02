@@ -75,9 +75,9 @@ impl Time {
     pub fn time_since(&self, mark: TimeMarker) -> TimeDelta {
         self.total - mark.0
     }
-    /// How long the last frame took, clamped by
-    /// [`TIME_SKIP_RESISTANCE_FACTOR`](Self::TIME_SKIP_RESISTANCE_FACTOR). Scale
-    /// per-frame motion by this so it runs at the same speed at any frame rate.
+    /// How long the last frame took, clamped by `TIME_SKIP_RESISTANCE_FACTOR`
+    /// (engine-internal). Scale per-frame motion by this so it runs at the same speed at
+    /// any frame rate.
     pub fn frame_diff(&self) -> TimeDelta {
         self.frame_diff
     }
@@ -86,9 +86,11 @@ impl Time {
 pub(crate) fn update_time(mut time: ResMut<Time>) {
     time.update();
 }
-/// Fired at a [`Timer`] entity when it runs out, and at a
-/// [`Sequence`](crate::Sequence) when its last animation finishes -- the hook for
-/// chaining one stage of motion onto the next.
+/// Fired at a [`Timer`] entity when it runs out, and at a sequence entity when its last
+/// joined animation finishes -- reported across the boundary as
+/// [`Bloom::TimerFinished`](crate::Bloom::TimerFinished)/
+/// [`Bloom::SequenceFinished`](crate::Bloom::SequenceFinished), the hook for chaining one
+/// stage of motion onto the next.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct OnEnd {}

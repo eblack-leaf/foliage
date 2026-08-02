@@ -35,8 +35,8 @@ given breakpoint has none of its own (`Grid::config`'s `at_least_sm`/`at_least_m
 
 `col()`/`row()` resolve against the parent's `Grid` (see below) instead of raw pixels --
 `1.col().as_left().with(1.col().as_right())` means "the first column, full width," the
-pattern every composite's own internal skeleton uses (see [Button](./composite-button.md)'s
-panel, sized to `1.col()`/`1.row()` -- one full cell).
+pattern a widget's own internal skeleton reaches for whenever a child should just fill
+one grid cell.
 
 `letters()` has two distinct, separately-resolved paths, both against the *current
 font's* real monospaced advance width (never a guessed constant):
@@ -45,9 +45,9 @@ font's* real monospaced advance width (never a guessed constant):
   sizes a box to exactly 5 character-widths.
 - As a `Grid` column/row pitch, on a *parent*: `Grid::new(1.letters(), 1.letters())` makes
   one column/row worth exactly one letter, so a child's `1.col()`/`5.col()` resolves
-  through the *parent's* own `FontSize` (`stem_letters`) rather than the child's own --
-  `TextInput`'s field/cursor grid is built entirely on this: the cursor's column is a real
-  `.col()` address into a letter-pitched grid, not a hand-computed pixel offset.
+  through the *parent's* own `FontSize` rather than the child's own -- `TextInput`'s
+  field/cursor grid is built entirely on this: the cursor's column is a real `.col()`
+  address into a letter-pitched grid, not a hand-computed pixel offset.
 
 ## `Grid`: the coordinate system a `Location` resolves against
 
@@ -95,12 +95,11 @@ where the shape's own center should end up.
 
 ## `Anchor`: relative-to-another-entity, not relative-to-parent
 
-`anchor().left().as_left()` and friends (used throughout `Button`'s icon positioning,
-`Dropdown`'s option surface) resolve against a *named sibling or ancestor* entity's own
-resolved `Section`, via `Anchor::new(target)`, instead of the parent's `Grid`. This is
-what lets a Popover's content surface size itself relative to its trigger, or an icon
-size itself relative to a text label it sits beside, without either one needing to know
-the other's absolute position.
+`anchor().left().as_left()` and friends resolve against a *named sibling or ancestor*
+entity's own resolved `Section`, via `Anchor::new(target)`, instead of the parent's
+`Grid`. This is what lets an overlay size itself relative to whatever triggered it, or an
+icon size itself relative to a text label it sits beside, without either one needing to
+know the other's absolute position.
 
 An anchor value can also scale: `anchor().width() * 0.5` sizes a dependent at half its
 target's *live* resolved width, `anchor().center_x() * 1.0` (the identity, what every
@@ -155,9 +154,9 @@ scissor and hit-testing listen for. A scroll is purely the second kind of change
 of re-entering the layout solver. Reading exact on-screen geometry is unaffected: `Section`
 is still the answer, still exact, still written before anything renders that frame.
 `.offset()` is the current pan in px; `.extent()` is the union of the entity's own
-`Section` with every `Stem`-descendant's live (offset-adjusted) bounds -- effectively "how
-big the scrollable content actually is," recomputed by `extent_check`
-(`DiffMarkers::Prepare`) whenever a descendant's `Section`/`Stem` changes. Both fields are
+`Section` with every descendant's live (offset-adjusted) bounds -- effectively "how big
+the scrollable content actually is," recomputed by `extent_check`
+(`DiffMarkers::Prepare`) whenever a descendant's `Section`/`Parent` changes. Both fields are
 `pub(crate)` (write-access stays inside the crate, in `extent_check`'s own clamp) with
 public getters -- from outside the crate this is read-only raw state, not a door to park
 the view somewhere a real drag/wheel gesture could never reach.
@@ -182,8 +181,9 @@ pub struct ScrollProgress { x: f32, y: f32 } // a readout: `.x()`/`.y()` getters
   current scroll position untouched.
 - **`ScrollProgress`** is the read-only counterpart: the same 0..1 fraction, kept live by
   `extent_check` on every entity with a `View`. This is a real `.insert()`, not a `Query`
-  mutation, specifically so `tree.react::<ScrollProgress, _>(entity, ..)` fires on every
-  scroll change (drag, wheel, or a `ScrollTo` write) and not just the first.
+  mutation, so anything reacting to it internally fires on every scroll change (drag,
+  wheel, or a `ScrollTo` write) and not just the first. From an app, read it with
+  [`Canopy::sample`](./canopy.md)/`Sap::ScrollProgress`.
 
 This split -- author states intent via `ScrollTo`, a resolved value comes back via
 `ScrollProgress` -- mirrors `Visibility`/`ResolvedVisibility` (see
@@ -252,5 +252,5 @@ This is distinct from `ScrollInertia` (the `#[require(..)]` above) -- that one s
 each *new* wheel tick while ticks keep arriving close together; `ScrollMomentum` instead
 governs what happens once a drag/touch release has no more input left to scale at all.
 
-Covered where scrolling matters most beyond this: [TextInput](./composites/text-input.md)'s
-scroll-into-view logic and `List`/`Carousel`'s viewport.
+`TextInput`'s own scroll-into-view logic (keeping the caret visible as it moves) is the
+crate's own worked example of driving this from inside a widget.

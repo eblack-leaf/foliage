@@ -65,13 +65,12 @@ pub struct Named { map: HashMap<String, Entity> }
 pub struct Keyring { map: HashMap<String, AssetKey> }
 ```
 
-`tree.name(e, "close-button")` / `tree.store(key, "logo")` (both
-[`EcsExtension`](./tree.md) methods) register a string alias; `Named::get("close-button")`
-/ `Keyring::get("logo")` resolve it back. Both are `Resource`s populated by a private
-event (`Name`/`StoredKey`) rather than direct map mutation, so registering a name
-follows the same deferred-command path as everything else spawned through
-[`Sprout`](./spawning.md) -- an alias set during `build()` is available the moment the
-surrounding spawn command actually applies, not before. This is a convenience for
-app-level code that wants to look an entity or asset key back up by a human-readable
-name instead of threading the raw `Entity`/`AssetKey` through wherever it's needed --
-not something the library's own composites use internally.
+`Named` is the app-facing half: [`Grows::name`](./canopy.md) registers a string alias for
+a `Leaf`, and [`Canopy::named`](./canopy.md) resolves it back. `Keyring` is
+engine-internal -- there's no `Grows` verb that writes one, since an app already holds
+the `AssetKey` [`Grows::load_asset`](./canopy.md) hands back directly and has no need to
+re-look it up by name; `Keyring` exists for the engine's own built-in registration paths.
+Both are `Resource`s populated by a private event (`Name`/`StoredKey`) rather than direct
+map mutation, so registering a name follows the same deferred-command path as everything
+else spawned through [`Sprout`](./spawning.md) -- an alias set during `build()` is
+available the moment the surrounding spawn command actually applies, not before.

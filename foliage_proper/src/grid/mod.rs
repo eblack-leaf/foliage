@@ -46,8 +46,8 @@ impl Attachment for Grid {
 ///
 /// Columns and rows can be sized in fractions of the parent (`3.col()`), fixed pixels, or
 /// characters (`1.letters()`, taking its pitch from the parent's own
-/// [`FontSize`](crate::FontSize)). [`Gap`] is the space *between* tracks, never outside
-/// them.
+/// [`FontSize`](crate::FontSize)). `Gap` (engine-internal) is the space *between* tracks,
+/// never outside them.
 ///
 /// Requires [`View`], which is not optional plumbing: a parent's `View` carries the
 /// accumulated scroll offset every child subtracts to land on screen -- that is how

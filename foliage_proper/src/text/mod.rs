@@ -95,10 +95,10 @@ impl Attachment for Text {
 #[component(on_add = Text::on_add)]
 #[component(on_insert = Text::on_insert)]
 /// A run of monospaced glyphs, laid out by fontdue into the entity's own
-/// [`Section`](crate::Section) and drawn from a per-entity glyph atlas.
+/// [`Section`] and drawn from a per-entity glyph atlas.
 ///
 /// This is the render marker and is spawned through [`Text::new`], not constructed
-/// directly. To change the string afterwards, write [`TextValue`](crate::TextValue) --
+/// directly. To change the string afterwards, write [`TextValue`] --
 /// the public value channel every text-bearing composite shares.
 ///
 /// Layout is a fixed monospace grid: every glyph advances by the same width, taken from
@@ -185,11 +185,11 @@ impl Text {
         }
     }
     /// Starts a [`Text`] entity carrying `value`:
-    /// `tree.branch(parent, Text::new("hello").size(FontSize::new(24)).at(loc))`.
+    /// `canopy.branch(parent, Text::new("hello").size(FontSize::new(24)).at(loc))`.
     ///
     /// Chain [`size`](TextSprout::size)/[`color`](TextSprout::color)/
     /// [`glyph_colors`](TextSprout::glyph_colors) here, and the usual
-    /// [`Author`](crate::Author) placement (`at`, `elevate`, `with`) as with any leaf.
+    /// [`Sprout`](crate::Sprout) placement (`.at()`, `.elevate()`, ...) as with any leaf.
     pub fn new<S: AsRef<str>>(value: S) -> TextSprout {
         TextSprout {
             value: value.as_ref().to_string(),
