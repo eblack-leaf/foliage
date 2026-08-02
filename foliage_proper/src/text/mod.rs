@@ -41,12 +41,25 @@ impl Attachment for Text {
         foliage.define(Text::update);
         foliage.define(Text::apply_text_value);
         foliage.define(Text::responsive_font_size);
-        // `update_from_section` sits at `Prepare`, ahead of the glyph work at `Finalize`:
-        // the scroll pass runs in the same set and the `ApplyDeferred` between the two is
-        // what lands the `TextBounds` it triggers, in time for `Extract` to ship it.
-        foliage
-            .diff
-            .add_systems(Text::update_from_section.in_set(DiffMarkers::Prepare));
+        // `update_from_section` sits at `Prepare`, ahead of the glyph work at `Finalize`,
+        // and explicitly *after* the scroll pass. Sharing the set is not enough: this reads
+        // `Section` under a `Changed` filter and `propagate_offsets` is what mutates it, so
+        // without the edge both orders are legal and the losing one leaves `TextBounds` a
+        // frame behind the box for as long as a scroll continues -- and `TextBounds` is a
+        // scissor the text pipeline intersects with the span clip, so a lag larger than the
+        // box's own height leaves the two rects disjoint and the run renders not at all.
+        // The `ApplyDeferred` after `Prepare` then lands the `TextBounds` this triggers, in
+        // time for `Extract` to ship it.
+        //
+        // Kept here rather than solved the way `Image::update` solves the same
+        // `Changed<Section>` dependency (by sitting in the later `Finalize` set): the
+        // `Resolve<Text>` this sends has to reach `Text::update` -- and so write `Glyphs` --
+        // before `resolve_glyphs`/`resolve_colors` consume them at `Finalize`.
+        foliage.diff.add_systems(
+            Text::update_from_section
+                .after(crate::grid::view::propagate_offsets)
+                .in_set(DiffMarkers::Prepare),
+        );
         foliage.diff.add_systems(
             (Text::resolve_glyphs, Text::resolve_colors)
                 .chain()

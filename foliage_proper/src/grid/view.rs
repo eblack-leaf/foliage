@@ -602,7 +602,9 @@ pub(crate) struct ScrolledViews(pub(crate) HashSet<Entity>);
 /// `Resolved<Section<Logical>>` event, so its two consumers that matter while scrolling are
 /// handled directly. `ResolvedClip` is computed here, top-down, where a parent's clip is
 /// guaranteed to be settled before its children read it; the text scissor rides
-/// `Text::update_from_section`, which is a `Changed`-driven system for exactly this reason.
+/// `Text::update_from_section`, which is a `Changed`-driven system for exactly this reason
+/// and is ordered `.after` this one -- it reads the `Section` written here, so sharing
+/// `DiffMarkers::Prepare` without that edge would let it run first and trail a frame.
 /// The third consumer, `Panel::update_from_section`, recomputes corner radii from the box's
 /// *size*, which a scroll never changes -- not firing it is the correct outcome, not a gap.
 pub(crate) fn propagate_offsets(
