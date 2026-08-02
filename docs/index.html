@@ -14,8 +14,8 @@
     </style>
     
 <script type="module">
-import init, * as bindings from '/foliage/application-f46b7fabd2f8293d.js';
-const wasm = await init({ module_or_path: '/foliage/application-f46b7fabd2f8293d_bg.wasm' });
+import init, * as bindings from '/foliage/application-53ac31a8046b6d06.js';
+const wasm = await init({ module_or_path: '/foliage/application-53ac31a8046b6d06_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -25,10 +25,9 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
     
-<link rel="modulepreload" href="/foliage/application-f46b7fabd2f8293d.js" crossorigin="anonymous" integrity="sha384-tS24uJ8fAie3BjKtkQQCeGpAWf4yPPa3R7TtUovYAmSe+uEPrZBAue+KIPigIuDs"><link rel="preload" href="/foliage/application-f46b7fabd2f8293d_bg.wasm" crossorigin="anonymous" integrity="sha384-jMk5+kKSHWKGCToJ+jJ+YIWh5mENBAVK4Nxj8+zQOpJ01PBwoo/MpS7pSTsciGTU" as="fetch" type="application/wasm"></head>
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
+<link rel="modulepreload" href="/foliage/application-53ac31a8046b6d06.js" crossorigin="anonymous" integrity="sha384-2ucvVjjR+aMt7t3GnYKTgGWrWBhU5fikSVfgVEowzhkd1myUnr68Iqn0QpFSPrLG"><link rel="preload" href="/foliage/application-53ac31a8046b6d06_bg.wasm" crossorigin="anonymous" integrity="sha384-azy5dlaRAJz9nepIeutA3T8axF0cX0zAoW/Y+cDGagbENZ4RNevqXZe5lyrzp4TX" as="fetch" type="application/wasm"></head>
 <body>
-<!--<div id="loading" style="background: transparent; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);" >-->
-<!--    <h1 style="color: white; background: transparent; font-family: Monospaced,monospace">generating aesthetics...</h1>-->
-<!--</div>-->
 </body>
 </html>
