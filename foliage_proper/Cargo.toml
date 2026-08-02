@@ -2,7 +2,7 @@
 name = "foliage_proper"
 version = "1.0.0"
 edition = "2024"
-description = "The foliage UI engine: bevy_ecs component model, wgpu rendering backend, and composite widget library."
+description = "The foliage UI engine: bevy_ecs component model and wgpu rendering backend."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/eblack-leaf/foliage"
 homepage = "https://eblack-leaf.github.io/foliage/"
@@ -58,50 +58,6 @@ default = ["remote-assets"]
 # can drop this to shed reqwest/rustls entirely. wasm's own fetch path is unconditional (it's
 # how bundled assets load there at all, not an optional extra), so this only affects native.
 remote-assets = ["dep:reqwest"]
-# Composites whose hard part is arrangement and appearance rather than behavior --
-# Carousel, Checkbox, Dropdown, List, Pagination, Popover, RadioGroup, SegmentedControl,
-# Tabs, Toggle. Off by default: an unstyled one of these is rarely a head start over
-# building the shape you actually want, so they stay available without being part of the
-# surface every dependent carries. The behavioral composites (Button, Card, Router,
-# Slider, TextInput) are unconditional, as is Polyline -- it is a drawing primitive that
-# happens to be assembled from Line and Polygon rather than an arrangement of widgets, and
-# gating a primitive behind a widget feature was the wrong seam.
-composite-extras = []
-
-# The tests that exercise the gated composites, skipped unless the feature is on -- same
-# arrangement `foliage`'s own examples use. Without these, `cargo test --workspace` (what
-# CI runs) fails to compile them against the default feature set.
-[[test]]
-name = "carousel"
-required-features = ["composite-extras"]
-
-[[test]]
-name = "checkbox"
-required-features = ["composite-extras"]
-
-[[test]]
-name = "composites"
-required-features = ["composite-extras"]
-
-[[test]]
-name = "dropdown"
-required-features = ["composite-extras"]
-
-[[test]]
-name = "pagination"
-required-features = ["composite-extras"]
-
-[[test]]
-name = "popover"
-required-features = ["composite-extras"]
-
-[[test]]
-name = "segmented_control"
-required-features = ["composite-extras"]
-
-[[test]]
-name = "tabs"
-required-features = ["composite-extras"]
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 pollster = "1.0.1"

@@ -7,7 +7,7 @@ use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::panel::{Corner, vertex};
 use crate::{
-    CReprColor, CReprSection, Color, Logical, Outline, Panel, ResolvedElevation, Section, Stem,
+    CReprColor, CReprSection, Color, Logical, Outline, Panel, Parent, ResolvedElevation, Section,
 };
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
@@ -183,7 +183,7 @@ impl Render for Panel {
             if !render_group.coordinator.has_instance(id) {
                 render_group
                     .coordinator
-                    .add(Instance::new(elevation, Stem::default(), id));
+                    .add(Instance::new(elevation, Parent::default(), id));
             } else {
                 render_group.coordinator.update_elevation(id, elevation);
             }

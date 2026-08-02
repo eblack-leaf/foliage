@@ -25,8 +25,8 @@
 //! content.
 
 use foliage::{
-    Animation, Color, DashPattern, Ease, EcsExtension, Elevation, Entity, Foliage, FontSize, Grid,
-    GridExt, HorizontalAlignment, Leaf, Line, Location, Logical, Opacity, Polygon, Polyline,
+    Animation, Color, DashPattern, Ease, Elevation, Entity, Foliage, FontSize, Grid,
+    GridExt, HorizontalAlignment, Stem, Line, Location, Logical, Opacity, Polygon, Polyline,
     PolylineDrawProgress, PolylinePoints, Position, Query, Res, Section, Sprout, Text, Time, Tree,
     VerticalAlignment, component,
 };
@@ -199,7 +199,7 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
     // to a number in the gutter and a tick inside the drawing.
     let frame = tree.branch(
         plate,
-        Leaf::sprout()
+        Stem::new()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
                 0.pct()
@@ -211,7 +211,7 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
     );
     let field = tree.branch(
         frame,
-        Leaf::sprout()
+        Stem::new()
             .at(Location::new().xs(
                 GUTTER.px().as_left().with(100.pct().as_right()),
                 0.pct().as_top().with(100.pct().as_bottom()),

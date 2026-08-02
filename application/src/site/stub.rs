@@ -23,7 +23,7 @@ pub fn leaf(tree: &mut Tree, slot: Entity) {
         tree,
         slot,
         "leaf",
-        "Leaf, branch and stem -- what a thing on screen is, how one gets under another, and \
+        "Stem, branch and stem -- what a thing on screen is, how one gets under another, and \
          what the link between them decides.",
     );
 }

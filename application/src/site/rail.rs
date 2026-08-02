@@ -1,10 +1,12 @@
 //! Section navigation. Peers, not a sequence -- there is no prev/next here on purpose.
 
 use foliage::{
-    EcsExtension, Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon, IconId,
-    InteractionListener, InteractionPropagation, Leaf, Location, OnClick, PageIndex, Panel,
-    Rounding, Sprout, Text, Tree, Trigger, VerticalAlignment,
+    Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon, IconId,
+    InteractionListener, InteractionPropagation, Stem, Location, OnClick, Panel, Rounding, Sprout,
+    Text, Tree, Trigger, VerticalAlignment,
 };
+
+use crate::site::router::Route;
 
 use crate::icons::IconHandles;
 use crate::site::shell::rail_surface;
@@ -54,7 +56,7 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
     // surface is the background here, so a panel would only be a shape to keep in sync.
     let back = tree.branch(
         surface,
-        Leaf::sprout()
+        Stem::new()
             .at(Location::new().xs(
                 space::SM
                     .px()
@@ -69,7 +71,7 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
             .with(InteractionListener::new()),
     );
     tree.on_click(back, move |_: Trigger<OnClick>, mut tree: Tree| {
-        tree.write_to(router, PageIndex(0));
+        tree.write_to(router, Route(0));
     });
 
     // both pass through, or each would win the hit-test on the pixels it covers and split the
@@ -174,7 +176,7 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
                 .with((HorizontalAlignment::Left, VerticalAlignment::Middle)),
         );
         tree.on_click(label, move |_: Trigger<OnClick>, mut tree: Tree| {
-            tree.write_to(router, PageIndex(index + 1));
+            tree.write_to(router, Route(index + 1));
         });
     }
 }

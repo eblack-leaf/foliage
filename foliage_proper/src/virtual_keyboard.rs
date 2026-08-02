@@ -1,6 +1,5 @@
 use bevy_ecs::component::Component;
 use bevy_ecs::prelude::{IntoScheduleConfigs, Resource};
-use bevy_ecs::system::Commands;
 
 use crate::foliage::MainMarkers;
 use crate::{AndroidConnection, Attachment, Foliage};
@@ -42,9 +41,9 @@ impl Attachment for VirtualKeyboardAdapter {
             VirtualKeyboardAdapter::create_hook(queue.clone());
             foliage.world.insert_non_send(queue);
         }
-        foliage
-            .world
-            .insert_resource(VirtualKeyboardAdapter::new(foliage.android_connection.clone()));
+        foliage.world.insert_resource(VirtualKeyboardAdapter::new(
+            foliage.android_connection.clone(),
+        ));
         foliage
             .main
             .add_systems(VirtualKeyboardAdapter::drain_virtual_input.in_set(MainMarkers::External));
@@ -192,7 +191,7 @@ impl VirtualKeyboardAdapter {
     /// free.
     #[allow(unused_mut, unused_variables)]
     fn drain_virtual_input(
-        mut commands: Commands,
+        mut commands: crate::Tree,
         #[cfg(target_family = "wasm")] queue: bevy_ecs::system::NonSend<VirtualInputQueue>,
     ) {
         #[cfg(target_family = "wasm")]
@@ -205,7 +204,7 @@ impl VirtualKeyboardAdapter {
                     }
                     PendingInput::Key(key, mods) => (key, mods),
                 };
-                commands.trigger(crate::InputSequence::new(key, mods));
+                commands.send(crate::InputSequence::new(key, mods));
             }
         }
     }

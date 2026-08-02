@@ -7,7 +7,7 @@ use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
 use crate::polygon::Polygon;
 use crate::{
-    CReprColor, CReprSection, Color, Coordinates, Logical, ResolvedElevation, Section, Stem,
+    CReprColor, CReprSection, Color, Coordinates, Logical, Parent, ResolvedElevation, Section,
 };
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
@@ -157,7 +157,7 @@ impl Render for Polygon {
             if !group.coordinator.has_instance(id) {
                 group
                     .coordinator
-                    .add(Instance::new(elevation, Stem::default(), id));
+                    .add(Instance::new(elevation, Parent::default(), id));
             } else {
                 group.coordinator.update_elevation(id, elevation);
             }

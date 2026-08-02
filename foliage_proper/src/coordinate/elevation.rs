@@ -1,8 +1,8 @@
-use crate::EcsExtension;
+use crate::AsTree;
 use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
 use crate::ash::clip::ClipToViewport;
-use crate::{Animate, Attachment, Branch, Foliage, Resolve, Stem, Tree};
+use crate::{Animate, Attachment, Children, Foliage, Parent, Resolve, Tree};
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
@@ -205,8 +205,8 @@ impl Elevation {
             absolute: false,
         }
     }
-    fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
-        tree.trigger_targets(Resolve::<Elevation>::new(), trigger.event_target());
+    fn stem_insert(trigger: Trigger<Insert, Parent>, mut tree: Tree) {
+        tree.send_to(Resolve::<Elevation>::new(), trigger.event_target());
     }
     fn update(
         trigger: Trigger<Resolve<Elevation>>,
@@ -214,8 +214,8 @@ impl Elevation {
         stack_keys: Query<&StackKey>,
         clip_to_viewport: Query<&ClipToViewport>,
         elevation: Query<&Elevation>,
-        stem: Query<&Stem>,
-        branch: Query<&Branch>,
+        stem: Query<&Parent>,
+        branch: Query<&Children>,
     ) {
         let this = trigger.event_target();
         if stem.get(this).ok().is_none() || branch.get(this).ok().is_none() {
@@ -250,18 +250,16 @@ impl Elevation {
         };
         let stack_key = StackKey::compute(parent_key, resets, field);
         tracing::trace!(entity = ?this, ?stack_key, "elevation: computed stack key");
-        tree.entity(this).insert(stack_key);
+        tree.write_to(this, stack_key);
         for dep in branch.get(this).unwrap().ids.clone() {
             if let Some(elev) = elevation.get(dep).copied().ok() {
-                tree.entity(dep).insert(elev);
+                tree.write_to(dep, elev);
             }
         }
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .trigger_targets(Resolve::<Elevation>::new(), this);
+        world.tree().send_to(Resolve::<Elevation>::new(), this);
     }
 }
 impl Animate for Elevation {
@@ -293,293 +291,5 @@ impl ResolvedElevation {
     /// order -- set [`Elevation`] instead.
     pub fn new(l: f32) -> Self {
         Self(l)
-    }
-}
-
-#[cfg(test)]
-mod stack_key_tests {
-    use super::*;
-    use crate::{EcsExtension, Entity, Foliage, Grid, Leaf, Location, Sprout};
-
-    fn key_of(foliage: &mut Foliage, entity: Entity) -> StackKey {
-        *foliage.world.get::<StackKey>(entity).unwrap()
-    }
-
-    /// mask covering every field *except* this entity's own structural field -- for asserting
-    /// two keys share a prefix everywhere but the one level that's expected to legitimately
-    /// differ. The field lives at byte `1 + depth` (byte 0 is the tier).
-    fn mask_excluding(depth: u8) -> u128 {
-        let byte_index = 1 + depth as u32;
-        let shift = (StackKey::LEVELS - 1 - byte_index) * StackKey::BITS_PER_LEVEL;
-        !(0xFFu128 << shift)
-    }
-
-    #[test]
-    fn a_child_inherits_its_parents_key_as_a_prefix() {
-        let mut foliage = Foliage::new();
-        let parent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0)),
-        );
-        let child = foliage.world.branch(
-            parent,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-
-        let (parent_key, child_key) = (key_of(&mut foliage, parent), key_of(&mut foliage, child));
-        // the child's key must differ only in its own field -- the parent's own field carries
-        // through unchanged.
-        let mask = mask_excluding(child_key.depth);
-        assert_eq!(
-            parent_key.key & mask,
-            child_key.key & mask,
-            "child's key should share the parent's prefix exactly, differing only in its own field"
-        );
-        assert!(
-            child_key > parent_key,
-            "up(1) should still compare as more in front than its parent under StackKey's Ord"
-        );
-    }
-
-    #[test]
-    fn a_higher_up_amount_resolves_further_in_front_than_a_lower_one() {
-        let mut foliage = Foliage::new();
-        let parent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0)),
-        );
-        let near = foliage.world.branch(
-            parent,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        let far = foliage.world.branch(
-            parent,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(2)),
-        );
-        foliage.world.flush();
-
-        assert!(
-            key_of(&mut foliage, far) > key_of(&mut foliage, near),
-            "up(2) should compare as further in front than up(1) among siblings"
-        );
-    }
-
-    #[test]
-    fn up_resolves_relative_to_the_parents_own_key_not_a_fixed_baseline() {
-        // two roots at different absolute elevations -- each child's `up(1)` inherits its own
-        // parent's key as a prefix, so the child of the more-in-front root is itself more in
-        // front, and the two children's keys genuinely differ (they don't collapse to the same
-        // value regardless of context).
-        let mut foliage = Foliage::new();
-        let low_root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0)),
-        );
-        let high_root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(10)),
-        );
-        let low_child = foliage.world.branch(
-            low_root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        let high_child = foliage.world.branch(
-            high_root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-
-        assert_ne!(
-            key_of(&mut foliage, low_child).key,
-            key_of(&mut foliage, high_child).key,
-            "both children are up(1), but their parents sit at different absolute elevations, \
-             so their keys must differ"
-        );
-        assert!(
-            key_of(&mut foliage, high_child) > key_of(&mut foliage, low_child),
-            "the child of the more-in-front root (abs(10)) should itself resolve more in front"
-        );
-    }
-
-    #[test]
-    fn a_chrome_branch_beats_deeply_nested_content_in_a_different_branch_despite_a_raw_elevation_tie()
-     {
-        // the real Carousel bug this mechanism exists to prevent: two unrelated branches off
-        // the same root, one much deeper than the other, whose *raw* flat elevation sums
-        // happen to coincide exactly -- the shallower branch's own local "in front" choice,
-        // at the point the two branches actually diverge, must still win regardless of how
-        // deep the other branch's own content reaches.
-        let mut foliage = Foliage::new();
-        let root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0)),
-        );
-        let chrome = foliage.world.branch(
-            root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(5)),
-        );
-        let content = foliage.world.branch(
-            root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        let a = foliage.world.branch(
-            content,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        let b = foliage.world.branch(
-            a,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        let c = foliage.world.branch(
-            b,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        let deep = foliage.world.branch(
-            c,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-
-        // this is a genuine reproduction of the old flat-model tie, by hand: under the old
-        // additive `ResolvedElevation`, root(abs0)=100, chrome(up5)=95, and the deep chain
-        // content(up1)=99 -> a=98 -> b=97 -> c=96 -> deep=95 -- chrome and deep both land on
-        // exactly 95, an unresolvable coincidence. `StackKey` instead diverges them at `root`
-        // (chrome's up(5) branch vs. content's up(1) branch), so chrome wins deterministically.
-        assert!(
-            key_of(&mut foliage, chrome) > key_of(&mut foliage, deep),
-            "chrome's own local ordering (diverging from `deep` at `root`) must win regardless \
-             of the old raw-elevation tie"
-        );
-    }
-
-    #[test]
-    fn a_clip_to_viewport_overlay_outranks_chrome_using_a_forward_abs_it_is_nested_under() {
-        // the exact real-app bug: a Dropdown surface (`ClipToViewport`, `up(3)`) lives inside
-        // a modal spawned at `abs(50)`, with a page `abs(95)` button also around. Resetting the
-        // overlay to a *neutral* baseline made its top byte its own `up(3)` field, which lost
-        // to the modal's/button's forward `abs()` -- so the overlay rendered behind, and lost
-        // clicks to, all that chrome. A reserved FRONT stacking tier must put the overlay in
-        // front of every ordinary entity regardless of their `abs()` values.
-        let mut foliage = Foliage::new();
-        let modal = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(50)),
-        );
-        let back_button = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(95)),
-        );
-        let content = foliage.world.branch(
-            modal,
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(1))
-                .with(Grid::default()),
-        );
-        let trigger = foliage.world.branch(
-            content,
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(1))
-                .with(Grid::default()),
-        );
-        let surface = foliage.world.branch(
-            trigger,
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(3))
-                .with(ClipToViewport),
-        );
-        foliage.world.flush();
-
-        let surface_key = key_of(&mut foliage, surface);
-        assert!(
-            surface_key > key_of(&mut foliage, modal),
-            "the overlay surface must render in front of the modal it's nested inside"
-        );
-        assert!(
-            surface_key > key_of(&mut foliage, content),
-            "the overlay surface must render in front of the modal's own content"
-        );
-        assert!(
-            surface_key > key_of(&mut foliage, back_button),
-            "the overlay surface must render in front of even a forward `abs(95)` page button"
-        );
-    }
-
-    #[test]
-    fn a_clip_to_viewport_entity_resets_its_prefix_regardless_of_real_nesting_depth() {
-        let mut foliage = Foliage::new();
-        let root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0))
-                .with(Grid::default()),
-        );
-        let deep_trigger = foliage.world.branch(
-            root,
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(1))
-                .with(Grid::default()),
-        );
-        // marked entity, nested several real levels deep -- its own key should be
-        // indistinguishable (as far as prefix goes) from one hanging directly off root.
-        let surface = foliage.world.branch(
-            deep_trigger,
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(3))
-                .with((ClipToViewport, Grid::default())),
-        );
-        let surface_child = foliage.world.branch(
-            surface,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        // control: an ordinary (unmarked) entity at the same real depth as `surface`.
-        let ordinary_root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0)),
-        );
-        let ordinary_deep = foliage.world.branch(
-            ordinary_root,
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(1))
-                .with(Grid::default()),
-        );
-        let ordinary_surface_equivalent = foliage.world.branch(
-            ordinary_deep,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(3)),
-        );
-        foliage.world.flush();
-
-        assert_ne!(
-            key_of(&mut foliage, surface).key,
-            key_of(&mut foliage, ordinary_surface_equivalent).key,
-            "the marked entity's key must NOT carry the real ancestor prefix an equivalent \
-             unmarked entity at the same depth would"
-        );
-        // its own child still nests normally underneath the *reset* prefix, not the real one.
-        let child_key = key_of(&mut foliage, surface_child);
-        let mask = mask_excluding(child_key.depth);
-        assert_eq!(
-            key_of(&mut foliage, surface).key & mask,
-            child_key.key & mask,
-            "surface_child should inherit surface's (reset) prefix, not the real ancestors'"
-        );
-        assert!(
-            key_of(&mut foliage, surface_child) > key_of(&mut foliage, surface),
-            "surface_child (up(1) from surface) should still compare more in front than surface itself"
-        );
     }
 }

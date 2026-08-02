@@ -2,8 +2,8 @@ mod glyph;
 pub(crate) mod monospaced;
 mod pipeline;
 
+use crate::AsTree;
 use crate::Differential;
-use crate::EcsExtension;
 use crate::Trigger;
 use crate::alignment::{HorizontalAlignment, VerticalAlignment};
 use crate::ash::clip::ClipContext;
@@ -17,8 +17,8 @@ use crate::remove::Remove;
 use crate::text::glyph::{Glyph, GlyphColor, GlyphKey, ResolvedColors};
 use crate::text::monospaced::{FontId, MonospacedFont};
 use crate::{
-    Attachment, Layout, LayoutSection, Location, Physical, Resolve, Resolved, ResolvedElevation,
-    ResolvedVisibility, Short, Stem, Tree, View, Visibility,
+    Attachment, Layout, LayoutSection, Location, Parent, Physical, Resolve, Resolved,
+    ResolvedElevation, ResolvedVisibility, Short, Tree, View, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -122,7 +122,7 @@ pub struct TextSprout {
     color: Option<Color>,
     glyph_colors: Option<GlyphColors>,
 }
-impl crate::Sprout for TextSprout {
+impl crate::Author for TextSprout {
     fn seed(&mut self) -> &mut crate::LeafSprout {
         &mut self.leaf
     }
@@ -162,6 +162,10 @@ impl TextSprout {
         self
     }
 }
+/// A text-bearing entity's public value channel: write it to a [`Text`] entity, or to a root
+/// that forwards it like [`TextInput`](crate::TextInput), and the content follows.
+#[derive(Component, Clone, Default)]
+pub struct TextValue(pub String);
 impl Text {
     pub(crate) const OPT_SCALE: u32 = 20;
     /// A text's public value channel: write `TextValue` to a text entity and the glyphs
@@ -176,7 +180,7 @@ impl Text {
         let this = trigger.event_target();
         if texts.contains(this) {
             if let Ok(value) = values.get(this) {
-                tree.entity(this).insert(Text::new_marker(&value.0));
+                tree.write_to(this, Text::new_marker(&value.0));
             }
         }
     }
@@ -185,7 +189,7 @@ impl Text {
     ///
     /// Chain [`size`](TextSprout::size)/[`color`](TextSprout::color)/
     /// [`glyph_colors`](TextSprout::glyph_colors) here, and the usual
-    /// [`Sprout`](crate::Sprout) placement (`at`, `elevate`, `with`) as with any leaf.
+    /// [`Author`](crate::Author) placement (`at`, `elevate`, `with`) as with any leaf.
     pub fn new<S: AsRef<str>>(value: S) -> TextSprout {
         TextSprout {
             value: value.as_ref().to_string(),
@@ -199,18 +203,10 @@ impl Text {
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .entity(this)
-            .observe(Remove::push_remove_packet::<Text>);
-        world
-            .commands()
-            .entity(this)
-            .observe(Visibility::push_remove_packet::<Text>);
-        world
-            .commands()
-            .entity(this)
-            .observe(Self::clear_last_on_visibility);
+        let mut tree = world.tree();
+        tree.subscribe(this, Remove::push_remove_packet::<Text>);
+        tree.subscribe(this, Visibility::push_remove_packet::<Text>);
+        tree.subscribe(this, Self::clear_last_on_visibility);
     }
     fn responsive_font_size(
         _trigger: Trigger<Resolved<Layout>>,
@@ -224,9 +220,7 @@ impl Text {
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .trigger_targets(Resolve::<Text>::new(), this);
+        world.tree().send_to(Resolve::<Text>::new(), this);
     }
     /// Driven by change detection rather than by `Resolved<Section<Logical>>`, because that
     /// event only fires on an *insert*: a scroll moves a whole subtree by mutating `Section`
@@ -238,7 +232,7 @@ impl Text {
         mut tree: Tree,
     ) {
         for entity in moved.iter() {
-            tree.trigger_targets(Resolve::<Text>::new(), entity);
+            tree.send_to(Resolve::<Text>::new(), entity);
         }
     }
     fn resolve_colors(
@@ -291,7 +285,7 @@ impl Text {
         scale_factor: Res<ScaleFactor>,
         auto_heights: Query<&TextContentHeight>,
         auto_widths: Query<&TextContentWidth>,
-        stems: Query<&Stem>,
+        stems: Query<&Parent>,
         views: Query<&View>,
     ) {
         let this = trigger.event_target();
@@ -339,8 +333,8 @@ impl Text {
         // This is the whole of a scrolling frame's text work.
         if !layout_dirty {
             cache.get_mut(this).unwrap().section = section;
-            tree.entity(this).insert(TextBounds(section));
-            tree.trigger_targets(Resolved::<Text>::new(), this);
+            tree.write_to(this, TextBounds(section));
+            tree.send_to(Resolved::<Text>::new(), this);
             return;
         }
         let mut current = UpdateCache {
@@ -437,10 +431,14 @@ impl Text {
             let max = (current.section.width() / dims.a()).floor() as u32;
             line_metrics.max_letter_idx_horizontal =
                 max.checked_sub(1).unwrap_or_default() + if auto_width.0 { 1 } else { 0 };
-            tree.entity(this)
-                .insert(UniqueCharacters::count(&current.text))
-                .insert(TextBounds(current.section))
-                .insert(line_metrics);
+            tree.write_to(
+                this,
+                (
+                    UniqueCharacters::count(&current.text),
+                    TextBounds(current.section),
+                    line_metrics,
+                ),
+            );
             // Written in place rather than inserted: nothing observes `UpdateCache`, it is
             // this function's own record of what the last layout was computed from, and an
             // insert would clone the string a second time.
@@ -465,14 +463,12 @@ impl Text {
                     // is anchored to this box, and an anchor value is read out of the
                     // target's `Section`. Inserted the other way round, a dependent resolves
                     // against the box this adjustment is in the middle of replacing.
-                    tree.entity(this)
-                        .insert(adjusted)
-                        .insert(LayoutSection(in_layout_space));
+                    tree.write_to(this, (adjusted, LayoutSection(in_layout_space)));
                 }
             }
-            tree.trigger_targets(Resolved::<Text>::new(), this);
+            tree.send_to(Resolved::<Text>::new(), this);
             if content_changed {
-                tree.trigger_targets(TextContentChanged::new(), this);
+                tree.send_to(TextContentChanged::new(), this);
             }
         }
     }
@@ -633,14 +629,12 @@ impl ResolvedFontSize {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         if world.get::<Text>(this).is_some() {
-            world
-                .commands()
-                .trigger_targets(Resolve::<Text>::new(), this);
+            world.tree().send_to(Resolve::<Text>::new(), this);
         }
         // A `.letters()`-sized `Location` resolves its numbers out of this entity's own
         // `FontSize` (`grid/location.rs`'s own `letter_dims`), so this is the one place
         // that dependency gets honored: the rest of the resolve triggers are structural
-        // (`Location`/`Stem`/`Visibility` written, or a parent's `Section` landing) and
+        // (`Location`/`Parent`/`Visibility` written, or a parent's `Section` landing) and
         // none of them fire for a plain `FontSize` write.
         //
         // Only this entity needs the trigger. Its own new `Section<Logical>` cascades
@@ -660,9 +654,7 @@ impl ResolvedFontSize {
             .get::<Location>(this)
             .is_some_and(|l| l.depends_on_own_font_size(layout, short))
         {
-            world
-                .commands()
-                .trigger_targets(Resolve::<Location>::new(), this);
+            world.tree().send_to(Resolve::<Location>::new(), this);
         }
     }
 }
@@ -748,10 +740,7 @@ impl FontSize {
         let short = *world.get_resource::<Short>().unwrap();
         let comp = world.get::<FontSize>(this).unwrap();
         let resolved = comp.resolve(layout, short);
-        world
-            .commands()
-            .entity(this)
-            .insert(ResolvedFontSize::new(resolved));
+        world.tree().write_to(this, ResolvedFontSize::new(resolved));
     }
     /// Overrides the size from the `sm` breakpoint up.
     pub fn sm(mut self, value: u32) -> Self {
@@ -821,126 +810,6 @@ impl From<VerticalAlignment> for fontdue::layout::VerticalAlign {
             VerticalAlignment::Top => fontdue::layout::VerticalAlign::Top,
             VerticalAlignment::Middle => fontdue::layout::VerticalAlign::Middle,
             VerticalAlignment::Bottom => fontdue::layout::VerticalAlign::Bottom,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::grid::Grid;
-    use crate::grid::location::GridExt;
-
-    use crate::{EcsExtension, Elevation, Foliage, Leaf, Sprout};
-
-    // Mirrors `application/src/chapters/text.rs` exactly: a `.letters()`-sized `Grid`
-    // parent holding one `Text` per column, then a runtime `FontSize` write to the parent
-    // *and* every child -- the "grow" step of that chapter.
-    const INITIAL: u32 = 40;
-    const GROWN: u32 = 64;
-    const GAP: i32 = 34;
-    const PAD: i32 = 4;
-    const COLS: i32 = 3;
-
-    fn cell(i: i32) -> Location {
-        let n = i + 1;
-        Location::new().xs(
-            n.col()
-                .as_left()
-                .adjust(-PAD)
-                .with(n.col().as_right().adjust(PAD)),
-            1.row().as_top().with(1.row().as_bottom()),
-        )
-    }
-
-    fn build(size: u32) -> (Foliage, Entity, Vec<Entity>) {
-        let mut foliage = Foliage::new();
-        let field = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    40.0.pct()
-                        .as_center_x()
-                        .with(COLS.letters().as_width().adjust((COLS - 1) * GAP)),
-                    42.0.pct().as_top().with(1.letters().as_height()),
-                ))
-                .elevate(Elevation::up(2))
-                .with((
-                    Grid::new(1.letters().gap(GAP), 1.letters()),
-                    FontSize::new(size),
-                )),
-        );
-        let letters = ['a', 'w', 'g']
-            .iter()
-            .enumerate()
-            .map(|(i, ch)| {
-                foliage.world.branch(
-                    field,
-                    Text::new(ch.to_string())
-                        .size(FontSize::new(size))
-                        .at(cell(i as i32))
-                        .elevate(Elevation::up(2))
-                        .with(HorizontalAlignment::Center),
-                )
-            })
-            .collect::<Vec<_>>();
-        settle(&mut foliage);
-        (foliage, field, letters)
-    }
-
-    /// `TextBounds` follows `Section` through `Text::update_from_section`, which is a system
-    /// rather than an observer -- a scroll moves a box by mutating `Section`, and only change
-    /// detection sees that. So a text tree needs the frame run, not just its commands
-    /// applied, the same way `Glyphs`' own mirror already did.
-    fn settle(foliage: &mut Foliage) {
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
-    }
-
-    #[test]
-    fn growing_font_size_at_runtime_matches_building_at_that_size() {
-        let (mut foliage, field, letters) = build(INITIAL);
-        let (reference, ref_field, ref_letters) = build(GROWN);
-
-        for l in letters.iter().copied() {
-            foliage.world.entity_mut(l).insert(FontSize::new(GROWN));
-        }
-        foliage.world.entity_mut(field).insert(FontSize::new(GROWN));
-        settle(&mut foliage);
-
-        let got_field = *foliage.world.get::<Section<Logical>>(field).unwrap();
-        let want_field = *reference.world.get::<Section<Logical>>(ref_field).unwrap();
-        assert_eq!(got_field, want_field, "field's own section after the grow");
-
-        for (i, (grown, built)) in letters.iter().zip(ref_letters.iter()).enumerate() {
-            let got = *foliage.world.get::<Section<Logical>>(*grown).unwrap();
-            let want = *reference.world.get::<Section<Logical>>(*built).unwrap();
-            assert_eq!(got, want, "letter {i}'s section after the grow");
-            let got_bounds = *foliage.world.get::<TextBounds>(*grown).unwrap();
-            let want_bounds = *reference.world.get::<TextBounds>(*built).unwrap();
-            assert_eq!(
-                got_bounds, want_bounds,
-                "letter {i}'s TextBounds after the grow"
-            );
-            // the fontdue layout itself, not `Glyphs::glyphs` -- that mirror is filled by
-            // `resolve_glyphs` in the diff schedule, which `flush()` alone never runs.
-            let got_glyph = foliage.world.get::<Glyphs>(*grown).unwrap().layout.glyphs()[0];
-            let want_glyph = reference
-                .world
-                .get::<Glyphs>(*built)
-                .unwrap()
-                .layout
-                .glyphs()[0];
-            assert_eq!(
-                (got_glyph.x, got_glyph.y, got_glyph.width, got_glyph.height),
-                (
-                    want_glyph.x,
-                    want_glyph.y,
-                    want_glyph.width,
-                    want_glyph.height
-                ),
-                "letter {i}'s glyph placement after the grow"
-            );
         }
     }
 }

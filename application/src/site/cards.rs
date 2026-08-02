@@ -12,8 +12,8 @@
 //! owns its own placement cannot be reused, and one that takes a `Location` can.
 
 use foliage::{
-    EcsExtension, Elevation, Entity, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId,
-    InteractionPropagation, Leaf, Location, Panel, Rounding, Sprout, Text, TextContentHeight, Tree,
+    Elevation, Entity, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId,
+    InteractionPropagation, Stem, Location, Panel, Rounding, Sprout, Text, TextContentHeight, Tree,
     VerticalAlignment,
 };
 
@@ -68,7 +68,7 @@ pub(crate) fn card(
 ) -> Entity {
     let cell = tree.branch(
         parent,
-        Leaf::sprout().at(at).elevate(Elevation::up(1)).with((
+        Stem::new().at(at).elevate(Elevation::up(1)).with((
             Grid::new(1.col().gap(0), 1.row().gap(0)),
             InteractionPropagation::pass_through(),
         )),

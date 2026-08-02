@@ -18,28 +18,3 @@ default = ["remote-assets"]
 # default set so the facade matches foliage_proper's own default; a dependent that only
 # loads bundled `Bytes` assets can turn it off here to shed reqwest/rustls.
 remote-assets = ["foliage_proper/remote-assets"]
-# Passthrough for foliage_proper's off-by-default arrangement composites (Carousel,
-# Checkbox, Dropdown, List, Pagination, Popover, RadioGroup, SegmentedControl,
-# Tabs, Toggle). The examples that demo them declare it as a required-feature, so a plain
-# `cargo run --example ...` only sees the unconditional surface.
-composite-extras = ["foliage_proper/composite-extras"]
-
-[[example]]
-name = "carousel"
-required-features = ["composite-extras"]
-
-[[example]]
-name = "controls"
-required-features = ["composite-extras"]
-
-[[example]]
-name = "dropdown_and_pagination"
-required-features = ["composite-extras"]
-
-[[example]]
-name = "popover"
-required-features = ["composite-extras"]
-
-[[example]]
-name = "tabs"
-required-features = ["composite-extras"]

@@ -10,9 +10,10 @@
 //! other). Drag slowly through a range of widths: the seam should stay closed at every one.
 
 use foliage::{
-    Color, EcsExtension, Elevation, Foliage, GridExt, Location, Panel, Rounding, Sprout, Text,
-    FontSize, HorizontalAlignment, VerticalAlignment,
+    Canopy, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Location, Panel,
+    Rounding, Text, VerticalAlignment,
 };
+use foliage::{Grows, Sprout};
 
 /// Where the two panels meet, as a percentage of the window. Deliberately not 50 -- an even
 /// split lands on a whole pixel far too often to show anything.
@@ -27,65 +28,74 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((720, 480));
 
-    // Left at xs -> top when stacked. Ends exactly where the other begins, on both axes.
-    foliage.world.leaf(
-        Panel::new()
-            .rounding(Rounding::None)
-            .color(Color::cyan(600))
-            .at(Location::new()
-                .xs(
+    let mut grown = false;
+    foliage.photosynthesize(move |canopy: &mut Canopy| {
+        if grown {
+            return;
+        }
+        grown = true;
+
+        // Left at xs -> top when stacked. Ends exactly where the other begins, on both axes.
+        canopy.leaf(
+            Panel::new()
+                .rounding(Rounding::None)
+                .color(Color::cyan(600))
+                .at(Location::new()
+                    .xs(
+                        MARGIN_PCT
+                            .pct()
+                            .as_left()
+                            .with((100.0 - MARGIN_PCT).pct().as_right()),
+                        TOP_PCT.pct().as_top().with(XS_SEAM_PCT.pct().as_bottom()),
+                    )
+                    .md(
+                        MARGIN_PCT.pct().as_left().with(SEAM_PCT.pct().as_right()),
+                        TOP_PCT.pct().as_top().with(BOTTOM_PCT.pct().as_bottom()),
+                    ))
+                .elevate(Elevation::up(1)),
+        );
+
+        // Right at xs -> bottom when stacked. Its leading edge is the *same* percentage the
+        // panel above ends on, which is what makes this a seam test rather than two rectangles
+        // that happen to be near each other.
+        canopy.leaf(
+            Panel::new()
+                .rounding(Rounding::None)
+                .color(Color::orange(600))
+                .at(Location::new()
+                    .xs(
+                        MARGIN_PCT
+                            .pct()
+                            .as_left()
+                            .with((100.0 - MARGIN_PCT).pct().as_right()),
+                        XS_SEAM_PCT
+                            .pct()
+                            .as_top()
+                            .with(BOTTOM_PCT.pct().as_bottom()),
+                    )
+                    .md(
+                        SEAM_PCT
+                            .pct()
+                            .as_left()
+                            .with((100.0 - MARGIN_PCT).pct().as_right()),
+                        TOP_PCT.pct().as_top().with(BOTTOM_PCT.pct().as_bottom()),
+                    ))
+                .elevate(Elevation::up(1)),
+        );
+
+        canopy.leaf(
+            Text::new("drag the window -- stacked under md, split at md and up")
+                .size(FontSize::new(13))
+                .color(Color::gray(500))
+                .at(Location::new().xs(
                     MARGIN_PCT
                         .pct()
                         .as_left()
                         .with((100.0 - MARGIN_PCT).pct().as_right()),
-                    TOP_PCT.pct().as_top().with(XS_SEAM_PCT.pct().as_bottom()),
-                )
-                .md(
-                    MARGIN_PCT.pct().as_left().with(SEAM_PCT.pct().as_right()),
-                    TOP_PCT.pct().as_top().with(BOTTOM_PCT.pct().as_bottom()),
+                    6.0.pct().as_top().with(10.0.pct().as_bottom()),
                 ))
-            .elevate(Elevation::up(1)),
-    );
-
-    // Right at xs -> bottom when stacked. Its leading edge is the *same* percentage the
-    // panel above ends on, which is what makes this a seam test rather than two rectangles
-    // that happen to be near each other.
-    foliage.world.leaf(
-        Panel::new()
-            .rounding(Rounding::None)
-            .color(Color::orange(600))
-            .at(Location::new()
-                .xs(
-                    MARGIN_PCT
-                        .pct()
-                        .as_left()
-                        .with((100.0 - MARGIN_PCT).pct().as_right()),
-                    XS_SEAM_PCT.pct().as_top().with(BOTTOM_PCT.pct().as_bottom()),
-                )
-                .md(
-                    SEAM_PCT
-                        .pct()
-                        .as_left()
-                        .with((100.0 - MARGIN_PCT).pct().as_right()),
-                    TOP_PCT.pct().as_top().with(BOTTOM_PCT.pct().as_bottom()),
-                ))
-            .elevate(Elevation::up(1)),
-    );
-
-    foliage.world.leaf(
-        Text::new("drag the window -- stacked under md, split at md and up")
-            .size(FontSize::new(13))
-            .color(Color::gray(500))
-            .at(Location::new().xs(
-                MARGIN_PCT
-                    .pct()
-                    .as_left()
-                    .with((100.0 - MARGIN_PCT).pct().as_right()),
-                6.0.pct().as_top().with(10.0.pct().as_bottom()),
-            ))
-            .elevate(Elevation::up(1))
-            .with((HorizontalAlignment::Center, VerticalAlignment::Middle)),
-    );
-
-    foliage.photosynthesize();
+                .elevate(Elevation::up(1))
+                .align(HorizontalAlignment::Center, VerticalAlignment::Middle),
+        );
+    });
 }

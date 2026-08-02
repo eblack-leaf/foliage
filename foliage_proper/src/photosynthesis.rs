@@ -84,7 +84,7 @@ impl ApplicationHandler for Foliage {
                 // dispatch before we even get control back)? A large `since_last` here narrows
                 // a multi-second stall to one side of that question.
                 self.main.run(&mut self.world);
-                self.user.run(&mut self.world);
+                self.frame();
                 self.diff.run(&mut self.world);
                 self.willow.window().request_redraw();
                 self.ash.drawn = false;

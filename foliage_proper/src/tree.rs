@@ -1,38 +1,63 @@
 use crate::Trigger;
 use crate::anim::runner::AnimationRunner;
-use crate::anim::sequence::{AnimationTime, SequenceMarker};
+use crate::anim::sequence::AnimationTime;
 use crate::asset::{AssetLoader, AssetRetrieval, OnRetrieval};
 use crate::disable::Disable;
 use crate::enable::Enable;
-use crate::leaf::Leaf;
-use crate::leaf::{SpawnedAt, Stem};
+use crate::node::Node;
+use crate::node::{Parent, SpawnedAt};
 use crate::ops::{Name, StoredKey};
 use crate::remove::Remove;
-use crate::{Animate, Animation, AssetKey, Sprout, TimeDelta, Timer};
+use crate::{Animate, Animation, AssetKey, Author, TimeDelta, Timer};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::Entity;
 use bevy_ecs::event::{EntityEvent, Event};
 use bevy_ecs::lifecycle::Insert;
-use bevy_ecs::message::Message;
 use bevy_ecs::observer::IntoEntityObserver;
 use bevy_ecs::prelude::{Commands, World};
 use bevy_ecs::system::{Query, Res};
 
-/// The handle systems and observers use to change the world: spawn entities, write
-/// components, start animations, register handlers.
+/// Foliage's own handle on the world: spawn entities, write components, start animations,
+/// register handlers. Every engine-internal mutation goes through one of these methods --
+/// this is the single door onto raw `bevy_ecs`.
 ///
-/// A `Commands`, so everything through it is deferred to the end of the current step
-/// rather than applied in place. Two consequences worth holding onto: an entity is
-/// spawned by the time you get its `Entity` back, but its components are not yet
-/// readable through a `Query` in the same system; and a component written here lands
-/// before the next system runs. The same vocabulary is available on
-/// [`Foliage`](crate::Foliage) before startup -- see [`EcsExtension`].
-pub type Tree<'w, 's> = Commands<'w, 's>;
+/// Wraps a `Commands`, so everything is deferred to the end of the current step rather than
+/// applied in place. Two consequences worth holding onto: an entity is spawned by the time
+/// you get its `Entity` back, but its components are not yet readable through a `Query` in
+/// the same system; and a component written here lands before the next system runs.
+///
+/// Obtained as a system param (`mut tree: Tree`), or from a `World`/`DeferredWorld` via
+/// [`AsTree::tree`] in component hooks and at startup.
+#[derive(bevy_ecs::system::SystemParam)]
+pub(crate) struct Tree<'w, 's> {
+    commands: Commands<'w, 's>,
+}
+
+/// Turns the two places that hold the world directly -- a `World` at startup or in a
+/// command, and the `DeferredWorld` a component lifecycle hook is handed -- into a [`Tree`].
+/// Replaces what used to be a second and third full implementation of every verb.
+pub(crate) trait AsTree {
+    fn tree(&mut self) -> Tree<'_, '_>;
+}
+impl AsTree for World {
+    fn tree(&mut self) -> Tree<'_, '_> {
+        Tree {
+            commands: self.commands(),
+        }
+    }
+}
+impl AsTree for bevy_ecs::world::DeferredWorld<'_> {
+    fn tree(&mut self) -> Tree<'_, '_> {
+        Tree {
+            commands: self.commands(),
+        }
+    }
+}
 
 /// Replacement for bevy's removed `TriggerTargets`: the things `send_to`/`remove`/`enable`/
 /// `disable` accept as targets. Single-`Entity` and array forms iterate without allocating.
-pub trait IntoTargets {
+pub(crate) trait IntoTargets {
     type Iter: Iterator<Item = Entity>;
     fn into_targets(self) -> Self::Iter;
 }
@@ -61,105 +86,275 @@ impl<const N: usize> IntoTargets for [Entity; N] {
 /// the `#[targeted_event]` attribute (injects the field, implements `Event`/`EntityEvent`,
 /// generates `new(<payload fields>)` — authors never write `Entity::PLACEHOLDER`); generics
 /// like `Resolve<C>`/`Resolved<C>` implement it by hand.
-pub trait TargetedEvent: EntityEvent + Clone {
+pub(crate) trait TargetedEvent: EntityEvent + Clone {
     fn set_target(&mut self, entity: Entity);
 }
 
-/// Raw ECS-level spawn, underneath the public `Sprout` authoring kit -- `pub(crate)` on
-/// purpose, so external consumers can't spawn a bundle bypassing `LeafSprout`'s mandatory
-/// `.elevate(...)` (the exact footgun that field was made required to close). Only
-/// [`EcsExtension::leaf`]/[`EcsExtension::branch`] (via [`Sow::grow`]) reach this; there is no
-/// other way to turn a `Sprout` into a spawned entity from outside this crate.
-pub(crate) trait Sow {
-    fn sow<B: Bundle>(&mut self, b: B) -> Entity;
-    /// Shared machinery behind [`EcsExtension::leaf`]/[`EcsExtension::branch`]: fills `stem` if
-    /// a parent was given, folds the seed fields + `spec.root()` into one bundle via
-    /// [`Sow::sow`], then runs `Sprout::build`. `pub(crate)` alongside `sow` for the same
-    /// reason -- an external `Sprout` impl gets no way to skip the mandatory `.elevate(...)` or
-    /// hand-roll a child that forgets its parent.
-    /// `#[track_caller]` here and on `leaf`/`branch` is what makes [`SpawnedAt`] name the
-    /// author's own call rather than this line.
-    #[track_caller]
-    fn grow<S: Sprout>(&mut self, mut spec: S, parent: Option<Entity>) -> Entity
-    where
-        Self: EcsExtension + Sized,
-    {
-        if let Some(parent) = parent {
-            spec.seed().stem = Stem::some(parent);
-        }
-        let leaf = core::mem::take(spec.seed());
-        let this = self.sow((
-            leaf.location,
-            leaf.stem,
-            leaf.elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
-            SpawnedAt(core::panic::Location::caller()),
-            spec.root(),
-        ));
-        S::build(this, self);
-        this
-    }
-}
-// `Sow` is `pub(crate)` on purpose (see its doc comment) -- `EcsExtension` is only ever
-// implemented for `Tree`/`DeferredWorld`/`World` below, all within this crate, so an external
-// crate being unable to name the supertrait (and thus unable to implement `EcsExtension` itself)
-// is the intended effect, not an oversight.
-/// The shared vocabulary for building and changing a tree, implemented for
-/// [`Tree`], `World` and `DeferredWorld` so the same calls work from a system, an
-/// observer, a component hook, or startup.
-///
-/// [`leaf`](EcsExtension::leaf) and [`branch`](EcsExtension::branch) spawn;
-/// [`write_to`](EcsExtension::write_to) changes a live value;
-/// [`animate`](EcsExtension::animate) and [`sequence`](EcsExtension::sequence) move
-/// things; [`react`](EcsExtension::react) and [`subscribe`](EcsExtension::subscribe)
-/// respond.
-#[allow(private_bounds)]
-pub trait EcsExtension: Sow {
-    fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
-    where
-        E: TargetedEvent,
-        for<'a> E::Trigger<'a>: Default;
-    /// Same as [`EcsExtension::send_to`] — kept under the pre-0.19 name so the many
-    /// composite-internal call sites read the same as they always have.
-    fn trigger_targets<E>(&mut self, e: E, targets: impl IntoTargets)
+// `on_click`, `store`, `timer`, `leaf`, `forward` and `on_asset` have no caller since the
+// composites were deleted -- they are the vocabulary a widget is built out of, and nothing is
+// built out of anything right now. Kept because the primitives still reach for them the moment
+// widgets come back, and deleting them would mean writing them again unchanged. Delete for
+// real if the widget layer lands without needing them.
+#[allow(dead_code)]
+impl<'w, 's> Tree<'w, 's> {
+    /// Fires `e` at each target, delivered immediately on flush to observers bound to that
+    /// entity. The event is cloned once per target and its own target field rewritten.
+    pub fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
     where
         E: TargetedEvent,
         for<'a> E::Trigger<'a>: Default,
     {
-        self.send_to(e, targets);
+        for target in targets.into_targets() {
+            let mut event = e.clone();
+            event.set_target(target);
+            self.commands.trigger(event);
+        }
     }
-    fn send<E>(&mut self, e: E)
+    /// Fires an untargeted event, delivered to global observers.
+    pub fn send<E>(&mut self, e: E)
     where
         E: Event,
-        for<'a> E::Trigger<'a>: Default;
-    fn queue<E: Message>(&mut self, e: E);
-    fn write_to<B: Bundle>(&mut self, entity: Entity, b: B);
-    fn remove(&mut self, targets: impl IntoTargets);
-    fn enable(&mut self, targets: impl IntoTargets);
-    fn disable(&mut self, targets: impl IntoTargets);
-    fn sequence(&mut self) -> Entity;
-    fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity;
-    fn sequence_end<M>(&mut self, seq: Entity, end: impl IntoEntityObserver<M>);
-    fn subscribe<M>(&mut self, e: Entity, sub: impl IntoEntityObserver<M>);
-    fn on_click<M>(&mut self, e: Entity, o: impl IntoEntityObserver<M>);
-    fn name<S: AsRef<str>>(&mut self, e: Entity, s: S);
-    fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S);
-    fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>);
-    /// Runs `afn` on `entity` once the asset `key` names has arrived, with its bytes --
-    /// the asset counterpart to [`on_click`](EcsExtension::on_click). Marks the wait and
-    /// registers the handler in one call, so the key can't disagree between them.
+        for<'a> E::Trigger<'a>: Default,
+    {
+        self.commands.trigger(e);
+    }
+    /// Inserts components on an existing entity -- the way a live value is changed after
+    /// spawn.
+    pub fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
+        self.commands.entity(entity).insert(b);
+    }
+    /// Despawns entities and everything beneath them.
+    pub fn remove(&mut self, targets: impl IntoTargets) {
+        self.send_to(Remove::new(), targets);
+    }
+    /// Re-enables interaction on entities and their subtrees.
+    pub fn enable(&mut self, targets: impl IntoTargets) {
+        self.send_to(Enable::new(), targets);
+    }
+    /// Disables interaction on entities and their subtrees. They still draw; they stop
+    /// competing for input.
+    pub fn disable(&mut self, targets: impl IntoTargets) {
+        self.send_to(Disable::new(), targets);
+    }
+    /// Despawns one entity outright, without the [`Remove`] cascade -- for entities that
+    /// have no subtree of their own (a timer, an animation runner, a pooled instance).
+    pub fn despawn(&mut self, entity: Entity) {
+        self.commands.entity(entity).despawn();
+    }
+    /// Strips a single component off an entity, leaving the rest.
+    pub fn strip<C: Component>(&mut self, entity: Entity) {
+        self.commands.entity(entity).remove::<C>();
+    }
+    /// Whether `entity` is still alive -- false once it has been despawned.
+    pub fn exists(&mut self, entity: Entity) -> bool {
+        self.commands.get_entity(entity).is_ok()
+    }
+    /// Starts `anim`, returning the runner entity.
+    pub fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity {
+        let runner = AnimationRunner::new(
+            anim.anim_target.unwrap(),
+            anim.a,
+            anim.ease,
+            anim.seq,
+            AnimationTime::from(anim.sequence_time_range),
+            anim.repeat,
+            anim.backtrack,
+        );
+        self.commands.spawn(runner).id()
+    }
+    /// Registers an entity-observer on `e`.
+    pub fn subscribe<M>(&mut self, e: Entity, sub: impl IntoEntityObserver<M>) {
+        self.commands.entity(e).observe(sub);
+    }
+    /// Runs `o` when `e` is clicked.
+    pub fn on_click<M>(&mut self, e: Entity, o: impl IntoEntityObserver<M>) {
+        self.commands.entity(e).observe(o);
+    }
+    /// Names `e`, so it can be looked up through [`Named`](crate::Named).
+    pub fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
+        self.send(Name(s.as_ref().to_string(), e));
+    }
+    /// Stores an asset key under a name, for lookup through [`Keyring`](crate::Keyring).
+    pub fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S) {
+        self.send(StoredKey(s.as_ref().to_string(), k));
+    }
+    /// Runs `tf` once, `t` milliseconds from now.
+    pub fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
+        self.commands
+            .spawn(Timer::new(TimeDelta::from_millis(t)))
+            .observe(tf);
+    }
+    /// Re-inserts `entity`'s current value(s) of `C` so any just-registered observer fires
+    /// with real data -- the fire-once half of [`react`](Self::react).
+    pub fn refire<C: Refire>(&mut self, entity: Entity) {
+        self.commands.queue(move |world: &mut World| {
+            C::refire(entity, world);
+        });
+    }
+    /// Spawns a scalar tween runner. Not a [`Node`] -- it holds no place in the tree and is
+    /// never drawn; it exists to be ticked and to report numbers.
+    pub(crate) fn spawn_tween(&mut self, tweening: crate::boundary::tween::Tweening) {
+        self.commands.spawn(tweening);
+    }
+    /// Raw ECS-level spawn, underneath the [`Author`] authoring kit. Every spawned entity
+    /// gets a [`Node`] so the registry and the interaction bookkeeping have one hook.
+    fn sow<B: Bundle>(&mut self, b: B) -> Entity {
+        self.commands.spawn((Node::new(), b)).id()
+    }
+    /// Shared machinery behind [`leaf`](Self::leaf)/[`branch`](Self::branch): fills `stem` if
+    /// a parent was given, folds the seed fields + `spec.root()` into one bundle, then runs
+    /// `Author::build`. `#[track_caller]` here and on `leaf`/`branch` is what makes
+    /// [`SpawnedAt`] name the author's own call rather than this line.
+    #[track_caller]
+    fn grow<S: Author>(&mut self, mut spec: S, parent: Option<Entity>) -> Entity {
+        if let Some(parent) = parent {
+            spec.seed().stem = Parent::some(parent);
+        }
+        let seed = core::mem::take(spec.seed());
+        let this = self.sow((
+            seed.location,
+            seed.stem,
+            seed.elevation
+                .expect("elevation not set -- call .elevate(...) before spawning"),
+            SpawnedAt(core::panic::Location::caller()),
+            spec.root(),
+        ));
+        self.trimmings(this, &seed);
+        S::build(this, self);
+        this
+    }
+    /// The optional seed fields, each written only when it was actually asked for -- a
+    /// blanket insert of defaults would override what a spec's own `root()` established (an
+    /// `Icon` sets its own 1:1 aspect, a `Panel` its own hit shape).
+    fn trimmings(&mut self, this: Entity, seed: &crate::LeafSprout) {
+        if let Some(grid) = seed.grid {
+            self.write_to(this, grid);
+        }
+        if let Some(opacity) = seed.opacity {
+            self.write_to(this, opacity);
+        }
+        if let Some((h, v)) = seed.alignment {
+            self.write_to(this, (h, v));
+        }
+        if let Some(listener) = seed.listener {
+            self.write_to(this, listener);
+        }
+        if let Some(propagation) = seed.propagation {
+            self.write_to(this, propagation);
+        }
+        if let Some(shape) = seed.shape {
+            self.write_to(this, shape);
+        }
+        if seed.clip_to_viewport {
+            self.write_to(this, crate::ClipToViewport);
+        }
+        if let Some(aspect) = seed.aspect {
+            self.write_to(this, aspect);
+        }
+        if let Some(font) = seed.font {
+            self.write_to(this, font);
+        }
+        if let Some((width, height)) = seed.content_size {
+            self.write_to(
+                this,
+                (
+                    crate::TextContentWidth(width),
+                    crate::TextContentHeight(height),
+                ),
+            );
+        }
+    }
+    /// [`grow`](Self::grow) into an id the caller already allocated, rather than one this
+    /// picks. The boundary hands an app its `Leaf` the instant it asks, before the element
+    /// exists; this is what makes that name come true.
+    pub(crate) fn grow_at<S: Author>(&mut self, at: Entity, mut spec: S, parent: Option<Entity>) {
+        if let Some(parent) = parent {
+            spec.seed().stem = Parent::some(parent);
+        }
+        let seed = core::mem::take(spec.seed());
+        let elevation = seed
+            .elevation
+            .expect("elevation not set -- call .elevate(...) before spawning");
+        let bundle = (
+            seed.location,
+            seed.stem,
+            elevation,
+            SpawnedAt(core::panic::Location::caller()),
+            crate::boundary::leaf::Grown,
+            spec.root(),
+        );
+        self.commands.queue(move |world: &mut World| {
+            let _ = world.spawn_at(at, (Node::new(), bundle));
+        });
+        self.trimmings(at, &seed);
+        S::build(at, self);
+    }
+    /// Sprout `spec` as a top-level entity -- no parent, the [`branch`](Self::branch)
+    /// counterpart for roots: `let root = tree.leaf(Icon::new(0).elevate(..));`
+    #[track_caller]
+    pub fn leaf<S: Author>(&mut self, spec: S) -> Entity {
+        self.grow(spec, None)
+    }
+    /// Sprout `spec` as a child of `parent` -- `parent` filled by the required argument, so a
+    /// child can't be spawned orphaned by forgetting a chained call:
+    /// `let icon = tree.branch(this, Icon::new(0).elevate(..));`
+    #[track_caller]
+    pub fn branch<S: Author>(&mut self, parent: Entity, spec: S) -> Entity {
+        self.grow(spec, Some(parent))
+    }
+    /// Registers `observer` -- a plain bevy entity-observer watching `Trigger<Insert, C>`,
+    /// full `SystemParam` freedom -- on `entity`, then re-fires it once with the current
+    /// value so initial state and every later `write_to` run the SAME code path. This is the
+    /// one door for everything data-dependent: values AND structure. What the body does --
+    /// respawn, pool, patch -- is entirely the author's policy. The `_` stands in for the
+    /// observer's inferred marker: `tree.react::<TextValue, _>(this, ..)`.
+    pub fn react<C: Component + Clone, M>(
+        &mut self,
+        entity: Entity,
+        observer: impl IntoEntityObserver<M>,
+    ) {
+        self.subscribe(entity, observer);
+        self.refire::<(C,)>(entity);
+    }
+    /// [`react`](Self::react) over a component SET: the observer watches
+    /// `Trigger<Insert, (A, B)>` and fires when ANY member is written -- one registration,
+    /// one body, for state derived from several inputs. The build-time re-fire inserts only
+    /// the first present member: one fire is enough because reaction bodies read the current
+    /// state of everything they depend on.
+    pub fn react_any<CS: Refire, M>(
+        &mut self,
+        entity: Entity,
+        observer: impl IntoEntityObserver<M>,
+    ) {
+        self.subscribe(entity, observer);
+        self.refire::<CS>(entity);
+    }
+    /// [`react`](Self::react) specialized to the pure-copy case: `source`'s `C` is copied to
+    /// `target` verbatim, now and on every write. Anything that is NOT a pure copy (a text
+    /// whose width also depends on the value) stays an explicit `react` -- the boundary is
+    /// visible on purpose.
+    pub fn forward<C: Component + Clone>(&mut self, source: Entity, target: Entity) {
+        self.react::<C, _>(
+            source,
+            move |trigger: Trigger<Insert, C>, values: Query<&C>, mut tree: Tree| {
+                let value = values.get(trigger.entity).unwrap().clone();
+                tree.write_to(target, value);
+            },
+        );
+    }
+    /// Runs `afn` on `entity` once the asset `key` names has arrived, with its bytes -- the
+    /// asset counterpart to [`on_click`](Self::on_click). Marks the wait and registers the
+    /// handler in one call, so the key can't disagree between them.
     ///
-    /// On native a `Bytes` asset is already there and this fires almost immediately; on
-    /// wasm it fires whenever the fetch resolves. Either way anything that needs the bytes
+    /// On native a `Bytes` asset is already there and this fires almost immediately; on wasm
+    /// it fires whenever the fetch resolves. Either way anything that needs the bytes
     /// belongs in `afn` rather than after the spawn.
-    fn on_asset<AFN: FnMut(&mut Tree, Entity, Vec<u8>) + Send + Sync + 'static>(
+    pub fn on_asset<AFN: FnMut(&mut Tree, Entity, Vec<u8>) + Send + Sync + 'static>(
         &mut self,
         entity: Entity,
         key: AssetKey,
         mut afn: AFN,
-    ) where
-        Self: Sized,
-    {
+    ) {
         self.write_to(entity, AssetRetrieval::new(key));
         // written out here rather than built by a helper returning `impl FnMut(..)`: an
         // opaque return type pins one set of lifetimes, and an entity observer has to be
@@ -172,76 +367,6 @@ pub trait EcsExtension: Sow {
                 afn(&mut tree, trigger.event_target(), asset.data);
             },
         );
-    }
-    /// Re-inserts `entity`'s current value(s) of `C` so any just-registered observer fires with
-    /// real data -- the fire-once half of [`EcsExtension::react`]. Internal plumbing; authors
-    /// use `react`.
-    fn refire<C: Refire>(&mut self, entity: Entity);
-    /// Grows `spec` as a top-level entity -- no parent, the [`EcsExtension::branch`] counterpart
-    /// for roots (a screen, a one-off widget): `let root = tree.leaf(Icon::new(0).elevate(..));`
-    #[track_caller]
-    fn leaf<S: Sprout>(&mut self, spec: S) -> Entity
-    where
-        Self: Sized,
-    {
-        self.grow(spec, None)
-    }
-    /// Grows `spec` as a child of `parent` -- `parent` filled by the required argument, so a
-    /// child can't be spawned orphaned by forgetting a chained call. THE way to build a
-    /// composite's structure, in `Sprout::build` and one-off screens alike:
-    /// `let icon = tree.branch(this, Icon::new(0).elevate(..));`
-    #[track_caller]
-    fn branch<S: Sprout>(&mut self, parent: Entity, spec: S) -> Entity
-    where
-        Self: Sized,
-    {
-        self.grow(spec, Some(parent))
-    }
-    /// Registers `observer` -- a plain bevy entity-observer watching `Trigger<Insert, C>`, full
-    /// `SystemParam` freedom -- on `entity`, then re-fires it once with the current value so
-    /// initial state and every later `write_to` run the SAME code path. This is the one door
-    /// for everything data-dependent in a composite: values AND structure (a dropdown's option
-    /// rows, a hand's cards). What the body does -- respawn, pool, patch -- is entirely the
-    /// author's policy. The `_` stands in for the observer's inferred marker:
-    /// `tree.react::<TextValue, _>(this, ..)`.
-    fn react<C: Component + Clone, M>(
-        &mut self,
-        entity: Entity,
-        observer: impl IntoEntityObserver<M>,
-    ) {
-        self.subscribe(entity, observer);
-        self.refire::<(C,)>(entity);
-    }
-    /// [`EcsExtension::react`] over a component SET: the observer watches
-    /// `Trigger<Insert, (A, B)>` and fires when ANY member is written -- one registration, one
-    /// body, for state derived from several inputs (Button's style + engagement). The
-    /// build-time re-fire inserts only the first present member: one fire is enough because
-    /// reaction bodies read the current state of everything they depend on.
-    fn react_any<CS: Refire, M>(&mut self, entity: Entity, observer: impl IntoEntityObserver<M>) {
-        self.subscribe(entity, observer);
-        self.refire::<CS>(entity);
-    }
-    /// [`EcsExtension::react`] specialized to the pure-copy case: `source`'s `C` is copied to
-    /// `target` verbatim, now and on every write. Anything that is NOT a pure copy (a text
-    /// whose width also depends on the value) stays an explicit `react` -- the boundary is
-    /// visible on purpose.
-    fn forward<C: Component + Clone>(&mut self, source: Entity, target: Entity) {
-        self.react::<C, _>(
-            source,
-            move |trigger: Trigger<Insert, C>, values: Query<&C>, mut tree: Tree| {
-                tree.entity(target)
-                    .insert(values.get(trigger.entity).unwrap().clone());
-            },
-        );
-    }
-    /// Grafts further behavior (`on_click`, `animate`, extra components) onto an already-spawned
-    /// entity right next to where it was created, instead of in a separate pass elsewhere:
-    /// `tree.graft(e).on_click(...).animate(...);`
-    fn graft(&mut self, entity: Entity) -> Graft<'_, Self>
-    where
-        Self: Sized,
-    {
-        Graft { entity, tree: self }
     }
 }
 
@@ -275,290 +400,3 @@ impl_refire_tuple!(A);
 impl_refire_tuple!(A, B);
 impl_refire_tuple!(A, B, C);
 impl_refire_tuple!(A, B, C, D);
-/// See [`EcsExtension::graft`].
-pub struct Graft<'t, T: EcsExtension + ?Sized> {
-    entity: Entity,
-    tree: &'t mut T,
-}
-impl<'t, T: EcsExtension + ?Sized> Graft<'t, T> {
-    /// The entity being configured.
-    pub fn id(&self) -> Entity {
-        self.entity
-    }
-    /// Runs `o` when this entity is clicked.
-    pub fn on_click<M>(self, o: impl IntoEntityObserver<M>) -> Self {
-        self.tree.on_click(self.entity, o);
-        self
-    }
-    /// Starts `anim` against this entity -- no `targeting` needed, it is already known.
-    pub fn animate<A: Animate>(self, anim: Animation<A>) -> Self {
-        self.tree.animate(anim.targeting(self.entity));
-        self
-    }
-    /// Inserts components on this entity.
-    pub fn write<B: Bundle>(self, b: B) -> Self {
-        self.tree.write_to(self.entity, b);
-        self
-    }
-    /// Re-enables interaction on this entity and its subtree.
-    pub fn enable(self) -> Self {
-        self.tree.enable(self.entity);
-        self
-    }
-    /// Disables interaction on this entity and its subtree.
-    pub fn disable(self) -> Self {
-        self.tree.disable(self.entity);
-        self
-    }
-}
-impl<'t, T: EcsExtension + ?Sized> From<Graft<'t, T>> for Entity {
-    fn from(b: Graft<'t, T>) -> Self {
-        b.entity
-    }
-}
-/// Chains multiple `.animate(...)` calls into one sequence without repeating
-/// `tree.animate(Animation::new(...)....during(seq))` per line. Each `.animate(anim)` still
-/// takes a full `Animation::new(value).targeting(e).start(s).finish(f)` -- animations in a
-/// sequence can freely overlap, so this doesn't compute or infer timing, it only removes the
-/// per-line `tree.animate(...)`/`.during(seq)` wrapper: `Sequence::new(tree).animate(a1).animate(a2).end(on_finish)`.
-pub struct Sequence<'t, T: EcsExtension + ?Sized> {
-    id: Entity,
-    tree: &'t mut T,
-}
-impl<'t, T: EcsExtension + ?Sized> Sequence<'t, T> {
-    /// Opens a sequence to chain animations onto.
-    pub fn new(tree: &'t mut T) -> Self {
-        let id = tree.sequence();
-        Self { id, tree }
-    }
-    /// The sequence entity, for anything that needs to name it directly.
-    pub fn id(&self) -> Entity {
-        self.id
-    }
-    /// Adds `anim` to this sequence. Its own `start`/`finish` still apply, so entries may
-    /// overlap freely -- joining a sequence does not order them.
-    pub fn animate<A: Animate>(self, anim: Animation<A>) -> Self {
-        self.tree.animate(anim.during(self.id));
-        self
-    }
-    /// Runs `end` once every animation in the sequence has finished, returning the
-    /// sequence entity.
-    pub fn end<M>(self, end: impl IntoEntityObserver<M>) -> Entity {
-        self.tree.sequence_end(self.id, end);
-        self.id
-    }
-}
-impl Sow for Tree<'_, '_> {
-    fn sow<B: Bundle>(&mut self, b: B) -> Entity {
-        let entity = self.spawn((Leaf::new(), b)).id();
-        entity
-    }
-}
-impl EcsExtension for Tree<'_, '_> {
-    fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
-    where
-        E: TargetedEvent,
-        for<'a> E::Trigger<'a>: Default,
-    {
-        for target in targets.into_targets() {
-            let mut event = e.clone();
-            event.set_target(target);
-            self.trigger(event);
-        }
-    }
-    fn send<E>(&mut self, e: E)
-    where
-        E: Event,
-        for<'a> E::Trigger<'a>: Default,
-    {
-        self.trigger(e);
-    }
-    fn queue<E: Message>(&mut self, e: E) {
-        self.write_message(e);
-    }
-    fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
-        self.entity(entity).insert(b);
-    }
-    fn remove(&mut self, targets: impl IntoTargets) {
-        self.send_to(Remove::new(), targets);
-    }
-    fn enable(&mut self, targets: impl IntoTargets) {
-        self.send_to(Enable::new(), targets);
-    }
-    fn disable(&mut self, targets: impl IntoTargets) {
-        self.send_to(Disable::new(), targets);
-    }
-    fn sequence(&mut self) -> Entity {
-        self.spawn(SequenceMarker::default()).id()
-    }
-    fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity {
-        let runner = AnimationRunner::new(
-            anim.anim_target.unwrap(),
-            anim.a,
-            anim.ease,
-            anim.seq,
-            AnimationTime::from(anim.sequence_time_range),
-            anim.repeat,
-            anim.backtrack,
-        );
-        self.spawn(runner).id()
-    }
-    fn sequence_end<M>(&mut self, seq: Entity, end: impl IntoEntityObserver<M>) {
-        self.entity(seq).observe(end);
-    }
-
-    fn subscribe<M>(&mut self, e: Entity, sub: impl IntoEntityObserver<M>) {
-        self.entity(e).observe(sub);
-    }
-    fn on_click<M>(&mut self, e: Entity, o: impl IntoEntityObserver<M>) {
-        self.entity(e).observe(o);
-    }
-    fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
-        self.send(Name(s.as_ref().to_string(), e));
-    }
-    fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S) {
-        self.send(StoredKey(s.as_ref().to_string(), k));
-    }
-    fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
-        self.spawn(Timer::new(TimeDelta::from_millis(t)))
-            .observe(tf);
-    }
-    fn refire<C: Refire>(&mut self, entity: Entity) {
-        Commands::queue(self, move |world: &mut World| {
-            C::refire(entity, world);
-        });
-    }
-}
-
-impl Sow for bevy_ecs::world::DeferredWorld<'_> {
-    fn sow<B: Bundle>(&mut self, b: B) -> Entity {
-        self.commands().sow(b)
-    }
-}
-impl EcsExtension for bevy_ecs::world::DeferredWorld<'_> {
-    fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
-    where
-        E: TargetedEvent,
-        for<'a> E::Trigger<'a>: Default,
-    {
-        self.commands().send_to(e, targets);
-    }
-    fn send<E>(&mut self, e: E)
-    where
-        E: Event,
-        for<'a> E::Trigger<'a>: Default,
-    {
-        self.commands().send(e);
-    }
-    fn queue<E: Message>(&mut self, e: E) {
-        EcsExtension::queue(&mut self.commands(), e);
-    }
-    fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
-        self.commands().write_to(entity, b);
-    }
-    fn remove(&mut self, targets: impl IntoTargets) {
-        EcsExtension::remove(&mut self.commands(), targets);
-    }
-    fn enable(&mut self, targets: impl IntoTargets) {
-        self.commands().enable(targets);
-    }
-    fn disable(&mut self, targets: impl IntoTargets) {
-        self.commands().disable(targets);
-    }
-    fn sequence(&mut self) -> Entity {
-        self.commands().sequence()
-    }
-    fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity {
-        self.commands().animate(anim)
-    }
-    fn sequence_end<M>(&mut self, seq: Entity, end: impl IntoEntityObserver<M>) {
-        self.commands().sequence_end(seq, end);
-    }
-    fn subscribe<M>(&mut self, e: Entity, sub: impl IntoEntityObserver<M>) {
-        self.commands().subscribe(e, sub);
-    }
-    fn on_click<M>(&mut self, e: Entity, o: impl IntoEntityObserver<M>) {
-        self.commands().on_click(e, o);
-    }
-    fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
-        self.commands().name(e, s);
-    }
-    fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S) {
-        self.commands().store(k, s);
-    }
-    fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
-        self.commands().timer(t, tf);
-    }
-    fn refire<C: Refire>(&mut self, entity: Entity) {
-        self.commands().refire::<C>(entity);
-    }
-}
-
-impl Sow for World {
-    fn sow<B: Bundle>(&mut self, b: B) -> Entity {
-        self.commands().sow(b)
-    }
-}
-impl EcsExtension for World {
-    fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
-    where
-        E: TargetedEvent,
-        for<'a> E::Trigger<'a>: Default,
-    {
-        self.commands().send_to(e, targets);
-    }
-    fn send<E>(&mut self, e: E)
-    where
-        E: Event,
-        for<'a> E::Trigger<'a>: Default,
-    {
-        self.commands().send(e);
-    }
-    fn queue<E: Message>(&mut self, e: E) {
-        EcsExtension::queue(&mut self.commands(), e);
-    }
-    fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
-        self.commands().write_to(entity, b);
-    }
-    fn remove(&mut self, targets: impl IntoTargets) {
-        self.commands().remove(targets);
-    }
-    fn enable(&mut self, targets: impl IntoTargets) {
-        self.commands().enable(targets);
-    }
-    fn disable(&mut self, targets: impl IntoTargets) {
-        self.commands().disable(targets);
-    }
-    fn sequence(&mut self) -> Entity {
-        self.commands().sequence()
-    }
-    fn animate<A: Animate>(&mut self, anim: Animation<A>) -> Entity {
-        self.commands().animate(anim)
-    }
-    fn sequence_end<M>(&mut self, seq: Entity, end: impl IntoEntityObserver<M>) {
-        self.commands().sequence_end(seq, end);
-    }
-
-    fn subscribe<M>(&mut self, e: Entity, sub: impl IntoEntityObserver<M>) {
-        self.commands().subscribe(e, sub);
-    }
-
-    fn on_click<M>(&mut self, e: Entity, o: impl IntoEntityObserver<M>) {
-        self.commands().on_click(e, o);
-    }
-
-    fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
-        self.commands().name(e, s);
-    }
-
-    fn store<S: AsRef<str>>(&mut self, k: AssetKey, s: S) {
-        self.commands().store(k, s);
-    }
-
-    fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
-        self.commands().timer(t, tf);
-    }
-    fn refire<C: Refire>(&mut self, entity: Entity) {
-        self.commands().refire::<C>(entity);
-    }
-}

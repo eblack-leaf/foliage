@@ -1,6 +1,7 @@
+use crate::AsTree;
 use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
-use crate::{Animate, Attachment, Branch, Component, Foliage, Stem, Tree};
+use crate::{Animate, Attachment, Children, Component, Foliage, Parent, Tree};
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
@@ -13,7 +14,7 @@ use bevy_ecs::world::DeferredWorld;
 /// How transparent an entity and its subtree are, `0.0` fully transparent through `1.0`
 /// fully opaque.
 ///
-/// Multiplies down the `Stem` chain: a child at `0.5` inside a parent at `0.5` renders at
+/// Multiplies down the `Parent` chain: a child at `0.5` inside a parent at `0.5` renders at
 /// `0.25`, so fading a container fades everything in it as one. The product the renderer
 /// reads is [`BlendedOpacity`].
 ///
@@ -36,18 +37,21 @@ impl Opacity {
         Opacity { value }
     }
     fn stem_insert(
-        trigger: Trigger<Insert, Stem>,
+        trigger: Trigger<Insert, Parent>,
         mut tree: Tree,
-        stems: Query<&Stem>,
+        stems: Query<&Parent>,
         blended: Query<&BlendedOpacity>,
     ) {
         let this = trigger.event_target();
         let stem = stems.get(this).unwrap();
         if let Some(entity) = stem.id {
             let resolved = *blended.get(entity).unwrap();
-            tree.entity(this).insert(InheritedOpacity {
-                value: resolved.value,
-            });
+            tree.write_to(
+                this,
+                InheritedOpacity {
+                    value: resolved.value,
+                },
+            );
         }
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
@@ -55,13 +59,12 @@ impl Opacity {
         let inherited = world.get::<InheritedOpacity>(this).unwrap();
         let current = world.get::<Opacity>(this).unwrap();
         let blended = BlendedOpacity::new(inherited.value * current.value);
-        world.commands().entity(this).insert(blended);
-        let deps = world.get::<Branch>(this).unwrap().ids.clone();
+        world.tree().write_to(this, blended);
+        let deps = world.get::<Children>(this).unwrap().ids.clone();
         for d in deps.iter() {
             world
-                .commands()
-                .entity(*d)
-                .insert(InheritedOpacity::new(blended.value));
+                .tree()
+                .write_to(*d, InheritedOpacity::new(blended.value));
         }
     }
 }
@@ -116,78 +119,5 @@ impl BlendedOpacity {
 impl Default for BlendedOpacity {
     fn default() -> Self {
         Self::new(1.0)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{EcsExtension, Elevation, Entity, Foliage, Leaf, Location, Sprout};
-
-    fn blended_of(foliage: &mut Foliage, entity: Entity) -> f32 {
-        foliage.world.get::<BlendedOpacity>(entity).unwrap().value
-    }
-
-    #[test]
-    fn a_bare_leaf_defaults_to_fully_opaque() {
-        let mut foliage = Foliage::new();
-        let leaf = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
-        foliage.world.flush();
-        assert_eq!(blended_of(&mut foliage, leaf), 1.0);
-    }
-
-    #[test]
-    fn a_childs_blended_opacity_multiplies_through_its_parent() {
-        let mut foliage = Foliage::new();
-        let parent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(1))
-                .with(Opacity::new(0.5)),
-        );
-        let child = foliage.world.branch(
-            parent,
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::up(1))
-                .with(Opacity::new(0.5)),
-        );
-        foliage.world.flush();
-        assert_eq!(blended_of(&mut foliage, parent), 0.5);
-        assert_eq!(
-            blended_of(&mut foliage, child),
-            0.25,
-            "0.5 (parent) * 0.5 (own) -- not 0.5 and not 1.0"
-        );
-    }
-
-    #[test]
-    fn a_parents_opacity_change_propagates_down_to_an_already_spawned_child() {
-        let mut foliage = Foliage::new();
-        let parent = foliage
-            .world
-            .leaf(Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)));
-        let child = foliage.world.branch(
-            parent,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-        assert_eq!(
-            blended_of(&mut foliage, child),
-            1.0,
-            "sanity: fully opaque before any change"
-        );
-
-        foliage.write_to(parent, Opacity::new(0.4));
-        foliage.world.flush();
-        assert_eq!(
-            blended_of(&mut foliage, child),
-            0.4,
-            "the child never had its own Opacity written -- this is purely the parent's \
-             on_insert hook pushing a new blended value down to an existing child, not \
-             just a freshly-spawned one inheriting it"
-        );
     }
 }

@@ -5,8 +5,8 @@
 //! the menu button brings it in. One list, one set of handlers, two placements.
 
 use foliage::{
-    Animation, Color, Ease, EcsExtension, Elevation, Entity, Grid, GridExt, Icon, IconId,
-    InteractionListener, InteractionPropagation, Leaf, Location, OnClick, Opacity, Panel, Query,
+    Animation, Color, Ease, Elevation, Entity, Grid, GridExt, Icon, IconId,
+    InteractionListener, InteractionPropagation, Stem, Location, OnClick, Opacity, Panel, Query,
     Rounding, Sprout, Tree, Trigger, Visibility, component,
 };
 
@@ -209,7 +209,7 @@ fn apply(tree: &mut Tree, host: Entity, controls: Controls, state: Drawer) {
 /// the rail surface resolves against.
 pub(crate) fn host(tree: &mut Tree) -> Entity {
     tree.leaf(
-        Leaf::sprout()
+        Stem::new()
             .at(rail_host_location(false))
             .elevate(Elevation::up(5))
             .with((Grid::new(1.col().gap(0), 1.row().gap(0)), Drawer::default())),

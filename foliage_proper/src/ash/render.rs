@@ -2,7 +2,7 @@ use crate::ash::differential::RenderQueueHandle;
 use crate::ash::instance::{InstanceCoordinator, Order};
 use crate::ash::node::Nodes;
 use crate::ginkgo::Ginkgo;
-use crate::{Physical, Section, Stem};
+use crate::{Parent, Physical, Section};
 use std::collections::HashMap;
 use std::ops::Range;
 use wgpu::RenderPass;
@@ -36,7 +36,7 @@ pub(crate) struct ContiguousSpan {
     pub(crate) pipeline: PipelineId,
     pub(crate) group: GroupId,
     pub(crate) range: Range<Order>,
-    pub(crate) clip_context: Stem,
+    pub(crate) clip_context: Parent,
 }
 impl ContiguousSpan {
     pub(crate) fn parameters(&self, clip: Section<Physical>) -> Parameters {

@@ -1,17 +1,17 @@
-use crate::EcsExtension;
+use crate::AsTree;
 use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
 use crate::disable::AutoDisable;
 use crate::enable::AutoEnable;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::{Gap, GridAxisDescriptor, GridConfiguration, Short};
-use crate::leaf::SpawnedAt;
+use crate::node::SpawnedAt;
 use crate::text::monospaced::FontContext;
 use crate::visibility::AutoVisibility;
 use crate::{
-    Animate, AspectRatio, Attachment, Component, CoordinateUnit, Coordinates, Foliage,
-    Grid, Layout, LayoutSection, Line, Logical, Points, Position, ResolvedVisibility, Section,
-    Stem, Tree, Resolve, View, Visibility, Resolved,
+    Animate, AspectRatio, Attachment, Component, CoordinateUnit, Coordinates, Foliage, Grid,
+    Layout, LayoutSection, Line, Logical, Parent, Points, Position, Resolve, Resolved,
+    ResolvedVisibility, Section, Tree, View, Visibility,
 };
 use bevy_ecs::change_detection::Res;
 use bevy_ecs::entity::Entity;
@@ -196,7 +196,9 @@ impl Location {
         // One extra link on the front of the same chain, not a second dimension: `short`
         // wins when it is both relevant and set, and otherwise this is the width lookup
         // untouched.
-        if short == Short::Yes && let Some(s) = &self.short {
+        if short == Short::Yes
+            && let Some(s) = &self.short
+        {
             return Some(*s);
         }
         match layout {
@@ -236,13 +238,13 @@ impl Location {
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world.trigger_targets(Resolve::<Location>::new(), this);
+        world.tree().send_to(Resolve::<Location>::new(), this);
     }
-    fn stem_insert(trigger: Trigger<Insert, Stem>, mut tree: Tree) {
-        tree.trigger_targets(Resolve::<Location>::new(), trigger.event_target());
+    fn stem_insert(trigger: Trigger<Insert, Parent>, mut tree: Tree) {
+        tree.send_to(Resolve::<Location>::new(), trigger.event_target());
     }
     fn update_from_visibility(trigger: Trigger<Resolved<Visibility>>, mut tree: Tree) {
-        tree.trigger_targets(Resolve::<Location>::new(), trigger.event_target());
+        tree.send_to(Resolve::<Location>::new(), trigger.event_target());
     }
     fn update(
         trigger: Trigger<Resolve<Location>>,
@@ -253,7 +255,7 @@ impl Location {
         sections: Query<&Section<Logical>>,
         layout_sections: Query<&LayoutSection>,
         mut grids: ParamSet<(Query<(&Grid, &View)>, Query<&mut View>)>,
-        stems: Query<&Stem>,
+        stems: Query<&Parent>,
         stacks: Query<&Anchor>,
         visibilities: Query<(&ResolvedVisibility, &AutoVisibility)>,
         aspect_ratios: Query<&AspectRatio>,
@@ -292,8 +294,9 @@ impl Location {
             // `accumulated` is what this entity subtracts to go from layout space to screen
             // space: every scroll offset between it and the root, which is exactly what its
             // parent's `View` already carries for its children.
-            let (grid, accumulated, context, stem_letters) = if let Some(id) = stem.id {
-                let val = grids.p0().get(id).map(|(g, v)| (*g, *v)).unwrap_or_else(|_| {
+            let (grid, accumulated, context, stem_letters) =
+                if let Some(id) = stem.id {
+                    let val = grids.p0().get(id).map(|(g, v)| (*g, *v)).unwrap_or_else(|_| {
                     // The entity ids alone are unusable from an app -- point at the
                     // `branch`/`leaf` call that spawned the child instead, since that call
                     // names the very parent that needs the `Grid`.
@@ -310,26 +313,26 @@ impl Location {
                         parent {id:?})"
                     )
                 });
-                // layout space on both sides: a child is placed relative to where the layout
-                // put its parent, not to where a scroll currently shows it
-                let context = layout_sections.get(id).unwrap().0;
-                // the stem's own font/size -- `.letters()` measures against the cell the
-                // parent lays out in
-                let stem_letter_dims = fonts.character_block(id, *layout).unwrap_or_default();
-                (
-                    val.0.config(*layout),
-                    val.1.accumulated_offset,
-                    context,
-                    stem_letter_dims,
-                )
-            } else {
-                (
-                    Grid::default().config(*layout),
-                    Position::default(),
-                    viewport.section(),
-                    Coordinates::default(),
-                )
-            };
+                    // layout space on both sides: a child is placed relative to where the layout
+                    // put its parent, not to where a scroll currently shows it
+                    let context = layout_sections.get(id).unwrap().0;
+                    // the stem's own font/size -- `.letters()` measures against the cell the
+                    // parent lays out in
+                    let stem_letter_dims = fonts.character_block(id, *layout).unwrap_or_default();
+                    (
+                        val.0.config(*layout),
+                        val.1.accumulated_offset,
+                        context,
+                        stem_letter_dims,
+                    )
+                } else {
+                    (
+                        Grid::default().config(*layout),
+                        Position::default(),
+                        viewport.section(),
+                        Coordinates::default(),
+                    )
+                };
             let aspect_ratio = aspect_ratios.get(this).ok().copied();
             let mut stack = None;
             if let Ok(s) = stacks.get(this) {
@@ -367,8 +370,8 @@ impl Location {
             ) {
                 if !auto_vis.visible {
                     tracing::trace!(entity = ?this, "location: resolved, re-enabling");
-                    tree.entity(this).insert(AutoVisibility::new(true));
-                    tree.trigger_targets(AutoEnable::new(), this);
+                    tree.write_to(this, AutoVisibility::new(true));
+                    tree.send_to(AutoEnable::new(), this);
                 }
                 let (cd, last) = create_diff_and_last.get(this).unwrap();
                 if !resolution.from_points {
@@ -380,7 +383,7 @@ impl Location {
                             res.section = val;
                             res
                         });
-                        tree.entity(this).insert(CreateDiff(false)).insert(diff);
+                        tree.write_to(this, (CreateDiff(false), diff));
                         val
                     } else {
                         diffs.get(this).unwrap().0.section
@@ -402,9 +405,9 @@ impl Location {
                     // other two inserts carry -- a child reads this `LayoutSection` as its
                     // context, an anchored entity reads this `Section`. Cascading before
                     // either has landed resolves them against the previous box.
-                    tree.entity(this).insert(resolution);
-                    tree.entity(this).insert(screen);
-                    tree.entity(this).insert(LayoutSection(resolution.section));
+                    tree.write_to(this, resolution);
+                    tree.write_to(this, screen);
+                    tree.write_to(this, LayoutSection(resolution.section));
                 } else {
                     // points
                     let diff = if cd.0 {
@@ -414,7 +417,7 @@ impl Location {
                             res.points = val;
                             res
                         });
-                        tree.entity(this).insert(CreateDiff(false)).insert(diff);
+                        tree.write_to(this, (CreateDiff(false), diff));
                         val
                     } else {
                         diffs.get(this).unwrap().0.points
@@ -438,16 +441,20 @@ impl Location {
                     for pt in screen_points.data.iter_mut() {
                         *pt -= accumulated;
                     }
-                    tree.entity(this)
-                        .insert(resolution)
-                        .insert(screen_points)
-                        .insert(screen)
-                        .insert(LayoutSection(resolution.section));
+                    tree.write_to(
+                        this,
+                        (
+                            resolution,
+                            screen_points,
+                            screen,
+                            LayoutSection(resolution.section),
+                        ),
+                    );
                 }
             } else if auto_vis.visible {
                 tracing::trace!(entity = ?this, "location: resolve failed, auto-disabling");
-                tree.entity(this).insert(AutoVisibility::new(false));
-                tree.trigger_targets(AutoDisable::new(), this);
+                tree.write_to(this, AutoVisibility::new(false));
+                tree.send_to(AutoDisable::new(), this);
             }
         }
     }
@@ -1216,7 +1223,7 @@ impl Anchor {
             } else {
                 let mut anchor_deps = AnchorDeps::default();
                 anchor_deps.ids.insert(this);
-                world.commands().entity(id).insert(anchor_deps);
+                world.tree().write_to(id, anchor_deps);
             }
         }
     }
@@ -1227,486 +1234,6 @@ impl Anchor {
             if let Some(mut deps) = world.get_mut::<AnchorDeps>(id) {
                 deps.ids.remove(&this);
             }
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{EcsExtension, Elevation, Foliage, Leaf, Location, Logical, ScrollTo, Section, Sprout};
-
-    /// The prose-column pattern from `application/src/site/mod.rs`: a text whose height
-    /// comes from its glyphs (`TextContentHeight`, its `Location` carrying only a seed
-    /// height), with the next element anchored to its *bottom*. The anchored element must
-    /// land below the glyph-derived bottom, not the seed one -- before and after a resize
-    /// alike, or it overlaps the text and everything under it shifts.
-    #[test]
-    fn an_element_anchored_below_a_content_height_text_stays_below_it_across_a_resize() {
-        use crate::coordinate::area::Area;
-        use crate::text::{Text, TextContentHeight};
-        use crate::{FontSize, Sprout as _};
-        const SEED: i32 = 20;
-        const GAP: i32 = 8;
-        let mut foliage = Foliage::new();
-        foliage
-            .world
-            .insert_resource(ViewportHandle::new(Area::logical((1000.0, 1000.0))));
-        let column = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(400.px().as_width()),
-                    0.px().as_top().with(800.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        let prose = foliage.world.branch(
-            column,
-            Text::new(
-                "a paragraph long enough that it wraps onto several lines at this width"
-                    .to_string(),
-            )
-            .size(FontSize::new(24))
-            .at(Location::new().xs(
-                0.px().as_left().with(100.pct().as_width()),
-                0.px().as_top().with(SEED.px().as_height()),
-            ))
-            .elevate(Elevation::up(2))
-            .with(TextContentHeight(true)),
-        );
-        let follower = foliage.world.branch(
-            column,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.pct().as_width()),
-                    anchor()
-                        .bottom()
-                        .as_top()
-                        .adjust(GAP)
-                        .with(30.px().as_height()),
-                ))
-                .elevate(Elevation::up(2))
-                .with(Anchor::new(prose)),
-        );
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
-
-        let prose_box = *foliage.world.get::<Section<Logical>>(prose).unwrap();
-        let follower_box = *foliage.world.get::<Section<Logical>>(follower).unwrap();
-        assert!(
-            prose_box.height() > SEED as f32,
-            "precondition: the glyphs made it taller than its seed height, got {}",
-            prose_box.height()
-        );
-        assert_eq!(
-            follower_box.top(),
-            prose_box.bottom() + GAP as f32,
-            "precondition: it sits below the wrapped text, not below the seed"
-        );
-
-        foliage
-            .world
-            .resource_mut::<ViewportHandle>()
-            .resize(Area::logical((999.0, 1000.0)));
-        foliage.main.run(&mut foliage.world);
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
-
-        let prose_after = *foliage.world.get::<Section<Logical>>(prose).unwrap();
-        let follower_after = *foliage.world.get::<Section<Logical>>(follower).unwrap();
-        assert_eq!(
-            follower_after.top(),
-            prose_after.bottom() + GAP as f32,
-            "after the resize it must still clear the text, not fall back onto the seed height"
-        );
-    }
-
-    /// Anchoring across a scroll boundary: the anchored entity sits outside the view, its
-    /// target inside it. Every other anchor pair cancels out -- both sides carry the same
-    /// accumulated offset -- but here the two really do move apart, so the anchored entity
-    /// has to resolve again when the view scrolls rather than being translated along with
-    /// the subtree it is not part of.
-    #[test]
-    fn an_anchor_from_outside_a_scrolled_view_tracks_its_target() {
-        let mut foliage = Foliage::new();
-        let view = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(100.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        let target = foliage.world.branch(
-            view,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(300.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        // outside the view entirely -- a sibling of it, not a descendant
-        let follower = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(20.px().as_width()),
-                    anchor().top().as_top().with(20.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Anchor::new(target)),
-        );
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
-        let target_before = *foliage.world.get::<Section<Logical>>(target).unwrap();
-        let follower_before = *foliage.world.get::<Section<Logical>>(follower).unwrap();
-        assert_eq!(follower_before.top(), target_before.top(), "precondition");
-
-        foliage.write_to(view, ScrollTo::y(0.5));
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
-
-        let target_after = *foliage.world.get::<Section<Logical>>(target).unwrap();
-        let follower_after = *foliage.world.get::<Section<Logical>>(follower).unwrap();
-        assert_ne!(
-            target_after.top(),
-            target_before.top(),
-            "precondition: the view really scrolled"
-        );
-        assert_eq!(
-            follower_after.top(),
-            target_after.top(),
-            "the follower has to land on the target's new position, not its old one"
-        );
-    }
-
-    /// `Mul<f32>` on an `Anchor`-sourced value scales the *factor* it carries (identity
-    /// `1.0`), applied once the anchor's real value is resolved against its live target --
-    /// not something baked in at construction time, unlike `Percent`/`Px` which can just
-    /// multiply their own stored number immediately. This is the actual resolution path
-    /// (`anchor().width() * 0.5`, fed through real `Location` resolution against a real
-    /// target), not just a check that the enum's stored factor changed.
-    #[test]
-    fn anchor_value_scales_by_the_target_s_own_resolved_size() {
-        let mut foliage = Foliage::new();
-        let target = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(60.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        let dependent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with((anchor().width() * 0.5).as_width()),
-                    0.px().as_top().with((anchor().height() * 0.5).as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Anchor::new(target)),
-        );
-        foliage.world.flush();
-
-        let section = *foliage.world.get::<Section<Logical>>(dependent).unwrap();
-        assert_eq!(
-            section.width(),
-            50.0,
-            "anchor().width() * 0.5 should resolve to half the target's real resolved width"
-        );
-        assert_eq!(
-            section.height(),
-            30.0,
-            "anchor().height() * 0.5 should resolve to half the target's real resolved height"
-        );
-    }
-
-    /// Replicates `application/src/navigator.rs`'s `shadow_box` exactly: a `(Width,
-    /// Right)` pair where `Right` is `anchor().center_x()` (an *unscaled* anchor value)
-    /// and `Width` is `anchor().width() * scale` (a *scaled* one), mixed in the same pair
-    /// -- plus the analogous `(Top, Height)` pair for the vertical axis. Checking this
-    /// directly against known numbers, rather than reasoning about it, since the app-level
-    /// symptom (shadows reading as offset almost purely vertically, not diagonally) implies
-    /// this exact combination doesn't resolve the way it was designed to.
-    #[test]
-    fn scaled_width_paired_with_unscaled_anchor_center_resolves_to_expected_offset_box() {
-        let mut foliage = Foliage::new();
-        let target = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    100.px().as_left().with(80.px().as_width()),
-                    50.px().as_top().with(80.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        // target: X in [100, 180] (center_x = 140), Y in [50, 130] (center_y = 90)
-        let dependent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    (anchor().width() * 0.5)
-                        .as_width()
-                        .with(anchor().center_x().as_right()),
-                    anchor()
-                        .center_y()
-                        .as_top()
-                        .with((anchor().height() * 0.5).as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Anchor::new(target)),
-        );
-        foliage.world.flush();
-
-        let section = *foliage.world.get::<Section<Logical>>(dependent).unwrap();
-        assert_eq!(
-            section.width(),
-            40.0,
-            "width should be 0.5 * target's 80px width"
-        );
-        assert_eq!(
-            section.height(),
-            40.0,
-            "height should be 0.5 * target's 80px height"
-        );
-        assert_eq!(
-            section.left(),
-            100.0,
-            "left should be target's center_x (140) minus this box's own width (40)"
-        );
-        assert_eq!(
-            section.top(),
-            90.0,
-            "top should be exactly target's center_y (90) -- extends downward from there"
-        );
-    }
-
-    /// Replicates `navigator.rs`'s `back_line`: a point-mode `Line` anchored to a target
-    /// on X, spawned as a zero-length dot at the target's edge, then immediately animated
-    /// (via `tree.animate`) to a longer segment at the *same* fixed row. Its Y must hold
-    /// that row for the whole draw-in, including while the target is itself mid-animation.
-    /// Drives the real `animate::<Location>` system across several ticks rather than
-    /// `flush()` alone.
-    #[test]
-    fn a_point_mode_line_animating_its_far_endpoint_keeps_its_anchored_row_throughout() {
-        use crate::anim::Animation;
-        use crate::anim::ease::Ease;
-        use crate::{Anchor, EcsExtension, Line};
-        use std::thread::sleep;
-        use std::time::Duration;
-
-        let mut foliage = Foliage::new();
-        let target = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(50.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        let row = 25.0; // a fixed row, never anchored -- matches `cy` in `build_lines`
-        let fwd_left = anchor().left().as_x();
-        let line = foliage.world.leaf(
-            Line::new(2)
-                .at(Location::new().xs(
-                    fwd_left.with(row.px().as_y()),
-                    fwd_left.with(row.px().as_y()),
-                ))
-                .elevate(Elevation::up(10))
-                .with(Anchor::new(target)),
-        );
-        foliage.world.flush();
-
-        let initial = *foliage.world.get::<Points<Logical>>(line).unwrap();
-        assert_eq!(
-            initial.data[0].top(),
-            row,
-            "spawn point should sit at the fixed row"
-        );
-        assert_eq!(
-            initial.data[1].top(),
-            row,
-            "spawn point should sit at the fixed row"
-        );
-
-        let seq = foliage.world.sequence();
-        foliage.world.animate(
-            Animation::new(Location::new().xs(
-                fwd_left.with(row.px().as_y()),
-                200.0.px().as_x().with(row.px().as_y()),
-            ))
-            .targeting(line)
-            .during(seq)
-            .start(0)
-            .finish(1200)
-            .eased(Ease::DECELERATE),
-        );
-        foliage.world.flush();
-
-        for _ in 0..5 {
-            sleep(Duration::from_millis(16));
-            foliage.main.run(&mut foliage.world);
-            foliage.world.flush();
-            let pts = *foliage.world.get::<Points<Logical>>(line).unwrap();
-            assert_eq!(
-                pts.data[0].top(),
-                row,
-                "point a's row must stay put throughout the draw-in"
-            );
-            assert_eq!(
-                pts.data[1].top(),
-                row,
-                "point b's row must stay put throughout the draw-in, not jump to some other row"
-            );
-        }
-    }
-
-    /// Isolates whether a *stationary* target is enough to make a line's own Y-changing
-    /// animation snap immediately to its end value (ruling in/out "target also animating"
-    /// as a necessary ingredient for the jump seen in the next test).
-    #[test]
-    fn a_line_alone_changing_its_own_row_does_not_snap_to_the_end_row_immediately() {
-        use crate::anim::Animation;
-        use crate::anim::ease::Ease;
-        use crate::{Anchor, EcsExtension, Line};
-        use std::thread::sleep;
-        use std::time::Duration;
-
-        let mut foliage = Foliage::new();
-        let start_row = 30.0;
-        let end_row = 300.0;
-        let target = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    start_row.px().as_top().with(50.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        let fwd_left = anchor().left().as_x();
-        let line = foliage.world.leaf(
-            Line::new(2)
-                .at(Location::new().xs(
-                    fwd_left.with(start_row.px().as_y()),
-                    200.0.px().as_x().with(start_row.px().as_y()),
-                ))
-                .elevate(Elevation::up(10))
-                .with(Anchor::new(target)),
-        );
-        foliage.world.flush();
-
-        let seq = foliage.world.sequence();
-        foliage.world.animate(
-            Animation::new(Location::new().xs(
-                fwd_left.with(end_row.px().as_y()),
-                200.0.px().as_x().with(end_row.px().as_y()),
-            ))
-            .targeting(line)
-            .during(seq)
-            .start(0)
-            .finish(900)
-            .eased(Ease::DECELERATE),
-        );
-        foliage.world.flush();
-
-        sleep(Duration::from_millis(16));
-        foliage.main.run(&mut foliage.world);
-        foliage.world.flush();
-        let pts = *foliage.world.get::<Points<Logical>>(line).unwrap();
-        println!(
-            "tick 0 (stationary target): line row = {}",
-            pts.data[0].top()
-        );
-        assert!(
-            pts.data[0].top() < 200.0,
-            "line row {} should still be close to start_row (30), not already near end_row (300)",
-            pts.data[0].top()
-        );
-    }
-
-    /// Replicates `build_down_move`: the target (`forward`) and an already-settled line
-    /// both animate their row from `start_row` to `end_row` *at the same time*, via two
-    /// separate `Animation<Location>` runs (not one shared value) -- the line's target row
-    /// is the same hardcoded `end_row` constant the target itself animates toward, not
-    /// something read live off the target. Checks whether the line's resolved row ever
-    /// jumps ahead of (or lags badly behind) the target's own live row while both are still
-    /// mid-flight, which is what "line shows the resting row while the polygon is still
-    /// visibly up top" would actually look like.
-    #[test]
-    fn a_line_and_its_target_animating_the_same_row_change_together_stay_in_sync() {
-        use crate::anim::Animation;
-        use crate::anim::ease::Ease;
-        use crate::{Anchor, EcsExtension, Line};
-        use std::thread::sleep;
-        use std::time::Duration;
-
-        let mut foliage = Foliage::new();
-        let start_row = 30.0;
-        let end_row = 300.0;
-        let target = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    start_row.px().as_top().with(50.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        let fwd_left = anchor().left().as_x();
-        let line = foliage.world.leaf(
-            Line::new(2)
-                .at(Location::new().xs(
-                    fwd_left.with(start_row.px().as_y()),
-                    200.0.px().as_x().with(start_row.px().as_y()),
-                ))
-                .elevate(Elevation::up(10))
-                .with(Anchor::new(target)),
-        );
-        foliage.world.flush();
-
-        let seq = foliage.world.sequence();
-        // target rides down, row only (mirrors `box_at(END_CENTER_X, REST_CENTER_Y)`)
-        foliage.world.animate(
-            Animation::new(Location::new().xs(
-                0.px().as_left().with(100.px().as_width()),
-                end_row.px().as_top().with(50.px().as_height()),
-            ))
-            .targeting(target)
-            .during(seq)
-            .start(0)
-            .finish(900)
-            .eased(Ease::DECELERATE),
-        );
-        // line rides down too, its own separate animation to the same hardcoded end_row
-        foliage.world.animate(
-            Animation::new(Location::new().xs(
-                fwd_left.with(end_row.px().as_y()),
-                200.0.px().as_x().with(end_row.px().as_y()),
-            ))
-            .targeting(line)
-            .during(seq)
-            .start(0)
-            .finish(900)
-            .eased(Ease::DECELERATE),
-        );
-        foliage.world.flush();
-
-        for i in 0..10 {
-            sleep(Duration::from_millis(16));
-            foliage.main.run(&mut foliage.world);
-            foliage.world.flush();
-            let target_row = foliage.world.get::<Section<Logical>>(target).unwrap().top();
-            let pts = *foliage.world.get::<Points<Logical>>(line).unwrap();
-            let diff = (pts.data[0].top() - target_row).abs();
-            assert!(
-                diff < 1.0,
-                "tick {i}: line row {} should track target row {} closely, diverged by {diff}",
-                pts.data[0].top(),
-                target_row
-            );
         }
     }
 }

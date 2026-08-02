@@ -4,7 +4,7 @@
 //! without rebuilding the frame around it.
 
 use foliage::{
-    ConfigurationDescriptor, EcsExtension, Elevation, Entity, Grid, GridExt, Leaf, Location, Panel,
+    ConfigurationDescriptor, Elevation, Entity, Grid, GridExt, Stem, Location, Panel,
     Rounding, Sprout, Tree,
 };
 
@@ -27,7 +27,7 @@ pub(crate) const FIGURE_MAX: i32 = 900;
 pub(crate) fn content_area(tree: &mut Tree, parent: Entity) -> Entity {
     tree.branch(
         parent,
-        Leaf::sprout()
+        Stem::new()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
                 0.px().as_top().with(100.pct().as_bottom()),

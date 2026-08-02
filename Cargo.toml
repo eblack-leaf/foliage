@@ -1,5 +1,9 @@
 [workspace]
-members = ["application", "application_android", "foliage", "foliage_android", "foliage_icons", "foliage_macros", "foliage_proper", "lichen", "xtask"]
+# `application` and `application_android` are parked while the boundary API settles: they are
+# written against the pre-boundary surface (`world`, `Tree`, systems and components of their
+# own) and there is no point converting them twice. Put them back once the shape is fixed.
+members = ["foliage", "foliage_android", "foliage_icons", "foliage_macros", "foliage_proper", "lichen", "xtask"]
+exclude = ["application", "application_android"]
 
 resolver = "2"
 [profile.dev]

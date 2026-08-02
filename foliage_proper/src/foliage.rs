@@ -2,26 +2,25 @@ use crate::anim::animate;
 use crate::ash::Ash;
 use crate::ash::differential::{RenderQueue, RenderRemoveQueue, cached_differential};
 use crate::asset::{Asset, AssetKey, AssetLoader, AssetSource, LoadAsset};
+use crate::boundary::bloom::Emissions;
 use crate::ginkgo::Ginkgo;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::remove::Remove;
 use crate::text::monospaced::{FontId, MonospacedFont};
 use crate::time::Time;
-use crate::tree::{IntoTargets, TargetedEvent};
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::willow::Willow;
 use crate::{
-    AndroidConnection, Animate, Animation, Area, Attachment, Color, Disable, EcsExtension,
-    Elevation, Enable, Grid, Icon, Image, Interaction, Line, Location, Named, Opacity, Panel,
-    Physical, Polygon, Resource, SystemSet, Text, TextInput, Visibility,
+    AndroidConnection, Animate, Area, Attachment, Color, Disable, Elevation, Enable, Grid, Icon,
+    Image, Interaction, Line, Location, Named, Opacity, Panel, Physical, Polygon, Resource,
+    SystemSet, Text, TextInput, Visibility,
 };
-use bevy_ecs::bundle::Bundle;
+use crate::{Canopy, Sprig};
 use bevy_ecs::component::Component;
-use bevy_ecs::entity::Entity;
-use bevy_ecs::event::Event;
 use bevy_ecs::message::{Message, MessageRegistry, Messages, message_update_system};
-use bevy_ecs::observer::{IntoEntityObserver, IntoObserver};
+use bevy_ecs::observer::IntoObserver;
 use bevy_ecs::prelude::{ApplyDeferred, IntoScheduleConfigs, Schedule, World};
+use bevy_ecs::system::SystemState;
 use futures_channel::oneshot;
 use std::marker::PhantomData;
 use tracing_subscriber::Layer;
@@ -41,10 +40,20 @@ use winit::event_loop::{ControlFlow, EventLoop};
 /// `animate`, `on_click` are all available here through the same
 /// [`EcsExtension`](crate::EcsExtension) vocabulary systems use at runtime.
 pub struct Foliage {
-    pub world: World,
+    pub(crate) world: World,
     pub(crate) main: Schedule,
-    pub user: Schedule,
     pub(crate) diff: Schedule,
+    /// The app's per-frame closure. Held here rather than in the world because `Foliage` owns
+    /// the world -- so handing it a `Canopy` borrowed from that same world is a plain
+    /// reborrow, with no interior-mutability dance to arrange it.
+    #[allow(clippy::type_complexity)]
+    pub(crate) frame: Option<Box<dyn FnMut(&mut Canopy<'_, '_>)>>,
+    /// Read state for the frame closure, kept across frames so its query caches persist.
+    pub(crate) reads: Option<SystemState<crate::boundary::canopy::Reads<'static, 'static>>>,
+    /// This frame's commands, drained into the world after the closure returns.
+    pub(crate) ops: Vec<crate::boundary::op::Op>,
+    /// The off-thread command channel, drained ahead of the closure's own commands.
+    pub(crate) sprig: Sprig,
     pub(crate) willow: Willow,
     pub(crate) ginkgo: Ginkgo,
     pub(crate) ash: Ash,
@@ -86,7 +95,7 @@ impl Default for Foliage {
 
 impl Foliage {
     /// Logical pixels one wheel notch scrolls, before a view's own
-    /// [`ScrollInertia`](crate::grid::view::ScrollInertia) scaling.
+    /// `ScrollInertia` scaling.
     pub const SCROLL_SENSITIVITY: f32 = 40.0;
     /// Scroll direction multiplier where content follows the gesture -- push up, content
     /// goes up. The touch convention.
@@ -110,11 +119,18 @@ impl Foliage {
         Self::build(AndroidConnection::default())
     }
     fn build(android_connection: AndroidConnection) -> Foliage {
+        let world = World::default();
+        // Every name an app is ever handed comes from this one allocator, whichever side of
+        // the boundary asks for it -- which is what makes two of them impossible to collide.
+        let allocator = world.entity_allocator().build_remote_allocator();
         let mut foliage = Foliage {
-            world: Default::default(),
+            world,
             main: Default::default(),
-            user: Default::default(),
             diff: Default::default(),
+            frame: None,
+            reads: None,
+            ops: Vec::new(),
+            sprig: Sprig::new(allocator),
             willow: Default::default(),
             ginkgo: Default::default(),
             ash: Default::default(),
@@ -155,6 +171,7 @@ impl Foliage {
         foliage
             .main
             .add_systems(message_update_system.in_set(MainMarkers::External));
+        crate::boundary::Boundary::attach(&mut foliage);
         Disable::attach(&mut foliage);
         Enable::attach(&mut foliage);
         Panel::attach(&mut foliage);
@@ -180,15 +197,69 @@ impl Foliage {
         crate::Clipboard::attach(&mut foliage);
         foliage
     }
-    /// Installs an [`Attachment`]'s components, systems and resources. The built-in
-    /// primitives are already attached by [`new`](Self::new); this is for an app's or a
-    /// library's own.
-    pub fn attach<A: Attachment>(&mut self) {
-        A::attach(self);
+    /// A [`Tree`](crate::Tree) over this instance's world. Internal: an app builds its tree
+    /// inside the frame closure, through [`Canopy`], and never touches the world.
+    pub(crate) fn tree(&mut self) -> crate::Tree<'_, '_> {
+        crate::AsTree::tree(&mut self.world)
     }
-    /// Runs the app -- the whole-organism, keeps-going process the event loop actually is,
-    /// as distinct from [`Sow::grow`](crate::tree::Sow::grow) spawning one entity.
-    pub fn photosynthesize(mut self) {
+    /// Runs one frame of app code: hand it what happened and what things are, take back what
+    /// it wants done, and do it.
+    ///
+    /// Ordering here is the whole contract. Off-thread commands drain first, so they are
+    /// never interleaved with the frame's own; the closure's commands then apply in the order
+    /// it wrote them; and all of it lands before `diff` runs, so a command issued this frame
+    /// reaches the screen this frame.
+    pub(crate) fn frame(&mut self) {
+        let Some(mut frame) = self.frame.take() else {
+            return;
+        };
+        self.sprig.drain_into(&mut self.ops);
+        crate::boundary::op::apply(&mut self.world, &mut self.ops);
+        let blooms = core::mem::take(&mut self.world.resource_mut::<Emissions>().0);
+        let mut reads = self
+            .reads
+            .take()
+            .unwrap_or_else(|| SystemState::new(&mut self.world));
+        {
+            // Every param is read-only, so this borrow cannot fail on conflicting access --
+            // the only way `get` errors is a param that is invalid outright, which for a set
+            // of plain queries and resources means a resource that does not exist yet.
+            let reads = reads
+                .get(&self.world)
+                .expect("frame reads are all read-only and always available");
+            let mut canopy = Canopy {
+                reads,
+                queue: &mut self.ops,
+                blooms,
+                allocator: self.sprig.allocator(),
+            };
+            frame(&mut canopy);
+        }
+        self.reads = Some(reads);
+        self.frame = Some(frame);
+        crate::boundary::op::apply(&mut self.world, &mut self.ops);
+    }
+    /// A cloneable, `Send` handle for issuing commands from your own thread.
+    ///
+    /// Command-only by design: reads happen at the frame callsite, where the engine is
+    /// quiescent and a value read is a value that is actually true. Everything queued through
+    /// a `Sprig` is applied at the top of the next frame, ahead of that frame's own commands.
+    pub fn sprig(&self) -> Sprig {
+        self.sprig.clone()
+    }
+    /// Runs the app, calling `frame` once per frame -- after the engine has settled and
+    /// before anything is drawn. Does not return.
+    ///
+    /// The closure is where an app lives: it takes this frame's emissions, samples whatever
+    /// it needs, and issues commands, which are applied in the order written as soon as it
+    /// returns. It stays on this thread deliberately -- that is what lets it hold a
+    /// [`Canopy`] and read live state directly instead of asking and waiting. For work that
+    /// belongs on another thread, take a [`Sprig`](Self::sprig) before calling this.
+    pub fn photosynthesize<F: FnMut(&mut Canopy<'_, '_>) + 'static>(mut self, frame: F) {
+        self.frame = Some(Box::new(frame));
+        self.run();
+    }
+    fn run(mut self) {
         // winit's android backend has nothing to poll events from without the `AndroidApp`
         // handle threaded through at event-loop construction -- `EventLoop::new()` alone
         // panics there. Every other platform has no such handle to give it.
@@ -231,64 +302,24 @@ impl Foliage {
     pub fn window_origin() -> String {
         web_sys::window().expect("window").origin()
     }
-    /// Registers a global observer -- one that watches an event across all entities,
-    /// rather than being bound to one. Entity-scoped handlers go through
-    /// [`subscribe`](Self::subscribe).
-    pub fn define<M>(&mut self, obs: impl IntoObserver<M>) {
+    /// Registers a global observer -- one that watches an event across all entities, rather
+    /// than being bound to one. Internal: the argument is a bevy observer over bevy events,
+    /// which is the whole vocabulary the boundary exists to keep on this side.
+    pub(crate) fn define<M>(&mut self, obs: impl IntoObserver<M>) {
         self.world.add_observer(obs);
     }
-    /// Fires a targeted event at one or more entities, delivered immediately to their
-    /// observers.
-    pub fn send_to<E>(&mut self, e: E, targets: impl IntoTargets)
-    where
-        E: TargetedEvent,
-        for<'a> E::Trigger<'a>: Default,
-    {
-        self.world.send_to(e, targets);
-    }
-    /// Fires an untargeted event, delivered immediately to global observers.
-    pub fn send<E>(&mut self, e: E)
-    where
-        E: Event,
-        for<'a> E::Trigger<'a>: Default,
-    {
-        self.world.send(e);
-    }
-    /// Queues a message for whichever system reads it this frame -- deferred, unlike
-    /// [`send`](Self::send). Requires [`enable_queued_event`](Self::enable_queued_event)
-    /// for the type first.
-    pub fn queue<E: Message>(&mut self, e: E) {
-        self.world.queue(e);
-    }
-    /// Registers a message type so [`queue`](Self::queue) can carry it. Idempotent.
-    pub fn enable_queued_event<E: Message + Clone + Send + Sync + 'static>(&mut self) {
+    /// Registers a message type so a message can be carried. Idempotent.
+    pub(crate) fn enable_queued_event<E: Message + Clone + Send + Sync + 'static>(&mut self) {
         if self.world.get_resource::<Messages<E>>().is_none() {
             self.world.insert_resource(Messages::<E>::default());
             MessageRegistry::register_message::<E>(&mut self.world);
         }
     }
-    /// Inserts components on an existing entity -- the way a live value is changed after
-    /// spawn. Unchecked by entity ID, so a caller holding an id across a possible despawn
-    /// should confirm the entity still exists.
-    pub fn write_to<B: Bundle>(&mut self, entity: Entity, b: B) {
-        self.world.write_to(entity, b);
-    }
-    /// Despawns entities and everything beneath them.
-    pub fn remove(&mut self, targets: impl IntoTargets) {
-        self.world.remove(targets);
-    }
-    /// Re-enables interaction on entities and their subtrees.
-    pub fn enable(&mut self, targets: impl IntoTargets) {
-        self.world.enable(targets);
-    }
-    /// Disables interaction on entities and their subtrees. They still draw; they stop
-    /// competing for input.
-    pub fn disable(&mut self, targets: impl IntoTargets) {
-        self.world.disable(targets);
-    }
     /// Registers the systems that tween `A`, letting `Animation<A>` run. Needed once per
-    /// custom [`Animate`] type; the built-in ones do it themselves.
-    pub fn enable_animation<A: Animate + Component<Mutability = bevy_ecs::component::Mutable>>(
+    /// [`Animate`] type; the built-in ones do it themselves.
+    pub(crate) fn enable_animation<
+        A: Animate + Component<Mutability = bevy_ecs::component::Mutable>,
+    >(
         &mut self,
     ) {
         debug_assert_eq!(
@@ -298,44 +329,6 @@ impl Foliage {
         self.main
             .add_systems(animate::<A>.in_set(MainMarkers::Animation));
         self.world.insert_resource(AnimationLimiter::<A>::new());
-    }
-    /// Starts a sequence -- a group of animations sharing a timeline, whose completion
-    /// fires one [`OnEnd`](crate::OnEnd). Pass it to
-    /// [`Animation::during`](crate::Animation::during).
-    pub fn sequence(&mut self) -> Entity {
-        self.world.sequence()
-    }
-    /// Starts an animation, returning its entity.
-    pub fn animate<A: Animate + Component>(&mut self, anim: Animation<A>) -> Entity {
-        self.world.animate(anim)
-    }
-    /// Runs `end` once every animation in `seq` has finished -- how one stage of motion
-    /// is chained onto the next.
-    pub fn sequence_end<M>(&mut self, seq: Entity, end: impl IntoEntityObserver<M>) {
-        self.world.sequence_end(seq, end);
-    }
-    /// Registers an observer scoped to one entity.
-    pub fn subscribe<M>(&mut self, e: Entity, sub: impl IntoEntityObserver<M>) {
-        self.world.subscribe(e, sub);
-    }
-    /// Runs `o` when `e` is clicked. Shorthand for subscribing to
-    /// [`OnClick`](crate::OnClick).
-    pub fn on_click<M>(&mut self, e: Entity, o: impl IntoEntityObserver<M>) {
-        self.world.on_click(e, o);
-    }
-    /// Records `e` under `s` in [`Named`](crate::Named), so other code can find it
-    /// without the id being threaded through.
-    pub fn name<S: AsRef<str>>(&mut self, e: Entity, s: S) {
-        self.world.name(e, s);
-    }
-    /// Records an asset key under `s` in [`Keyring`](crate::Keyring).
-    pub fn store<S: AsRef<str>>(&mut self, key: AssetKey, s: S) {
-        self.world.store(key, s);
-    }
-    /// Runs `tf` once after `t` milliseconds. Backed by a [`Timer`](crate::Timer) entity
-    /// that despawns itself when it fires.
-    pub fn timer<M>(&mut self, t: u64, tf: impl IntoEntityObserver<M>) {
-        self.world.timer(t, tf);
     }
     pub(crate) fn remove_queue<R: Clone + Send + Sync + 'static>(&mut self) {
         debug_assert!(self.world.get_resource::<RenderRemoveQueue<R>>().is_none());
@@ -358,7 +351,7 @@ impl Foliage {
     /// regardless of which variant is given or how long it takes to resolve.
     pub fn load_asset(&mut self, source: AssetSource) -> AssetKey {
         let key = AssetLoader::generate_key();
-        self.send(LoadAsset { key, source });
+        self.tree().send(LoadAsset { key, source });
         key
     }
     /// Registers a monospace font and hands back the [`FontId`] naming it. Put that id on a

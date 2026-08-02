@@ -1,4 +1,5 @@
 mod pipeline;
+use crate::AsTree;
 use crate::Trigger;
 use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueue;
@@ -8,8 +9,8 @@ use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    AssetKey, Attachment, Color, Component, Differential, Foliage, LeafSprout, Logical,
-    ResolvedElevation, Section, Sprout, Tree, Visibility,
+    AssetKey, Attachment, Color, Component, Differential, Foliage, Author, LeafSprout, Logical,
+    ResolvedElevation, Section, Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -23,6 +24,10 @@ use bevy_ecs::world::DeferredWorld;
 /// Identifies a registered icon. Apps pick their own numbering and register the matching
 /// [`IconMemory`] at startup.
 pub type IconId = i32;
+/// An icon-bearing entity's public value channel, the same contract as
+/// [`TextValue`](crate::TextValue): write it to an [`Icon`] entity and the glyph follows.
+#[derive(Component, Copy, Clone, Default)]
+pub struct IconValue(pub IconId);
 #[derive(Component, Copy, Clone, PartialEq, Default)]
 #[component(on_add = Self::on_add)]
 #[require(Color, Differential<Icon, Color>)]
@@ -103,13 +108,11 @@ impl Icon {
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .entity(this)
-            .observe(Visibility::push_remove_packet::<Self>)
-            .observe(Remove::push_remove_packet::<Self>);
+        let mut tree = world.tree();
+        tree.subscribe(this, Visibility::push_remove_packet::<Self>);
+        tree.subscribe(this, Remove::push_remove_packet::<Self>);
     }
-    /// An icon's public value channel: write `IconValue` to an icon entity and the glyph
+    /// An icon's public value channel: write [`IconValue`] to an icon entity and the glyph
     /// follows -- the render marker stays private. Entities that carry `IconValue` as mere
     /// config (a Button root) are skipped by the `With<Icon>` filter.
     fn apply_icon_value(
@@ -121,7 +124,7 @@ impl Icon {
         let this = trigger.event_target();
         if icons.contains(this) {
             if let Ok(value) = values.get(this) {
-                tree.entity(this).insert(Icon::new_marker(value.0));
+                tree.write_to(this, Icon::new_marker(value.0));
             }
         }
     }
@@ -166,7 +169,7 @@ pub struct IconSprout {
     id: IconId,
     color: Option<Color>,
 }
-impl Sprout for IconSprout {
+impl Author for IconSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
@@ -245,13 +248,11 @@ impl IconMemory {
                 .unwrap()
                 .queue
                 .insert(this, resolved);
-            world.commands().entity(this).despawn();
+            world.tree().despawn(this);
         } else if let IconSource::Pending(key) = value.source {
-            world
-                .commands()
-                .entity(this)
-                .insert(AssetRetrieval::new(key))
-                .observe(Self::on_retrieved);
+            let mut tree = world.tree();
+            tree.write_to(this, AssetRetrieval::new(key));
+            tree.subscribe(this, Self::on_retrieved);
         }
     }
     fn on_retrieved(
@@ -271,6 +272,6 @@ impl IconMemory {
                 queue.queue.insert(this, resolved);
             }
         }
-        tree.entity(this).despawn();
+        tree.despawn(this);
     }
 }

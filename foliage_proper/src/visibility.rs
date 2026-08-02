@@ -1,7 +1,9 @@
-use crate::EcsExtension;
+use crate::AsTree;
 use crate::Trigger;
 use crate::ash::differential::RenderRemoveQueue;
-use crate::{AnchorDeps, Attachment, Branch, Component, Foliage, Resolve, Resolved, Stem, Tree};
+use crate::{
+    AnchorDeps, Attachment, Children, Component, Foliage, Parent, Resolve, Resolved, Tree,
+};
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
@@ -20,7 +22,7 @@ use bevy_ecs::world::DeferredWorld;
 /// Whether an entity is drawn -- the author's own switch, and the only one of the four
 /// visibility components meant to be written.
 ///
-/// Hiding an entity hides everything beneath it: the flag is combined down the `Stem`
+/// Hiding an entity hides everything beneath it: the flag is combined down the `Parent`
 /// chain into [`InheritedVisibility`], and the answer the renderer reads is
 /// [`ResolvedVisibility`]. A child therefore cannot show itself out of a hidden parent.
 ///
@@ -46,9 +48,9 @@ impl Visibility {
         self.visible
     }
     fn stem_insert(
-        trigger: Trigger<Insert, Stem>,
+        trigger: Trigger<Insert, Parent>,
         mut tree: Tree,
-        stems: Query<&Stem>,
+        stems: Query<&Parent>,
         res: Query<&ResolvedVisibility>,
     ) {
         let this = trigger.event_target();
@@ -61,16 +63,17 @@ impl Visibility {
                 parent_resolved_visible = resolved.visible,
                 "visibility: stem_insert captured parent"
             );
-            tree.entity(this).insert(InheritedVisibility {
-                visible: resolved.visible,
-            });
+            tree.write_to(
+                this,
+                InheritedVisibility {
+                    visible: resolved.visible,
+                },
+            );
         }
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .trigger_targets(Resolve::<Visibility>::new(), this);
+        world.tree().send_to(Resolve::<Visibility>::new(), this);
     }
     pub(crate) fn update(
         trigger: Trigger<Resolve<Visibility>>,
@@ -79,7 +82,7 @@ impl Visibility {
         auto: Query<&AutoVisibility>,
         cached: Query<&CachedVisibility>,
         mut tree: Tree,
-        branches: Query<&Branch>,
+        branches: Query<&Children>,
         sd: Query<&AnchorDeps>,
     ) {
         let this = trigger.event_target();
@@ -100,10 +103,16 @@ impl Visibility {
             "visibility: resolved"
         );
         if cached.visible != resolved.visible {
-            tree.entity(this).insert(resolved).insert(CachedVisibility {
-                visible: resolved.visible,
-            });
-            tree.trigger_targets(Resolved::<Visibility>::new(), this);
+            tree.write_to(
+                this,
+                (
+                    resolved,
+                    CachedVisibility {
+                        visible: resolved.visible,
+                    },
+                ),
+            );
+            tree.send_to(Resolved::<Visibility>::new(), this);
             let mut deps = branches.get(this).unwrap().ids.clone();
             if let Some(stack_deps) = sd.get(this).ok() {
                 deps.extend(stack_deps.ids.clone());
@@ -115,9 +124,12 @@ impl Visibility {
                 "visibility: cascading to deps (real flip)"
             );
             for d in deps {
-                tree.entity(d).insert(InheritedVisibility {
-                    visible: resolved.visible,
-                });
+                tree.write_to(
+                    d,
+                    InheritedVisibility {
+                        visible: resolved.visible,
+                    },
+                );
             }
         }
     }

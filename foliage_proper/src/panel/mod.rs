@@ -1,4 +1,4 @@
-use crate::EcsExtension;
+use crate::AsTree;
 use crate::Trigger;
 use crate::anim::interpolation::Interpolations;
 use crate::ash::clip::ClipContext;
@@ -62,19 +62,17 @@ impl Panel {
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .entity(this)
-            .observe(Self::update_from_section)
-            .observe(Remove::push_remove_packet::<Self>)
-            .observe(Visibility::push_remove_packet::<Self>);
+        let mut tree = world.tree();
+        tree.subscribe(this, Self::update_from_section);
+        tree.subscribe(this, Remove::push_remove_packet::<Self>);
+        tree.subscribe(this, Visibility::push_remove_packet::<Self>);
     }
     fn update_from_section(trigger: Trigger<Resolved<Section<Logical>>>, mut tree: Tree) {
-        tree.trigger_targets(Resolve::<Panel>::new(), trigger.event_target());
+        tree.send_to(Resolve::<Panel>::new(), trigger.event_target());
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world.trigger_targets(Resolve::<Panel>::new(), this);
+        world.tree().send_to(Resolve::<Panel>::new(), this);
     }
     fn update(
         trigger: Trigger<Resolve<Panel>>,
@@ -186,7 +184,7 @@ pub struct PanelSprout {
     side: Option<Side>,
     outline: Option<i32>,
 }
-impl crate::Sprout for PanelSprout {
+impl crate::Author for PanelSprout {
     fn seed(&mut self) -> &mut crate::LeafSprout {
         &mut self.leaf
     }
@@ -306,7 +304,7 @@ impl Side {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         if world.get::<Panel>(this).is_some() {
-            world.trigger_targets(Resolve::<Panel>::new(), this);
+            world.tree().send_to(Resolve::<Panel>::new(), this);
         }
     }
 }
@@ -331,18 +329,12 @@ impl Rounding {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         if *world.get::<Rounding>(this).unwrap() == Rounding::Full {
-            world
-                .commands()
-                .entity(this)
-                .insert(InteractionShape::Circle);
+            world.tree().write_to(this, InteractionShape::Circle);
         } else {
-            world
-                .commands()
-                .entity(this)
-                .insert(InteractionShape::Rectangle);
+            world.tree().write_to(this, InteractionShape::Rectangle);
         }
         if world.get::<Panel>(this).is_some() {
-            world.trigger_targets(Resolve::<Self>::new(), this);
+            world.tree().send_to(Resolve::<Self>::new(), this);
         }
     }
 }
@@ -383,12 +375,12 @@ impl Outline {
         Outline { value }
     }
     fn update_anim(trigger: Trigger<Resolve<Animation<Self>>>, mut tree: Tree) {
-        tree.trigger_targets(Resolve::<Panel>::new(), trigger.event_target());
+        tree.send_to(Resolve::<Panel>::new(), trigger.event_target());
     }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         if world.get::<Panel>(this).is_some() {
-            world.trigger_targets(Resolve::<Panel>::new(), this);
+            world.tree().send_to(Resolve::<Panel>::new(), this);
         }
     }
 }

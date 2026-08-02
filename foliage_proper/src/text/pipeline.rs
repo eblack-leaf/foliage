@@ -9,7 +9,7 @@ use crate::text::glyph::{GlyphKey, GlyphOffset, ResolvedColors, ResolvedGlyphs};
 use crate::text::monospaced::{FontId, MonospacedFont};
 use crate::text::{ResolvedFontSize, TextBounds, UniqueCharacters};
 use crate::texture::{AtlasEntry, TextureAtlas, TextureCoordinates, VERTICES, Vertex};
-use crate::{CReprColor, CReprSection, Logical, ResolvedElevation, Section, Stem, Text};
+use crate::{CReprColor, CReprSection, Logical, Parent, ResolvedElevation, Section, Text};
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -29,7 +29,7 @@ pub(crate) struct Group {
     pub(crate) bind_group: Option<wgpu::BindGroup>,
     pub(crate) update_node: bool,
     pub(crate) elevation: ResolvedElevation,
-    pub(crate) clip_context: Stem,
+    pub(crate) clip_context: Parent,
     pub(crate) uniform: VectorUniform<f32>,
     pub(crate) sections: InstanceBuffer<CReprSection>,
     pub(crate) colors: InstanceBuffer<CReprColor>,

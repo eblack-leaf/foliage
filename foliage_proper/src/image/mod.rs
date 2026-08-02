@@ -1,5 +1,6 @@
 mod pipeline;
 
+use crate::AsTree;
 use crate::AssetKey;
 use crate::Trigger;
 use crate::ash::clip::ClipContext;
@@ -11,10 +12,10 @@ use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Area, Attachment, Component, Foliage, Layout, LeafSprout, Logical, Numerical, Resolved,
-    ResolvedElevation, ResolvedVisibility, Section, Sprout, Stem,
+    Area, Attachment, Component, Foliage, Author, Layout, LeafSprout, Logical, Numerical, Parent,
+    Resolved, ResolvedElevation, ResolvedVisibility, Section,
 };
-use crate::{Differential, EcsExtension, Tree, Visibility};
+use crate::{Differential, Tree, Visibility};
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::prelude::{IntoScheduleConfigs, Res};
@@ -61,22 +62,16 @@ impl ImageView {
                 if metrics.extent != Area::default() {
                     let ratio =
                         AspectRatio::new().xs(metrics.extent.width() / metrics.extent.height());
-                    world.commands().entity(this).insert(ratio);
+                    world.tree().write_to(this, ratio);
                 }
-                world
-                    .commands()
-                    .entity(this)
-                    .insert(CropAdjustment::default());
+                world.tree().write_to(this, CropAdjustment::default());
             }
             ImageView::Stretch => {
-                world.commands().entity(this).insert(AspectRatio::new());
-                world
-                    .commands()
-                    .entity(this)
-                    .insert(CropAdjustment::default());
+                world.tree().write_to(this, AspectRatio::new());
+                world.tree().write_to(this, CropAdjustment::default());
             }
             _ => {
-                world.commands().entity(this).insert(AspectRatio::new());
+                world.tree().write_to(this, AspectRatio::new());
             }
         }
     }
@@ -125,36 +120,34 @@ impl Image {
         if let Ok(img) = images.get(trigger.event_target()) {
             if let Ok(v) = vis.get(trigger.event_target()) {
                 if v.visible() {
-                    tree.entity(trigger.event_target()).insert(*img);
+                    tree.write_to(trigger.event_target(), *img);
                 }
             }
         }
     }
     /// Fires once the pending asset fetch resolves (wasm) -- re-inserting `Image` re-runs
     /// `on_insert`, which now finds real bytes and finally allocates+uploads the texture.
-    /// Until this point, `Section<Logical>`/`ResolvedElevation`/`Stem`/`BlendedOpacity`
+    /// Until this point, `Section<Logical>`/`ResolvedElevation`/`Parent`/`BlendedOpacity`
     /// writes that already fired at spawn time were silently dropped (nothing in
     /// `entity_to_memory` to route them to yet), so re-fire each so the renderer catches up
     /// with wherever this entity already ended up.
     fn retrieve_img(trigger: Trigger<OnRetrieval>, mut tree: Tree, images: Query<&Image>) {
         let this = trigger.event_target();
         if let Ok(img) = images.get(this) {
-            tree.entity(this).insert(*img);
+            tree.write_to(this, *img);
             tree.refire::<(Section<Logical>,)>(this);
             tree.refire::<(ResolvedElevation,)>(this);
-            tree.refire::<(Stem,)>(this);
+            tree.refire::<(Parent,)>(this);
             tree.refire::<(BlendedOpacity,)>(this);
         }
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .entity(this)
-            .observe(Self::retrieve_img)
-            .observe(Self::visibility_trigger)
-            .observe(Visibility::push_remove_packet::<Self>)
-            .observe(Remove::push_remove_packet::<Self>);
+        let mut tree = world.tree();
+        tree.subscribe(this, Self::retrieve_img);
+        tree.subscribe(this, Self::visibility_trigger);
+        tree.subscribe(this, Visibility::push_remove_packet::<Self>);
+        tree.subscribe(this, Remove::push_remove_packet::<Self>);
     }
     /// Decodes once bytes are available (native: always; wasm: once the async fetch
     /// resolves) and pushes dimensions and pixel data together, so a size is never
@@ -167,10 +160,7 @@ impl Image {
             .unwrap()
             .retrieve(value.key)
         else {
-            world
-                .commands()
-                .entity(this)
-                .insert(AssetRetrieval::new(value.key));
+            world.tree().write_to(this, AssetRetrieval::new(value.key));
             return;
         };
         let view = *world.get::<ImageView>(this).unwrap();
@@ -178,11 +168,7 @@ impl Image {
             .unwrap()
             .into_rgba8();
         let extent = Area::from((rgba_image.width(), rgba_image.height()));
-        world
-            .commands()
-            .entity(this)
-            .insert(ImageMetrics { extent })
-            .insert(view);
+        world.tree().write_to(this, (ImageMetrics { extent }, view));
         world
             .get_resource_mut::<RenderQueue<Image, ImageWrite>>()
             .unwrap()
@@ -244,7 +230,7 @@ pub struct ImageSprout {
     key: AssetKey,
     view: Option<ImageView>,
 }
-impl Sprout for ImageSprout {
+impl Author for ImageSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }

@@ -1,8 +1,7 @@
-use crate::EcsExtension;
 use crate::Trigger;
 use crate::ash::differential::RenderRemoveQueue;
 use crate::foliage::Foliage;
-use crate::{AnchorDeps, Attachment, Branch, Tree};
+use crate::{AnchorDeps, Attachment, Children, Tree};
 use bevy_ecs::change_detection::ResMut;
 use bevy_ecs::prelude::Query;
 
@@ -26,13 +25,13 @@ impl Remove {
     fn observer(
         trigger: Trigger<Self>,
         mut tree: Tree,
-        branches: Query<&Branch>,
+        branches: Query<&Children>,
         stack_deps: Query<&AnchorDeps>,
     ) {
-        if tree.get_entity(trigger.event_target()).is_err() {
+        if !tree.exists(trigger.event_target()) {
             return;
         }
-        tree.entity(trigger.event_target()).despawn();
+        tree.despawn(trigger.event_target());
         let mut deps = branches.get(trigger.event_target()).unwrap().ids.clone();
         if let Ok(sd) = stack_deps.get(trigger.event_target()) {
             for e in sd.ids.iter() {
@@ -43,6 +42,6 @@ impl Remove {
         if deps.is_empty() {
             return;
         }
-        tree.trigger_targets(Remove::new(), deps.drain().collect::<Vec<_>>());
+        tree.send_to(Remove::new(), deps.drain().collect::<Vec<_>>());
     }
 }

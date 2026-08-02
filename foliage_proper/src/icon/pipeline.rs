@@ -7,8 +7,8 @@ use crate::ginkgo::Ginkgo;
 use crate::icon::Icon;
 use crate::opacity::BlendedOpacity;
 use crate::{
-    CReprColor, CReprSection, Color, Coordinates, IconMemory, Logical, ResolvedElevation, Section,
-    Stem,
+    CReprColor, CReprSection, Color, Coordinates, IconMemory, Logical, Parent, ResolvedElevation,
+    Section,
 };
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
@@ -207,7 +207,7 @@ impl Render for Icon {
                     // resend whenever an *existing* icon's id changes group).
                     group.coordinator.add(Instance::new(
                         ResolvedElevation::default(),
-                        Stem::default(),
+                        Parent::default(),
                         id,
                     ));
                 }

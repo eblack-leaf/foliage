@@ -13,13 +13,14 @@ pub(crate) mod hero;
 pub(crate) mod overview;
 pub(crate) mod probe;
 pub(crate) mod rail;
+pub(crate) mod router;
 pub(crate) mod shell;
 pub(crate) mod stub;
 
 use foliage::{
-    Anchor, Animation, Color, ConfigurationDescriptor, Ease, EcsExtension, Elevation, Entity,
+    Anchor, Animation, Color, ConfigurationDescriptor, Ease, Elevation, Entity,
     FontId, FontSize, Grid, GridExt, HorizontalAlignment, HrefLink, Icon, IconId,
-    InteractionListener, InteractionPropagation, InteractionShape, Leaf, Location, OnClick,
+    InteractionListener, InteractionPropagation, InteractionShape, Stem, Location, OnClick,
     Opacity, Panel, Polygon, Query, Rounding, Sprout, Text, TextContentHeight, Tree, Trigger,
     VerticalAlignment, anchor,
 };
@@ -670,7 +671,7 @@ impl Column {
         let (xs, wide) = measure;
         let entity = tree.branch(
             self.parent,
-            Leaf::sprout()
+            Stem::new()
                 .at(Location::new()
                     .xs(xs, self.below(gap, heights.0))
                     .md(wide, self.below(gap, heights.1))
@@ -717,7 +718,7 @@ impl Column {
     pub(crate) fn tail(&mut self, tree: &mut Tree, height: i32) -> Entity {
         let entity = tree.branch(
             self.parent,
-            Leaf::sprout()
+            Stem::new()
                 .at(self.placed(0, height))
                 .elevate(Elevation::up(1))
                 .with((

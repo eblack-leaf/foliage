@@ -8,7 +8,7 @@
 //! router it would scroll away with the content it is measuring.
 
 use foliage::{
-    Color, CurrentInteraction, EcsExtension, Elevation, Entity, FontSize, Grid, GridExt,
+    Color, CurrentInteraction, Elevation, Entity, FontSize, Grid, GridExt,
     HorizontalAlignment, Location, Panel, Query, Res, Rounding, Sprout, Text, Tree,
     VerticalAlignment, View, component,
 };

@@ -8,9 +8,9 @@ mod ash;
 mod asset;
 mod attachment;
 mod author;
+mod boundary;
 mod clipboard;
 mod color;
-mod composite;
 mod coordinate;
 mod disable;
 mod enable;
@@ -20,16 +20,18 @@ mod grid;
 mod icon;
 mod image;
 mod interaction;
-mod leaf;
 mod line;
+mod node;
 mod opacity;
 mod ops;
 mod panel;
 mod photosynthesis;
 mod platform;
 mod polygon;
+mod polyline;
 mod remove;
 mod text;
+mod text_input;
 mod texture;
 mod time;
 mod tree;
@@ -51,59 +53,28 @@ pub use anim::{
 };
 pub(crate) use ash::differential::Differential;
 pub use asset::{Asset, AssetKey, AssetLoader, AssetSource, OnRetrieval};
-pub use attachment::Attachment;
-pub use author::{LeafSprout, Sprout, WithExtras};
-pub use bevy_ecs::{self, prelude::*};
-/// bevy 0.17+ renamed the observer parameter `Trigger` to `On`. Every observer in foliage and
-/// its consumers is written against the `Trigger<E>` spelling, so keep it as the canonical
-/// name here; `On` is also available (via the prelude re-export above) for new code.
-pub type Trigger<'w, 't, E, B = ()> = bevy_ecs::observer::On<'w, 't, E, B>;
+pub(crate) use attachment::Attachment;
+pub use author::Sprout;
+pub(crate) use author::{Author, LeafSprout};
+/// The ECS is an implementation detail from here on: nothing an app touches is a bevy type,
+/// and nothing it writes needs one in scope. `pub(crate)` rather than deleted because the
+/// engine's own modules are written against these names, and `foliage_macros` emits
+/// `crate::bevy_ecs::...` paths for foliage's own internal event types.
+pub(crate) use bevy_ecs::{self, prelude::*};
+pub use boundary::bloom::Bloom;
+pub use boundary::canopy::{Canopy, Sample, Sap};
+pub use boundary::leaf::{Leaf, Presence};
+pub use boundary::op::{Motion, Spec, Timing};
+pub use boundary::sprig::Sprig;
+pub use boundary::tween::{Channel, Tween};
+pub use boundary::verbs::Grows;
+/// bevy 0.17+ renamed the observer parameter `Trigger` to `On`. Every observer inside foliage
+/// is written against the `Trigger<E>` spelling, so keep it as the canonical internal name.
+pub(crate) type Trigger<'w, 't, E, B = ()> = bevy_ecs::observer::On<'w, 't, E, B>;
 pub use alignment::{HorizontalAlignment, VerticalAlignment};
 pub use ash::clip::ClipToViewport;
 pub use clipboard::Clipboard;
 pub use color::{CReprColor, Color, Luminance};
-pub use composite::text_input::action::{InputAction, TextInputAction};
-pub use composite::{
-    IconValue, IndexedSlotFn, PageChanged, PageCount, PageIndex, Progress, SlotFn, TextValue,
-};
-pub use composite::{
-    button::{Button, ButtonSprout, ButtonStyle, Engagement},
-    card::{Card, CardSprout, CardStyle},
-    polyline::{
-        DashPattern, Polyline, PolylineDrawProgress, PolylineDroppedPoints, PolylinePoints,
-        PolylineSprout, PolylineStyle,
-    },
-    router::{RouteFn, Router, RouterHandle, RouterRoutes, RouterSprout},
-    slider::{ProgressChanged, Slider, SliderBehavior, SliderSprout, SliderStyle},
-    text_input::{
-        HintColor, HintText, InsertText, LineConstraint, TextChanged, TextInput, TextInputSprout,
-        TextInputStyle, keybindings::KeyBindings,
-    },
-};
-#[cfg(feature = "composite-extras")]
-pub use composite::{
-    carousel::{Carousel, CarouselConfig, CarouselPages, CarouselSprout, CarouselStyle},
-    checkbox::{Checkbox, CheckboxSprout, CheckboxState, CheckboxStyle, Checked},
-    dropdown::{
-        Dropdown, DropdownConfig, DropdownOptions, DropdownSprout, DropdownStyle, Expanded,
-        Selected, SelectionChanged,
-    },
-    list::{List, ListItems, ListLayout, ListSprout},
-    pagination::{Pagination, PaginationMode, PaginationSprout, PaginationStyle},
-    popover::{
-        Popover, PopoverClosed, PopoverExpanded, PopoverOpened, PopoverPlacement, PopoverSprout,
-        PopoverStyle,
-    },
-    radio_group::{
-        RadioChanged, RadioGroup, RadioGroupSprout, RadioOptions, RadioSelected, RadioStyle,
-    },
-    segmented_control::{
-        SegmentChanged, SegmentedControl, SegmentedControlSprout, SegmentedOptions,
-        SegmentedSelected, SegmentedStyle,
-    },
-    tabs::{Tabs, TabsPages, TabsSprout, TabsStyle},
-    toggle::{Toggle, ToggleSprout, ToggleState, ToggleStyle, Toggled},
-};
 pub use coordinate::elevation::{Elevation, ResolvedElevation};
 pub use disable::Disable;
 pub use enable::Enable;
@@ -116,7 +87,7 @@ pub use grid::{
     AspectRatio, Grid, Layout, Location, ScrollMomentum, ScrollProgress, ScrollTo, Short, View,
     anchor, text_content, view::OverscrollPropagation,
 };
-pub use icon::{Icon, IconId, IconMemory, IconSprout};
+pub use icon::{Icon, IconId, IconMemory, IconSprout, IconValue};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
 pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
@@ -125,8 +96,9 @@ pub use interaction::{
     InteractionPropagation, Key, Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
 };
-pub use leaf::{Branch, Leaf, SpawnedAt, Stem};
 pub use line::{Line, LineSprout, MIN_LINE_WEIGHT};
+pub use node::Bare;
+pub(crate) use node::{Children, Node, Parent};
 pub use opacity::Opacity;
 pub use ops::Named;
 pub use ops::{Keyring, Resolve, Resolved};
@@ -135,10 +107,21 @@ pub use panel::{Outline, Panel, PanelSprout, Rounding, Side};
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
 pub use polygon::{Polygon, PolygonSprout};
+pub use polyline::{
+    DashPattern, Polyline, PolylineDrawProgress, PolylineDroppedPoints, PolylinePoints,
+    PolylineSprout, PolylineStyle,
+};
 pub use text::GlyphOffset;
 pub use text::monospaced::FontId;
-pub use text::{FontSize, GlyphColors, Text, TextContentHeight, TextContentWidth, TextSprout};
+pub use text::{
+    FontSize, GlyphColors, Text, TextContentHeight, TextContentWidth, TextSprout, TextValue,
+};
+pub use text_input::action::{InputAction, TextInputAction};
+pub use text_input::{
+    HintColor, HintText, InsertText, LineConstraint, TextChanged, TextInput, TextInputSprout,
+    TextInputStyle, keybindings::KeyBindings,
+};
 pub use time::{Moment, OnEnd, Time, TimeDelta, TimeMarker, Timer};
-pub use tree::{EcsExtension, Graft, IntoTargets, Refire, Sequence, TargetedEvent, Tree};
+pub(crate) use tree::{AsTree, TargetedEvent, Tree};
 pub use visibility::{InheritedVisibility, ResolvedVisibility, Visibility};
 pub use web_ext::{Extensions, HrefLink};

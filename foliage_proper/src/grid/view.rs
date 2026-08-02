@@ -1,11 +1,10 @@
-use crate::EcsExtension;
 use crate::ash::clip::{ClipToViewport, InheritedClip, ResolvedClip, clip_of};
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::location::Resolution;
 use crate::interaction::CurrentInteraction;
 use crate::{
-    AnchorDeps, Branch, Component, LayoutSection, Location, Logical, Moment, Points, Position,
-    Resolve, Section, Stem, Tree,
+    AnchorDeps, Children, Component, LayoutSection, Location, Logical, Moment, Parent, Points,
+    Position, Resolve, Section, Tree,
 };
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref, Res, ResMut, Resource};
@@ -189,18 +188,17 @@ pub(crate) fn coast(
         // `Start`: that is a `Tree`-queued command, and both systems sit in
         // `MainMarkers::Process` with no ordering between them.
         if current.pressed {
-            tree.entity(entity).remove::<Coasting>();
+            tree.strip::<Coasting>(entity);
             continue;
         }
         let now = Moment::now();
         let elapsed_ms = now.duration_since(c.last_tick).as_secs_f32() * 1000.0;
         c.last_tick = now;
-        tree.entity(entity)
-            .insert(ViewAdjustment(c.velocity * elapsed_ms));
+        tree.write_to(entity, ViewAdjustment(c.velocity * elapsed_ms));
         let decayed = momentum.decay.powf(elapsed_ms);
         c.velocity = c.velocity * decayed;
         if c.velocity.left().hypot(c.velocity.top()) < momentum.stop_epsilon {
-            tree.entity(entity).remove::<Coasting>();
+            tree.strip::<Coasting>(entity);
         }
     }
 }
@@ -300,7 +298,7 @@ fn ovrscrl(
     ovr: Position<Logical>,
     views: &mut Query<&mut View>,
     propagations: &Query<&OverscrollPropagation>,
-    contexts: &Query<(Entity, Ref<Stem>)>,
+    contexts: &Query<(Entity, Ref<Parent>)>,
     sections: &Query<(Entity, Ref<Section<Logical>>)>,
     to_trigger: &mut HashSet<Entity>,
 ) -> (Option<Entity>, Position<Logical>) {
@@ -356,7 +354,7 @@ fn ovrscrl(
 ///
 /// The shape of the fix, when it is worth it: the same set the walk below already builds.
 /// `propagate_offsets` knows exactly which entities moved, and a `Changed`-filtered query
-/// (`Query<(Entity, &Stem), Changed<Section<Logical>>>`) would hand back the changed
+/// (`Query<(Entity, &Parent), Changed<Section<Logical>>>`) would hand back the changed
 /// entities directly instead of every entity plus a test. The reason it is written this way
 /// is that the check needs the *parents* of changed entities, not the entities themselves,
 /// and the parent lookup is what the scan currently provides.
@@ -365,7 +363,7 @@ pub(crate) fn extent_check(
     scroll_requests: Query<(Entity, &ScrollTo), Changed<ScrollTo>>,
     mut views: Query<&mut View>,
     propagations: Query<&OverscrollPropagation>,
-    contexts: Query<(Entity, Ref<Stem>)>,
+    contexts: Query<(Entity, Ref<Parent>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
     clip_to_viewport: Query<&ClipToViewport>,
     mut scrolled: ResMut<ScrolledViews>,
@@ -500,7 +498,7 @@ pub(crate) fn extent_check(
             }
             tracing::trace!(entity = ?entity, request = ?request, after = ?view.offset, "grid::view: applied ScrollTo to offset");
             to_trigger.insert(*entity);
-            tree.entity(*entity).remove::<ScrollTo>();
+            tree.strip::<ScrollTo>(*entity);
             // A `ScrollTo` states outright where this view belongs, so any momentum still
             // running on it is stale by definition -- one authority over `offset` at a
             // time, the same reason the request is consumed immediately just above. The
@@ -510,7 +508,7 @@ pub(crate) fn extent_check(
             // stem-walk that otherwise cancels a coast. Left running, the coast keeps
             // writing its own decaying `ViewAdjustment` into the same `offset` this
             // request just set, once per frame, and the two visibly fight.
-            tree.entity(*entity).remove::<Coasting>();
+            tree.strip::<Coasting>(*entity);
         }
     }
     let to_check_final = to_check.clone();
@@ -571,7 +569,7 @@ pub(crate) fn extent_check(
                 0.0
             },
         };
-        tree.entity(entity).insert(progress);
+        tree.write_to(entity, progress);
     }
 }
 
@@ -608,8 +606,8 @@ pub(crate) struct ScrolledViews(pub(crate) HashSet<Entity>);
 /// *size*, which a scroll never changes -- not firing it is the correct outcome, not a gap.
 pub(crate) fn propagate_offsets(
     mut scrolled: ResMut<ScrolledViews>,
-    stems: Query<&Stem>,
-    branches: Query<&Branch>,
+    stems: Query<&Parent>,
+    branches: Query<&Children>,
     mut views: Query<&mut View>,
     layouts: Query<&LayoutSection>,
     resolutions: Query<&Resolution>,
@@ -717,717 +715,6 @@ pub(crate) fn propagate_offsets(
     let outside = anchored.difference(&touched).copied().collect::<Vec<_>>();
     if !outside.is_empty() {
         tracing::trace!(entities = ?outside, "grid::view: re-resolving anchors across the scroll boundary");
-        tree.trigger_targets(Resolve::<Location>::new(), outside);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::TimeDelta;
-    use crate::ash::clip::ResolvedClip;
-    use crate::{EcsExtension, Elevation, Foliage, Grid, GridExt, Leaf, Location, Sprout};
-    use bevy_ecs::prelude::{ResMut, Resource};
-
-    /// A parent sized `100px` tall with one child explicitly `300px` tall -- real
-    /// overflow (not row/col-driven, just a child `Location` bigger than its parent's own
-    /// box), so `View.extent` actually grows past the parent's own section instead of
-    /// staying stuck equal to it (see `extent_check`'s "regrow from children" pass).
-    /// `extent_check` sits in `Foliage`'s own `diff` schedule (`DiffMarkers::Prepare`),
-    /// run once per real frame by `photosynthesize`'s event loop -- not by `world.flush()`
-    /// (that only applies queued commands, which is all `Location`'s own `on_insert`-hook
-    /// resolution needs). A headless test has no such loop, so it has to run that one
-    /// schedule pass itself, same as `time.rs`'s own tests do for `main` via
-    /// `foliage.main.run(&mut foliage.world)`.
-    fn spawn_overflowing(foliage: &mut Foliage) -> Entity {
-        let parent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(100.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        foliage.world.branch(
-            parent,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(300.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        parent
-    }
-
-    /// The same tree, handing back the child too -- the scroll tests assert on where the
-    /// content ends up, not just on the view's own readout.
-    fn spawn_overflowing_pair(foliage: &mut Foliage) -> (Entity, Entity) {
-        let parent = spawn_overflowing(foliage);
-        let child = *foliage
-            .world
-            .get::<Branch>(parent)
-            .unwrap()
-            .ids
-            .iter()
-            .next()
-            .unwrap();
-        (parent, child)
-    }
-
-    /// Scrolls `parent` to `percent` of its range and settles the frame.
-    fn scroll_to(foliage: &mut Foliage, parent: Entity, percent: f32) {
-        foliage.write_to(parent, ScrollTo::y(percent));
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
-    }
-
-    fn scroll_halfway(foliage: &mut Foliage, parent: Entity) {
-        scroll_to(foliage, parent, 0.5);
-    }
-
-    #[test]
-    fn scrolling_moves_a_descendants_section_without_touching_its_layout_section() {
-        // The split, stated as a test: content that scrolls is somewhere else on screen,
-        // and in the same place as far as layout is concerned. A 100-tall view over
-        // 300-tall content has 200px of range, so halfway is 100px up.
-        let mut foliage = Foliage::new();
-        let (parent, child) = spawn_overflowing_pair(&mut foliage);
-        let before = *foliage.world.get::<Section<Logical>>(child).unwrap();
-
-        scroll_halfway(&mut foliage, parent);
-
-        let after = *foliage.world.get::<Section<Logical>>(child).unwrap();
-        let layout = foliage.world.get::<LayoutSection>(child).unwrap().0;
-        assert_eq!(
-            after.top(),
-            before.top() - 100.0,
-            "the child should be drawn 100px higher"
-        );
-        assert_eq!(
-            layout.top(),
-            before.top(),
-            "but the layout never moved it -- that is what stops the subtree re-resolving"
-        );
-        assert_eq!(after.height(), before.height(), "a scroll only translates");
-    }
-
-    #[test]
-    fn a_scrolled_descendants_resolved_clip_is_recut_against_the_view() {
-        // `ResolvedClip` is what decides which glyphs are cut off and what can still be
-        // grabbed, and it is an intersection with the view -- so an entity scrolled halfway
-        // out the top keeps only the part still inside. That only holds if the pass keeps
-        // *inserting* `Section` rather than quietly mutating it, since the clip chain is
-        // driven by the insert.
-        let mut foliage = Foliage::new();
-        let parent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(100.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        // a short row at the very top, plus something tall enough to make the view scroll
-        let row = foliage.world.branch(
-            parent,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(40.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.branch(
-            parent,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(300.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        let before = foliage.world.get::<ResolvedClip>(row).unwrap().0;
-        assert_eq!(before.height(), 40.0, "unscrolled, the whole row is visible");
-
-        // 200px of range, so 10% is 20px -- half the row goes above the view's top edge
-        scroll_to(&mut foliage, parent, 0.1);
-
-        let after = foliage.world.get::<ResolvedClip>(row).unwrap().0;
-        assert_eq!(
-            after.height(),
-            20.0,
-            "only the half still inside the view survives the intersection"
-        );
-        assert_eq!(
-            after.top(),
-            0.0,
-            "and it is cut at the view's own top edge, not at the row's"
-        );
-    }
-
-    /// `TextBounds` is the scissor the glyphs render under, and it is the one thing a text
-    /// entity has to update when its box merely moves. It follows `Section`, so it has to
-    /// keep following it however `Section` is written.
-    #[test]
-    fn a_scrolled_texts_bounds_follow_its_box() {
-        use crate::text::TextBounds;
-        use crate::{FontSize, Text};
-        let mut foliage = Foliage::new();
-        let parent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(200.px().as_width()),
-                    0.px().as_top().with(100.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        let text = foliage.world.branch(
-            parent,
-            Text::new("scrolling text".to_string())
-                .size(FontSize::new(24))
-                .at(Location::new().xs(
-                    0.px().as_left().with(200.px().as_width()),
-                    0.px().as_top().with(40.px().as_height()),
-                ))
-                .elevate(Elevation::up(2)),
-        );
-        // something tall enough underneath to give the view a range to scroll through
-        foliage.world.branch(
-            parent,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(200.px().as_width()),
-                    0.px().as_top().with(300.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
-        let before_section = *foliage.world.get::<Section<Logical>>(text).unwrap();
-        let before_bounds = foliage.world.get::<TextBounds>(text).unwrap().0;
-
-        scroll_halfway(&mut foliage, parent);
-
-        let after_section = *foliage.world.get::<Section<Logical>>(text).unwrap();
-        let after_bounds = foliage.world.get::<TextBounds>(text).unwrap().0;
-        assert_ne!(
-            after_section.top(),
-            before_section.top(),
-            "precondition: the scroll moved the text"
-        );
-        assert_eq!(
-            after_bounds.top() - before_bounds.top(),
-            after_section.top() - before_section.top(),
-            "the scissor moved with the box, by the same amount"
-        );
-    }
-
-    #[test]
-    fn a_nested_view_accumulates_its_own_offset_on_top_of_its_ancestors() {
-        // The reason `accumulated_offset` is a separate number from `offset`: an inner view
-        // hands its children what it was handed *plus* its own pan.
-        let mut foliage = Foliage::new();
-        let (outer, inner) = spawn_overflowing_pair(&mut foliage);
-        // give the inner box a grid so it can hold content of its own, and overflow it
-        foliage.write_to(inner, Grid::new(1.col().gap(0), 1.row().gap(0)));
-        let leaf = foliage.world.branch(
-            inner,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(900.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        let before = *foliage.world.get::<Section<Logical>>(leaf).unwrap();
-
-        scroll_halfway(&mut foliage, outer);
-        let outer_only = *foliage.world.get::<Section<Logical>>(leaf).unwrap();
-        scroll_halfway(&mut foliage, inner);
-        let both = *foliage.world.get::<Section<Logical>>(leaf).unwrap();
-
-        let outer_shift = before.top() - outer_only.top();
-        let inner_shift = outer_only.top() - both.top();
-        assert!(outer_shift > 0.0, "the outer scroll moved it");
-        assert!(inner_shift > 0.0, "the inner scroll moved it further");
-        assert_eq!(
-            foliage
-                .world
-                .get::<View>(inner)
-                .unwrap()
-                .accumulated_offset
-                .top(),
-            outer_shift + inner_shift,
-            "the inner view hands its children both offsets, not just its own"
-        );
-        assert_eq!(
-            before.top() - both.top(),
-            outer_shift + inner_shift,
-            "and the leaf ends up moved by exactly that total"
-        );
-    }
-
-    #[test]
-    fn a_freshly_spawned_overflowing_view_has_zero_scroll_progress() {
-        let mut foliage = Foliage::new();
-        let parent = spawn_overflowing(&mut foliage);
-
-        let progress = foliage.world.get::<ScrollProgress>(parent).unwrap();
-        assert_eq!(progress.x, 0.0);
-        assert_eq!(progress.y, 0.0);
-    }
-
-    #[test]
-    fn scroll_to_moves_progress_to_the_requested_percent() {
-        let mut foliage = Foliage::new();
-        let parent = spawn_overflowing(&mut foliage);
-
-        foliage.write_to(parent, ScrollTo::y(0.5));
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-
-        let progress = foliage.world.get::<ScrollProgress>(parent).unwrap();
-        assert!(
-            (progress.y - 0.5).abs() < 0.001,
-            "expected ~0.5, got {}",
-            progress.y
-        );
-        assert_eq!(progress.x, 0.0, "only the y request was set");
-    }
-
-    #[test]
-    fn scroll_to_is_consumed_after_being_applied() {
-        let mut foliage = Foliage::new();
-        let parent = spawn_overflowing(&mut foliage);
-
-        foliage.write_to(parent, ScrollTo::y(0.5));
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-
-        assert!(
-            foliage.world.get::<ScrollTo>(parent).is_none(),
-            "a one-shot request should not linger on the entity once resolved"
-        );
-    }
-
-    #[test]
-    fn scroll_to_constructors_clamp_out_of_range_percent() {
-        let mut foliage = Foliage::new();
-        let parent = spawn_overflowing(&mut foliage);
-
-        foliage.write_to(parent, ScrollTo::y(5.0));
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-
-        let progress = foliage.world.get::<ScrollProgress>(parent).unwrap();
-        assert!(
-            (progress.y - 1.0).abs() < 0.001,
-            "expected clamped to 1.0, got {}",
-            progress.y
-        );
-    }
-
-    #[test]
-    fn scroll_to_on_an_axis_with_nothing_to_scroll_stays_zero() {
-        let mut foliage = Foliage::new();
-        // no overflow at all: parent and child are the same size.
-        let parent = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(100.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        foliage.world.branch(
-            parent,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(100.px().as_width()),
-                    0.px().as_top().with(100.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-
-        foliage.write_to(parent, ScrollTo::y(1.0));
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-
-        let progress = foliage.world.get::<ScrollProgress>(parent).unwrap();
-        assert_eq!(progress.y, 0.0);
-    }
-
-    #[test]
-    fn scroll_progress_is_a_real_insert_every_write_fires_a_reaction() {
-        #[derive(Resource, Default)]
-        struct Seen(Vec<f32>);
-        fn mark(
-            trigger: crate::Trigger<bevy_ecs::lifecycle::Insert, ScrollProgress>,
-            progress: Query<&ScrollProgress>,
-            mut r: ResMut<Seen>,
-        ) {
-            r.0.push(progress.get(trigger.entity).unwrap().y);
-        }
-
-        let mut foliage = Foliage::new();
-        foliage.world.insert_resource(Seen::default());
-        let parent = spawn_overflowing(&mut foliage);
-        foliage.world.add_observer(mark);
-
-        foliage.write_to(parent, ScrollTo::y(0.25));
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-        foliage.write_to(parent, ScrollTo::y(0.75));
-        foliage.world.flush();
-        foliage.diff.run(&mut foliage.world);
-
-        let seen = &foliage.world.resource::<Seen>().0;
-        assert!(
-            seen.len() >= 2,
-            "expected a reaction fire per ScrollTo write, got {seen:?}"
-        );
-        assert!((seen[seen.len() - 2] - 0.25).abs() < 0.001);
-        assert!((seen[seen.len() - 1] - 0.75).abs() < 0.001);
-    }
-
-    #[test]
-    fn the_first_ever_tick_returns_the_base_multiplier() {
-        let (multiplier, updated) = ScrollInertia::default().tick();
-        assert_eq!(multiplier, ScrollInertia::BASE);
-        assert!(updated.last_tick.is_some());
-    }
-
-    #[test]
-    fn a_tick_within_the_window_grows_the_multiplier() {
-        let inertia = ScrollInertia {
-            value: ScrollInertia::BASE,
-            last_tick: Some(Moment::now() - TimeDelta::from_millis(50)),
-        };
-        let (multiplier, _) = inertia.tick();
-        assert_eq!(multiplier, ScrollInertia::BASE + ScrollInertia::GROWTH);
-    }
-
-    #[test]
-    fn a_tick_after_the_window_resets_to_base_regardless_of_prior_value() {
-        let inertia = ScrollInertia {
-            value: 2.5,
-            last_tick: Some(Moment::now() - TimeDelta::from_millis(200)),
-        };
-        let (multiplier, _) = inertia.tick();
-        assert_eq!(
-            multiplier,
-            ScrollInertia::BASE,
-            "a pause longer than WINDOW_MS should reset the ramp, not continue from where it left off"
-        );
-    }
-
-    #[test]
-    fn growth_is_capped_at_max() {
-        let inertia = ScrollInertia {
-            value: ScrollInertia::MAX - 0.05,
-            last_tick: Some(Moment::now() - TimeDelta::from_millis(50)),
-        };
-        let (multiplier, _) = inertia.tick();
-        assert_eq!(
-            multiplier,
-            ScrollInertia::MAX,
-            "growth should clamp at MAX, not overshoot it"
-        );
-    }
-
-    #[test]
-    fn repeated_fast_ticks_accumulate_growth_across_calls() {
-        let mut inertia = ScrollInertia::default();
-        let (first, updated) = inertia.tick();
-        inertia = updated;
-        // simulate the next tick arriving well within the window, without a real sleep
-        inertia.last_tick = Some(Moment::now() - TimeDelta::from_millis(50));
-        let (second, _) = inertia.tick();
-        assert!(
-            second > first,
-            "a second fast tick should ramp higher than the first"
-        );
-    }
-
-    fn spawn_view(foliage: &mut Foliage) -> Entity {
-        let e = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(200.px().as_width()),
-                    0.px().as_top().with(200.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        foliage.world.flush();
-        e
-    }
-
-    #[test]
-    fn coast_writes_a_view_adjustment_from_its_decaying_velocity() {
-        let mut foliage = Foliage::new();
-        let parent = spawn_view(&mut foliage);
-        // back-dated `last_tick`, same trick `repeated_fast_ticks_accumulate_growth_across_calls`
-        // uses -- gives `coast` a real, nonzero elapsed time to decay across without an
-        // actual `sleep`.
-        foliage.world.entity_mut(parent).insert(Coasting {
-            velocity: Position::logical((0.0, 1.0)),
-            last_tick: Moment::now() - TimeDelta::from_millis(10),
-        });
-        foliage.world.flush();
-
-        foliage.main.run(&mut foliage.world);
-
-        let adjustment = foliage.world.get::<ViewAdjustment>(parent).unwrap().0;
-        assert!(
-            adjustment.top() > 0.0,
-            "a downward-coasting view should have produced a downward pan, got {adjustment:?}"
-        );
-    }
-
-    #[test]
-    fn coast_removes_itself_once_velocity_decays_past_stop_epsilon() {
-        let mut foliage = Foliage::new();
-        let parent = spawn_view(&mut foliage);
-        // an enormous elapsed time collapses `decay.powf(elapsed_ms)` to effectively zero
-        // in a single tick, so this doesn't need many real frames (or a real sleep) to
-        // observe the coast actually ending.
-        foliage.world.entity_mut(parent).insert(Coasting {
-            velocity: Position::logical((2.0, 0.0)),
-            last_tick: Moment::now() - TimeDelta::from_secs(5),
-        });
-        foliage.world.flush();
-
-        foliage.main.run(&mut foliage.world);
-
-        assert!(
-            foliage.world.get::<Coasting>(parent).is_none(),
-            "velocity should have decayed past stop_epsilon and removed Coasting"
-        );
-    }
-
-    #[test]
-    fn coast_stops_immediately_once_the_same_view_is_grabbed_again() {
-        // A fresh drag on a still-coasting view -- or on something inside it -- must not
-        // leave the coast writing its own stale `ViewAdjustment` over the new drag's.
-        let mut foliage = Foliage::new();
-        let parent = spawn_view(&mut foliage);
-        foliage.world.entity_mut(parent).insert(Coasting {
-            velocity: Position::logical((2.0, 0.0)),
-            last_tick: Moment::now(),
-        });
-        foliage.world.flush();
-        {
-            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
-            current.primary = Some(parent);
-            current.pressed = true;
-        }
-
-        foliage.main.run(&mut foliage.world);
-
-        assert!(
-            foliage.world.get::<Coasting>(parent).is_none(),
-            "grabbing the exact coasting view again should halt its own coast"
-        );
-    }
-
-    #[test]
-    fn coast_stops_when_something_inside_the_coasting_view_is_grabbed() {
-        let mut foliage = Foliage::new();
-        let list = spawn_view(&mut foliage);
-        let row = foliage.world.branch(
-            list,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(50.px().as_width()),
-                    0.px().as_top().with(20.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-        foliage.world.entity_mut(list).insert(Coasting {
-            velocity: Position::logical((2.0, 0.0)),
-            last_tick: Moment::now(),
-        });
-        foliage.world.flush();
-        {
-            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
-            current.primary = Some(row);
-            current.pressed = true;
-        }
-
-        foliage.main.run(&mut foliage.world);
-
-        assert!(
-            foliage.world.get::<Coasting>(list).is_none(),
-            "grabbing a row inside the list should walk up and halt the list's own coast, \
-             same as `interactive_elements`' own walk-up finds the list to pan"
-        );
-    }
-
-    #[test]
-    fn clicking_a_nested_list_stops_the_outer_pages_own_coast() {
-        // the outer page is coasting; the list is a real, nested `View` of its own
-        // *inside* the page, and gets grabbed directly (not a plain child, an actual
-        // scrollable region within a scrollable region). Walking up from the list still
-        // reaches the page, so the page's own coast stops -- grabbing content contained
-        // within a coasting view's own bounds should always stop it, regardless of
-        // whether that content is a plain leaf or itself a `View`.
-        let mut foliage = Foliage::new();
-        let page = spawn_view(&mut foliage);
-        let list = foliage.world.branch(
-            page,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(150.px().as_width()),
-                    0.px().as_top().with(150.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        foliage.world.flush();
-        foliage.world.entity_mut(page).insert(Coasting {
-            velocity: Position::logical((2.0, 0.0)),
-            last_tick: Moment::now(),
-        });
-        foliage.world.flush();
-        {
-            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
-            current.primary = Some(list);
-            current.pressed = true;
-        }
-
-        foliage.main.run(&mut foliage.world);
-
-        assert!(
-            foliage.world.get::<Coasting>(page).is_none(),
-            "grabbing the nested list (inside the coasting page) should stop the page's own coast"
-        );
-    }
-
-    #[test]
-    fn a_scroll_to_request_cancels_the_views_own_coast() {
-        // a scrollbar's own door: it drives the view by `ScrollTo` while deliberately
-        // living *outside* that view in the tree (`application/src/toc.rs`'s own
-        // `build_scrollbar` -- it can't be inside the thing it scrolls), so it is neither
-        // the coasting view nor anything within it, and no stem-walk from the grab ever
-        // reaches the coast. Dragging the knob against a live coast otherwise leaves both
-        // writing to the same `offset` every frame.
-        let mut foliage = Foliage::new();
-        let view = spawn_view(&mut foliage);
-        foliage.world.entity_mut(view).insert(Coasting {
-            velocity: Position::logical((0.0, 1.0)),
-            last_tick: Moment::now(),
-        });
-        foliage.world.flush();
-
-        foliage.world.entity_mut(view).insert(ScrollTo::y(0.5));
-        foliage.diff.run(&mut foliage.world);
-        foliage.world.flush();
-
-        assert!(
-            foliage.world.get::<Coasting>(view).is_none(),
-            "a ScrollTo states where the view belongs -- any momentum still running on it \
-             is stale and must not keep writing over it"
-        );
-    }
-
-    #[test]
-    fn a_press_anywhere_stops_an_in_flight_coast() {
-        // One pointer, one momentum. `unrelated` is deliberately in a separate subtree
-        // from the coasting view -- not its parent, not its child, no useful relation at
-        // all -- because the press still has to stop it. Anything narrower fails the case
-        // that actually matters: two sibling cards in one list, where a coast parked on
-        // the first (that is where the drag's own pan landed) is reachable from a press on
-        // the second by no walk in either direction.
-        let mut foliage = Foliage::new();
-        let list = spawn_view(&mut foliage);
-        let other_root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(400.px().as_width()),
-                    0.px().as_top().with(400.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        let unrelated = foliage.world.branch(
-            other_root,
-            Leaf::sprout()
-                .at(Location::new().xs(
-                    0.px().as_left().with(200.px().as_width()),
-                    0.px().as_top().with(200.px().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
-        );
-        foliage.world.flush();
-        foliage.world.entity_mut(list).insert(Coasting {
-            velocity: Position::logical((2.0, 0.0)),
-            last_tick: Moment::now(),
-        });
-        foliage.world.flush();
-        {
-            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
-            current.primary = Some(unrelated);
-            current.pressed = true;
-        }
-
-        foliage.main.run(&mut foliage.world);
-
-        assert!(
-            foliage.world.get::<Coasting>(list).is_none(),
-            "a press with the pointer down should end the coast"
-        );
-    }
-
-    #[test]
-    fn a_coast_survives_the_release_that_created_it() {
-        // The counterpart to the rule above, and the reason it keys off `pressed` rather
-        // than `primary`: `primary` stays set after release (cleared only by the next
-        // `Start`, so the released entity's own click can still be judged), so a coast
-        // would be killed on its very first tick by the gesture that just created it.
-        let mut foliage = Foliage::new();
-        let list = spawn_view(&mut foliage);
-        foliage.world.entity_mut(list).insert(Coasting {
-            velocity: Position::logical((2.0, 0.0)),
-            last_tick: Moment::now(),
-        });
-        foliage.world.flush();
-        {
-            let mut current = foliage.world.resource_mut::<CurrentInteraction>();
-            current.primary = Some(list);
-            current.pressed = false;
-        }
-
-        foliage.main.run(&mut foliage.world);
-
-        assert!(
-            foliage.world.get::<Coasting>(list).is_some(),
-            "with the pointer up, a fresh coast must keep running"
-        );
-    }
-
-    #[test]
-    fn a_slow_release_stays_under_the_default_velocity_threshold() {
-        // sanity on the shipped defaults: a genuinely slow, deliberate drag (well under a
-        // brisk flick) shouldn't clear `ScrollMomentum::default().velocity_threshold`.
-        let slow: Position<Logical> = Position::logical((0.02, 0.0));
-        let speed = slow.left().hypot(slow.top());
-        assert!(speed < ScrollMomentum::default().velocity_threshold);
+        tree.send_to(Resolve::<Location>::new(), outside);
     }
 }

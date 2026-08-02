@@ -1,7 +1,7 @@
-use crate::EcsExtension;
 use crate::Trigger;
 use crate::{
-    AnchorDeps, Attachment, Branch, Foliage, InteractionListener, InteractionState, Resolved, Tree,
+    AnchorDeps, Attachment, Children, Foliage, InteractionListener, InteractionState, Resolved,
+    Tree,
 };
 use bevy_ecs::system::Query;
 
@@ -24,13 +24,13 @@ impl Enable {
     fn user_signal(
         trigger: Trigger<Self>,
         mut tree: Tree,
-        branches: Query<&Branch>,
+        branches: Query<&Children>,
         stacks: Query<&AnchorDeps>,
     ) {
-        tree.trigger_targets(Resolved::<Enable>::new(), trigger.event_target());
+        tree.send_to(Resolved::<Enable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
-                tree.trigger_targets(
+                tree.send_to(
                     InheritEnable::new(),
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
@@ -38,7 +38,7 @@ impl Enable {
         }
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
-                tree.trigger_targets(
+                tree.send_to(
                     InheritEnable::new(),
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );
@@ -59,7 +59,7 @@ impl Enable {
 pub(crate) struct AutoEnable {}
 impl AutoEnable {
     fn user_signal(trigger: Trigger<Self>, mut tree: Tree) {
-        tree.trigger_targets(Resolved::<Enable>::new(), trigger.event_target());
+        tree.send_to(Resolved::<Enable>::new(), trigger.event_target());
     }
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
@@ -77,13 +77,13 @@ impl InheritEnable {
     fn user_signal(
         trigger: Trigger<Self>,
         mut tree: Tree,
-        branches: Query<&Branch>,
+        branches: Query<&Children>,
         stacks: Query<&AnchorDeps>,
     ) {
-        tree.trigger_targets(Resolved::<Enable>::new(), trigger.event_target());
+        tree.send_to(Resolved::<Enable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
-                tree.trigger_targets(
+                tree.send_to(
                     InheritEnable::new(),
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
@@ -91,7 +91,7 @@ impl InheritEnable {
         }
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
-                tree.trigger_targets(
+                tree.send_to(
                     InheritEnable::new(),
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );

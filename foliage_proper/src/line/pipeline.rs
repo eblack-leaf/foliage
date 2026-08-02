@@ -6,7 +6,7 @@ use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::line::LineQuad;
 use crate::opacity::BlendedOpacity;
-use crate::{CReprColor, Color, Coordinates, ResolvedElevation, Stem};
+use crate::{CReprColor, Color, Coordinates, Parent, ResolvedElevation};
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use wgpu::{
@@ -152,7 +152,7 @@ impl Render for LineQuad {
             if !group.coordinator.has_instance(id) {
                 group.coordinator.add(Instance::new(
                     ResolvedElevation::default(),
-                    Stem::default(),
+                    Parent::default(),
                     id,
                 ));
             }

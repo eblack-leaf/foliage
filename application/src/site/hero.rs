@@ -4,12 +4,14 @@
 //! becoming their real form -- which reads as arrival rather than as travel.
 
 use foliage::{
-    Anchor, Animation, Color, Ease, EcsExtension, Elevation, Entity, Foliage, FontSize,
+    Anchor, Animation, Color, Ease, Elevation, Entity, Foliage, FontSize,
     GlyphColors, Grid, GridExt, HorizontalAlignment, Icon, IconId, InteractionListener,
-    InteractionPropagation, Layout, Leaf, Location, Logical, OnClick, Opacity, PageIndex, Query,
-    Res, Section, Short, Sprout, Text, TextContentHeight, Time, Tree, Trigger, VerticalAlignment,
-    With, anchor, component,
+    InteractionPropagation, Layout, Stem, Location, Logical, OnClick, Opacity, Query, Res, Section,
+    Short, Sprout, Text, TextContentHeight, Time, Tree, Trigger, VerticalAlignment, With, anchor,
+    component,
 };
+
+use crate::site::router::Route;
 
 use std::ops::Range;
 
@@ -257,7 +259,7 @@ pub fn build(tree: &mut Tree, slot: Entity) {
     let seq = tree.sequence();
     let hero = tree.branch(
         slot,
-        Leaf::sprout()
+        Stem::new()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
                 0.pct().as_top().with(100.pct().as_bottom()),
@@ -358,7 +360,7 @@ pub fn build(tree: &mut Tree, slot: Entity) {
     // cheaper of the two: too high is a look, overlapping is a bug.
     let row = tree.branch(
         hero,
-        Leaf::sprout()
+        Stem::new()
             .at(Location::new()
                 .xs(
                     0.pct().as_left().with(100.pct().as_right()).max(ROW_MAX),
@@ -524,7 +526,7 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
     };
     let target = tree.branch(
         hero,
-        Leaf::sprout()
+        Stem::new()
             .at(Location::new()
                 .xs(
                     0.pct().as_left().with(100.pct().as_right()),
@@ -548,7 +550,7 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
         target,
         move |_: Trigger<OnClick>, routers: Query<Entity, With<AppRouter>>, mut tree: Tree| {
             if let Ok(router) = routers.single() {
-                tree.write_to(router, PageIndex(1));
+                tree.write_to(router, Route(1));
             }
         },
     );

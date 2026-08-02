@@ -30,9 +30,11 @@ impl Attachment for Grid {
             .main
             .add_systems(viewport_changed.in_set(MainMarkers::External));
         foliage.main.add_systems(coast.in_set(MainMarkers::Process));
-        foliage
-            .diff
-            .add_systems((extent_check, propagate_offsets).chain().in_set(DiffMarkers::Prepare));
+        foliage.diff.add_systems(
+            (extent_check, propagate_offsets)
+                .chain()
+                .in_set(DiffMarkers::Prepare),
+        );
     }
 }
 /// The coordinate system a parent offers its children, per breakpoint.

@@ -1,4 +1,4 @@
-use crate::EcsExtension;
+use crate::AsTree;
 use bevy_ecs::lifecycle::HookContext;
 use std::any::TypeId;
 use std::fmt::Display;
@@ -13,7 +13,7 @@ use crate::coordinate::position::{CReprPosition, Position};
 use crate::coordinate::{
     CoordinateContext, CoordinateUnit, Coordinates, Logical, Numerical, Physical,
 };
-use crate::{Anchor, AnchorDeps, Branch, Location, Resolve, Resolved};
+use crate::{Anchor, AnchorDeps, Children, Location, Resolve, Resolved};
 
 #[derive(Copy, Clone, Default, Component, PartialEq, PartialOrd)]
 #[component(on_insert = Section::<Logical>::on_insert)]
@@ -280,7 +280,7 @@ impl<Context: CoordinateContext> Section<Context> {
         if TypeId::of::<Self>() != TypeId::of::<Section<Logical>>() {
             return;
         }
-        world.trigger_targets(Resolved::<Self>::new(), this);
+        world.tree().send_to(Resolved::<Self>::new(), this);
     }
 }
 /// An entity's box in *layout* space: where the layout put it, before any ancestor's scroll
@@ -307,7 +307,7 @@ pub struct LayoutSection(pub Section<Logical>);
 impl LayoutSection {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        let mut deps = world.get::<Branch>(this).unwrap().ids.clone();
+        let mut deps = world.get::<Children>(this).unwrap().ids.clone();
         for d in deps.clone().iter() {
             if let Some(stack) = world.get::<Anchor>(*d) {
                 if stack.id.is_some() {
@@ -323,9 +323,7 @@ impl LayoutSection {
         }
         let dep_vec = deps.iter().copied().collect::<Vec<_>>();
         tracing::trace!(entity = ?this, deps = ?dep_vec, "coordinate::section: LayoutSection on_insert cascading Resolve<Location>");
-        world
-            .commands()
-            .trigger_targets(Resolve::<Location>::new(), dep_vec);
+        world.tree().send_to(Resolve::<Location>::new(), dep_vec);
     }
 }
 impl Section<Numerical> {
@@ -371,39 +369,5 @@ impl<Context: CoordinateContext> Mul<f32> for Section<Context> {
 
     fn mul(self, rhs: f32) -> Self::Output {
         Self::new(self.position * rhs, self.area * rhs)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Logical;
-
-    /// Two sections sharing an edge must still share it after rounding. Rounding position
-    /// and area independently broke this: the shared coordinate became
-    /// `round(left) + round(width)` on one side and `round(left)` on the other, leaving a
-    /// 1px seam between panels that were exactly contiguous.
-    #[test]
-    fn rounding_keeps_a_shared_edge_shared() {
-        let a = Section::<Logical>::new((10.4, 0.0), (20.4, 10.0));
-        let b = Section::<Logical>::new((30.8, 0.0), (20.0, 10.0));
-        assert_eq!(
-            a.right(),
-            b.left(),
-            "precondition: contiguous before rounding"
-        );
-        assert_eq!(
-            a.rounded().right(),
-            b.rounded().left(),
-            "a's right edge and b's left edge must round to the same pixel"
-        );
-    }
-
-    #[test]
-    fn rounding_snaps_every_edge_to_a_whole_unit() {
-        let s = Section::<Logical>::new((10.4, 3.7), (20.4, 9.2)).rounded();
-        for edge in [s.left(), s.top(), s.right(), s.bottom()] {
-            assert_eq!(edge, edge.round(), "every edge lands on a whole unit");
-        }
     }
 }

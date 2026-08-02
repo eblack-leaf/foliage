@@ -1,7 +1,6 @@
-use crate::EcsExtension;
 use crate::Trigger;
 use crate::interaction::listener::InteractionListener;
-use crate::{AnchorDeps, Attachment, Branch, Foliage, InteractionState, Resolved, Tree};
+use crate::{AnchorDeps, Attachment, Children, Foliage, InteractionState, Resolved, Tree};
 use bevy_ecs::system::Query;
 
 #[foliage_macros::targeted_event]
@@ -31,13 +30,13 @@ impl Disable {
     fn user_signal(
         trigger: Trigger<Self>,
         mut tree: Tree,
-        branches: Query<&Branch>,
+        branches: Query<&Children>,
         stacks: Query<&AnchorDeps>,
     ) {
-        tree.trigger_targets(Resolved::<Disable>::new(), trigger.event_target());
+        tree.send_to(Resolved::<Disable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
-                tree.trigger_targets(
+                tree.send_to(
                     InheritDisable::new(),
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
@@ -45,7 +44,7 @@ impl Disable {
         }
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
-                tree.trigger_targets(
+                tree.send_to(
                     InheritDisable::new(),
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );
@@ -58,7 +57,7 @@ impl Disable {
 pub(crate) struct AutoDisable {}
 impl AutoDisable {
     fn user_signal(trigger: Trigger<Self>, mut tree: Tree) {
-        tree.trigger_targets(Resolved::<Disable>::new(), trigger.event_target());
+        tree.send_to(Resolved::<Disable>::new(), trigger.event_target());
     }
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
@@ -76,13 +75,13 @@ impl InheritDisable {
     fn user_signal(
         trigger: Trigger<Self>,
         mut tree: Tree,
-        branches: Query<&Branch>,
+        branches: Query<&Children>,
         stacks: Query<&AnchorDeps>,
     ) {
-        tree.trigger_targets(Resolved::<Disable>::new(), trigger.event_target());
+        tree.send_to(Resolved::<Disable>::new(), trigger.event_target());
         if let Ok(branch) = branches.get(trigger.event_target()) {
             if !branch.ids.is_empty() {
-                tree.trigger_targets(
+                tree.send_to(
                     InheritDisable::new(),
                     branch.ids.iter().copied().collect::<Vec<_>>(),
                 );
@@ -90,7 +89,7 @@ impl InheritDisable {
         }
         if let Ok(stack) = stacks.get(trigger.event_target()) {
             if !stack.ids.is_empty() {
-                tree.trigger_targets(
+                tree.send_to(
                     InheritDisable::new(),
                     stack.ids.iter().copied().collect::<Vec<_>>(),
                 );

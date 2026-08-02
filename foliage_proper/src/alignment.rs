@@ -7,7 +7,8 @@
 //! text reads Left/Top (prose; the enums' `Default`), icons center (UI glyphs; absent
 //! components read as Center/Middle inside `Icon::align_render_size`).
 
-use crate::{Component, EcsExtension, Resolve};
+use crate::AsTree;
+use crate::{Component, Resolve};
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::world::DeferredWorld;
 
@@ -39,10 +40,10 @@ pub enum VerticalAlignment {
 fn on_alignment_insert(mut world: DeferredWorld, ctx: HookContext) {
     let this = ctx.entity;
     if world.get::<crate::Text>(this).is_some() {
-        world.trigger_targets(Resolve::<crate::Text>::new(), this);
+        world.tree().send_to(Resolve::<crate::Text>::new(), this);
     } else if world.get::<crate::Icon>(this).is_some() {
         if let Some(location) = world.get::<crate::Location>(this).cloned() {
-            world.commands().entity(this).insert(location);
+            world.tree().write_to(this, location);
         }
     }
 }

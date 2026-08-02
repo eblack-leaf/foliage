@@ -8,7 +8,7 @@ use crate::image::{CropAdjustment, Image, ImageWrite};
 use crate::opacity::BlendedOpacity;
 use crate::texture::TextureCoordinates;
 use crate::{
-    Area, AssetKey, CReprSection, Logical, Numerical, ResolvedElevation, Section, Stem, texture,
+    Area, AssetKey, CReprSection, Logical, Numerical, Parent, ResolvedElevation, Section, texture,
 };
 use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
@@ -225,7 +225,7 @@ impl Render for Image {
                 if !group.coordinator.has_instance(id) {
                     group
                         .coordinator
-                        .add(Instance::new(elevation, Stem::default(), id));
+                        .add(Instance::new(elevation, Parent::default(), id));
                 } else {
                     group.coordinator.update_elevation(id, elevation);
                 }

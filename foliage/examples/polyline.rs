@@ -1,25 +1,23 @@
-//! Plain vs. dashed `Polyline`, plus a `PolylineDrawProgress` loop mirroring the
-//! `application` demo's own `drive_polyline_draw`. Run with
+//! Plain vs. dashed `Polyline`, with a draw-progress loop driven by a tween. Run with
 //! `cargo run --example polyline -p foliage`.
+//!
+//! The tween is the shape of every "value changing over time" in an app now: foliage owns the
+//! clock and the easing, hands back plain numbers each frame, and what they mean is entirely
+//! the app's business -- here, how much of a line is drawn.
 
 use foliage::{
-    Color, DashPattern, EcsExtension, Elevation, Foliage, GridExt, Location, Polyline,
-    PolylineDrawProgress, Position, Query, Res, Sprout, Time, Tree, component,
+    Bloom, Canopy, Color, DashPattern, Elevation, Foliage, GridExt, Leaf, Location, Polyline,
+    Position, Repeat, Timing, Tween,
 };
+use foliage::{Grows, Sprout};
 
-#[component]
-struct DrawProgress {
-    elapsed: f32,
-}
+const DRAW_CYCLE_MS: u64 = 1500;
 
-const DRAW_CYCLE_SECS: f32 = 1.5;
-
-fn drive(time: Res<Time>, mut query: Query<(foliage::Entity, &mut DrawProgress)>, mut tree: Tree) {
-    for (entity, mut progress) in query.iter_mut() {
-        progress.elapsed += time.frame_diff().as_secs_f32();
-        let t = (progress.elapsed % DRAW_CYCLE_SECS) / DRAW_CYCLE_SECS;
-        tree.write_to(entity, PolylineDrawProgress(t));
-    }
+/// What this app keeps between frames. Ordinary Rust state in an ordinary struct -- it is
+/// never handed to the engine, and the engine has no way to reach it.
+struct Drawing {
+    line: Leaf,
+    cycle: Tween,
 }
 
 fn main() {
@@ -34,22 +32,35 @@ fn main() {
         (170, 70).into(),
     ];
 
-    foliage.world.leaf(
+    let mut state: Option<Drawing> = None;
+    foliage.photosynthesize(move |canopy: &mut Canopy| {
+        let state = state.get_or_insert_with(|| grow(canopy, &zigzag));
+        for bloom in canopy.take() {
+            if let Bloom::Tween { tween, values } = bloom
+                && tween == state.cycle
+            {
+                canopy.draw_progress(state.line, values[0]);
+            }
+        }
+    });
+}
+
+/// Sprout the tree on the first frame and keeps the two handles that matter.
+fn grow(canopy: &mut Canopy, points: &[Position<foliage::Logical>]) -> Drawing {
+    let line = canopy.leaf(
         Polyline::new()
-            .points(zigzag.clone())
+            .points(points.to_vec())
             .weight(3)
             .color(Color::gray(300))
             .at(Location::new().xs(
                 20.px().as_left().with(180.px().as_width()),
                 20.px().as_top().with(100.px().as_height()),
             ))
-            .elevate(Elevation::up(1))
-            .with(DrawProgress { elapsed: 0.0 }),
+            .elevate(Elevation::up(1)),
     );
-
-    foliage.world.leaf(
+    canopy.leaf(
         Polyline::new()
-            .points(zigzag)
+            .points(points.to_vec())
             .weight(3)
             .color(Color::gray(300))
             .dash(DashPattern::new(10.0, 6.0))
@@ -59,7 +70,10 @@ fn main() {
             ))
             .elevate(Elevation::up(1)),
     );
-
-    foliage.user.add_systems(drive);
-    foliage.photosynthesize();
+    // One channel running 0 to 1, forever.
+    let cycle = canopy.tween(
+        vec![(0.0, 1.0)],
+        Timing::over(DRAW_CYCLE_MS).repeat(Repeat::Forever),
+    );
+    Drawing { line, cycle }
 }

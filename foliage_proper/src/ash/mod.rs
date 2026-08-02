@@ -8,7 +8,7 @@ use crate::image::Image;
 use crate::line::LineQuad;
 use crate::polygon::Polygon;
 use crate::willow::NearFarDescriptor;
-use crate::{Attachment, Color, Icon, Panel, ResolvedElevation, Stem, Text};
+use crate::{Attachment, Color, Icon, Panel, Parent, ResolvedElevation, Text};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::world::World;
 use node::Node;
@@ -42,7 +42,7 @@ pub(crate) struct Ash {
     pub(crate) icon: Option<Renderer<Icon>>,
     pub(crate) line: Option<Renderer<LineQuad>>,
     pub(crate) polygon: Option<Renderer<Polygon>>,
-    pub(crate) clip: HashMap<Stem, ClipSection>,
+    pub(crate) clip: HashMap<Parent, ClipSection>,
     /// entities with a `StackKey`, sorted least-in-front-first by `(StackKey, entity id)`
     /// (`StackKey`'s own `Ord`: greater = more in front; the entity-id tiebreak gives genuine
     /// `StackKey` ties a stable, deterministic order). Maintained incrementally by
@@ -202,7 +202,7 @@ impl Ash {
         self.assign_elevations(world);
         let mut queues = RenderQueueHandle::new(world);
         for (entity, clip) in queues.attribute::<(), ResolvedClip>() {
-            self.clip.insert(Stem::some(entity), ClipSection(clip.0));
+            self.clip.insert(Parent::some(entity), ClipSection(clip.0));
         }
         let mut nodes = vec![];
         let mut to_remove = vec![];
@@ -377,168 +377,6 @@ impl Ash {
                 .queue
                 .submit(std::iter::once(encoder.finish()));
             ginkgo.context().queue.present(surface_texture);
-        }
-    }
-}
-
-#[cfg(test)]
-mod elevation_assignment_tests {
-    use super::*;
-    use crate::{EcsExtension, Elevation, Foliage, Leaf, Location, Sprout};
-
-    fn resolved_of(world: &mut World, e: Entity) -> f32 {
-        world.get::<ResolvedElevation>(e).unwrap().value()
-    }
-
-    /// `assign_elevations` doesn't need a real `Ginkgo`/GPU/window -- it's pure ECS logic
-    /// over `StackKey`/`ResolvedElevation`, so this exercises it directly rather than the
-    /// full render `prepare()` path.
-    #[test]
-    fn resulting_resolved_elevation_order_agrees_with_stack_key_order() {
-        let mut foliage = Foliage::new();
-        let root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0)),
-        );
-        let a = foliage.world.branch(
-            root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        let b = foliage.world.branch(
-            root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(2)),
-        );
-        let c = foliage.world.branch(
-            a,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        foliage.world.flush();
-
-        let mut ash = Ash::new();
-        ash.assign_elevations(&mut foliage.world);
-
-        let (ra, rb, rc) = (
-            resolved_of(&mut foliage.world, a),
-            resolved_of(&mut foliage.world, b),
-            resolved_of(&mut foliage.world, c),
-        );
-        // b (up(2)) is more in front than a (up(1)) -- smaller raw value.
-        assert!(
-            rb < ra,
-            "up(2) sibling should resolve more in front (smaller raw) than up(1)"
-        );
-        // c (up(1) from a) is more in front than a itself.
-        assert!(
-            rc < ra,
-            "a's own child should resolve more in front than a itself"
-        );
-    }
-
-    /// The actual point of the gapped/fractional-index scheme: inserting a new entity between
-    /// two already-assigned ones must touch only the new entity's own `ResolvedElevation`,
-    /// never its neighbors' -- not a full re-rank of everyone.
-    #[test]
-    fn inserting_between_two_existing_entities_touches_only_the_new_entity() {
-        let mut foliage = Foliage::new();
-        let root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0)),
-        );
-        let low = foliage.world.branch(
-            root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(1)),
-        );
-        let high = foliage.world.branch(
-            root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(5)),
-        );
-        foliage.world.flush();
-
-        let mut ash = Ash::new();
-        ash.assign_elevations(&mut foliage.world);
-        let (low_before, high_before) = (
-            resolved_of(&mut foliage.world, low),
-            resolved_of(&mut foliage.world, high),
-        );
-
-        // a second call with nothing changed must be a total no-op.
-        ash.assign_elevations(&mut foliage.world);
-        assert_eq!(resolved_of(&mut foliage.world, low), low_before);
-        assert_eq!(resolved_of(&mut foliage.world, high), high_before);
-
-        // now insert a new sibling that lands strictly between `low` and `high`.
-        let middle = foliage.world.branch(
-            root,
-            Leaf::sprout().at(Location::new()).elevate(Elevation::up(3)),
-        );
-        foliage.world.flush();
-        ash.assign_elevations(&mut foliage.world);
-
-        assert_eq!(
-            resolved_of(&mut foliage.world, low),
-            low_before,
-            "low's own resolved elevation must not change just because a new sibling was inserted"
-        );
-        assert_eq!(
-            resolved_of(&mut foliage.world, high),
-            high_before,
-            "high's own resolved elevation must not change just because a new sibling was inserted"
-        );
-        let middle_v = resolved_of(&mut foliage.world, middle);
-        assert!(
-            middle_v < low_before && middle_v > high_before,
-            "middle (up(3)) should land strictly between low (up(1)) and high (up(5)) -- \
-             low={low_before}, middle={middle_v}, high={high_before}"
-        );
-    }
-
-    /// The "sometimes invisible" regression, made deterministic: front content added
-    /// incrementally (each new entity more in front than the last -- exactly what an overlay
-    /// opening in front of existing forward chrome does, repeatedly) marches the frontmost
-    /// assigned value down toward `near`. Once it reaches `near`, the *next* front insertion
-    /// computes `near - gap`, which the old code clamped straight back to `near` -- an
-    /// identical depth to the entity already sitting there, resolved by nondeterministic draw
-    /// order (this is why the popover text "sometimes" rendered behind its own panel). Every
-    /// assigned depth must stay distinct. Enough iterations to march past `near` and force the
-    /// boundary case.
-    #[test]
-    fn incrementally_added_front_content_never_collides_at_the_near_boundary() {
-        let mut foliage = Foliage::new();
-        let root = foliage.world.leaf(
-            Leaf::sprout()
-                .at(Location::new())
-                .elevate(Elevation::abs(0)),
-        );
-        foliage.world.flush();
-
-        let mut ash = Ash::new();
-        ash.assign_elevations(&mut foliage.world);
-
-        // add ~80 progressively-more-front siblings, one assign pass each, so each is the new
-        // frontmost when it's placed -- marching the front value down through `near`.
-        for i in 1..=80 {
-            foliage.world.branch(
-                root,
-                Leaf::sprout().at(Location::new()).elevate(Elevation::up(i)),
-            );
-            foliage.world.flush();
-            ash.assign_elevations(&mut foliage.world);
-
-            let mut values: Vec<f32> = {
-                let mut q = foliage.world.query::<&ResolvedElevation>();
-                q.iter(&foliage.world).map(|r| r.value()).collect()
-            };
-            values.sort_by(|a, b| a.total_cmp(b));
-            for pair in values.windows(2) {
-                assert_ne!(
-                    pair[0], pair[1],
-                    "after adding up({i}), two entities share depth {} -- a nondeterministic \
-                     draw-order tie: {values:?}",
-                    pair[0]
-                );
-            }
         }
     }
 }

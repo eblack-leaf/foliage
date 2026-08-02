@@ -210,12 +210,7 @@ fn main() -> Result<(), String> {
             app_crate_dep.unwrap_or_else(|| format!("{{ path = \"../{app_crate}\" }}"));
         write(
             &manifest,
-            &templates::entry_crate_cargo_toml(
-                &lib_name,
-                &app_crate,
-                &app_crate_dep,
-                &foliage_dep,
-            ),
+            &templates::entry_crate_cargo_toml(&lib_name, &app_crate, &app_crate_dep, &foliage_dep),
         )?;
         write(
             &entry_crate.join("src/lib.rs"),

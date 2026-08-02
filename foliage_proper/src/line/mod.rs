@@ -1,3 +1,4 @@
+use crate::AsTree;
 use crate::Differential;
 use crate::ash::clip::ClipContext;
 use crate::coordinate::points::Points;
@@ -6,8 +7,8 @@ use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Attachment, Color, Component, Coordinates, Foliage, LeafSprout, Logical, Position,
-    ResolvedElevation, Sprout, Visibility,
+    Attachment, Color, Component, Coordinates, Foliage, Author, LeafSprout, Logical, Position,
+    ResolvedElevation, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::change_detection::Res;
@@ -108,7 +109,7 @@ pub struct LineSprout {
     weight: i32,
     color: Option<Color>,
 }
-impl Sprout for LineSprout {
+impl Author for LineSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
@@ -164,10 +165,8 @@ impl LineQuad {
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .entity(this)
-            .observe(Remove::push_remove_packet::<Self>)
-            .observe(Visibility::push_remove_packet::<Self>);
+        let mut tree = world.tree();
+        tree.subscribe(this, Remove::push_remove_packet::<Self>);
+        tree.subscribe(this, Visibility::push_remove_packet::<Self>);
     }
 }

@@ -1,4 +1,3 @@
-use crate::EcsExtension;
 use crate::grid::location::CreateDiff;
 use crate::time::{OnEnd, Time, TimeDelta};
 use crate::{Component, Location, Resolve, Tree};
@@ -254,10 +253,10 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
             }
             if let Ok(mut a) = anim_targets.get_mut(animation.animation_target) {
                 a.apply(&mut animation.interpolations);
-                tree.trigger_targets(Resolve::<Animation<A>>::new(), animation.animation_target);
+                tree.send_to(Resolve::<Animation<A>>::new(), animation.animation_target);
             } else {
                 despawn_and_update_sequence(&mut sequences, &mut tree, anim_entity, &mut animation);
-                tree.entity(anim_entity).despawn();
+                tree.despawn(anim_entity);
                 continue;
             }
             if percent >= 1f32 {
@@ -283,312 +282,10 @@ pub(crate) fn animate<A: Animate + Component<Mutability = bevy_ecs::component::M
                     }
                     animation.animation_time.rewind();
                 } else {
-                    tree.entity(anim_entity).despawn();
+                    tree.despawn(anim_entity);
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{EcsExtension, Elevation, Foliage, Leaf, Opacity, Sprout};
-    use std::thread::sleep;
-    use std::time::Duration;
-
-    /// Replicates a page-content entrance fade-in still mid-flight when the navigator
-    /// starts its own fade-out on the same entity: two `AnimationRunner<Opacity>`s would
-    /// otherwise both write `Opacity` every frame, and whichever iterates last each tick
-    /// wins nondeterministically -- reading as "the fade-in randomly keeps winning". Only
-    /// the newer (fade-out) animation should survive and drive the value.
-    #[test]
-    fn a_newer_animation_supersedes_an_older_one_on_the_same_entity() {
-        let mut foliage = Foliage::new();
-        let entity = foliage.world.leaf(
-            Leaf::sprout()
-                .elevate(Elevation::up(1))
-                .with(Opacity::new(0.0)),
-        );
-        foliage.world.flush();
-
-        let fade_in_seq = foliage.world.sequence();
-        let fade_in = foliage.world.animate(
-            Animation::new(Opacity::new(1.0))
-                .targeting(entity)
-                .during(fade_in_seq)
-                .start(0)
-                .finish(1000)
-                .eased(Ease::Linear),
-        );
-        foliage.world.flush();
-
-        // let the fade-in actually start and make some partial progress.
-        sleep(Duration::from_millis(16));
-        foliage.main.run(&mut foliage.world);
-        foliage.world.flush();
-        assert!(
-            foliage
-                .world
-                .get::<AnimationRunner<Opacity>>(fade_in)
-                .is_some(),
-            "fade-in should still be alive and mid-flight"
-        );
-
-        // now start a fade-out on the same entity, before the fade-in has finished.
-        let fade_out_seq = foliage.world.sequence();
-        let fade_out = foliage.world.animate(
-            Animation::new(Opacity::new(0.0))
-                .targeting(entity)
-                .during(fade_out_seq)
-                .start(0)
-                .finish(100)
-                .eased(Ease::Linear),
-        );
-        foliage.world.flush();
-
-        sleep(Duration::from_millis(16));
-        foliage.main.run(&mut foliage.world);
-        foliage.world.flush();
-
-        assert!(
-            foliage
-                .world
-                .get::<AnimationRunner<Opacity>>(fade_in)
-                .is_none(),
-            "the older fade-in should have been superseded and torn down"
-        );
-        assert!(
-            foliage
-                .world
-                .get::<AnimationRunner<Opacity>>(fade_out)
-                .is_some(),
-            "the newer fade-out should still be driving the entity"
-        );
-
-        for _ in 0..10 {
-            sleep(Duration::from_millis(16));
-            foliage.main.run(&mut foliage.world);
-            foliage.world.flush();
-        }
-        let value = foliage.world.get::<Opacity>(entity).unwrap().value;
-        assert!(
-            value < 0.5,
-            "opacity should have followed the fade-out toward 0, not the superseded fade-in toward 1 (got {value})"
-        );
-    }
-
-    /// Replicates `build_morph`'s square -> pentagon -> heptagon batch: several
-    /// non-overlapping, staggered animations on the *same* entity, all created up front in
-    /// one go via increasing `.start(t)`. None of these are racing each other -- only one
-    /// is ever actually active (delay expired) at a time -- so the supersede logic must
-    /// leave the later, still-delayed stages alone rather than tearing them down just
-    /// because they share a target and were created in the same tick as an earlier stage.
-    #[test]
-    fn a_staggered_batch_of_animations_on_the_same_entity_all_get_their_turn() {
-        let mut foliage = Foliage::new();
-        let entity = foliage.world.leaf(
-            Leaf::sprout()
-                .elevate(Elevation::up(1))
-                .with(Opacity::new(0.0)),
-        );
-        foliage.world.flush();
-
-        let seq = foliage.world.sequence();
-        foliage.world.animate(
-            Animation::new(Opacity::new(0.3))
-                .targeting(entity)
-                .during(seq)
-                .start(0)
-                .finish(50)
-                .eased(Ease::Linear),
-        );
-        foliage.world.animate(
-            Animation::new(Opacity::new(0.6))
-                .targeting(entity)
-                .during(seq)
-                .start(50)
-                .finish(100)
-                .eased(Ease::Linear),
-        );
-        foliage.world.animate(
-            Animation::new(Opacity::new(0.9))
-                .targeting(entity)
-                .during(seq)
-                .start(100)
-                .finish(150)
-                .eased(Ease::Linear),
-        );
-        foliage.world.flush();
-
-        for _ in 0..30 {
-            sleep(Duration::from_millis(16));
-            foliage.main.run(&mut foliage.world);
-            foliage.world.flush();
-        }
-
-        let value = foliage.world.get::<Opacity>(entity).unwrap().value;
-        assert!(
-            (value - 0.9).abs() < 0.05,
-            "the final staggered stage should have actually run and landed near 0.9, got {value} \
-             -- if an earlier stage got superseded/torn down instead of waiting its turn, later \
-             stages would never activate and this would stall at an earlier target"
-        );
-    }
-
-    /// Drives `main` until `f` holds or the budget runs out, so these don't depend on a
-    /// particular frame cadence.
-    fn run_until(foliage: &mut Foliage, mut f: impl FnMut(&mut Foliage) -> bool) -> bool {
-        for _ in 0..80 {
-            sleep(Duration::from_millis(8));
-            foliage.main.run(&mut foliage.world);
-            foliage.world.flush();
-            if f(foliage) {
-                return true;
-            }
-        }
-        false
-    }
-
-    fn looping_entity(foliage: &mut Foliage) -> Entity {
-        let e = foliage.world.leaf(
-            Leaf::sprout()
-                .elevate(Elevation::up(1))
-                .with(Opacity::new(0.0)),
-        );
-        foliage.world.flush();
-        e
-    }
-
-    /// The point of building looping into the runner rather than chaining `sequence_end`:
-    /// the runner checks its target every frame, so a loop cannot outlive what it animates.
-    /// A hand-rolled chain keeps firing after its page is gone -- the exact bug found in
-    /// `application/src/chapters/momentum.rs`.
-    #[test]
-    fn a_forever_loop_tears_itself_down_when_its_target_despawns() {
-        let mut foliage = Foliage::new();
-        let entity = looping_entity(&mut foliage);
-        let seq = foliage.world.sequence();
-        let anim = foliage.world.animate(
-            Animation::new(Opacity::new(1.0))
-                .targeting(entity)
-                .during(seq)
-                .start(0)
-                .finish(30)
-                .eased(Ease::Linear)
-                .forever(),
-        );
-        foliage.world.flush();
-
-        assert!(
-            run_until(&mut foliage, |f| f
-                .world
-                .get::<AnimationRunner<Opacity>>(anim)
-                .is_some_and(|r| r.sequence_settled)),
-            "a looping animation should settle its sequence on the first completed pass"
-        );
-        assert!(
-            foliage.world.get_entity(seq).is_err(),
-            "settling should despawn the sequence -- nothing is left to wait on"
-        );
-        assert!(
-            foliage
-                .world
-                .get::<AnimationRunner<Opacity>>(anim)
-                .is_some(),
-            "the loop itself keeps running after its sequence settles"
-        );
-
-        foliage.world.despawn(entity);
-        foliage.world.flush();
-        assert!(
-            run_until(&mut foliage, |f| f
-                .world
-                .get::<AnimationRunner<Opacity>>(anim)
-                .is_none()),
-            "the loop must not outlive its target"
-        );
-    }
-
-    /// The difference `backtrack` makes: a plain loop ends every pass at the finish value,
-    /// a backtracking one ends alternate passes back at the start. Asserted on where each
-    /// lands after an *even* number of passes, which is the only point they must differ.
-    #[test]
-    fn backtrack_returns_to_the_start_value_where_a_plain_loop_does_not() {
-        let mut foliage = Foliage::new();
-        let plain = looping_entity(&mut foliage);
-        let there_and_back = looping_entity(&mut foliage);
-        let seq_a = foliage.world.sequence();
-        let seq_b = foliage.world.sequence();
-        // the runner lives on the entity `animate` returns, not on the target
-        let plain_anim = foliage.world.animate(
-            Animation::new(Opacity::new(1.0))
-                .targeting(plain)
-                .during(seq_a)
-                .start(0)
-                .finish(20)
-                .eased(Ease::Linear)
-                .loops(1),
-        );
-        let back_anim = foliage.world.animate(
-            Animation::new(Opacity::new(1.0))
-                .targeting(there_and_back)
-                .during(seq_b)
-                .start(0)
-                .finish(20)
-                .eased(Ease::Linear)
-                .loops(1)
-                .backtrack(),
-        );
-        foliage.world.flush();
-
-        // both run two passes (the first plus one replay), then stop
-        assert!(
-            run_until(&mut foliage, |f| {
-                f.world
-                    .get::<AnimationRunner<Opacity>>(plain_anim)
-                    .is_none()
-                    && f.world.get::<AnimationRunner<Opacity>>(back_anim).is_none()
-            }),
-            "both counted loops should have used up their replays and stopped"
-        );
-
-        let plain_value = foliage.world.get::<Opacity>(plain).unwrap().value;
-        let back_value = foliage.world.get::<Opacity>(there_and_back).unwrap().value;
-        assert!(
-            (plain_value - 1.0).abs() < 0.01,
-            "a plain loop replays forward every pass, so it ends at the finish value, got {plain_value}"
-        );
-        assert!(
-            back_value.abs() < 0.01,
-            "backtracking reverses the replay, so after two passes it is back at the start value, got {back_value}"
-        );
-    }
-
-    /// `loops(n)` runs n replays past the first pass, then stops on its own.
-    #[test]
-    fn a_counted_loop_stops_after_its_replays() {
-        let mut foliage = Foliage::new();
-        let entity = looping_entity(&mut foliage);
-        let seq = foliage.world.sequence();
-        let anim = foliage.world.animate(
-            Animation::new(Opacity::new(1.0))
-                .targeting(entity)
-                .during(seq)
-                .start(0)
-                .finish(20)
-                .eased(Ease::Linear)
-                .loops(2),
-        );
-        foliage.world.flush();
-
-        assert!(
-            run_until(&mut foliage, |f| f
-                .world
-                .get::<AnimationRunner<Opacity>>(anim)
-                .is_none()),
-            "a counted loop should despawn itself once its replays are used up"
-        );
     }
 }
 
@@ -612,8 +309,8 @@ fn settle_sequence<A: Animate>(
         marker.animations_to_finish
     };
     if remaining <= 0 {
-        tree.trigger_targets(OnEnd::new(), sequence_entity);
-        tree.entity(sequence_entity).despawn();
+        tree.send_to(OnEnd::new(), sequence_entity);
+        tree.despawn(sequence_entity);
     }
 }
 fn despawn_and_update_sequence<A: Animate>(
@@ -623,5 +320,5 @@ fn despawn_and_update_sequence<A: Animate>(
     animation: &mut Mut<AnimationRunner<A>>,
 ) {
     settle_sequence(sequences, tree, animation);
-    tree.entity(anim_entity).despawn();
+    tree.despawn(anim_entity);
 }

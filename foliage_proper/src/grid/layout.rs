@@ -1,7 +1,6 @@
-use crate::EcsExtension;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::Location;
-use crate::{CoordinateUnit, Logical, Resolve, Resolved, Section, Stem, Tree};
+use crate::{CoordinateUnit, Logical, Parent, Resolve, Resolved, Section, Tree};
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::With;
 use bevy_ecs::resource::Resource;
@@ -102,7 +101,7 @@ impl Short {
 /// `Resolve<Location>` to its own children, so the whole tree follows from the roots.
 pub(crate) fn viewport_changed(
     mut vh: ResMut<ViewportHandle>,
-    locations: Query<(Entity, &Stem), With<Location>>,
+    locations: Query<(Entity, &Parent), With<Location>>,
     mut layout: ResMut<Layout>,
     mut short: ResMut<Short>,
     mut tree: Tree,
@@ -114,7 +113,7 @@ pub(crate) fn viewport_changed(
         // re-read both anyway.
         let new_short = short.next(vh.section());
         if new != *layout || new_short != *short {
-            tree.trigger(Resolved::<Layout>::new());
+            tree.send(Resolved::<Layout>::new());
             *layout = new;
             *short = new_short;
         }
@@ -127,6 +126,6 @@ pub(crate) fn viewport_changed(
         if targets.is_empty() {
             return;
         }
-        tree.trigger_targets(Resolve::<Location>::new(), targets);
+        tree.send_to(Resolve::<Location>::new(), targets);
     }
 }

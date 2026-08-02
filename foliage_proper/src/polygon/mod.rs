@@ -1,11 +1,12 @@
+use crate::AsTree;
 use crate::anim::interpolation::Interpolations;
 use crate::ash::clip::ClipContext;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Animate, Attachment, Color, Component, Differential, Foliage, LeafSprout, Logical,
-    ResolvedElevation, Section, Sprout, Visibility,
+    Animate, Attachment, Color, Component, Differential, Foliage, Author, LeafSprout, Logical,
+    ResolvedElevation, Section, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::lifecycle::HookContext;
@@ -60,11 +61,9 @@ impl Polygon {
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world
-            .commands()
-            .entity(this)
-            .observe(Remove::push_remove_packet::<Self>)
-            .observe(Visibility::push_remove_packet::<Self>);
+        let mut tree = world.tree();
+        tree.subscribe(this, Remove::push_remove_packet::<Self>);
+        tree.subscribe(this, Visibility::push_remove_packet::<Self>);
     }
 }
 impl Animate for Polygon {
@@ -113,7 +112,7 @@ impl Default for PolygonSprout {
         }
     }
 }
-impl Sprout for PolygonSprout {
+impl Author for PolygonSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }

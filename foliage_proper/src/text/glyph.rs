@@ -1,4 +1,4 @@
-use crate::EcsExtension;
+use crate::AsTree;
 use crate::ash::differential::RenderQueue;
 use crate::coordinate::Physical;
 use crate::coordinate::section::Section;
@@ -85,7 +85,7 @@ pub struct GlyphColors {
 impl GlyphColors {
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
-        world.trigger_targets(Resolve::<Self>::new(), this);
+        world.tree().send_to(Resolve::<Self>::new(), this);
     }
     /// No overrides.
     pub fn new() -> Self {

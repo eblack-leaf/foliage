@@ -7,7 +7,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::Event;
 use bevy_ecs::prelude::{Component, IntoScheduleConfigs};
 use bevy_ecs::resource::Resource;
-use bevy_ecs::system::{Commands, Query, Res, ResMut};
+use bevy_ecs::system::{Query, Res, ResMut};
 use futures_channel::oneshot::{Receiver, Sender};
 use uuid::Uuid;
 
@@ -130,13 +130,13 @@ pub struct OnRetrieval {
 }
 pub(crate) fn on_retrieve(
     retrievers: Query<(Entity, &AssetRetrieval)>,
-    mut cmd: Commands,
+    mut tree: crate::Tree,
     asset_loader: Res<AssetLoader>,
 ) {
     for (entity, on_retrieve) in retrievers.iter() {
         if asset_loader.assets.contains_key(&on_retrieve.key) {
-            cmd.entity(entity).remove::<AssetRetrieval>();
-            cmd.trigger(OnRetrieval {
+            tree.strip::<AssetRetrieval>(entity);
+            tree.send(OnRetrieval {
                 entity,
                 key: on_retrieve.key,
             });
