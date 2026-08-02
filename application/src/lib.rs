@@ -1,4 +1,4 @@
-use foliage::{Bloom, Canopy, Foliage};
+use foliage::{Canopy, Foliage};
 
 mod entry;
 #[path = "assets/icons/gen/generated.rs"]
@@ -32,12 +32,4 @@ pub fn run(mut foliage: Foliage) {
         }
         site.tick(canopy);
     });
-}
-
-/// What every part of the site needs to answer an emission: the state it kept, and the
-/// canopy to act through.
-pub(crate) trait Responds {
-    /// Answers one emission. Returns whether it was consumed, so a chain of handlers can stop
-    /// at the first that recognises the `Leaf` rather than every one re-checking.
-    fn respond(&mut self, canopy: &mut Canopy, bloom: &Bloom) -> bool;
 }

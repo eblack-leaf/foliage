@@ -198,6 +198,15 @@ impl<'w, 's> Tree<'w, 's> {
             let _ = world.spawn_at(at, (SequenceMarker::default(), crate::boundary::leaf::Grown));
         });
     }
+    /// Opens a sequence the app never named, for an animation that was not joined to one.
+    ///
+    /// Every animation has to belong to a sequence -- that is what counts it, ends it and
+    /// tears its runner down -- so "no sequence" cannot mean no sequence at all. It means one
+    /// of these: deliberately not [`Grown`](crate::boundary::leaf::Grown), so its completion
+    /// reports nothing, and despawned by the last animation to settle against it.
+    pub(crate) fn spawn_sequence(&mut self) -> Entity {
+        self.commands.spawn(SequenceMarker::default()).id()
+    }
     /// A countdown at an already-allocated id, firing [`OnEnd`](crate::OnEnd) and despawning
     /// itself when it runs out.
     pub(crate) fn timer_at(&mut self, at: Entity, millis: u64) {
@@ -231,24 +240,37 @@ impl<'w, 's> Tree<'w, 's> {
             spec.seed().stem = Parent::some(parent);
         }
         let seed = core::mem::take(spec.seed());
-        let this = self.sow((
-            seed.location,
-            seed.stem,
-            seed.elevation
-                .expect("elevation not set -- call .elevate(...) before spawning"),
-            SpawnedAt(core::panic::Location::caller()),
-            spec.root(),
-        ));
+        let elevation = seed
+            .elevation
+            .expect("elevation not set -- call .elevate(...) before spawning");
+        let spawned_at = SpawnedAt(core::panic::Location::caller());
+        // A bare `Node` brings in the components everything positioned and drawn needs, but
+        // no `Location` -- so the entity exists without yet trying to place itself, which is
+        // the room `trimmings` needs.
+        let this = self.sow(());
         self.trimmings(this, &seed);
+        self.write_to(this, (seed.location, seed.stem, elevation, spawned_at, spec.root()));
         S::build(this, self);
         this
     }
     /// The optional seed fields, each written only when it was actually asked for -- a
     /// blanket insert of defaults would override what a spec's own `root()` established (an
     /// `Icon` sets its own 1:1 aspect, a `Panel` its own hit shape).
+    ///
+    /// Applied *before* the `Location` and `root()` that finish the spawn, which is the whole
+    /// reason the spawn is split in two. Several of these are read by this entity's own first
+    /// resolve or its first text shape, and neither is redone on their account: an anchored
+    /// `Location` that resolves without its `Anchor` fails outright and auto-hides with
+    /// nothing left to bring it back, and a run that shapes against a default alignment,
+    /// content size or font keeps those glyphs at that size. Landing them first is what
+    /// `Author`'s "never a follow-up `write_to` after a bare insert" is asking for; queued
+    /// commands apply in order, so ordering the two writes is all it takes.
     fn trimmings(&mut self, this: Entity, seed: &crate::LeafSprout) {
         if let Some(grid) = seed.grid {
             self.write_to(this, grid);
+        }
+        if let Some(anchor) = seed.anchor {
+            self.write_to(this, anchor);
         }
         if let Some(opacity) = seed.opacity {
             self.write_to(this, opacity);
@@ -306,10 +328,14 @@ impl<'w, 's> Tree<'w, 's> {
             crate::boundary::leaf::Grown,
             spec.root(),
         );
+        // Split the same way [`grow`](Self::grow) is, and for the same reason: the bare `Node`
+        // claims the id, `trimmings` lands everything the first resolve reads, and only then
+        // does the `Location` arrive to be resolved against it.
         self.commands.queue(move |world: &mut World| {
-            let _ = world.spawn_at(at, (Node::new(), bundle));
+            let _ = world.spawn_at(at, Node::new());
         });
         self.trimmings(at, &seed);
+        self.write_to(at, bundle);
         S::build(at, self);
     }
     /// Sprout `spec` as a top-level entity -- no parent, the [`branch`](Self::branch)

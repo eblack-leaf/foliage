@@ -18,11 +18,9 @@ pub(crate) mod shell;
 pub(crate) mod stub;
 
 use foliage::{
-    Anchor, Animation, Color, ConfigurationDescriptor, Ease, Elevation, Entity,
-    FontId, FontSize, Grid, GridExt, HorizontalAlignment, HrefLink, Icon, IconId,
-    InteractionListener, InteractionPropagation, InteractionShape, Stem, Location, OnClick,
-    Opacity, Panel, Polygon, Query, Rounding, Sprout, Text, TextContentHeight, Tree, Trigger,
-    VerticalAlignment, anchor,
+    Bare, Canopy, Color, ConfigurationDescriptor, Ease, Elevation, FontId, FontSize, Grid, GridExt,
+    Grows, HorizontalAlignment, Icon, IconId, Leaf, Location, Motion, Panel, Polygon, Rounding,
+    Sprout, Text, Timing, VerticalAlignment, anchor,
 };
 
 /// Roles return whole `Color`s rather than tone numbers, so the palette genuinely lives
@@ -95,11 +93,10 @@ pub(crate) mod type_scale {
 
 /// The prose italic, registered once at startup.
 ///
-/// A `OnceLock` because the id has to reach the route builders, and they only ever get a
-/// `Tree` -- there is no resource read from `Commands`, and threading a `FontId` through every
-/// `build(tree, slot)` signature to reach two call sites is worse than a global that is
-/// written once before the first route runs.
-static ITALIC: std::sync::OnceLock<foliage::FontId> = std::sync::OnceLock::new();
+/// A `OnceLock` because the id has to reach the route builders, and a `FontId` threaded
+/// through every `build(grow, slot)` signature to reach two call sites is worse than a global
+/// that is written once before the first route runs.
+static ITALIC: std::sync::OnceLock<FontId> = std::sync::OnceLock::new();
 
 /// Registers the site's fonts. Must run before any route builds.
 ///
@@ -113,8 +110,47 @@ pub(crate) fn register_fonts(foliage: &mut foliage::Foliage) {
 }
 
 /// The registered italic, or the default font if [`register_fonts`] has not run.
-fn italic() -> foliage::FontId {
+fn italic() -> FontId {
     ITALIC.get().copied().unwrap_or_default()
+}
+
+/// What a route's builder writes into besides the tree itself.
+///
+/// The engine reports *that* something was clicked or that a timer ran out; which of this
+/// page's elements that `Leaf` was, and what it means, is the app's own bookkeeping. This is
+/// that bookkeeping, and it is torn down and rebuilt with the page it describes -- which is
+/// what keeps a stale entry from a previous section out of the current one's handlers.
+#[derive(Default)]
+pub(crate) struct Page {
+    /// The scroll container this route draws into, if it has one. Read back by the probe.
+    pub(crate) container: Option<Leaf>,
+    /// Clicking one of these goes to a route.
+    pub(crate) nav: Vec<(Leaf, usize)>,
+    /// Clicking one of these leaves the site.
+    pub(crate) links: Vec<(Leaf, &'static str)>,
+    /// `(timer, target)` -- the target is out of the hit test until the timer reports. See
+    /// [`arm_at`].
+    pub(crate) arming: Vec<(Leaf, Leaf)>,
+    /// Paths whose vertices are re-resolved as their field changes size.
+    pub(crate) traverses: Vec<figure::Traverse>,
+    /// The hero's live readout, on the one route that has one.
+    pub(crate) readout: Option<hero::Readout>,
+}
+
+/// What a builder gets: somewhere to grow, and somewhere to record what it grew.
+///
+/// The two travel together because nearly everything on this site is both -- a button is a
+/// shape *and* a destination, an entrance is an animation *and* a control that must not be
+/// clickable until it finishes.
+pub(crate) struct Grow<'a, 'w, 's> {
+    pub(crate) canopy: &'a mut Canopy<'w, 's>,
+    pub(crate) page: &'a mut Page,
+}
+
+impl<'a, 'w, 's> Grow<'a, 'w, 's> {
+    pub(crate) fn new(canopy: &'a mut Canopy<'w, 's>, page: &'a mut Page) -> Self {
+        Self { canopy, page }
+    }
 }
 
 /// How far past its last element a page can scroll. Roughly a thumb's worth on a phone, so
@@ -143,38 +179,38 @@ pub(crate) mod motion {
     pub(crate) const STAGGER: u64 = 90;
 }
 
+/// A tween running from `start` to `start + length` milliseconds out, on `ease`.
+///
+/// Every entrance on this site is expressed as an offset into the page's own arrival rather
+/// than as a duration from now, which is what lets a whole page be staggered by passing one
+/// number down.
+pub(crate) fn timing(start: u64, length: u64, ease: Ease) -> Timing {
+    Timing::over(start + length).after(start).eased(ease)
+}
+
 /// The site's entrance: a polygon resolves from a rough triangle into its real shape while
 /// unwinding a slight rotation, in place.
 ///
 /// In place is the point -- nothing slides in from offscreen. The shape is already where it
 /// belongs and simply becomes itself, which reads as emphatic rather than as travel.
 pub(crate) fn morph_in(
-    tree: &mut Tree,
-    entity: Entity,
-    seq: Entity,
+    canopy: &mut Canopy,
+    leaf: Leaf,
+    seq: Leaf,
     sides: f32,
     rounding: f32,
     start: u64,
 ) {
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .targeting(entity)
-            .during(seq)
-            .start(start)
-            .finish(start + motion::FADE)
-            .eased(Ease::Linear),
-    );
-    tree.animate(
-        Animation::new(Polygon {
+    fade_in(canopy, leaf, seq, start);
+    canopy.animate_during(
+        leaf,
+        Motion::Polygon(Polygon {
             sides,
             rounding,
             rotation: 0.0,
-        })
-        .targeting(entity)
-        .during(seq)
-        .start(start)
-        .finish(start + motion::ENTRANCE)
-        .eased(Ease::EMPHASIS),
+        }),
+        timing(start, motion::ENTRANCE, Ease::EMPHASIS),
+        seq,
     );
 }
 
@@ -205,7 +241,7 @@ pub(crate) const BADGE_OVERHANG: i32 = 20;
 /// badge is centered on the card's corner *inside* it. That indirection is the point: the badge
 /// has to cross the card's boundary, so it cannot be the card's child.
 ///
-/// The obvious alternative is to parent it to the scroll container and `Anchor` it back at the
+/// The obvious alternative is to parent it to the scroll container and anchor it back at the
 /// card -- the workaround `ClipToViewport`'s own TODO describes, forced by there being no way
 /// to escape one clip without also being lifted into the front overlay tier. It puts the badge
 /// on a *wider clip than the thing it belongs to*: the badge tracks its card exactly, but once
@@ -219,13 +255,13 @@ pub(crate) const BADGE_OVERHANG: i32 = 20;
 /// Interaction passes through both layers -- they are decoration, and a shape that swallows
 /// the scroll wheel where it happens to sit is a worse bug than the one it was drawn to fix.
 pub(crate) fn cutout_badge(
-    tree: &mut Tree,
-    cell: Entity,
+    canopy: &mut Canopy,
+    cell: Leaf,
     sides: f32,
     size: i32,
-    seq: Entity,
+    seq: Leaf,
     start: u64,
-) -> Entity {
+) -> Leaf {
     let ring = space::XS;
     let backdrop_size = size + ring * 2;
     // Both layers share one center -- the card's own top-right corner -- so the backdrop rings
@@ -243,7 +279,7 @@ pub(crate) fn cutout_badge(
                 .with(w.px().as_height()),
         )
     };
-    let backdrop = tree.branch(
+    let backdrop = canopy.branch(
         cell,
         Polygon::new()
             .sides(sides)
@@ -252,9 +288,10 @@ pub(crate) fn cutout_badge(
             .color(background())
             .at(corner(backdrop_size))
             .elevate(Elevation::up(3))
-            .with((Opacity::new(0.0), InteractionPropagation::pass_through())),
+            .opacity(0.0)
+            .pass_through(),
     );
-    let badge = tree.branch(
+    let badge = canopy.branch(
         cell,
         Polygon::new()
             .sides(3.0)
@@ -263,12 +300,13 @@ pub(crate) fn cutout_badge(
             .color(role::accent())
             .at(corner(size))
             .elevate(Elevation::up(4))
-            .with((Opacity::new(0.0), InteractionPropagation::pass_through())),
+            .opacity(0.0)
+            .pass_through(),
     );
     // the backdrop just appears -- morphing it would animate the hole itself, which reads
     // as the card tearing rather than as something arriving in it
-    fade_in(tree, backdrop, seq, start);
-    morph_in(tree, badge, seq, sides, 0.35, start);
+    fade_in(canopy, backdrop, seq, start);
+    morph_in(canopy, badge, seq, sides, 0.35, start);
     badge
 }
 
@@ -295,14 +333,14 @@ const POLY_ICON_SCALE: f32 = 0.44;
 
 /// Places one at `center_pct` across `row`, which should be [`POLY_BUTTON_ROW_H`] tall.
 pub(crate) fn poly_button(
-    tree: &mut Tree,
-    row: Entity,
+    g: &mut Grow,
+    row: Leaf,
     spec: &PolyButton,
     center_pct: f32,
-    seq: Entity,
+    seq: Leaf,
     start: u64,
-) -> Entity {
-    let shadow = tree.branch(
+) -> Leaf {
+    let shadow = g.canopy.branch(
         row,
         Polygon::new()
             .sides(3.0)
@@ -321,11 +359,11 @@ pub(crate) fn poly_button(
                     .with(POLY_BUTTON.px().as_height()),
             ))
             .elevate(Elevation::up(2))
-            .with(Opacity::new(0.0)),
+            .opacity(0.0),
     );
-    morph_in(tree, shadow, seq, spec.sides, 0.15, start);
+    morph_in(g.canopy, shadow, seq, spec.sides, 0.15, start);
 
-    let button = tree.branch(
+    let button = g.canopy.branch(
         row,
         Polygon::new()
             .sides(3.0)
@@ -340,22 +378,17 @@ pub(crate) fn poly_button(
                 0.px().as_top().with(POLY_BUTTON.px().as_height()),
             ))
             .elevate(Elevation::up(3))
-            .with((
-                InteractionListener::new(),
-                InteractionShape::Circle,
-                Opacity::new(0.0),
-            )),
+            .interactive()
+            .round_hit_area()
+            .opacity(0.0),
     );
-    morph_in(tree, button, seq, spec.sides, 0.15, start);
+    morph_in(g.canopy, button, seq, spec.sides, 0.15, start);
     // armed on the fade, not the morph: the shape keeps resolving for another second after
     // the button is plainly visible, and a button you can see but cannot press is its own bug
-    arm_at(tree, button, start + motion::FADE);
-    let href = spec.href;
-    tree.on_click(button, move |_: Trigger<OnClick>, _: Tree| {
-        HrefLink::new(href).navigate();
-    });
+    arm_at(g, button, start + motion::FADE);
+    g.page.links.push((button, spec.href));
 
-    let icon = tree.branch(
+    let icon = g.canopy.branch(
         row,
         Icon::new(IconId::from(spec.icon))
             .color(role::on_accent())
@@ -370,17 +403,15 @@ pub(crate) fn poly_button(
                     .with((anchor().height() * POLY_ICON_SCALE).as_height()),
             ))
             .elevate(Elevation::up(4))
-            .with((
-                Anchor::new(button),
-                // the icon draws above the button, so without this it wins the hit-test and
-                // swallows the click meant for the shape under it
-                InteractionPropagation::pass_through(),
-                Opacity::new(0.0),
-            )),
+            .anchored(button)
+            // the icon draws above the button, so without this it wins the hit-test and
+            // swallows the click meant for the shape under it
+            .pass_through()
+            .opacity(0.0),
     );
-    fade_in(tree, icon, seq, start);
+    fade_in(g.canopy, icon, seq, start);
 
-    let label = tree.branch(
+    let label = g.canopy.branch(
         row,
         Text::new(spec.label)
             .size(FontSize::new(type_scale::TITLE))
@@ -394,49 +425,39 @@ pub(crate) fn poly_button(
                     .with(24.px().as_height()),
             ))
             .elevate(Elevation::up(3))
-            .with((
-                HorizontalAlignment::Center,
-                VerticalAlignment::Middle,
-                Anchor::new(button),
-                Opacity::new(0.0),
-            )),
+            .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
+            .anchored(button)
+            .opacity(0.0),
     );
-    fade_in(tree, label, seq, start);
+    fade_in(g.canopy, label, seq, start);
     button
 }
 
-/// Holds an entity out of the hit-test until `at` ms into the page's entrance -- the moment
+/// Holds an element out of the hit-test until `at` ms into the page's entrance -- the moment
 /// its own fade finishes and it is actually on screen.
 ///
-/// Entrances animate `Opacity` up from zero, and an entity at zero opacity still draws and
+/// Entrances animate opacity up from zero, and an element at zero opacity still draws and
 /// still competes for input. So every control on this site was live for the length of its own
 /// entrance delay while invisible: on the hero that is about 1.4s of a chevron you cannot see
-/// but can navigate with, and the poly buttons carry [`HrefLink`]s, which makes it an
-/// invisible link to another site.
+/// but can navigate with, and the poly buttons carry links, which makes it an invisible link
+/// to another site.
 ///
-/// Guarded on the way back in. A route change despawns the page mid-entrance and the timer
-/// still fires, and `Enable` on a despawned entity panics.
-pub(crate) fn arm_at(tree: &mut Tree, entity: Entity, at: u64) {
-    tree.disable(entity);
-    tree.timer(
-        at,
-        move |_: Trigger<foliage::OnEnd>, existing: Query<Entity>, mut tree: Tree| {
-            if existing.contains(entity) {
-                tree.enable(entity);
-            }
-        },
-    );
+/// The timer's report is answered in [`crate::entry::Site::respond`]. Leaving the route
+/// mid-entrance needs no guard of its own: the page is pruned, and a command naming a withered
+/// `Leaf` is dropped.
+pub(crate) fn arm_at(g: &mut Grow, leaf: Leaf, at: u64) {
+    g.canopy.disable(leaf);
+    let timer = g.canopy.timer(at);
+    g.page.arming.push((timer, leaf));
 }
 
-/// Fades an entity in without a shape change, for text and panels.
-pub(crate) fn fade_in(tree: &mut Tree, entity: Entity, seq: Entity, start: u64) {
-    tree.animate(
-        Animation::new(Opacity::new(1.0))
-            .targeting(entity)
-            .during(seq)
-            .start(start)
-            .finish(start + motion::FADE)
-            .eased(Ease::Linear),
+/// Fades an element in without a shape change, for text and panels.
+pub(crate) fn fade_in(canopy: &mut Canopy, leaf: Leaf, seq: Leaf, start: u64) {
+    canopy.animate_during(
+        leaf,
+        Motion::Opacity(1.0),
+        timing(start, motion::FADE, Ease::Linear),
+        seq,
     );
 }
 
@@ -448,20 +469,20 @@ pub(crate) fn fade_in(tree: &mut Tree, entity: Entity, seq: Entity, start: u64) 
 ///
 /// Elements carry the measure themselves ([`shell::measure`]) rather than sitting inside a
 /// measured box. The box was the obvious shape and the wrong one: it needed a `Grid`, which
-/// brings a `View`, which made the page's middle and its side gutters two different scroll
+/// brings a view, which made the page's middle and its side gutters two different scroll
 /// targets -- the gutters resolving to a container with no extent, so the wheel did nothing
 /// there. One container, one view, and the inset travels with each element.
 pub(crate) struct Column {
-    parent: Entity,
-    last: Option<Entity>,
+    parent: Leaf,
+    last: Option<Leaf>,
     /// Runs the entrance animations, so a whole page arrives as one staggered gesture.
-    seq: Entity,
+    seq: Leaf,
     step: u64,
 }
 
 impl Column {
-    pub(crate) fn new(tree: &mut Tree, parent: Entity) -> Self {
-        let seq = tree.sequence();
+    pub(crate) fn new(canopy: &mut Canopy, parent: Leaf) -> Self {
+        let seq = canopy.sequence();
         Self {
             parent,
             last: None,
@@ -469,7 +490,7 @@ impl Column {
             step: 0,
         }
     }
-    pub(crate) fn sequence(&self) -> Entity {
+    pub(crate) fn sequence(&self) -> Leaf {
         self.seq
     }
     /// The next element's vertical placement: below the previous element, or at the top of
@@ -485,8 +506,8 @@ impl Column {
             gap.px().as_top().with(seed_height.px().as_height())
         }
     }
-    fn anchor_to_last(&self) -> Anchor {
-        Anchor::new(self.last.unwrap_or(self.parent))
+    fn anchor_to_last(&self) -> Leaf {
+        self.last.unwrap_or(self.parent)
     }
     /// This element's box, measured horizontally and stacked vertically.
     ///
@@ -505,33 +526,30 @@ impl Column {
     }
     fn text(
         &mut self,
-        tree: &mut Tree,
+        canopy: &mut Canopy,
         value: &str,
         size: u32,
         tone: Color,
         gap: i32,
         font: FontId,
-    ) -> Entity {
+    ) -> Leaf {
         let start = self.stagger();
-        let entity = tree.branch(
+        let leaf = canopy.branch(
             self.parent,
             Text::new(value)
                 .size(FontSize::new(size))
                 .color(tone)
                 .at(self.placed(gap, size as i32 + space::SM))
                 .elevate(Elevation::up(2))
-                .with((
-                    HorizontalAlignment::Left,
-                    VerticalAlignment::Top,
-                    TextContentHeight(true),
-                    self.anchor_to_last(),
-                    Opacity::new(0.0),
-                    font,
-                )),
+                .align(HorizontalAlignment::Left, VerticalAlignment::Top)
+                .sized_by_content(false, true)
+                .anchored(self.anchor_to_last())
+                .opacity(0.0)
+                .font(font),
         );
-        fade_in(tree, entity, self.seq, start);
-        self.last = Some(entity);
-        entity
+        fade_in(canopy, leaf, self.seq, start);
+        self.last = Some(leaf);
+        leaf
     }
     /// The page's own title. One per page.
     ///
@@ -539,9 +557,9 @@ impl Column {
     /// case the rest of the site does not use. Same for [`heading`](Self::heading) -- caps are
     /// the site's structural voice, and the prose beneath them is the only thing in sentence
     /// case, which is what keeps the two from blurring.
-    pub(crate) fn display(&mut self, tree: &mut Tree, value: &str) -> Entity {
+    pub(crate) fn display(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
         self.text(
-            tree,
+            canopy,
             &value.to_uppercase(),
             type_scale::DISPLAY,
             role::on_surface_title(),
@@ -550,9 +568,9 @@ impl Column {
         )
     }
     /// A section heading within the page.
-    pub(crate) fn heading(&mut self, tree: &mut Tree, value: &str) -> Entity {
+    pub(crate) fn heading(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
         self.text(
-            tree,
+            canopy,
             &value.to_uppercase(),
             type_scale::HEADLINE,
             role::on_surface_heading(),
@@ -566,9 +584,9 @@ impl Column {
     /// monospaced family there is no proportional cut to switch to, and weight is already
     /// spent on the type scale. It also reads as commentary next to the upright labels and
     /// numbers in the plates, which is what prose on these pages is.
-    pub(crate) fn prose(&mut self, tree: &mut Tree, value: &str) -> Entity {
+    pub(crate) fn prose(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
         self.text(
-            tree,
+            canopy,
             value,
             type_scale::BODY,
             role::on_surface_variant(),
@@ -585,29 +603,26 @@ impl Column {
     /// On the measure like every other paragraph, with the rule sitting out in the gutter
     /// beside it. It used to be indented instead, which cost it alignment with the prose under
     /// it; now that the container is full-bleed there is somewhere for the rule to go.
-    pub(crate) fn lead(&mut self, tree: &mut Tree, value: &str) -> Entity {
+    pub(crate) fn lead(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
         let start = self.stagger();
-        let entity = tree.branch(
+        let leaf = canopy.branch(
             self.parent,
             Text::new(value)
                 .size(FontSize::new(type_scale::LEAD))
                 .color(role::on_surface())
                 .at(self.placed(space::MD, type_scale::LEAD as i32 + space::SM))
                 .elevate(Elevation::up(2))
-                .with((
-                    HorizontalAlignment::Left,
-                    VerticalAlignment::Top,
-                    TextContentHeight(true),
-                    self.anchor_to_last(),
-                    Opacity::new(0.0),
-                    italic(),
-                )),
+                .align(HorizontalAlignment::Left, VerticalAlignment::Top)
+                .sized_by_content(false, true)
+                .anchored(self.anchor_to_last())
+                .opacity(0.0)
+                .font(italic()),
         );
-        fade_in(tree, entity, self.seq, start);
+        fade_in(canopy, leaf, self.seq, start);
         // Anchored to the paragraph rather than given a height: the wrap count changes with
         // every breakpoint, and a rule that stops short of the text it marks looks like a
         // mistake at exactly the width nobody tested.
-        let rule = tree.branch(
+        let rule = canopy.branch(
             self.parent,
             Panel::new()
                 .color(role::accent())
@@ -620,120 +635,125 @@ impl Column {
                     anchor().top().as_top().with(anchor().bottom().as_bottom()),
                 ))
                 .elevate(Elevation::up(2))
-                .with((Anchor::new(entity), Opacity::new(0.0))),
+                .anchored(leaf)
+                .opacity(0.0),
         );
-        fade_in(tree, rule, self.seq, start);
-        self.last = Some(entity);
-        entity
+        fade_in(canopy, rule, self.seq, start);
+        self.last = Some(leaf);
+        leaf
     }
     /// A hairline across the column. Separates one kind of content from another without
     /// spending a heading on it.
-    pub(crate) fn rule(&mut self, tree: &mut Tree) -> Entity {
+    pub(crate) fn rule(&mut self, canopy: &mut Canopy) -> Leaf {
         let start = self.stagger();
-        let entity = tree.branch(
+        let leaf = canopy.branch(
             self.parent,
             Panel::new()
                 .color(role::outline())
                 .rounding(Rounding::None)
                 .at(self.placed(space::XL, 1))
                 .elevate(Elevation::up(1))
-                .with((self.anchor_to_last(), Opacity::new(0.0))),
+                .anchored(self.anchor_to_last())
+                .opacity(0.0),
         );
-        fade_in(tree, entity, self.seq, start);
-        self.last = Some(entity);
-        entity
+        fade_in(canopy, leaf, self.seq, start);
+        self.last = Some(leaf);
+        leaf
     }
-    /// A bare region in the stack -- no surface of its own, just space the caller owns.
-    /// A bare region whose height differs by breakpoint -- for content that reflows into
-    /// fewer rows as the column widens, like a card grid going one-up to two-up.
+    /// A bare region in the stack -- no surface of its own, just space the caller owns, whose
+    /// height differs by breakpoint for content that reflows into fewer rows as the column
+    /// widens, like a card grid going one-up to two-up.
     ///
     /// All three steps are spelled out because the two callers reflow at different widths: a
     /// plate just gets taller at `md`, while the card grid stays one-up until `lg`.
-    pub(crate) fn region(&mut self, tree: &mut Tree, heights: (i32, i32, i32), gap: i32) -> Entity {
-        self.region_on(tree, shell::measure(), heights, gap)
+    pub(crate) fn region(
+        &mut self,
+        canopy: &mut Canopy,
+        heights: (i32, i32, i32),
+        gap: i32,
+    ) -> Leaf {
+        self.region_on(canopy, shell::measure(), heights, gap)
     }
     /// A region on the figure measure: uncapped, so a drawing widens with the window while the
     /// prose above and below it stays at a readable line length.
     ///
     /// Give it a taller `lg` than `md`. A figure that only gets wider goes letterboxed on a
     /// big screen, and the whole point of the extra room is that the drawing gets to use it.
-    pub(crate) fn figure(&mut self, tree: &mut Tree, heights: (i32, i32, i32), gap: i32) -> Entity {
-        self.region_on(tree, shell::figure_measure(), heights, gap)
+    pub(crate) fn figure(
+        &mut self,
+        canopy: &mut Canopy,
+        heights: (i32, i32, i32),
+        gap: i32,
+    ) -> Leaf {
+        self.region_on(canopy, shell::figure_measure(), heights, gap)
     }
     fn region_on(
         &mut self,
-        tree: &mut Tree,
+        canopy: &mut Canopy,
         measure: (ConfigurationDescriptor, ConfigurationDescriptor),
         heights: (i32, i32, i32),
         gap: i32,
-    ) -> Entity {
+    ) -> Leaf {
         let start = self.stagger();
         let (xs, wide) = measure;
-        let entity = tree.branch(
+        let leaf = canopy.branch(
             self.parent,
-            Stem::new()
+            Bare::new()
                 .at(Location::new()
                     .xs(xs, self.below(gap, heights.0))
                     .md(wide, self.below(gap, heights.1))
                     .lg(wide, self.below(gap, heights.2)))
                 .elevate(Elevation::up(1))
-                .with((
-                    Grid::new(1.col().gap(0), 1.row().gap(0)),
-                    self.anchor_to_last(),
-                )),
+                .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+                .anchored(self.anchor_to_last()),
         );
         let _ = start;
-        self.last = Some(entity);
-        entity
+        self.last = Some(leaf);
+        leaf
     }
-    pub(crate) fn surface_plain(&mut self, tree: &mut Tree, height: i32, gap: i32) -> Entity {
+    pub(crate) fn surface_plain(&mut self, canopy: &mut Canopy, height: i32, gap: i32) -> Leaf {
         let start = self.stagger();
-        let entity = tree.branch(
+        let leaf = canopy.branch(
             self.parent,
             Panel::new()
                 .color(background())
                 .rounding(Rounding::Xs)
                 .at(self.placed(gap, height))
                 .elevate(Elevation::up(1))
-                .with((
-                    Grid::new(1.col().gap(0), 1.row().gap(0)),
-                    self.anchor_to_last(),
-                    Opacity::new(0.0),
-                )),
+                .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+                .anchored(self.anchor_to_last())
+                .opacity(0.0),
         );
-        fade_in(tree, entity, self.seq, start);
-        self.last = Some(entity);
-        entity
+        fade_in(canopy, leaf, self.seq, start);
+        self.last = Some(leaf);
+        leaf
     }
     /// Empty space after the last element, so a page can be scrolled clear of its own bottom
     /// edge.
     ///
-    /// `extent_check` grows the scroll range to cover the content and no further, so the last
-    /// thing on a page ends flush with the viewport -- there is no overscroll to give it
-    /// breathing room. This is that room, made of the only thing the extent understands: more
-    /// content.
+    /// The scroll extent grows to cover the content and no further, so the last thing on a
+    /// page ends flush with the viewport -- there is no overscroll to give it breathing room.
+    /// This is that room, made of the only thing the extent understands: more content.
     ///
     /// Interaction passes through, or a full-width invisible box below the buttons would eat
     /// clicks aimed at whatever the layout puts near it.
-    pub(crate) fn tail(&mut self, tree: &mut Tree, height: i32) -> Entity {
-        let entity = tree.branch(
+    pub(crate) fn tail(&mut self, canopy: &mut Canopy, height: i32) -> Leaf {
+        let leaf = canopy.branch(
             self.parent,
-            Stem::new()
+            Bare::new()
                 .at(self.placed(0, height))
                 .elevate(Elevation::up(1))
-                .with((
-                    self.anchor_to_last(),
-                    InteractionPropagation::pass_through(),
-                )),
+                .anchored(self.anchor_to_last())
+                .pass_through(),
         );
-        self.last = Some(entity);
-        entity
+        self.last = Some(leaf);
+        leaf
     }
     /// A caption under a figure. Unused until the sections carrying figures are written.
     #[allow(dead_code)]
-    pub(crate) fn caption(&mut self, tree: &mut Tree, value: &str) -> Entity {
+    pub(crate) fn caption(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
         self.text(
-            tree,
+            canopy,
             value,
             type_scale::LABEL,
             role::on_surface_variant(),

@@ -20,6 +20,7 @@ pub struct LeafSprout {
     /// specs travel through the boundary as a closed set. Naming each one instead keeps
     /// every spec its own type all the way to the queue.
     pub(crate) grid: Option<crate::Grid>,
+    pub(crate) anchor: Option<crate::Anchor>,
     pub(crate) opacity: Option<crate::Opacity>,
     pub(crate) alignment: Option<(crate::HorizontalAlignment, crate::VerticalAlignment)>,
     pub(crate) listener: Option<crate::InteractionListener>,
@@ -38,6 +39,7 @@ impl Default for LeafSprout {
             stem: Parent::none(),
             elevation: None,
             grid: None,
+            anchor: None,
             opacity: None,
             alignment: None,
             listener: None,
@@ -117,6 +119,19 @@ pub trait Sprout: Author {
     /// at spawn rather than a silent misplacement.
     fn grid(mut self, grid: crate::Grid) -> Self {
         self.seed().grid = Some(grid);
+        self
+    }
+    /// Resolves [`anchor()`](crate::anchor) values in this element's `Location` against
+    /// `leaf` rather than against its parent.
+    ///
+    /// Independent of parenting: the target can sit anywhere in the tree, and anchoring to it
+    /// changes nothing about who owns, clips or elevates this element. What it buys is
+    /// stacking -- an element placed below the one before it follows when that one wraps to
+    /// another line, which a fixed offset cannot.
+    ///
+    /// A `Location` carrying `anchor()` values and no anchor set here cannot resolve.
+    fn anchored(mut self, leaf: crate::Leaf) -> Self {
+        self.seed().anchor = Some(crate::Anchor::new(leaf.0));
         self
     }
     /// Starting opacity, inherited by everything beneath.

@@ -1,29 +1,24 @@
 //! Throwaway on-screen scroll instrumentation.
 //!
-//! Delete this module, its `mod` line, the `Scroller` marker on `shell::content_area`, and the
-//! `attach` call once the scroll question is settled. It exists because the numbers have to be
-//! read on a device where a log is not reachable.
+//! Delete this module, its `mod` line, and the `Probe` on `Site` once the scroll question is
+//! settled. It exists because the numbers have to be read on a device where a log is not
+//! reachable.
 //!
-//! Pinned to the viewport as a root-level leaf, the way `drawer`'s scrim is -- inside the
+//! Pinned to the viewport as a root-level leaf, the way the drawer's scrim is -- inside the
 //! router it would scroll away with the content it is measuring.
 
 use foliage::{
-    Color, CurrentInteraction, Elevation, Entity, FontSize, Grid, GridExt,
-    HorizontalAlignment, Location, Panel, Query, Res, Rounding, Sprout, Text, Tree,
-    VerticalAlignment, View, component,
+    Canopy, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf, Location,
+    Panel, Rounding, Sprout, Text, VerticalAlignment,
 };
 
 use crate::site::{role, space, type_scale};
 
-/// Marks the scroll container, so the probe can find the one `View` that actually moves.
-#[component]
-#[derive(Copy, Clone)]
-pub(crate) struct Scroller;
-
 const H: i32 = 18;
 
-#[component]
+/// The readings, and the line they are written to.
 pub(crate) struct Probe {
+    line: Leaf,
     /// Last offset seen, to difference against.
     last: Option<f32>,
     /// px the view moved on the previous tick.
@@ -31,20 +26,16 @@ pub(crate) struct Probe {
     /// Largest px/tick seen since the last press -- a coast's peak is over in a few frames
     /// and a live number is unreadable at that speed.
     peak: f32,
-    /// Velocity handed off at the last release, px/ms. No latch needed --
-    /// `interactive_elements` resets `CurrentInteraction::velocity` only on `Start`, so after
-    /// a release it holds the exact value `Coasting` was given until the next touch.
+    /// Velocity handed off at the last release, px/ms. No latch needed -- the engine resets
+    /// the pointer velocity only when a gesture starts, so after a release it holds the exact
+    /// value the coast was given until the next touch.
     release: f32,
     shown: Option<String>,
 }
 
-pub(crate) fn attach(foliage: &mut foliage::Foliage) {
-    foliage.user.add_systems(drive);
-}
-
 /// A line pinned to the bottom of the viewport.
-pub(crate) fn build(tree: &mut Tree) {
-    let backing = tree.leaf(
+pub(crate) fn build(canopy: &mut Canopy) -> Probe {
+    let backing = canopy.leaf(
         Panel::new()
             .color(role::surface())
             .rounding(Rounding::None)
@@ -53,9 +44,9 @@ pub(crate) fn build(tree: &mut Tree) {
                 100.pct().as_bottom().with(H.px().as_height()),
             ))
             .elevate(Elevation::up(9))
-            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0))),
     );
-    tree.branch(
+    let line = canopy.branch(
         backing,
         Text::new("scroll  --")
             .size(FontSize::new(type_scale::LABEL))
@@ -65,61 +56,56 @@ pub(crate) fn build(tree: &mut Tree) {
                 0.pct().as_top().with(100.pct().as_bottom()),
             ))
             .elevate(Elevation::up(10))
-            .with((
-                HorizontalAlignment::Left,
-                VerticalAlignment::Middle,
-                Probe {
-                    last: None,
-                    per_tick: 0.0,
-                    peak: 0.0,
-                    release: 0.0,
-                    shown: None,
-                },
-            )),
+            .align(HorizontalAlignment::Left, VerticalAlignment::Middle),
     );
+    Probe {
+        line,
+        last: None,
+        per_tick: 0.0,
+        peak: 0.0,
+        release: 0.0,
+        shown: None,
+    }
 }
 
-fn drive(
-    time: Res<foliage::Time>,
-    current: Res<CurrentInteraction>,
-    scrollers: Query<&View, foliage::With<Scroller>>,
-    mut probes: Query<(Entity, &mut Probe)>,
-    mut tree: Tree,
-) {
-    let Ok(view) = scrollers.single() else {
-        return;
-    };
-    let offset = view.offset().top();
-    for (entity, mut probe) in probes.iter_mut() {
-        probe.release = current.velocity().top();
-        // `velocity` is zeroed on `Start`, so this is "a new touch began" -- without it `peak`
-        // holds the first flick's number forever and every later one reads as smaller.
-        if probe.release == 0.0 {
-            probe.peak = 0.0;
+impl Probe {
+    /// One frame of it. `container` is the current page's scroll container, or `None` on a
+    /// route that has nothing to scroll.
+    pub(crate) fn drive(&mut self, canopy: &mut Canopy, container: Option<Leaf>) {
+        let Some(offset) = container.and_then(|view| canopy.scroll_offset(view)) else {
+            return;
+        };
+        let offset = offset.top();
+        self.release = canopy.pointer_velocity().top();
+        // the velocity is zeroed when a gesture starts, so this is "a new touch began" --
+        // without it `peak` holds the first flick's number forever and every later one reads
+        // as smaller
+        if self.release == 0.0 {
+            self.peak = 0.0;
         }
 
-        if let Some(last) = probe.last {
-            probe.per_tick = offset - last;
-            if probe.per_tick.abs() > probe.peak.abs() {
-                probe.peak = probe.per_tick;
+        if let Some(last) = self.last {
+            self.per_tick = offset - last;
+            if self.per_tick.abs() > self.peak.abs() {
+                self.peak = self.per_tick;
             }
         }
-        probe.last = Some(offset);
+        self.last = Some(offset);
 
         // frame time here rather than inferred from peak/v: the hero's own readout is on a
         // route with nothing to scroll, so it can never be on screen while this is happening
         let line = format!(
             "v {:>5.2}  now {:>6.1}  peak {:>6.1}  {:>4.1}ms  off {:>5.0}",
-            probe.release,
-            probe.per_tick,
-            probe.peak,
-            time.frame_diff().as_secs_f32() * 1000.0,
+            self.release,
+            self.per_tick,
+            self.peak,
+            canopy.frame_time().as_secs_f32() * 1000.0,
             offset
         );
-        if probe.shown.as_deref() == Some(line.as_str()) {
-            continue;
+        if self.shown.as_deref() == Some(line.as_str()) {
+            return;
         }
-        probe.shown = Some(line.clone());
-        tree.write_to(entity, Text { value: line });
+        self.shown = Some(line.clone());
+        canopy.text(self.line, line);
     }
 }

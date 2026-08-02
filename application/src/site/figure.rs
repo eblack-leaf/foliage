@@ -25,13 +25,12 @@
 //! content.
 
 use foliage::{
-    Animation, Color, DashPattern, Ease, Elevation, Entity, Foliage, FontSize, Grid,
-    GridExt, HorizontalAlignment, Stem, Line, Location, Logical, Opacity, Polygon, Polyline,
-    PolylineDrawProgress, PolylinePoints, Position, Query, Res, Section, Sprout, Text, Time, Tree,
-    VerticalAlignment, component,
+    Bare, Canopy, Color, DashPattern, Ease, Elevation, FontSize, Grid, GridExt, Grows,
+    HorizontalAlignment, Leaf, Line, Location, Logical, Motion, Polygon, Polyline, Position,
+    Sprout, Text, VerticalAlignment,
 };
 
-use crate::site::{motion, role, space, type_scale};
+use crate::site::{Grow, motion, role, space, timing, type_scale};
 
 /// A shape in the field, positioned in plate-normalized coordinates: `(0.0, 0.0)` is the
 /// field's top-left, `(1.0, 1.0)` its bottom-right, y measured downward like every other
@@ -138,16 +137,20 @@ const TONES: [fn() -> Color; 3] = [role::accent, || Color::amber(400), || Color:
 /// and the shapes in it resolve as one gesture.
 const DRAW_SECS: f32 = motion::ENTRANCE as f32 / 1000.0;
 
-/// Drives a plate's traverse path: keeps its vertices resolved against the current field
-/// size, and runs the one-shot draw-in.
+/// A plate's traverse path: its vertices kept resolved against the current field size, and the
+/// one-shot draw-in.
 ///
-/// Normalized rather than authored in px because `PolylinePoints` is local px space, which
+/// Normalized rather than authored in px because a polyline's points are local px space, which
 /// does not stretch with a percentage-width box -- so the field's own size has to be read back
-/// and the points rewritten. Rewriting them is the supported path (`PolylinePoints` is
-/// documented as a whole-unit write) and costs nothing after the first frame: point *count*
-/// never changes, so the segment pool is reused rather than respawned.
-#[component]
+/// and the points rewritten. Rewriting them is the supported path (points are a whole-unit
+/// write) and costs nothing after the first frame: point *count* never changes, so the segment
+/// pool is reused rather than respawned.
+///
+/// Driven from the frame rather than by a system of its own. Every input it needs -- the box it
+/// resolves against, how long the last frame took -- is something the frame can sample, so
+/// there is nothing here the engine has to run on the app's behalf.
 pub(crate) struct Traverse {
+    leaf: Leaf,
     vertices: Vec<(f32, f32)>,
     elapsed: f32,
     /// Last field size the points were written against, so a still figure at a steady size
@@ -155,51 +158,80 @@ pub(crate) struct Traverse {
     resolved: Option<(f32, f32)>,
 }
 
-fn drive_traverses(
-    time: Res<Time>,
-    sections: Query<&Section<Logical>>,
-    mut paths: Query<(Entity, &mut Traverse)>,
-    mut tree: Tree,
-) {
-    for (entity, mut path) in paths.iter_mut() {
-        let Ok(section) = sections.get(entity) else {
-            continue;
+impl Traverse {
+    /// One frame of it. `dt` is that frame's length, in seconds.
+    pub(crate) fn drive(&mut self, canopy: &mut Canopy, dt: f32) {
+        let Some(section) = canopy.section(self.leaf) else {
+            return;
         };
         let size = (section.width(), section.height());
         if size.0 <= 0.0 || size.1 <= 0.0 {
-            continue;
+            return;
         }
-        if path.resolved != Some(size) {
-            path.resolved = Some(size);
-            let points = path
+        if self.resolved != Some(size) {
+            self.resolved = Some(size);
+            let points = self
                 .vertices
                 .iter()
                 .map(|&(x, y)| Position::<Logical>::new((x * size.0, y * size.1)))
                 .collect::<Vec<_>>();
-            tree.write_to(entity, PolylinePoints(points));
+            canopy.points(self.leaf, points);
         }
-        if path.elapsed < DRAW_SECS {
-            path.elapsed += time.frame_diff().as_secs_f32();
-            let t = (path.elapsed / DRAW_SECS).clamp(0.0, 1.0);
-            tree.write_to(entity, PolylineDrawProgress(t));
+        if self.elapsed < DRAW_SECS {
+            self.elapsed += dt;
+            let t = (self.elapsed / DRAW_SECS).clamp(0.0, 1.0);
+            canopy.draw_progress(self.leaf, t);
         }
     }
 }
 
-pub(crate) fn attach(foliage: &mut Foliage) {
-    foliage.user.add_systems(drive_traverses);
+/// Fades one mark to `alpha` at `at` ms into the plate's own entrance.
+///
+/// Fades rather than draws: the traverse is the thing that draws itself in, and a drawing
+/// whose every line animated would be a race rather than a gesture.
+fn fade_to(canopy: &mut Canopy, leaf: Leaf, alpha: f32, seq: Leaf, at: u64) {
+    canopy.animate_during(
+        leaf,
+        Motion::Opacity(alpha),
+        timing(at, motion::FADE, Ease::Linear),
+        seq,
+    );
+}
+
+/// One tick: a solid rule from `from` to `to`, in `(px across, fraction down)`.
+fn rule(
+    canopy: &mut Canopy,
+    parent: Leaf,
+    from: (i32, f32),
+    to: (i32, f32),
+    weight: i32,
+    seq: Leaf,
+    at: u64,
+) {
+    let leaf = canopy.branch(
+        parent,
+        Line::new(weight)
+            .color(role::outline())
+            .at(Location::new().xs(
+                from.0.px().as_x().with((from.1 * 100.0).pct().as_y()),
+                to.0.px().as_x().with((to.1 * 100.0).pct().as_y()),
+            ))
+            .elevate(Elevation::up(1))
+            .opacity(0.0),
+    );
+    fade_to(canopy, leaf, 1.0, seq, at);
 }
 
 /// Draws `spec` into `plate` -- a region the caller owns, typically from `Column::region`.
 ///
 /// `seq` and `start` place the plate's entrance in the page's own staggered arrival.
-pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entity, start: u64) {
+pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, start: u64) {
     // Two boxes sharing one vertical extent: the frame carries the rule's numbers, the field
     // carries everything drawn. Splitting them is what lets a y fraction mean the same thing
     // to a number in the gutter and a tick inside the drawing.
-    let frame = tree.branch(
+    let frame = g.canopy.branch(
         plate,
-        Stem::new()
+        Bare::new()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
                 0.pct()
@@ -207,50 +239,18 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                     .with(100.pct().as_bottom().adjust(-CAPTION_H)),
             ))
             .elevate(Elevation::up(1))
-            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0))),
     );
-    let field = tree.branch(
+    let field = g.canopy.branch(
         frame,
-        Stem::new()
+        Bare::new()
             .at(Location::new().xs(
                 GUTTER.px().as_left().with(100.pct().as_right()),
                 0.pct().as_top().with(100.pct().as_bottom()),
             ))
             .elevate(Elevation::up(1))
-            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0))),
     );
-
-    // fades rather than draws: the traverse is the thing that draws itself in, and a drawing
-    // whose every line animated would be a race rather than a gesture
-    let fade_to = |tree: &mut Tree, entity: Entity, alpha: f32, delay: u64| {
-        tree.animate(
-            Animation::new(Opacity::new(alpha))
-                .targeting(entity)
-                .during(seq)
-                .start(start + delay)
-                .finish(start + delay + motion::FADE)
-                .eased(Ease::Linear),
-        );
-    };
-    let rule = |tree: &mut Tree,
-                parent: Entity,
-                from: (i32, f32),
-                to: (i32, f32),
-                weight: i32,
-                delay: u64| {
-        let entity = tree.branch(
-            parent,
-            Line::new(weight)
-                .color(role::outline())
-                .at(Location::new().xs(
-                    from.0.px().as_x().with((from.1 * 100.0).pct().as_y()),
-                    to.0.px().as_x().with((to.1 * 100.0).pct().as_y()),
-                ))
-                .elevate(Elevation::up(1))
-                .with(Opacity::new(0.0)),
-        );
-        fade_to(tree, entity, 1.0, delay);
-    };
 
     // A tick per row, a number per major row, and a dashed run continuing from each tick
     // across the field.
@@ -266,7 +266,7 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
     for (i, &(y, number)) in spec.scale.iter().enumerate() {
         let major = !number.is_empty();
         let delay = i as u64 * 30;
-        let row = tree.branch(
+        let row = g.canopy.branch(
             field,
             Polyline::new()
                 .points(vec![(0, 0); 2])
@@ -283,31 +283,37 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                     0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .elevate(Elevation::up(1))
-                .with((
-                    Traverse {
-                        vertices: vec![(0.0, y), (1.0, y)],
-                        // already drawn -- `elapsed` past the duration skips the draw-in and
-                        // leaves only the point resolve. Seven rows racing the traverse would
-                        // bury the one line that is meant to be watched.
-                        elapsed: DRAW_SECS,
-                        resolved: None,
-                    },
-                    Opacity::new(0.0),
-                )),
+                .opacity(0.0),
         );
-        fade_to(tree, row, if major { ROW_MAJOR } else { ROW_MINOR }, delay);
+        g.page.traverses.push(Traverse {
+            leaf: row,
+            vertices: vec![(0.0, y), (1.0, y)],
+            // already drawn -- `elapsed` past the duration skips the draw-in and leaves only
+            // the point resolve. Seven rows racing the traverse would bury the one line that
+            // is meant to be watched.
+            elapsed: DRAW_SECS,
+            resolved: None,
+        });
+        fade_to(
+            g.canopy,
+            row,
+            if major { ROW_MAJOR } else { ROW_MINOR },
+            seq,
+            start + delay,
+        );
         rule(
-            tree,
+            g.canopy,
             field,
             (0, y),
             (if major { TICK_MAJOR } else { TICK_MINOR }, y),
             TICK_WEIGHT,
-            delay,
+            seq,
+            start + delay,
         );
         if !major {
             continue;
         }
-        let label = tree.branch(
+        let label = g.canopy.branch(
             frame,
             Text::new(number)
                 .size(FontSize::new(type_scale::LABEL))
@@ -317,19 +323,16 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                     (y * 100.0).pct().as_center_y().with(16.px().as_height()),
                 ))
                 .elevate(Elevation::up(2))
-                .with((
-                    HorizontalAlignment::Right,
-                    VerticalAlignment::Middle,
-                    Opacity::new(0.0),
-                )),
+                .align(HorizontalAlignment::Right, VerticalAlignment::Middle)
+                .opacity(0.0),
         );
-        crate::site::fade_in(tree, label, seq, start + delay);
+        crate::site::fade_in(g.canopy, label, seq, start + delay);
     }
 
-    tree.branch(
+    let traverse = g.canopy.branch(
         field,
         Polyline::new()
-            // seeded degenerate and immediately rewritten by `drive_traverses` -- `points` is
+            // seeded degenerate and immediately rewritten by `Traverse::drive` -- `points` is
             // required, and the real ones need a resolved size that does not exist at spawn
             .points(spec.nodes.iter().map(|_| (0, 0)).collect::<Vec<_>>())
             .weight(PATH_WEIGHT)
@@ -340,13 +343,14 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                 0.pct().as_left().with(100.pct().as_right()),
                 0.pct().as_top().with(100.pct().as_bottom()),
             ))
-            .elevate(Elevation::up(2))
-            .with(Traverse {
-                vertices: spec.nodes.iter().map(|n| n.at).collect(),
-                elapsed: 0.0,
-                resolved: None,
-            }),
+            .elevate(Elevation::up(2)),
     );
+    g.page.traverses.push(Traverse {
+        leaf: traverse,
+        vertices: spec.nodes.iter().map(|n| n.at).collect(),
+        elapsed: 0.0,
+        resolved: None,
+    });
 
     let mut annotated = 0usize;
     for (i, node) in spec.nodes.iter().enumerate() {
@@ -379,7 +383,7 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                         .with(scaled(s).px().as_height()),
                 )
         };
-        let marker = tree.branch(
+        let marker = g.canopy.branch(
             field,
             Polygon::new()
                 .sides(3.0)
@@ -388,10 +392,10 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                 .color(tone)
                 .at(sized(node.size))
                 .elevate(Elevation::up(3))
-                .with(Opacity::new(0.0)),
+                .opacity(0.0),
         );
         crate::site::morph_in(
-            tree,
+            g.canopy,
             marker,
             seq,
             node.sides,
@@ -427,7 +431,7 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
         };
         let (h_xs, v_xs) = centred(node.size);
         let (h_lg, v_lg) = centred(scaled(node.size));
-        let caption = tree.branch(
+        let caption = g.canopy.branch(
             field,
             Text::new(label.text)
                 .size(FontSize::new(type_scale::LABEL))
@@ -436,17 +440,19 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                 .color(role::on_surface_variant())
                 .at(Location::new().xs(h_xs, v_xs).lg(h_lg, v_lg))
                 .elevate(Elevation::up(4))
-                .with((
-                    HorizontalAlignment::Center,
-                    VerticalAlignment::Middle,
-                    Opacity::new(0.0),
-                )),
+                .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
+                .opacity(0.0),
         );
-        crate::site::fade_in(tree, caption, seq, start + motion::STAGGER * (i as u64 + 2));
+        crate::site::fade_in(
+            g.canopy,
+            caption,
+            seq,
+            start + motion::STAGGER * (i as u64 + 2),
+        );
     }
 
     // in its own strip below the field, so it can never be crowded by the drawing
-    let caption = tree.branch(
+    let caption = g.canopy.branch(
         plate,
         Text::new(spec.caption)
             .size(FontSize::new(type_scale::LABEL))
@@ -456,11 +462,8 @@ pub(crate) fn plate(tree: &mut Tree, plate: Entity, spec: &PlateSpec, seq: Entit
                 100.pct().as_bottom().with(CAPTION_H.px().as_height()),
             ))
             .elevate(Elevation::up(2))
-            .with((
-                HorizontalAlignment::Left,
-                VerticalAlignment::Middle,
-                Opacity::new(0.0),
-            )),
+            .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+            .opacity(0.0),
     );
-    crate::site::fade_in(tree, caption, seq, start + motion::STAGGER * 4);
+    crate::site::fade_in(g.canopy, caption, seq, start + motion::STAGGER * 4);
 }

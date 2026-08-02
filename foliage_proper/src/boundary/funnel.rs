@@ -99,14 +99,26 @@ fn text_action(
 /// finished -- and an app answers them differently, so the two are told apart here by which
 /// component the entity carries rather than left for the app to work out.
 ///
+/// Only ones the app asked for are reported, which is what `Grown` is doing here. The engine
+/// runs countdowns and sequences of its own -- a widget's internal timer, the anonymous
+/// sequence an unjoined animation is counted against -- and those carry no `Leaf` anyone can
+/// act on. Reported, they would be emissions naming an id the app never saw, arriving for no
+/// reason it could work out. Unlike the gesture funnels above there is no climb to an
+/// ancestor: a timer is not part of the display tree, so there is nothing above it to
+/// attribute to.
+///
 /// The `Leaf` is read before the despawn that follows immediately after, which is the only
 /// reason it is still nameable at this point.
 fn ended(
     trigger: Trigger<crate::OnEnd>,
+    grown: Query<&Grown>,
     timers: Query<&crate::Timer>,
     mut emissions: ResMut<Emissions>,
 ) {
     let entity = trigger.event_target();
+    if !grown.contains(entity) {
+        return;
+    }
     let leaf = Leaf(entity);
     emissions.push(if timers.contains(entity) {
         Bloom::TimerFinished(leaf)

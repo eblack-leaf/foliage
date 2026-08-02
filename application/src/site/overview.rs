@@ -15,14 +15,14 @@
 //! The plate is the page's own demonstration of its aesthetic -- measured lines and
 //! annotations around expressive shapes.
 
-use foliage::{Color, Entity, Tree};
+use foliage::{Color, Leaf};
 
 use crate::icons::IconHandles;
 use crate::site::cards::CardSpec;
 use crate::site::figure::{Label, Node, PlateSpec, Side};
 use crate::site::{
-    Column, POLY_BUTTON_ROW_H, PolyButton, SCROLL_TAIL, cards, figure, motion, poly_button, role,
-    space,
+    Column, Grow, POLY_BUTTON_ROW_H, PolyButton, SCROLL_TAIL, cards, figure, motion, poly_button,
+    role, space,
 };
 
 const DOCS_HREF: &str = "https://eblack-leaf.github.io/foliage/api/foliage/index.html";
@@ -139,52 +139,54 @@ const CAPABILITIES: [CardSpec; 5] = [
     },
 ];
 
-pub fn build(tree: &mut Tree, slot: Entity) {
+pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     // straight into the scroll container -- elements carry the measure themselves, so the
     // side gutters are part of the same scrollable box as the text
-    let container = crate::site::shell::content_area(tree, slot);
-    let mut column = Column::new(tree, container);
+    let container = crate::site::shell::content_area(g.canopy, slot);
+    g.page.container = Some(container);
+    let mut column = Column::new(g.canopy, container);
 
-    column.display(tree, "overview");
+    column.display(g.canopy, "overview");
     column.lead(
-        tree,
+        g.canopy,
         "Everything on screen is a leaf. You branch one under another, and the stem it keeps \
          to its parent is what its position, its clipping and its lifetime all resolve \
          against. That tree is the whole model, and the name.",
     );
-    let plate = column.figure(tree, (PLATE_H_XS, PLATE_H_MD, PLATE_H_LG), space::LG);
-    figure::plate(tree, plate, &PLATE, column.sequence(), motion::STAGGER * 2);
+    let plate = column.figure(g.canopy, (PLATE_H_XS, PLATE_H_MD, PLATE_H_LG), space::LG);
+    let seq = column.sequence();
+    figure::plate(g, plate, &PLATE, seq, motion::STAGGER * 2);
 
     // The lead is thematic -- it explains the name and the shape of the model, which is what
     // an opener should do and not what an overview is. This is the overview: what the thing
     // actually is, stated plainly, with the cards below breaking it into parts.
-    column.heading(tree, "the library");
+    column.heading(g.canopy, "the library");
     column.prose(
-        tree,
+        g.canopy,
         "foliage is a UI framework for Rust. It renders through wgpu and runs the same source \
          on desktop, on the web and on Android. State lives in an ECS world rather than a \
          component tree, layout resolves per breakpoint against the stem, and there is no \
          markup language or build step standing between a change and the frame that shows it.",
     );
-    cards::grid(tree, &mut column, &CAPABILITIES);
+    cards::grid(g, &mut column, &CAPABILITIES);
 
-    column.rule(tree);
-    column.heading(tree, "where to go");
+    column.rule(g.canopy);
+    column.heading(g.canopy, "where to go");
     column.prose(
-        tree,
+        g.canopy,
         "The reference is generated from the source and is the exhaustive answer. The book is \
          the one that explains why. Everything in the repository runs -- every example is a \
          `cargo run` away.",
     );
-    destinations(tree, &mut column);
-    column.tail(tree, SCROLL_TAIL);
+    destinations(g, &mut column);
+    column.tail(g.canopy, SCROLL_TAIL);
 }
 
 /// The row this page exists for -- the same poly buttons the hero uses, so the two pages
 /// speak with one vocabulary rather than a rounded rectangle here and a polygon there.
-fn destinations(tree: &mut Tree, column: &mut Column) {
+fn destinations(g: &mut Grow, column: &mut Column) {
     let seq = column.sequence();
-    let row = column.surface_plain(tree, POLY_BUTTON_ROW_H, space::MD);
+    let row = column.surface_plain(g.canopy, POLY_BUTTON_ROW_H, space::MD);
     let entries = [
         PolyButton {
             label: "docs",
@@ -212,7 +214,7 @@ fn destinations(tree: &mut Tree, column: &mut Column) {
     for (i, spec) in entries.iter().enumerate() {
         let center = third * i as f32 + third / 2.0;
         poly_button(
-            tree,
+            g,
             row,
             spec,
             center,

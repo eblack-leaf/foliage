@@ -4,29 +4,24 @@
 //! becoming their real form -- which reads as arrival rather than as travel.
 
 use foliage::{
-    Anchor, Animation, Color, Ease, Elevation, Entity, Foliage, FontSize,
-    GlyphColors, Grid, GridExt, HorizontalAlignment, Icon, IconId, InteractionListener,
-    InteractionPropagation, Layout, Stem, Location, Logical, OnClick, Opacity, Query, Res, Section,
-    Short, Sprout, Text, TextContentHeight, Time, Tree, Trigger, VerticalAlignment, With, anchor,
-    component,
+    Bare, Canopy, Color, Ease, Elevation, FontSize, GlyphColors, Grid, GridExt, Grows,
+    HorizontalAlignment, Icon, IconId, Layout, Leaf, Location, Motion, Repeat, Sprout, Text,
+    VerticalAlignment, anchor,
 };
-
-use crate::site::router::Route;
 
 use std::ops::Range;
 
-use crate::entry::AppRouter;
 use crate::icons::IconHandles;
-use crate::site::{POLY_BUTTON_ROW_H, PolyButton, fade_in, poly_button, role, space, type_scale};
+use crate::site::{
+    Grow, POLY_BUTTON_ROW_H, PolyButton, fade_in, poly_button, role, space, timing, type_scale,
+};
 
 const WORDMARK: &str = "foliage.rs";
 /// Where ".rs" starts, so the extension carries the accent while the name stays plain.
 const EXTENSION_AT: usize = 7;
-/// Sized to fit ten monospace characters inside the viewport. JetBrains Mono advances about
-/// 0.6em, so ten characters run ~6x the font size -- 40px overflows a 360px phone, which is
-/// what clipped the first attempt.
 /// The project's namesake, so it takes as much room as each viewport can give it. Ten
-/// monospace characters run about 6x the font size, which is what caps each step.
+/// monospace characters run about 6x the font size, which is what caps each step -- 40px
+/// overflows a 360px phone, which is what clipped the first attempt.
 const WORDMARK_XS: u32 = 40;
 const WORDMARK_MD: u32 = 76;
 /// Landscape is `md`-wide, so it would otherwise take `WORDMARK_MD` in a ~250px-tall viewport.
@@ -100,7 +95,7 @@ const AT_BREAKPOINT: [Range<usize>; 5] = [25..27, 28..30, 31..33, 34..36, 37..39
 
 /// Which glyphs are lit. Rebuilt alongside the string rather than fixed at spawn, since the
 /// step that is lit is itself a reading.
-fn hud_colors(layout: Layout, short: Short) -> GlyphColors {
+fn hud_colors(layout: Layout, short: bool) -> GlyphColors {
     // One colour per metric, taken from the three destination buttons directly below. Three
     // readings in one tone read as one number that happens to have spaces in it; borrowing the
     // row's own palette makes them three things and costs the page no new hues.
@@ -121,14 +116,7 @@ fn hud_colors(layout: Layout, short: Short) -> GlyphColors {
         .add(AT_W, size)
         .add(AT_H, size)
         .add(AT_MS, frame)
-        .add(
-            AT_SHORT,
-            if short == Short::Yes {
-                breakpoint
-            } else {
-                unlit
-            },
-        );
+        .add(AT_SHORT, if short { breakpoint } else { unlit });
     for (i, span) in AT_BREAKPOINT.iter().enumerate() {
         colors = colors.add(span.clone(), if i == step { breakpoint } else { unlit });
     }
@@ -147,69 +135,54 @@ const SMOOTHING: f32 = 0.06;
 /// enough to read as live and slow enough to actually read.
 const REFRESH: f32 = 0.5;
 
-/// The live line. `source` is the full-bleed hero, whose own `Section` is the viewport -- the
-/// framework's `ViewportHandle` is not public, and reading the box that already spans the
-/// window is the same number without reaching for one.
-#[component]
+/// The live line.
+///
+/// Driven from the frame: every reading it shows -- the window's size, how long the last frame
+/// took, which breakpoint is in force -- is something the frame can sample directly, so there
+/// is nothing for the engine to run on the app's behalf.
 pub(crate) struct Readout {
-    source: Entity,
+    leaf: Leaf,
     ms: f32,
     since: f32,
     shown: Option<String>,
     /// Which step was last lit, so the colour map is only rebuilt when it actually moves.
-    lit: Option<(Layout, Short)>,
+    lit: Option<(Layout, bool)>,
 }
 
-fn drive_readouts(
-    time: Res<Time>,
-    layout: Res<Layout>,
-    short: Res<Short>,
-    sections: Query<&Section<Logical>>,
-    mut rows: Query<(Entity, &mut Readout)>,
-    mut tree: Tree,
-) {
-    if rows.is_empty() {
-        return;
-    }
-    let dt = time.frame_diff().as_secs_f32();
-    let frame_ms = dt * 1000.0;
-    for (entity, mut row) in rows.iter_mut() {
+impl Readout {
+    pub(crate) fn drive(&mut self, canopy: &mut Canopy) {
+        let dt = canopy.frame_time().as_secs_f32();
+        let frame_ms = dt * 1000.0;
         // first sample lands whole rather than easing up from zero, or the number spends its
         // first second visibly wrong
-        let first = row.ms == 0.0;
-        row.ms = if first {
+        let first = self.ms == 0.0;
+        self.ms = if first {
             frame_ms
         } else {
-            row.ms + (frame_ms - row.ms) * SMOOTHING
+            self.ms + (frame_ms - self.ms) * SMOOTHING
         };
         // averaging runs every frame; the *rendered* value is held between refreshes
-        row.since += dt;
-        if !first && row.since < REFRESH {
-            continue;
+        self.since += dt;
+        if !first && self.since < REFRESH {
+            return;
         }
-        row.since = 0.0;
-        let Ok(viewport) = sections.get(row.source) else {
-            continue;
-        };
-        let line = hud_line(viewport.width(), viewport.height(), row.ms);
-        // repaint only on a real change -- a `Text` write re-shapes the whole string, and most
+        self.since = 0.0;
+        let viewport = canopy.viewport();
+        let line = hud_line(viewport.width(), viewport.height(), self.ms);
+        // repaint only on a real change -- a text write re-shapes the whole string, and most
         // refreshes round to the same digits
-        if row.shown.as_deref() != Some(line.as_str()) {
-            row.shown = Some(line.clone());
-            tree.write_to(entity, Text { value: line });
+        if self.shown.as_deref() != Some(line.as_str()) {
+            self.shown = Some(line.clone());
+            canopy.text(self.leaf, line);
         }
         // colours change far less often than the string, and only ever together -- one write
         // when the breakpoint moves, not one every refresh
-        let lit = (*layout, *short);
-        if row.lit != Some(lit) {
-            row.lit = Some(lit);
-            tree.write_to(entity, hud_colors(*layout, *short));
+        let lit = (canopy.layout(), canopy.short());
+        if self.lit != Some(lit) {
+            self.lit = Some(lit);
+            canopy.glyph_colors(self.leaf, hud_colors(lit.0, lit.1));
         }
     }
-}
-
-pub(crate) fn attach(foliage: &mut Foliage) {
-    foliage.user.add_systems(drive_readouts);
 }
 
 const HINT_TEXT: &str = "more";
@@ -255,23 +228,21 @@ fn destinations() -> [PolyButton; 3] {
 /// the rail sitting beside a landing screen it has nothing to do with. As a route it owns
 /// the whole viewport, and `more` navigates rather than scrolls -- which is what people try
 /// to click anyway.
-pub fn build(tree: &mut Tree, slot: Entity) {
-    let seq = tree.sequence();
-    let hero = tree.branch(
+pub(crate) fn build(g: &mut Grow, slot: Leaf) {
+    let seq = g.canopy.sequence();
+    let hero = g.canopy.branch(
         slot,
-        Stem::new()
+        Bare::new()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
                 0.pct().as_top().with(100.pct().as_bottom()),
             ))
             .elevate(Elevation::up(1))
-            .with((
-                Grid::new(1.col().gap(0), 1.row().gap(0)),
-                InteractionPropagation::pass_through(),
-            )),
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+            .pass_through(),
     );
 
-    let wordmark = tree.branch(
+    let wordmark = g.canopy.branch(
         hero,
         Text::new(WORDMARK)
             .size(
@@ -299,15 +270,12 @@ pub fn build(tree: &mut Tree, slot: Entity) {
                     38.pct().as_center_y().with(1.letters().as_height()),
                 ))
             .elevate(Elevation::up(3))
-            .with((
-                HorizontalAlignment::Center,
-                VerticalAlignment::Middle,
-                Opacity::new(0.0),
-            )),
+            .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
+            .opacity(0.0),
     );
-    fade_in(tree, wordmark, seq, AT_WORDMARK);
+    fade_in(g.canopy, wordmark, seq, AT_WORDMARK);
 
-    let tagline = tree.branch(
+    let tagline = g.canopy.branch(
         hero,
         Text::new(TAGLINE)
             .size(FontSize::new(type_scale::BODY))
@@ -337,18 +305,15 @@ pub fn build(tree: &mut Tree, slot: Entity) {
                         .with(20.px().as_height()),
                 ))
             .elevate(Elevation::up(3))
-            .with((
-                HorizontalAlignment::Center,
-                VerticalAlignment::Top,
-                // grows to whatever it wraps to instead of being scissored -- the fixed
-                // height cut the second line off in landscape
-                TextContentHeight(true),
-                Anchor::new(wordmark),
-                Opacity::new(0.0),
-            )),
+            .align(HorizontalAlignment::Center, VerticalAlignment::Top)
+            // grows to whatever it wraps to instead of being scissored -- the fixed height cut
+            // the second line off in landscape
+            .sized_by_content(false, true)
+            .anchored(wordmark)
+            .opacity(0.0),
     );
-    fade_in(tree, tagline, seq, AT_TAGLINE);
-    readout(tree, hero, wordmark, seq);
+    fade_in(g.canopy, tagline, seq, AT_TAGLINE);
+    readout(g, hero, wordmark, seq);
 
     // Capped and centred, so three buttons stay a group instead of drifting to the corners.
     //
@@ -358,9 +323,9 @@ pub fn build(tree: &mut Tree, slot: Entity) {
     // height, and did, just above the `short` threshold. Chaining costs the row its place on a
     // very tall window, where it now sits higher than a percentage would put it. That is the
     // cheaper of the two: too high is a look, overlapping is a bug.
-    let row = tree.branch(
+    let row = g.canopy.branch(
         hero,
-        Stem::new()
+        Bare::new()
             .at(Location::new()
                 .xs(
                     0.pct().as_left().with(100.pct().as_right()).max(ROW_MAX),
@@ -382,18 +347,16 @@ pub fn build(tree: &mut Tree, slot: Entity) {
                         .with(POLY_BUTTON_ROW_H.px().as_height()),
                 ))
             .elevate(Elevation::up(1))
-            .with((
-                Grid::new(1.col().gap(0), 1.row().gap(0)),
-                Anchor::new(tagline),
-                InteractionPropagation::pass_through(),
-            )),
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+            .anchored(tagline)
+            .pass_through(),
     );
     let specs = destinations();
     let third = 100.0 / specs.len() as f32;
     for (i, spec) in specs.iter().enumerate() {
         let center = third * i as f32 + third / 2.0;
         poly_button(
-            tree,
+            g,
             row,
             spec,
             center,
@@ -401,7 +364,7 @@ pub fn build(tree: &mut Tree, slot: Entity) {
             AT_BUTTONS + BUTTON_STEP * i as u64,
         );
     }
-    hint(tree, hero, seq);
+    hint(g, hero, seq);
 }
 
 /// One line of live readings, sitting directly above the wordmark.
@@ -419,13 +382,13 @@ pub fn build(tree: &mut Tree, slot: Entity) {
 /// here is that they are doing something.
 ///
 /// Parked on `short`, where the hero has already spent its height.
-fn readout(tree: &mut Tree, hero: Entity, wordmark: Entity, seq: Entity) {
+fn readout(g: &mut Grow, hero: Leaf, wordmark: Leaf, seq: Leaf) {
     let above = anchor()
         .top()
         .as_top()
         .adjust(-(ROW_H + space::LG))
         .with(ROW_H.px().as_height());
-    let line = tree.branch(
+    let line = g.canopy.branch(
         hero,
         // Seeded at its final character count, and left with no glyph colours: the first tick
         // writes both. `glyph_colors` on the builder fixes a map at spawn, which cannot express
@@ -449,28 +412,19 @@ fn readout(tree: &mut Tree, hero: Entity, wordmark: Entity, seq: Entity) {
                     space::XL.px().as_top().with(ROW_H.px().as_height()),
                 ))
             .elevate(Elevation::up(3))
-            .with((
-                HorizontalAlignment::Center,
-                VerticalAlignment::Middle,
-                Anchor::new(wordmark),
-                Opacity::new(0.0),
-            )),
+            .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
+            .anchored(wordmark)
+            .opacity(0.0),
     );
-    fade_in(tree, line, seq, AT_READOUT);
-    tree.write_to(
-        line,
-        Readout {
-            source: hero,
-            ms: 0.0,
-            since: 0.0,
-            shown: None,
-            lit: None,
-        },
-    );
+    fade_in(g.canopy, line, seq, AT_READOUT);
+    g.page.readout = Some(Readout {
+        leaf: line,
+        ms: 0.0,
+        since: 0.0,
+        shown: None,
+        lit: None,
+    });
 }
-
-/// A destination: shadow polygon behind, front polygon on top, icon centred in it, label
-/// beneath. The offset shadow is what gives it depth without a blur.
 
 /// The chevron's placement, `drift` px lower than its resting spot.
 ///
@@ -505,7 +459,7 @@ fn chevron_at(drift: i32) -> Location {
 /// reach the label already claimed, minus the dead gap between them and the dead margin either
 /// side of a centred chevron. It is also static while the chevron bobs, so the thing you are
 /// aiming at holds still.
-fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
+fn hint(g: &mut Grow, hero: Leaf, seq: Leaf) {
     // Both the word and the chevron are placed by their *bottom* edge, so the band has to be
     // derived the same way rather than guessed from the chevron's inset: the word's top is a
     // label-height above its own gap, and the chevron's bottom is a bob lower than its resting
@@ -524,9 +478,9 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
                     .adjust(-(CHEVRON + chevron_gap) + BOB_PX),
             )
     };
-    let target = tree.branch(
+    let target = g.canopy.branch(
         hero,
-        Stem::new()
+        Bare::new()
             .at(Location::new()
                 .xs(
                     0.pct().as_left().with(100.pct().as_right()),
@@ -539,23 +493,15 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
                     band(space::LG, space::SM),
                 ))
             .elevate(Elevation::up(2))
-            .with(InteractionListener::new()),
+            .interactive(),
     );
     // armed on the label's fade, the earlier of the two -- once the word is legible the
     // control means something, and the chevron joining it 120ms later does not change that
-    crate::site::arm_at(tree, target, AT_HINT + crate::site::motion::FADE);
-    // the route fn only gets its slot, so the router is found by its marker -- which is what
-    // `AppRouter` is for
-    tree.on_click(
-        target,
-        move |_: Trigger<OnClick>, routers: Query<Entity, With<AppRouter>>, mut tree: Tree| {
-            if let Ok(router) = routers.single() {
-                tree.write_to(router, Route(1));
-            }
-        },
-    );
+    crate::site::arm_at(g, target, AT_HINT + crate::site::motion::FADE);
+    // the hero's own next stop, and the whole reason the hint is a control at all
+    g.page.nav.push((target, 1));
 
-    let label = tree.branch(
+    let label = g.canopy.branch(
         hero,
         Text::new(HINT_TEXT)
             .size(FontSize::new(type_scale::TITLE))
@@ -579,39 +525,33 @@ fn hint(tree: &mut Tree, hero: Entity, seq: Entity) {
                         .with(HINT_H.px().as_height()),
                 ))
             .elevate(Elevation::up(3))
-            .with((
-                HorizontalAlignment::Center,
-                VerticalAlignment::Middle,
-                // both pass through to the band behind them, or each would win the hit-test on
-                // its own pixels and split the one control back into two
-                InteractionPropagation::pass_through(),
-                Opacity::new(0.0),
-            )),
+            .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
+            // both pass through to the band behind them, or each would win the hit-test on its
+            // own pixels and split the one control back into two
+            .pass_through()
+            .opacity(0.0),
     );
-    fade_in(tree, label, seq, AT_HINT);
+    fade_in(g.canopy, label, seq, AT_HINT);
 
-    let chevron = tree.branch(
+    let chevron = g.canopy.branch(
         hero,
         Icon::new(IconId::from(IconHandles::ChevronDown))
             .color(role::accent())
             .at(chevron_at(0))
             .elevate(Elevation::up(3))
-            .with((InteractionPropagation::pass_through(), Opacity::new(0.0))),
+            .pass_through()
+            .opacity(0.0),
     );
-    fade_in(tree, chevron, seq, AT_HINT + 120);
+    fade_in(g.canopy, chevron, seq, AT_HINT + 120);
 
-    // Its own sequence, forever, backtracking so it returns rather than snapping -- a plain
-    // loop would jerk back to the top every cycle. Tied to the chevron's own lifetime, so
-    // leaving the route stops it.
-    let bob = tree.sequence();
-    tree.animate(
-        Animation::new(chevron_at(BOB_PX))
-            .targeting(chevron)
-            .during(bob)
-            .start(AT_HINT + 200)
-            .finish(AT_HINT + 200 + BOB_MS)
-            .eased(Ease::DECELERATE)
-            .forever()
+    // Off the entrance sequence and running forever, backtracking so it returns rather than
+    // snapping -- a plain loop would jerk back to the top every cycle. Tied to the chevron's
+    // own lifetime, so leaving the route stops it.
+    g.canopy.animate(
+        chevron,
+        Motion::Location(chevron_at(BOB_PX)),
+        timing(AT_HINT + 200, BOB_MS, Ease::DECELERATE)
+            .repeat(Repeat::Forever)
             .backtrack(),
     );
 }

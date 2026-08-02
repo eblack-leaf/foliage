@@ -332,17 +332,22 @@ fn animate(
     timing: Timing,
     sequence: Option<Entity>,
 ) {
+    // Resolved before the macro so the two arms cannot spawn one each. An animation the app
+    // did not join to a sequence -- and one whose sequence withered before it was applied --
+    // still needs something to be counted against, so it gets an anonymous one that reports
+    // to nobody. See `Tree::spawn_sequence`.
+    let sequence = match sequence {
+        Some(seq) => seq,
+        None => tree.spawn_sequence(),
+    };
     macro_rules! run {
         ($value:expr) => {{
             let anim = crate::Animation::new($value)
                 .targeting(entity)
                 .start(timing.start)
                 .finish(timing.finish)
-                .eased(timing.ease);
-            let anim = match sequence {
-                Some(seq) => anim.during(seq),
-                None => anim,
-            };
+                .eased(timing.ease)
+                .during(sequence);
             let anim = if timing.backtrack {
                 anim.backtrack()
             } else {

@@ -12,13 +12,12 @@
 //! owns its own placement cannot be reused, and one that takes a `Location` can.
 
 use foliage::{
-    Elevation, Entity, FontSize, Grid, GridExt, HorizontalAlignment, Icon, IconId,
-    InteractionPropagation, Stem, Location, Panel, Rounding, Sprout, Text, TextContentHeight, Tree,
-    VerticalAlignment,
+    Bare, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Icon, IconId, Leaf,
+    Location, Panel, Rounding, Sprout, Text, VerticalAlignment,
 };
 
 use crate::icons::IconHandles;
-use crate::site::{BADGE_OVERHANG, Column, cutout_badge, motion, role, space, type_scale};
+use crate::site::{BADGE_OVERHANG, Column, Grow, cutout_badge, motion, role, space, type_scale};
 
 /// Every card is built to this height. Tall enough for a two-line title over a four-line body
 /// at the narrowest column the two-up grid runs at -- fixed so rows line up, with the text
@@ -59,21 +58,22 @@ pub(crate) struct CardSpec {
 /// leaving the box it is clipped to. Callers lay out cells and get the overhang handled for
 /// them; see [`CELL_H`] for the height to give one.
 pub(crate) fn card(
-    tree: &mut Tree,
-    parent: Entity,
+    g: &mut Grow,
+    parent: Leaf,
     spec: &CardSpec,
     at: Location,
-    seq: Entity,
+    seq: Leaf,
     start: u64,
-) -> Entity {
-    let cell = tree.branch(
+) -> Leaf {
+    let cell = g.canopy.branch(
         parent,
-        Stem::new().at(at).elevate(Elevation::up(1)).with((
-            Grid::new(1.col().gap(0), 1.row().gap(0)),
-            InteractionPropagation::pass_through(),
-        )),
+        Bare::new()
+            .at(at)
+            .elevate(Elevation::up(1))
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+            .pass_through(),
     );
-    let card = tree.branch(
+    let card = g.canopy.branch(
         cell,
         Panel::new()
             .color(role::surface_container())
@@ -85,11 +85,12 @@ pub(crate) fn card(
                 BADGE_OVERHANG.px().as_top().with(100.pct().as_bottom()),
             ))
             .elevate(Elevation::up(1))
-            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+            .opacity(0.0),
     );
-    crate::site::fade_in(tree, card, seq, start);
+    crate::site::fade_in(g.canopy, card, seq, start);
 
-    tree.branch(
+    g.canopy.branch(
         card,
         Icon::new(IconId::from(spec.icon))
             .color(role::accent())
@@ -99,7 +100,7 @@ pub(crate) fn card(
             ))
             .elevate(Elevation::up(2)),
     );
-    tree.branch(
+    g.canopy.branch(
         card,
         // caps like every other title on the site -- a card's title is a heading for the
         // paragraph under it, and was the one that stayed in sentence case
@@ -117,13 +118,10 @@ pub(crate) fn card(
                 TITLE_TOP.px().as_top().with(TITLE_H.px().as_height()),
             ))
             .elevate(Elevation::up(2))
-            .with((
-                HorizontalAlignment::Left,
-                VerticalAlignment::Top,
-                TextContentHeight(true),
-            )),
+            .align(HorizontalAlignment::Left, VerticalAlignment::Top)
+            .sized_by_content(false, true),
     );
-    tree.branch(
+    g.canopy.branch(
         card,
         Text::new(spec.body)
             .size(FontSize::new(type_scale::BODY))
@@ -139,16 +137,13 @@ pub(crate) fn card(
                     .with((CARD_H - BODY_TOP - space::MD).px().as_height()),
             ))
             .elevate(Elevation::up(2))
-            .with((
-                HorizontalAlignment::Left,
-                VerticalAlignment::Top,
-                TextContentHeight(true),
-                // a card's body is prose, so it takes the same slant the column's prose does
-                crate::site::italic(),
-            )),
+            .align(HorizontalAlignment::Left, VerticalAlignment::Top)
+            .sized_by_content(false, true)
+            // a card's body is prose, so it takes the same slant the column's prose does
+            .font(crate::site::italic()),
     );
 
-    cutout_badge(tree, cell, spec.sides, BADGE, seq, start);
+    cutout_badge(g.canopy, cell, spec.sides, BADGE, seq, start);
     card
 }
 
@@ -158,12 +153,16 @@ pub(crate) fn card(
 /// `md` the column is around 370px, so half of it leaves roughly 17 characters per line, and a
 /// four-line body needs six -- text ran straight out of the bottom of the card. `lg` is the
 /// first step where half a column is wide enough to hold the body it was measured for.
-pub(crate) fn grid(tree: &mut Tree, column: &mut Column, specs: &[CardSpec]) {
+pub(crate) fn grid(g: &mut Grow, column: &mut Column, specs: &[CardSpec]) {
     let seq = column.sequence();
     let n = specs.len() as i32;
     let height = |rows: i32| rows * CELL_H + (rows - 1) * GAP;
     let stacked = height(n);
-    let region = column.region(tree, (stacked, stacked, height((n + 1) / 2)), space::MD);
+    let region = column.region(
+        g.canopy,
+        (stacked, stacked, height((n + 1) / 2)),
+        space::MD,
+    );
 
     for (i, spec) in specs.iter().enumerate() {
         let i = i as i32;
@@ -193,6 +192,6 @@ pub(crate) fn grid(tree: &mut Tree, column: &mut Column, specs: &[CardSpec]) {
                     .as_top()
                     .with(CELL_H.px().as_height()),
             );
-        card(tree, region, spec, at, seq, i as u64 * motion::STAGGER);
+        card(g, region, spec, at, seq, i as u64 * motion::STAGGER);
     }
 }

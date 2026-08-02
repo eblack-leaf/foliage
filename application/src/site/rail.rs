@@ -1,18 +1,15 @@
 //! Section navigation. Peers, not a sequence -- there is no prev/next here on purpose.
 
 use foliage::{
-    Elevation, Entity, FontSize, GridExt, HorizontalAlignment, Icon, IconId,
-    InteractionListener, InteractionPropagation, Stem, Location, OnClick, Panel, Rounding, Sprout,
-    Text, Tree, Trigger, VerticalAlignment,
+    Bare, Canopy, Elevation, FontSize, GridExt, Grows, HorizontalAlignment, Icon, IconId, Leaf,
+    Location, Panel, Rounding, Sprout, Text, VerticalAlignment,
 };
-
-use crate::site::router::Route;
 
 use crate::icons::IconHandles;
 use crate::site::shell::rail_surface;
 use crate::site::{role, space, type_scale};
 
-/// One entry per route, in the order `entry.rs` registers them.
+/// One entry per route, in the order the router registers them.
 /// Order matters twice over: it is the reading order of the site, and the index into the
 /// router's own route list (offset by one, since route 0 is the hero).
 ///
@@ -40,23 +37,51 @@ const BRAND_H: i32 = 26;
 /// site's body, the others move within it), and a hairline says so without a label.
 const DIVIDER_TOP: i32 = BRAND_TOP + BRAND_H + space::MD;
 
-/// Builds the rail and wires each entry to its route.
+/// What the rail currently is, so a click on one of its targets can be turned back into a
+/// route and the whole thing torn down when the route changes.
+///
+/// Empty on the hero, which has no rail at all.
+#[derive(Default)]
+pub(crate) struct Rail {
+    /// The one thing to prune to take the rail down -- everything else hangs off it.
+    pub(crate) surface: Option<Leaf>,
+    /// The brand block: the way back to the hero.
+    back: Option<Leaf>,
+    /// One per entry, in [`SECTIONS`] order.
+    entries: Vec<Leaf>,
+}
+
+impl Rail {
+    /// Which route `leaf` goes to, if it is one of the rail's own targets.
+    pub(crate) fn route_for(&self, leaf: Leaf) -> Option<usize> {
+        if self.back == Some(leaf) {
+            return Some(0);
+        }
+        // sections are one-based in the router's list, since route 0 is the hero
+        self.entries
+            .iter()
+            .position(|entry| *entry == leaf)
+            .map(|index| index + 1)
+    }
+}
+
+/// Builds the rail and records which route each entry reaches.
 ///
 /// `active` is `None` on the hero route, which has no rail at all -- so nothing is built.
 /// Section indices here are 0-based; the router's are one higher, since route 0 is the hero.
-pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Option<usize>) {
+pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) -> Rail {
     let Some(active) = active else {
-        return;
+        return Rail::default();
     };
-    let surface = rail_surface(tree, parent);
+    let surface = rail_surface(canopy, parent);
 
     // One target covering the chevron and the wordmark together, rather than a listener on
     // each. They are one control -- "back to the hero" -- and as two they had two dead strips
     // between and around them where the obvious click did nothing. Unpainted: the rail's own
     // surface is the background here, so a panel would only be a shape to keep in sync.
-    let back = tree.branch(
+    let back = canopy.branch(
         surface,
-        Stem::new()
+        Bare::new()
             .at(Location::new().xs(
                 space::SM
                     .px()
@@ -68,15 +93,12 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
                     .with((DIVIDER_TOP - space::SM).px().as_bottom()),
             ))
             .elevate(Elevation::up(1))
-            .with(InteractionListener::new()),
+            .interactive(),
     );
-    tree.on_click(back, move |_: Trigger<OnClick>, mut tree: Tree| {
-        tree.write_to(router, Route(0));
-    });
 
     // both pass through, or each would win the hit-test on the pixels it covers and split the
     // one control back into three
-    tree.branch(
+    canopy.branch(
         surface,
         Icon::new(IconId::from(IconHandles::ChevronUp))
             .color(role::accent())
@@ -88,10 +110,10 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
                     .with(BRAND_CHEVRON.px().as_height()),
             ))
             .elevate(Elevation::up(2))
-            .with(InteractionPropagation::pass_through()),
+            .pass_through(),
     );
 
-    tree.branch(
+    canopy.branch(
         surface,
         Text::new(BRAND)
             .size(FontSize::new(type_scale::TITLE))
@@ -111,14 +133,11 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
                 BRAND_TOP.px().as_top().with(BRAND_H.px().as_height()),
             ))
             .elevate(Elevation::up(2))
-            .with((
-                HorizontalAlignment::Left,
-                VerticalAlignment::Middle,
-                InteractionPropagation::pass_through(),
-            )),
+            .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+            .pass_through(),
     );
 
-    tree.branch(
+    canopy.branch(
         surface,
         Panel::new()
             .color(role::outline())
@@ -133,13 +152,14 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
             .elevate(Elevation::up(1)),
     );
 
+    let mut entries = Vec::with_capacity(SECTIONS.len());
     for (index, name) in SECTIONS.iter().enumerate() {
         let top = FIRST_ENTRY_TOP + index as i32 * (ENTRY_H + ENTRY_GAP);
         let is_active = index == active;
         // the active entry gets a filled pill behind it -- M3's rail indicator. Inactive
         // entries are label-only, so the accent stays scarce enough to mean something.
         if is_active {
-            tree.branch(
+            canopy.branch(
                 surface,
                 Panel::new()
                     .color(role::accent())
@@ -156,7 +176,7 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
                     .elevate(Elevation::up(1)),
             );
         }
-        let label = tree.branch(
+        entries.push(canopy.branch(
             surface,
             Text::new(*name)
                 .size(FontSize::new(type_scale::TITLE))
@@ -173,10 +193,16 @@ pub(crate) fn build(tree: &mut Tree, parent: Entity, router: Entity, active: Opt
                     top.px().as_top().with(ENTRY_H.px().as_height()),
                 ))
                 .elevate(Elevation::up(2))
-                .with((HorizontalAlignment::Left, VerticalAlignment::Middle)),
-        );
-        tree.on_click(label, move |_: Trigger<OnClick>, mut tree: Tree| {
-            tree.write_to(router, Route(index + 1));
-        });
+                .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+                // the entry *is* the target -- without this it is drawn and never grabbed, so
+                // every section but the one the rail already shows was unreachable
+                .interactive(),
+        ));
+    }
+
+    Rail {
+        surface: Some(surface),
+        back: Some(back),
+        entries,
     }
 }

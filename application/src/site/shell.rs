@@ -4,8 +4,8 @@
 //! without rebuilding the frame around it.
 
 use foliage::{
-    ConfigurationDescriptor, Elevation, Entity, Grid, GridExt, Stem, Location, Panel,
-    Rounding, Sprout, Tree,
+    Bare, Canopy, ConfigurationDescriptor, Elevation, Grid, GridExt, Grows, Leaf, Location, Panel,
+    Rounding, Sprout,
 };
 
 use crate::site::{role, space};
@@ -22,28 +22,25 @@ pub(crate) const FIGURE_MAX: i32 = 900;
 /// The scroll container a route renders into: full viewport width, so a hero can bleed
 /// edge to edge.
 ///
-/// The `Grid` brings a `View` with it, and `extent_check` grows the scrollable range to
-/// cover whatever the route puts inside -- nothing here needs to know how tall a page is.
-pub(crate) fn content_area(tree: &mut Tree, parent: Entity) -> Entity {
-    tree.branch(
+/// The `Grid` is what makes it a view, and the scroll extent grows to cover whatever the
+/// route puts inside -- nothing here needs to know how tall a page is.
+pub(crate) fn content_area(canopy: &mut Canopy, parent: Leaf) -> Leaf {
+    canopy.branch(
         parent,
-        Stem::new()
+        Bare::new()
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
                 0.px().as_top().with(100.pct().as_bottom()),
             ))
             .elevate(Elevation::up(1))
-            .with((
-                Grid::new(1.col().gap(0), 1.row().gap(0)),
-                crate::site::probe::Scroller,
-            )),
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0))),
     )
 }
 
 /// How wide an element in the content column runs, at `xs` and at `md`+.
 ///
 /// This used to be a box: a measured column inside the scroll container, with everything
-/// written into it. A box needs a `Grid`, a `Grid` brings a `View`, and a second view inside
+/// written into it. A box needs a `Grid`, a `Grid` brings a view, and a second view inside
 /// the scroll container is what stopped the page scrolling when the pointer sat in the side
 /// gutters -- the wheel walks up to the *first* view under it, found the inner one over the
 /// text and the outer one (with no extent of its own) over the gutters. So the measure is a
@@ -109,8 +106,8 @@ pub(crate) fn rail_host_location(open: bool) -> Location {
 /// makes the rounding visible at all: flush to the edges, three of the four corners are
 /// offscreen. `Xs` because `Rounding` is proportional -- `Md` is half the short side, which
 /// on a 148px rail is a 74px radius, i.e. a lozenge.
-pub(crate) fn rail_surface(tree: &mut Tree, parent: Entity) -> Entity {
-    tree.branch(
+pub(crate) fn rail_surface(canopy: &mut Canopy, parent: Leaf) -> Leaf {
+    canopy.branch(
         parent,
         Panel::new()
             .color(role::surface())
@@ -126,6 +123,6 @@ pub(crate) fn rail_surface(tree: &mut Tree, parent: Entity) -> Entity {
                     .with(100.pct().as_bottom().adjust(-space::SM)),
             ))
             .elevate(Elevation::up(6))
-            .with(Grid::new(1.col().gap(0), 1.row().gap(0))),
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0))),
     )
 }
