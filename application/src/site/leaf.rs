@@ -50,6 +50,7 @@ fn parent_write_tone() -> Color {
 
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     let container = crate::site::shell::content_area(g.canopy, slot);
+    scroll_probe(g, slot, container);
     let mut column = Column::new(g.canopy, container);
 
     column.display(g.canopy, "leaf");
@@ -96,6 +97,103 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     lifetime(g, &mut column);
 
     column.tail(g.canopy, SCROLL_TAIL);
+}
+
+/// TEMPORARY: the page view's per-frame scroll deltas, for telling an uneven `offset` from an
+/// even one. Grown on the route slot rather than inside the scroll container, so it does not
+/// move with the thing it is measuring.
+///
+/// Frozen rather than live: it collects while the view is moving and writes once, after it has
+/// been still for [`PROBE_IDLE`] frames. A readout changing sixty times a second is not one you
+/// can read at the speed the fault happens.
+struct ScrollProbe {
+    view: Leaf,
+    label: Leaf,
+    last: Option<f32>,
+    samples: Vec<f32>,
+    moving: bool,
+    idle: u32,
+}
+
+/// Frames of no movement before a run is considered over and reported.
+const PROBE_IDLE: u32 = 10;
+/// How many of the most recent deltas get spelled out individually.
+const PROBE_TAIL: usize = 14;
+
+fn scroll_probe(g: &mut Grow, slot: Leaf, view: Leaf) {
+    let label = g.canopy.branch(
+        slot,
+        Text::new("scroll to sample")
+            .size(FontSize::new(type_scale::LABEL))
+            .color(role::accent())
+            .at(Location::new().xs(
+                space::SM.px().as_left().with(100.pct().as_right()),
+                space::XS.px().as_top().with(16.px().as_height()),
+            ))
+            .elevate(Elevation::up(20))
+            .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+            .pass_through(),
+    );
+    g.page.demos.push(Box::new(ScrollProbe {
+        view,
+        label,
+        last: None,
+        samples: Vec::new(),
+        moving: false,
+        idle: 0,
+    }));
+}
+
+impl Demo for ScrollProbe {
+    fn clicked(&mut self, _canopy: &mut Canopy, _leaf: Leaf) -> bool {
+        false
+    }
+    fn drive(&mut self, canopy: &mut Canopy) {
+        let Some(offset) = canopy.scroll_offset(self.view) else {
+            return;
+        };
+        let y = offset.top();
+        let Some(last) = self.last else {
+            self.last = Some(y);
+            return;
+        };
+        self.last = Some(y);
+        let delta = y - last;
+        if delta != 0.0 {
+            self.moving = true;
+            self.idle = 0;
+        } else {
+            self.idle += 1;
+        }
+        // Zero-deltas are recorded too, but only while a run is under way: a frame that moved
+        // nothing in the middle of a coast is the stall half of a stutter, and dropping it would
+        // hide exactly what this is for.
+        if self.moving {
+            self.samples.push(delta);
+        }
+        if !self.moving || self.idle < PROBE_IDLE {
+            return;
+        }
+        self.moving = false;
+        let count = self.samples.len();
+        let stalls = self.samples.iter().filter(|d| **d == 0.0).count();
+        let max = self.samples.iter().cloned().fold(f32::MIN, f32::max);
+        let min = self.samples.iter().cloned().fold(f32::MAX, f32::min);
+        let tail = self
+            .samples
+            .iter()
+            .rev()
+            .take(PROBE_TAIL)
+            .rev()
+            .map(|d| format!("{d:.2}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        canopy.text(
+            self.label,
+            format!("n{count} stall{stalls} {min:.2}..{max:.2} | {tail}"),
+        );
+        self.samples.clear();
+    }
 }
 
 /// A parent and its own label, kept together because the label reports the parent's current
