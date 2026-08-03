@@ -78,20 +78,35 @@ impl Line {
     ) {
         for (points, line, mut quad) in lines.iter_mut() {
             let pts = (points.data[0].coordinates, points.data[1].coordinates);
-            let x_diff = pts.1.a() - pts.0.a();
-            let y_diff = pts.1.b() - pts.0.b();
-            let slope = y_diff / x_diff;
-            let normal_slope = 1.0 / slope;
-            let angle = normal_slope.atan();
-            // The endpoints are snapped to device pixels, the perpendicular offsets are not.
-            // Rounding the four corners instead would quantize those offsets, and they are
-            // fractional for any line that is not axis-aligned -- so a diagonal would come out
-            // with its weight and its angle both altered by up to half a pixel per corner.
-            // Snapping the ends puts the line on a pixel boundary, which is what stops it
-            // rasterizing soft, and leaves the shape it draws untouched.
+            // The endpoints are snapped to device pixels; the perpendicular offsets that give the
+            // quad its weight are not. Rounding the four corners instead would quantize those
+            // offsets, and they are fractional for any line that is not axis-aligned -- so a
+            // diagonal would come out with its weight and its angle both altered by up to half a
+            // pixel per corner. Snapping the ends is what puts the line on a pixel boundary
+            // rather than straddling two and rasterizing soft.
             let sf = scale_factor.value();
             let start = Position::logical(pts.0).to_physical(sf).rounded();
             let end = Position::logical(pts.1).to_physical(sf).rounded();
+            // Measured between the *snapped* ends, because that is where the line is once it has
+            // been snapped, and the perpendicular exists to give that axis its thickness. Taken
+            // from the unrounded points instead, the perpendicular belongs to a slightly
+            // different angle: both end faces stay parallel to it while the axis has moved, so
+            // the quad is a parallelogram rather than a rectangle -- caps slanted, and a true
+            // width of `weight * cos` of the disagreement. On a long segment the two angles are
+            // indistinguishable; on a short one they are not, which is exactly where the skew
+            // would show.
+            let mut x_diff = end.left() - start.left();
+            let mut y_diff = end.top() - start.top();
+            if x_diff == 0.0 && y_diff == 0.0 {
+                // Snapping can collapse a segment shorter than a device pixel onto a single
+                // point, and `0.0 / 0.0` would take the angle -- and all four corners -- to NaN.
+                // The unrounded direction still says which way it was pointing.
+                x_diff = pts.1.a() - pts.0.a();
+                y_diff = pts.1.b() - pts.0.b();
+            }
+            let slope = y_diff / x_diff;
+            let normal_slope = 1.0 / slope;
+            let angle = normal_slope.atan();
             let half_weight = line.weight as f32 / 2.0 * sf;
             let x_adjust = angle.cos() * half_weight;
             let y_adjust = angle.sin() * half_weight;

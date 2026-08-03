@@ -267,6 +267,17 @@ pub struct View {
     /// page scrolled 300px has an `offset` of 40 and hands 340 down to its children. Kept
     /// here rather than walked per entity so deriving a child's `Section` is one lookup.
     pub(crate) accumulated_offset: Position<Logical>,
+    /// What snapping `offset` to a device pixel had left over, carried into the next snap.
+    ///
+    /// Not a second position, and never read as one -- `offset` stays the single number every
+    /// reader sees, and it stays exactly on a device pixel, which is what keeps an element's
+    /// device fraction constant. This is only the sub-pixel remainder, and dropping it is not
+    /// free: without it each frame moves `round(delta)` rather than `delta`, so the delivered
+    /// speed is the velocity rounded to whole pixels per frame. A decaying coast then descends a
+    /// staircase -- as its step sweeps past 3.5, 2.5, 1.5 device px the speed drops by a third,
+    /// then a half, in one frame each -- and a drag slower than half a pixel per frame moves
+    /// nothing at all. Carried, the average speed is exact and the steps distribute themselves.
+    pub(crate) residual: Position<Logical>,
 }
 impl View {
     /// An unscrolled view. Its extent is computed from its children.
@@ -275,6 +286,7 @@ impl View {
             offset: Default::default(),
             extent: Default::default(),
             accumulated_offset: Default::default(),
+            residual: Default::default(),
         }
     }
     /// Current pan, in px -- raw state, `pub(crate)`-write only (`extent_check`'s clamp
@@ -363,33 +375,44 @@ fn ovrscrl(
     //
     // Snapped here rather than on the way to the screen so there is one authority over `offset`:
     // the clamp below, momentum, and `ScrollProgress` all read the number the reader is looking
-    // at. The cost is that a scroll cannot advance by less than one device pixel.
-    view.offset = snap_to_device(view.offset + ovr, scale_factor);
+    // at. What the snap would otherwise discard is carried in `residual` -- see there for why a
+    // scroll that merely rounds each frame descends a staircase instead of decaying.
+    let raw = view.offset + ovr + view.residual;
+    view.offset = snap_to_device(raw, scale_factor);
+    view.residual = raw - view.offset;
     let section = *sections.get(entity).unwrap().1;
     let mut over = Position::default();
+    // Each clamp replaces `offset` on its axis outright, so whatever carry that axis was holding
+    // describes a position it no longer has. Left alone it would keep spending itself against a
+    // bound the view is already resting on, which is a pixel of creep per frame for as long as
+    // anything keeps writing.
     let over_right = section.right() + view.offset.left();
     if over_right > view.extent.width() {
         let val = view.extent.width() - section.right();
         over.set_left(view.offset.left() - val);
         view.offset.set_left(val);
+        view.residual.set_left(0.0);
     }
     let over_bottom = section.bottom() + view.offset.top();
     if over_bottom > view.extent.height() {
         let val = view.extent.height() - section.bottom();
         over.set_top(view.offset.top() - val);
         view.offset.set_top(val);
+        view.residual.set_top(0.0);
     }
     let over_left = section.left() + view.offset.left();
     if over_left < view.extent.left() {
         let val = view.extent.left() - section.left();
         over.set_left(view.offset.left() - val);
         view.offset.set_left(val);
+        view.residual.set_left(0.0);
     }
     let over_top = section.top() + view.offset.top();
     if over_top < view.extent.top() {
         let val = view.extent.top() - section.top();
         over.set_top(view.offset.top() - val);
         view.offset.set_top(val);
+        view.residual.set_top(0.0);
     }
     if old_offset != view.offset {
         to_trigger.insert(entity);
@@ -552,11 +575,16 @@ pub(crate) fn extent_check(
             let section = *sections.get(*entity).unwrap().1;
             let max_x = (view.extent.width() - section.right()).max(0.0);
             let max_y = (view.extent.height() - section.bottom()).max(0.0);
+            // Same reasoning as the clamp's, and the same reasoning that strips `Coasting` just
+            // below: a request states where the view belongs, so a carry describing the position
+            // it is leaving is stale by definition.
             if let Some(x) = request.x {
                 view.offset.set_left(x * max_x);
+                view.residual.set_left(0.0);
             }
             if let Some(y) = request.y {
                 view.offset.set_top(y * max_y);
+                view.residual.set_top(0.0);
             }
             tracing::trace!(entity = ?entity, request = ?request, after = ?view.offset, "grid::view: applied ScrollTo to offset");
             to_trigger.insert(*entity);
