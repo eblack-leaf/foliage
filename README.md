@@ -1,10 +1,11 @@
 # Foliage
 
-`Foliage` is a cross-platform UI framework written in Rust. Every widget is one ECS entity
-(via [`bevy_ecs`](https://crates.io/crates/bevy_ecs)); rendering is [`wgpu`](https://wgpu.rs)
-and windowing/input is [`winit`](https://docs.rs/winit). It targets Linux, Windows, and macOS
-natively, the Web via WebAssembly, and Android -- see [Platform support](#platform-support)
-below.
+`Foliage` is a cross-platform UI framework written in Rust. Every element on screen is one
+entity, held by an ECS ([`bevy_ecs`](https://crates.io/crates/bevy_ecs)) that stays an
+implementation detail -- nothing in the public API is a bevy type. Rendering is
+[`wgpu`](https://wgpu.rs) and windowing/input is [`winit`](https://docs.rs/winit). It targets
+Linux, Windows, and macOS natively, the Web via WebAssembly, and Android -- see
+[Platform support](#platform-support) below.
 
 ## Getting started
 
@@ -16,90 +17,139 @@ foliage = { git = "https://github.com/eblack-leaf/foliage" }
 
 ```rust
 // src/main.rs
-use foliage::{Button, Color, EcsExtension, Elevation, Foliage, Location, Rounding, Sprout};
+use foliage::{
+    Canopy, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Rounding, Sprout,
+};
 
 fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((300, 200));
-    foliage.world.leaf(
-        Button::new()
-            .text("Button")
-            .rounding(Rounding::Sm)
-            .colors(Color::gray(900), Color::green(500))
-            .at(Location::new().xs(
-                8.px().as_left().with(160.px().as_width()),
-                8.px().as_top().with(52.px().as_bottom()),
-            ))
-            .elevate(Elevation::up(1)),
-    );
-    foliage.photosynthesize(); // hands off to the window/event loop and runs
+
+    // Hands off to the window/event loop. The closure runs once per frame, and is the only
+    // place an app ever touches foliage.
+    let mut grown = false;
+    foliage.photosynthesize(move |canopy: &mut Canopy| {
+        if grown {
+            return;
+        }
+        grown = true;
+        canopy.leaf(
+            Panel::new()
+                .color(Color::green(500))
+                .rounding(Rounding::Sm)
+                .at(Location::new().xs(
+                    8.px().as_left().with(160.px().as_width()),
+                    8.px().as_top().with(52.px().as_height()),
+                ))
+                .elevate(Elevation::up(1)),
+        );
+    });
 }
 ```
 
-`foliage.world.leaf(..)` spawns a widget at the top level (no parent). `Button::new()`
-returns a `ButtonSprout` -- a config builder, not yet an entity -- and `.at(..)`/
-`.elevate(..)`/`.text(..)`/`.colors(..)` all just set fields on it. It only becomes a
-real, spawned entity once handed to `leaf`/`branch`. More runnable examples (composing
-several widgets, click handling, animation, text input) live in
-[`foliage/examples`](foliage/examples) -- `cargo run --example card -p foliage` is a
-good first one to try. The examples demoing the off-by-default arrangement composites
-(`carousel`, `controls`, `dropdown_and_pagination`, `polyline`, `popover`, `tabs`) need
-that feature turned on: `cargo run --example controls -p foliage --features
-composite-extras`.
+Nothing exists before the loop starts: the tree is grown on the first frame, from inside the
+closure. `canopy.leaf(..)` grows an element at the top level (no parent) and hands back a
+`Leaf` naming it. `Panel::new()` returns a `PanelSprout` -- a config value, not yet an entity
+-- and `.color(..)`/`.at(..)`/`.elevate(..)` all just set fields on it; it becomes a real
+element only once handed to `leaf`/`branch`.
+
+Runnable examples live in [`foliage/examples`](foliage/examples) --
+`cargo run --example basic_shapes -p foliage` is a good first one, and `interaction`,
+`responsive_split`, `polygon_animation`, `scrolling`, `text_input`, `keyboard`, `polyline`,
+`opacity_and_elevation` and `off_thread` cover the rest of the surface. All of them run with
+no feature flags.
 
 ## Composing and reacting
 
-Widgets nest via `tree.branch(parent, ..)`, and clicks are handled with `on_click`:
+Elements nest via `canopy.branch(parent, ..)`. Everything foliage reports back -- clicks,
+keys, finished animations, resizes -- arrives as a `Bloom` from `canopy.take()`:
 
 ```rust
 use foliage::{
-    Color, EcsExtension, Elevation, Foliage, Grid, GridExt, Location, OnClick, Opacity, Panel,
-    Sprout, Tree, Trigger,
+    Bloom, Canopy, Color, Elevation, Foliage, Grid, GridExt, Grows, Leaf, Location, Panel,
+    Rounding, Sprout,
 };
 
-let mut foliage = Foliage::new();
-let base = foliage.world.leaf(
-    Panel::new()
-        .color(Color::orange(700))
-        .at(Location::new().xs(20.px().as_left().with(140.px().as_width()), 20.px().as_top().with(140.px().as_height())))
-        .elevate(Elevation::abs(0))
-        .with((Opacity::new(1.0), Grid::default())), // children resolve their Location against this
-);
-let overlay = foliage.world.branch(
-    base, // parented to `base` -- moves and is clipped with it
-    Panel::new()
-        .color(Color::green(500))
-        .at(Location::new().xs(50.px().as_left().with(60.px().as_width()), 50.px().as_top().with(60.px().as_height())))
-        .elevate(Elevation::up(1)) // one layer in front of its parent
-        .with(Opacity::new(0.6)),
-);
-foliage.on_click(overlay, |_: Trigger<OnClick>, mut tree: Tree| {
-    tree.write_to(overlay, Color::gray(200)); // any later write re-triggers whatever reacts to Color
-});
+fn main() {
+    let mut foliage = Foliage::new();
+    foliage.desktop_size((200, 200));
+
+    let mut overlay: Option<Leaf> = None;
+    foliage.photosynthesize(move |canopy: &mut Canopy| {
+        let overlay = *overlay.get_or_insert_with(|| grow(canopy));
+        for bloom in canopy.take() {
+            // One physical click emits for every pass-through element the gesture crossed,
+            // so several per frame is normal -- only ours matters here.
+            if let Bloom::Clicked(leaf) = bloom
+                && leaf == overlay
+            {
+                canopy.color(overlay, Color::gray(200));
+            }
+        }
+    });
+}
+
+/// Grows the pair and hands back the name of the one that reacts.
+fn grow(canopy: &mut Canopy) -> Leaf {
+    let base = canopy.leaf(
+        Panel::new()
+            .color(Color::orange(700))
+            .at(Location::new().xs(
+                20.px().as_left().with(140.px().as_width()),
+                20.px().as_top().with(140.px().as_height()),
+            ))
+            .elevate(Elevation::up(1))
+            .grid(Grid::default()), // children resolve their Location against this
+    );
+    canopy.branch(
+        base, // stemmed to `base` -- moves, clips and withers with it
+        Panel::new()
+            .color(Color::green(500))
+            .rounding(Rounding::Sm)
+            .at(Location::new().xs(
+                50.px().as_left().with(60.px().as_width()),
+                50.px().as_top().with(60.px().as_height()),
+            ))
+            .elevate(Elevation::up(1)) // one layer in front of its stem
+            .interactive(), // what puts it in the hit test at all
+    )
+}
 ```
 
-`Elevation::up(n)`/`abs(n)` set draw order relative to a parent or absolute; `.with(..)`
-folds extra components (here, `Opacity`) into the same one-shot spawn. Writing to an
-entity's components later (`tree.write_to`) is how you update anything after the fact --
-composites like `Button` restyle themselves by reacting to exactly that kind of write.
+`Elevation::up(n)`/`abs(n)` set draw order relative to a stem or absolute. After the initial
+growth there are only verbs, and they all take the name first: `color`, `opacity`, `location`,
+`text`, `visible`, `enable`, `disable`, `animate`, `prune`. A write *is* the change -- there is
+no render call to make, and the next frame is already different.
+
+A `Leaf` is safe to hold onto. Prune the element and the name withers: later commands naming it
+are dropped, samples read absent, and a name is never reused, so nothing panics and nothing is
+silently addressed.
 
 ## Under the hood
 
-None of the above touches rendering directly -- every widget's changed state is tracked
+None of the above touches rendering directly -- every element's changed state is tracked
 by a `Differential` cache and only what actually changed is drained into the `ash`
-backend each frame, which feeds `wgpu` through `ginkgo`. Rendering primitives (`Panel`,
-`Text`, `Icon`, `Image`, `Polygon`, `Line`) are built on exactly that machinery, and
-composites like `Button` are combinations of several primitives under one root entity.
+backend each frame, which feeds `wgpu` through `ginkgo`.
 
-The [book](https://eblack-leaf.github.io/foliage/book/) covers all of this in depth,
-building each piece up from nothing in the same order, and ends by building `Button`
-itself from scratch using only what came before it.
+The line that matters is which types have a renderer and which are logical on top of one. Six
+have a renderer -- `Panel`, `Text`, `Icon`, `Image`, `Polygon`, and `LineQuad`, which `Line`
+fronts -- and each owns a wgpu pipeline and an instance buffer fed by that cache. `Text` is one
+of the six in the sense that it owns a pipeline, not in the sense that it is simple: a string is
+however many glyph instances it takes to set it.
+
+Everything else is assembled from those six and draws nothing itself. `Polyline` is `Line`
+segments with `Polygon` joints closing the wedges at each bend. `TextInput` is a panel, text, and
+a caret. The [site](https://eblack-leaf.github.io/foliage/) in [`application/`](application) is
+the largest worked example -- its cards, buttons, rail and figures are all assembly.
+
+The [book](https://eblack-leaf.github.io/foliage/book/) covers all of this in depth, building
+each piece up from nothing in the same order.
 
 ## Platform support
 
 | Platform | Status |
 |---|---|
-| Linux / Windows / macOS | Native, CI-tested (`cargo test --workspace` on all three) |
+| Linux / Windows / macOS | Native, built and run in CI on all three |
 | Web (WASM) | Live -- this is the crate's actual deployed target, not just a CI build check |
 | Android | Wired up end-to-end -- `Foliage::android(app)`, a cdylib entry point crate (`application_android`), and a Gradle-project scaffolding CLI (`foliage_android`); not yet in CI |
 | iOS | No toolchain currently available to compile or verify against; the shared source has no iOS-specific branch behind it yet, so this is unverified rather than unsupported |
@@ -109,11 +159,9 @@ itself from scratch using only what came before it.
 - **Text input selection**: Shift+Click doesn't yet extend an existing selection (every click
   restarts it), and drag-selecting doesn't auto-scroll when the pointer nears the box's edges.
   Both are scoped but not implemented.
-- **Router has no URL/browser-history integration, on purpose.** This was designed through and
-  deliberately rejected, not left undone: a deep link would let a route become a visitor's
-  *first* scene rather than one reached through the app's own authored navigation, which can
-  silently break anything that assumed it was entered in-session. Router only supports
-  in-session, app-authored navigation.
+- **Widgets live above the framework, not in it.** foliage stays unopinionated: it gives you the
+  renderers, layout, motion and input, and a button or a card is assembly on top. `lichen` is
+  where that opinionated layer is going; it is not ready yet.
 
 ## License
 
@@ -131,8 +179,8 @@ that font — see [LICENSE-JETBRAINS-MONO](LICENSE-JETBRAINS-MONO) (SIL OFL 1.1)
 require to accompany the binary. Registering your own font with `Foliage::font` does not remove
 it; the bundled face remains the default.
 
-**DejaVu Sans** and **DejaVu Sans Mono** ([LICENSE-DEJAVU](LICENSE-DEJAVU)) are used only by a
-unit test and an example respectively, and are never compiled into a dependent's binary.
+**DejaVu Sans** and **DejaVu Sans Mono** ([LICENSE-DEJAVU](LICENSE-DEJAVU)) are used only by the
+repo's own examples and fixtures, and are never compiled into a dependent's binary.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion
 in this work by you shall be dual licensed as above, without any additional terms or

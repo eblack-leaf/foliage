@@ -102,6 +102,8 @@ const PLATE_H_XS: i32 = 210;
 const PLATE_H_MD: i32 = 248;
 const PLATE_H_LG: i32 = 340;
 
+/// Each card is the way into the section it describes. Routes are the router's own indices --
+/// 0 is the hero, so the sections start at 1.
 const CAPABILITIES: [CardSpec; 5] = [
     CardSpec {
         title: "a leaf is an entity",
@@ -109,6 +111,7 @@ const CAPABILITIES: [CardSpec; 5] = [
                write, and the next frame is already different.",
         icon: IconHandles::Box,
         sides: 6.0,
+        route: 2,
     },
     CardSpec {
         title: "layout that resolves",
@@ -116,6 +119,7 @@ const CAPABILITIES: [CardSpec; 5] = [
                and pinned.",
         icon: IconHandles::Grid,
         sides: 4.0,
+        route: 3,
     },
     CardSpec {
         title: "motion that belongs",
@@ -123,12 +127,14 @@ const CAPABILITIES: [CardSpec; 5] = [
                animate.",
         icon: IconHandles::Repeat,
         sides: 7.0,
+        route: 4,
     },
     CardSpec {
-        title: "composites you drive",
-        body: "Buttons, cards, inputs and routers all react to plain component writes.",
+        title: "parts, not widgets",
+        body: "Six renderers underneath. Everything above them is assembly, including yours.",
         icon: IconHandles::Layers,
         sides: 5.0,
+        route: 5,
     },
     CardSpec {
         title: "one codebase",
@@ -136,6 +142,7 @@ const CAPABILITIES: [CardSpec; 5] = [
                three.",
         icon: IconHandles::Terminal,
         sides: 8.0,
+        route: 6,
     },
 ];
 
@@ -143,7 +150,6 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     // straight into the scroll container -- elements carry the measure themselves, so the
     // side gutters are part of the same scrollable box as the text
     let container = crate::site::shell::content_area(g.canopy, slot);
-    g.page.container = Some(container);
     let mut column = Column::new(g.canopy, container);
 
     column.display(g.canopy, "overview");

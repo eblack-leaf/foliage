@@ -6,12 +6,13 @@
 //! instead of hue. `Color::slate(n)` is already a tonal palette in M3's sense, so `role`
 //! below just names the tones this app should use.
 
+pub(crate) mod blueprint;
 pub(crate) mod cards;
 pub(crate) mod drawer;
 pub(crate) mod figure;
 pub(crate) mod hero;
+pub(crate) mod leaf;
 pub(crate) mod overview;
-pub(crate) mod probe;
 pub(crate) mod rail;
 pub(crate) mod router;
 pub(crate) mod shell;
@@ -122,8 +123,8 @@ fn italic() -> FontId {
 /// what keeps a stale entry from a previous section out of the current one's handlers.
 #[derive(Default)]
 pub(crate) struct Page {
-    /// The scroll container this route draws into, if it has one. Read back by the probe.
-    pub(crate) container: Option<Leaf>,
+    /// The live demos on this page, each owning its own elements and its own state.
+    pub(crate) demos: Vec<Box<dyn Demo>>,
     /// Clicking one of these goes to a route.
     pub(crate) nav: Vec<(Leaf, usize)>,
     /// Clicking one of these leaves the site.
@@ -135,6 +136,22 @@ pub(crate) struct Page {
     pub(crate) traverses: Vec<figure::Traverse>,
     /// The hero's live readout, on the one route that has one.
     pub(crate) readout: Option<hero::Readout>,
+}
+
+/// Something on a page the reader drives.
+///
+/// A trait rather than one more `Option<..>` field on [`Page`], because a section that explains
+/// a part of the library by letting you operate it is the shape every section is heading for,
+/// and the alternative is a field per section plus a match in `entry.rs` that grows with the
+/// site. A demo owns its own elements and its own state; the only thing it shares with the
+/// frame is the click.
+pub(crate) trait Demo {
+    /// Answers a click. `false` if the `Leaf` is not one of this demo's own, which is what lets
+    /// several demos sit on one page and the page still fall through to navigation.
+    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool;
+    /// Once a frame, for anything a demo displays that only the tree knows -- a resolved box,
+    /// or whether an element is still there.
+    fn drive(&mut self, _canopy: &mut Canopy) {}
 }
 
 /// What a builder gets: somewhere to grow, and somewhere to record what it grew.
@@ -165,6 +182,17 @@ pub(crate) mod space {
     pub(crate) const LG: i32 = 24;
     pub(crate) const XL: i32 = 40;
 }
+
+/// Where a page's title starts, measured from the top of the scroll container.
+///
+/// Sized from the drawer's menu button rather than picked, because that is what it is clearing:
+/// at `xs` the button floats over the content in the top-left corner, and a title at [`space::XL`]
+/// started 8px inside its footprint -- so every page opened with its first word under the button.
+///
+/// Applied at every breakpoint, not just `xs`. The button is parked off-canvas at `md`+ so the
+/// clearance is unnecessary there, but a title that changes height with the window is a jump for
+/// nothing, and the extra air above a page's first line reads as deliberate at any width.
+pub(crate) const PAGE_TOP: i32 = drawer::MENU_FOOTPRINT + space::MD;
 
 /// Crisp, not floaty. Entrances are short and decisively eased; nothing drifts in from
 /// offscreen -- things resolve in place, from a rough shape into their real one.
@@ -318,9 +346,24 @@ pub(crate) fn cutout_badge(
 pub(crate) struct PolyButton {
     pub(crate) label: &'static str,
     pub(crate) icon: crate::icons::IconHandles,
+    /// Handed to [`HrefLink`](foliage::HrefLink), which is a browser escape hatch rather than
+    /// any kind of route: it synthesises an anchor click on the web and compiles away to
+    /// nothing everywhere else. A button carrying one is inert on desktop and Android.
     pub(crate) href: &'static str,
     /// Final side count. Each button in a row gets its own, so they resolve into visibly
     /// different shapes rather than one repeated three times.
+    pub(crate) sides: f32,
+    pub(crate) face: Color,
+}
+
+/// The same control, answering to the page it sits on instead of leaving the site.
+///
+/// The split is between the control and what pressing it means: this is the whole button, and
+/// [`PolyButton`] is this plus a destination. A demo keeps the `Leaf` it gets back and answers
+/// the press itself.
+pub(crate) struct PolyAction {
+    pub(crate) label: &'static str,
+    pub(crate) icon: crate::icons::IconHandles,
     pub(crate) sides: f32,
     pub(crate) face: Color,
 }
@@ -331,11 +374,39 @@ pub(crate) const POLY_BUTTON_ROW_H: i32 = POLY_BUTTON + space::SM + 24;
 const POLY_SHADOW_OFF: i32 = 7;
 const POLY_ICON_SCALE: f32 = 0.44;
 
-/// Places one at `center_pct` across `row`, which should be [`POLY_BUTTON_ROW_H`] tall.
+/// Places one at `center_pct` across `row`, which should be [`POLY_BUTTON_ROW_H`] tall, and
+/// records it as leaving the site.
 pub(crate) fn poly_button(
     g: &mut Grow,
     row: Leaf,
     spec: &PolyButton,
+    center_pct: f32,
+    seq: Leaf,
+    start: u64,
+) -> Leaf {
+    let button = poly_action(
+        g,
+        row,
+        &PolyAction {
+            label: spec.label,
+            icon: spec.icon,
+            sides: spec.sides,
+            face: spec.face,
+        },
+        center_pct,
+        seq,
+        start,
+    );
+    g.page.links.push((button, spec.href));
+    button
+}
+
+/// The control itself, with nothing attached to the press. The caller keeps the returned
+/// `Leaf` and decides what it means.
+pub(crate) fn poly_action(
+    g: &mut Grow,
+    row: Leaf,
+    spec: &PolyAction,
     center_pct: f32,
     seq: Leaf,
     start: u64,
@@ -386,7 +457,6 @@ pub(crate) fn poly_button(
     // armed on the fade, not the morph: the shape keeps resolving for another second after
     // the button is plainly visible, and a button you can see but cannot press is its own bug
     arm_at(g, button, start + motion::FADE);
-    g.page.links.push((button, spec.href));
 
     let icon = g.canopy.branch(
         row,
@@ -557,13 +627,16 @@ impl Column {
     /// case the rest of the site does not use. Same for [`heading`](Self::heading) -- caps are
     /// the site's structural voice, and the prose beneath them is the only thing in sentence
     /// case, which is what keeps the two from blurring.
+    ///
+    /// Opens at [`PAGE_TOP`] rather than the usual [`space::XL`], which is what keeps it out
+    /// from under the drawer's menu button.
     pub(crate) fn display(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
         self.text(
             canopy,
             &value.to_uppercase(),
             type_scale::DISPLAY,
             role::on_surface_title(),
-            space::XL,
+            PAGE_TOP,
             FontId::default(),
         )
     }

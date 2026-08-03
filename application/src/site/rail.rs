@@ -15,8 +15,22 @@ use crate::site::{role, space, type_scale};
 ///
 /// `leaf` sits second because it is the model the overview only gestures at -- everything
 /// after it is a thing you do *to* a leaf, and none of it lands without that first.
-pub(crate) const SECTIONS: [&str; 6] =
-    ["overview", "leaf", "layout", "motion", "composites", "text"];
+///
+/// `primitives` and `interaction` split what the framework actually ships: the types with a
+/// renderer, and the ways an app hears about input. Assembly on top of the two is the app's job,
+/// which is what this site is.
+/// Kept short enough to set on one line. The rail is [`RAIL_W`](super::shell::RAIL_W) wide less
+/// its insets, which is about thirteen characters at `TITLE` -- `interaction` wrapped and
+/// `primitives` was one letter off it.
+pub(crate) const SECTIONS: [&str; 7] = [
+    "overview",
+    "leaf",
+    "layout",
+    "motion",
+    "renderers",
+    "input",
+    "text",
+];
 
 const ENTRY_H: i32 = 40;
 const ENTRY_GAP: i32 = space::XS;

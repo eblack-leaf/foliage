@@ -49,6 +49,9 @@ pub(crate) struct CardSpec {
     /// The badge's final shape. Varying it across a set is what keeps a grid from reading as
     /// one card repeated.
     pub(crate) sides: f32,
+    /// Which route it goes to. A card naming a section that the reader then has to find in the
+    /// rail is a signpost pointing at nothing.
+    pub(crate) route: usize,
 }
 
 /// One card, placed at `at` inside `parent`.
@@ -86,9 +89,14 @@ pub(crate) fn card(
             ))
             .elevate(Elevation::up(1))
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+            .interactive()
             .opacity(0.0),
     );
     crate::site::fade_in(g.canopy, card, seq, start);
+    // Armed on the fade rather than at spawn: a card is a full-width target, and an invisible
+    // one that navigates is worse than one that arrives a moment late.
+    crate::site::arm_at(g, card, start + crate::site::motion::FADE);
+    g.page.nav.push((card, spec.route));
 
     g.canopy.branch(
         card,
@@ -98,7 +106,11 @@ pub(crate) fn card(
                 space::MD.px().as_left().with(ICON.px().as_width()),
                 space::MD.px().as_top().with(ICON.px().as_height()),
             ))
-            .elevate(Elevation::up(2)),
+            .elevate(Elevation::up(2))
+            // the card itself is the target -- its contents draw above it, so without this each
+            // one wins the hit test on the pixels it covers and only the bare backing is
+            // clickable
+            .pass_through(),
     );
     g.canopy.branch(
         card,
@@ -119,7 +131,8 @@ pub(crate) fn card(
             ))
             .elevate(Elevation::up(2))
             .align(HorizontalAlignment::Left, VerticalAlignment::Top)
-            .sized_by_content(false, true),
+            .sized_by_content(false, true)
+            .pass_through(),
     );
     g.canopy.branch(
         card,
@@ -140,7 +153,8 @@ pub(crate) fn card(
             .align(HorizontalAlignment::Left, VerticalAlignment::Top)
             .sized_by_content(false, true)
             // a card's body is prose, so it takes the same slant the column's prose does
-            .font(crate::site::italic()),
+            .font(crate::site::italic())
+            .pass_through(),
     );
 
     cutout_badge(g.canopy, cell, spec.sides, BADGE, seq, start);

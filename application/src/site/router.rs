@@ -21,13 +21,14 @@ pub(crate) type RouteFn = fn(&mut Grow, Leaf);
 
 /// Route 0 is the hero: full screen, no rail. Everything after it is a section the rail
 /// lists, which is why [`rail::SECTIONS`](site::rail::SECTIONS) is indexed from 1.
-pub(crate) const ROUTES: [RouteFn; 7] = [
+pub(crate) const ROUTES: [RouteFn; 8] = [
     site::hero::build,
     site::overview::build,
-    site::stub::leaf,
+    site::leaf::build,
     site::stub::layout,
     site::stub::motion,
-    site::stub::composites,
+    site::stub::renderers,
+    site::stub::input,
     site::stub::text,
 ];
 

@@ -10,7 +10,6 @@ use foliage::{
 
 use crate::site;
 use crate::site::drawer::{Controls, Drawer};
-use crate::site::probe::Probe;
 use crate::site::rail::Rail;
 use crate::site::router;
 use crate::site::{Grow, Page};
@@ -31,7 +30,6 @@ pub(crate) struct Site {
     slot: Option<Leaf>,
     rail: Rail,
     page: Page,
-    probe: Probe,
 }
 
 impl Site {
@@ -49,7 +47,6 @@ impl Site {
                 // parent that has none.
                 .grid(Grid::default()),
         );
-        let probe = site::probe::build(canopy);
         let host = site::drawer::host(canopy);
         let controls = site::drawer::build(canopy);
         let mut site = Self {
@@ -61,7 +58,6 @@ impl Site {
             slot: None,
             rail: Rail::default(),
             page: Page::default(),
-            probe,
         };
         // Route 0 is the hero. There is no separate initial-build path -- the opening screen
         // is just the first navigation.
@@ -138,6 +134,13 @@ impl Site {
             self.navigate(canopy, route);
             return;
         }
+        // Ahead of nav and links: a demo's own controls are the innermost thing on the page,
+        // and a demo answering the click is the end of it.
+        for demo in self.page.demos.iter_mut() {
+            if demo.clicked(canopy, leaf) {
+                return;
+            }
+        }
         let nav = self
             .page
             .nav
@@ -165,10 +168,12 @@ impl Site {
         if let Some(readout) = self.page.readout.as_mut() {
             readout.drive(canopy);
         }
+        for demo in self.page.demos.iter_mut() {
+            demo.drive(canopy);
+        }
         let dt = canopy.frame_time().as_secs_f32();
         for traverse in self.page.traverses.iter_mut() {
             traverse.drive(canopy, dt);
         }
-        self.probe.drive(canopy, self.page.container);
     }
 }

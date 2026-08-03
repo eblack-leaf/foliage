@@ -7,7 +7,6 @@ use crate::site::{Column, Grow};
 
 fn placeholder(g: &mut Grow, slot: Leaf, title: &str, summary: &str) {
     let container = crate::site::shell::content_area(g.canopy, slot);
-    g.page.container = Some(container);
     let mut column = Column::new(g.canopy, container);
     column.display(g.canopy, title);
     column.lead(g.canopy, summary);
@@ -17,16 +16,6 @@ fn placeholder(g: &mut Grow, slot: Leaf, title: &str, summary: &str) {
          rather than being a page of their own.",
     );
     column.tail(g.canopy, crate::site::SCROLL_TAIL);
-}
-
-pub(crate) fn leaf(g: &mut Grow, slot: Leaf) {
-    placeholder(
-        g,
-        slot,
-        "leaf",
-        "Stem, branch and stem -- what a thing on screen is, how one gets under another, and \
-         what the link between them decides.",
-    );
 }
 
 pub(crate) fn layout(g: &mut Grow, slot: Leaf) {
@@ -47,12 +36,23 @@ pub(crate) fn motion(g: &mut Grow, slot: Leaf) {
     );
 }
 
-pub(crate) fn composites(g: &mut Grow, slot: Leaf) {
+pub(crate) fn renderers(g: &mut Grow, slot: Leaf) {
     placeholder(
         g,
         slot,
-        "composites",
-        "Button, Card, TextInput, Slider and Router -- driven by component writes.",
+        "renderers",
+        "Panel, Icon, Image, Polygon and LineQuad -- the types with a pipeline of their own. \
+         Text has a section to itself.",
+    );
+}
+
+pub(crate) fn input(g: &mut Grow, slot: Leaf) {
+    placeholder(
+        g,
+        slot,
+        "input",
+        "Hit shapes, click and drag, focus, and the one assembled control foliage ships: \
+         TextInput.",
     );
 }
 

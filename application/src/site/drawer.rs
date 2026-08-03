@@ -29,6 +29,12 @@ const MENU: i32 = 24;
 const MENU_INSET: i32 = 14;
 /// How far the backing extends past the glyph on every side.
 const MENU_PAD: i32 = 10;
+/// The button's whole footprint measured from the top-left corner -- the backing's inset plus
+/// its size.
+///
+/// Public because the button floats *over* the content at `xs`, so a page has to know how much
+/// of its own top-left corner is already spoken for. See [`site::PAGE_TOP`](crate::site::PAGE_TOP).
+pub(crate) const MENU_FOOTPRINT: i32 = (MENU_INSET - MENU_PAD) + MENU + MENU_PAD * 2;
 /// Short enough to feel like a direct response to the tap. The site's long entrance morph
 /// is for arriving somewhere; this is just a panel moving.
 const SLIDE_MS: u64 = 240;

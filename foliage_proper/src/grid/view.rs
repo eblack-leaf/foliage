@@ -306,7 +306,23 @@ fn ovrscrl(
     let propagation = propagations.get(entity).unwrap();
     let old_offset = views.get(entity).unwrap().offset;
     let mut view = views.get_mut(entity).unwrap();
-    view.offset += ovr;
+    // Whole units, at the one place every write to `offset` passes through -- a drag delta, a
+    // wheel tick scaled by its inertia, a `ScrollTo`, and an overscroll remainder handed down
+    // from a parent all arrive here before anything reads them.
+    //
+    // A fractional offset is what makes a scrolling box flicker. `Section::rounded` snaps the
+    // four edges before rasterizing, deliberately, so that two boxes sharing a coordinate cannot
+    // land a pixel apart; the cost is that a box's snapped size is `round(left + width) -
+    // round(left)`, which depends on `left`'s fractional part. Scrolling by a fraction walks that
+    // part, and anything whose width or height is not whole gains and loses a pixel as it moves.
+    // What matters is that the fraction stops *changing*, not that it is zero -- an offset in
+    // whole units leaves every element the same fraction it was laid out with.
+    //
+    // Snapped here rather than on the way to the screen so there is one authority over `offset`:
+    // the clamp below, momentum, and `ScrollProgress` all read the number the reader is looking
+    // at. The cost is that a scroll cannot advance by less than a unit, which is not a distance
+    // anyone can ask for.
+    view.offset = (view.offset + ovr).rounded();
     let section = *sections.get(entity).unwrap().1;
     let mut over = Position::default();
     let over_right = section.right() + view.offset.left();
