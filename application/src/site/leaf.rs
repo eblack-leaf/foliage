@@ -126,12 +126,23 @@ fn scroll_probe(g: &mut Grow, slot: Leaf, view: Leaf) {
         Text::new("scroll to sample")
             .size(FontSize::new(type_scale::LABEL))
             .color(role::accent())
+            // Across the bottom of the window: the drawer and the rail both own the top, and
+            // elevation cannot win that argument from here because `up` is relative to the
+            // parent, not absolute. Three lines so a long trace wraps instead of being cut, and
+            // `clip_to_viewport` so it is bounded by the window rather than by whatever the
+            // route slot happens to be.
             .at(Location::new().xs(
-                space::SM.px().as_left().with(100.pct().as_right()),
-                space::XS.px().as_top().with(16.px().as_height()),
+                space::SM
+                    .px()
+                    .as_left()
+                    .with(100.pct().as_right().adjust(-space::SM)),
+                48.px()
+                    .as_height()
+                    .with(100.pct().as_bottom().adjust(-space::SM)),
             ))
-            .elevate(Elevation::up(20))
-            .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+            .elevate(Elevation::up(30))
+            .align(HorizontalAlignment::Left, VerticalAlignment::Top)
+            .clip_to_viewport()
             .pass_through(),
     );
     g.page.demos.push(Box::new(ScrollProbe {
