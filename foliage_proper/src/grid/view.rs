@@ -1,5 +1,4 @@
 use crate::ash::clip::{ClipToViewport, InheritedClip, ResolvedClip, clip_of};
-use crate::ginkgo::ScaleFactor;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::location::Resolution;
 use crate::interaction::CurrentInteraction;
@@ -159,15 +158,8 @@ pub(crate) fn coast(
     mut coasting: Query<(Entity, &mut Coasting)>,
     momentum: Res<ScrollMomentum>,
     current: Res<CurrentInteraction>,
-    scale_factor: Res<ScaleFactor>,
     mut tree: Tree,
 ) {
-    // One device pixel, in logical units -- the smallest move `ovrscrl`'s snap can express.
-    let quantum = if scale_factor.value() > 0.0 {
-        1.0 / scale_factor.value()
-    } else {
-        1.0
-    };
     for (entity, mut c) in coasting.iter_mut() {
         // One pointer, one momentum: a press anywhere ends every coast in flight. There is
         // only ever one gesture at a time, so there is only ever one coast worth keeping,
@@ -202,24 +194,7 @@ pub(crate) fn coast(
         let now = Moment::now();
         let elapsed_ms = now.duration_since(c.last_tick).as_secs_f32() * 1000.0;
         c.last_tick = now;
-        // Ends when the next step would be smaller than the smallest step there is. `ovrscrl`
-        // snaps `offset` to device pixels, so a step under one either moves nothing or moves a
-        // whole pixel -- and a decaying coast spends its last stretch alternating between the
-        // two, which reads as the scroll stuttering to a halt rather than easing to one. Above a
-        // pixel per frame the steps are far enough apart that the snapping is invisible, so this
-        // is the exact edge of the regime worth showing.
-        //
-        // Stated against the step rather than the velocity because `decay` is already frame-rate
-        // independent (`powf(elapsed_ms)`) and a velocity is not: at 120fps the same velocity is
-        // half the step, so a tuned constant would be wrong again. `stop_epsilon` stays as the
-        // documented floor, but at 0.02 px/ms it can never produce a step this large, so it is
-        // no longer what ends a coast.
-        let step = c.velocity * elapsed_ms;
-        if step.left().abs() < quantum && step.top().abs() < quantum {
-            tree.strip::<Coasting>(entity);
-            continue;
-        }
-        tree.write_to(entity, ViewAdjustment(step));
+        tree.write_to(entity, ViewAdjustment(c.velocity * elapsed_ms));
         let decayed = momentum.decay.powf(elapsed_ms);
         c.velocity = c.velocity * decayed;
         if c.velocity.left().hypot(c.velocity.top()) < momentum.stop_epsilon {
@@ -267,17 +242,6 @@ pub struct View {
     /// page scrolled 300px has an `offset` of 40 and hands 340 down to its children. Kept
     /// here rather than walked per entity so deriving a child's `Section` is one lookup.
     pub(crate) accumulated_offset: Position<Logical>,
-    /// What snapping `offset` to a device pixel had left over, carried into the next snap.
-    ///
-    /// Not a second position, and never read as one -- `offset` stays the single number every
-    /// reader sees, and it stays exactly on a device pixel, which is what keeps an element's
-    /// device fraction constant. This is only the sub-pixel remainder, and dropping it is not
-    /// free: without it each frame moves `round(delta)` rather than `delta`, so the delivered
-    /// speed is the velocity rounded to whole pixels per frame. A decaying coast then descends a
-    /// staircase -- as its step sweeps past 3.5, 2.5, 1.5 device px the speed drops by a third,
-    /// then a half, in one frame each -- and a drag slower than half a pixel per frame moves
-    /// nothing at all. Carried, the average speed is exact and the steps distribute themselves.
-    pub(crate) residual: Position<Logical>,
 }
 impl View {
     /// An unscrolled view. Its extent is computed from its children.
@@ -286,7 +250,6 @@ impl View {
             offset: Default::default(),
             extent: Default::default(),
             accumulated_offset: Default::default(),
-            residual: Default::default(),
         }
     }
     /// Current pan, in px -- raw state, `pub(crate)`-write only (`extent_check`'s clamp
@@ -331,27 +294,9 @@ impl ScrollProgress {
         self.y
     }
 }
-/// `value` moved to the nearest whole device pixel, given back in logical units.
-///
-/// Logical units are not the granularity that matters. The pipelines snap in device space --
-/// `section.to_physical(sf).rounded()` -- so what has to stop moving is the *device* fraction. A
-/// whole logical unit only lands on a device pixel when the scale factor is a whole number: at
-/// 2.0 every unit is exactly two pixels and the fraction is always zero, while at 1.73 whole
-/// units land on 1.73, 3.46, 5.19 and the fraction walks as freely as if nothing had been
-/// snapped. Which is why this reads as a display-specific fault and is not one.
-fn snap_to_device(value: Position<Logical>, scale_factor: f32) -> Position<Logical> {
-    if scale_factor <= 0.0 {
-        return value;
-    }
-    Position::new((
-        (value.left() * scale_factor).round() / scale_factor,
-        (value.top() * scale_factor).round() / scale_factor,
-    ))
-}
 fn ovrscrl(
     entity: Entity,
     ovr: Position<Logical>,
-    scale_factor: f32,
     views: &mut Query<&mut View>,
     propagations: &Query<&OverscrollPropagation>,
     contexts: &Query<(Entity, Ref<Parent>)>,
@@ -361,58 +306,32 @@ fn ovrscrl(
     let propagation = propagations.get(entity).unwrap();
     let old_offset = views.get(entity).unwrap().offset;
     let mut view = views.get_mut(entity).unwrap();
-    // Snapped at the one place every write to `offset` passes through -- a drag delta, a wheel
-    // tick scaled by its inertia, a `ScrollTo`, and an overscroll remainder handed down from a
-    // parent all arrive here before anything reads them.
-    //
-    // A moving fraction is what makes a scrolling box flicker. `Section::rounded` snaps the four
-    // edges before rasterizing, deliberately, so that two boxes sharing a coordinate cannot land
-    // a pixel apart; the cost is that a box's snapped size is `round(left + width) - round(left)`,
-    // which depends on `left`'s fractional part. Scroll by a fraction of a pixel and that part
-    // walks, so anything whose size is not whole gains and loses a pixel as it moves. What has to
-    // stop changing is the fraction, not the offset -- snapping leaves every element exactly the
-    // fraction it was laid out with.
-    //
-    // Snapped here rather than on the way to the screen so there is one authority over `offset`:
-    // the clamp below, momentum, and `ScrollProgress` all read the number the reader is looking
-    // at. What the snap would otherwise discard is carried in `residual` -- see there for why a
-    // scroll that merely rounds each frame descends a staircase instead of decaying.
-    let raw = view.offset + ovr + view.residual;
-    view.offset = snap_to_device(raw, scale_factor);
-    view.residual = raw - view.offset;
+    view.offset += ovr;
     let section = *sections.get(entity).unwrap().1;
     let mut over = Position::default();
-    // Each clamp replaces `offset` on its axis outright, so whatever carry that axis was holding
-    // describes a position it no longer has. Left alone it would keep spending itself against a
-    // bound the view is already resting on, which is a pixel of creep per frame for as long as
-    // anything keeps writing.
     let over_right = section.right() + view.offset.left();
     if over_right > view.extent.width() {
         let val = view.extent.width() - section.right();
         over.set_left(view.offset.left() - val);
         view.offset.set_left(val);
-        view.residual.set_left(0.0);
     }
     let over_bottom = section.bottom() + view.offset.top();
     if over_bottom > view.extent.height() {
         let val = view.extent.height() - section.bottom();
         over.set_top(view.offset.top() - val);
         view.offset.set_top(val);
-        view.residual.set_top(0.0);
     }
     let over_left = section.left() + view.offset.left();
     if over_left < view.extent.left() {
         let val = view.extent.left() - section.left();
         over.set_left(view.offset.left() - val);
         view.offset.set_left(val);
-        view.residual.set_left(0.0);
     }
     let over_top = section.top() + view.offset.top();
     if over_top < view.extent.top() {
         let val = view.extent.top() - section.top();
         over.set_top(view.offset.top() - val);
         view.offset.set_top(val);
-        view.residual.set_top(0.0);
     }
     if old_offset != view.offset {
         to_trigger.insert(entity);
@@ -448,11 +367,9 @@ pub(crate) fn extent_check(
     contexts: Query<(Entity, Ref<Parent>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
     clip_to_viewport: Query<&ClipToViewport>,
-    scale_factor: Res<ScaleFactor>,
     mut scrolled: ResMut<ScrolledViews>,
     mut tree: Tree,
 ) {
-    let scale_factor = scale_factor.value();
     let mut to_check = HashSet::new();
     for (entity, adjustment) in adjustments.iter() {
         tracing::trace!(entity = ?entity, adjustment = ?adjustment.0, "grid::view: extent_check_v2 saw changed ViewAdjustment");
@@ -544,7 +461,6 @@ pub(crate) fn extent_check(
         let _ovr = ovrscrl(
             *entity,
             Position::default(),
-            scale_factor,
             &mut views,
             &propagations,
             &contexts,
@@ -575,16 +491,11 @@ pub(crate) fn extent_check(
             let section = *sections.get(*entity).unwrap().1;
             let max_x = (view.extent.width() - section.right()).max(0.0);
             let max_y = (view.extent.height() - section.bottom()).max(0.0);
-            // Same reasoning as the clamp's, and the same reasoning that strips `Coasting` just
-            // below: a request states where the view belongs, so a carry describing the position
-            // it is leaving is stale by definition.
             if let Some(x) = request.x {
                 view.offset.set_left(x * max_x);
-                view.residual.set_left(0.0);
             }
             if let Some(y) = request.y {
                 view.offset.set_top(y * max_y);
-                view.residual.set_top(0.0);
             }
             tracing::trace!(entity = ?entity, request = ?request, after = ?view.offset, "grid::view: applied ScrollTo to offset");
             to_trigger.insert(*entity);
@@ -606,7 +517,6 @@ pub(crate) fn extent_check(
         let mut overscroll = ovrscrl(
             entity,
             Position::default(),
-            scale_factor,
             &mut views,
             &propagations,
             &contexts,
@@ -618,7 +528,6 @@ pub(crate) fn extent_check(
             overscroll = ovrscrl(
                 id,
                 overscroll.1,
-                scale_factor,
                 &mut views,
                 &propagations,
                 &contexts,

@@ -245,22 +245,21 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn to_numerical(self) -> Section<Numerical> {
         Section::new(self.position.to_numerical(), self.area.to_numerical())
     }
-    /// Snaps all four *edges* to whole units -- applied before rasterizing so edges land on
-    /// pixel boundaries instead of being resampled.
+    /// Snaps the position and the extent to whole units -- applied before rasterizing so edges
+    /// land on pixel boundaries instead of being resampled.
     ///
-    /// Rounds `right`/`bottom` rather than the width/height, then derives the extent from
-    /// the snapped edges. Rounding position and area independently makes an edge land on
-    /// `round(left) + round(width)`, which is not `round(left + width)` -- so two entities
-    /// sharing a coordinate could snap to pixels 1 apart and leave a seam between them.
-    /// Deriving from edges means any two shapes that agree on a coordinate agree after
-    /// rounding, by construction.
+    /// The two are rounded independently, and that is the point. Deriving the extent from
+    /// snapped edges instead -- `round(right) - round(left)` -- makes the size a function of the
+    /// position's fractional part, so a box whose size is not whole gains and loses a unit as it
+    /// moves. Scrolling moves everything by a fraction, so every fractional box on screen pulses
+    /// once per frame for as long as it is moving. A size that does not depend on where the box
+    /// currently sits cannot do that.
+    ///
+    /// What this gives up: `round(left) + round(width)` is not always `round(left + width)`, so
+    /// two entities sharing a coordinate can snap a unit apart and show a seam between them.
+    /// That is a static artifact at a shared edge, traded for a moving one everywhere.
     pub fn rounded(self) -> Self {
-        let left = self.left().round();
-        let top = self.top().round();
-        Self::new(
-            (left, top),
-            (self.right().round() - left, self.bottom().round() - top),
-        )
+        Self::new(self.position.rounded(), self.area.rounded())
     }
     /// Rounds every component down.
     pub fn floored(self) -> Self {
