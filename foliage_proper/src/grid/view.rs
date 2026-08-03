@@ -159,8 +159,15 @@ pub(crate) fn coast(
     mut coasting: Query<(Entity, &mut Coasting)>,
     momentum: Res<ScrollMomentum>,
     current: Res<CurrentInteraction>,
+    scale_factor: Res<ScaleFactor>,
     mut tree: Tree,
 ) {
+    // One device pixel, in logical units -- the smallest move `ovrscrl`'s snap can express.
+    let quantum = if scale_factor.value() > 0.0 {
+        1.0 / scale_factor.value()
+    } else {
+        1.0
+    };
     for (entity, mut c) in coasting.iter_mut() {
         // One pointer, one momentum: a press anywhere ends every coast in flight. There is
         // only ever one gesture at a time, so there is only ever one coast worth keeping,
@@ -195,7 +202,24 @@ pub(crate) fn coast(
         let now = Moment::now();
         let elapsed_ms = now.duration_since(c.last_tick).as_secs_f32() * 1000.0;
         c.last_tick = now;
-        tree.write_to(entity, ViewAdjustment(c.velocity * elapsed_ms));
+        // Ends when the next step would be smaller than the smallest step there is. `ovrscrl`
+        // snaps `offset` to device pixels, so a step under one either moves nothing or moves a
+        // whole pixel -- and a decaying coast spends its last stretch alternating between the
+        // two, which reads as the scroll stuttering to a halt rather than easing to one. Above a
+        // pixel per frame the steps are far enough apart that the snapping is invisible, so this
+        // is the exact edge of the regime worth showing.
+        //
+        // Stated against the step rather than the velocity because `decay` is already frame-rate
+        // independent (`powf(elapsed_ms)`) and a velocity is not: at 120fps the same velocity is
+        // half the step, so a tuned constant would be wrong again. `stop_epsilon` stays as the
+        // documented floor, but at 0.02 px/ms it can never produce a step this large, so it is
+        // no longer what ends a coast.
+        let step = c.velocity * elapsed_ms;
+        if step.left().abs() < quantum && step.top().abs() < quantum {
+            tree.strip::<Coasting>(entity);
+            continue;
+        }
+        tree.write_to(entity, ViewAdjustment(step));
         let decayed = momentum.decay.powf(elapsed_ms);
         c.velocity = c.velocity * decayed;
         if c.velocity.left().hypot(c.velocity.top()) < momentum.stop_epsilon {

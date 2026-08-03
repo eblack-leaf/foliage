@@ -179,7 +179,7 @@ fn clip_frame_at(right: Option<f32>) -> Location {
     match right {
         None => frame_at(100.0),
         Some(right) => Location::new().xs(
-            0.pct().as_left().with((right as i32).px().as_right()),
+            0.pct().as_left().with((right.round() as i32).px().as_right()),
             0.pct().as_top().with(100.pct().as_bottom()),
         ),
     }
@@ -383,8 +383,13 @@ impl Demo for Resolving {
 /// centred on it follows that moving centre and walks out from under the edge doing the cutting.
 fn clip_child_at(left: f32, size: f32) -> Location {
     Location::new().xs(
-        (left as i32).px().as_left().with((size as i32).px().as_width()),
-        50.pct().as_center_y().with((size as i32).px().as_height()),
+        (left.round() as i32)
+            .px()
+            .as_left()
+            .with((size.round() as i32).px().as_width()),
+        50.pct()
+            .as_center_y()
+            .with((size.round() as i32).px().as_height()),
     )
 }
 
