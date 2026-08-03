@@ -1,4 +1,5 @@
 use crate::ash::clip::{ClipToViewport, InheritedClip, ResolvedClip, clip_of};
+use crate::ginkgo::ScaleFactor;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::location::Resolution;
 use crate::interaction::CurrentInteraction;
@@ -294,9 +295,27 @@ impl ScrollProgress {
         self.y
     }
 }
+/// `value` moved to the nearest whole device pixel, given back in logical units.
+///
+/// Logical units are not the granularity that matters. The pipelines snap in device space --
+/// `section.to_physical(sf).rounded()` -- so what has to stop moving is the *device* fraction. A
+/// whole logical unit only lands on a device pixel when the scale factor is a whole number: at
+/// 2.0 every unit is exactly two pixels and the fraction is always zero, while at 1.73 whole
+/// units land on 1.73, 3.46, 5.19 and the fraction walks as freely as if nothing had been
+/// snapped. Which is why this reads as a display-specific fault and is not one.
+fn snap_to_device(value: Position<Logical>, scale_factor: f32) -> Position<Logical> {
+    if scale_factor <= 0.0 {
+        return value;
+    }
+    Position::new((
+        (value.left() * scale_factor).round() / scale_factor,
+        (value.top() * scale_factor).round() / scale_factor,
+    ))
+}
 fn ovrscrl(
     entity: Entity,
     ovr: Position<Logical>,
+    scale_factor: f32,
     views: &mut Query<&mut View>,
     propagations: &Query<&OverscrollPropagation>,
     contexts: &Query<(Entity, Ref<Parent>)>,
@@ -306,23 +325,22 @@ fn ovrscrl(
     let propagation = propagations.get(entity).unwrap();
     let old_offset = views.get(entity).unwrap().offset;
     let mut view = views.get_mut(entity).unwrap();
-    // Whole units, at the one place every write to `offset` passes through -- a drag delta, a
-    // wheel tick scaled by its inertia, a `ScrollTo`, and an overscroll remainder handed down
-    // from a parent all arrive here before anything reads them.
+    // Snapped at the one place every write to `offset` passes through -- a drag delta, a wheel
+    // tick scaled by its inertia, a `ScrollTo`, and an overscroll remainder handed down from a
+    // parent all arrive here before anything reads them.
     //
-    // A fractional offset is what makes a scrolling box flicker. `Section::rounded` snaps the
-    // four edges before rasterizing, deliberately, so that two boxes sharing a coordinate cannot
-    // land a pixel apart; the cost is that a box's snapped size is `round(left + width) -
-    // round(left)`, which depends on `left`'s fractional part. Scrolling by a fraction walks that
-    // part, and anything whose width or height is not whole gains and loses a pixel as it moves.
-    // What matters is that the fraction stops *changing*, not that it is zero -- an offset in
-    // whole units leaves every element the same fraction it was laid out with.
+    // A moving fraction is what makes a scrolling box flicker. `Section::rounded` snaps the four
+    // edges before rasterizing, deliberately, so that two boxes sharing a coordinate cannot land
+    // a pixel apart; the cost is that a box's snapped size is `round(left + width) - round(left)`,
+    // which depends on `left`'s fractional part. Scroll by a fraction of a pixel and that part
+    // walks, so anything whose size is not whole gains and loses a pixel as it moves. What has to
+    // stop changing is the fraction, not the offset -- snapping leaves every element exactly the
+    // fraction it was laid out with.
     //
     // Snapped here rather than on the way to the screen so there is one authority over `offset`:
     // the clamp below, momentum, and `ScrollProgress` all read the number the reader is looking
-    // at. The cost is that a scroll cannot advance by less than a unit, which is not a distance
-    // anyone can ask for.
-    view.offset = (view.offset + ovr).rounded();
+    // at. The cost is that a scroll cannot advance by less than one device pixel.
+    view.offset = snap_to_device(view.offset + ovr, scale_factor);
     let section = *sections.get(entity).unwrap().1;
     let mut over = Position::default();
     let over_right = section.right() + view.offset.left();
@@ -383,9 +401,11 @@ pub(crate) fn extent_check(
     contexts: Query<(Entity, Ref<Parent>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
     clip_to_viewport: Query<&ClipToViewport>,
+    scale_factor: Res<ScaleFactor>,
     mut scrolled: ResMut<ScrolledViews>,
     mut tree: Tree,
 ) {
+    let scale_factor = scale_factor.value();
     let mut to_check = HashSet::new();
     for (entity, adjustment) in adjustments.iter() {
         tracing::trace!(entity = ?entity, adjustment = ?adjustment.0, "grid::view: extent_check_v2 saw changed ViewAdjustment");
@@ -477,6 +497,7 @@ pub(crate) fn extent_check(
         let _ovr = ovrscrl(
             *entity,
             Position::default(),
+            scale_factor,
             &mut views,
             &propagations,
             &contexts,
@@ -533,6 +554,7 @@ pub(crate) fn extent_check(
         let mut overscroll = ovrscrl(
             entity,
             Position::default(),
+            scale_factor,
             &mut views,
             &propagations,
             &contexts,
@@ -544,6 +566,7 @@ pub(crate) fn extent_check(
             overscroll = ovrscrl(
                 id,
                 overscroll.1,
+                scale_factor,
                 &mut views,
                 &propagations,
                 &contexts,
