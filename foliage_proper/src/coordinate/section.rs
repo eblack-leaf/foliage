@@ -245,22 +245,27 @@ impl<Context: CoordinateContext> Section<Context> {
     pub fn to_numerical(self) -> Section<Numerical> {
         Section::new(self.position.to_numerical(), self.area.to_numerical())
     }
-    /// Snaps the position and the extent to whole units -- applied before rasterizing so edges
-    /// land on pixel boundaries instead of being resampled.
+    /// Snaps all four *edges* to whole units -- applied before rasterizing so edges land on
+    /// pixel boundaries instead of being resampled.
     ///
-    /// The two round independently, which keeps a box's size out of the hands of where it
-    /// currently sits. Deriving the extent from snapped edges instead -- `round(right) -
-    /// round(left)` -- makes the size a function of the position's fractional part, and a scroll
-    /// moves everything by fractions, so every box with a fractional size gains and loses a unit
-    /// once per frame for as long as it moves.
+    /// Rounds `right`/`bottom` rather than the width/height, then derives the extent from the
+    /// snapped edges. Rounding position and area independently makes an edge land on
+    /// `round(left) + round(width)`, which is not `round(left + width)` -- so two entities
+    /// sharing a coordinate could snap a unit apart and leave a seam between them, which
+    /// `responsive_split` is the example of. Deriving from edges means any two shapes agreeing on
+    /// a coordinate still agree after rounding, by construction.
     ///
-    /// The cost lands at a shared coordinate: `round(left) + round(width)` is not always
-    /// `round(left + width)`, so two boxes meant to sit flush can land a unit apart and show a
-    /// seam -- `responsive_split` is where it shows. Exact tiling and a position-independent size
-    /// cannot both survive fractional translation; the only arrangement holding both is snapping
-    /// the scroll offset to whole device pixels, which quantizes scrolling to a pixel per step.
+    /// Deriving the extent this way does make the snapped size depend on the position's
+    /// fractional part, which would pulse under a fractional scroll. It does not, because this is
+    /// applied to a box that has already been snapped in layout space -- see `LayoutSection`'s
+    /// own snap, where a whole-unit size makes `round(pos + size) - round(pos)` just `size`.
     pub fn rounded(self) -> Self {
-        Self::new(self.position.rounded(), self.area.rounded())
+        let left = self.left().round();
+        let top = self.top().round();
+        Self::new(
+            (left, top),
+            (self.right().round() - left, self.bottom().round() - top),
+        )
     }
     /// Rounds every component down.
     pub fn floored(self) -> Self {

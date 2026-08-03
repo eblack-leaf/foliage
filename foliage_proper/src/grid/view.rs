@@ -626,6 +626,7 @@ pub(crate) fn propagate_offsets(
     mut inherited_clips: Query<&mut InheritedClip>,
     marked: Query<&ClipToViewport>,
     viewport: Res<ViewportHandle>,
+    scale_factor: Res<crate::ginkgo::ScaleFactor>,
     mut tree: Tree,
 ) {
     if scrolled.0.is_empty() {
@@ -666,7 +667,11 @@ pub(crate) fn propagate_offsets(
                 touched.insert(child);
                 let mut moved = None;
                 if let Ok(layout) = layouts.get(child) {
-                    let mut section = layout.0;
+                    // Snapped on the layout side, before the offset comes off -- the same order
+                    // the resolve path uses, and the reason a scroll moves everything as one
+                    // rigid piece instead of letting each box round on its own fraction.
+                    let mut section =
+                        crate::grid::location::snapped_layout(layout.0, scale_factor.value());
                     section.position -= accumulated;
                     if let Ok(mut current) = sections.get_mut(child) {
                         *current = section;

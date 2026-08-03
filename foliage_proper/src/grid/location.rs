@@ -250,7 +250,6 @@ impl Location {
         trigger: Trigger<Resolve<Location>>,
         mut tree: Tree,
         layout: Res<Layout>,
-        short: Res<Short>,
         locations: Query<(&Location, Option<&SpawnedAt>)>,
         sections: Query<&Section<Logical>>,
         layout_sections: Query<&LayoutSection>,
@@ -263,6 +262,7 @@ impl Location {
         viewport: Res<ViewportHandle>,
         create_diff_and_last: Query<(&CreateDiff, &Resolution)>,
         diffs: Query<&Diff>,
+        scale_factor: Res<crate::ginkgo::ScaleFactor>,
         fonts: FontContext,
     ) {
         let this = trigger.event_target();
@@ -358,7 +358,9 @@ impl Location {
             let letter_dims = fonts.character_block(this, *layout).unwrap_or_default();
             if let Some(mut resolution) = resolve(
                 *layout,
-                *short,
+                // the same `Short` `FontContext` already carries, rather than a second copy of it
+                // as its own param -- an observer's parameter list is a bounded resource
+                *fonts.short,
                 location,
                 grid,
                 context,
@@ -390,7 +392,7 @@ impl Location {
                     };
                     let anim_diff = diff * location.animation_percent;
                     resolution.section += anim_diff;
-                    let mut screen = resolution.section;
+                    let mut screen = snapped_layout(resolution.section, scale_factor.value());
                     screen.position -= accumulated;
                     tracing::trace!(
                         entity = ?this,
@@ -1154,6 +1156,30 @@ pub fn anchor() -> AnchorDescriptor {
 /// mechanism specifically, not a general "size to fit children" primitive (no such thing
 /// exists in this framework: layout is single-pass and top-down, with no path for a
 /// child's computed size to flow back into a parent's).
+/// A resolved box snapped to whole device pixels, in layout space -- before any scroll offset is
+/// taken off it.
+///
+/// Snapping here rather than at the renderer is what keeps a scroll from pulling elements apart
+/// from each other. Rounding after the offset has been applied gives every element a different
+/// fractional part to round, so two boxes cross their pixel boundaries at different offsets and
+/// the gap between them changes by a unit as the view moves -- everything shimmering against
+/// everything else. Snapped first, every element's leftover fraction is the *same* one, the
+/// offset's; they round together, keep their spacing exactly, and step as a unit.
+///
+/// The renderer still rounds, which is what handles a scale-factor change, and which is a no-op
+/// on the whole-unit part of what arrives.
+pub(crate) fn snapped_layout(
+    section: Section<Logical>,
+    scale_factor: f32,
+) -> Section<Logical> {
+    if scale_factor <= 0.0 {
+        return section;
+    }
+    section
+        .to_physical(scale_factor)
+        .rounded()
+        .to_logical(scale_factor)
+}
 pub fn text_content() -> LocationValue {
     LocationValue::TextContent
 }
