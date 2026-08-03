@@ -11,7 +11,7 @@
 
 use foliage::{
     Canopy, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf, Location,
-    Panel, Polygon, Presence, Rounding, Sprout, Text, VerticalAlignment, anchor,
+    Panel, Polygon, Presence, Rounding, Sprout, Text, VerticalAlignment,
 };
 
 use crate::site::blueprint::{self, Blueprint, Entry};
@@ -27,13 +27,13 @@ const FRAME_WIDTHS: [f32; 3] = [100.0, 66.0, 42.0];
 const CHILD_LEFT: f32 = 22.0;
 const CHILD_RIGHT: f32 = 74.0;
 
-/// The clipping board's child, declared in px instead of percent, per breakpoint. A px width
-/// cannot shrink along with its parent, so narrowing the parent is what cuts it.
+/// The clipping board's child, as a share of the stage's height -- both axes, since `Polygon` is
+/// square. Measured off the stage rather than the parent: the parent is the thing being narrowed,
+/// and a child that shrank along with it would have nothing to demonstrate.
 ///
-/// One per breakpoint, at four fifths of the matching [`STAGE_H`], so the shape grows with the
-/// screen and still leaves room around itself. It is both axes -- `Polygon` is square -- and the
-/// parent's steps are read off it, so this is the only number the board's geometry rests on.
-const FIXED_W: [i32; 3] = [120, 132, 152];
+/// [`Clipping::drive`] turns this into px and writes it. One ratio against a measured stage lands
+/// on the same proportion at every width, where a table of widths per breakpoint did not.
+const CHILD_OF_STAGE: f32 = 0.8;
 
 fn child_tone() -> Color {
     role::accent()
@@ -374,21 +374,28 @@ impl Demo for Resolving {
 /// do not move. It stays a child of the parent, which still owns and clips it -- `anchored` only
 /// redirects the `anchor()` values in the location, and `Anchor` is read per entity
 /// (`grid/location.rs:338`), so the name text inside the shape still resolves against the shape.
-fn clip_child(canopy: &mut Canopy, parent: Leaf, stage: Leaf, tone: Color) -> Leaf {
-    // Square, stated rather than emergent. Declared as a px width against a percentage height,
-    // the two only agree because `AspectRatio::constrain` shrinks one to fit the other and
-    // recentres what is left -- so the shape's Y came out of the clamp rather than the location,
-    // and any change to the stage height moved it. Both axes are the same px number here, which
-    // makes the clamp a no-op and the position exactly what it says.
-    let band = |w: i32| {
-        (
-            anchor().center_x().as_center_x().with(w.px().as_width()),
-            50.pct().as_center_y().with(w.px().as_height()),
-        )
-    };
-    let (xs_h, xs_v) = band(FIXED_W[0]);
-    let (md_h, md_v) = band(FIXED_W[1]);
-    let (lg_h, lg_v) = band(FIXED_W[2]);
+/// Where the clipping board's child sits: a px box centred in the stage, both axes the same
+/// number because `Polygon` is square. Stating the square rather than declaring one axis in px
+/// against the other in percent also makes `AspectRatio::constrain` a no-op, so the position is
+/// what the location says instead of what the clamp left behind.
+///
+/// The horizontal is px and not a percentage because the parent narrows from the right: a child
+/// centred on it follows that moving centre and walks out from under the edge doing the cutting.
+fn clip_child_at(left: f32, size: f32) -> Location {
+    Location::new().xs(
+        (left as i32).px().as_left().with((size as i32).px().as_width()),
+        50.pct().as_center_y().with((size as i32).px().as_height()),
+    )
+}
+
+/// The clipping board's child: the same shape [`child`] grows, placed by [`Clipping::drive`].
+///
+/// Not `anchored`. Anchoring it to the stage put the horizontal exactly right and left the
+/// vertical a full page-scroll high: the anchor path adds the accumulated offset back to state
+/// its target in layout space, so a second subtraction cancels for the anchored value and
+/// survives for the plain percentage beside it. Measuring the centre reaches the same place
+/// without putting this element on that path at all.
+fn clip_child(canopy: &mut Canopy, parent: Leaf, tone: Color) -> Leaf {
     let child = canopy.branch(
         parent,
         Polygon::new()
@@ -396,14 +403,12 @@ fn clip_child(canopy: &mut Canopy, parent: Leaf, stage: Leaf, tone: Color) -> Le
             .rounding(0.3)
             .rotation(0.0)
             .color(tone)
-            .at(Location::new()
-                .xs(xs_h, xs_v)
-                .md(md_h, md_v)
-                .lg(lg_h, lg_v))
+            // Replaced on the first frame there is a stage to measure. A size here only avoids
+            // spawning at zero.
+            .at(clip_child_at(0.0, 120.0))
             .elevate(Elevation::up(2))
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
-            .pass_through()
-            .anchored(stage),
+            .pass_through(),
     );
     name_child(canopy, child);
     child
@@ -460,7 +465,7 @@ fn clipping(g: &mut Grow, column: &mut Column) {
         &entries,
     );
     let frame = frame(g.canopy, board.stage, FRAME_WIDTHS[0], false);
-    let child = clip_child(g.canopy, frame.leaf, board.stage, written_tone());
+    let child = clip_child(g.canopy, frame.leaf, written_tone());
     // This board labels its parent full/narrowed rather than by percentage, so it says so from
     // the start instead of after the first press.
     clip_resize(g.canopy, &frame, None);
@@ -483,15 +488,18 @@ impl Demo for Clipping {
         true
     }
     fn drive(&mut self, canopy: &mut Canopy) {
-        if let (Some(child), Some(stage)) =
-            (canopy.section(self.child), canopy.section(self.board.stage))
-        {
-            let measured = (child.left() - stage.left(), child.width());
-            if self.full != Some(measured) {
-                self.full = Some(measured);
-                // The edge in the parent's location is px, derived from the old measurement. Left
-                // alone through a resize it means nothing at the new size, so the current step is
-                // re-applied rather than waiting for the next press to notice.
+        if let Some(stage) = canopy.section(self.board.stage) {
+            // Derived from the stage, not read back off the child: reading the child would make
+            // whatever was written last frame the input to this one, and a resize could never
+            // recentre it.
+            let size = (stage.height() * CHILD_OF_STAGE).round();
+            let left = ((stage.width() - size) / 2.0).max(0.0);
+            if self.full != Some((left, size)) {
+                self.full = Some((left, size));
+                canopy.location(self.child, clip_child_at(left, size));
+                // The parent's edge is px derived from the old measurement, so left alone through
+                // a resize it means nothing at the new size. Re-applied here rather than waiting
+                // for the next press to notice.
                 clip_resize(canopy, &self.frame, self.right());
             }
         }
