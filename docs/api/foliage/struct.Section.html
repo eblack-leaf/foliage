@@ -55,15 +55,15 @@ region is narrowed against its parent’s.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.to_numerical" class="method"><h4 class="code-header">pub fn <a href="#method.to_numerical" class="fn">to_numerical</a>(self) -&gt; <a class="struct" href="struct.Section.html" title="struct foliage::Section">Section</a>&lt;<a class="struct" href="struct.Numerical.html" title="struct foliage::Numerical">Numerical</a>&gt;</h4></section></summary><div class="docblock"><p>Drops the space marker, keeping the numbers.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.rounded" class="method"><h4 class="code-header">pub fn <a href="#method.rounded" class="fn">rounded</a>(self) -&gt; <a class="struct" href="struct.Section.html" title="struct foliage::Section">Section</a>&lt;Context&gt;</h4></section></summary><div class="docblock"><p>Snaps the position and the extent to whole units – applied before rasterizing so edges
 land on pixel boundaries instead of being resampled.</p>
-<p>The two are rounded independently, and that is the point. Deriving the extent from
-snapped edges instead – <code>round(right) - round(left)</code> – makes the size a function of the
-position’s fractional part, so a box whose size is not whole gains and loses a unit as it
-moves. Scrolling moves everything by a fraction, so every fractional box on screen pulses
-once per frame for as long as it is moving. A size that does not depend on where the box
-currently sits cannot do that.</p>
-<p>What this gives up: <code>round(left) + round(width)</code> is not always <code>round(left + width)</code>, so
-two entities sharing a coordinate can snap a unit apart and show a seam between them.
-That is a static artifact at a shared edge, traded for a moving one everywhere.</p>
+<p>The two round independently, which keeps a box’s size out of the hands of where it
+currently sits. Deriving the extent from snapped edges instead – <code>round(right) - round(left)</code> – makes the size a function of the position’s fractional part, and a scroll
+moves everything by fractions, so every box with a fractional size gains and loses a unit
+once per frame for as long as it moves.</p>
+<p>The cost lands at a shared coordinate: <code>round(left) + round(width)</code> is not always
+<code>round(left + width)</code>, so two boxes meant to sit flush can land a unit apart and show a
+seam – <code>responsive_split</code> is where it shows. Exact tiling and a position-independent size
+cannot both survive fractional translation; the only arrangement holding both is snapping
+the scroll offset to whole device pixels, which quantizes scrolling to a pixel per step.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.floored" class="method"><h4 class="code-header">pub fn <a href="#method.floored" class="fn">floored</a>(self) -&gt; <a class="struct" href="struct.Section.html" title="struct foliage::Section">Section</a>&lt;Context&gt;</h4></section></summary><div class="docblock"><p>Rounds every component down.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.abs" class="method"><h4 class="code-header">pub fn <a href="#method.abs" class="fn">abs</a>(self) -&gt; <a class="struct" href="struct.Section.html" title="struct foliage::Section">Section</a>&lt;Context&gt;</h4></section></summary><div class="docblock"><p>Absolute value of every component, normalizing a rectangle built with a negative
 extent.</p>
