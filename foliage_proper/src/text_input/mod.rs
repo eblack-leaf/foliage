@@ -832,7 +832,11 @@ impl TextInput {
         // against `Section<Logical>`-relative click position, not raw glyph data) and must
         // stay unscaled -- don't "fix" it to match this.
         let fsv = fonts.size(this, layout).unwrap();
-        let dims = font.character_block((fsv as f32 * scroll.scale_factor.value()) as u32);
+        // `round`, matching how `Text::update` physicalizes the same size -- the cell this
+        // measures has to be the one the glyphs are actually rasterized into, and the two
+        // disagreeing by a pixel is a caret that drifts along a line.
+        let dims =
+            font.character_block((fsv as f32 * scroll.scale_factor.value()).round() as u32);
         // Grid's own `.col()`/`.row()` resolution (`grid/location.rs`'s `calc`, the
         // `LocationValue::Column`/`Row`/`Letters` arms) sizes cells from `stem_letters`,
         // computed via `character_block` at the *unscaled* font size -- deliberately

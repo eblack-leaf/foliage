@@ -304,7 +304,12 @@ impl Text {
         let this = trigger.event_target();
         let font_id = font_ids.get(this).copied().unwrap_or_default();
         let font_size = ResolvedFontSize::new(
-            (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()) as u32,
+            // `round`, not `as`'s own truncation: this is the px size the atlas bitmap is
+            // rasterized at, and truncating drops up to a whole physical pixel off it. The
+            // cost is relative, so it lands hardest on the smallest text -- at a scale
+            // factor of 1.73 a logical 12 rasterizes at 20 instead of 21, a 5% error, while
+            // a logical 32 is under 1%. On an integral scale factor it never triggers.
+            (font_sizes.get(this).unwrap().value as f32 * scale_factor.value()).round() as u32,
         );
         let section = sections
             .get(this)

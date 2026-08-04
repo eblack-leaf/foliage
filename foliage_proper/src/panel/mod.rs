@@ -128,11 +128,20 @@ impl Panel {
                         if !rounded {
                             return -edge_adjust;
                         }
-                        (if let Some(w) = weight {
-                            depth - w.max(1.0)
+                        if let Some(w) = weight {
+                            // `+ edge_adjust`, matching `far`'s own sign rather than
+                            // opposing it. Both radii shifting outward together moves the
+                            // ring; shifting them apart widens it, and the ring's thickness
+                            // is the outline's weight -- the same number the straight edges
+                            // in `panel.wgsl` derive theirs from. Subtracting here made
+                            // every corner `2 * edge_adjust` thicker than the edges it meets,
+                            // which on a one-pixel outline is a third again as heavy.
+                            depth - w.max(1.0) + edge_adjust
                         } else {
-                            0.0
-                        }) - edge_adjust
+                            // A filled corner is the whole disc, so where its inner edge
+                            // sits is arbitrary -- it only has to stay off the curve.
+                            -edge_adjust
+                        }
                     };
                     panel.corner_i = {
                         let c = Position::physical((depth, depth));
