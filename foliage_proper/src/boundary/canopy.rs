@@ -40,6 +40,7 @@ pub(crate) struct Reads<'w, 's> {
     pub(crate) interaction: Res<'w, CurrentInteraction>,
     pub(crate) assets: Res<'w, AssetLoader>,
     pub(crate) viewport: Res<'w, crate::ginkgo::viewport::ViewportHandle>,
+    pub(crate) scale_factor: Res<'w, crate::ginkgo::ScaleFactor>,
     pub(crate) named: Res<'w, crate::Named>,
     pub(crate) keyring: Res<'w, crate::Keyring>,
 }
@@ -242,6 +243,16 @@ impl<'w, 's> Canopy<'w, 's> {
     /// The visible area.
     pub fn viewport(&self) -> Section<Logical> {
         self.reads.viewport.section()
+    }
+    /// Device pixels per logical pixel -- 1.0 on a standard display, 2.0 on most HiDPI ones,
+    /// and a fraction on anything using display scaling.
+    ///
+    /// Everything an app states is in logical pixels and stays that way, so this is not needed
+    /// to place or size anything. It is here for the cases that genuinely have to reason about
+    /// the device grid: deciding whether a hairline will survive rasterization, or reporting
+    /// what a glyph is actually being rasterized at.
+    pub fn scale_factor(&self) -> f32 {
+        self.reads.scale_factor.value()
     }
     /// Where the current gesture started, is now, and ended.
     pub fn pointer(&self) -> Click {

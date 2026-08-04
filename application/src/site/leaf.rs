@@ -60,6 +60,8 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
          live: press its bar, and read what the parent decided for the child.",
     );
 
+    probe(g, &mut column);
+
     column.heading(g.canopy, "resolving");
     column.prose(
         g.canopy,
@@ -144,6 +146,75 @@ fn frame(canopy: &mut Canopy, stage: Leaf, width: f32, filled: bool) -> Frame {
             .pass_through(),
     );
     Frame { leaf, label }
+}
+
+/// A live readout of the device numbers glyph rasterization depends on.
+///
+/// Diagnostic, not part of the section. It lives on a page that is already rendering text at
+/// the sizes in question, which is the point -- the numbers and the text they describe have to
+/// be on the same screen at the same moment to be worth anything.
+///
+/// `sf` is what turns a declared logical size into the px the atlas bitmap is actually
+/// rasterized at, and `bp` is what decides the logical size in the first place. Two devices
+/// disagreeing on either is enough to put their text at different px without either one being
+/// wrong, which is not visible from the rendered page alone.
+fn probe(g: &mut Grow, column: &mut Column) {
+    // Its own backing rather than bare text on the page: this floats numbers over whatever the
+    // column's surface happens to be, and unbacked light text on a mid-tone surface is the one
+    // thing on the page that would be harder to read than the glyphs it is reporting on.
+    let backing = column.surface_plain(g.canopy, 44, space::MD);
+    let line = g.canopy.branch(
+        backing,
+        Text::new("probe")
+            .size(FontSize::new(type_scale::LABEL))
+            .color(role::on_surface_variant())
+            .at(Location::new().xs(
+                space::SM.px().as_left().with(space::SM.px().as_right()),
+                space::XS.px().as_top().with(100.pct().as_bottom()),
+            ))
+            .elevate(Elevation::up(2))
+            .align(HorizontalAlignment::Left, VerticalAlignment::Top)
+            .pass_through(),
+    );
+    g.page.demos.push(Box::new(Probe {
+        line,
+        last: String::new(),
+    }));
+}
+
+struct Probe {
+    line: Leaf,
+    /// Rewritten only when the string actually changes. `drive` runs every frame, and a
+    /// `canopy.text` write relays the run out and re-resolves it -- once a frame, forever, for
+    /// a string that changes on resize and never otherwise.
+    last: String,
+}
+
+impl Demo for Probe {
+    fn clicked(&mut self, _canopy: &mut Canopy, _leaf: Leaf) -> bool {
+        false
+    }
+    fn drive(&mut self, canopy: &mut Canopy) {
+        let sf = canopy.scale_factor();
+        let viewport = canopy.viewport();
+        let px = |logical: u32| (logical as f32 * sf).round() as u32;
+        let next = format!(
+            "sf {:.3}  bp {:?}{}  vp {:.0}x{:.0}\nbody {} -> {}px   label {} -> {}px",
+            sf,
+            canopy.layout(),
+            if canopy.short() { " short" } else { "" },
+            viewport.width(),
+            viewport.height(),
+            type_scale::BODY,
+            px(type_scale::BODY),
+            type_scale::LABEL,
+            px(type_scale::LABEL),
+        );
+        if next != self.last {
+            canopy.text(self.line, &next);
+            self.last = next;
+        }
+    }
 }
 
 /// Where a frame's own label sits. Shared so the lifetime board's "no parent" marker can occupy
