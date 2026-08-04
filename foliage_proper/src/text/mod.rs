@@ -386,6 +386,7 @@ impl Text {
                 ),
             );
             let dims = font.character_block(font_id, current.font_size.value);
+            glyphs.cell_advance = dims.a();
             let adjusted = if auto_height.0 {
                 Some(
                     current
@@ -529,9 +530,45 @@ impl Text {
                 continue;
             }
             let resolve_start = web_time::Instant::now();
-            let new = glyphs
-                .layout
-                .glyphs()
+            // Each glyph placed one whole `character_block` cell from the last, rather than
+            // at fontdue's own advance rounded per glyph.
+            //
+            // The two are not the same number: this font advances exactly `0.6 * px`, so at
+            // a physical 21px fontdue steps 12.6 and the independently rounded positions come
+            // out 13, 12, 13, 12 apart -- gaps that differ by a pixel in a font whose whole
+            // premise is that they do not. It reads as particular letters sitting too close
+            // to the one before them, in a fixed pattern, and it disappears only at sizes
+            // where the advance happens to land on a whole pixel.
+            //
+            // The cell is the width the rest of the engine already reserves per character --
+            // `TextContentWidth` measures `n * character_block`, `.letters()` sizes against
+            // it, and `TextInput`'s caret addresses columns by it. Stepping the glyphs by it
+            // closes that gap rather than opening a new one: the run had been drawing
+            // narrower than the box computed for it, by the advance's fractional part per
+            // character.
+            //
+            // Taken per line off the line's own first glyph, so alignment (which fontdue has
+            // already applied, and which is not a whole pixel) survives, and only the pitch
+            // within the line is quantized. Area still comes across untouched -- the bitmap
+            // was rasterized at that size and the blit stays 1:1 texel-to-pixel.
+            let advance = glyphs.cell_advance;
+            let laid_out = glyphs.layout.glyphs();
+            let mut placed = laid_out.iter().map(|g| g.x.round()).collect::<Vec<f32>>();
+            if advance > 0.0 {
+                if let Some(lines) = glyphs.layout.lines() {
+                    for line in lines {
+                        if line.glyph_start >= laid_out.len() {
+                            continue;
+                        }
+                        let end = line.glyph_end.min(laid_out.len() - 1);
+                        let base = laid_out[line.glyph_start].x.round();
+                        for i in line.glyph_start..=end {
+                            placed[i] = base + (i - line.glyph_start) as f32 * advance;
+                        }
+                    }
+                }
+            }
+            let new = laid_out
                 .iter()
                 .enumerate()
                 .map(|(i, g)| Glyph {
@@ -540,10 +577,7 @@ impl Text {
                         px: g.key.px as u32,
                         font_hash: g.key.font_hash,
                     },
-                    // Position snapped to whole physical pixels; area left exactly as
-                    // fontdue reported it, since the atlas bitmap was rasterized at that
-                    // size and the blit has to stay 1:1 texel-to-pixel.
-                    section: Section::physical((g.x.round(), g.y.round()), (g.width, g.height)),
+                    section: Section::physical((placed[i], g.y.round()), (g.width, g.height)),
                     parent: g.parent,
                     offset: i,
                 })
