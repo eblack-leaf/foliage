@@ -242,6 +242,33 @@ pub struct View {
     /// page scrolled 300px has an `offset` of 40 and hands 340 down to its children. Kept
     /// here rather than walked per entity so deriving a child's `Section` is one lookup.
     pub(crate) accumulated_offset: Position<Logical>,
+    /// [`offset`](Self::offset) rounded to a whole number of device pixels -- what
+    /// `accumulated_offset` is actually built from, and so what every descendant subtracts.
+    ///
+    /// The pipelines round a box in physical space by its *edges*
+    /// (`Section::rounded`): `width = round(x + w) - round(x)`. Feed that an `x` carrying a
+    /// fractional offset and two things follow. The width depends on `frac(x)`, so it flips
+    /// between `floor(w)` and `floor(w) + 1` as the view moves -- shapes breathing. And each
+    /// element has its own `frac(layout_x * scale_factor)`, so neighbours cross pixel
+    /// boundaries at different offsets and drift a pixel apart from one another.
+    ///
+    /// Rounding the offset to a whole device pixel `n` removes both, exactly rather than
+    /// approximately: `round(a - n) == round(a) - n` for integral `n`, so the offset cancels
+    /// out of the width entirely (leaving a pure function of the layout, constant while
+    /// scrolling) and survives in the position as a single shared integer every element
+    /// shifts by together. Edges still derive from shared coordinates, so boxes that agreed
+    /// on one still agree -- what `Section::rounded` exists for.
+    ///
+    /// Kept beside `offset` rather than replacing it because `offset` is the accumulator:
+    /// rounding in place would discard every sub-device-pixel adjustment, and a coast's
+    /// decaying tail delivers exactly those -- it would stall short of a stop instead of
+    /// creeping to one. The fraction stays in `offset` and accrues until it carries a whole
+    /// pixel on its own.
+    ///
+    /// Written by `extent_check`, which already owns every write to `offset`. Storing it
+    /// rather than deriving it at each use is what keeps the scale factor out of
+    /// `Location::update`, whose parameter list has no room left for it.
+    pub(crate) snapped_offset: Position<Logical>,
 }
 impl View {
     /// An unscrolled view. Its extent is computed from its children.
@@ -250,6 +277,7 @@ impl View {
             offset: Default::default(),
             extent: Default::default(),
             accumulated_offset: Default::default(),
+            snapped_offset: Default::default(),
         }
     }
     /// Current pan, in px -- raw state, `pub(crate)`-write only (`extent_check`'s clamp
@@ -368,6 +396,7 @@ pub(crate) fn extent_check(
     sections: Query<(Entity, Ref<Section<Logical>>)>,
     clip_to_viewport: Query<&ClipToViewport>,
     mut scrolled: ResMut<ScrolledViews>,
+    scale_factor: Res<crate::ginkgo::ScaleFactor>,
     mut tree: Tree,
 ) {
     let mut to_check = HashSet::new();
@@ -553,6 +582,14 @@ pub(crate) fn extent_check(
     }
     // a real `Insert`, not a `Query`-mutation -- `tree.react::<ScrollProgress, _>(..)`
     // needs to see every one of these, not just the first (see `ScrollProgress`'s own doc).
+    // After the clamp, before anything reads it: `to_check` is every view whose offset could
+    // have settled anywhere new this frame, and `propagate_offsets` runs later in the frame
+    // off `scrolled`, which is a subset of it.
+    let sf = scale_factor.value();
+    for entity in to_check_final.iter() {
+        let mut view = views.get_mut(*entity).unwrap();
+        view.snapped_offset = view.offset.to_physical(sf).rounded().to_logical(sf);
+    }
     for entity in to_check_final {
         let section = *sections.get(entity).unwrap().1;
         let view = *views.get(entity).unwrap();
@@ -639,7 +676,7 @@ pub(crate) fn propagate_offsets(
             .unwrap_or_default();
         let accumulated = {
             let mut view = views.get_mut(root).unwrap();
-            view.accumulated_offset = inherited + view.offset;
+            view.accumulated_offset = inherited + view.snapped_offset;
             view.accumulated_offset
         };
         // The root's own box does not move when the root scrolls -- only what is inside it --
@@ -702,7 +739,7 @@ pub(crate) fn propagate_offsets(
                     base
                 };
                 let inherited = if let Ok(mut view) = views.get_mut(child) {
-                    view.accumulated_offset = accumulated + view.offset;
+                    view.accumulated_offset = accumulated + view.snapped_offset;
                     view.accumulated_offset
                 } else {
                     accumulated

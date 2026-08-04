@@ -279,7 +279,10 @@ impl Location {
             .and_then(|p| grids.p0().get(p).ok().map(|(_, v)| v.accumulated_offset))
             .unwrap_or_default();
         if let Ok(mut view) = grids.p1().get_mut(this) {
-            view.accumulated_offset = inherited + view.offset;
+            // `snapped_offset`, matching `propagate_offsets` -- the two paths write the same
+            // entity's `Section`, so a resolve landing mid-scroll has to agree with the walk
+            // on where the subtree sits, down to the pixel.
+            view.accumulated_offset = inherited + view.snapped_offset;
         }
         if let Ok((location, spawned_at)) = locations.get(this) {
             if location.unset() {
