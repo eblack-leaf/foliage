@@ -152,22 +152,14 @@ impl Default for ScrollMomentum {
 #[derive(Component, Copy, Clone, Debug)]
 pub(crate) struct Coasting {
     pub(crate) velocity: Position<Logical>,
+    pub(crate) last_tick: Moment,
 }
 pub(crate) fn coast(
     mut coasting: Query<(Entity, &mut Coasting)>,
     momentum: Res<ScrollMomentum>,
     current: Res<CurrentInteraction>,
-    time: Res<crate::Time>,
     mut tree: Tree,
 ) {
-    // The frame's own clock, not a `Moment::now()` taken here. Measuring inside this system times
-    // the gap between when it happened to run last frame and when it happened to run this one,
-    // which absorbs every scheduling wobble in the frame and feeds it straight into
-    // `velocity * elapsed`. It is also unclamped, so a stalled frame arrives as one enormous step
-    // -- the exact case `TIME_SKIP_RESISTANCE_FACTOR` exists to bound. Every other piece of motion
-    // in the engine is scaled by `frame_diff`; a coast reading a different clock is why it moved
-    // to a different rhythm than everything around it.
-    let elapsed_ms = time.frame_diff().as_secs_f32() * 1000.0;
     for (entity, mut c) in coasting.iter_mut() {
         // One pointer, one momentum: a press anywhere ends every coast in flight. There is
         // only ever one gesture at a time, so there is only ever one coast worth keeping,
@@ -199,6 +191,9 @@ pub(crate) fn coast(
             tree.strip::<Coasting>(entity);
             continue;
         }
+        let now = Moment::now();
+        let elapsed_ms = now.duration_since(c.last_tick).as_secs_f32() * 1000.0;
+        c.last_tick = now;
         tree.write_to(entity, ViewAdjustment(c.velocity * elapsed_ms));
         let decayed = momentum.decay.powf(elapsed_ms);
         c.velocity = c.velocity * decayed;
@@ -626,7 +621,6 @@ pub(crate) fn propagate_offsets(
     mut inherited_clips: Query<&mut InheritedClip>,
     marked: Query<&ClipToViewport>,
     viewport: Res<ViewportHandle>,
-    scale_factor: Res<crate::ginkgo::ScaleFactor>,
     mut tree: Tree,
 ) {
     if scrolled.0.is_empty() {
@@ -667,11 +661,7 @@ pub(crate) fn propagate_offsets(
                 touched.insert(child);
                 let mut moved = None;
                 if let Ok(layout) = layouts.get(child) {
-                    // Snapped on the layout side, before the offset comes off -- the same order
-                    // the resolve path uses, and the reason a scroll moves everything as one
-                    // rigid piece instead of letting each box round on its own fraction.
-                    let mut section =
-                        crate::grid::location::snapped_layout(layout.0, scale_factor.value());
+                    let mut section = layout.0;
                     section.position -= accumulated;
                     if let Ok(mut current) = sections.get_mut(child) {
                         *current = section;

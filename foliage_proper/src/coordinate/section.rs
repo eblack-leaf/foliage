@@ -248,17 +248,12 @@ impl<Context: CoordinateContext> Section<Context> {
     /// Snaps all four *edges* to whole units -- applied before rasterizing so edges land on
     /// pixel boundaries instead of being resampled.
     ///
-    /// Rounds `right`/`bottom` rather than the width/height, then derives the extent from the
-    /// snapped edges. Rounding position and area independently makes an edge land on
+    /// Rounds `right`/`bottom` rather than the width/height, then derives the extent from
+    /// the snapped edges. Rounding position and area independently makes an edge land on
     /// `round(left) + round(width)`, which is not `round(left + width)` -- so two entities
-    /// sharing a coordinate could snap a unit apart and leave a seam between them, which
-    /// `responsive_split` is the example of. Deriving from edges means any two shapes agreeing on
-    /// a coordinate still agree after rounding, by construction.
-    ///
-    /// Deriving the extent this way does make the snapped size depend on the position's
-    /// fractional part, which would pulse under a fractional scroll. It does not, because this is
-    /// applied to a box that has already been snapped in layout space -- see `LayoutSection`'s
-    /// own snap, where a whole-unit size makes `round(pos + size) - round(pos)` just `size`.
+    /// sharing a coordinate could snap to pixels 1 apart and leave a seam between them.
+    /// Deriving from edges means any two shapes that agree on a coordinate agree after
+    /// rounding, by construction.
     pub fn rounded(self) -> Self {
         let left = self.left().round();
         let top = self.top().round();
