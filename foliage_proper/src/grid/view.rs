@@ -588,7 +588,12 @@ pub(crate) fn extent_check(
     let sf = scale_factor.value();
     for entity in to_check_final.iter() {
         let mut view = views.get_mut(*entity).unwrap();
-        view.snapped_offset = view.offset.to_physical(sf).rounded().to_logical(sf);
+        // PROBE -- REVERT ME. Feeding the unsnapped offset through re-introduces the
+        // oscillation on purpose, to answer one question: is the coast stutter quantization
+        // or timing? Smooth motion here (with shapes breathing again) means quantization and
+        // nothing else. Stutter surviving means the snap was never what caused it.
+        let _snapped = view.offset.to_physical(sf).rounded().to_logical(sf);
+        view.snapped_offset = view.offset;
     }
     for entity in to_check_final {
         let section = *sections.get(entity).unwrap().1;
