@@ -311,7 +311,8 @@ impl Foliage {
                         self.ginkgo.position_viewport(pos);
                     }
                     self.ash.prepare(&mut self.world, &self.ginkgo);
-                    self.ash.render(&self.ginkgo);
+                    let clear = *self.world.resource::<crate::ClearColor>();
+                    self.ash.render(&self.ginkgo, clear);
                     self.ash.drawn = true;
                     self.tick_pending = false;
                     // self.ran_at_least_once = false;

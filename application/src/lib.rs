@@ -1,4 +1,4 @@
-use foliage::{Canopy, Foliage};
+use foliage::{Canopy, ClearColor, Foliage};
 
 mod entry;
 #[path = "assets/icons/gen/generated.rs"]
@@ -17,6 +17,10 @@ mod site;
 /// that calls this from its own `android_main`.
 pub fn run(mut foliage: Foliage) {
     foliage.desktop_size((360, 800));
+    // The app paints its background tone itself (the cutout badges' backdrops), so the tone the
+    // surface is cleared to has to come from the same place those do -- not from whatever the
+    // engine happens to default to.
+    foliage.tune(ClearColor(site::background()));
     // Startup-only: artwork and faces have to be registered before anything drawn with them
     // is grown, and neither is something the frame can change.
     icons::register(&mut foliage);

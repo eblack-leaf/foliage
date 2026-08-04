@@ -73,6 +73,7 @@ pub use boundary::verbs::Grows;
 /// is written against the `Trigger<E>` spelling, so keep it as the canonical internal name.
 pub(crate) type Trigger<'w, 't, E, B = ()> = bevy_ecs::observer::On<'w, 't, E, B>;
 pub use alignment::{HorizontalAlignment, VerticalAlignment};
+pub use ash::ClearColor;
 pub use ash::clip::ClipToViewport;
 pub use clipboard::Clipboard;
 pub use color::{CReprColor, Color, Luminance};

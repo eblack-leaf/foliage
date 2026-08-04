@@ -34,15 +34,15 @@ pub(crate) mod role {
 
     /// Raised surfaces -- the rail, the drawer's menu backing.
     pub(crate) fn surface() -> Color {
-        Color::stone(800)
+        Color::stone(700)
     }
-    /// Large filled areas -- cards. One step off the page and warm where the background is
-    /// neutral, so a card is a sand-toned plane rather than an empty outline.
+    /// Large filled areas -- cards. One step off the page, so a card is a plane rather than an
+    /// empty outline.
     ///
     /// Deliberately not [`surface`]: at card size that tone is a slab, and the accent has to
     /// stay the brightest thing on the page.
     pub(crate) fn surface_container() -> Color {
-        Color::stone(900)
+        Color::stone(800)
     }
     /// Hairlines and card borders. Present, never competing.
     pub(crate) fn outline() -> Color {
@@ -251,11 +251,14 @@ pub(crate) fn morph_in(
     );
 }
 
-/// The page background, which the renderer clears to (`ash/mod.rs`'s `color_attachment`).
-/// [`cutout_badge`] depends on matching it exactly -- if the clear color moves, this must
-/// move with it or the cutouts stop reading as holes.
+/// The page background. Handed to the engine as its `ClearColor` in `run`, so this function
+/// is the one place it is decided -- [`cutout_badge`] rings its backdrop in this same tone and
+/// depends on matching the cleared surface exactly, or the cutouts stop reading as holes.
+///
+/// The same tone the engine defaults to -- tuned anyway, so the match is stated rather than
+/// inherited.
 pub(crate) fn background() -> Color {
-    Color::gray(900)
+    Color::stone(900)
 }
 
 /// How far a badge reaches past the corner it is badged onto -- half the backdrop, plus slack

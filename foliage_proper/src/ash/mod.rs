@@ -10,6 +10,7 @@ use crate::polygon::Polygon;
 use crate::willow::NearFarDescriptor;
 use crate::{Attachment, Color, Icon, Panel, Parent, ResolvedElevation, Text};
 use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Resource;
 use bevy_ecs::world::World;
 use node::Node;
 use render::{ContiguousSpan, PipelineId, Render, Renderer};
@@ -30,6 +31,23 @@ impl Attachment for Ash {
         foliage.define(ClipSection::update_inherited);
         foliage.world.insert_resource(ViewportHandle::default());
         foliage.world.insert_resource(ScaleFactor::default());
+        foliage.world.insert_resource(ClearColor::default());
+    }
+}
+
+/// What the surface is cleared to before anything is drawn -- the app's background, since
+/// nothing of the engine's own sits behind the tree.
+///
+/// Warm `stone` by default. Install another with [`tune`](crate::Foliage::tune) at startup:
+/// an app that paints its own background tone anywhere -- a shape ringed in the page color
+/// so it reads as punched through the surface, say -- needs the two to be the same color,
+/// and this is the end that can be told.
+#[derive(Resource, Copy, Clone, Debug)]
+pub struct ClearColor(pub Color);
+
+impl Default for ClearColor {
+    fn default() -> Self {
+        Self(Color::stone(900))
     }
 }
 pub(crate) struct Ash {
@@ -306,7 +324,7 @@ impl Ash {
             contiguous = 1;
         }
     }
-    pub(crate) fn render(&mut self, ginkgo: &Ginkgo) {
+    pub(crate) fn render(&mut self, ginkgo: &Ginkgo, clear: ClearColor) {
         if let Some(surface_texture) = ginkgo.surface_texture() {
             let view = surface_texture
                 .texture
@@ -321,7 +339,7 @@ impl Ash {
             let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
                 multiview_mask: None,
                 label: Some("render-pass"),
-                color_attachments: &ginkgo.color_attachment(&view, Color::gray(900)),
+                color_attachments: &ginkgo.color_attachment(&view, clear.0),
                 depth_stencil_attachment: ginkgo.depth_stencil_attachment(),
                 timestamp_writes: None,
                 occlusion_query_set: None,
