@@ -556,7 +556,6 @@ pub(crate) fn interactive_elements(
                                 target,
                                 Coasting {
                                     velocity: current.velocity,
-                                    last_tick: Moment::now(),
                                 },
                             );
                         }

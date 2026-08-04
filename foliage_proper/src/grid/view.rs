@@ -152,14 +152,27 @@ impl Default for ScrollMomentum {
 #[derive(Component, Copy, Clone, Debug)]
 pub(crate) struct Coasting {
     pub(crate) velocity: Position<Logical>,
-    pub(crate) last_tick: Moment,
 }
 pub(crate) fn coast(
     mut coasting: Query<(Entity, &mut Coasting)>,
     momentum: Res<ScrollMomentum>,
     current: Res<CurrentInteraction>,
+    time: Res<crate::Time>,
     mut tree: Tree,
 ) {
+    // The frame's own clock, not a `Moment::now()` taken here.
+    //
+    // `update_time` sits in `MainMarkers::External`, chained ahead of the `Process` set this
+    // runs in, so this is the current tick's measurement rather than a stale one -- taken
+    // once, at a fixed point, instead of wherever this system lands after `External` and
+    // `Animation` have done however much work they had this frame.
+    //
+    // It is also clamped by `TIME_SKIP_RESISTANCE_FACTOR`, which the raw reading is not. An
+    // unbounded `elapsed` arrives after a stall -- a backgrounded tab is enough on web -- and
+    // `velocity * elapsed` turns it into one enormous step, teleporting the view instead of
+    // coasting it. And every other piece of motion in the engine is scaled by `frame_diff`,
+    // so a coast reading anything else keeps a different rhythm than what surrounds it.
+    let elapsed_ms = time.frame_diff().as_secs_f32() * 1000.0;
     for (entity, mut c) in coasting.iter_mut() {
         // One pointer, one momentum: a press anywhere ends every coast in flight. There is
         // only ever one gesture at a time, so there is only ever one coast worth keeping,
@@ -191,9 +204,6 @@ pub(crate) fn coast(
             tree.strip::<Coasting>(entity);
             continue;
         }
-        let now = Moment::now();
-        let elapsed_ms = now.duration_since(c.last_tick).as_secs_f32() * 1000.0;
-        c.last_tick = now;
         tree.write_to(entity, ViewAdjustment(c.velocity * elapsed_ms));
         let decayed = momentum.decay.powf(elapsed_ms);
         c.velocity = c.velocity * decayed;

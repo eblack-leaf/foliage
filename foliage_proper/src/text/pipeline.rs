@@ -19,6 +19,34 @@ use wgpu::{
     VertexStepMode, include_wgsl,
 };
 
+/// Rasterizes a glyph through fontdue's subpixel path, then averages each pixel's three
+/// horizontal samples back into the single coverage byte the atlas stores.
+///
+/// Not subpixel antialiasing -- that would keep the three samples as R/G/B and needs
+/// per-channel alpha to composite, i.e. dual-source blending, which WebGL2 does not have.
+/// It also assumes a physical RGB stripe order, which is wrong on a rotated or pentile
+/// display. Averaged instead, the three samples are just 3x horizontal supersampling, which
+/// needs no format change, no shader change, and no feature detection.
+///
+/// What it buys is coverage measured from three samples per pixel instead of one. A vertical
+/// stem narrower than a pixel, or one straddling two, is the case single-sample coverage
+/// estimates worst -- which is why it shows up on the small end, and on round letters, whose
+/// bowls are two thin vertical stems.
+///
+/// `Metrics` come back from the same `metrics_raw` call the non-subpixel path uses, so
+/// `width`, `height` and `xmin` are unchanged and no glyph moves.
+fn rasterize_supersampled(font: &fontdue::Font, index: u16, px: f32) -> (fontdue::Metrics, Vec<u8>) {
+    let (metrics, wide) = font.rasterize_indexed_subpixel(index, px);
+    if metrics.width == 0 || metrics.height == 0 {
+        return (metrics, wide);
+    }
+    let averaged = wide
+        .chunks_exact(3)
+        .map(|c| ((c[0] as u16 + c[1] as u16 + c[2] as u16 + 1) / 3) as u8)
+        .collect();
+    (metrics, averaged)
+}
+
 pub(crate) struct Resources {
     pub(crate) entity_to_group: HashMap<Entity, GroupId>,
     pub(crate) group_layout: wgpu::BindGroupLayout,
@@ -325,15 +353,11 @@ impl Render for Text {
                     .unwrap()
                     .has_key(glyph.key)
                 {
-                    let (metrics, rasterization) = group
-                        .group
-                        .font
-                        .as_ref()
-                        .unwrap_or(&registry[0])
-                        .rasterize_indexed(
-                            glyph.key.glyph_index,
-                            group.group.font_size.value as f32,
-                        );
+                    let (metrics, rasterization) = rasterize_supersampled(
+                        group.group.font.as_ref().unwrap_or(&registry[0]),
+                        glyph.key.glyph_index,
+                        group.group.font_size.value as f32,
+                    );
                     let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
                     group
                         .group
@@ -383,12 +407,11 @@ impl Render for Text {
         for (_id, group) in renderer.groups.iter_mut() {
             let (changed, grown) = group.group.texture_atlas.as_mut().unwrap().resolve(ginkgo);
             for key in changed {
-                let (metrics, rasterization) = group
-                    .group
-                    .font
-                    .as_ref()
-                    .unwrap_or(&registry[0])
-                    .rasterize_indexed(key.glyph_index, group.group.font_size.value as f32);
+                let (metrics, rasterization) = rasterize_supersampled(
+                    group.group.font.as_ref().unwrap_or(&registry[0]),
+                    key.glyph_index,
+                    group.group.font_size.value as f32,
+                );
                 let entry = AtlasEntry::new(rasterization, (metrics.width, metrics.height));
                 for updated in group
                     .group

@@ -43,17 +43,12 @@ pub type GlyphOffset = usize;
 pub(crate) struct Glyphs {
     pub(crate) layout: fontdue::layout::Layout,
     pub(crate) glyphs: Vec<Glyph>,
-    /// Physical px per character -- `character_block`'s own cell width, recorded by
-    /// `Text::update` at layout time so `resolve_glyphs` can place glyphs on it without
-    /// re-deriving it from the font.
-    pub(crate) cell_advance: f32,
 }
 impl Glyphs {
     pub(crate) fn new() -> Self {
         Self {
             layout: fontdue::layout::Layout::new(PositiveYDown),
             glyphs: vec![],
-            cell_advance: 0.0,
         }
     }
 }

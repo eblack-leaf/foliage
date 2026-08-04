@@ -250,7 +250,6 @@ impl Location {
         trigger: Trigger<Resolve<Location>>,
         mut tree: Tree,
         layout: Res<Layout>,
-        short: Res<Short>,
         locations: Query<(&Location, Option<&SpawnedAt>)>,
         sections: Query<&Section<Logical>>,
         layout_sections: Query<&LayoutSection>,
@@ -361,7 +360,10 @@ impl Location {
             let letter_dims = fonts.character_block(this, *layout).unwrap_or_default();
             if let Some(mut resolution) = resolve(
                 *layout,
-                *short,
+                // the same `Short` `FontContext` already carries, rather than a second copy
+                // of it as its own param -- an observer's parameter list is a bounded
+                // resource, and this one is close to spending it
+                *fonts.short,
                 location,
                 grid,
                 context,
