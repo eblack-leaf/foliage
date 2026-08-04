@@ -169,7 +169,10 @@ fn probe(g: &mut Grow, column: &mut Column) {
             .size(FontSize::new(type_scale::LABEL))
             .color(role::on_surface_variant())
             .at(Location::new().xs(
-                space::SM.px().as_left().with(space::SM.px().as_right()),
+                space::SM
+                    .px()
+                    .as_left()
+                    .with(100.pct().as_right().adjust(-space::SM)),
                 space::XS.px().as_top().with(100.pct().as_bottom()),
             ))
             .elevate(Elevation::up(2))
