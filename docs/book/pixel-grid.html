@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>The Window: Willow - foliage</title>
+        <title>The Pixel Grid: Rounding, Scroll, and Rasterization - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -174,71 +174,171 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="the-window-willow"><a class="header" href="#the-window-willow">The Window: Willow</a></h1>
-<p>Before there’s a GPU surface, there has to be a window to put it in. <code>Willow</code> owns that
-one responsibility – it doesn’t know about rendering at all, only about the OS window
-and its requested size/title/limits:</p>
+                        <h1 id="the-pixel-grid-rounding-scroll-and-rasterization"><a class="header" href="#the-pixel-grid-rounding-scroll-and-rasterization">The Pixel Grid: Rounding, Scroll, and Rasterization</a></h1>
+<p>Everything an app states is in logical pixels. Everything the GPU draws lands on a device
+pixel. The conversion between them is one multiply by the scale factor and one rounding step,
+and almost every subtle geometry problem in the engine lives in that rounding step.</p>
+<p>This page is the cross-cutting view. The mechanisms are documented where they are implemented
+– <code>Section::rounded</code>, <code>View::snapped_offset</code>, <code>rasterize_supersampled</code> each carry their own
+reasoning – but the tradeoffs between them span <code>coordinate</code>, <code>grid::view</code>, <code>text</code>, and the
+pipelines, so no single one of those can hold the argument.</p>
+<h2 id="the-path-a-box-takes"><a class="header" href="#the-path-a-box-takes">The path a box takes</a></h2>
+<pre><code>Location resolves -&gt;  LayoutSection      (logical, fractional)
+                   -  accumulated_offset (logical)
+                   =  Section            (logical, what the app can sample)
+                   *  scale_factor
+                   -&gt; Section::rounded() (physical, whole pixels)
+                   -&gt; instance buffer
+</code></pre>
+<p>Every pipeline does the last two steps itself (<code>panel/pipeline.rs</code>, <code>text/pipeline.rs</code>, and so
+on), which is why <code>Section::rounded</code> is the single place the whole engine agrees on what
+“snapped” means.</p>
+<h2 id="why-rounded-derives-the-extent-from-the-edges"><a class="header" href="#why-rounded-derives-the-extent-from-the-edges">Why <code>rounded</code> derives the extent from the edges</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/willow.rs
-pub(crate) struct Willow {
-    pub(crate) handle: WindowHandle,
-    pub(crate) min_size: Option&lt;Area&lt;Physical&gt;&gt;,
-    pub(crate) requested_size: Option&lt;Area&lt;Physical&gt;&gt;,
-    pub(crate) title: Option&lt;String&gt;,
-    pub(crate) max_size: Option&lt;Area&lt;Physical&gt;&gt;,
-    pub(crate) resizable: Option&lt;bool&gt;,
-    pub(crate) starting_position: Option&lt;Position&lt;Numerical&gt;&gt;,
-    pub(crate) near_far: Option&lt;NearFarDescriptor&gt;,
+</span>// foliage_proper/src/coordinate/section.rs
+pub fn rounded(self) -&gt; Self {
+    let left = self.left().round();
+    let top = self.top().round();
+    Self::new(
+        (left, top),
+        (self.right().round() - left, self.bottom().round() - top),
+    )
 }
 <span class="boring">}</span></code></pre>
-<h2 id="connecting"><a class="header" href="#connecting">Connecting</a></h2>
-<p><code>connect(event_loop)</code> is where the actual <code>winit::window::Window</code> gets created, once a
-<code>winit::event_loop::ActiveEventLoop</code> exists to create it from (see
-<a href="./photosynthesis.html">Photosynthesis</a>’s <code>resumed</code>, the only place this is called). On
-wasm, it does one extra thing native platforms don’t need: appending the window’s canvas
-into the DOM itself, since a <code>winit</code> window on the web <em>is</em> a canvas element that has to
-be attached somewhere:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>// foliage_proper/src/willow.rs
-#[cfg(target_family = "wasm")]
-{
-    use winit::platform::web::WindowExtWebSys;
-    window.set_prevent_default(true);
-    let canvas = window.canvas().expect("window-canvas");
-    canvas.style().set_css_text("height: 100%; width: 100%;");
-    web_sys::window().and_then(|win| win.document()).and_then(|doc| doc.body())
-        .and_then(|body| body.append_child(&amp;canvas).ok())
-        .expect("append-canvas");
-}
-<span class="boring">}</span></code></pre>
-<h2 id="nearfardescriptor-internal-depth-headroom-not-an-author-facing-budget"><a class="header" href="#nearfardescriptor-internal-depth-headroom-not-an-author-facing-budget"><code>NearFarDescriptor</code>: internal depth headroom, not an author-facing budget</a></h2>
-<p><code>Willow</code> also carries <code>NearFarDescriptor { near, far }</code> – the <code>[near, far]</code>
-<code>ResolvedElevation</code> range <a href="./ash.html"><code>Ash::assign_elevations</code></a> spaces entities across.
-Its own doc comment is explicit about what it is and isn’t:</p>
-<blockquote>
-<p>purely internal headroom for <code>ash::assign_elevations</code>’s gapped/fractional-index scheme
-(more room between adjacent entities before a gap needs renormalizing) – not an
-author-facing budget. Nothing outside that scheme ever reads a specific
-<code>ResolvedElevation</code> value directly, so this is free to widen with no migration cost.</p>
-</blockquote>
-<p>In other words: authors work with <code>Elevation::up(n)</code>/<code>abs(n)</code> (relative, symbolic
-ordering), never with a raw depth number – <code>NearFarDescriptor</code>’s actual <code>(0.0, 300.0)</code>
-default is an implementation detail of how that symbolic ordering gets mapped onto real
-floats, free to change without breaking anything an author wrote.</p>
-<p>Willow feeds <code>Ginkgo</code> (surface creation, size queries) and is itself driven only by
-<a href="./photosynthesis.html">Photosynthesis</a> – it has no update loop of its own.</p>
+<p>The obvious alternative is to round the position and the area independently. That puts an
+element’s right edge at <code>round(left) + round(width)</code>, which is not <code>round(left + width)</code> – so
+two boxes that agreed on a coordinate can snap a pixel apart and leave a seam between them.
+Deriving both edges from the same rounding means any two shapes agreeing on a coordinate still
+agree afterwards, by construction.</p>
+<p>The cost is that the snapped <em>size</em> now depends on the position’s fractional part:</p>
+<pre><code>width = round(x + w) - round(x)
+</code></pre>
+<p>As <code>x</code> slides continuously, that flips between <code>floor(w)</code> and <code>floor(w) + 1</code>. Under a
+fractional scroll offset it produces two visible artifacts at once:</p>
+<ul>
+<li><strong>Breathing.</strong> Every shape’s rendered size oscillates by a pixel as the view moves.</li>
+<li><strong>Shimmer.</strong> Each element has its own <code>frac(x)</code>, so neighbours cross pixel boundaries at
+different offsets and the gaps between them change by a pixel. Everything drifts against
+everything else.</li>
+</ul>
+<h2 id="the-fix-snap-the-offset-not-the-box"><a class="header" href="#the-fix-snap-the-offset-not-the-box">The fix: snap the offset, not the box</a></h2>
+<p><code>View</code> carries <code>offset</code> (fractional, the accumulator) and <code>snapped_offset</code> (the same value
+rounded to whole device pixels). <code>extent_check</code> computes the second, and all three sites that
+build <code>accumulated_offset</code> sum the snapped one.</p>
+<p>The reason that works is exact rather than approximate. For integral <code>n</code>, <code>round(a - n) == round(a) - n</code>, so with <code>offset * scale_factor = n</code>:</p>
+<pre><code>left  = round(layout_x*s) - n
+width = round(layout_x*s + W) - round(layout_x*s)      &lt;- n cancels
+</code></pre>
+<p>The offset drops out of the width entirely, leaving a pure function of the layout that does
+not change while scrolling. It survives in the position as a single integer that <em>every</em>
+element shifts by together, so a subtree moves as one rigid piece. Breathing and shimmer both
+disappear, and edges still derive from shared coordinates so seams stay fixed.</p>
+<p><code>offset</code> itself deliberately stays fractional. Rounding it in place would discard every
+sub-device-pixel adjustment, and a coast’s decaying tail delivers exactly those – it would
+stall short of a stop instead of creeping to one.</p>
+<h2 id="what-remains-and-why-it-cannot-be-removed-here"><a class="header" href="#what-remains-and-why-it-cannot-be-removed-here">What remains, and why it cannot be removed here</a></h2>
+<p>The view now steps in whole device pixels. Below roughly one device pixel per frame it holds
+still for several frames and then jumps, which reads as stutter. This is the irreducible cost,
+and it is worth understanding why no rearrangement on the CPU side removes it.</p>
+<p><code>panel.wgsl</code> uses a hard <code>step()</code> for straight edges – only the corners use <code>smoothstep</code> –
+and MSAA is requested at 1. With no antialiasing anywhere in the geometry path, <strong>the renderer
+cannot represent a position between two pixels.</strong> A fractional translation applied in the
+shader, or held in instance data and added late, is quantized right back by the rasterizer. It
+buys nothing that snapping does not already give.</p>
+<p>So there are exactly three positions, and the choice between them is a rendering decision, not
+a layout one:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>static</th><th>moving</th><th>blocked by</th></tr>
+</thead>
+<tbody>
+<tr><td>snap everything (today)</td><td>crisp</td><td>quantized steps</td><td>–</td></tr>
+<tr><td>fractional geometry + AA</td><td>softer edges</td><td>smooth</td><td>text</td></tr>
+<tr><td>offscreen composite</td><td>crisp</td><td>smooth but blurred</td><td>complexity</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Fractional + AA</strong> means enabling MSAA (or extending the analytic coverage the corners already
+use to the straight edges) and then dropping the rounding entirely – if nothing rounds, the
+oscillation cannot exist. It is <em>less</em> machinery than today, not more. Text is what blocks it:
+glyphs are a bitmap atlas sampled <code>Linear</code>, so fractional glyph positions resample every frame
+and go permanently soft. Snapping text while panels glide fractionally is worse still, because
+the two visibly desync during a scroll. Everything has to move together, and text sets the
+floor.</p>
+<p><strong>Offscreen composite</strong> is what browsers do. Rasterize the scrolled subtree into a texture in
+<em>content space</em>, where geometry keeps its integer snapping because the content does not move
+relative to its own texture origin, then put the fractional part only in the blit. Geometry
+never goes fractional; only the sampling does. It is also cheaper per frame while coasting over
+static content – nothing re-renders, you re-blit at a new offset. The costs are a half-pixel
+blur while moving, a re-rasterize when the scroll settles, and isolating the subtree into its
+own render target.</p>
+<p>Two platform facts constrain the first option: on web the backend is WebGL2 (<code>wgpu</code>’s <code>webgl</code>
+feature; <code>webgpu</code> is not enabled), which has no dual-source blending. And <code>Msaa::new</code> already
+does <code>requested.min(max_samples)</code> off <code>TextureFormatFeatureFlags</code>, so unsupported platforms
+fall back to 1 sample and get today’s behaviour – availability is handled, only cost is open.</p>
+<h2 id="coasting-reads-the-frame-clock"><a class="header" href="#coasting-reads-the-frame-clock">Coasting reads the frame clock</a></h2>
+<p><code>coast</code> scales its per-tick displacement by <code>Time::frame_diff()</code>, not a <code>Moment::now()</code> taken
+inside the system. <code>update_time</code> sits in <code>MainMarkers::External</code>, chained ahead of the
+<code>Process</code> set <code>coast</code> runs in, so that is the current tick’s measurement rather than a stale
+one.</p>
+<p>The reason it matters is the clamp. <code>frame_diff</code> is bounded by
+<code>Time::TIME_SKIP_RESISTANCE_FACTOR</code>; a raw reading is not. After a stall – a backgrounded tab
+is enough on web – an unbounded <code>elapsed</code> turns <code>velocity * elapsed</code> into one enormous step
+and teleports the view. It also keeps a coast on the same rhythm as everything else, since
+every other piece of motion in the engine is scaled by the same number.</p>
+<p>This does not remove ordinary frame-to-frame jitter, which is the same wall clock either way.</p>
+<h2 id="glyphs-land-on-the-same-grid"><a class="header" href="#glyphs-land-on-the-same-grid">Glyphs land on the same grid</a></h2>
+<p>The text path is already correct and worth not re-deriving. Glyph positions are rounded to
+whole physical pixels, the quad area is exactly the rasterized bitmap, and the group origin is
+rounded too, so the blit is 1:1 texel-to-pixel. The orthographic projection maps pixel edges to
+NDC with no half-texel offset.</p>
+<p><code>fontdue</code> also steps the pen by a whole <code>ceil(advance)</code> already – measured on the bundled
+face, 9px at 14px, 13px at 21px, 15px at 25px, uniform within each. There is no fractional
+advance to correct, and quantizing it in the engine only breaks things by discarding each
+glyph’s bearing.</p>
+<p>What is left is a genuine limit. <code>Metrics::xmin</code> is an <code>i32</code>, so a glyph’s true fractional left
+bearing floors to a whole device pixel. On the bundled face, <code>h</code>’s bearing measures 1px at both
+20 and 21px and only reaches 2px at 25px – so below roughly 22px the gap before it loses about
+a third of its width. It compounds with the fact that a wide glyph’s ink width equals the pen
+step exactly, which leaves the entire visual gap to the following glyph’s bearing.</p>
+<p><code>fontdue</code> cannot fix this from outside: <code>metrics_raw</code> accepts a subpixel offset, but it is
+private and every public entry point passes <code>0.0</code>, and <code>GlyphRasterConfig</code> carries no offset
+field. Subpixel positioning would mean forking it or changing rasterizers.</p>
+<p><strong>The practical consequence is that the lever is size, not layout.</strong> Type below about 13 logical
+pixels stops surviving the device grid before it stops being readable, and no amount of
+positioning work recovers it.</p>
+<p>The one thing that does help is coverage. <code>rasterize_supersampled</code> runs <code>fontdue</code>’s subpixel
+path – which rasterizes at 3x horizontal resolution – and averages each pixel’s three samples
+into the single byte the atlas stores. That is not subpixel antialiasing: keeping the three as
+R/G/B would need per-channel alpha, i.e. dual-source blending, which WebGL2 does not have, and
+it would assume a physical RGB stripe order that is wrong on a rotated or pentile display.
+Averaged, it is just 3x supersampling – no format change, no shader change, no feature
+detection – and it measures coverage from three samples instead of one, which is exactly the
+case a thin vertical stem falling between pixel centres defeats.</p>
+<p><code>Metrics</code> come back from the same call the plain path uses, so <code>width</code>, <code>height</code> and <code>xmin</code> are
+unchanged and no glyph moves.</p>
+<h2 id="sizing-in-characters"><a class="header" href="#sizing-in-characters">Sizing in characters</a></h2>
+<p>Because the device grid sets a floor on type size, boxes stated in pixels against a particular
+size stop fitting the moment that size moves. <code>.letters()</code> exists for this: it resolves against
+the character cell rather than a pixel count, so a box tracks the type scale on its own.</p>
+<p>It is axis-aware – the advance width on horizontal designators, the line height on vertical –
+so a separate <code>.lines()</code> would be a duplicate of what it already does on a vertical axis.</p>
+<p>It measures against the entity’s <strong>own</strong> <code>FontSize</code>, which a <code>Text</code> gets for free and nothing
+else does. <code>Sprout::size</code> exists so a container that holds text without being text – a <code>Bare</code>
+region, a <code>Panel</code> divider whose offset is stated in characters – can be handed the cell it
+needs to measure against.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="ginkgo.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="photosynthesis.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="photosynthesis.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="coordinate.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -248,11 +348,11 @@ floats, free to change without breaking anything an author wrote.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="ginkgo.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="photosynthesis.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="photosynthesis.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="coordinate.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

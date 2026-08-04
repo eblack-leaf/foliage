@@ -17,6 +17,7 @@
 - [The GPU Wrapper: Ginkgo](./ginkgo.md)
 - [The Window: Willow](./willow.md)
 - [The Event Loop: Photosynthesis](./photosynthesis.md)
+- [The Pixel Grid: Rounding, Scroll, and Rasterization](./pixel-grid.md)
 
 # Core Types
 
