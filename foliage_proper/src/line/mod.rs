@@ -42,17 +42,19 @@ impl Attachment for Line {
         foliage.differential::<LineQuad, Color>();
     }
 }
-/// Thinnest line this renders cleanly. Below it, `distill_descriptor`'s half-weight normal
-/// offset falls under a texel and the quad's two long edges land on the same pixel row at
-/// some angles and straddle two at others -- so a line visibly thins, thickens and shimmers
-/// along its own length, worst at the shallow angles where it is most noticeable.
+/// Thinnest line this draws: one logical pixel, the thinnest that means anything.
 ///
-/// Clamped rather than documented as a caveat: a thinner line is never what someone wanted,
-/// it is what they asked for before seeing it, and leaving the floor at 1 only moves the
-/// discovery to whoever draws the first diagonal. Same reasoning and same value as
-/// [`PolylineSprout::weight`](crate::PolylineSprout::weight), which needs the floor for its
-/// joints as well.
-pub const MIN_LINE_WEIGHT: i32 = 3;
+/// This was 3 for a long time, and the reason was real -- at 1 or 2 a line visibly thinned,
+/// thickened and shimmered along its own length, worst at shallow angles. That was two
+/// things, both since fixed: the drawn quad was exactly the line's true width, so with no
+/// multisampling (`Ginkgo` runs one sample) the rasterizer simply skipped the pixels whose
+/// centers the thin quad missed and the shader never got to feather them -- see `line.wgsl`'s
+/// `AA_MARGIN`; and an axis-aligned line's edges were never put on whole pixels the way every
+/// other primitive's are -- see [`snap_axis_aligned`](Line::snap_axis_aligned).
+///
+/// A clamp rather than a documented caveat, still: zero and negative weights have no drawing
+/// to do, and clamping is cheaper than every caller checking.
+pub const MIN_LINE_WEIGHT: i32 = 1;
 
 impl Line {
     /// Starts a [`Line`] entity `w` logical pixels thick, clamped to
@@ -90,16 +92,50 @@ impl Line {
             let left_bottom = Position::logical((pts.0.a() - x_adjust, pts.0.b() + y_adjust));
             let right_top = Position::logical((pts.1.a() + x_adjust, pts.1.b() - y_adjust));
             let right_bottom = Position::logical((pts.1.a() - x_adjust, pts.1.b() + y_adjust));
-            *quad = LineQuad::new(
-                EdgePoints::new(
-                    left_bottom.to_physical(scale_factor.value()).coordinates,
-                    left_top.to_physical(scale_factor.value()).coordinates,
-                ),
-                EdgePoints::new(
-                    right_bottom.to_physical(scale_factor.value()).coordinates,
-                    right_top.to_physical(scale_factor.value()).coordinates,
-                ),
+            let sf = scale_factor.value();
+            let mut left = EdgePoints::new(
+                left_bottom.to_physical(sf).coordinates,
+                left_top.to_physical(sf).coordinates,
             );
+            let mut right = EdgePoints::new(
+                right_bottom.to_physical(sf).coordinates,
+                right_top.to_physical(sf).coordinates,
+            );
+            if x_diff == 0.0 || y_diff == 0.0 {
+                Self::snap_axis_aligned(&mut left, &mut right, y_diff == 0.0);
+            }
+            *quad = LineQuad::new(left, right);
+        }
+    }
+    /// Puts an axis-aligned segment's four edges on whole device pixels -- the same
+    /// crisp-alignment pass every other pipeline runs on its `Section` (`panel/pipeline.rs`'s
+    /// `.rounded()`), which this one had never had.
+    ///
+    /// Only axis-aligned. At any other angle a line has no edge that *can* be snapped: moving
+    /// its corners to whole pixels changes both its width and its angle, and the shader's
+    /// feather is what makes those read cleanly instead. Axis-aligned is where snapping is
+    /// both meaningful and most missed -- a rule or a divider whose centerline lands on a
+    /// pixel boundary is split evenly across two rows, so a 1px rule renders as two half-lit
+    /// ones: right ink, twice the width, and dimmer than it was asked to be.
+    fn snap_axis_aligned(left: &mut EdgePoints, right: &mut EdgePoints, horizontal: bool) {
+        if horizontal {
+            // `left`/`right` are the two *ends* (the caps), each spanning the weight; which
+            // end is which follows the authored direction, so the ends keep their own x.
+            let top = left.end.b().min(left.start.b());
+            let thickness = (left.start.b() - left.end.b()).abs().round().max(1.0);
+            let snapped_top = top.round();
+            let snapped_bottom = snapped_top + thickness;
+            let (x0, x1) = (left.start.a().round(), right.start.a().round());
+            *left = EdgePoints::new((x0, snapped_bottom).into(), (x0, snapped_top).into());
+            *right = EdgePoints::new((x1, snapped_bottom).into(), (x1, snapped_top).into());
+        } else {
+            let near = left.start.a().min(left.end.a());
+            let thickness = (left.end.a() - left.start.a()).abs().round().max(1.0);
+            let snapped_near = near.round();
+            let snapped_far = snapped_near + thickness;
+            let (y0, y1) = (left.start.b().round(), right.start.b().round());
+            *left = EdgePoints::new((snapped_near, y0).into(), (snapped_far, y0).into());
+            *right = EdgePoints::new((snapped_near, y1).into(), (snapped_far, y1).into());
         }
     }
 }

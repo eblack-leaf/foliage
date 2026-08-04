@@ -139,10 +139,8 @@ impl PolylineSprout {
         self.points = Some(PolylinePoints(points.into_iter().map(Into::into).collect()));
         self
     }
-    /// Clamped to [`MIN_LINE_WEIGHT`](crate::MIN_LINE_WEIGHT): below that, the joint's rounded-to-a-whole-px diameter
-    /// (see `PolylineSprout::build`) can't track `Line`'s perceived width closely enough to
-    /// look clean at a bend -- and the segments themselves have their own reason for the same
-    /// floor, which is why they share the constant rather than each carrying a `3`.
+    /// Clamped to [`MIN_LINE_WEIGHT`](crate::MIN_LINE_WEIGHT), the same floor the segments
+    /// themselves take, which is why this shares the constant rather than carrying its own.
     pub fn weight(mut self, w: i32) -> Self {
         self.style.weight = w.max(crate::MIN_LINE_WEIGHT);
         self
@@ -339,22 +337,19 @@ impl Author for PolylineSprout {
                     segment_cache[i] = value;
                 }
 
-                // `Line`'s AA fades inward only, from its true edge (0% coverage right at
-                // the geometric boundary, ramping to 100% a full `edge_precision` px in --
-                // see `line.wgsl`), while `Polygon`'s fades symmetrically, centered on its
-                // true boundary -- so a segment's *perceived* edge sits ~half a px inside
-                // its true one, but the joint's perceived edge sits exactly on its true one.
-                // Shrink the joint to the segment's perceived width (mirrors
-                // `edge_precision`'s own `min(1.0, weight / 2.0)` cap) so the two line up.
-                // Rounded to a whole px: every renderer's `prepare()` step (this crate's
-                // universal, deliberate crisp-pixel-alignment pass, e.g.
-                // `polygon/pipeline.rs`) snaps `Section<Logical>` position and area to the
-                // nearest physical pixel *independently*, so a `left` derived from a
-                // fractional center/width pair can round to a different sub-pixel offset
-                // than its width did, visibly shifting the shape off-center. A whole-px
-                // diameter sidesteps that entirely, at the cost of `weight == 1` landing
-                // back on a plain (slightly-oversized rather than perceived-perfect) circle.
-                let diameter = (style.weight as f32 - (style.weight as f32 / 2.0).min(1.0)).round();
+                // The joint is exactly the segment's width now, with nothing subtracted. It
+                // used to be shrunk, because `Line`'s AA faded inward only -- 0% coverage at
+                // its true edge ramping to 100% a full px inside it -- which put a segment's
+                // *perceived* edge about half a px inside its true one while `Polygon`'s sat
+                // right on it, so a joint drawn at the stated weight bulged past the segments
+                // it joined. `line.wgsl`'s feather is centered on the true edge now, same as
+                // `Polygon`'s, so both perceived edges land in the same place and the two
+                // agree by construction. A whole number either way, which is what keeps the
+                // joint centered: `polygon/pipeline.rs` snaps position and area to whole
+                // physical px *independently*, and a `left` derived from a fractional
+                // center/width pair can round to a different sub-pixel offset than its width
+                // did, visibly shifting the shape off its own center.
+                let diameter = style.weight as f32;
 
                 reconcile(
                     &mut tree,

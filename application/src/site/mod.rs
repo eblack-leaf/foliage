@@ -63,7 +63,8 @@ pub(crate) mod role {
     pub(crate) fn on_surface_title() -> Color {
         Color::stone(500)
     }
-    /// Prose, captions, inactive rail entries.
+    /// Prose and captions -- text on the page and on cards. Not on [`surface`], which is light
+    /// enough that this tone stops holding against it; that takes [`on_surface`].
     pub(crate) fn on_surface_variant() -> Color {
         Color::stone(400)
     }

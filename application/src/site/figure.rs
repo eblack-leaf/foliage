@@ -113,10 +113,11 @@ const PATH_WEIGHT: i32 = 3;
 const DASH_ON: f32 = 11.0;
 const DASH_OFF: f32 = 7.0;
 
-/// The ruled rows. `MIN_LINE_WEIGHT` is the floor for anything a polyline draws, so tone and
-/// dash length are the only ways down from the traverse -- a shorter dash with more gap than
+/// The ruled rows, as fine as a line goes. Pinned to `MIN_LINE_WEIGHT` back when that floor
+/// was 3 and this wanted to be under it; the floor is 1 now, and this takes it. Tone and dash
+/// length are the other ways down from the traverse -- a shorter dash with more gap than
 /// [`DASH_ON`]/[`DASH_OFF`] reads as finer even at the same weight.
-const ROW_WEIGHT: i32 = foliage::MIN_LINE_WEIGHT;
+const ROW_WEIGHT: i32 = 1;
 const ROW_DASH_ON: f32 = 4.0;
 const ROW_DASH_OFF: f32 = 8.0;
 /// Well under the ticks, which sit at full opacity. Major rows carry a number in the gutter,

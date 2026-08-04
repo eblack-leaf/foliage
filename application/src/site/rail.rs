@@ -194,10 +194,13 @@ pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) ->
             surface,
             Text::new(*name)
                 .size(FontSize::new(type_scale::TITLE))
+                // Not the variant tone: these sit on `surface()`, which is a good deal lighter
+                // than the page, and the variant reads washed out against it. What separates an
+                // inactive entry from the active one is the pill behind it, not a dimmer label.
                 .color(if is_active {
                     role::on_accent()
                 } else {
-                    role::on_surface_variant()
+                    role::on_surface()
                 })
                 .at(Location::new().xs(
                     space::MD
