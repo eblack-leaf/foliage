@@ -60,8 +60,6 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
          live: press its bar, and read what the parent decided for the child.",
     );
 
-    probe(g, &mut column);
-
     column.heading(g.canopy, "resolving");
     column.prose(
         g.canopy,
@@ -148,84 +146,15 @@ fn frame(canopy: &mut Canopy, stage: Leaf, width: f32, filled: bool) -> Frame {
     Frame { leaf, label }
 }
 
-/// A live readout of the device numbers glyph rasterization depends on.
-///
-/// Diagnostic, not part of the section. It lives on a page that is already rendering text at
-/// the sizes in question, which is the point -- the numbers and the text they describe have to
-/// be on the same screen at the same moment to be worth anything.
-///
-/// `sf` is what turns a declared logical size into the px the atlas bitmap is actually
-/// rasterized at, and `bp` is what decides the logical size in the first place. Two devices
-/// disagreeing on either is enough to put their text at different px without either one being
-/// wrong, which is not visible from the rendered page alone.
-fn probe(g: &mut Grow, column: &mut Column) {
-    // Its own backing rather than bare text on the page: this floats numbers over whatever the
-    // column's surface happens to be, and unbacked light text on a mid-tone surface is the one
-    // thing on the page that would be harder to read than the glyphs it is reporting on.
-    let backing = column.surface_plain(g.canopy, 44, space::MD);
-    let line = g.canopy.branch(
-        backing,
-        Text::new("probe")
-            .size(FontSize::new(type_scale::LABEL))
-            .color(role::on_surface_variant())
-            .at(Location::new().xs(
-                space::SM
-                    .px()
-                    .as_left()
-                    .with(100.pct().as_right().adjust(-space::SM)),
-                space::XS.px().as_top().with(100.pct().as_bottom()),
-            ))
-            .elevate(Elevation::up(2))
-            .align(HorizontalAlignment::Left, VerticalAlignment::Top)
-            .pass_through(),
-    );
-    g.page.demos.push(Box::new(Probe {
-        line,
-        last: String::new(),
-    }));
-}
-
-struct Probe {
-    line: Leaf,
-    /// Rewritten only when the string actually changes. `drive` runs every frame, and a
-    /// `canopy.text` write relays the run out and re-resolves it -- once a frame, forever, for
-    /// a string that changes on resize and never otherwise.
-    last: String,
-}
-
-impl Demo for Probe {
-    fn clicked(&mut self, _canopy: &mut Canopy, _leaf: Leaf) -> bool {
-        false
-    }
-    fn drive(&mut self, canopy: &mut Canopy) {
-        let sf = canopy.scale_factor();
-        let viewport = canopy.viewport();
-        let px = |logical: u32| (logical as f32 * sf).round() as u32;
-        let next = format!(
-            "sf {:.3}  bp {:?}{}  vp {:.0}x{:.0}\nbody {} -> {}px   label {} -> {}px",
-            sf,
-            canopy.layout(),
-            if canopy.short() { " short" } else { "" },
-            viewport.width(),
-            viewport.height(),
-            type_scale::BODY,
-            px(type_scale::BODY),
-            type_scale::LABEL,
-            px(type_scale::LABEL),
-        );
-        if next != self.last {
-            canopy.text(self.line, &next);
-            self.last = next;
-        }
-    }
-}
-
 /// Where a frame's own label sits. Shared so the lifetime board's "no parent" marker can occupy
 /// the same slot rather than a hand-matched copy of it that drifts the first time either moves.
 fn frame_label_at() -> Location {
     Location::new().xs(
-        space::SM.px().as_left().with(96.px().as_width()),
-        space::XS.px().as_top().with(16.px().as_height()),
+        // Sized in characters, not px: the widest label this holds is "parent 100%", and one
+        // line of it. Stated that way the box tracks the type scale instead of being a pair of
+        // numbers that happen to fit the size it was written against.
+        space::SM.px().as_left().with(11.letters().as_width()),
+        space::XS.px().as_top().with(1.letters().as_height()),
     )
 }
 
@@ -325,7 +254,7 @@ fn name_child(canopy: &mut Canopy, child: Leaf) {
             .color(role::on_accent())
             .at(Location::new().xs(
                 0.pct().as_left().with(100.pct().as_right()),
-                50.pct().as_center_y().with(16.px().as_height()),
+                50.pct().as_center_y().with(1.letters().as_height()),
             ))
             .elevate(Elevation::up(1))
             .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
@@ -351,12 +280,11 @@ fn board(
     let seq = column.sequence();
     let region = column.region(g.canopy, blueprint::height(STAGE_H), space::LG);
     let board = Blueprint::grow(g, region, labels, control, seq, motion::STAGGER);
-    let table = column.region(
+    let table = column.region_letters(
         g.canopy,
-        {
-            let h = blueprint::reference_height(entries.len());
-            (h, h, h)
-        },
+        blueprint::reference_letters(entries.len()),
+        blueprint::reference_extra(entries.len()),
+        type_scale::LABEL,
         space::SM,
     );
     blueprint::reference(g, table, entries, seq, motion::STAGGER * 2);
@@ -738,7 +666,8 @@ fn lifetime(g: &mut Grow, column: &mut Column) {
     );
     // Each marker takes its slot's own alignment as well as its box, or the words sit in the
     // right rectangle and still not where the thing they stand for will be: a frame's label is
-    // left-aligned in a 96px box, a child's name is centred across its whole band.
+    // left-aligned in a box a fixed number of characters wide, a child's name is centred across
+    // its whole band.
     let marker = |canopy: &mut Canopy, text: &'static str, at: Location, h: HorizontalAlignment| {
         canopy.branch(
             room,

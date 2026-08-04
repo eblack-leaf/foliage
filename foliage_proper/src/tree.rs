@@ -299,6 +299,9 @@ impl<'w, 's> Tree<'w, 's> {
         if let Some(font) = seed.font {
             self.write_to(this, font);
         }
+        if let Some(font_size) = seed.font_size {
+            self.write_to(this, font_size);
+        }
         if let Some((width, height)) = seed.content_size {
             self.write_to(
                 this,

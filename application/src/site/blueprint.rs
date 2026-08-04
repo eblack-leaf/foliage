@@ -9,7 +9,7 @@
 
 use foliage::{
     Bare, Canopy, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf, Location,
-    Panel, Rounding, Sprout, Text, VerticalAlignment,
+    LocationValue, Panel, Rounding, Sprout, Text, VerticalAlignment,
 };
 
 use crate::site::{Grow, fade_in, role, space, type_scale};
@@ -103,7 +103,7 @@ impl Blueprint {
                 .color(role::on_surface())
                 .at(Location::new().xs(
                     0.pct().as_left().with(100.pct().as_right()),
-                    50.pct().as_center_y().with(16.px().as_height()),
+                    50.pct().as_center_y().with(1.letters().as_height()),
                 ))
                 .elevate(Elevation::up(1))
                 .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
@@ -196,18 +196,50 @@ pub(crate) struct Entry {
     pub(crate) gloss: &'static str,
 }
 
-const ENTRY_CALL_H: i32 = 18;
-/// Three lines of the label size at the narrowest the card runs -- about thirty-five characters
-/// each. A fixed box, not content-sized: the rows are laid out at fixed offsets, so a gloss that
-/// grew its own box would run under the next entry's rule.
-const ENTRY_GLOSS_H: i32 = 3 * 16;
-const ENTRY_GAP: i32 = space::MD;
-const ENTRY_H: i32 = ENTRY_GAP + ENTRY_CALL_H + ENTRY_GLOSS_H;
-const TABLE_TITLE_H: i32 = 16;
-const TABLE_TOP: i32 = space::MD + TABLE_TITLE_H;
+/// Lines a gloss wraps to, per breakpoint -- (xs, sm, md, lg). The same sentence in a narrower
+/// card takes more of them, and the box has to be told, because the rows sit at computed offsets:
+/// a gloss that grew its own box would run under the next entry's rule.
+///
+/// Stated in lines rather than pixels so it tracks the type scale. Written as `3 * 16` against a
+/// 12px label, this was a pixel count that quietly stopped fitting the moment the label grew.
+///
+/// `md` and `lg` do not keep stepping down, because that is exactly where the rail arrives:
+/// `shell::capped` starts the wide measure at `RAIL_W + space::XL`, so those breakpoints hand
+/// the column a bigger window and take ~188px of it straight back. The reading width barely
+/// grows across that step even though the viewport does, and a gloss sized for the window
+/// rather than the column wraps into the entry below it.
+const GLOSS_LINES: (i32, i32, i32, i32) = (3, 2, 2, 2);
 
-pub(crate) fn reference_height(count: usize) -> i32 {
-    TABLE_TOP + count as i32 * ENTRY_H + space::MD
+/// An entry is its call -- always one line -- above its gloss.
+const fn entry_lines(gloss: i32) -> i32 {
+    gloss + 1
+}
+
+const ENTRY_GAP: i32 = space::MD;
+
+/// Everything in the card that is not a line of text: the padding above the title and below the
+/// last entry, plus one gap per entry.
+const fn table_extra(count: i32) -> i32 {
+    space::MD + count * ENTRY_GAP + space::MD
+}
+
+/// Lines the card is tall: the title, then every entry.
+const fn table_lines(count: i32, gloss: i32) -> i32 {
+    1 + count * entry_lines(gloss)
+}
+
+pub(crate) fn reference_letters(count: usize) -> (i32, i32, i32, i32) {
+    let c = count as i32;
+    (
+        table_lines(c, GLOSS_LINES.0),
+        table_lines(c, GLOSS_LINES.1),
+        table_lines(c, GLOSS_LINES.2),
+        table_lines(c, GLOSS_LINES.3),
+    )
+}
+
+pub(crate) fn reference_extra(count: usize) -> i32 {
+    table_extra(count as i32)
 }
 
 /// The detail a field has no room to act out. A rule above every entry but the first, so the
@@ -238,28 +270,50 @@ pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf
                     .px()
                     .as_left()
                     .with(100.pct().as_right().adjust(-space::MD)),
-                space::MD.px().as_top().with(TABLE_TITLE_H.px().as_height()),
+                space::MD.px().as_top().with(1.letters().as_height()),
             ))
             .elevate(Elevation::up(2))
             .align(HorizontalAlignment::Left, VerticalAlignment::Middle),
     );
 
+    // Each row's offset is part characters and part pixels: the text above it stacks in lines,
+    // the gaps between entries do not. `.letters()` carries the first, `.adjust` the second.
+    let measure = || {
+        space::MD
+            .px()
+            .as_left()
+            .with(100.pct().as_right().adjust(-space::MD))
+    };
+    let row = |i: i32, gloss: i32, line: i32, px: i32, height: LocationValue| {
+        (1 + i * entry_lines(gloss) + line)
+            .letters()
+            .as_top()
+            .adjust(space::MD + i * ENTRY_GAP + px)
+            .with(height.as_height())
+    };
+    // Mid-gap above its entry, so the rule reads as separating two rows rather than belonging
+    // to the one under it.
+    let rule = |i: i32, gloss: i32| row(i, gloss, 0, ENTRY_GAP / 2, 1.px());
+    let call = |i: i32, gloss: i32| row(i, gloss, 0, ENTRY_GAP, 1.letters());
+    let gloss_at = |i: i32, gloss: i32| row(i, gloss, 1, ENTRY_GAP, (gloss).letters());
+
     for (i, entry) in entries.iter().enumerate() {
-        let top = TABLE_TOP + i as i32 * ENTRY_H;
+        let i = i as i32;
         if i > 0 {
             g.canopy.branch(
                 card,
                 Panel::new()
                     .color(role::outline())
                     .rounding(Rounding::None)
-                    .at(Location::new().xs(
-                        space::MD
-                            .px()
-                            .as_left()
-                            .with(100.pct().as_right().adjust(-space::MD)),
-                        (top + ENTRY_GAP / 2).px().as_top().with(1.px().as_height()),
-                    ))
-                    .elevate(Elevation::up(2)),
+                    .at(Location::new()
+                        .xs(measure(), rule(i, GLOSS_LINES.0))
+                        .sm(measure(), rule(i, GLOSS_LINES.1))
+                        .md(measure(), rule(i, GLOSS_LINES.2))
+                        .lg(measure(), rule(i, GLOSS_LINES.3)))
+                    .elevate(Elevation::up(2))
+                    // Its own offset is stated in characters, so it needs a cell to measure
+                    // against even though it draws none of them.
+                    .size(FontSize::new(type_scale::LABEL)),
             );
         }
         // The call is code and the gloss is prose about it. On one tone a step apart they read as
@@ -270,16 +324,11 @@ pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf
             Text::new(entry.call)
                 .size(FontSize::new(type_scale::LABEL))
                 .color(role::accent())
-                .at(Location::new().xs(
-                    space::MD
-                        .px()
-                        .as_left()
-                        .with(100.pct().as_right().adjust(-space::MD)),
-                    (top + ENTRY_GAP)
-                        .px()
-                        .as_top()
-                        .with(ENTRY_CALL_H.px().as_height()),
-                ))
+                .at(Location::new()
+                    .xs(measure(), call(i, GLOSS_LINES.0))
+                    .sm(measure(), call(i, GLOSS_LINES.1))
+                    .md(measure(), call(i, GLOSS_LINES.2))
+                    .lg(measure(), call(i, GLOSS_LINES.3)))
                 .elevate(Elevation::up(2))
                 .align(HorizontalAlignment::Left, VerticalAlignment::Middle),
         );
@@ -288,16 +337,11 @@ pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf
             Text::new(entry.gloss)
                 .size(FontSize::new(type_scale::LABEL))
                 .color(role::on_surface_variant())
-                .at(Location::new().xs(
-                    space::MD
-                        .px()
-                        .as_left()
-                        .with(100.pct().as_right().adjust(-space::MD)),
-                    (top + ENTRY_GAP + ENTRY_CALL_H)
-                        .px()
-                        .as_top()
-                        .with(ENTRY_GLOSS_H.px().as_height()),
-                ))
+                .at(Location::new()
+                    .xs(measure(), gloss_at(i, GLOSS_LINES.0))
+                    .sm(measure(), gloss_at(i, GLOSS_LINES.1))
+                    .md(measure(), gloss_at(i, GLOSS_LINES.2))
+                    .lg(measure(), gloss_at(i, GLOSS_LINES.3)))
                 .elevate(Elevation::up(2))
                 .align(HorizontalAlignment::Left, VerticalAlignment::Top),
         );

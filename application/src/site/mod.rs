@@ -89,7 +89,16 @@ pub(crate) mod type_scale {
     /// which say "start here" without competing for the type scale.
     pub(crate) const LEAD: u32 = BODY;
     pub(crate) const BODY: u32 = 14;
-    pub(crate) const LABEL: u32 = 12;
+    /// Was 12, which on a phone is where the type stops surviving the device grid rather than
+    /// where it stops being readable. `xmin` is a whole number of device pixels, so a bearing
+    /// worth ~8% of the em floors to 1px at small sizes and the gap between letters loses a
+    /// third of its width -- measurably, not as an impression. Measured on the bundled face,
+    /// that gap is 1px at 20 and 21 physical px and 2px at 25.
+    ///
+    /// 13 rather than 14 because the reference tables are what this size is mostly carrying,
+    /// and 14 stopped fitting them. It keeps a step below [`BODY`] at the cost of landing
+    /// nearer the low end of that range on a fractional scale factor.
+    pub(crate) const LABEL: u32 = 13;
 }
 
 /// The prose italic, registered once at startup.
@@ -759,6 +768,55 @@ impl Column {
         gap: i32,
     ) -> Leaf {
         self.region_on(canopy, shell::figure_measure(), heights, gap)
+    }
+    /// A region whose height is stated in characters, plus a fixed allowance for whatever sits
+    /// between them that is not text -- rules, gaps, padding.
+    ///
+    /// The `Bare` is given a [`FontSize`] for the same reason its contents have one:
+    /// `.letters()` measures against the entity's *own* cell, and a container that holds text
+    /// without being text has no cell until it is handed one. Stated this way the box tracks
+    /// the type scale, instead of being a pixel count that silently stops fitting the first
+    /// time the scale moves.
+    ///
+    /// `letters` is (xs, sm, md, lg) -- one more step than [`region`](Self::region) spells,
+    /// because what goes inside a card *can* reflow at `sm` and a container that could not say
+    /// so would be sized for a different number of lines than it holds.
+    pub(crate) fn region_letters(
+        &mut self,
+        canopy: &mut Canopy,
+        letters: (i32, i32, i32, i32),
+        extra: i32,
+        size: u32,
+        gap: i32,
+    ) -> Leaf {
+        // For the side effect alone: nothing here fades, but the slot has to be spent or every
+        // element after this one moves up a step in the entrance.
+        self.stagger();
+        let (xs, wide) = shell::measure();
+        let anchored = self.last.is_some();
+        let below = |lines: i32| {
+            let height = lines.letters().as_height().adjust(extra);
+            if anchored {
+                anchor().bottom().as_top().adjust(gap).with(height)
+            } else {
+                gap.px().as_top().with(height)
+            }
+        };
+        let leaf = canopy.branch(
+            self.parent,
+            Bare::new()
+                .at(Location::new()
+                    .xs(xs, below(letters.0))
+                    .sm(xs, below(letters.1))
+                    .md(wide, below(letters.2))
+                    .lg(wide, below(letters.3)))
+                .elevate(Elevation::up(1))
+                .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+                .anchored(self.anchor_to_last())
+                .size(FontSize::new(size)),
+        );
+        self.last = Some(leaf);
+        leaf
     }
     fn region_on(
         &mut self,

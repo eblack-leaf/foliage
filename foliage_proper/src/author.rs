@@ -30,6 +30,7 @@ pub struct LeafSprout {
     pub(crate) aspect: Option<crate::AspectRatio>,
     pub(crate) content_size: Option<(bool, bool)>,
     pub(crate) font: Option<crate::FontId>,
+    pub(crate) font_size: Option<crate::FontSize>,
     pub(crate) overscroll: Option<crate::OverscrollPropagation>,
 }
 impl Default for LeafSprout {
@@ -49,6 +50,7 @@ impl Default for LeafSprout {
             aspect: None,
             content_size: None,
             font: None,
+            font_size: None,
             overscroll: None,
         }
     }
@@ -201,6 +203,22 @@ pub trait Sprout: Author {
     /// [`Foliage::font`](crate::Foliage::font), rather than the built-in one.
     fn font(mut self, font: crate::FontId) -> Self {
         self.seed().font = Some(font);
+        self
+    }
+    /// The character cell this element measures against, for elements that carry no text of
+    /// their own.
+    ///
+    /// [`letters`](crate::GridExt::letters) resolves against the entity's *own*
+    /// [`FontSize`](crate::FontSize), which a `Text` gets for free and nothing else does --
+    /// so a `Bare` or `Panel` holding a run of text stated in characters had no cell to
+    /// measure and resolved to nothing. Naming the same size its contents use lets a
+    /// container be sized in the units of what it contains, which is the point of stating a
+    /// height in characters rather than pixels.
+    ///
+    /// [`Text`](crate::Text) has its own `size` that also sets what is drawn; this is only
+    /// the measure.
+    fn size(mut self, size: crate::FontSize) -> Self {
+        self.seed().font_size = Some(size);
         self
     }
 }
