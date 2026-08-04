@@ -414,16 +414,23 @@ pub(crate) fn poly_button(
     button
 }
 
-/// The control itself, with nothing attached to the press. The caller keeps the returned
-/// `Leaf` and decides what it means.
-pub(crate) fn poly_action(
+/// The shape and the offset shadow under it -- everything a poly control is before whatever it
+/// carries. Returns `(shadow, button)`; only the button takes a press.
+///
+/// Shared by both sizes rather than written twice, so the one thing that makes these read as
+/// the site's own button -- an unblurred shadow at a fixed offset, and a triangle resolving
+/// into the real shape -- cannot drift between the hero's destinations and a board's steps.
+fn poly_shape(
     g: &mut Grow,
     row: Leaf,
-    spec: &PolyAction,
+    sides: f32,
+    face: Color,
     center_pct: f32,
+    size: i32,
+    offset: i32,
     seq: Leaf,
     start: u64,
-) -> Leaf {
+) -> (Leaf, Leaf) {
     let shadow = g.canopy.branch(
         row,
         Polygon::new()
@@ -435,17 +442,14 @@ pub(crate) fn poly_action(
                 center_pct
                     .pct()
                     .as_center_x()
-                    .adjust(-POLY_SHADOW_OFF)
-                    .with(POLY_BUTTON.px().as_width()),
-                POLY_SHADOW_OFF
-                    .px()
-                    .as_top()
-                    .with(POLY_BUTTON.px().as_height()),
+                    .adjust(-offset)
+                    .with(size.px().as_width()),
+                offset.px().as_top().with(size.px().as_height()),
             ))
             .elevate(Elevation::up(2))
             .opacity(0.0),
     );
-    morph_in(g.canopy, shadow, seq, spec.sides, 0.15, start);
+    morph_in(g.canopy, shadow, seq, sides, 0.15, start);
 
     let button = g.canopy.branch(
         row,
@@ -453,23 +457,44 @@ pub(crate) fn poly_action(
             .sides(3.0)
             .rounding(0.0)
             .rotation(-0.16)
-            .color(spec.face)
+            .color(face)
             .at(Location::new().xs(
-                center_pct
-                    .pct()
-                    .as_center_x()
-                    .with(POLY_BUTTON.px().as_width()),
-                0.px().as_top().with(POLY_BUTTON.px().as_height()),
+                center_pct.pct().as_center_x().with(size.px().as_width()),
+                0.px().as_top().with(size.px().as_height()),
             ))
             .elevate(Elevation::up(3))
             .interactive()
             .round_hit_area()
             .opacity(0.0),
     );
-    morph_in(g.canopy, button, seq, spec.sides, 0.15, start);
+    morph_in(g.canopy, button, seq, sides, 0.15, start);
     // armed on the fade, not the morph: the shape keeps resolving for another second after
     // the button is plainly visible, and a button you can see but cannot press is its own bug
     arm_at(g, button, start + motion::FADE);
+    (shadow, button)
+}
+
+/// The control itself, with nothing attached to the press. The caller keeps the returned
+/// `Leaf` and decides what it means.
+pub(crate) fn poly_action(
+    g: &mut Grow,
+    row: Leaf,
+    spec: &PolyAction,
+    center_pct: f32,
+    seq: Leaf,
+    start: u64,
+) -> Leaf {
+    let (_shadow, button) = poly_shape(
+        g,
+        row,
+        spec.sides,
+        spec.face,
+        center_pct,
+        POLY_BUTTON,
+        POLY_SHADOW_OFF,
+        seq,
+        start,
+    );
 
     let icon = g.canopy.branch(
         row,
@@ -514,6 +539,170 @@ pub(crate) fn poly_action(
     );
     fade_in(g.canopy, label, seq, start);
     button
+}
+
+/// The step control's shape, and the row height a board must reserve for one.
+///
+/// Smaller than a destination's on purpose. A board carries up to four of these across a column
+/// that is about 256px inside its own padding at the narrowest breakpoint -- a 64px slot -- and
+/// at [`POLY_BUTTON`] the shapes touch before their words do.
+pub(crate) const POLY_STEP: i32 = 36;
+const POLY_STEP_SHADOW_OFF: i32 = 5;
+const POLY_STEP_LABEL_H: i32 = 16;
+/// The bar under the selected step's word. Three pixels, because it is read as *which one* and
+/// never as a mark in its own right.
+const POLY_STEP_MARK_H: i32 = 3;
+const POLY_STEP_MARK_W: i32 = 20;
+pub(crate) const POLY_STEP_ROW_H: i32 =
+    POLY_STEP + space::SM + POLY_STEP_LABEL_H + space::XS + POLY_STEP_MARK_H;
+
+/// The faces a control row cycles through, and the shapes to go with them.
+///
+/// The hero's own three tones and no new ones. Alternating rather than one repeated: a row of
+/// identical chips reads as a segmented control, which is a thing you pick a *setting* from --
+/// where these are the steps of a demonstration, and each one is its own move.
+const STEP_FACES: [fn() -> Color; 3] = [role::accent, || Color::amber(400), || Color::rose(400)];
+/// Side counts, so no two neighbours resolve into the same polygon.
+const STEP_SIDES: [f32; 4] = [6.0, 5.0, 7.0, 4.0];
+
+/// One step control: the shape that takes the press, and the marks that say it is the live one.
+pub(crate) struct StepControl {
+    /// The one leaf of the three that answers a click.
+    pub(crate) button: Leaf,
+    /// The bar under the word, shown for the selected step alone.
+    mark: Leaf,
+    label: Leaf,
+}
+
+impl StepControl {
+    /// Lit or not. Colour and visibility rather than opacity, because the entrance is animating
+    /// opacity up from zero on every one of these and a resting value written underneath it
+    /// would be overwritten the moment the tween's next frame lands.
+    fn select(&self, canopy: &mut Canopy, on: bool) {
+        canopy.visible(self.mark, on);
+        canopy.color(
+            self.label,
+            if on {
+                role::on_surface()
+            } else {
+                role::on_surface_variant()
+            },
+        );
+    }
+}
+
+/// One step of a demo's control row: shape, word, and selection mark.
+///
+/// The row divides itself into `count` equal slots and centres a control in each, so two steps
+/// spread across exactly the field four steps fill. A board with fewer of them reads as a
+/// complete row rather than as a full one with the end missing, which is what a fixed slot
+/// width would have made of it.
+///
+/// `i` picks the face and the shape as well as the position -- a board declares its steps as a
+/// list of words, and cannot put the row out of the site's palette by writing them down.
+pub(crate) fn poly_step(
+    g: &mut Grow,
+    row: Leaf,
+    text: &'static str,
+    i: usize,
+    count: usize,
+    seq: Leaf,
+    start: u64,
+) -> StepControl {
+    let slot = 100.0 / count as f32;
+    let center = slot * i as f32 + slot / 2.0;
+    let sides = STEP_SIDES[i % STEP_SIDES.len()];
+    let (_shadow, button) = poly_shape(
+        g,
+        row,
+        sides,
+        STEP_FACES[i % STEP_FACES.len()](),
+        center,
+        POLY_STEP,
+        POLY_STEP_SHADOW_OFF,
+        seq,
+        start,
+    );
+
+    // The ordinal, where a destination carries an icon. These steps are a sequence and the words
+    // under them are too short to say so; the number is what makes "prune" the third thing you
+    // do rather than one of four things you may.
+    let numeral = g.canopy.branch(
+        row,
+        Text::new((i + 1).to_string())
+            .size(FontSize::new(type_scale::LABEL))
+            .color(role::on_accent())
+            .at(Location::new().xs(
+                anchor()
+                    .center_x()
+                    .as_center_x()
+                    .with(anchor().width().as_width()),
+                anchor()
+                    .center_y()
+                    .as_center_y()
+                    .with(1.letters().as_height()),
+            ))
+            .elevate(Elevation::up(4))
+            .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
+            .anchored(button)
+            // the shape is the target; a numeral that won the hit-test would put a dead spot in
+            // the middle of every button
+            .pass_through()
+            .opacity(0.0),
+    );
+    fade_in(g.canopy, numeral, seq, start);
+
+    // Placed off the row rather than anchored to the button, so every word in the row sits on
+    // one baseline whatever the shapes above them resolved to.
+    let label = g.canopy.branch(
+        row,
+        Text::new(text)
+            .size(FontSize::new(type_scale::LABEL))
+            .color(role::on_surface_variant())
+            .at(Location::new().xs(
+                center.pct().as_center_x().with(slot.pct().as_width()),
+                (POLY_STEP + space::SM)
+                    .px()
+                    .as_top()
+                    .with(POLY_STEP_LABEL_H.px().as_height()),
+            ))
+            .elevate(Elevation::up(3))
+            .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
+            .pass_through()
+            .opacity(0.0),
+    );
+    fade_in(g.canopy, label, seq, start);
+
+    // In the step's own face, not the accent: the mark says *this shape* is live, and a tone the
+    // shape above it does not have makes it a second thing to account for.
+    let mark = g.canopy.branch(
+        row,
+        Panel::new()
+            .color(STEP_FACES[i % STEP_FACES.len()]())
+            .rounding(Rounding::None)
+            .at(Location::new().xs(
+                center
+                    .pct()
+                    .as_center_x()
+                    .with(POLY_STEP_MARK_W.px().as_width()),
+                (POLY_STEP + space::SM + POLY_STEP_LABEL_H + space::XS)
+                    .px()
+                    .as_top()
+                    .with(POLY_STEP_MARK_H.px().as_height()),
+            ))
+            .elevate(Elevation::up(3))
+            .pass_through()
+            .opacity(0.0),
+    );
+    // Faded in with the rest of the row even when it is hidden. `visible` is the switch and it
+    // is independent of the tween, so a mark that is turned on later is already at full opacity
+    // rather than stuck at the zero it spawned with.
+    fade_in(g.canopy, mark, seq, start);
+    StepControl {
+        button,
+        mark,
+        label,
+    }
 }
 
 /// Holds an element out of the hit-test until `at` ms into the page's entrance -- the moment

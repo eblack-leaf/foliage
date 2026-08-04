@@ -22,6 +22,8 @@ const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 /// The widths a parent cycles through, as a percentage of the stage. Anchored at the left, so it
 /// grows and shrinks against a fixed edge rather than sliding across the field.
 const FRAME_WIDTHS: [f32; 3] = [100.0, 66.0, 42.0];
+/// The same widths as words on the control row, one per entry in [`FRAME_WIDTHS`].
+const FRAME_STEPS: [&str; 3] = ["100%", "66%", "42%"];
 
 /// The child's declaration, in percentages of its parent. Written once and never rewritten.
 const CHILD_LEFT: f32 = 22.0;
@@ -176,6 +178,10 @@ fn frame_at(width: f32) -> Location {
 /// fraction of it, so the bite is the same at every breakpoint by construction; a width written
 /// down here would be a different bite on every screen.
 const CLIP_KEPT: [f32; 2] = [0.75, 0.45];
+/// The control row: the full stage, then one word per entry in [`CLIP_KEPT`]. Written as shares
+/// of the child rather than of the stage, because that is what the numbers above are -- how much
+/// of the *child* each press leaves uncut.
+const CLIP_STEPS: [&str; 3] = ["full", "75%", "45%"];
 
 /// `None` is the full stage; `Some(px)` is the parent's right edge, measured from its own left.
 fn clip_frame_at(right: Option<f32>) -> Location {
@@ -274,12 +280,12 @@ fn board(
     g: &mut Grow,
     column: &mut Column,
     labels: [&'static str; 2],
-    control: &'static str,
+    steps: &[&'static str],
     entries: &[Entry],
 ) -> Blueprint {
     let seq = column.sequence();
     let region = column.region(g.canopy, blueprint::height(STAGE_H), space::LG);
-    let board = Blueprint::grow(g, region, labels, control, seq, motion::STAGGER);
+    let board = Blueprint::grow(g, region, labels, steps, seq, motion::STAGGER);
     let table = column.region_letters(
         g.canopy,
         blueprint::reference_letters(entries.len()),
@@ -304,7 +310,6 @@ struct Resolving {
     board: Blueprint,
     frame: Frame,
     child: Leaf,
-    step: usize,
 }
 
 fn resolving(g: &mut Grow, column: &mut Column) {
@@ -328,13 +333,9 @@ fn resolving(g: &mut Grow, column: &mut Column) {
     ];
     // Both boxes, not just the child's. The pair is what the section is about -- one number is
     // half of a ratio -- and it also says plainly which of the two a resize actually moved.
-    let board = board(
-        g,
-        column,
-        ["parent", "child"],
-        "resize the parent",
-        &entries,
-    );
+    // The steps are the widths themselves. A board whose presses set a value rather than
+    // advancing through one can say so on the buttons, which is half of what the row is for.
+    let board = board(g, column, ["parent", "child"], &FRAME_STEPS, &entries);
     let frame = frame(g.canopy, board.stage, FRAME_WIDTHS[0], false);
     let child = child_box(
         g.canopy,
@@ -346,17 +347,16 @@ fn resolving(g: &mut Grow, column: &mut Column) {
         board,
         frame,
         child,
-        step: 0,
     }));
 }
 
 impl Demo for Resolving {
     fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
-        if leaf != self.board.control {
+        let Some(step) = self.board.pressed(leaf) else {
             return false;
-        }
-        self.step = (self.step + 1) % FRAME_WIDTHS.len();
-        resize(canopy, &self.frame, FRAME_WIDTHS[self.step]);
+        };
+        self.board.select(canopy, step);
+        resize(canopy, &self.frame, FRAME_WIDTHS[step]);
         true
     }
     fn drive(&mut self, canopy: &mut Canopy) {
@@ -464,13 +464,7 @@ fn clipping(g: &mut Grow, column: &mut Column) {
             gloss: "Opts out, and is bounded by the window instead of by the parent chain.",
         },
     ];
-    let board = board(
-        g,
-        column,
-        ["parent", "child"],
-        "resize the parent",
-        &entries,
-    );
+    let board = board(g, column, ["parent", "child"], &CLIP_STEPS, &entries);
     let frame = frame(g.canopy, board.stage, FRAME_WIDTHS[0], false);
     let child = clip_child(g.canopy, frame.leaf, written_tone());
     // This board labels its parent full/narrowed rather than by percentage, so it says so from
@@ -487,10 +481,11 @@ fn clipping(g: &mut Grow, column: &mut Column) {
 
 impl Demo for Clipping {
     fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
-        if leaf != self.board.control {
+        let Some(step) = self.board.pressed(leaf) else {
             return false;
-        }
-        self.step = (self.step + 1) % (CLIP_KEPT.len() + 1);
+        };
+        self.board.select(canopy, step);
+        self.step = step;
         clip_resize(canopy, &self.frame, self.right());
         true
     }
@@ -522,7 +517,6 @@ impl Demo for Clipping {
 struct Inheriting {
     board: Blueprint,
     frame: Frame,
-    step: usize,
 }
 
 fn inheriting(g: &mut Grow, column: &mut Column) {
@@ -544,11 +538,13 @@ fn inheriting(g: &mut Grow, column: &mut Column) {
             gloss: "Inherited. The subtree still draws, and stops taking input.",
         },
     ];
+    // "reset" leads rather than trails, because it is step one in the sense the row means: the
+    // state the board is in before anything has been written to the parent.
     let mut board = board(
         g,
         column,
         ["wrote", "child"],
-        "write to the parent",
+        &["reset", "opacity", "color"],
         &entries,
     );
     // Filled, so a colour write is visibly the parent's own surface changing. Full width like the
@@ -561,22 +557,23 @@ fn inheriting(g: &mut Grow, column: &mut Column) {
         child_tone(),
     );
     board.set(g.canopy, 0, "nothing yet");
-    g.page.demos.push(Box::new(Inheriting {
-        board,
-        frame,
-        step: 0,
-    }));
+    g.page.demos.push(Box::new(Inheriting { board, frame }));
 }
 
 impl Demo for Inheriting {
+    /// Every arm writes both properties, not just the one it is named for. The row can be
+    /// pressed in any order, so a step has to state the whole parent it means -- written as a
+    /// change from whatever came before, jumping from "color" back to "opacity" would leave the
+    /// parent wearing the previous step's tone.
     fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
-        if leaf != self.board.control {
+        let Some(step) = self.board.pressed(leaf) else {
             return false;
-        }
-        self.step = (self.step + 1) % 3;
-        match self.step {
+        };
+        self.board.select(canopy, step);
+        match step {
             1 => {
                 canopy.opacity(self.frame.leaf, 0.6);
+                canopy.color(self.frame.leaf, role::surface());
                 self.board.set(canopy, 0, "opacity 0.6");
                 self.board.set(canopy, 1, "faded as well");
             }
@@ -587,6 +584,7 @@ impl Demo for Inheriting {
                 self.board.set(canopy, 1, "kept its own");
             }
             _ => {
+                canopy.opacity(self.frame.leaf, 1.0);
                 canopy.color(self.frame.leaf, role::surface());
                 self.board.set(canopy, 0, "nothing yet");
                 self.board.set(canopy, 1, "--");
@@ -601,23 +599,30 @@ impl Demo for Inheriting {
 /// Placed, then filled, then pruned. Building it in two steps is what makes the third one land:
 /// you put the parent down and the child in it yourself, so when one call takes both away it is
 /// visibly two things going, not one shape vanishing.
-#[derive(Copy, Clone, PartialEq)]
-enum Stage {
-    Empty,
-    ParentOnly,
-    Both,
-    /// Pruned, with the handle still held. Its own step because a withered handle is a thing you
-    /// can still read, and reading it is the only way to see that state: the slot markers stay
-    /// off here, so the row saying "withered" is never contradicted by a stage saying "no child".
-    Pruned,
-}
+///
+/// The fourth step is pruned with the handle still held. Its own step because a withered handle
+/// is a thing you can still read, and reading it is the only way to see that state: the slot
+/// markers stay off there, so the row saying "withered" is never contradicted by a stage saying
+/// "no child".
+/// The four states, not four actions: the row names where the board *is* after a press, which is
+/// what makes pressing one you have already been to mean something rather than nothing.
+const LIFETIME_STEPS: [&str; 4] = ["empty", "place", "grow", "prune"];
+/// What the "called" row says at each step, in the same order.
+const LIFETIME_CALLS: [&str; 4] = [
+    "nothing yet",
+    "canopy.leaf(..)",
+    "branch(parent)",
+    "prune(parent)",
+];
+/// The step at which the parent has been pruned, so the handle the board still holds is withered.
+const PRUNED: usize = 3;
 
 struct Lifetime {
     board: Blueprint,
     stage: Leaf,
     frame: Option<Frame>,
     child: Option<Leaf>,
-    at: Stage,
+    at: usize,
     /// One marker per slot, each sitting exactly where the thing it stands for will appear -- the
     /// parent's own label position, and the child's band. An outline on its own is a drawing
     /// decision the reader has to interpret; a word in the slot is the board saying that nothing
@@ -644,13 +649,7 @@ fn lifetime(g: &mut Grow, column: &mut Column) {
             gloss: "Takes writes and drops them. Nothing panics, and it is never reused.",
         },
     ];
-    let mut board = board(
-        g,
-        column,
-        ["called", "child"],
-        "place the parent",
-        &entries,
-    );
+    let mut board = board(g, column, ["called", "child"], &LIFETIME_STEPS, &entries);
     // The room the pair occupies, drawn once and never pruned. Without it the board empties to
     // nothing and there is no telling what left or where it was.
     let room = g.canopy.branch(
@@ -696,67 +695,68 @@ fn lifetime(g: &mut Grow, column: &mut Column) {
         ),
     ];
     let stage = board.stage;
-    board.set(g.canopy, 0, "nothing yet");
+    board.set(g.canopy, 0, LIFETIME_CALLS[0]);
     board.set(g.canopy, 1, "none");
     g.page.demos.push(Box::new(Lifetime {
         board,
         stage,
         frame: None,
         child: None,
-        at: Stage::Empty,
+        at: 0,
         empty,
     }));
 }
 
+impl Lifetime {
+    /// Puts the board in the state `step` names, from wherever it currently is.
+    ///
+    /// Torn down and replayed rather than nudged along. This is the one board whose steps are a
+    /// sequence -- there is no parent to prune until one has been placed -- and the row lets a
+    /// reader press them in any order, so a step that only knew how to advance from the one
+    /// before it would either wedge or lie. Replaying from empty is a handful of spawns, and it
+    /// is the only thing that makes every button land on the state its word names.
+    fn goto(&mut self, canopy: &mut Canopy, step: usize) {
+        if let Some(frame) = self.frame.take() {
+            canopy.prune(frame.leaf);
+        }
+        // Dropping the handle is what takes the child row back to "none", so an empty board reads
+        // the same on every pass through.
+        self.child = None;
+        // Each marker says "nothing is here yet", which is true of an empty slot and not of one
+        // that was just pruned -- so both go off from the moment the child exists and stay off.
+        canopy.visible(self.empty[0], step == 0);
+        canopy.visible(self.empty[1], step <= 1);
+        if step >= 1 {
+            // Filled, not outlined: the room is already an outline, and placing a second one over
+            // it is a press that appears to do nothing.
+            self.frame = Some(frame(canopy, self.stage, FRAME_WIDTHS[0], true));
+        }
+        if step >= 2 {
+            let parent = self.frame.as_ref().unwrap().leaf;
+            self.child = Some(child(
+                canopy,
+                parent,
+                child_band(CHILD_LEFT, CHILD_RIGHT),
+                child_tone(),
+            ));
+        }
+        if step == PRUNED {
+            // Only the parent is named. Both go -- and the child's handle is kept, because this
+            // step exists to read it.
+            canopy.prune(self.frame.take().unwrap().leaf);
+        }
+        self.at = step;
+        self.board.set(canopy, 0, LIFETIME_CALLS[step]);
+    }
+}
+
 impl Demo for Lifetime {
     fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
-        if leaf != self.board.control {
+        let Some(step) = self.board.pressed(leaf) else {
             return false;
-        }
-        match self.at {
-            Stage::Empty => {
-                // Filled, not outlined: the room is already an outline, and placing a second one
-                // over it is a press that appears to do nothing.
-                self.frame = Some(frame(canopy, self.stage, FRAME_WIDTHS[0], true));
-                canopy.visible(self.empty[0], false);
-                self.at = Stage::ParentOnly;
-                self.board.set(canopy, 0, "canopy.leaf(..)");
-                self.board.label(canopy, "add the child");
-            }
-            Stage::ParentOnly => {
-                let parent = self.frame.as_ref().unwrap().leaf;
-                self.child = Some(child(
-                    canopy,
-                    parent,
-                    child_band(CHILD_LEFT, CHILD_RIGHT),
-                    child_tone(),
-                ));
-                canopy.visible(self.empty[1], false);
-                self.at = Stage::Both;
-                self.board.set(canopy, 0, "branch(parent)");
-                self.board.label(canopy, "prune the parent");
-            }
-            Stage::Both => {
-                // Only the parent is named. Both go -- and the handle is kept, because the next
-                // step exists to read it. The slot markers stay off: they say "nothing placed
-                // yet", which is not what just happened here.
-                canopy.prune(self.frame.take().unwrap().leaf);
-                self.at = Stage::Pruned;
-                self.board.set(canopy, 0, "prune(parent)");
-                self.board.label(canopy, "clear the handle");
-            }
-            Stage::Pruned => {
-                // Dropping the handle is what takes the row back to "none", so an empty board
-                // reads the same on every pass through.
-                self.child = None;
-                for slot in self.empty {
-                    canopy.visible(slot, true);
-                }
-                self.at = Stage::Empty;
-                self.board.set(canopy, 0, "nothing yet");
-                self.board.label(canopy, "place the parent");
-            }
-        }
+        };
+        self.board.select(canopy, step);
+        self.goto(canopy, step);
         true
     }
 
@@ -768,7 +768,7 @@ impl Demo for Lifetime {
             // The prune is a command, not an edit: for the frames before it lands the handle still
             // reads `Planted`, which would put "growing" on a board that just emptied. The step is
             // the authority on having pruned; `presence` is the authority on everything else.
-            (Stage::Pruned, _) => "withered",
+            (PRUNED, _) => "withered",
             (_, None) => "none",
             (_, Some(child)) => match canopy.presence(child) {
                 Presence::Planted => "growing",

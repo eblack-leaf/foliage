@@ -1,36 +1,47 @@
-//! A field with a fixed control, a stage, and a live readout.
+//! A field with a fixed control row, a stage, and a live readout.
 //!
-//! The control sits in its own strip at the top and never moves, whatever it does to the stage
-//! below it. That is the entire reason it exists: the thing being demonstrated has to be free to
-//! resize and disappear, and a control that *is* that thing walks out from under the reader
-//! between one tap and the next.
+//! The controls sit in their own strip along the bottom and never move, whatever they do to the
+//! stage above them. That is the entire reason they are there: the thing being demonstrated has
+//! to be free to resize and disappear, and a control that *is* that thing walks out from under
+//! the reader between one tap and the next.
 //!
-//! The readout is two rows, read back off the tree each frame.
+//! One control per step, rather than one that cycles. A cycling button can only ever say what
+//! the *next* press does, which leaves a board whose steps are the whole subject unable to show
+//! how many there are or which one you are on; a row shows the sequence, marks your place in it,
+//! and lets you go back a step without going round again.
+//!
+//! The readout is two rows, read back off the tree each frame, set into the field as a recessed
+//! panel so the numbers read as an instrument's rather than as two more lines of page.
 
 use foliage::{
     Bare, Canopy, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf, Location,
     LocationValue, Panel, Rounding, Sprout, Text, VerticalAlignment,
 };
 
-use crate::site::{Grow, fade_in, role, space, type_scale};
+use crate::site::{
+    Grow, POLY_STEP_ROW_H, StepControl, background, fade_in, poly_step, role, space, type_scale,
+};
 
 const ROW_H: i32 = 18;
 const READOUT_ROWS: usize = 2;
 const READOUT_H: i32 = ROW_H * READOUT_ROWS as i32;
-/// At the narrowest the column runs, a field is about 256px inside its padding, which is some
-/// thirty-five characters of the label size. This is the widest a row label may be.
-const LABEL_W: i32 = 104;
-/// Between the label column and the value. Without it a label that filled its column ran
-/// straight into the number beside it.
-const LABEL_GAP: i32 = space::SM;
-const CONTROL_H: i32 = 26;
+/// Air inside the readout's own panel, above the first row and below the last.
+const READOUT_PAD: i32 = space::SM;
+const STRIP_H: i32 = READOUT_H + READOUT_PAD * 2;
+/// The label column, in a strip that is about 240px wide inside its padding at the narrowest
+/// breakpoint. Every label here is one word set in caps -- six characters at most -- so the
+/// column is sized to the words and the rest of the strip goes to the value, which is the part
+/// that moves.
+const LABEL_W: i32 = 56;
+/// Between the label column and the value, with the divider down the middle of it.
+const LABEL_GAP: i32 = space::MD;
 
-/// Bottom up: the control bar, the readout above it, then the stage. Every one of these has to
+/// Bottom up: the control row, the readout above it, then the stage. Every one of these has to
 /// be counted here or they land on top of each other.
-const CONTROL_FROM_BOTTOM: i32 = space::MD;
-const READOUT_FROM_BOTTOM: i32 = CONTROL_FROM_BOTTOM + CONTROL_H + space::SM;
+const CONTROLS_FROM_BOTTOM: i32 = space::MD;
+const READOUT_FROM_BOTTOM: i32 = CONTROLS_FROM_BOTTOM + POLY_STEP_ROW_H + space::MD;
 const ABOVE_STAGE: i32 = space::MD;
-const BELOW_STAGE: i32 = READOUT_FROM_BOTTOM + READOUT_H + space::SM;
+const BELOW_STAGE: i32 = READOUT_FROM_BOTTOM + STRIP_H + space::SM;
 
 /// What a region has to be to hold a stage of `stage_h` plus the control and the readout.
 pub(crate) fn height(stage_h: (i32, i32, i32)) -> (i32, i32, i32) {
@@ -41,9 +52,11 @@ pub(crate) fn height(stage_h: (i32, i32, i32)) -> (i32, i32, i32) {
 pub(crate) struct Blueprint {
     /// Where the demo's frame goes. Carries a grid, so its contents place in percentages of it.
     pub(crate) stage: Leaf,
-    /// The one thing on the board that takes a tap.
-    pub(crate) control: Leaf,
-    control_label: Leaf,
+    /// The things on the board that take a tap, in the order they are meant to be pressed.
+    steps: Vec<StepControl>,
+    /// Which one is lit. The board's own copy of the demo's position, kept here because the
+    /// mark is this module's to move.
+    at: usize,
     values: [Leaf; READOUT_ROWS],
     /// What each row currently says. A readout is driven from `drive`, which runs every frame,
     /// and re-sending the same string sixty times a second is a write storm for no change --
@@ -52,11 +65,13 @@ pub(crate) struct Blueprint {
 }
 
 impl Blueprint {
+    /// `steps` is the row, left to right. Keep the words short -- four of them share the field's
+    /// width, which is about 64px a slot at the narrowest breakpoint.
     pub(crate) fn grow(
         g: &mut Grow,
         region: Leaf,
         labels: [&'static str; READOUT_ROWS],
-        control: &'static str,
+        steps: &[&'static str],
         seq: Leaf,
         start: u64,
     ) -> Self {
@@ -75,41 +90,43 @@ impl Blueprint {
         );
         fade_in(g.canopy, field, seq, start);
 
-        // Across the bottom, in the chrome tone rather than one of the palette hues the demo
-        // draws with. Top-right and accent-coloured, it read as another piece of the drawing.
-        let control_leaf = g.canopy.branch(
+        // Across the bottom, in the same shapes and the same three tones the hero's destinations
+        // use. The bar this replaced was deliberately chrome-toned so it would not read as part
+        // of the drawing above it -- what keeps that true now is the row's place rather than its
+        // colour: it is below the readout, in a strip nothing else ever enters, and only one of
+        // its shapes is lit at a time.
+        let controls = g.canopy.branch(
             field,
-            Panel::new()
-                .color(role::surface())
-                .rounding(Rounding::Sm)
+            Bare::new()
                 .at(Location::new().xs(
                     space::MD
                         .px()
                         .as_left()
                         .with(100.pct().as_right().adjust(-space::MD)),
-                    CONTROL_H
+                    POLY_STEP_ROW_H
                         .px()
                         .as_height()
-                        .with(100.pct().as_bottom().adjust(-CONTROL_FROM_BOTTOM)),
+                        .with(100.pct().as_bottom().adjust(-CONTROLS_FROM_BOTTOM)),
                 ))
                 .elevate(Elevation::up(3))
                 .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
-                .interactive(),
-        );
-        let control_label = g.canopy.branch(
-            control_leaf,
-            Text::new(control)
-                .size(FontSize::new(type_scale::LABEL))
-                .color(role::on_surface())
-                .at(Location::new().xs(
-                    0.pct().as_left().with(100.pct().as_right()),
-                    50.pct().as_center_y().with(1.letters().as_height()),
-                ))
-                .elevate(Elevation::up(1))
-                .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
-                // the chip is the target; a label that won the hit-test would split it in two
+                // a full-width box across the foot of every board would otherwise take the drag
+                // meant for the page and hand it nowhere
                 .pass_through(),
         );
+        let count = steps.len();
+        let mut controls_built = Vec::with_capacity(count);
+        for (i, text) in steps.iter().enumerate() {
+            controls_built.push(poly_step(
+                g,
+                controls,
+                text,
+                i,
+                count,
+                seq,
+                start + i as u64 * crate::site::motion::STAGGER,
+            ));
+        }
 
         let stage = g.canopy.branch(
             field,
@@ -128,51 +145,118 @@ impl Blueprint {
                 .grid(Grid::new(1.col().gap(0), 1.row().gap(0))),
         );
 
+        // Recessed rather than written straight onto the field: in the page background, which is
+        // a step *darker* than the field it sits in, so the numbers read as being behind glass.
+        // Loose text on the field was two more lines of page below a drawing, which is exactly
+        // what a live reading is not.
+        let strip = g.canopy.branch(
+            field,
+            Panel::new()
+                .color(background())
+                .rounding(Rounding::Xs)
+                .at(Location::new().xs(
+                    space::MD
+                        .px()
+                        .as_left()
+                        .with(100.pct().as_right().adjust(-space::MD)),
+                    STRIP_H
+                        .px()
+                        .as_height()
+                        .with(100.pct().as_bottom().adjust(-READOUT_FROM_BOTTOM)),
+                ))
+                .elevate(Elevation::up(2))
+                .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+                .pass_through(),
+        );
+        // Full height of the strip and one pixel wide, between the names and the numbers. It is
+        // what makes two rows a table: without it the labels and the values are four texts that
+        // happen to line up, and a value reading "--" leaves its row looking unfinished.
+        g.canopy.branch(
+            strip,
+            Panel::new()
+                .color(role::outline())
+                .rounding(Rounding::None)
+                .at(Location::new().xs(
+                    (READOUT_PAD + LABEL_W + LABEL_GAP / 2)
+                        .px()
+                        .as_left()
+                        .with(1.px().as_width()),
+                    READOUT_PAD
+                        .px()
+                        .as_top()
+                        .with(100.pct().as_bottom().adjust(-READOUT_PAD)),
+                ))
+                .elevate(Elevation::up(1))
+                .pass_through(),
+        );
+
         let row = |i: usize, canopy: &mut Canopy| {
-            let from_bottom = READOUT_FROM_BOTTOM + (READOUT_ROWS - 1 - i) as i32 * ROW_H;
+            let top = READOUT_PAD + i as i32 * ROW_H;
             canopy.branch(
-                field,
-                Text::new(labels[i])
+                strip,
+                // Capped, like every other structural word on the site. A row's name is a field
+                // on an instrument, not a sentence about the value beside it, and caps at the
+                // quieter tone say that without spending a second type size on it.
+                Text::new(labels[i].to_uppercase())
                     .size(FontSize::new(type_scale::LABEL))
-                    .color(role::on_surface_variant())
+                    .color(role::on_surface_heading())
                     .at(Location::new().xs(
-                        space::MD.px().as_left().with(LABEL_W.px().as_width()),
-                        ROW_H
-                            .px()
-                            .as_height()
-                            .with(100.pct().as_bottom().adjust(-from_bottom)),
+                        READOUT_PAD.px().as_left().with(LABEL_W.px().as_width()),
+                        top.px().as_top().with(ROW_H.px().as_height()),
                     ))
-                    .elevate(Elevation::up(2))
-                    .align(HorizontalAlignment::Left, VerticalAlignment::Middle),
+                    .elevate(Elevation::up(1))
+                    .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+                    .pass_through(),
             );
             canopy.branch(
-                field,
+                strip,
                 Text::new("--")
                     .size(FontSize::new(type_scale::LABEL))
                     .color(role::on_surface())
                     .at(Location::new().xs(
-                        (space::MD + LABEL_W + LABEL_GAP)
+                        (READOUT_PAD + LABEL_W + LABEL_GAP)
                             .px()
                             .as_left()
-                            .with(100.pct().as_right().adjust(-space::MD)),
-                        ROW_H
-                            .px()
-                            .as_height()
-                            .with(100.pct().as_bottom().adjust(-from_bottom)),
+                            .with(100.pct().as_right().adjust(-READOUT_PAD)),
+                        top.px().as_top().with(ROW_H.px().as_height()),
                     ))
-                    .elevate(Elevation::up(2))
-                    .align(HorizontalAlignment::Left, VerticalAlignment::Middle),
+                    .elevate(Elevation::up(1))
+                    .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+                    .pass_through(),
             )
         };
         let values = [row(0, g.canopy), row(1, g.canopy)];
 
-        Self {
+        let board = Self {
             stage,
-            control: control_leaf,
-            control_label,
+            steps: controls_built,
+            at: 0,
             values,
             shown: [String::from("--"), String::from("--")],
+        };
+        // The first step is lit from the start, because it is the state the board is already in
+        // -- a row with nothing marked would say the demo has not begun, when what it is showing
+        // *is* step one.
+        for (i, step) in board.steps.iter().enumerate() {
+            step.select(g.canopy, i == board.at);
         }
+        board
+    }
+
+    /// Which step's button this leaf is, if it is one of them at all.
+    pub(crate) fn pressed(&self, leaf: Leaf) -> Option<usize> {
+        self.steps.iter().position(|s| s.button == leaf)
+    }
+
+    /// Moves the mark to `step`. Nothing else about the board changes -- what a step *does* is
+    /// the demo's, and this is only the row saying where you are.
+    pub(crate) fn select(&mut self, canopy: &mut Canopy, step: usize) {
+        if self.at == step {
+            return;
+        }
+        self.steps[self.at].select(canopy, false);
+        self.steps[step].select(canopy, true);
+        self.at = step;
     }
 
     pub(crate) fn set(&mut self, canopy: &mut Canopy, row: usize, text: impl Into<String>) {
@@ -182,11 +266,6 @@ impl Blueprint {
         }
         canopy.text(self.values[row], text.clone());
         self.shown[row] = text;
-    }
-
-    /// Renames the control, for a board where the next press does something different.
-    pub(crate) fn label(&self, canopy: &mut Canopy, text: impl Into<String>) {
-        canopy.text(self.control_label, text);
     }
 }
 
