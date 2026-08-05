@@ -25,6 +25,7 @@
 //! so a 600px window has a **narrower** column than a 599px one. Where that step is the binding
 //! case it is called out. The floor assumed throughout is a 320px viewport.
 
+use crate::icons::IconHandles;
 use crate::site::cards::CardSpec;
 use crate::site::figure::{Label, Node, PlateSpec, Side};
 
@@ -53,7 +54,7 @@ pub(crate) mod hero {
 
     /// The fold control. **One line, ~12 chars.** The hit band is derived from this label's own
     /// box, so it grows with the word rather than being a separate number to keep in step.
-    pub(crate) const HINT: &str = "more";
+    pub(crate) const HINT: &str = "learn more";
 
     /// The live readings above the wordmark. **Fixed format -- 39 characters, exactly.**
     ///
@@ -89,14 +90,15 @@ pub(crate) mod rail {
     /// These are labels only -- routing is by index, and the index is the position in this
     /// array. Renaming one is free; reordering renames every route with it. Each also appears
     /// as its page's own `display` title, which is a separate string further down.
-    pub(crate) const SECTIONS: [&str; 7] = [
+    pub(crate) const SECTIONS: [&str; 8] = [
         "overview",
         "leaf",
         "layout",
-        "motion",
         "renderers",
+        "motion",
         "input",
         "text",
+        "assets",
     ];
 
     /// The brand mark, which is also the way back to the hero. **Fixed** -- `BRAND_EXTENSION_AT`
@@ -117,7 +119,7 @@ pub(crate) mod rail {
 /// - **`heading` (section): 20 chars.** Set in caps at HEADLINE over the same column.
 pub(crate) mod headings {
     pub(crate) const OVERVIEW: &str = "overview";
-    pub(crate) const OVERVIEW_LIBRARY: &str = "the library";
+    pub(crate) const OVERVIEW_LIBRARY: &str = "structure";
     pub(crate) const OVERVIEW_WHERE: &str = "where to go";
 
     pub(crate) const LEAF: &str = "leaf";
@@ -132,22 +134,25 @@ pub(crate) mod headings {
 pub(crate) mod overview {
     /// The opener, with the accent rule down its left edge. **Free.**
     pub(crate) const LEAD: &str =
-        "Everything on screen is a leaf. You branch one under another, and the stem it keeps to \
-         its parent is what its position, its clipping and its lifetime all resolve against. \
-         That tree is the whole model, and the name.";
+        "Everything on screen is a leaf. Any leaf can branch from another becoming its dependent; \
+         thus forming a tree. Applications then become a collection of trees allowing expressive \
+         coordination of visual and non-visual elements. This mental model serves as the basis \
+         for the name foliage.";
 
     /// Under `the library`. **Free.**
     pub(crate) const LIBRARY: &str =
         "foliage is a UI framework for Rust. It renders through wgpu and runs the same source on \
-         desktop, on the web and on Android. State lives in an ECS world rather than a component \
-         tree, layout resolves per breakpoint against the stem, and there is no markup language \
-         or build step standing between a change and the frame that shows it.";
+         desktop, on the web and on Android. State lives in an ECS world and commanded through actions\
+         sent to the core engine. Messages can be read back to respond to core internal events. All \
+         user logic lives in a per-frame closure handed to the photosynthesis process (event loop), \
+         which configures and runs the renderers based on state that tick to bring it all your code \
+         to life.";
 
     /// Under `where to go`, above the destination buttons. **Free.**
     pub(crate) const WHERE: &str =
-        "The reference is generated from the source and is the exhaustive answer. The book is \
-         the one that explains why. Everything in the repository runs -- every example is a \
-         `cargo run` away.";
+        "Check out the docs for thorough code reference. If your looking for more explanation, the book\
+        is a guide and in depth walkthrough of the library and its core mechanisms. If you prefer just\
+        delving through code; the entire library is available on github.";
 
     /// The three destination buttons. **One line, ~10 chars** -- the label box is 90px at TITLE,
     /// and three of them share the row.
@@ -170,46 +175,56 @@ pub(crate) mod overview {
 ///
 /// `icon`, `sides` and `route` are not copy. `route` is the router's own index -- 0 is the hero,
 /// so the sections start at 1 and these have to match `rail::SECTIONS` by position.
-pub(crate) const CAPABILITIES: [CardSpec; 5] = [
+pub(crate) const CAPABILITIES: [CardSpec; 7] = [
     CardSpec {
-        title: "a leaf is an entity",
-        body: "Shape, text, position and behaviour are components on it. Changing one is a \
-               write, and the next frame is already different.",
+        title: "a leaf is everything",
+        body: "Every element shares core logic to facilitate easy composition of visual effects",
         icon: crate::icons::IconHandles::Box,
         sides: 6.0,
         route: 2,
     },
     CardSpec {
         title: "layout that resolves",
-        body: "Locations are written per breakpoint and against the stem, not computed once \
-               and pinned.",
+        body: "Locations are resolved against a responsive grid adapting to any screen size.",
         icon: crate::icons::IconHandles::Grid,
         sides: 4.0,
         route: 3,
     },
     CardSpec {
-        title: "motion that belongs",
-        body: "Animations are sequenced, easable, and tied to the lifetime of what they \
-               animate.",
-        icon: crate::icons::IconHandles::Repeat,
-        sides: 7.0,
+        title: "visuals that compose",
+        body: "Six renderers power all aesthetic elements. Configurable and composable.",
+        icon: crate::icons::IconHandles::Layers,
+        sides: 5.0,
         route: 4,
     },
     CardSpec {
-        title: "parts, not widgets",
-        body: "Six renderers underneath. Everything above them is assembly, including yours.",
-        icon: crate::icons::IconHandles::Layers,
-        sides: 5.0,
+        title: "motion that belongs",
+        body: "Animations are sequenced, ease-able, and tied to the lifetime of what they animate.",
+        icon: crate::icons::IconHandles::Repeat,
+        sides: 7.0,
         route: 5,
     },
     CardSpec {
-        title: "one codebase",
-        body: "Native, web and Android from the same source, with an ECS underneath all \
-               three.",
-        icon: crate::icons::IconHandles::Terminal,
-        sides: 8.0,
+        title: "interaction is key",
+        body: "input is read for scroll-wheels, mouse-clicks, touchpads, and more...",
+        icon: IconHandles::Play,
+        sides: 3.0,
         route: 6,
     },
+    CardSpec {
+        title: "communication is essential",
+        body: "font glyphs with responsive sizing help any app relay important information to users.",
+        icon: crate::icons::IconHandles::BookOpen,
+        sides: 8.0,
+        route: 7,
+    },
+    CardSpec {
+        title: "assets with ease",
+        body: "images and icons can be shipped alongside your code to allow more sophisticated media.",
+        icon: IconHandles::Box,
+        sides: 5.0,
+        route: 9,
+    }
 ];
 
 /// The overview's plate -- the figure under the lead.
@@ -281,7 +296,7 @@ pub(crate) const PLATE: PlateSpec = PlateSpec {
         (0.76, ""),
         (0.90, "8"),
     ],
-    caption: "fig. 01  shape resolve",
+    caption: "fig. 01 | shape resolve",
 };
 
 // ---- leaf -------------------------------------------------------------------------------------
@@ -292,9 +307,10 @@ pub(crate) mod leaf {
     /// The overview's own lead already says everything is a leaf and that the stem is what
     /// things resolve against, so this one has nowhere to go if it starts there too.
     pub(crate) const LEAD: &str =
-        "An element on screen is one entity, and what you keep is a handle to it -- the type is \
-         spelled `Leaf`. Growing one under another is what the name means. Each board below is \
-         live: step through it, and read what the parent decided for the child.";
+        "Every element is a leaf. This provides core logic to each element \
+        that enables visibility, clipping, responsive-locations and more. \
+        The `Leaf` type is a handle to this element to allow commands to target it. Below is the core\
+        logic illustrated as interactive demos.";
 
     /// The paragraph above each board. **Free**, all four.
     pub(crate) const RESOLVING: &str =
@@ -310,8 +326,8 @@ pub(crate) mod leaf {
          there. Which is which is not guessable, so the board writes both to the same parent and \
          you read the child.";
     pub(crate) const LIFETIME: &str =
-        "The stem decides how long a thing lives. One call names the parent, the child is never \
-         mentioned, and the outline left behind is the room the two of them occupied.";
+        "The branch links lifetimes of elements. When an element that is placed as a dependent of\
+        another, pruning the root cleans all branched-leafs.";
 }
 
 /// The words on a board: its step buttons, its readout, and the labels drawn into its stage.
