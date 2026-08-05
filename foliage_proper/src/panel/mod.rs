@@ -343,7 +343,7 @@ impl Rounding {
             world.tree().write_to(this, InteractionShape::Rectangle);
         }
         if world.get::<Panel>(this).is_some() {
-            world.tree().send_to(Resolve::<Self>::new(), this);
+            world.tree().send_to(Resolve::<Panel>::new(), this);
         }
     }
 }

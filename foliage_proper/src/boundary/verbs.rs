@@ -5,7 +5,7 @@ use crate::coordinate::position::Position;
 use crate::TextInputStyle;
 use crate::{
     AssetKey, AssetSource, Color, Elevation, FontSize, GlyphColors, Location, Logical, Polygon,
-    ScrollTo,
+    Rounding, ScrollTo,
 };
 
 /// The two things a command sink has to be able to do: take an op, and name a new element.
@@ -105,6 +105,10 @@ pub trait Grows: Queues {
     /// so driving them from a [`tween`](Grows::tween) morphs the shape.
     fn polygon(&mut self, leaf: Leaf, to: Polygon) {
         self.push(Op::Polygon { leaf, to });
+    }
+    /// A panel's corner-radius bracket.
+    fn rounding(&mut self, leaf: Leaf, to: Rounding) {
+        self.push(Op::Rounding { leaf, to });
     }
     /// Swaps which registered artwork an icon draws.
     fn icon(&mut self, leaf: Leaf, to: crate::IconId) {

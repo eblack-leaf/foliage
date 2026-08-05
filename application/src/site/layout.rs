@@ -148,12 +148,14 @@ fn dependent_at(step: usize) -> Location {
             anchor().right().as_left().adjust(space::SM).with(w),
             anchor().center_y().as_center_y().with(h),
         ),
-        // Straddles the target's own bottom-right corner rather than opening a third direction
-        // of its own -- both halves of that fall inside space the "right" and "below" steps
-        // already use, so the target doesn't need to move to make room for it.
+        // The same two offsets "right" and "below" each use on their own axis, combined on
+        // both at once -- sits past the target's corner instead of opening a third direction
+        // of its own, so the target doesn't need to move to make room for it. Centering on
+        // the corner point instead (half in, half out) was tried first and sat too close:
+        // the two shapes overlapped enough to read as one merged one.
         _ => Location::new().xs(
-            anchor().right().as_center_x().with(w),
-            anchor().bottom().as_center_y().with(h),
+            anchor().right().as_left().adjust(space::SM).with(w),
+            anchor().bottom().as_top().adjust(space::SM).with(h),
         ),
     }
 }

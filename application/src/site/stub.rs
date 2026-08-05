@@ -19,10 +19,6 @@ pub(crate) fn motion(g: &mut Grow, slot: Leaf) {
     placeholder(g, slot, stub::MOTION_TITLE, stub::MOTION_LEAD);
 }
 
-pub(crate) fn renderers(g: &mut Grow, slot: Leaf) {
-    placeholder(g, slot, stub::RENDERERS_TITLE, stub::RENDERERS_LEAD);
-}
-
 pub(crate) fn input(g: &mut Grow, slot: Leaf) {
     placeholder(g, slot, stub::INPUT_TITLE, stub::INPUT_LEAD);
 }

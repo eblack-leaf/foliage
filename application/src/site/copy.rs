@@ -132,6 +132,12 @@ pub(crate) mod headings {
     pub(crate) const LAYOUT_GRID: &str = "grid";
     pub(crate) const LAYOUT_ANCHOR: &str = "anchor";
     pub(crate) const LAYOUT_MEASURE: &str = "measure";
+
+    pub(crate) const RENDERERS: &str = "renderers";
+    pub(crate) const RENDERERS_ROUNDING: &str = "rounding";
+    pub(crate) const RENDERERS_SIDES: &str = "sides";
+    pub(crate) const RENDERERS_GLYPH: &str = "glyph";
+    pub(crate) const RENDERERS_DRAW: &str = "draw";
 }
 
 // ---- overview ---------------------------------------------------------------------------------
@@ -166,7 +172,7 @@ pub(crate) mod overview {
     pub(crate) const GITHUB: &str = "github";
 }
 
-/// The overview's five cards, in the order they appear.
+/// The overview's seven cards, in the order they appear.
 ///
 /// - **`title`: 45 chars over 2 lines**, caps at TITLE. One-line titles leave the second line
 ///   empty, which is what keeps every card's body starting on the same baseline as its
@@ -361,6 +367,36 @@ pub(crate) mod layout {
          whatever room that leaves, by default.";
 }
 
+// ---- renderers --------------------------------------------------------------------------------
+
+pub(crate) mod renderers {
+    /// The page's opener. **Free.**
+    pub(crate) const LEAD: &str =
+        "Six renderers draw everything on screen: Panel, Icon, Image, Polygon, the line quad \
+         behind Line and Polyline, and Text. Icon and Image are on the assets page; Text has a \
+         section of its own. What's left is four boards: Panel, Polygon, a slice of Text's own \
+         glyph mechanics, and the line quad.";
+
+    /// The paragraph above each board. **Free**, all four.
+    pub(crate) const ROUNDING: &str =
+        "A panel's corners are a bracket, not a raw radius -- a step resolves off the panel's \
+         own shorter side, so the same step reads the same on a small chip and a large card.";
+    pub(crate) const SIDES: &str =
+        "Side count and rounding are what every entrance on this site already animates through \
+         -- a shape resolving from a rough triangle into itself is exactly these two numbers, \
+         tweened. Here they're a press instead of a timer.";
+    pub(crate) const GLYPH: &str =
+        "A glyph's own box is fixed: on this monospace face every character advances the same \
+         distance regardless of its shape, which is what lets the whole site budget copy in \
+         characters instead of measuring each string. What changes letter to letter is only \
+         which slot in the font's own atlas gets sampled -- looked up by codepoint, not by \
+         width.";
+    pub(crate) const DRAW: &str =
+        "A polyline's path can be revealed by length rather than snapped on whole. The fraction \
+         is of the arc, not the point count, so it reads smoothly regardless of how many \
+         vertices make up the shape.";
+}
+
 /// The words on a board: its step buttons, its readout, and the labels drawn into its stage.
 ///
 /// Everything here is tight. A board is the width of the content column, and at a 320px viewport
@@ -393,6 +429,11 @@ pub(crate) mod board {
     pub(crate) const ANCHOR_STEPS: [&str; 3] = ["below", "right", "corner"];
     pub(crate) const MEASURE_STEPS: [&str; 3] = ["40%", "70%", "100%"];
 
+    pub(crate) const ROUNDING_STEPS: [&str; 4] = ["none", "sm", "lg", "full"];
+    pub(crate) const SIDES_STEPS: [&str; 3] = ["3", "6", "12"];
+    pub(crate) const GLYPH_STEPS: [&str; 3] = ["a", "g", "@"];
+    pub(crate) const DRAW_STEPS: [&str; 3] = ["25%", "60%", "100%"];
+
     /// The two row names in each board's readout, top then bottom. **One line, 7 chars** -- the
     /// label column is a fixed 56px at LABEL. Rendered in caps.
     pub(crate) const RESOLVING_ROWS: [&str; 2] = ["parent", "child"];
@@ -402,6 +443,10 @@ pub(crate) mod board {
     pub(crate) const GRID_ROWS: [&str; 2] = ["stage", "cell"];
     pub(crate) const ANCHOR_ROWS: [&str; 2] = ["call", "sits"];
     pub(crate) const MEASURE_ROWS: [&str; 2] = ["frame", "cell"];
+    pub(crate) const ROUNDING_ROWS: [&str; 2] = ["round", "corners"];
+    pub(crate) const SIDES_ROWS: [&str; 2] = ["sides", "shape"];
+    pub(crate) const GLYPH_ROWS: [&str; 2] = ["advance", "code"];
+    pub(crate) const DRAW_ROWS: [&str; 2] = ["drawn", "call"];
 
     /// What a readout row says before anything has been measured.
     pub(crate) const EMPTY_VALUE: &str = "--";
@@ -420,7 +465,41 @@ pub(crate) mod board {
     pub(crate) const ANCHOR_VALUES: [[&str; 2]; 3] = [
         [".bottom().as_top()", "below target"],
         [".right().as_left()", "right of target"],
-        [".right()+.bottom()", "on target's corner"],
+        [".right()+.bottom()", "off target's corner"],
+    ];
+
+    /// The rounding board's readout, one pair per step. `corners` never changes -- `Side` is
+    /// left at its default throughout -- so the pairing states that rather than leaving the
+    /// row blank.
+    pub(crate) const ROUNDING_VALUES: [[&str; 2]; 4] = [
+        ["none", "all 4"],
+        ["sm", "all 4"],
+        ["lg", "all 4"],
+        ["full", "all 4"],
+    ];
+
+    /// The sides board's readout, one pair per step: the declared count, then the shape it
+    /// names.
+    pub(crate) const SIDES_VALUES: [[&str; 2]; 3] = [
+        ["3", "triangle"],
+        ["6", "hexagon"],
+        ["12", "12-gon"],
+    ];
+
+    /// The glyph board's readout, one pair per step: the advance every letter shares on this
+    /// face, then the codepoint that picks which one is sampled from the atlas.
+    pub(crate) const GLYPH_VALUES: [[&str; 2]; 3] = [
+        ["48px", "u+0061"],
+        ["48px", "u+0067"],
+        ["48px", "u+0040"],
+    ];
+
+    /// The draw board's readout, one pair per step: the reveal fraction, then the call that
+    /// set it.
+    pub(crate) const DRAW_VALUES: [[&str; 2]; 3] = [
+        ["25%", "draw_progress(0.25)"],
+        ["60%", "draw_progress(0.6)"],
+        ["100%", "draw_progress(1.0)"],
     ];
 
     /// The lifetime board's `called` row, one per step. **One line, 20 chars.**
@@ -614,6 +693,69 @@ pub(crate) mod reference {
             gloss: "Where the box sits in the room a max leaves over. Centered by default.",
         },
     ];
+
+    pub(crate) const ROUNDING: [Entry; 3] = [
+        Entry {
+            call: "canopy.rounding(leaf, to)",
+            gloss: "A size bracket, not a raw radius -- resolved off the panel's own shorter \
+                    side.",
+        },
+        Entry {
+            call: "Side::left() / right() / ..",
+            gloss: "Restricts which corners Rounding applies to.",
+        },
+        Entry {
+            call: "Rounding::Full",
+            gloss: "A true pill or circle; also switches the hit test to match.",
+        },
+    ];
+
+    pub(crate) const SIDES: [Entry; 3] = [
+        Entry {
+            call: "canopy.polygon(leaf, to)",
+            gloss: "Rewrites sides, rounding and rotation together -- no respawn needed.",
+        },
+        Entry {
+            call: ".sides(n)",
+            gloss: "Fractional values are valid -- they drive a shader blend, not a vertex \
+                    count.",
+        },
+        Entry {
+            call: ".rounding(0.0..=1.0)",
+            gloss: "0 is sharp, 1 is a true circle regardless of side count.",
+        },
+    ];
+
+    pub(crate) const GLYPH: [Entry; 3] = [
+        Entry {
+            call: "canopy.text(leaf, s)",
+            gloss: "Replaces a Text element's whole string, even a lone character.",
+        },
+        Entry {
+            call: "advance = 0.6 * size",
+            gloss: "Fixed per glyph on this face -- copy is budgeted in characters because of \
+                    it.",
+        },
+        Entry {
+            call: "FontId / register_fonts",
+            gloss: "A second face can be registered and selected per Text element.",
+        },
+    ];
+
+    pub(crate) const DRAW: [Entry; 3] = [
+        Entry {
+            call: "canopy.draw_progress(leaf, t)",
+            gloss: "Reveals the path by arc length, 0.0 to 1.0.",
+        },
+        Entry {
+            call: "Polyline::new().points(v)",
+            gloss: "A Line segment plus a rounded Polygon joint per vertex, chained.",
+        },
+        Entry {
+            call: "canopy.points(leaf, v)",
+            gloss: "Rewrites the whole vertex chain in one call.",
+        },
+    ];
 }
 
 // ---- unwritten sections -------------------------------------------------------------------
@@ -633,14 +775,6 @@ pub(crate) mod stub {
     pub(crate) const MOTION_TITLE: &str = "motion";
     pub(crate) const MOTION_LEAD: &str =
         "Sequenced animation: easing, staggering, looping, and shape morphs.";
-
-    pub(crate) const RENDERERS_TITLE: &str = "renderers";
-    /// Six types have a pipeline of their own -- `Panel`, `Icon`, `Image`, `Polygon`, the line
-    /// quad behind `Line`/`Polyline`, and `Text`. Text has a section to itself, which is why
-    /// this names five.
-    pub(crate) const RENDERERS_LEAD: &str =
-        "Panel, Icon, Image, Polygon and LineQuad -- the types with a pipeline of their own. \
-         Text has a section to itself.";
 
     pub(crate) const INPUT_TITLE: &str = "input";
     pub(crate) const INPUT_LEAD: &str =

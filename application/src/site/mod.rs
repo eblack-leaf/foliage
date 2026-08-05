@@ -16,6 +16,7 @@ pub(crate) mod leaf;
 pub(crate) mod layout;
 pub(crate) mod overview;
 pub(crate) mod rail;
+pub(crate) mod renderers;
 pub(crate) mod router;
 pub(crate) mod shell;
 pub(crate) mod stub;

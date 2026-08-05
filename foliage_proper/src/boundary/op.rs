@@ -2,7 +2,7 @@ use crate::boundary::leaf::Leaf;
 use crate::coordinate::position::Position;
 use crate::{
     AssetKey, AssetSource, Color, Ease, Elevation, Entity, FontSize, GlyphColors, Location,
-    Logical, Outline, Polygon, Repeat, ScrollTo, Tree, World,
+    Logical, Outline, Polygon, Repeat, Rounding, ScrollTo, Tree, World,
 };
 
 /// What foliage grows. One variant per core primitive -- the set is closed on purpose: this
@@ -150,6 +150,10 @@ pub(crate) enum Op {
         leaf: Leaf,
         to: Polygon,
     },
+    Rounding {
+        leaf: Leaf,
+        to: Rounding,
+    },
     Icon {
         leaf: Leaf,
         to: crate::IconId,
@@ -208,6 +212,7 @@ impl Op {
             | Op::Points { leaf, .. }
             | Op::DrawProgress { leaf, .. }
             | Op::Polygon { leaf, .. }
+            | Op::Rounding { leaf, .. }
             | Op::Icon { leaf, .. }
             | Op::Animate { leaf, .. }
             | Op::Scroll { leaf, .. }
@@ -284,6 +289,7 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
                 tree.write_to(subject.unwrap(), crate::PolylineDrawProgress(to))
             }
             Op::Polygon { to, .. } => tree.write_to(subject.unwrap(), to),
+            Op::Rounding { to, .. } => tree.write_to(subject.unwrap(), to),
             Op::Icon { to, .. } => tree.write_to(subject.unwrap(), crate::IconValue(to)),
             // A sequence whose leaf has withered is simply no sequence -- the animation still
             // runs, it just reports to nothing.
