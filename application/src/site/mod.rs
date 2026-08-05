@@ -8,6 +8,7 @@
 
 pub(crate) mod blueprint;
 pub(crate) mod cards;
+pub(crate) mod copy;
 pub(crate) mod drawer;
 pub(crate) mod figure;
 pub(crate) mod hero;

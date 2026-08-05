@@ -92,8 +92,7 @@ impl Default for Foliage {
 }
 
 impl Foliage {
-    /// Logical pixels one wheel notch scrolls, before a view's own
-    /// `ScrollInertia` scaling.
+    /// Logical pixels one wheel notch scrolls.
     pub const SCROLL_SENSITIVITY: f32 = 40.0;
     /// Scroll direction multiplier where content follows the gesture -- push up, content
     /// goes up. The touch convention.

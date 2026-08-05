@@ -3,6 +3,7 @@
 
 use foliage::Leaf;
 
+use crate::site::copy::stub;
 use crate::site::{Column, Grow};
 
 fn placeholder(g: &mut Grow, slot: Leaf, title: &str, summary: &str) {
@@ -10,57 +11,26 @@ fn placeholder(g: &mut Grow, slot: Leaf, title: &str, summary: &str) {
     let mut column = Column::new(g.canopy, container);
     column.display(g.canopy, title);
     column.lead(g.canopy, summary);
-    column.prose(
-        g.canopy,
-        "Not written yet. Demos here are inlined beside the prose that explains them, \
-         rather than being a page of their own.",
-    );
+    column.prose(g.canopy, stub::NOT_WRITTEN);
     column.tail(g.canopy, crate::site::SCROLL_TAIL);
 }
 
 pub(crate) fn layout(g: &mut Grow, slot: Leaf) {
-    placeholder(
-        g,
-        slot,
-        "layout",
-        "Location, Grid and Anchor -- where things sit, and what they sit against.",
-    );
+    placeholder(g, slot, stub::LAYOUT_TITLE, stub::LAYOUT_LEAD);
 }
 
 pub(crate) fn motion(g: &mut Grow, slot: Leaf) {
-    placeholder(
-        g,
-        slot,
-        "motion",
-        "Sequenced animation: easing, staggering, looping, and shape morphs.",
-    );
+    placeholder(g, slot, stub::MOTION_TITLE, stub::MOTION_LEAD);
 }
 
 pub(crate) fn renderers(g: &mut Grow, slot: Leaf) {
-    placeholder(
-        g,
-        slot,
-        "renderers",
-        "Panel, Icon, Image, Polygon and LineQuad -- the types with a pipeline of their own. \
-         Text has a section to itself.",
-    );
+    placeholder(g, slot, stub::RENDERERS_TITLE, stub::RENDERERS_LEAD);
 }
 
 pub(crate) fn input(g: &mut Grow, slot: Leaf) {
-    placeholder(
-        g,
-        slot,
-        "input",
-        "Hit shapes, click and drag, focus, and the one assembled control foliage ships: \
-         TextInput.",
-    );
+    placeholder(g, slot, stub::INPUT_TITLE, stub::INPUT_LEAD);
 }
 
 pub(crate) fn text(g: &mut Grow, slot: Leaf) {
-    placeholder(
-        g,
-        slot,
-        "text",
-        "A monospace grid: sizes per breakpoint, per-glyph color, and registered fonts.",
-    );
+    placeholder(g, slot, stub::TEXT_TITLE, stub::TEXT_LEAD);
 }

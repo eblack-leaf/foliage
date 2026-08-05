@@ -9,16 +9,15 @@ use foliage::{
     VerticalAlignment, anchor,
 };
 
-use std::ops::Range;
-
 use crate::icons::IconHandles;
+use crate::site::copy::hero::{
+    AT_BREAKPOINT, AT_H, AT_MS, AT_SHORT, AT_W, EXTENSION_AT, HINT as HINT_TEXT, TAGLINE, WORDMARK,
+    hud_line,
+};
 use crate::site::{
     Grow, POLY_BUTTON_ROW_H, PolyButton, fade_in, poly_button, role, space, timing, type_scale,
 };
 
-const WORDMARK: &str = "foliage.rs";
-/// Where ".rs" starts, so the extension carries the accent while the name stays plain.
-const EXTENSION_AT: usize = 7;
 /// The project's namesake, so it takes as much room as each viewport can give it. Ten
 /// monospace characters run about 6x the font size, which is what caps each step -- 40px
 /// overflows a 360px phone, which is what clipped the first attempt.
@@ -33,8 +32,6 @@ const WORDMARK_MD: u32 = 76;
 /// has. Short *and* `xs` is the case that sets this: at 30 the name lost its last character
 /// on anything under ~350px, and 26 only moved that to ~300.
 const WORDMARK_SHORT: u32 = 22;
-
-const TAGLINE: &str = "cross-platform UI in Rust";
 
 /// The buttons live in their own row so `max` has something to constrain. Positioned as
 /// thirds of the *hero*, they drifted to the far corners of a wide monitor -- a max on the
@@ -64,34 +61,6 @@ const ROW_H: i32 = 16;
 /// ~257px at 11 -- enough to keep the line on one row on a narrow window without it reading as
 /// a different, smaller thing than it is everywhere else.
 const HUD_SHORT: u32 = 11;
-
-/// The readings. Every one changes when the window does, which is the only reason there are
-/// three and not six: an `entities` count that never moves on a static page and a `renderer`
-/// that is always `wgpu` are decoration wearing a measurement's clothes.
-///
-/// The breakpoint tail is the whole scale, not just the current step -- one name on its own
-/// says nothing about what it is one of, and the set makes the line readable as a ruler with a
-/// position on it. `short` leads because it is orthogonal to the rest: it can be lit at the
-/// same time as any of them.
-///
-/// Every field is padded to a fixed width so the character indices in [`hud_colors`] hold. The
-/// two clamps are what keep that true at the edges -- five digits of width or three of
-/// milliseconds would shift every index after them.
-fn hud_line(width: f32, height: f32, ms: f32) -> String {
-    format!(
-        "{:>4}x{:<4}  {:>4.1}ms  short xs sm md lg xl",
-        (width.round() as i32).min(9999),
-        (height.round() as i32).min(9999),
-        ms.min(99.9),
-    )
-}
-
-/// Character spans in the line built by [`hud_line`].
-const AT_W: Range<usize> = 0..4;
-const AT_H: Range<usize> = 5..9;
-const AT_MS: Range<usize> = 11..15;
-const AT_SHORT: Range<usize> = 19..24;
-const AT_BREAKPOINT: [Range<usize>; 5] = [25..27, 28..30, 31..33, 34..36, 37..39];
 
 /// Which glyphs are lit. Rebuilt alongside the string rather than fixed at spawn, since the
 /// step that is lit is itself a reading.
@@ -185,7 +154,6 @@ impl Readout {
     }
 }
 
-const HINT_TEXT: &str = "more";
 /// The word's own box. Shared with the hit band, which derives its top from it -- as a literal
 /// in the label's `Location` it was invisible to the band, and the band guessed wrong.
 const HINT_H: i32 = 24;

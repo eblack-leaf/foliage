@@ -210,7 +210,7 @@ impl Blueprint {
             );
             canopy.branch(
                 strip,
-                Text::new("--")
+                Text::new(crate::site::copy::board::EMPTY_VALUE)
                     .size(FontSize::new(type_scale::LABEL))
                     .color(role::on_surface())
                     .at(Location::new().xs(
@@ -232,7 +232,10 @@ impl Blueprint {
             steps: controls_built,
             at: 0,
             values,
-            shown: [String::from("--"), String::from("--")],
+            shown: [
+                String::from(crate::site::copy::board::EMPTY_VALUE),
+                String::from(crate::site::copy::board::EMPTY_VALUE),
+            ],
         };
         // The first step is lit from the start, because it is the state the board is already in
         // -- a row with nothing marked would say the demo has not begun, when what it is showing
@@ -341,7 +344,7 @@ pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf
 
     g.canopy.branch(
         card,
-        Text::new("REFERENCE")
+        Text::new(crate::site::copy::board::REFERENCE)
             .size(FontSize::new(type_scale::LABEL))
             .color(role::on_surface_heading())
             .at(Location::new().xs(

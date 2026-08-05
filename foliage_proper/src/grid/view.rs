@@ -3,7 +3,7 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::location::Resolution;
 use crate::interaction::CurrentInteraction;
 use crate::{
-    AnchorDeps, Children, Component, LayoutSection, Location, Logical, Moment, Parent, Points,
+    AnchorDeps, Children, Component, LayoutSection, Location, Logical, Parent, Points,
     Position, Resolve, Section, Tree,
 };
 use bevy_ecs::entity::Entity;
@@ -62,55 +62,11 @@ impl Default for OverscrollPropagation {
         OverscrollPropagation(true)
     }
 }
-/// Wheel-scroll inertia, tracked per view: a multiplier applied to each wheel tick's raw
-/// delta, separate from drag (which stays 1:1, no scaling) since a wheel tick is a
-/// discrete pulse, not continuous tracking. Slow to start (base multiplier) so a single
-/// tick stays a subtle nudge; grows toward a cap while ticks keep arriving close together,
-/// resetting back to base once they stop -- pure state, no interpolation/animation
-/// involved, since the delta itself (not a value being eased toward) is what scales.
-#[derive(Component, Copy, Clone, Debug)]
-pub(crate) struct ScrollInertia {
-    pub(crate) value: f32,
-    pub(crate) last_tick: Option<Moment>,
-}
-impl Default for ScrollInertia {
-    fn default() -> Self {
-        Self {
-            value: Self::BASE,
-            last_tick: None,
-        }
-    }
-}
-impl ScrollInertia {
-    const BASE: f32 = 1.0;
-    const GROWTH: f32 = 0.15;
-    const MAX: f32 = 3.0;
-    const WINDOW_MS: u128 = 150;
-    /// Given the current state, returns (the multiplier to scale this tick's delta by, the
-    /// updated state to write back).
-    pub(crate) fn tick(self) -> (f32, Self) {
-        let now = Moment::now();
-        let value = match self.last_tick {
-            Some(last) if now.duration_since(last).as_millis() < Self::WINDOW_MS => {
-                (self.value + Self::GROWTH).min(Self::MAX)
-            }
-            _ => Self::BASE,
-        };
-        (
-            value,
-            Self {
-                value,
-                last_tick: Some(now),
-            },
-        )
-    }
-}
 /// End-user-tunable knobs for drag/touch release momentum -- a real `Resource`, the same
 /// "insert your own before `photosynthesize`" pattern [`Layout`](crate::Layout)'s own
 /// breakpoints use, since the right feel here genuinely depends on the app (a dense list
-/// vs. a wide gallery, say). Distinct from `ScrollInertia` (engine-internal), which scales each *new*
-/// wheel tick while ticks keep arriving -- this instead governs what happens once a
-/// drag/touch release has *no more input to scale*: whether it just stops (a slow,
+/// vs. a wide gallery, say). This governs what happens once a
+/// drag/touch release has *no more input to follow*: whether it just stops (a slow,
 /// deliberate drag) or keeps coasting on its own release velocity (a flick, i.e. real
 /// "momentum scrolling", the term most native/browser touch-scroll implementations use
 /// for exactly this).
@@ -130,8 +86,7 @@ pub struct ScrollMomentum {
     /// decay: a fast enough swipe followed by holding still for a couple of real seconds
     /// would otherwise still clear `velocity_threshold` even decayed by `decay` the whole
     /// time (`0.998.powf(2000)` is still only ~98% gone). Real touch-scroll implementations
-    /// use a similarly short recency window for exactly this reason, not a slow decay --
-    /// the same idea `ScrollInertia::WINDOW_MS` already uses for wheel-momentum reset.
+    /// use a similarly short recency window for exactly this reason, not a slow decay.
     pub stillness_cutoff_ms: f32,
 }
 impl Default for ScrollMomentum {
@@ -213,7 +168,7 @@ pub(crate) fn coast(
     }
 }
 #[derive(Component, Copy, Clone, Debug)]
-#[require(ViewAdjustment, OverscrollPropagation, ScrollInertia, ScrollProgress)]
+#[require(ViewAdjustment, OverscrollPropagation, ScrollProgress)]
 /// A scrollable window onto content larger than itself: how far it is scrolled, and how
 /// far it may be.
 ///
@@ -551,10 +506,9 @@ pub(crate) fn extent_check(
             tree.strip::<Coasting>(*entity);
         }
     }
-    let to_check_final = to_check.clone();
-    for entity in to_check {
+    for entity in to_check.iter() {
         let mut overscroll = ovrscrl(
-            entity,
+            *entity,
             Position::default(),
             &mut views,
             &propagations,
@@ -596,11 +550,24 @@ pub(crate) fn extent_check(
     // have settled anywhere new this frame, and `propagate_offsets` runs later in the frame
     // off `scrolled`, which is a subset of it.
     let sf = scale_factor.value();
-    for entity in to_check_final.iter() {
-        let mut view = views.get_mut(*entity).unwrap();
-        view.snapped_offset = view.offset.to_physical(sf).rounded().to_logical(sf);
+    // Both loops below publish something derived from `offset`, so both need every view that
+    // could have settled somewhere new: `to_check` covers a changed extent (which moves
+    // `ScrollProgress` even when the offset held still), `to_trigger` covers an offset that
+    // actually changed. The second half is what the overscroll chain produces, and it is the
+    // common case -- a wheel usually lands on a roomless view that hands the whole delta to an
+    // ancestor, so the view that scrolled is never the one that was written to. Publishing
+    // over `to_check` alone left that ancestor with a correct `offset` and a `snapped_offset`
+    // still holding the previous frame's value; since `snapped_offset` is what
+    // `accumulated_offset` and every descendant `Section` are built from, the screen trailed
+    // the offset by exactly one tick -- invisible scrolling one way, one frame of backwards
+    // motion on every reversal.
+    let settled = to_check.union(&to_trigger).copied().collect::<Vec<_>>();
+    for entity in settled.iter() {
+        if let Ok(mut view) = views.get_mut(*entity) {
+            view.snapped_offset = view.offset.to_physical(sf).rounded().to_logical(sf);
+        }
     }
-    for entity in to_check_final {
+    for entity in settled {
         let section = *sections.get(entity).unwrap().1;
         let view = *views.get(entity).unwrap();
         let max_x = (view.extent.width() - section.right()).max(0.0);

@@ -11,7 +11,7 @@ pub(crate) mod listener;
 use crate::ash::clip::ResolvedClip;
 use crate::coordinate::elevation::StackKey;
 use crate::foliage::{Foliage, MainMarkers};
-use crate::grid::view::{Coasting, ScrollInertia, ScrollMomentum, ViewAdjustment};
+use crate::grid::view::{Coasting, ScrollMomentum, ViewAdjustment};
 use crate::{
     Attachment, Component, InteractionShape, Moment, Parent, ResolvedElevation, Section, Tree, View,
 };
@@ -53,9 +53,8 @@ pub struct Interaction {
     method: InteractionMethod,
 }
 /// What produced an [`Interaction`]. Scroll is kept distinct because it is a discrete
-/// pulse rather than continuous tracking: it scales through
-/// `ScrollInertia`, never drags, and never hands off
-/// to a coast.
+/// pulse rather than continuous tracking: it moves its raw delta, never drags, and never
+/// hands off to a coast.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Default)]
 pub enum InteractionMethod {
     ScrollWheel,
@@ -226,7 +225,6 @@ pub(crate) fn interactive_elements(
     mut current: ResMut<CurrentInteraction>,
     contexts: Query<&Parent>,
     views: Query<&View>,
-    inertias: Query<&ScrollInertia>,
     momentum: Res<ScrollMomentum>,
     mut tree: Tree,
 ) {
@@ -518,22 +516,8 @@ pub(crate) fn interactive_elements(
                             current.velocity = Position::default();
                         }
                     }
-                    // wheel scaling: drag stays exactly 1:1 (a raw pointer-drag is
-                    // continuous tracking, not a discrete pulse -- this scaling doesn't
-                    // apply to it), a wheel tick's delta gets scaled by that target's own
-                    // ScrollInertia, which grows the closer together repeated ticks
-                    // arrive and resets once they stop -- see ScrollInertia::tick.
-                    let wheel_diff = |tree: &mut Tree, target: Entity| -> Position<Logical> {
-                        if event.method != InteractionMethod::ScrollWheel {
-                            return diff;
-                        }
-                        let (scale, updated) =
-                            inertias.get(target).copied().unwrap_or_default().tick();
-                        tree.write_to(target, updated);
-                        diff * scale
-                    };
                     // hands off to a coast only for a real drag/touch release (not a
-                    // wheel tick, which already has its own `ScrollInertia`) whose
+                    // wheel tick, which moves its raw delta and then stops) whose
                     // tracked release velocity clears `ScrollMomentum::velocity_threshold`
                     // -- a slow, deliberate drag that was already settling just stops.
                     //
@@ -561,8 +545,7 @@ pub(crate) fn interactive_elements(
                         }
                     };
                     if let Ok(_) = views.get(p) {
-                        let scaled = wheel_diff(&mut tree, p);
-                        tree.write_to(p, ViewAdjustment(scaled));
+                        tree.write_to(p, ViewAdjustment(diff));
                         maybe_coast(&mut tree, p);
                     } else {
                         let mut context = *contexts.get(p).unwrap();
@@ -579,8 +562,7 @@ pub(crate) fn interactive_elements(
                                 if !all.get(id).unwrap().4.disable_drag
                                     || event.method == InteractionMethod::ScrollWheel
                                 {
-                                    let scaled = wheel_diff(&mut tree, id);
-                                    tree.write_to(id, ViewAdjustment(scaled));
+                                    tree.write_to(id, ViewAdjustment(diff));
                                     maybe_coast(&mut tree, id);
                                     wrote = true;
                                 }

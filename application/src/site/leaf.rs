@@ -1,9 +1,9 @@
 //! The `leaf` section.
 //!
-//! Every board is a parent with one child declared inside it, and a control bar along the bottom
-//! that never moves. The bar acts on the parent; the parent and child are drawn and nothing
-//! else, out of the hit test entirely. Nothing the reader is touching resizes, disappears, or
-//! scrolls away between one press and the next.
+//! Every board is a parent with one child declared inside it, and a row of step controls along
+//! the bottom that never moves. The row acts on the parent; the parent and child are drawn and
+//! nothing else, out of the hit test entirely. Nothing the reader is touching resizes,
+//! disappears, or scrolls away between one press and the next.
 //!
 //! The readout pairs what the child *declares*, written once at spawn and never rewritten, with
 //! what that currently *resolves to*. One stays still while the other moves, and that gap is
@@ -15,15 +15,15 @@ use foliage::{
 };
 
 use crate::site::blueprint::{self, Blueprint, Entry};
+use crate::site::copy::{board, headings, leaf as text, reference};
 use crate::site::{Column, Demo, Grow, SCROLL_TAIL, motion, role, space, type_scale};
 
 const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 
 /// The widths a parent cycles through, as a percentage of the stage. Anchored at the left, so it
-/// grows and shrinks against a fixed edge rather than sliding across the field.
+/// grows and shrinks against a fixed edge rather than sliding across the field. One per entry in
+/// [`board::RESOLVING_STEPS`], which is what the buttons say they are.
 const FRAME_WIDTHS: [f32; 3] = [100.0, 66.0, 42.0];
-/// The same widths as words on the control row, one per entry in [`FRAME_WIDTHS`].
-const FRAME_STEPS: [&str; 3] = ["100%", "66%", "42%"];
 
 /// The child's declaration, in percentages of its parent. Written once and never rewritten.
 const CHILD_LEFT: f32 = 22.0;
@@ -54,47 +54,23 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     let container = crate::site::shell::content_area(g.canopy, slot);
     let mut column = Column::new(g.canopy, container);
 
-    column.display(g.canopy, "leaf");
-    column.lead(
-        g.canopy,
-        "An element on screen is one entity, and what you keep is a handle to it -- the type is \
-         spelled `Leaf`. Growing one under another is what the name means. Each board below is \
-         live: press its bar, and read what the parent decided for the child.",
-    );
+    column.display(g.canopy, headings::LEAF);
+    column.lead(g.canopy, text::LEAD);
 
-    column.heading(g.canopy, "resolving");
-    column.prose(
-        g.canopy,
-        "A child states its box in percentages of its parent, so one declaration is a different \
-         number of pixels in a different parent. The top row never changes. The bottom row is \
-         what the tree currently makes of it.",
-    );
+    column.heading(g.canopy, headings::LEAF_RESOLVING);
+    column.prose(g.canopy, text::RESOLVING);
     resolving(g, &mut column);
 
-    column.heading(g.canopy, "clipping");
-    column.prose(
-        g.canopy,
-        "A parent is a boundary as well as an origin. This child is declared in pixels, so it \
-         cannot shrink along with its parent -- narrow the parent and the child is cut at the \
-         edge, while the box it asked for stays exactly what it was.",
-    );
+    column.heading(g.canopy, headings::LEAF_CLIPPING);
+    column.prose(g.canopy, text::CLIPPING);
     clipping(g, &mut column);
 
-    column.heading(g.canopy, "inheriting");
-    column.prose(
-        g.canopy,
-        "Some of what you write to a parent reaches everything beneath it, and some of it stops \
-         there. Which is which is not guessable, so the board writes both to the same parent and \
-         you read the child.",
-    );
+    column.heading(g.canopy, headings::LEAF_INHERITING);
+    column.prose(g.canopy, text::INHERITING);
     inheriting(g, &mut column);
 
-    column.heading(g.canopy, "lifetime");
-    column.prose(
-        g.canopy,
-        "The stem decides how long a thing lives. One call names the parent, the child is never \
-         mentioned, and the dashed outline is the room they occupied.",
-    );
+    column.heading(g.canopy, headings::LEAF_LIFETIME);
+    column.prose(g.canopy, text::LIFETIME);
     lifetime(g, &mut column);
 
     column.tail(g.canopy, SCROLL_TAIL);
@@ -131,7 +107,7 @@ fn frame(canopy: &mut Canopy, stage: Leaf, width: f32, filled: bool) -> Frame {
     let leaf = canopy.branch(stage, if filled { panel } else { panel.outline(2) });
     let label = canopy.branch(
         leaf,
-        Text::new(frame_label(width))
+        Text::new(board::frame(width))
             // A filled frame is written a new surface tone mid-demo, and the variant label sits a
             // step from it on the same ramp. The stronger tone holds against both surfaces.
             .size(FontSize::new(type_scale::LABEL))
@@ -160,10 +136,6 @@ fn frame_label_at() -> Location {
     )
 }
 
-fn frame_label(width: f32) -> String {
-    format!("parent {}%", width as i32)
-}
-
 fn frame_at(width: f32) -> Location {
     Location::new().xs(
         0.pct().as_left().with(width.pct().as_right()),
@@ -178,10 +150,6 @@ fn frame_at(width: f32) -> Location {
 /// fraction of it, so the bite is the same at every breakpoint by construction; a width written
 /// down here would be a different bite on every screen.
 const CLIP_KEPT: [f32; 2] = [0.75, 0.45];
-/// The control row: the full stage, then one word per entry in [`CLIP_KEPT`]. Written as shares
-/// of the child rather than of the stage, because that is what the numbers above are -- how much
-/// of the *child* each press leaves uncut.
-const CLIP_STEPS: [&str; 3] = ["full", "75%", "45%"];
 
 /// `None` is the full stage; `Some(px)` is the parent's right edge, measured from its own left.
 fn clip_frame_at(right: Option<f32>) -> Location {
@@ -196,17 +164,20 @@ fn clip_frame_at(right: Option<f32>) -> Location {
 
 fn clip_resize(canopy: &mut Canopy, frame: &Frame, right: Option<f32>) {
     canopy.location(frame.leaf, clip_frame_at(right));
-    // Short forms, unlike the other boards' "parent NN%". This label lives inside the frame, and
-    // the frame is down to about 134px at the narrowest breakpoint by the last step -- so the
-    // words have to fit the narrowed parent, not just their own box. The readout says "parent"
-    // on the row above anyway.
-    canopy.text(frame.label, if right.is_none() { "full" } else { "narrowed" });
+    canopy.text(
+        frame.label,
+        if right.is_none() {
+            board::CLIP_FULL
+        } else {
+            board::CLIP_NARROWED
+        },
+    );
 }
 
 /// Resizes a parent and keeps its label honest.
 fn resize(canopy: &mut Canopy, frame: &Frame, width: f32) {
     canopy.location(frame.leaf, frame_at(width));
-    canopy.text(frame.label, frame_label(width));
+    canopy.text(frame.label, board::frame(width));
 }
 
 /// The child: filled, and named on itself, so the two never read as the same kind of thing.
@@ -255,7 +226,7 @@ fn child_box(canopy: &mut Canopy, parent: Leaf, at: Location, tone: Color) -> Le
 fn name_child(canopy: &mut Canopy, child: Leaf) {
     canopy.branch(
         child,
-        Text::new("child")
+        Text::new(board::CHILD)
             .size(FontSize::new(type_scale::LABEL))
             .color(role::on_accent())
             .at(Location::new().xs(
@@ -313,29 +284,17 @@ struct Resolving {
 }
 
 fn resolving(g: &mut Grow, column: &mut Column) {
-    let entries = [
-        Entry {
-            call: "Location::new().xs(h, v)",
-            gloss: "The box, per breakpoint. A percentage is of the parent; px is absolute.",
-        },
-        Entry {
-            call: "22.pct().as_left().with(..)",
-            gloss: "One edge, then the opposite one. Width and right are interchangeable.",
-        },
-        Entry {
-            call: "canopy.section(leaf)",
-            gloss: "What that declaration works out to right now, in real pixels.",
-        },
-        Entry {
-            call: "anchor()",
-            gloss: "Resolve against a named element rather than the parent, for stacking.",
-        },
-    ];
     // Both boxes, not just the child's. The pair is what the section is about -- one number is
     // half of a ratio -- and it also says plainly which of the two a resize actually moved.
     // The steps are the widths themselves. A board whose presses set a value rather than
     // advancing through one can say so on the buttons, which is half of what the row is for.
-    let board = board(g, column, ["parent", "child"], &FRAME_STEPS, &entries);
+    let board = board(
+        g,
+        column,
+        board::RESOLVING_ROWS,
+        &board::RESOLVING_STEPS,
+        &reference::RESOLVING,
+    );
     let frame = frame(g.canopy, board.stage, FRAME_WIDTHS[0], false);
     let child = child_box(
         g.canopy,
@@ -450,21 +409,13 @@ impl Clipping {
 }
 
 fn clipping(g: &mut Grow, column: &mut Column) {
-    let entries = [
-        Entry {
-            call: "clip = every ancestor's box",
-            gloss: "An element draws only where its own box and all of its parents' overlap.",
-        },
-        Entry {
-            call: "canopy.section(leaf)",
-            gloss: "Reports the box it asked for, whether or not all of it is drawn.",
-        },
-        Entry {
-            call: "ClipToViewport",
-            gloss: "Opts out, and is bounded by the window instead of by the parent chain.",
-        },
-    ];
-    let board = board(g, column, ["parent", "child"], &CLIP_STEPS, &entries);
+    let board = board(
+        g,
+        column,
+        board::CLIPPING_ROWS,
+        &board::CLIPPING_STEPS,
+        &reference::CLIPPING,
+    );
     let frame = frame(g.canopy, board.stage, FRAME_WIDTHS[0], false);
     let child = clip_child(g.canopy, frame.leaf, written_tone());
     // This board labels its parent full/narrowed rather than by percentage, so it says so from
@@ -520,32 +471,14 @@ struct Inheriting {
 }
 
 fn inheriting(g: &mut Grow, column: &mut Column) {
-    let entries = [
-        Entry {
-            call: "canopy.opacity(leaf, to)",
-            gloss: "Inherited. Everything beneath is drawn through the parent's value.",
-        },
-        Entry {
-            call: "canopy.color(leaf, to)",
-            gloss: "Not inherited. It is one element's own component and stops there.",
-        },
-        Entry {
-            call: "canopy.visible(leaf, yes)",
-            gloss: "Inherited, and the subtree keeps its state while it is hidden.",
-        },
-        Entry {
-            call: "canopy.disable(leaf)",
-            gloss: "Inherited. The subtree still draws, and stops taking input.",
-        },
-    ];
     // "reset" leads rather than trails, because it is step one in the sense the row means: the
     // state the board is in before anything has been written to the parent.
     let mut board = board(
         g,
         column,
-        ["wrote", "child"],
-        &["reset", "opacity", "color"],
-        &entries,
+        board::INHERITING_ROWS,
+        &board::INHERITING_STEPS,
+        &reference::INHERITING,
     );
     // Filled, so a colour write is visibly the parent's own surface changing. Full width like the
     // boards above it -- nothing here resizes the parent, so a narrow one is just a smaller stage.
@@ -556,7 +489,7 @@ fn inheriting(g: &mut Grow, column: &mut Column) {
         child_band(CHILD_LEFT, CHILD_RIGHT),
         child_tone(),
     );
-    board.set(g.canopy, 0, "nothing yet");
+    board.set(g.canopy, 0, board::INHERITING_VALUES[0][0]);
     g.page.demos.push(Box::new(Inheriting { board, frame }));
 }
 
@@ -574,22 +507,19 @@ impl Demo for Inheriting {
             1 => {
                 canopy.opacity(self.frame.leaf, 0.6);
                 canopy.color(self.frame.leaf, role::surface());
-                self.board.set(canopy, 0, "opacity 0.6");
-                self.board.set(canopy, 1, "faded as well");
             }
             2 => {
                 canopy.opacity(self.frame.leaf, 1.0);
                 canopy.color(self.frame.leaf, parent_write_tone());
-                self.board.set(canopy, 0, "a new color");
-                self.board.set(canopy, 1, "kept its own");
             }
             _ => {
                 canopy.opacity(self.frame.leaf, 1.0);
                 canopy.color(self.frame.leaf, role::surface());
-                self.board.set(canopy, 0, "nothing yet");
-                self.board.set(canopy, 1, "--");
             }
         }
+        let [wrote, child] = board::INHERITING_VALUES[step];
+        self.board.set(canopy, 0, wrote);
+        self.board.set(canopy, 1, child);
         true
     }
 }
@@ -604,17 +534,8 @@ impl Demo for Inheriting {
 /// is a thing you can still read, and reading it is the only way to see that state: the slot
 /// markers stay off there, so the row saying "withered" is never contradicted by a stage saying
 /// "no child".
-/// The four states, not four actions: the row names where the board *is* after a press, which is
-/// what makes pressing one you have already been to mean something rather than nothing.
-const LIFETIME_STEPS: [&str; 4] = ["empty", "place", "grow", "prune"];
-/// What the "called" row says at each step, in the same order.
-const LIFETIME_CALLS: [&str; 4] = [
-    "nothing yet",
-    "canopy.leaf(..)",
-    "branch(parent)",
-    "prune(parent)",
-];
-/// The step at which the parent has been pruned, so the handle the board still holds is withered.
+///
+/// The step at which that has happened, so the handle the board still holds is withered.
 const PRUNED: usize = 3;
 
 struct Lifetime {
@@ -631,25 +552,13 @@ struct Lifetime {
 }
 
 fn lifetime(g: &mut Grow, column: &mut Column) {
-    let entries = [
-        Entry {
-            call: "canopy.prune(leaf)",
-            gloss: "Removes it and everything beneath it, in the one call.",
-        },
-        Entry {
-            call: "canopy.presence(leaf)",
-            gloss: "Planted while it is still being grown, then Live, then Withered.",
-        },
-        Entry {
-            call: "Bloom::Withered(leaf)",
-            gloss: "Reported once per element that went, after the frame applies it.",
-        },
-        Entry {
-            call: "a withered handle",
-            gloss: "Takes writes and drops them. Nothing panics, and it is never reused.",
-        },
-    ];
-    let mut board = board(g, column, ["called", "child"], &LIFETIME_STEPS, &entries);
+    let mut board = board(
+        g,
+        column,
+        board::LIFETIME_ROWS,
+        &board::LIFETIME_STEPS,
+        &reference::LIFETIME,
+    );
     // The room the pair occupies, drawn once and never pruned. Without it the board empties to
     // nothing and there is no telling what left or where it was.
     let room = g.canopy.branch(
@@ -683,20 +592,20 @@ fn lifetime(g: &mut Grow, column: &mut Column) {
     let empty = [
         marker(
             g.canopy,
-            "no parent",
+            board::NO_PARENT,
             frame_label_at(),
             HorizontalAlignment::Left,
         ),
         marker(
             g.canopy,
-            "no child",
+            board::NO_CHILD,
             child_band(CHILD_LEFT, CHILD_RIGHT),
             HorizontalAlignment::Center,
         ),
     ];
     let stage = board.stage;
-    board.set(g.canopy, 0, LIFETIME_CALLS[0]);
-    board.set(g.canopy, 1, "none");
+    board.set(g.canopy, 0, board::LIFETIME_CALLS[0]);
+    board.set(g.canopy, 1, board::CHILD_NONE);
     g.page.demos.push(Box::new(Lifetime {
         board,
         stage,
@@ -746,7 +655,7 @@ impl Lifetime {
             canopy.prune(self.frame.take().unwrap().leaf);
         }
         self.at = step;
-        self.board.set(canopy, 0, LIFETIME_CALLS[step]);
+        self.board.set(canopy, 0, board::LIFETIME_CALLS[step]);
     }
 }
 
@@ -768,12 +677,12 @@ impl Demo for Lifetime {
             // The prune is a command, not an edit: for the frames before it lands the handle still
             // reads `Planted`, which would put "growing" on a board that just emptied. The step is
             // the authority on having pruned; `presence` is the authority on everything else.
-            (PRUNED, _) => "withered",
-            (_, None) => "none",
+            (PRUNED, _) => board::CHILD_WITHERED,
+            (_, None) => board::CHILD_NONE,
             (_, Some(child)) => match canopy.presence(child) {
-                Presence::Planted => "growing",
-                Presence::Live => "live",
-                Presence::Withered => "withered",
+                Presence::Planted => board::CHILD_GROWING,
+                Presence::Live => board::CHILD_LIVE,
+                Presence::Withered => board::CHILD_WITHERED,
             },
         };
         self.board.set(canopy, 1, text);

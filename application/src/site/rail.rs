@@ -19,18 +19,7 @@ use crate::site::{role, space, type_scale};
 /// `primitives` and `interaction` split what the framework actually ships: the types with a
 /// renderer, and the ways an app hears about input. Assembly on top of the two is the app's job,
 /// which is what this site is.
-/// Kept short enough to set on one line. The rail is [`RAIL_W`](super::shell::RAIL_W) wide less
-/// its insets, which is about thirteen characters at `TITLE` -- `interaction` wrapped and
-/// `primitives` was one letter off it.
-pub(crate) const SECTIONS: [&str; 7] = [
-    "overview",
-    "leaf",
-    "layout",
-    "motion",
-    "renderers",
-    "input",
-    "text",
-];
+pub(crate) use crate::site::copy::rail::SECTIONS;
 
 const ENTRY_H: i32 = 40;
 const ENTRY_GAP: i32 = space::XS;
@@ -39,8 +28,8 @@ const FIRST_ENTRY_TOP: i32 = 96;
 /// The brand mark, which is also the way back to the hero -- the convention everywhere, and
 /// it fills the space the first entry already left above itself. Coloured like the hero's
 /// wordmark so it reads as the same thing, smaller.
-const BRAND: &str = "foliage.rs";
-const BRAND_EXTENSION_AT: usize = 7;
+use crate::site::copy::rail::{BRAND, BRAND_EXTENSION_AT};
+
 /// A chevron above the brand, pointing back the way the hero's own chevron pointed forward.
 /// The pair reads as one gesture: down to enter, up to leave.
 const BRAND_CHEVRON: i32 = 16;
