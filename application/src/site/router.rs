@@ -25,7 +25,7 @@ pub(crate) const ROUTES: [RouteFn; 8] = [
     site::hero::build,
     site::overview::build,
     site::leaf::build,
-    site::stub::layout,
+    site::layout::build,
     site::stub::motion,
     site::stub::renderers,
     site::stub::input,

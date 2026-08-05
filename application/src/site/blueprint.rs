@@ -14,12 +14,13 @@
 //! panel so the numbers read as an instrument's rather than as two more lines of page.
 
 use foliage::{
-    Bare, Canopy, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf, Location,
-    LocationValue, Panel, Rounding, Sprout, Text, VerticalAlignment,
+    Bare, Canopy, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf,
+    Location, LocationValue, Panel, Polygon, Rounding, Sprout, Text, VerticalAlignment,
 };
 
 use crate::site::{
-    Grow, POLY_STEP_ROW_H, StepControl, background, fade_in, poly_step, role, space, type_scale,
+    Column, Grow, POLY_STEP_ROW_H, StepControl, background, fade_in, motion, poly_step, role,
+    space, type_scale,
 };
 
 const ROW_H: i32 = 18;
@@ -270,6 +271,181 @@ impl Blueprint {
         canopy.text(self.values[row], text.clone());
         self.shown[row] = text;
     }
+}
+
+/// A region: [`Blueprint::grow`]'s stage and control row, plus the reference table under it.
+/// Every demo section on the site is this shape once -- a step-controlled field sized for
+/// `stage_h`, and a card of the calls it stands for -- so a section only has to say what fills
+/// the stage.
+pub(crate) fn board(
+    g: &mut Grow,
+    column: &mut Column,
+    stage_h: (i32, i32, i32),
+    labels: [&'static str; 2],
+    steps: &[&'static str],
+    entries: &[Entry],
+) -> Blueprint {
+    let seq = column.sequence();
+    let region = column.region(g.canopy, height(stage_h), space::LG);
+    let board = Blueprint::grow(g, region, labels, steps, seq, motion::STAGGER);
+    let table = column.region_letters(
+        g.canopy,
+        reference_letters(entries.len()),
+        reference_extra(entries.len()),
+        type_scale::LABEL,
+        space::SM,
+    );
+    reference(g, table, entries, seq, motion::STAGGER * 2);
+    board
+}
+
+/// A board's readout, read back off the tree: the leaf's resolved box in real pixels, or `--`
+/// before anything has been measured.
+pub(crate) fn resolved(canopy: &mut Canopy, leaf: Leaf) -> String {
+    match canopy.section(leaf) {
+        Some(s) => format!("{} x {}", s.width() as i32, s.height() as i32),
+        None => "--".to_string(),
+    }
+}
+
+/// Where a frame's own label sits, in the top-left of every box a board draws. Sized in
+/// characters, not px: the widest label held here is "parent 100%" -- 11 letters, one line.
+pub(crate) fn frame_label_at() -> Location {
+    Location::new().xs(
+        space::SM.px().as_left().with(11.letters().as_width()),
+        space::XS.px().as_top().with(1.letters().as_height()),
+    )
+}
+
+/// A labeled box: the shape and its own top-left caption, kept together because the caption
+/// reports the shape's current declaration and has to be rewritten whenever that changes.
+pub(crate) struct Frame {
+    pub(crate) leaf: Leaf,
+    pub(crate) label: Leaf,
+}
+
+/// A box at `at`, filled or outlined, captioned with `label`. `filled` draws it as a solid
+/// plane instead of an outlined box -- a write that colors a filled box is visibly the box's
+/// own surface changing, where an outline only moves a two-pixel border.
+///
+/// What decides `at` and `label` is the caller's: a percent width, a capped percent, a grid
+/// line range are all just a [`Location`], and the box drawn for one is drawn the same as any
+/// other.
+pub(crate) fn frame(
+    canopy: &mut Canopy,
+    stage: Leaf,
+    at: Location,
+    label: impl Into<String>,
+    filled: bool,
+) -> Frame {
+    let panel = Panel::new()
+        .color(if filled {
+            role::surface()
+        } else {
+            role::on_surface_variant()
+        })
+        .rounding(Rounding::Xs)
+        .at(at)
+        .elevate(Elevation::up(1))
+        .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+        // `Grid` is `#[require(View)]`, so this is a scrollable view, and an overhanging child
+        // gives it real extent to pan. `disable_drag` cannot protect it: `ovrscrl` hands a
+        // view's unabsorbed remainder to its parent without consulting propagation, so a drag
+        // landing on the child below flows up into this and slides the parent under the
+        // reader's thumb. Refusing the gesture outright keeps the whole board out of the
+        // running, and the page -- which is what a drag here is for -- gets it instead.
+        .pass_through();
+    let leaf = canopy.branch(stage, if filled { panel } else { panel.outline(2) });
+    let label = canopy.branch(
+        leaf,
+        Text::new(label.into())
+            // A filled frame is written a new surface tone mid-demo, and the label sits a step
+            // from it on the same ramp. The stronger tone holds against both surfaces.
+            .size(FontSize::new(type_scale::LABEL))
+            .color(if filled {
+                role::on_surface()
+            } else {
+                role::on_surface_variant()
+            })
+            .at(frame_label_at())
+            .elevate(Elevation::up(1))
+            .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+            .pass_through(),
+    );
+    Frame { leaf, label }
+}
+
+/// Labels a shape at its own center, pass-through so the name never wins the hit-test over
+/// the shape carrying it.
+pub(crate) fn name(canopy: &mut Canopy, shape: Leaf, text: impl Into<String>) -> Leaf {
+    canopy.branch(
+        shape,
+        Text::new(text.into())
+            .size(FontSize::new(type_scale::LABEL))
+            .color(role::on_accent())
+            .at(Location::new().xs(
+                0.pct().as_left().with(100.pct().as_right()),
+                50.pct().as_center_y().with(1.letters().as_height()),
+            ))
+            .elevate(Elevation::up(1))
+            .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
+            .pass_through(),
+    )
+}
+
+/// A named hexagon: the shape every demo grows for something that behaves like a dependent --
+/// a child, a target, whatever else the section is showing settle against something else.
+///
+/// Squares to `min(width, height)` via `Polygon`'s own `AspectRatio`, which is right wherever a
+/// cut corner or a vanished shape is the point, and wrong wherever the readout is two numbers
+/// that should track the box's own axes independently -- see [`child_box`].
+pub(crate) fn child(
+    canopy: &mut Canopy,
+    parent: Leaf,
+    at: Location,
+    tone: Color,
+    label: impl Into<String>,
+) -> Leaf {
+    let child = canopy.branch(
+        parent,
+        Polygon::new()
+            .sides(6.0)
+            .rounding(0.3)
+            .rotation(0.0)
+            .color(tone)
+            .at(at)
+            .elevate(Elevation::up(2))
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+            .pass_through(),
+    );
+    name(canopy, child, label);
+    child
+}
+
+/// The same named shape as a plain box, for boards that read its size back as a number.
+///
+/// A squared child cannot show a declaration resolving on both axes independently -- see
+/// [`child`]'s doc. A `Panel` resolves each axis on its own, so the size actually declared is
+/// the size reported.
+pub(crate) fn child_box(
+    canopy: &mut Canopy,
+    parent: Leaf,
+    at: Location,
+    tone: Color,
+    label: impl Into<String>,
+) -> Leaf {
+    let child = canopy.branch(
+        parent,
+        Panel::new()
+            .color(tone)
+            .rounding(Rounding::Xs)
+            .at(at)
+            .elevate(Elevation::up(2))
+            .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+            .pass_through(),
+    );
+    name(canopy, child, label);
+    child
 }
 
 /// One row of a reference table: the call, and what it does.

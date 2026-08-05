@@ -127,6 +127,11 @@ pub(crate) mod headings {
     pub(crate) const LEAF_CLIPPING: &str = "clipping";
     pub(crate) const LEAF_INHERITING: &str = "inheriting";
     pub(crate) const LEAF_LIFETIME: &str = "lifetime";
+
+    pub(crate) const LAYOUT: &str = "layout";
+    pub(crate) const LAYOUT_GRID: &str = "grid";
+    pub(crate) const LAYOUT_ANCHOR: &str = "anchor";
+    pub(crate) const LAYOUT_MEASURE: &str = "measure";
 }
 
 // ---- overview ---------------------------------------------------------------------------------
@@ -223,7 +228,7 @@ pub(crate) const CAPABILITIES: [CardSpec; 7] = [
         body: "images and icons can be shipped alongside your code to allow more sophisticated media.",
         icon: IconHandles::Box,
         sides: 5.0,
-        route: 9,
+        route: 8,
     }
 ];
 
@@ -330,6 +335,32 @@ pub(crate) mod leaf {
         another, pruning the root cleans all branched-leafs.";
 }
 
+// ---- layout -----------------------------------------------------------------------------------
+
+pub(crate) mod layout {
+    /// The page's opener. **Free.**
+    pub(crate) const LEAD: &str =
+        "Every box is a `Location`: a percentage, a pixel count, or a grid line, on each axis. \
+         `Grid` is the coordinate system those numbers are read against, and `Anchor` is an \
+         escape hatch from it -- resolving against another element instead of the parent. Below \
+         are three ways the same kind of declaration ends up a different box.";
+
+    /// The paragraph above each board. **Free**, all three.
+    pub(crate) const GRID: &str =
+        "A grid's columns and rows are lines, not percentages -- the second column is the second \
+         line in from the left, whichever width the grid divided into. A box spanning several \
+         columns spans the gaps between them too, so it is not simply the columns it crosses \
+         added together.";
+    pub(crate) const ANCHOR: &str =
+        "A box can resolve against any named element instead of its parent. The target and the \
+         box carrying the anchor need not be related at all -- not siblings, not parent and \
+         child, just two entities where one reads the other's geometry.";
+    pub(crate) const MEASURE: &str =
+        "A percentage can still be given a ceiling. Below it the box tracks its parent like any \
+         other percentage; past it, the parent keeps growing and the box stops -- centered in \
+         whatever room that leaves, by default.";
+}
+
 /// The words on a board: its step buttons, its readout, and the labels drawn into its stage.
 ///
 /// Everything here is tight. A board is the width of the content column, and at a 320px viewport
@@ -356,12 +387,21 @@ pub(crate) mod board {
     pub(crate) const INHERITING_STEPS: [&str; 3] = ["reset", "opacity", "color"];
     pub(crate) const LIFETIME_STEPS: [&str; 4] = ["empty", "place", "grow", "prune"];
 
+    /// The grid board's steps. Doubles as the cell's own on-shape label -- what a step presses
+    /// is exactly what the highlighted cell says it is.
+    pub(crate) const GRID_STEPS: [&str; 3] = ["col 1", "col 2", "col 1-3"];
+    pub(crate) const ANCHOR_STEPS: [&str; 3] = ["below", "right", "corner"];
+    pub(crate) const MEASURE_STEPS: [&str; 3] = ["40%", "70%", "100%"];
+
     /// The two row names in each board's readout, top then bottom. **One line, 7 chars** -- the
     /// label column is a fixed 56px at LABEL. Rendered in caps.
     pub(crate) const RESOLVING_ROWS: [&str; 2] = ["parent", "child"];
     pub(crate) const CLIPPING_ROWS: [&str; 2] = ["parent", "child"];
     pub(crate) const INHERITING_ROWS: [&str; 2] = ["wrote", "child"];
     pub(crate) const LIFETIME_ROWS: [&str; 2] = ["called", "child"];
+    pub(crate) const GRID_ROWS: [&str; 2] = ["stage", "cell"];
+    pub(crate) const ANCHOR_ROWS: [&str; 2] = ["call", "sits"];
+    pub(crate) const MEASURE_ROWS: [&str; 2] = ["frame", "cell"];
 
     /// What a readout row says before anything has been measured.
     pub(crate) const EMPTY_VALUE: &str = "--";
@@ -373,6 +413,14 @@ pub(crate) mod board {
         ["nothing yet", "--"],
         ["opacity 0.6", "faded as well"],
         ["a new color", "kept its own"],
+    ];
+
+    /// The anchor board's readout, one pair per step: the call, in shorthand, then what it puts
+    /// the dependent box against. **One line, 20 chars** each, like [`INHERITING_VALUES`].
+    pub(crate) const ANCHOR_VALUES: [[&str; 2]; 3] = [
+        [".bottom().as_top()", "below target"],
+        [".right().as_left()", "right of target"],
+        [".right()+.bottom()", "on target's corner"],
     ];
 
     /// The lifetime board's `called` row, one per step. **One line, 20 chars.**
@@ -399,6 +447,11 @@ pub(crate) mod board {
     /// child's own band, which is about half the parent -- so roughly 15 chars, less on the
     /// clipping board once the parent has been narrowed.
     pub(crate) const CHILD: &str = "child";
+
+    /// The anchor board's two shapes. **One line** -- `TARGET` sits in a 64px shape, `DEPENDENT`
+    /// in a 40px one, so it stays to what that smaller shape can hold.
+    pub(crate) const TARGET: &str = "target";
+    pub(crate) const DEPENDENT: &str = "dep";
 
     /// The parent's own label, inside the frame at its top-left. **One line, 11 chars** -- the
     /// box is stated as 11 letters, which is exactly `parent 100%`.
@@ -516,6 +569,51 @@ pub(crate) mod reference {
             gloss: "Takes writes and drops them. Nothing panics, and it is never reused.",
         },
     ];
+
+    pub(crate) const GRID: [Entry; 3] = [
+        Entry {
+            call: "N.col() / N.row()",
+            gloss: "A 1-based line in the parent's grid, not a percentage of it.",
+        },
+        Entry {
+            call: "Grid::new(3.col().gap(8), ..)",
+            gloss: "Divides the parent into 3 columns, 8px of gap between them.",
+        },
+        Entry {
+            call: "1.col().with(3.col())",
+            gloss: "A span crosses the gaps too -- wider than 3 lone columns summed.",
+        },
+    ];
+
+    pub(crate) const ANCHOR: [Entry; 3] = [
+        Entry {
+            call: "leaf.anchored(target)",
+            gloss: "Names the entity this box's anchor() values resolve against.",
+        },
+        Entry {
+            call: "anchor().bottom().as_top()",
+            gloss: "Reads the target's edge, then places this box's own edge there.",
+        },
+        Entry {
+            call: "independent of parenting",
+            gloss: "An anchor target can sit anywhere in the tree; it decides position only.",
+        },
+    ];
+
+    pub(crate) const MEASURE: [Entry; 3] = [
+        Entry {
+            call: "ConfigurationDescriptor::max",
+            gloss: "A ceiling on this axis's resolved extent, in logical pixels.",
+        },
+        Entry {
+            call: "ConfigurationDescriptor::min",
+            gloss: "A floor on the same axis -- the symmetric constraint.",
+        },
+        Entry {
+            call: "Justify::Near / Far / Center",
+            gloss: "Where the box sits in the room a max leaves over. Centered by default.",
+        },
+    ];
 }
 
 // ---- unwritten sections -------------------------------------------------------------------
@@ -531,10 +629,6 @@ pub(crate) mod stub {
     pub(crate) const NOT_WRITTEN: &str =
         "Not written yet. Demos here are inlined beside the prose that explains them, rather \
          than being a page of their own.";
-
-    pub(crate) const LAYOUT_TITLE: &str = "layout";
-    pub(crate) const LAYOUT_LEAD: &str =
-        "Location, Grid and Anchor -- where things sit, and what they sit against.";
 
     pub(crate) const MOTION_TITLE: &str = "motion";
     pub(crate) const MOTION_LEAD: &str =

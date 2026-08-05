@@ -13,6 +13,7 @@ pub(crate) mod drawer;
 pub(crate) mod figure;
 pub(crate) mod hero;
 pub(crate) mod leaf;
+pub(crate) mod layout;
 pub(crate) mod overview;
 pub(crate) mod rail;
 pub(crate) mod router;
@@ -386,6 +387,10 @@ pub(crate) struct PolyAction {
 pub(crate) const POLY_BUTTON: i32 = 56;
 pub(crate) const POLY_BUTTON_ROW_H: i32 = POLY_BUTTON + space::SM + 24;
 const POLY_SHADOW_OFF: i32 = 7;
+/// Floor on a poly control's tap target, wider than [`POLY_STEP`] draws -- a drawn shape that
+/// size reads fine in a row of four, but a *hit box* that size is missed on a phone more often
+/// than it should be. [`POLY_BUTTON`] already clears this, so only the step row is affected.
+const MIN_HIT: i32 = 44;
 const POLY_ICON_SCALE: f32 = 0.44;
 
 /// Places one at `center_pct` across `row`, which should be [`POLY_BUTTON_ROW_H`] tall, and
@@ -421,6 +426,11 @@ pub(crate) fn poly_button(
 /// Shared by both sizes rather than written twice, so the one thing that makes these read as
 /// the site's own button -- an unblurred shadow at a fixed offset, and a triangle resolving
 /// into the real shape -- cannot drift between the hero's destinations and a board's steps.
+///
+/// `button` is a plain, undrawn tap target rather than the visible triangle itself, sized to at
+/// least [`MIN_HIT`] and centered on the same point the triangle resolves to. The two are
+/// separate entities because they want different sizes for different reasons -- the triangle's
+/// is a drawing decision, the tap target's is a thumb's -- and one entity can only have one.
 fn poly_shape(
     g: &mut Grow,
     row: Leaf,
@@ -452,7 +462,7 @@ fn poly_shape(
     );
     morph_in(g.canopy, shadow, seq, sides, 0.15, start);
 
-    let button = g.canopy.branch(
+    let shape = g.canopy.branch(
         row,
         Polygon::new()
             .sides(3.0)
@@ -464,11 +474,28 @@ fn poly_shape(
                 0.px().as_top().with(size.px().as_height()),
             ))
             .elevate(Elevation::up(3))
-            .interactive()
-            .round_hit_area()
             .opacity(0.0),
     );
-    morph_in(g.canopy, button, seq, sides, 0.15, start);
+    morph_in(g.canopy, shape, seq, sides, 0.15, start);
+
+    let hit_size = size.max(MIN_HIT);
+    let button = g.canopy.branch(
+        row,
+        Bare::new()
+            .at(Location::new().xs(
+                center_pct
+                    .pct()
+                    .as_center_x()
+                    .with(hit_size.px().as_width()),
+                ((size - hit_size) / 2)
+                    .px()
+                    .as_top()
+                    .with(hit_size.px().as_height()),
+            ))
+            .elevate(Elevation::up(4))
+            .interactive()
+            .round_hit_area(),
+    );
     // armed on the fade, not the morph: the shape keeps resolving for another second after
     // the button is plainly visible, and a button you can see but cannot press is its own bug
     arm_at(g, button, start + motion::FADE);

@@ -15,10 +15,6 @@ fn placeholder(g: &mut Grow, slot: Leaf, title: &str, summary: &str) {
     column.tail(g.canopy, crate::site::SCROLL_TAIL);
 }
 
-pub(crate) fn layout(g: &mut Grow, slot: Leaf) {
-    placeholder(g, slot, stub::LAYOUT_TITLE, stub::LAYOUT_LEAD);
-}
-
 pub(crate) fn motion(g: &mut Grow, slot: Leaf) {
     placeholder(g, slot, stub::MOTION_TITLE, stub::MOTION_LEAD);
 }

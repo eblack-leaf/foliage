@@ -14,9 +14,9 @@ use foliage::{
     Panel, Polygon, Presence, Rounding, Sprout, Text, VerticalAlignment,
 };
 
-use crate::site::blueprint::{self, Blueprint, Entry};
+use crate::site::blueprint::{self, Blueprint, Frame};
 use crate::site::copy::{board, headings, leaf as text, reference};
-use crate::site::{Column, Demo, Grow, SCROLL_TAIL, motion, role, space, type_scale};
+use crate::site::{Column, Demo, Grow, SCROLL_TAIL, role, type_scale};
 
 const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 
@@ -76,66 +76,6 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     column.tail(g.canopy, SCROLL_TAIL);
 }
 
-/// A parent and its own label, kept together because the label reports the parent's current
-/// width and has to be rewritten whenever that changes.
-struct Frame {
-    leaf: Leaf,
-    label: Leaf,
-}
-
-/// `filled` draws it as a solid plane instead of an outlined box. The inheriting board needs
-/// that: written to an outline, a colour change moves a two-pixel border and reads as the box
-/// being highlighted rather than as the parent itself changing.
-fn frame(canopy: &mut Canopy, stage: Leaf, width: f32, filled: bool) -> Frame {
-    let panel = Panel::new()
-        .color(if filled {
-            role::surface()
-        } else {
-            role::on_surface_variant()
-        })
-        .rounding(Rounding::Xs)
-        .at(frame_at(width))
-        .elevate(Elevation::up(1))
-        .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
-        // `Grid` is `#[require(View)]`, so this is a scrollable view, and an overhanging child
-        // gives it real extent to pan. `disable_drag` cannot protect it: `ovrscrl` hands a view's
-        // unabsorbed remainder to its parent without consulting propagation, so a drag landing on
-        // the child below flows up into this and slides the parent under the reader's thumb.
-        // Refusing the gesture outright keeps the whole board out of the running, and the page --
-        // which is what a drag here is for -- gets it instead.
-        .pass_through();
-    let leaf = canopy.branch(stage, if filled { panel } else { panel.outline(2) });
-    let label = canopy.branch(
-        leaf,
-        Text::new(board::frame(width))
-            // A filled frame is written a new surface tone mid-demo, and the variant label sits a
-            // step from it on the same ramp. The stronger tone holds against both surfaces.
-            .size(FontSize::new(type_scale::LABEL))
-            .color(if filled {
-                role::on_surface()
-            } else {
-                role::on_surface_variant()
-            })
-            .at(frame_label_at())
-            .elevate(Elevation::up(1))
-            .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
-            .pass_through(),
-    );
-    Frame { leaf, label }
-}
-
-/// Where a frame's own label sits. Shared so the lifetime board's "no parent" marker can occupy
-/// the same slot rather than a hand-matched copy of it that drifts the first time either moves.
-fn frame_label_at() -> Location {
-    Location::new().xs(
-        // Sized in characters, not px: the widest label this holds is "parent 100%", and one
-        // line of it. Stated that way the box tracks the type scale instead of being a pair of
-        // numbers that happen to fit the size it was written against.
-        space::SM.px().as_left().with(11.letters().as_width()),
-        space::XS.px().as_top().with(1.letters().as_height()),
-    )
-}
-
 fn frame_at(width: f32) -> Location {
     Location::new().xs(
         0.pct().as_left().with(width.pct().as_right()),
@@ -180,99 +120,12 @@ fn resize(canopy: &mut Canopy, frame: &Frame, width: f32) {
     canopy.text(frame.label, board::frame(width));
 }
 
-/// The child: filled, and named on itself, so the two never read as the same kind of thing.
-///
-/// A shape, which `Polygon` squares to `min(width, height)` via its own `AspectRatio` so the
-/// rounded corners stay circular. That is right wherever a cut corner or a vanished shape is what
-/// the board is showing, and wrong wherever the readout is two numbers -- see [`child_box`].
-fn child(canopy: &mut Canopy, parent: Leaf, at: Location, tone: Color) -> Leaf {
-    let child = canopy.branch(
-        parent,
-        Polygon::new()
-            .sides(6.0)
-            .rounding(0.3)
-            .rotation(0.0)
-            .color(tone)
-            .at(at)
-            .elevate(Elevation::up(2))
-            .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
-            .pass_through(),
-    );
-    name_child(canopy, child);
-    child
-}
-
-/// The same child as a plain box, for the one board that reads its size back as a number.
-///
-/// A squared child cannot show a declaration resolving: its width is `min(width, height)`, its
-/// height is a share of a stage that does not move, and on any screen wide enough for the height
-/// to be the smaller of the two, the size reads the same in every parent. A `Panel` resolves each
-/// axis on its own, so the width the parent actually decided is the width reported.
-fn child_box(canopy: &mut Canopy, parent: Leaf, at: Location, tone: Color) -> Leaf {
-    let child = canopy.branch(
-        parent,
-        Panel::new()
-            .color(tone)
-            .rounding(Rounding::Xs)
-            .at(at)
-            .elevate(Elevation::up(2))
-            .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
-            .pass_through(),
-    );
-    name_child(canopy, child);
-    child
-}
-
-fn name_child(canopy: &mut Canopy, child: Leaf) {
-    canopy.branch(
-        child,
-        Text::new(board::CHILD)
-            .size(FontSize::new(type_scale::LABEL))
-            .color(role::on_accent())
-            .at(Location::new().xs(
-                0.pct().as_left().with(100.pct().as_right()),
-                50.pct().as_center_y().with(1.letters().as_height()),
-            ))
-            .elevate(Elevation::up(1))
-            .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
-            .pass_through(),
-    );
-}
-
 /// Below the parent's own label, so a narrow parent never puts the two on top of each other.
 fn child_band(left: f32, right: f32) -> Location {
     Location::new().xs(
         left.pct().as_left().with(right.pct().as_right()),
         36.pct().as_top().with(90.pct().as_bottom()),
     )
-}
-
-fn board(
-    g: &mut Grow,
-    column: &mut Column,
-    labels: [&'static str; 2],
-    steps: &[&'static str],
-    entries: &[Entry],
-) -> Blueprint {
-    let seq = column.sequence();
-    let region = column.region(g.canopy, blueprint::height(STAGE_H), space::LG);
-    let board = Blueprint::grow(g, region, labels, steps, seq, motion::STAGGER);
-    let table = column.region_letters(
-        g.canopy,
-        blueprint::reference_letters(entries.len()),
-        blueprint::reference_extra(entries.len()),
-        type_scale::LABEL,
-        space::SM,
-    );
-    blueprint::reference(g, table, entries, seq, motion::STAGGER * 2);
-    board
-}
-
-fn resolved(canopy: &mut Canopy, leaf: Leaf) -> String {
-    match canopy.section(leaf) {
-        Some(s) => format!("{} x {}", s.width() as i32, s.height() as i32),
-        None => "--".to_string(),
-    }
 }
 
 // ---- resolving -----------------------------------------------------------------------------
@@ -288,19 +141,27 @@ fn resolving(g: &mut Grow, column: &mut Column) {
     // half of a ratio -- and it also says plainly which of the two a resize actually moved.
     // The steps are the widths themselves. A board whose presses set a value rather than
     // advancing through one can say so on the buttons, which is half of what the row is for.
-    let board = board(
+    let board = blueprint::board(
         g,
         column,
+        STAGE_H,
         board::RESOLVING_ROWS,
         &board::RESOLVING_STEPS,
         &reference::RESOLVING,
     );
-    let frame = frame(g.canopy, board.stage, FRAME_WIDTHS[0], false);
-    let child = child_box(
+    let frame = blueprint::frame(
+        g.canopy,
+        board.stage,
+        frame_at(FRAME_WIDTHS[0]),
+        board::frame(FRAME_WIDTHS[0]),
+        false,
+    );
+    let child = blueprint::child_box(
         g.canopy,
         frame.leaf,
         child_band(CHILD_LEFT, CHILD_RIGHT),
         child_tone(),
+        board::CHILD,
     );
     g.page.demos.push(Box::new(Resolving {
         board,
@@ -319,8 +180,8 @@ impl Demo for Resolving {
         true
     }
     fn drive(&mut self, canopy: &mut Canopy) {
-        let parent = resolved(canopy, self.frame.leaf);
-        let child = resolved(canopy, self.child);
+        let parent = blueprint::resolved(canopy, self.frame.leaf);
+        let child = blueprint::resolved(canopy, self.child);
         self.board.set(canopy, 0, parent);
         self.board.set(canopy, 1, child);
     }
@@ -328,7 +189,7 @@ impl Demo for Resolving {
 
 // ---- clipping ------------------------------------------------------------------------------
 
-/// The clipping board's child: the same shape [`child`] grows, centred on the *stage*.
+/// The clipping board's child: the same shape [`blueprint::child`] grows, centred on the *stage*.
 ///
 /// Centred on its parent instead, it would slide left as the parent narrowed from the right and
 /// walk out from under the edge doing the cutting, so its position is read off a box the presses
@@ -354,7 +215,7 @@ fn clip_child_at(left: f32, size: f32) -> Location {
     )
 }
 
-/// The clipping board's child: the same shape [`child`] grows, placed by [`Clipping::drive`].
+/// The clipping board's child: the same shape [`blueprint::child`] grows, placed by [`Clipping::drive`].
 ///
 /// Not `anchored`. Anchoring it to the stage put the horizontal exactly right and left the
 /// vertical a full page-scroll high: the anchor path adds the accumulated offset back to state
@@ -376,7 +237,7 @@ fn clip_child(canopy: &mut Canopy, parent: Leaf, tone: Color) -> Leaf {
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .pass_through(),
     );
-    name_child(canopy, child);
+    blueprint::name(canopy, child, board::CHILD);
     child
 }
 
@@ -409,14 +270,21 @@ impl Clipping {
 }
 
 fn clipping(g: &mut Grow, column: &mut Column) {
-    let board = board(
+    let board = blueprint::board(
         g,
         column,
+        STAGE_H,
         board::CLIPPING_ROWS,
         &board::CLIPPING_STEPS,
         &reference::CLIPPING,
     );
-    let frame = frame(g.canopy, board.stage, FRAME_WIDTHS[0], false);
+    let frame = blueprint::frame(
+        g.canopy,
+        board.stage,
+        frame_at(FRAME_WIDTHS[0]),
+        board::frame(FRAME_WIDTHS[0]),
+        false,
+    );
     let child = clip_child(g.canopy, frame.leaf, written_tone());
     // This board labels its parent full/narrowed rather than by percentage, so it says so from
     // the start instead of after the first press.
@@ -456,8 +324,8 @@ impl Demo for Clipping {
                 clip_resize(canopy, &self.frame, self.right());
             }
         }
-        let parent = resolved(canopy, self.frame.leaf);
-        let child = resolved(canopy, self.child);
+        let parent = blueprint::resolved(canopy, self.frame.leaf);
+        let child = blueprint::resolved(canopy, self.child);
         self.board.set(canopy, 0, parent);
         self.board.set(canopy, 1, child);
     }
@@ -473,21 +341,29 @@ struct Inheriting {
 fn inheriting(g: &mut Grow, column: &mut Column) {
     // "reset" leads rather than trails, because it is step one in the sense the row means: the
     // state the board is in before anything has been written to the parent.
-    let mut board = board(
+    let mut board = blueprint::board(
         g,
         column,
+        STAGE_H,
         board::INHERITING_ROWS,
         &board::INHERITING_STEPS,
         &reference::INHERITING,
     );
     // Filled, so a colour write is visibly the parent's own surface changing. Full width like the
     // boards above it -- nothing here resizes the parent, so a narrow one is just a smaller stage.
-    let frame = frame(g.canopy, board.stage, FRAME_WIDTHS[0], true);
-    child(
+    let frame = blueprint::frame(
+        g.canopy,
+        board.stage,
+        frame_at(FRAME_WIDTHS[0]),
+        board::frame(FRAME_WIDTHS[0]),
+        true,
+    );
+    blueprint::child(
         g.canopy,
         frame.leaf,
         child_band(CHILD_LEFT, CHILD_RIGHT),
         child_tone(),
+        board::CHILD,
     );
     board.set(g.canopy, 0, board::INHERITING_VALUES[0][0]);
     g.page.demos.push(Box::new(Inheriting { board, frame }));
@@ -552,9 +428,10 @@ struct Lifetime {
 }
 
 fn lifetime(g: &mut Grow, column: &mut Column) {
-    let mut board = board(
+    let mut board = blueprint::board(
         g,
         column,
+        STAGE_H,
         board::LIFETIME_ROWS,
         &board::LIFETIME_STEPS,
         &reference::LIFETIME,
@@ -593,7 +470,7 @@ fn lifetime(g: &mut Grow, column: &mut Column) {
         marker(
             g.canopy,
             board::NO_PARENT,
-            frame_label_at(),
+            blueprint::frame_label_at(),
             HorizontalAlignment::Left,
         ),
         marker(
@@ -638,15 +515,22 @@ impl Lifetime {
         if step >= 1 {
             // Filled, not outlined: the room is already an outline, and placing a second one over
             // it is a press that appears to do nothing.
-            self.frame = Some(frame(canopy, self.stage, FRAME_WIDTHS[0], true));
+            self.frame = Some(blueprint::frame(
+                canopy,
+                self.stage,
+                frame_at(FRAME_WIDTHS[0]),
+                board::frame(FRAME_WIDTHS[0]),
+                true,
+            ));
         }
         if step >= 2 {
             let parent = self.frame.as_ref().unwrap().leaf;
-            self.child = Some(child(
+            self.child = Some(blueprint::child(
                 canopy,
                 parent,
                 child_band(CHILD_LEFT, CHILD_RIGHT),
                 child_tone(),
+                board::CHILD,
             ));
         }
         if step == PRUNED {
