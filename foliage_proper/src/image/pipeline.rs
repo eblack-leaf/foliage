@@ -6,6 +6,7 @@ use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, R
 use crate::ginkgo::Ginkgo;
 use crate::image::{CropAdjustment, Image, ImageWrite};
 use crate::opacity::BlendedOpacity;
+use crate::rounding::CornerRadii;
 use crate::texture::TextureCoordinates;
 use crate::{
     Area, AssetKey, CReprSection, Logical, Numerical, Parent, ResolvedElevation, Section, texture,
@@ -14,9 +15,9 @@ use bevy_ecs::entity::Entity;
 use std::collections::HashMap;
 use wgpu::{
     BindGroup, BindGroupDescriptor, BindGroupLayout, BindGroupLayoutDescriptor,
-    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderStages, Texture,
-    TextureSampleType, TextureView, TextureViewDimension, VertexState, VertexStepMode,
-    include_wgsl,
+    PipelineLayoutDescriptor, RenderPass, RenderPipelineDescriptor, ShaderModuleDescriptor,
+    ShaderSource, ShaderStages, Texture, TextureSampleType, TextureView, TextureViewDimension,
+    VertexState, VertexStepMode,
 };
 
 pub(crate) struct Resources {
@@ -53,13 +54,24 @@ pub(crate) struct Group {
     elevations: InstanceBuffer<ResolvedElevation>,
     coords: InstanceBuffer<TextureCoordinates>,
     opaque: InstanceBuffer<BlendedOpacity>,
+    radii: InstanceBuffer<CornerRadii>,
 }
 impl Render for Image {
     type Group = Group;
     type Resources = Resources;
 
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self> {
-        let shader = ginkgo.create_shader(include_wgsl!("image.wgsl"));
+        let shader = ginkgo.create_shader(ShaderModuleDescriptor {
+            label: Some("image-shader"),
+            source: ShaderSource::Wgsl(
+                format!(
+                    "{}{}",
+                    include_str!("../sdf.wgsl"),
+                    include_str!("image.wgsl")
+                )
+                .into(),
+            ),
+        });
         let group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("image-group-bind-group-layout"),
             entries: &[Ginkgo::bind_group_layout_entry(0)
@@ -122,6 +134,10 @@ impl Render for Image {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![5 => Float32],
                     ),
+                    Ginkgo::vertex_buffer_layout::<CornerRadii>(
+                        VertexStepMode::Instance,
+                        &wgpu::vertex_attr_array![6 => Float32x4],
+                    ),
                 ],
             },
             primitive: Ginkgo::triangle_list_primitive(),
@@ -169,6 +185,7 @@ impl Render for Image {
                 queues.remove_attr::<Image, BlendedOpacity>(entity);
                 queues.remove_attr::<Image, Section<Logical>>(entity);
                 queues.remove_attr::<Image, ImageWrite>(entity);
+                queues.remove_attr::<Image, CornerRadii>(entity);
             }
         }
         for (entity, image) in queues.attribute::<Image, ImageWrite>() {
@@ -206,6 +223,7 @@ impl Render for Image {
                     elevations: InstanceBuffer::new(ginkgo, 1),
                     coords: InstanceBuffer::new(ginkgo, 1),
                     opaque: InstanceBuffer::new(ginkgo, 1),
+                    radii: InstanceBuffer::new(ginkgo, 1),
                 };
                 renderer.groups.insert(group_id, RenderGroup::new(g));
             }
@@ -260,6 +278,15 @@ impl Render for Image {
                 }
             }
         }
+        for (entity, radii) in queues.attribute::<Image, CornerRadii>() {
+            if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
+                let group = renderer.groups.get_mut(&gid).unwrap();
+                group
+                    .group
+                    .radii
+                    .queue(entity.index().index() as InstanceId, radii);
+            }
+        }
         for (entity, opacity) in queues.attribute::<Image, BlendedOpacity>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
@@ -290,12 +317,14 @@ impl Render for Image {
                 group.group.elevations.grow(ginkgo, n);
                 group.group.coords.grow(ginkgo, n);
                 group.group.opaque.grow(ginkgo, n);
+                group.group.radii.grow(ginkgo, n);
             }
             for swap in group.coordinator.sort() {
                 group.group.sections.swap(swap);
                 group.group.elevations.swap(swap);
                 group.group.coords.swap(swap);
                 group.group.opaque.swap(swap);
+                group.group.radii.swap(swap);
             }
             for (id, data) in group.group.sections.queued() {
                 let order = group.coordinator.order(id);
@@ -313,10 +342,15 @@ impl Render for Image {
                 let order = group.coordinator.order(id);
                 group.group.opaque.write_cpu(order, data);
             }
+            for (id, data) in group.group.radii.queued() {
+                let order = group.coordinator.order(id);
+                group.group.radii.write_cpu(order, data);
+            }
             group.group.sections.write_gpu(ginkgo);
             group.group.elevations.write_gpu(ginkgo);
             group.group.coords.write_gpu(ginkgo);
             group.group.opaque.write_gpu(ginkgo);
+            group.group.radii.write_gpu(ginkgo);
             for node in group.coordinator.updated_nodes(PipelineId::Image, *gid) {
                 nodes.update(node);
             }
@@ -334,6 +368,7 @@ impl Render for Image {
         render_pass.set_vertex_buffer(2, group.group.elevations.buffer.slice(..));
         render_pass.set_vertex_buffer(3, group.group.coords.buffer.slice(..));
         render_pass.set_vertex_buffer(4, group.group.opaque.buffer.slice(..));
+        render_pass.set_vertex_buffer(5, group.group.radii.buffer.slice(..));
         render_pass.draw(0..texture::VERTICES.len() as u32, parameters.range);
     }
 }

@@ -25,6 +25,7 @@ mod node;
 mod opacity;
 mod ops;
 mod panel;
+mod rounding;
 mod photosynthesis;
 mod platform;
 mod polygon;
@@ -104,7 +105,8 @@ pub(crate) use node::{Children, Node, Parent};
 pub use opacity::Opacity;
 pub use ops::Named;
 pub use ops::{Keyring, Resolve, Resolved};
-pub use panel::{Outline, Panel, PanelSprout, Rounding, Side};
+pub use panel::{Outline, Panel, PanelSprout};
+pub use rounding::{Rounding, Side};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;

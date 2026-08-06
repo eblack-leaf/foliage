@@ -5,16 +5,19 @@ use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
 use crate::opacity::BlendedOpacity;
-use crate::panel::{Corner, vertex};
+use crate::panel::vertex;
+use crate::rounding::CornerRadii;
 use crate::{
-    CReprColor, CReprSection, Color, Logical, Outline, Panel, Parent, ResolvedElevation, Section,
+    CReprColor, CReprSection, Color, Coordinates, Logical, Outline, Panel, Parent,
+    ResolvedElevation, Section,
 };
 use bevy_ecs::entity::Entity;
 use bytemuck::{Pod, Zeroable};
 use std::collections::HashMap;
 use wgpu::{
     BindGroupDescriptor, BindGroupLayoutDescriptor, PipelineLayoutDescriptor, RenderPass,
-    RenderPipelineDescriptor, ShaderStages, VertexState, VertexStepMode, include_wgsl,
+    RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource, ShaderStages, VertexState,
+    VertexStepMode,
 };
 
 pub(crate) struct Resources {
@@ -26,10 +29,7 @@ pub(crate) struct Group {
     sections: InstanceBuffer<CReprSection>,
     lws: InstanceBuffer<LayerAndWeight>,
     colors: InstanceBuffer<CReprColor>,
-    corner_i: InstanceBuffer<Corner>,
-    corner_ii: InstanceBuffer<Corner>,
-    corner_iii: InstanceBuffer<Corner>,
-    corner_iv: InstanceBuffer<Corner>,
+    radii: InstanceBuffer<CornerRadii>,
 }
 #[repr(C)]
 #[derive(Pod, Zeroable, Copy, Clone, Debug, Default)]
@@ -47,7 +47,17 @@ impl Render for Panel {
     type Resources = Resources;
 
     fn renderer(ginkgo: &Ginkgo) -> Renderer<Self> {
-        let shader = ginkgo.create_shader(include_wgsl!("panel.wgsl"));
+        let shader = ginkgo.create_shader(ShaderModuleDescriptor {
+            label: Some("panel-shader"),
+            source: ShaderSource::Wgsl(
+                format!(
+                    "{}{}",
+                    include_str!("../sdf.wgsl"),
+                    include_str!("panel.wgsl")
+                )
+                .into(),
+            ),
+        });
         let vertex_buffer = ginkgo.create_vertex_buffer(vertex::VERTICES);
         let bind_group_layout = ginkgo.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("panel-bind-group-layout"),
@@ -73,9 +83,9 @@ impl Render for Panel {
                 entry_point: Option::from("vertex_entry"),
                 compilation_options: Default::default(),
                 buffers: &[
-                    Ginkgo::vertex_buffer_layout::<vertex::Vertex>(
+                    Ginkgo::vertex_buffer_layout::<Coordinates>(
                         VertexStepMode::Vertex,
-                        &wgpu::vertex_attr_array![0 => Float32x3],
+                        &wgpu::vertex_attr_array![0 => Float32x2],
                     ),
                     Ginkgo::vertex_buffer_layout::<CReprSection>(
                         VertexStepMode::Instance,
@@ -89,21 +99,9 @@ impl Render for Panel {
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![3 => Float32x4],
                     ),
-                    Ginkgo::vertex_buffer_layout::<Corner>(
+                    Ginkgo::vertex_buffer_layout::<CornerRadii>(
                         VertexStepMode::Instance,
                         &wgpu::vertex_attr_array![4 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<Corner>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![5 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<Corner>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![6 => Float32x4],
-                    ),
-                    Ginkgo::vertex_buffer_layout::<Corner>(
-                        VertexStepMode::Instance,
-                        &wgpu::vertex_attr_array![7 => Float32x4],
                     ),
                 ],
             },
@@ -130,10 +128,7 @@ impl Render for Panel {
                         sections: InstanceBuffer::new(ginkgo, 10),
                         lws: InstanceBuffer::new(ginkgo, 10),
                         colors: InstanceBuffer::new(ginkgo, 10),
-                        corner_i: InstanceBuffer::new(ginkgo, 10),
-                        corner_ii: InstanceBuffer::new(ginkgo, 10),
-                        corner_iii: InstanceBuffer::new(ginkgo, 10),
-                        corner_iv: InstanceBuffer::new(ginkgo, 10),
+                        radii: InstanceBuffer::new(ginkgo, 10),
                     }),
                 );
                 groups
@@ -244,38 +239,20 @@ impl Render for Panel {
         for (entity, panel) in queues.attribute::<Self, Self>() {
             render_group
                 .group
-                .corner_i
-                .queue(entity.index().index() as InstanceId, panel.corner_i);
-            render_group
-                .group
-                .corner_ii
-                .queue(entity.index().index() as InstanceId, panel.corner_ii);
-            render_group
-                .group
-                .corner_iii
-                .queue(entity.index().index() as InstanceId, panel.corner_iii);
-            render_group
-                .group
-                .corner_iv
-                .queue(entity.index().index() as InstanceId, panel.corner_iv);
+                .radii
+                .queue(entity.index().index() as InstanceId, panel.radii);
         }
         if let Some(n) = render_group.coordinator.grown() {
             render_group.group.sections.grow(ginkgo, n);
             render_group.group.lws.grow(ginkgo, n);
             render_group.group.colors.grow(ginkgo, n);
-            render_group.group.corner_i.grow(ginkgo, n);
-            render_group.group.corner_ii.grow(ginkgo, n);
-            render_group.group.corner_iii.grow(ginkgo, n);
-            render_group.group.corner_iv.grow(ginkgo, n);
+            render_group.group.radii.grow(ginkgo, n);
         }
         for swap in render_group.coordinator.sort() {
             render_group.group.sections.swap(swap);
             render_group.group.lws.swap(swap);
             render_group.group.colors.swap(swap);
-            render_group.group.corner_i.swap(swap);
-            render_group.group.corner_ii.swap(swap);
-            render_group.group.corner_iii.swap(swap);
-            render_group.group.corner_iv.swap(swap);
+            render_group.group.radii.swap(swap);
         }
         for (id, data) in render_group.group.sections.queued() {
             let order = render_group.coordinator.order(id);
@@ -289,29 +266,14 @@ impl Render for Panel {
             let order = render_group.coordinator.order(id);
             render_group.group.colors.write_cpu(order, data);
         }
-        for (id, data) in render_group.group.corner_i.queued() {
+        for (id, data) in render_group.group.radii.queued() {
             let order = render_group.coordinator.order(id);
-            render_group.group.corner_i.write_cpu(order, data);
-        }
-        for (id, data) in render_group.group.corner_ii.queued() {
-            let order = render_group.coordinator.order(id);
-            render_group.group.corner_ii.write_cpu(order, data);
-        }
-        for (id, data) in render_group.group.corner_iii.queued() {
-            let order = render_group.coordinator.order(id);
-            render_group.group.corner_iii.write_cpu(order, data);
-        }
-        for (id, data) in render_group.group.corner_iv.queued() {
-            let order = render_group.coordinator.order(id);
-            render_group.group.corner_iv.write_cpu(order, data);
+            render_group.group.radii.write_cpu(order, data);
         }
         render_group.group.sections.write_gpu(ginkgo);
         render_group.group.lws.write_gpu(ginkgo);
         render_group.group.colors.write_gpu(ginkgo);
-        render_group.group.corner_i.write_gpu(ginkgo);
-        render_group.group.corner_ii.write_gpu(ginkgo);
-        render_group.group.corner_iii.write_gpu(ginkgo);
-        render_group.group.corner_iv.write_gpu(ginkgo);
+        render_group.group.radii.write_gpu(ginkgo);
         for node in render_group.coordinator.updated_nodes(PipelineId::Panel, 0) {
             nodes.update(node);
         }
@@ -326,10 +288,7 @@ impl Render for Panel {
         render_pass.set_vertex_buffer(1, group.sections.buffer.slice(..));
         render_pass.set_vertex_buffer(2, group.lws.buffer.slice(..));
         render_pass.set_vertex_buffer(3, group.colors.buffer.slice(..));
-        render_pass.set_vertex_buffer(4, group.corner_i.buffer.slice(..));
-        render_pass.set_vertex_buffer(5, group.corner_ii.buffer.slice(..));
-        render_pass.set_vertex_buffer(6, group.corner_iii.buffer.slice(..));
-        render_pass.set_vertex_buffer(7, group.corner_iv.buffer.slice(..));
+        render_pass.set_vertex_buffer(4, group.radii.buffer.slice(..));
         render_pass.draw(0..vertex::VERTICES.len() as u32, parameters.range);
     }
 }

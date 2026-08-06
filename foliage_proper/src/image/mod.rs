@@ -8,12 +8,14 @@ use crate::ash::differential::RenderQueue;
 use crate::asset::AssetRetrieval;
 use crate::asset::{AssetLoader, OnRetrieval};
 use crate::foliage::DiffMarkers;
+use crate::ginkgo::ScaleFactor;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
+use crate::rounding::CornerRadii;
 use crate::remove::Remove;
 use crate::{
-    Area, Attachment, Component, Foliage, Author, Layout, LeafSprout, Logical, Numerical, Parent,
-    Resolved, ResolvedElevation, ResolvedVisibility, Section,
+    Area, Attachment, Author, Component, Foliage, Layout, LeafSprout, Logical, Numerical, Parent,
+    Resolved, ResolvedElevation, ResolvedVisibility, Rounding, Section, Side,
 };
 use crate::{Differential, Tree, Visibility};
 use bevy_ecs::bundle::Bundle;
@@ -30,12 +32,13 @@ use wgpu::TextureFormat;
 #[derive(Component, Copy, Clone, PartialEq)]
 #[component(on_add = Self::on_add)]
 #[component(on_insert = Self::on_insert)]
-#[require(ImageView, ImageMetrics)]
+#[require(ImageView, ImageMetrics, Rounding, Side)]
 #[require(Differential<Image, Section<Logical>>)]
 #[require(Differential<Image, BlendedOpacity>)]
 #[require(Differential<Image, ResolvedElevation>)]
 #[require(Differential<Image, ClipContext>)]
 #[require(CropAdjustment, Differential<Image, CropAdjustment>)]
+#[require(CornerRadii, Differential<Image, CornerRadii>)]
 pub struct Image {
     pub key: AssetKey,
 }
@@ -94,6 +97,7 @@ impl Attachment for Image {
         foliage.differential::<Image, BlendedOpacity>();
         foliage.differential::<Image, ResolvedElevation>();
         foliage.differential::<Image, CropAdjustment>();
+        foliage.differential::<Image, CornerRadii>();
     }
 }
 impl Image {
@@ -106,6 +110,8 @@ impl Image {
             leaf: LeafSprout::default(),
             key,
             view: None,
+            rounding: None,
+            side: None,
         }
     }
     pub(crate) fn new_marker(key: AssetKey) -> Self {
@@ -139,6 +145,7 @@ impl Image {
             tree.refire::<(ResolvedElevation,)>(this);
             tree.refire::<(Parent,)>(this);
             tree.refire::<(BlendedOpacity,)>(this);
+            tree.refire::<(CornerRadii,)>(this);
         }
     }
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
@@ -188,20 +195,26 @@ impl Image {
                 &ImageView,
                 &ImageMetrics,
                 &Section<Logical>,
+                &Rounding,
+                &Side,
                 &mut CropAdjustment,
+                &mut CornerRadii,
             ),
             Or<(
                 Changed<ImageView>,
                 Changed<ImageMetrics>,
                 Changed<Section<Logical>>,
+                Changed<Rounding>,
+                Changed<Side>,
             )>,
         >,
         layout: Res<Layout>,
+        scale_factor: Res<ScaleFactor>,
     ) {
         // direct Query mutation, NOT commands: this runs at Finalize and the differential
         // senders run at Extract in the same frame -- crop must ship in the same frame as
         // the Section that caused it, or resize/scroll shows a frame of wrong crop
-        for (view, metrics, section, mut crop) in images.iter_mut() {
+        for (view, metrics, section, rounding, side, mut crop, mut radii) in images.iter_mut() {
             match view {
                 ImageView::Crop => {
                     let fitted = AspectRatio::new()
@@ -221,6 +234,16 @@ impl Image {
                 }
                 _ => {}
             }
+            let resolved = CornerRadii::resolve(
+                // Unrounded, matching what `image/pipeline.rs` hands the shader as the
+                // section -- the radii have to be measured against the same box.
+                section.to_physical(scale_factor.value()),
+                *rounding,
+                *side,
+            );
+            if *radii != resolved {
+                *radii = resolved;
+            }
         }
     }
 }
@@ -229,19 +252,38 @@ pub struct ImageSprout {
     leaf: LeafSprout,
     key: AssetKey,
     view: Option<ImageView>,
+    rounding: Option<Rounding>,
+    side: Option<Side>,
 }
 impl Author for ImageSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
     fn root(self) -> impl Bundle {
-        (Image::new_marker(self.key), self.view.unwrap_or_default())
+        (
+            Image::new_marker(self.key),
+            self.view.unwrap_or_default(),
+            self.rounding.unwrap_or_default(),
+            self.side.unwrap_or_default(),
+        )
     }
 }
 impl ImageSprout {
     /// How the pixels fit the box. [`ImageView::Aspect`] by default.
     pub fn view(mut self, v: ImageView) -> Self {
         self.view = Some(v);
+        self
+    }
+    /// Corner radius bracket, resolved exactly as [`Panel`](crate::Panel) resolves its own
+    /// -- so `Image::new(k).view(ImageView::Crop).rounding(r)` on a panel of the same box
+    /// and the same `r` is a full-bleed image whose curve matches the panel's.
+    pub fn rounding(mut self, r: Rounding) -> Self {
+        self.rounding = Some(r);
+        self
+    }
+    /// Restricts [`rounding`](Self::rounding) to particular corners. Defaults to all four.
+    pub fn side(mut self, s: Side) -> Self {
+        self.side = Some(s);
         self
     }
 }
