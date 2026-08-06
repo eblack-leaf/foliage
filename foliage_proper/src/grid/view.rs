@@ -93,7 +93,7 @@ impl Default for ScrollMomentum {
     fn default() -> Self {
         Self {
             velocity_threshold: 0.15,
-            decay: 0.996,
+            decay: 0.997,
             stop_epsilon: 0.05,
             stillness_cutoff_ms: 150.0,
         }

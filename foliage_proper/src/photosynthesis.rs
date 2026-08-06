@@ -210,13 +210,22 @@ impl Foliage {
                         x * Self::SCROLL_SENSITIVITY,
                         y * Self::SCROLL_SENSITIVITY * Self::VIEW_SCROLLING,
                     )),
-                    MouseScrollDelta::PixelDelta(px) => Position::physical((px.x, px.y))
-                        .to_logical(
-                            self.world
-                                .get_resource::<ScaleFactor>()
-                                .expect("scale-factor")
-                                .value(),
-                        ),
+                    // Pixel-precise devices (trackpads, high-resolution wheels, web) already
+                    // report real travel, so this path carries no sensitivity multiplier --
+                    // scaling it would double-count what the platform measured. The direction
+                    // convention is not device-specific though, and applying it on only one of
+                    // the two arms would leave the constant half-honoured the moment it is set
+                    // to `NATURAL_SCROLLING`.
+                    MouseScrollDelta::PixelDelta(px) => Position::physical((
+                        px.x as f32,
+                        px.y as f32 * Self::VIEW_SCROLLING,
+                    ))
+                    .to_logical(
+                        self.world
+                            .get_resource::<ScaleFactor>()
+                            .expect("scale-factor")
+                            .value(),
+                    ),
                 };
                 let cursor = self
                     .world

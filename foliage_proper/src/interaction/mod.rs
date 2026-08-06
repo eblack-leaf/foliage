@@ -497,7 +497,36 @@ pub(crate) fn interactive_elements(
                 // nothing instead of scrolling the input. Wheel-scroll should always be
                 // allowed through regardless of drag suppression.
                 if current.past_drag || event.method == InteractionMethod::ScrollWheel {
-                    let diff = current.last_drag - event.position;
+                    // A pointer drag is one continuous gesture, so the newest position is
+                    // the whole story and `current.last_drag` is the right baseline for it.
+                    // A wheel is not: each notch is its own self-contained Start+End pair
+                    // (`photosynthesis.rs`), positioned `delta` apart at whatever the cursor
+                    // was, and a single frame routinely carries several of them -- a
+                    // free-spinning wheel, high-resolution wheel events that report a
+                    // fraction of a notch at a time, or web, where each DOM event tends to
+                    // pump its own cycle. `ended.last()` sees only the final pair, so
+                    // measuring against `last_drag` would move one notch's worth and drop
+                    // however many others arrived alongside it. Summing every pair the frame
+                    // carries is what makes the view travel the distance the wheel actually
+                    // turned.
+                    //
+                    // The two lists zip because the pairs are written adjacent and in order,
+                    // one End per Start, so the nth wheel End belongs to the nth wheel Start.
+                    let diff = if event.method == InteractionMethod::ScrollWheel {
+                        started
+                            .iter()
+                            .filter(|i| i.method == InteractionMethod::ScrollWheel)
+                            .zip(
+                                ended
+                                    .iter()
+                                    .filter(|i| i.method == InteractionMethod::ScrollWheel),
+                            )
+                            .fold(Position::default(), |acc, (start, end)| {
+                                acc + (start.position - end.position)
+                            })
+                    } else {
+                        current.last_drag - event.position
+                    };
                     // stale-velocity guard: a fast drag followed by holding perfectly
                     // still (no more Moved events at all -- so `current.velocity` never
                     // gets a fresh EMA sample) for a while before releasing must not
