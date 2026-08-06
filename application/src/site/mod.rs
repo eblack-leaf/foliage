@@ -6,6 +6,7 @@
 //! instead of hue. `Color::slate(n)` is already a tonal palette in M3's sense, so `role`
 //! below just names the tones this app should use.
 
+pub(crate) mod anim;
 pub(crate) mod blueprint;
 pub(crate) mod cards;
 pub(crate) mod copy;
@@ -189,6 +190,15 @@ pub(crate) trait Demo {
     /// Answers a click. `false` if the `Leaf` is not one of this demo's own, which is what lets
     /// several demos sit on one page and the page still fall through to navigation.
     fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool;
+    /// Answers a sequence's completion, the same way [`clicked`](Demo::clicked) answers a
+    /// press: `false` if the sequence is not one this demo opened.
+    ///
+    /// Named sequences all report on one channel and the page's own entrance is one of them, so
+    /// a demo that cares has to hold the handle it opened and compare. Most do not care, which
+    /// is why this has a default.
+    fn finished(&mut self, _canopy: &mut Canopy, _seq: Leaf) -> bool {
+        false
+    }
     /// Once a frame, for anything a demo displays that only the tree knows -- a resolved box,
     /// or whether an element is still there.
     fn drive(&mut self, _canopy: &mut Canopy) {}

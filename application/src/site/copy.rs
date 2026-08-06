@@ -133,6 +133,13 @@ pub(crate) mod headings {
     pub(crate) const LAYOUT_ANCHOR: &str = "anchor";
     pub(crate) const LAYOUT_MEASURE: &str = "measure";
 
+    pub(crate) const MOTION: &str = "motion";
+    pub(crate) const MOTION_EASE: &str = "easing";
+    pub(crate) const MOTION_TIMING: &str = "timing";
+    pub(crate) const MOTION_TWEENS: &str = "what tweens";
+    pub(crate) const MOTION_REPEAT: &str = "repeat";
+    pub(crate) const MOTION_SEQUENCE: &str = "sequence";
+
     pub(crate) const RENDERERS: &str = "renderers";
     pub(crate) const RENDERERS_ROUNDING: &str = "rounding";
     pub(crate) const RENDERERS_SIDES: &str = "sides";
@@ -369,6 +376,44 @@ pub(crate) mod layout {
          whatever room that leaves, by default.";
 }
 
+// ---- motion -----------------------------------------------------------------------------------
+
+/// The `motion` page's prose. `motion` rather than `anim` -- the module is named for the file
+/// it feeds, and that one is `anim.rs` only because `site::motion` is already the site's own
+/// timing tokens.
+pub(crate) mod motion {
+    /// The page's opener. **Free.**
+    pub(crate) const LEAD: &str =
+        "An animation is one value on one element, moved from wherever it currently is to a \
+         target, over a window of time. Four numbers decide the whole of it: when it starts, \
+         when it finishes, the curve between them, and how many times it runs. Everything is \
+         counted against a sequence, which is what reports the group as done.";
+
+    /// The paragraph above each board. **Free**, all five.
+    pub(crate) const EASE: &str =
+        "The curve is what the motion feels like, and it is independent of how long the motion \
+         lasts. The same travel over the same window reads as arriving, as leaving, or as a \
+         machine moving a part, depending only on which one is picked.";
+    pub(crate) const TIMING: &str =
+        "Both numbers are measured from the sequence's own beginning, so a start is a delay \
+         rather than a duration -- a tween from 600 to 1400 waits 600ms and then runs for 800. \
+         That is what lets a whole page be staggered by handing each element one number, and \
+         it is also the wait you are watching before each of these moves at all.";
+    pub(crate) const TWEENS: &str =
+        "What can be tweened is a closed set: opacity, color, elevation, the box itself, a \
+         polygon's shape, an outline. Anything outside it is tweened as plain numbers instead \
+         -- the engine runs the clock and reports each frame's values for you to apply.";
+    pub(crate) const REPEAT: &str =
+        "A repeat replays the same pass. Left alone it snaps back to the start value each time, \
+         which is invisible on a rotation and a jolt on anything else; backtracking runs each \
+         replay the way it came instead. A loop lives inside the animation rather than in a \
+         chain of callbacks, so it cannot outlive what it animates.";
+    pub(crate) const SEQUENCE: &str =
+        "Joining a sequence groups animations; it does not order them. Each keeps its own \
+         timing and they may overlap freely -- what the sequence adds is a single report once \
+         the last of them lands, which is the hook the next stage of motion hangs off.";
+}
+
 // ---- renderers --------------------------------------------------------------------------------
 
 pub(crate) mod renderers {
@@ -449,6 +494,18 @@ pub(crate) mod board {
     pub(crate) const ICON_STEPS: [&str; 3] = ["24", "48", "128"];
     pub(crate) const IMAGE_STEPS: [&str; 3] = ["aspect", "crop", "stretch"];
 
+    /// The motion page's steps. Every one of these replays a tween rather than setting a
+    /// state, so the board is back where it started the moment it finishes -- which is what
+    /// lets the same button be pressed twice and mean it twice.
+    ///
+    /// `emph` is abbreviated where the others are not because four steps share the row at 7
+    /// characters; the readout spells `Ease::EMPHASIS` out in full.
+    pub(crate) const EASE_STEPS: [&str; 4] = ["linear", "decel", "accel", "emph"];
+    pub(crate) const TIMING_STEPS: [&str; 3] = ["quick", "slow", "delayed"];
+    pub(crate) const TWEENS_STEPS: [&str; 4] = ["opacity", "color", "move", "shape"];
+    pub(crate) const REPEAT_STEPS: [&str; 4] = ["once", "twice", "bounce", "forever"];
+    pub(crate) const SEQUENCE_STEPS: [&str; 2] = ["stagger", "together"];
+
     /// The two row names in each board's readout, top then bottom. **One line, 7 chars** -- the
     /// label column is a fixed 56px at LABEL. Rendered in caps.
     pub(crate) const RESOLVING_ROWS: [&str; 2] = ["parent", "child"];
@@ -464,6 +521,11 @@ pub(crate) mod board {
     pub(crate) const DRAW_ROWS: [&str; 2] = ["drawn", "call"];
     pub(crate) const ICON_ROWS: [&str; 2] = ["drawn", "field"];
     pub(crate) const IMAGE_ROWS: [&str; 2] = ["view", "result"];
+    pub(crate) const EASE_ROWS: [&str; 2] = ["curve", "reads"];
+    pub(crate) const TIMING_ROWS: [&str; 2] = ["start", "finish"];
+    pub(crate) const TWEENS_ROWS: [&str; 2] = ["motion", "tween"];
+    pub(crate) const REPEAT_ROWS: [&str; 2] = ["repeat", "passes"];
+    pub(crate) const SEQUENCE_ROWS: [&str; 2] = ["starts", "group"];
 
     /// What a readout row says before anything has been measured.
     pub(crate) const EMPTY_VALUE: &str = "--";
@@ -535,6 +597,60 @@ pub(crate) mod board {
         ["Crop", "fills, clips sides"],
         ["Stretch", "fills, distorts"],
     ];
+
+    /// The ease board's readout, one pair per step: the constant, then what that curve is for.
+    /// **One line, 20 chars** each -- `Ease::DECELERATE` is the longest at 16.
+    pub(crate) const EASE_VALUES: [[&str; 2]; 4] = [
+        ["Ease::Linear", "constant rate"],
+        ["Ease::DECELERATE", "arriving"],
+        ["Ease::ACCELERATE", "leaving"],
+        ["Ease::EMPHASIS", "a change worth seeing"],
+    ];
+
+    /// The timing board's readout, one pair per step: the two numbers the tween is declared
+    /// with. Both are offsets into the sequence, which is why the last step's finish is
+    /// larger than its duration.
+    pub(crate) const TIMING_VALUES: [[&str; 2]; 3] = [
+        ["200ms", "420ms"],
+        ["200ms", "1100ms"],
+        ["600ms", "1400ms"],
+    ];
+
+    /// The tweens board's readout, one pair per step: the variant, then the move it makes.
+    ///
+    /// Written both ways round because that is what the step does -- a press sends its value to
+    /// the end it is not at, so the same button is the trip and the return.
+    pub(crate) const TWEENS_VALUES: [[&str; 2]; 4] = [
+        ["Motion::Opacity", "1.0 <-> 0.2"],
+        ["Motion::Color", "accent <-> rose"],
+        ["Motion::Location", "left <-> right"],
+        ["Motion::Polygon", "6 sides <-> 3"],
+    ];
+
+    /// The repeat board's readout, one pair per step: what was asked for, then how many passes
+    /// that is and what happens between them.
+    ///
+    /// `Times(1)` is two passes, not one -- the count is replays *after* the first, which is
+    /// the one thing about this call worth putting on an instrument.
+    pub(crate) const REPEAT_VALUES: [[&str; 2]; 4] = [
+        ["Repeat::Once", "1"],
+        ["Repeat::Times(1)", "2, snapping back"],
+        ["Times(1), backtrack", "2, out and back"],
+        ["Repeat::Forever", "until superseded"],
+    ];
+
+    /// The sequence board's `starts` row, one per step: the three tweens' own delays inside
+    /// the one sequence they are joined to.
+    pub(crate) const SEQUENCE_STARTS: [&str; 2] =
+        ["200 / 460 / 720ms", "200 / 200 / 200ms"];
+
+    /// The sequence board's `group` row, which is the tree's answer rather than the step's:
+    /// what the sequence is doing right now. `FINISHED` is written when the emission naming
+    /// this board's own sequence arrives, so it is the engine saying so and not a timer here
+    /// guessing at the same number twice.
+    pub(crate) const SEQUENCE_IDLE: &str = "not started";
+    pub(crate) const SEQUENCE_RUNNING: &str = "running";
+    pub(crate) const SEQUENCE_FINISHED: &str = "finished";
 
     /// The lifetime board's `called` row, one per step. **One line, 20 chars.**
     ///
@@ -728,6 +844,84 @@ pub(crate) mod reference {
         },
     ];
 
+    pub(crate) const EASE: [Entry; 3] = [
+        Entry {
+            call: "Timing::over(ms).eased(e)",
+            gloss: "The window a tween runs in, and the curve it runs on. Separate choices.",
+        },
+        Entry {
+            call: "Ease::Linear",
+            gloss: "A constant rate. Every other curve here is a cubic bezier through two \
+                    points.",
+        },
+        Entry {
+            call: "Ease::Bezier(ControlPoints)",
+            gloss: "Your own curve. Both control points are clamped, so overshoot is not \
+                    expressible.",
+        },
+    ];
+
+    pub(crate) const TIMING: [Entry; 3] = [
+        Entry {
+            call: "Timing::over(finish)",
+            gloss: "Milliseconds from the sequence's beginning at which the tween ends.",
+        },
+        Entry {
+            call: ".after(start)",
+            gloss: "A delay, not a duration -- both numbers are read from the same origin.",
+        },
+        Entry {
+            call: "canopy.animate(leaf, to, t)",
+            gloss: "Starts it. The start value is whatever the element holds when it begins.",
+        },
+    ];
+
+    pub(crate) const TWEENS: [Entry; 3] = [
+        Entry {
+            call: "Motion::{Opacity, Color, ..}",
+            gloss: "The closed set: opacity, color, elevation, location, polygon, outline.",
+        },
+        Entry {
+            call: "canopy.tween(channels, t)",
+            gloss: "Plain numbers on the same clock, reported back for you to apply yourself.",
+        },
+        Entry {
+            call: "a second tween, same value",
+            gloss: "Supersedes the first rather than fighting it over one component.",
+        },
+    ];
+
+    pub(crate) const REPEAT: [Entry; 3] = [
+        Entry {
+            call: "Timing::repeat(Repeat::..)",
+            gloss: "Once, Times(n) for n replays after the first pass, or Forever.",
+        },
+        Entry {
+            call: "Timing::backtrack()",
+            gloss: "Each replay runs back the way it came instead of snapping to the start.",
+        },
+        Entry {
+            call: "canopy.prune(leaf)",
+            gloss: "Ends any loop on it -- a runner cannot outlive what it animates.",
+        },
+    ];
+
+    pub(crate) const SEQUENCE: [Entry; 3] = [
+        Entry {
+            call: "canopy.sequence()",
+            gloss: "Opens one. Every animation is counted against a sequence, named or not.",
+        },
+        Entry {
+            call: "animate_during(.., seq)",
+            gloss: "Joins it. Grouping is all it does -- the entries still keep their own \
+                    timing.",
+        },
+        Entry {
+            call: "Bloom::SequenceFinished(s)",
+            gloss: "Fires once the last of them lands. The hook for chaining the next stage.",
+        },
+    ];
+
     pub(crate) const ROUNDING: [Entry; 3] = [
         Entry {
             call: "canopy.rounding(leaf, to)",
@@ -836,10 +1030,6 @@ pub(crate) mod stub {
     pub(crate) const NOT_WRITTEN: &str =
         "Not written yet. Demos here are inlined beside the prose that explains them, rather \
          than being a page of their own.";
-
-    pub(crate) const MOTION_TITLE: &str = "motion";
-    pub(crate) const MOTION_LEAD: &str =
-        "Sequenced animation: easing, staggering, looping, and shape morphs.";
 
     pub(crate) const INPUT_TITLE: &str = "input";
     pub(crate) const INPUT_LEAD: &str =

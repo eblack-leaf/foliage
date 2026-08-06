@@ -113,6 +113,16 @@ impl Site {
                     canopy.enable(target);
                 }
             }
+            // Every named sequence reports here, the page's own entrance included, so this is
+            // offered around rather than dispatched -- a demo recognises the one it opened, or
+            // nobody does and the emission was the entrance finishing.
+            Bloom::SequenceFinished(seq) => {
+                for demo in self.page.demos.iter_mut() {
+                    if demo.finished(canopy, seq) {
+                        return;
+                    }
+                }
+            }
             _ => {}
         }
     }
