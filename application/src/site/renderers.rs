@@ -1,13 +1,15 @@
 //! The `renderers` section.
 //!
-//! Panel, Polygon, Text's own glyph mechanics, and Polyline -- the pipelines with a single
-//! property worth pressing a button over. Icon and Image are asset-backed and covered on that
-//! page instead; full Text (sizing, per-breakpoint scale, registered fonts) gets a section of
-//! its own.
+//! One board per pipeline, six in all: Panel, Polygon, Text's own glyph mechanics, Polyline,
+//! Icon and Image. Each presses the single property that says what its renderer is for, and
+//! nothing else -- what *surrounds* two of them is somebody else's page. Full Text (sizing,
+//! per-breakpoint scale, registered fonts) and the asset pipeline behind Icon and Image get
+//! sections of their own.
 
 use foliage::{
-    Canopy, Elevation, FontSize, GridExt, Grows, HorizontalAlignment, Leaf, Location, Panel,
-    Polygon, Polyline, Rounding, Sprout, Text, VerticalAlignment,
+    Canopy, Elevation, FontSize, GridExt, Grows, HorizontalAlignment, Icon, IconId, Image,
+    ImageView, Leaf, Location, Panel, Polygon, Polyline, Rounding, Sprout, Text,
+    VerticalAlignment,
 };
 
 use crate::site::blueprint::{self, Blueprint};
@@ -38,6 +40,14 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     column.heading(g.canopy, headings::RENDERERS_DRAW);
     column.prose(g.canopy, text::DRAW);
     draw(g, &mut column);
+
+    column.heading(g.canopy, headings::RENDERERS_ICON);
+    column.prose(g.canopy, text::ICON);
+    icon(g, &mut column);
+
+    column.heading(g.canopy, headings::RENDERERS_IMAGE);
+    column.prose(g.canopy, text::IMAGE);
+    image(g, &mut column);
 
     column.tail(g.canopy, SCROLL_TAIL);
 }
@@ -266,6 +276,161 @@ impl Demo for DrawDemo {
         let [drawn, call] = board::DRAW_VALUES[step];
         self.board.set(canopy, 0, drawn);
         self.board.set(canopy, 1, call);
+        true
+    }
+}
+
+// ---- icon --------------------------------------------------------------------------------
+
+/// One per [`board::ICON_STEPS`], in order. The largest is what the stage is sized around:
+/// 128 in a 150px stage leaves a margin, and anything past that would need the stage before
+/// it needed the icon.
+const ICON_SIZES: [i32; 3] = [24, 48, 128];
+/// The renderers card's own mark, so the board is drawing the same artwork the section is
+/// introduced by rather than an arbitrary one.
+const ICON_ART: crate::icons::IconHandles = crate::icons::IconHandles::Layers;
+
+struct IconDemo {
+    board: Blueprint,
+    mark: Leaf,
+}
+
+/// Centred at `size` square. An icon fills whatever box it resolves to, so this *is* the size
+/// -- there is no separate scale to set.
+fn icon_at(size: i32) -> Location {
+    Location::new().xs(
+        50.pct().as_center_x().with(size.px().as_width()),
+        50.pct().as_center_y().with(size.px().as_height()),
+    )
+}
+
+fn icon(g: &mut Grow, column: &mut Column) {
+    let mut board = blueprint::board(
+        g,
+        column,
+        STAGE_H,
+        board::ICON_ROWS,
+        &board::ICON_STEPS,
+        &reference::ICON,
+    );
+    let mark = g.canopy.branch(
+        board.stage,
+        Icon::new(IconId::from(ICON_ART))
+            .color(role::accent())
+            .at(icon_at(ICON_SIZES[0]))
+            .elevate(Elevation::up(2)),
+    );
+    let [drawn, field] = board::ICON_VALUES[0];
+    board.set(g.canopy, 0, drawn);
+    board.set(g.canopy, 1, field);
+    g.page.demos.push(Box::new(IconDemo { board, mark }));
+}
+
+impl Demo for IconDemo {
+    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+        let Some(step) = self.board.pressed(leaf) else {
+            return false;
+        };
+        self.board.select(canopy, step);
+        canopy.location(self.mark, icon_at(ICON_SIZES[step]));
+        let [drawn, field] = board::ICON_VALUES[step];
+        self.board.set(canopy, 0, drawn);
+        self.board.set(canopy, 1, field);
+        true
+    }
+}
+
+// ---- image -------------------------------------------------------------------------------
+
+/// One per [`board::IMAGE_STEPS`], in order.
+const IMAGE_VIEWS: [ImageView; 3] = [ImageView::Aspect, ImageView::Crop, ImageView::Stretch];
+/// This board's own stage, taller than [`STAGE_H`]. The other five press a property of a
+/// shape; this one presses what a picture does with the room it is given, and a picture is
+/// what the page has to be able to see.
+const IMAGE_STAGE_H: (i32, i32, i32) = (240, 300, 360);
+
+/// The box the picture lands in, per breakpoint: (width, height).
+///
+/// Stated in pixels rather than as a percentage of the stage, and every one of them 4:3. The
+/// card is 708x363 -- near 2:1 -- and a box that happened to land on *its* ratio would draw
+/// the same thing three times over. A percentage box does land there at whatever window width
+/// makes it, so the mismatch is declared rather than left to the viewport.
+///
+/// Each is sized against the *narrowest* window its breakpoint covers, which for `md` is
+/// 600px -- that one starts 188px in to clear the rail, so it has less room to spend than its
+/// name suggests.
+const IMAGE_BOX: [(i32, i32); 3] = [(240, 180), (320, 240), (440, 330)];
+
+struct ImageDemo {
+    board: Blueprint,
+    /// One element per view, in [`IMAGE_VIEWS`] order. `ImageView` is fixed as an element is
+    /// grown -- there is no verb that rewrites it -- so the board holds all three and hides
+    /// the two it is not showing, rather than pruning and regrowing (and re-decoding) on every
+    /// press.
+    views: [Leaf; 3],
+}
+
+/// Centred in the stage at [`IMAGE_BOX`]'s size for each breakpoint.
+fn image_at() -> Location {
+    let centered = |(w, h): (i32, i32)| {
+        (
+            50.pct().as_center_x().with(w.px().as_width()),
+            50.pct().as_center_y().with(h.px().as_height()),
+        )
+    };
+    let [(xw, xh), (mw, mh), (lw, lh)] = IMAGE_BOX;
+    let (xs_h, xs_v) = centered((xw, xh));
+    let (md_h, md_v) = centered((mw, mh));
+    let (lg_h, lg_v) = centered((lw, lh));
+    Location::new()
+        .xs(xs_h, xs_v)
+        .md(md_h, md_v)
+        .lg(lg_h, lg_v)
+}
+
+fn image(g: &mut Grow, column: &mut Column) {
+    let mut board = blueprint::board(
+        g,
+        column,
+        IMAGE_STAGE_H,
+        board::IMAGE_ROWS,
+        &board::IMAGE_STEPS,
+        &reference::IMAGE,
+    );
+    let key = crate::site::sample_image();
+    let views = IMAGE_VIEWS.map(|view| {
+        g.canopy.branch(
+            board.stage,
+            Image::new(key)
+                .view(view)
+                .at(image_at())
+                .elevate(Elevation::up(2))
+                // Same reason every other board's shapes are: a full stage of picture would
+                // otherwise take the drag meant for the page.
+                .pass_through(),
+        )
+    });
+    for (i, leaf) in views.iter().enumerate() {
+        g.canopy.visible(*leaf, i == 0);
+    }
+    let [view, result] = board::IMAGE_VALUES[0];
+    board.set(g.canopy, 0, view);
+    board.set(g.canopy, 1, result);
+    g.page.demos.push(Box::new(ImageDemo { board, views }));
+}
+
+impl Demo for ImageDemo {
+    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+        let Some(step) = self.board.pressed(leaf) else {
+            return false;
+        };
+        self.board.select(canopy, step);
+        for (i, view) in self.views.iter().enumerate() {
+            canopy.visible(*view, i == step);
+        }
+        let [view, result] = board::IMAGE_VALUES[step];
+        self.board.set(canopy, 0, view);
+        self.board.set(canopy, 1, result);
         true
     }
 }

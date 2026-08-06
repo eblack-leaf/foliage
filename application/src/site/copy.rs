@@ -138,6 +138,8 @@ pub(crate) mod headings {
     pub(crate) const RENDERERS_SIDES: &str = "sides";
     pub(crate) const RENDERERS_GLYPH: &str = "glyph";
     pub(crate) const RENDERERS_DRAW: &str = "draw";
+    pub(crate) const RENDERERS_ICON: &str = "icon scale";
+    pub(crate) const RENDERERS_IMAGE: &str = "image fit";
 }
 
 // ---- overview ---------------------------------------------------------------------------------
@@ -372,12 +374,12 @@ pub(crate) mod layout {
 pub(crate) mod renderers {
     /// The page's opener. **Free.**
     pub(crate) const LEAD: &str =
-        "Six renderers draw everything on screen: Panel, Icon, Image, Polygon, the line quad \
-         behind Line and Polyline, and Text. Icon and Image are on the assets page; Text has a \
-         section of its own. What's left is four boards: Panel, Polygon, a slice of Text's own \
-         glyph mechanics, and the line quad.";
+        "Six renderers draw everything on screen: Panel, Polygon, Text, the line quad behind \
+         Line and Polyline, Icon, and Image. One board each, pressing the one property that \
+         says what the pipeline is for. What surrounds two of them -- Text's sizing, and the \
+         assets Icon and Image are fed from -- gets a section of its own further on.";
 
-    /// The paragraph above each board. **Free**, all four.
+    /// The paragraph above each board. **Free**, all six.
     pub(crate) const ROUNDING: &str =
         "A panel's corners are a bracket, not a raw radius -- a step resolves off the panel's \
          own shorter side, so the same step reads the same on a small chip and a large card.";
@@ -395,6 +397,17 @@ pub(crate) mod renderers {
         "A polyline's path can be revealed by length rather than snapped on whole. The fraction \
          is of the arc, not the point count, so it reads smoothly regardless of how many \
          vertices make up the shape.";
+    pub(crate) const ICON: &str =
+        "An icon is a distance field rather than a picture. One field is registered at startup \
+         -- 48px here, for every icon on the site -- and every size on the page is drawn from \
+         that same one, so an icon has no resolution to outgrow: making it larger is a change \
+         to its box and nothing else.";
+    pub(crate) const IMAGE: &str =
+        "An image arrives with its own pixels and its own ratio, and the box it lands in rarely \
+         agrees with either. The fit settles it: keep the ratio and leave room, keep the ratio \
+         and clip what overhangs, or take the box exactly and wear the distortion. It is chosen \
+         as the element is grown, so the three below are three elements and a press picks which \
+         one is showing.";
 }
 
 /// The words on a board: its step buttons, its readout, and the labels drawn into its stage.
@@ -433,6 +446,8 @@ pub(crate) mod board {
     pub(crate) const SIDES_STEPS: [&str; 3] = ["3", "6", "12"];
     pub(crate) const GLYPH_STEPS: [&str; 3] = ["a", "g", "@"];
     pub(crate) const DRAW_STEPS: [&str; 3] = ["25%", "60%", "100%"];
+    pub(crate) const ICON_STEPS: [&str; 3] = ["24", "48", "128"];
+    pub(crate) const IMAGE_STEPS: [&str; 3] = ["aspect", "crop", "stretch"];
 
     /// The two row names in each board's readout, top then bottom. **One line, 7 chars** -- the
     /// label column is a fixed 56px at LABEL. Rendered in caps.
@@ -447,6 +462,8 @@ pub(crate) mod board {
     pub(crate) const SIDES_ROWS: [&str; 2] = ["sides", "shape"];
     pub(crate) const GLYPH_ROWS: [&str; 2] = ["advance", "code"];
     pub(crate) const DRAW_ROWS: [&str; 2] = ["drawn", "call"];
+    pub(crate) const ICON_ROWS: [&str; 2] = ["drawn", "field"];
+    pub(crate) const IMAGE_ROWS: [&str; 2] = ["view", "result"];
 
     /// What a readout row says before anything has been measured.
     pub(crate) const EMPTY_VALUE: &str = "--";
@@ -500,6 +517,23 @@ pub(crate) mod board {
         ["25%", "draw_progress(0.25)"],
         ["60%", "draw_progress(0.6)"],
         ["100%", "draw_progress(1.0)"],
+    ];
+
+    /// The icon board's readout, one pair per step: the box the icon is drawn into, then the
+    /// field it is drawn from. The field never changes, and that is the board's whole point --
+    /// three sizes, one registered artwork, no second copy at any of them.
+    pub(crate) const ICON_VALUES: [[&str; 2]; 3] = [
+        ["24 x 24", "48px msdf"],
+        ["48 x 48", "48px msdf"],
+        ["128 x 128", "48px msdf"],
+    ];
+
+    /// The image board's readout, one pair per step: the view, then what it does to a near-2:1
+    /// photograph in a 4:3 box.
+    pub(crate) const IMAGE_VALUES: [[&str; 2]; 3] = [
+        ["Aspect", "fits, leaves room"],
+        ["Crop", "fills, clips sides"],
+        ["Stretch", "fills, distorts"],
     ];
 
     /// The lifetime board's `called` row, one per step. **One line, 20 chars.**
@@ -754,6 +788,37 @@ pub(crate) mod reference {
         Entry {
             call: "canopy.points(leaf, v)",
             gloss: "Rewrites the whole vertex chain in one call.",
+        },
+    ];
+
+    pub(crate) const ICON: [Entry; 3] = [
+        Entry {
+            call: "Icon::msdf(id, bytes, ..)",
+            gloss: "Registers one field under an id, at startup. Every size draws from it.",
+        },
+        Entry {
+            call: "canopy.location(leaf, to)",
+            gloss: "An icon has no size of its own -- resizing one is resizing its box.",
+        },
+        Entry {
+            call: "canopy.icon(leaf, id)",
+            gloss: "Swaps which registered artwork is drawn, without regrowing the element.",
+        },
+    ];
+
+    pub(crate) const IMAGE: [Entry; 3] = [
+        Entry {
+            call: "foliage.load_asset(source)",
+            gloss: "Bytes in hand or a URL to fetch. The key it returns is usable at once.",
+        },
+        Entry {
+            call: "Image::new(key).view(v)",
+            gloss: "The fit, fixed as the element is grown -- there is no verb that rewrites \
+                    it.",
+        },
+        Entry {
+            call: "ImageView::Crop",
+            gloss: "Fills both axes at the image's own ratio and clips whatever overhangs.",
         },
     ];
 }

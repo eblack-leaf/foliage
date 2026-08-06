@@ -128,6 +128,33 @@ fn italic() -> FontId {
     ITALIC.get().copied().unwrap_or_default()
 }
 
+/// The one image the site draws, keyed once at startup. A `OnceLock` for the same reason
+/// [`ITALIC`] is one -- the key has to reach a route builder, and threading an `AssetKey`
+/// through every `build(grow, slot)` to reach one call site is worse than a global written
+/// before the first route runs.
+static SAMPLE: std::sync::OnceLock<foliage::AssetKey> = std::sync::OnceLock::new();
+
+/// Registers the site's images. Must run before any route builds.
+///
+/// A 708x363 photograph -- near 2:1, and nothing like the 4:3 boxes the renderers page's
+/// `fit` board puts it in, which is what makes the three views three different pictures.
+///
+/// Embedded rather than fetched, like the icons and the italic. `AssetSource::Bytes` is the
+/// one variant that behaves identically on every platform, so the web build needs no hosting
+/// convention for it.
+pub(crate) fn register_assets(foliage: &mut foliage::Foliage) {
+    let key = foliage.load_asset(foliage::AssetSource::Bytes(
+        include_bytes!("../assets/images/sample.jpg").to_vec(),
+    ));
+    let _ = SAMPLE.set(key);
+}
+
+/// The registered test card's key. Zero if [`register_assets`] has not run, which names no
+/// asset and draws nothing rather than failing.
+pub(crate) fn sample_image() -> foliage::AssetKey {
+    SAMPLE.get().copied().unwrap_or_default()
+}
+
 /// What a route's builder writes into besides the tree itself.
 ///
 /// The engine reports *that* something was clicked or that a timer ran out; which of this

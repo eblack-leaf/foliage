@@ -21,10 +21,11 @@ pub fn run(mut foliage: Foliage) {
     // surface is cleared to has to come from the same place those do -- not from whatever the
     // engine happens to default to.
     foliage.tune(ClearColor(site::background()));
-    // Startup-only: artwork and faces have to be registered before anything drawn with them
-    // is grown, and neither is something the frame can change.
+    // Startup-only: artwork, faces and image bytes have to be registered before anything
+    // drawn with them is grown, and none of the three is something the frame can change.
     icons::register(&mut foliage);
     site::register_fonts(&mut foliage);
+    site::register_assets(&mut foliage);
 
     // Everything else is the app, and the app is a struct plus a closure. Nothing here is
     // handed to the engine, and the engine has no way to reach it.
