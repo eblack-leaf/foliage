@@ -1038,5 +1038,5 @@ pub(crate) mod stub {
 
     pub(crate) const TEXT_TITLE: &str = "text";
     pub(crate) const TEXT_LEAD: &str =
-        "A monospace grid: sizes per breakpoint, per-glyph color, and registered fonts.";
+        "A monospace grid: sizes per breakpoint, per-glyph color, and registered fonts for you.";
 }
