@@ -7,7 +7,7 @@ use crate::ginkgo::ScaleFactor;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Attachment, Color, Component, Coordinates, Foliage, Author, LeafSprout, Logical, Position,
+    Attachment, Author, Color, Component, Coordinates, Foliage, LeafSprout, Logical, Position,
     ResolvedElevation, Visibility,
 };
 use bevy_ecs::bundle::Bundle;

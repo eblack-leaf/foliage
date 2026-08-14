@@ -7,8 +7,8 @@
 //! things and both lines update.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, FontSize, GridExt, Grows, HorizontalAlignment,
-    Leaf, Location, Modifiers, Sprout, Text, VerticalAlignment,
+    Bloom, Canopy, Color, Elevation, Foliage, FontSize, GridExt, Grows, HorizontalAlignment, Leaf,
+    Location, Modifiers, Sprout, Text, VerticalAlignment,
 };
 
 struct Readout {
@@ -38,7 +38,10 @@ fn main() {
                     canopy.text(readout.typed, readout.text.clone());
                 }
                 Bloom::PhysicalKey { key, mods } => {
-                    canopy.text(readout.physical, format!("physical: {key:?}{}", modifiers(mods)));
+                    canopy.text(
+                        readout.physical,
+                        format!("physical: {key:?}{}", modifiers(mods)),
+                    );
                 }
                 _ => {}
             }

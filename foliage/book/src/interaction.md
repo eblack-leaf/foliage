@@ -51,6 +51,23 @@ require touching every descendant's own `ENABLED` state directly -- it only has 
 `INHERIT_ENABLED` down the tree, leaving the author's and the library's own separate
 opt-outs untouched and independently restorable.
 
+## The two drag emissions, and the threshold between them
+
+A gesture reports its motion twice over, and the pair is not redundant. `Dragged` is the
+stream: one per frame that carries a pointer move, from the first pixel, which is what a
+knob or a slider following the pointer consumes. `DragStarted` is the threshold: sent
+once, on the move where the gesture's travel first exceeds
+`InteractionListener::DRAG_THRESHOLD` on either axis, ahead of that same move's
+`Dragged`.
+
+The threshold is the moment the gesture stops being a pending click -- a release after it
+produces `Disengaged` alone, where a release before it produces `Clicked` as well. That
+makes `DragStarted` the hook for anything that has to commit at exactly that point, and
+the reason it exists at all: measured travel is a per-axis comparison against a constant
+the engine owns, so an app inferring the same moment from the `Dragged` stream would be
+keeping a second copy of both, and the obvious straight-line reading of the distance
+disagrees with the engine diagonally.
+
 ## `InteractionPropagation`: pass-through and grab
 
 Every entity defaults to `grab: true` (per `Node`'s unconditional requirement) -- a plain

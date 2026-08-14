@@ -16,7 +16,7 @@
 
 use foliage::{
     Bare, Canopy, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf,
-    LineConstraint, Location, Panel, Polygon, Rounding, Sap, Sample, ScrollTo, Sprout, Text,
+    LineConstraint, Location, Panel, Polygon, Rounding, Sample, Sap, ScrollTo, Sprout, Text,
     TextInput, TextInputAction, VerticalAlignment,
 };
 
@@ -157,7 +157,9 @@ const GRAB_CHILD_SIZE: i32 = 72;
 fn grab_child_at() -> Location {
     Location::new().xs(
         50.pct().as_center_x().with(GRAB_CHILD_SIZE.px().as_width()),
-        50.pct().as_center_y().with(GRAB_CHILD_SIZE.px().as_height()),
+        50.pct()
+            .as_center_y()
+            .with(GRAB_CHILD_SIZE.px().as_height()),
     )
 }
 
@@ -288,12 +290,6 @@ impl Demo for Grab {
 
 // ---- the gesture -----------------------------------------------------------------------------
 
-/// What a gesture may wander and still end in a click. The engine's own threshold, applied per
-/// axis rather than as a distance -- restated here because the travel row says which side of it
-/// the current gesture is on, and a straight-line reading would disagree with the engine
-/// diagonally.
-const DRAG_THRESHOLD: f32 = 10.0;
-
 struct Gesture {
     board: Blueprint,
     pad: Leaf,
@@ -305,6 +301,14 @@ struct Gesture {
     /// always belongs to a press this board saw begin. What it does buy is the invariant being
     /// stated where the row is written.
     holding: bool,
+    /// Whether this gesture has crossed the drag threshold -- which is to say, whether the
+    /// release can still be a click.
+    ///
+    /// Taken from `DragStarted` rather than measured here. The threshold is applied per axis
+    /// against a constant the engine owns, so a board that recomputed it would be a second
+    /// copy of both -- and a straight-line reading of the travel row, the obvious thing to
+    /// write, disagrees with the engine diagonally.
+    past_threshold: bool,
 }
 
 fn gesture(g: &mut Grow, column: &mut Column) {
@@ -343,6 +347,7 @@ fn gesture(g: &mut Grow, column: &mut Column) {
         board,
         pad,
         holding: false,
+        past_threshold: false,
     }));
 }
 
@@ -363,10 +368,18 @@ impl Demo for Gesture {
         let name = match phase {
             Phase::Engaged => {
                 self.holding = true;
+                self.past_threshold = false;
                 board::GESTURE_ENGAGED
             }
             Phase::Dragged if self.holding => board::GESTURE_DRAGGED,
             Phase::Dragged => return true,
+            // Not written to the phase row: it arrives on the same move as the `Dragged` that
+            // would overwrite it, so a row showing it would show a frame of nothing. Where it
+            // shows is the travel row's note, which is what the threshold actually decides.
+            Phase::DragStarted => {
+                self.past_threshold = true;
+                return true;
+            }
             Phase::Disengaged => {
                 self.holding = false;
                 board::GESTURE_DISENGAGED
@@ -381,10 +394,8 @@ impl Demo for Gesture {
         }
         let click = canopy.pointer();
         let travelled = click.current.distance(click.start);
-        let wandered = (click.current.left() - click.start.left()).abs() > DRAG_THRESHOLD
-            || (click.current.top() - click.start.top()).abs() > DRAG_THRESHOLD;
         self.board
-            .set(canopy, 1, board::travel(travelled, wandered));
+            .set(canopy, 1, board::travel(travelled, self.past_threshold));
     }
 }
 

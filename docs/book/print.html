@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ccd1b112.js";
+            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8f4fc17f.js"></script>
@@ -348,6 +348,7 @@ pub enum Bloom {
     Clicked(Leaf),
     Engaged(Leaf),
     Dragged(Leaf),
+    DragStarted(Leaf),
     Disengaged(Leaf),
     Focused(Leaf),
     Unfocused(Leaf),
@@ -449,7 +450,6 @@ pub trait Sprout: Author {
     fn overscroll(mut self, passes: bool) -&gt; Self;
     fn clip_to_viewport(mut self) -&gt; Self;
     fn aspect(mut self, ratio: AspectRatio) -&gt; Self;
-    fn sized_by_content(mut self, width: bool, height: bool) -&gt; Self;
     fn font(mut self, font: FontId) -&gt; Self;
 }
 <span class="boring">}</span></code></pre>
@@ -1361,6 +1361,17 @@ through the <em>parent’s</em> own <code>FontSize</code> rather than the child�
 field/cursor grid is built entirely on this: the cursor’s column is a real <code>.col()</code>
 address into a letter-pitched grid, not a hand-computed pixel offset.</li>
 </ul>
+<p><code>text_content()</code> is the one value that reads back rather than computes. Stated as a
+<code>Text</code>’s width or height, it means “this axis is the run’s own measured extent”: the
+glyph pass writes what it measured onto that axis, and the value itself resolves to
+whatever is already there – so the measurement survives every later resolve instead of
+being recomputed from the parent and thrown away. That is the whole of sizing a box to
+its text. A single-line field that grows with what is typed states a <code>text_content()</code>
+width (which also ends wrapping – with no right edge there is nothing to wrap against),
+a paragraph that grows as it wraps states a <code>text_content()</code> height, and stating both is
+one unwrapped line measured on both axes. It is not a general “size to fit children”:
+layout is single-pass and top-down, so nothing but the entity’s own glyphs can answer it,
+and a box that needs to follow a run it does not own uses <code>anchor()</code> on that run instead.</p>
 <h2 id="grid-the-coordinate-system-a-location-resolves-against"><a class="header" href="#grid-the-coordinate-system-a-location-resolves-against"><code>Grid</code>: the coordinate system a <code>Location</code> resolves against</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1593,6 +1604,20 @@ an author choice); <code>INHERIT_ENABLED</code> is what a parent’s <code>Disab
 require touching every descendant’s own <code>ENABLED</code> state directly – it only has to flip
 <code>INHERIT_ENABLED</code> down the tree, leaving the author’s and the library’s own separate
 opt-outs untouched and independently restorable.</p>
+<h2 id="the-two-drag-emissions-and-the-threshold-between-them"><a class="header" href="#the-two-drag-emissions-and-the-threshold-between-them">The two drag emissions, and the threshold between them</a></h2>
+<p>A gesture reports its motion twice over, and the pair is not redundant. <code>Dragged</code> is the
+stream: one per frame that carries a pointer move, from the first pixel, which is what a
+knob or a slider following the pointer consumes. <code>DragStarted</code> is the threshold: sent
+once, on the move where the gesture’s travel first exceeds
+<code>InteractionListener::DRAG_THRESHOLD</code> on either axis, ahead of that same move’s
+<code>Dragged</code>.</p>
+<p>The threshold is the moment the gesture stops being a pending click – a release after it
+produces <code>Disengaged</code> alone, where a release before it produces <code>Clicked</code> as well. That
+makes <code>DragStarted</code> the hook for anything that has to commit at exactly that point, and
+the reason it exists at all: measured travel is a per-axis comparison against a constant
+the engine owns, so an app inferring the same moment from the <code>Dragged</code> stream would be
+keeping a second copy of both, and the obvious straight-line reading of the distance
+disagrees with the engine diagonally.</p>
 <h2 id="interactionpropagation-pass-through-and-grab"><a class="header" href="#interactionpropagation-pass-through-and-grab"><code>InteractionPropagation</code>: pass-through and grab</a></h2>
 <p>Every entity defaults to <code>grab: true</code> (per <code>Node</code>’s unconditional requirement) – a plain
 <code>Panel</code>/<code>Text</code>/<code>Icon</code> with no <code>InteractionListener</code> still competes to <em>own</em> a click even
@@ -2053,7 +2078,7 @@ monospaced-font metric table, per-character color runs, and content-driven sizin
 #[derive(Component, Clone, PartialEq, Default, Debug)]
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
-#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, TextContentHeight, TextContentWidth)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
 #[require(UniqueCharacters, Differential&lt;Text, UniqueCharacters&gt;)]
 #[require(Differential&lt;Text, ResolvedFontSize&gt;)]
 #[require(Differential&lt;Text, BlendedOpacity&gt;)]
@@ -2152,6 +2177,14 @@ composite – but unlike most other primitives, <code>Text</code>’s <em>conten
 layout: a composite whose text width should shape its own box can’t just forward
 <code>TextValue</code> to its label unchanged, it has to <code>react</code> to it, since <a href="#inside-the-engine-node-author-and-tree"><code>forward</code></a>
 is a pure copy and this needs to also recompute a size from the new string.</p>
+<p>Which axes the content drives is stated in the <code>Location</code> itself, as a
+<a href="#layout-grid-location-anchor"><code>text_content()</code></a> width or height – there is no flag beside it. <code>Text::update</code>
+asks the <code>Location</code> (<code>Location::content_axes</code>) which axes those are, lays the glyphs out
+with no <code>max_width</code> when the width is one of them, and writes the measured extent back
+onto exactly those axes; <code>text_content()</code> resolving to “keep the current extent” is what
+stops the next resolve recomputing them from the parent. The two halves cannot be
+declared apart, which is the point: they were separable once, and a box declared with
+only one of them silently kept whatever size it started with.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="icon"><a class="header" href="#icon">Icon</a></h1>
 <p>An icon needs to render crisply at any size an author gives it – next to a small label

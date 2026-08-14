@@ -8,8 +8,7 @@
 
 use foliage::{
     Canopy, Elevation, FontSize, GridExt, Grows, HorizontalAlignment, Icon, IconId, Image,
-    ImageView, Leaf, Location, Panel, Polygon, Polyline, Rounding, Sprout, Text,
-    VerticalAlignment,
+    ImageView, Leaf, Location, Panel, Polygon, Polyline, Rounding, Sprout, Text, VerticalAlignment,
 };
 
 use crate::site::blueprint::{self, Blueprint};
@@ -382,10 +381,7 @@ fn image_at() -> Location {
     let (xs_h, xs_v) = centered((xw, xh));
     let (md_h, md_v) = centered((mw, mh));
     let (lg_h, lg_v) = centered((lw, lh));
-    Location::new()
-        .xs(xs_h, xs_v)
-        .md(md_h, md_v)
-        .lg(lg_h, lg_v)
+    Location::new().xs(xs_h, xs_v).md(md_h, md_v).lg(lg_h, lg_v)
 }
 
 fn image(g: &mut Grow, column: &mut Column) {

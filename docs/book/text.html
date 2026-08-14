@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ccd1b112.js";
+            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8f4fc17f.js"></script>
@@ -186,7 +186,7 @@ monospaced-font metric table, per-character color runs, and content-driven sizin
 #[derive(Component, Clone, PartialEq, Default, Debug)]
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
-#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, TextContentHeight, TextContentWidth)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
 #[require(UniqueCharacters, Differential&lt;Text, UniqueCharacters&gt;)]
 #[require(Differential&lt;Text, ResolvedFontSize&gt;)]
 #[require(Differential&lt;Text, BlendedOpacity&gt;)]
@@ -285,6 +285,14 @@ composite – but unlike most other primitives, <code>Text</code>’s <em>conten
 layout: a composite whose text width should shape its own box can’t just forward
 <code>TextValue</code> to its label unchanged, it has to <code>react</code> to it, since <a href="./tree.html"><code>forward</code></a>
 is a pure copy and this needs to also recompute a size from the new string.</p>
+<p>Which axes the content drives is stated in the <code>Location</code> itself, as a
+<a href="./grid.html"><code>text_content()</code></a> width or height – there is no flag beside it. <code>Text::update</code>
+asks the <code>Location</code> (<code>Location::content_axes</code>) which axes those are, lays the glyphs out
+with no <code>max_width</code> when the width is one of them, and writes the measured extent back
+onto exactly those axes; <code>text_content()</code> resolving to “keep the current extent” is what
+stops the next resolve recomputing them from the parent. The two halves cannot be
+declared apart, which is the point: they were separable once, and a box declared with
+only one of them silently kept whatever size it started with.</p>
 
                     </main>
 

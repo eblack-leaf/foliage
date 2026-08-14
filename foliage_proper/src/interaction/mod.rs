@@ -147,17 +147,27 @@ pub struct OnClick {}
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct Engaged {}
-/// The grabbed entity's gesture has passed
-/// [`DRAG_THRESHOLD`](InteractionListener::DRAG_THRESHOLD) and is now a drag, not a
-/// pending click.
+/// The pointer moved while this entity held the gesture. Sent once per frame that carries a
+/// move, from the first pixel -- what a knob or a slider driving its own drag consumes.
 ///
-/// It has not: this is sent on every pointer move while the entity holds the gesture, and the
-/// threshold gates only the pan below. See the TODO on
-/// [`Bloom::Dragged`](crate::Bloom::Dragged), which this funnels into and which carries the
-/// same claim.
+/// This is not the threshold: it fires below
+/// [`DRAG_THRESHOLD`](InteractionListener::DRAG_THRESHOLD) as well, and a gesture that never
+/// crosses it still reports moves and then [`OnClick`]. For "this became a drag", once, take
+/// [`DragStarted`].
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct Dragged {}
+/// The gesture holding this entity has passed
+/// [`DRAG_THRESHOLD`](InteractionListener::DRAG_THRESHOLD) and is a drag rather than a
+/// pending click. Sent once per gesture, before the [`Dragged`] for the same move.
+///
+/// This is the only announcement of the threshold, and the threshold is what decides whether
+/// the release also produces an [`OnClick`] -- so this is what a press-and-hold visual, a
+/// drag proxy, or anything that has to commit at the moment a click stops being possible
+/// hangs off. Nothing else needs to re-measure travel against the constant.
+#[foliage_macros::targeted_event]
+#[derive(Copy)]
+pub struct DragStarted {}
 /// The gesture that grabbed this entity has ended, however it ended. Fires whether or
 /// not an [`OnClick`] also did, so a pressed visual always has somewhere to reset.
 #[foliage_macros::targeted_event]
@@ -382,6 +392,11 @@ pub(crate) fn interactive_elements(
             }
         }
         if let Some(event) = moved.last() {
+            // Set at the crossing and read at the sends below, which is the only place the
+            // grabbed entity and every pass-through are both in hand. The threshold is
+            // crossed by the gesture, not by an entity, so all of them hear about it on the
+            // same move.
+            let mut crossed_threshold = false;
             if let Some(p) = current.primary {
                 if !current.past_drag {
                     let scroll_delta = event.position - current.click.start;
@@ -389,6 +404,7 @@ pub(crate) fn interactive_elements(
                         || scroll_delta.coordinates.b().abs() > InteractionListener::DRAG_THRESHOLD
                     {
                         current.past_drag = true;
+                        crossed_threshold = true;
                         current.last_drag = event.position;
                         // seeds a baseline for the *next* Moved event's own velocity
                         // computation -- without this, a fling that only sends a couple of
@@ -464,11 +480,21 @@ pub(crate) fn interactive_elements(
                 }
                 current.last_drag = event.position;
                 current.click.current = event.position;
-                // Outside the `past_drag` branch above, so this fires on every move rather than
-                // on the threshold being crossed -- the mismatch the TODO on `Bloom::Dragged`
-                // describes. Moving it in here is one of the two fixes proposed there.
+                // Deliberately outside the `past_drag` branch above: `Dragged` is the per-move
+                // stream and fires from the first pixel, which is what a knob or a slider
+                // driving its own drag consumes. `DragStarted` is the threshold, and goes out
+                // first on the move that crosses it -- an entity hearing both on one move
+                // learns that this gesture became a drag before it handles the move itself.
                 if let Ok(listener) = listeners.get_mut(p) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
+                        if crossed_threshold {
+                            tree.send_to(
+                                DragStarted {
+                                    entity: Entity::PLACEHOLDER,
+                                },
+                                p,
+                            );
+                        }
                         tree.send_to(
                             Dragged {
                                 entity: Entity::PLACEHOLDER,
@@ -481,6 +507,14 @@ pub(crate) fn interactive_elements(
             for ps in current.pass_through.iter() {
                 if let Ok(listener) = listeners.get_mut(*ps) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
+                        if crossed_threshold {
+                            tree.send_to(
+                                DragStarted {
+                                    entity: Entity::PLACEHOLDER,
+                                },
+                                *ps,
+                            );
+                        }
                         tree.send_to(
                             Dragged {
                                 entity: Entity::PLACEHOLDER,

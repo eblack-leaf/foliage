@@ -7,7 +7,9 @@
 //! foliage's choice of ECS invisible: a thread doing this could be running its own, at its
 //! own version, and nothing here would change.
 
-use foliage::{Canopy, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Rounding, Sprout};
+use foliage::{
+    Canopy, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Rounding, Sprout,
+};
 use std::time::Duration;
 
 const BARS: usize = 5;

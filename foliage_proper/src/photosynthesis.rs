@@ -216,16 +216,15 @@ impl Foliage {
                     // convention is not device-specific though, and applying it on only one of
                     // the two arms would leave the constant half-honoured the moment it is set
                     // to `NATURAL_SCROLLING`.
-                    MouseScrollDelta::PixelDelta(px) => Position::physical((
-                        px.x as f32,
-                        px.y as f32 * Self::VIEW_SCROLLING,
-                    ))
-                    .to_logical(
-                        self.world
-                            .get_resource::<ScaleFactor>()
-                            .expect("scale-factor")
-                            .value(),
-                    ),
+                    MouseScrollDelta::PixelDelta(px) => {
+                        Position::physical((px.x as f32, px.y as f32 * Self::VIEW_SCROLLING))
+                            .to_logical(
+                                self.world
+                                    .get_resource::<ScaleFactor>()
+                                    .expect("scale-factor")
+                                    .value(),
+                            )
+                    }
                 };
                 let cursor = self
                     .world

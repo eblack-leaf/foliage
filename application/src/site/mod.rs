@@ -15,8 +15,8 @@ pub(crate) mod drawer;
 pub(crate) mod figure;
 pub(crate) mod hero;
 pub(crate) mod input;
-pub(crate) mod leaf;
 pub(crate) mod layout;
+pub(crate) mod leaf;
 pub(crate) mod overview;
 pub(crate) mod rail;
 pub(crate) mod renderers;
@@ -26,8 +26,9 @@ pub(crate) mod text;
 
 use foliage::{
     Bare, Canopy, Color, ConfigurationDescriptor, Ease, Elevation, FontId, FontSize, Grid, GridExt,
-    Grows, HorizontalAlignment, Icon, IconId, Leaf, Location, Motion, Panel, Polygon, Rounding,
-    Sprout, Text, TextInputAction, Timing, VerticalAlignment, anchor,
+    Grows, HorizontalAlignment, Icon, IconId, Leaf, Location, LocationValue, Motion, Panel,
+    Polygon, Rounding, Sprout, Text, TextInputAction, Timing, VerticalAlignment, anchor,
+    text_content,
 };
 
 /// Roles return whole `Color`s rather than tone numbers, so the palette genuinely lives
@@ -184,14 +185,17 @@ pub(crate) struct Page {
 /// Where a gesture currently is, as the engine reports it.
 ///
 /// A click is not one of these: `Clicked` is the *outcome* of a gesture that stayed put, and it
-/// arrives through [`Demo::clicked`] alongside every other press on the site. These three are
+/// arrives through [`Demo::clicked`] alongside every other press on the site. These four are
 /// the gesture itself, which only the `input` section has any use for.
 #[derive(Copy, Clone, PartialEq)]
 pub(crate) enum Phase {
     /// The pointer went down on this element.
     Engaged,
-    /// It has since travelled past the drag threshold.
+    /// It moved, however little. Every move, from the first pixel.
     Dragged,
+    /// It has travelled past the drag threshold, so the release will not be a click. Once per
+    /// gesture, and the only announcement of the threshold there is.
+    DragStarted,
     /// It came back up, however the gesture ended.
     Disengaged,
 }
@@ -875,15 +879,20 @@ impl Column {
     }
     /// The next element's vertical placement: below the previous element, or at the top of
     /// the column for the first one.
-    fn below(&self, gap: i32, seed_height: i32) -> ConfigurationDescriptor {
+    ///
+    /// `height` is a value rather than a number of pixels because the two kinds of element in
+    /// a column want different answers. A run of text takes [`text_content()`], measuring
+    /// itself -- which is the whole reason the stack anchors instead of computing offsets.
+    /// Everything else (a plate, a card grid) states the px height it was built to.
+    fn below(&self, gap: i32, height: LocationValue) -> ConfigurationDescriptor {
         if self.last.is_some() {
             anchor()
                 .bottom()
                 .as_top()
                 .adjust(gap)
-                .with(seed_height.px().as_height())
+                .with(height.as_height())
         } else {
-            gap.px().as_top().with(seed_height.px().as_height())
+            gap.px().as_top().with(height.as_height())
         }
     }
     fn anchor_to_last(&self) -> Leaf {
@@ -893,11 +902,11 @@ impl Column {
     ///
     /// `md` carries the `lg`/`xl` steps too by falling through, so an element that does not
     /// reflow only spells out two.
-    fn placed(&self, gap: i32, seed_height: i32) -> Location {
+    fn placed(&self, gap: i32, height: LocationValue) -> Location {
         let (xs, md) = shell::measure();
         Location::new()
-            .xs(xs, self.below(gap, seed_height))
-            .md(md, self.below(gap, seed_height))
+            .xs(xs, self.below(gap, height))
+            .md(md, self.below(gap, height))
     }
     fn stagger(&mut self) -> u64 {
         let at = self.step;
@@ -919,10 +928,9 @@ impl Column {
             Text::new(value)
                 .size(FontSize::new(size))
                 .color(tone)
-                .at(self.placed(gap, size as i32 + space::SM))
+                .at(self.placed(gap, text_content()))
                 .elevate(Elevation::up(2))
                 .align(HorizontalAlignment::Left, VerticalAlignment::Top)
-                .sized_by_content(false, true)
                 .anchored(self.anchor_to_last())
                 .opacity(0.0)
                 .font(font),
@@ -993,10 +1001,9 @@ impl Column {
             Text::new(value)
                 .size(FontSize::new(type_scale::LEAD))
                 .color(role::on_surface())
-                .at(self.placed(space::MD, type_scale::LEAD as i32 + space::SM))
+                .at(self.placed(space::MD, text_content()))
                 .elevate(Elevation::up(2))
                 .align(HorizontalAlignment::Left, VerticalAlignment::Top)
-                .sized_by_content(false, true)
                 .anchored(self.anchor_to_last())
                 .opacity(0.0)
                 .font(italic()),
@@ -1034,7 +1041,7 @@ impl Column {
             Panel::new()
                 .color(role::outline())
                 .rounding(Rounding::None)
-                .at(self.placed(space::XL, 1))
+                .at(self.placed(space::XL, 1.px()))
                 .elevate(Elevation::up(1))
                 .anchored(self.anchor_to_last())
                 .opacity(0.0),
@@ -1132,9 +1139,9 @@ impl Column {
             self.parent,
             Bare::new()
                 .at(Location::new()
-                    .xs(xs, self.below(gap, heights.0))
-                    .md(wide, self.below(gap, heights.1))
-                    .lg(wide, self.below(gap, heights.2)))
+                    .xs(xs, self.below(gap, heights.0.px()))
+                    .md(wide, self.below(gap, heights.1.px()))
+                    .lg(wide, self.below(gap, heights.2.px())))
                 .elevate(Elevation::up(1))
                 .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
                 .anchored(self.anchor_to_last()),
@@ -1150,7 +1157,7 @@ impl Column {
             Panel::new()
                 .color(background())
                 .rounding(Rounding::Xs)
-                .at(self.placed(gap, height))
+                .at(self.placed(gap, height.px()))
                 .elevate(Elevation::up(1))
                 .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
                 .anchored(self.anchor_to_last())
@@ -1173,7 +1180,7 @@ impl Column {
         let leaf = canopy.branch(
             self.parent,
             Bare::new()
-                .at(self.placed(0, height))
+                .at(self.placed(0, height.px()))
                 .elevate(Elevation::up(1))
                 .anchored(self.anchor_to_last())
                 .pass_through(),

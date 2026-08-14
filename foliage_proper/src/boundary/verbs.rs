@@ -1,8 +1,8 @@
+use crate::TextInputStyle;
 use crate::boundary::leaf::Leaf;
 use crate::boundary::op::{Motion, Op, Spec, Timing};
 use crate::boundary::tween::{Channel, Tween};
 use crate::coordinate::position::Position;
-use crate::TextInputStyle;
 use crate::{
     AssetKey, AssetSource, Color, Elevation, FontSize, GlyphColors, Location, Logical, Polygon,
     Rounding, ScrollTo,

@@ -321,7 +321,10 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
                 .color(role::on_surface_variant())
                 .at(Location::new().xs(
                     0.px().as_left().with((GUTTER - space::SM).px().as_width()),
-                    (y * 100.0).pct().as_center_y().with(1.letters().as_height()),
+                    (y * 100.0)
+                        .pct()
+                        .as_center_y()
+                        .with(1.letters().as_height()),
                 ))
                 .elevate(Elevation::up(2))
                 .align(HorizontalAlignment::Right, VerticalAlignment::Middle)

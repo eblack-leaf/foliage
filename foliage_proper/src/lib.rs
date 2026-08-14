@@ -25,12 +25,12 @@ mod node;
 mod opacity;
 mod ops;
 mod panel;
-mod rounding;
 mod photosynthesis;
 mod platform;
 mod polygon;
 mod polyline;
 mod remove;
+mod rounding;
 mod text;
 mod text_input;
 mod texture;
@@ -54,8 +54,8 @@ pub use anim::{
 };
 pub(crate) use ash::differential::Differential;
 pub use asset::{Asset, AssetKey, AssetLoader, AssetSource, OnRetrieval};
-pub use attachment::Tuning;
 pub(crate) use attachment::Attachment;
+pub use attachment::Tuning;
 pub use author::Sprout;
 pub(crate) use author::{Author, LeafSprout};
 /// The ECS is an implementation detail from here on: nothing an app touches is a bevy type,
@@ -93,7 +93,7 @@ pub use grid::{
 pub use icon::{Icon, IconId, IconMemory, IconSprout, IconValue};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
-pub use interaction::{Disengaged, Dragged, Engaged, Focused, Unfocused};
+pub use interaction::{Disengaged, DragStarted, Dragged, Engaged, Focused, Unfocused};
 pub use interaction::{
     FocusBehavior, InputSequence, Interaction, InteractionMethod, InteractionPhase,
     InteractionPropagation, Key, Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
@@ -106,7 +106,6 @@ pub use opacity::Opacity;
 pub use ops::Named;
 pub use ops::{Keyring, Resolve, Resolved};
 pub use panel::{Outline, Panel, PanelSprout};
-pub use rounding::{Rounding, Side};
 #[cfg(target_os = "android")]
 pub use platform::AndroidApp;
 pub use platform::AndroidConnection;
@@ -115,11 +114,10 @@ pub use polyline::{
     DashPattern, Polyline, PolylineDrawProgress, PolylineDroppedPoints, PolylinePoints,
     PolylineSprout, PolylineStyle,
 };
+pub use rounding::{Rounding, Side};
 pub use text::GlyphOffset;
 pub use text::monospaced::FontId;
-pub use text::{
-    FontSize, GlyphColors, Text, TextContentHeight, TextContentWidth, TextSprout, TextValue,
-};
+pub use text::{FontSize, GlyphColors, Text, TextSprout, TextValue};
 pub use text_input::action::{InputAction, TextInputAction};
 pub use text_input::{
     HintColor, HintText, InsertText, LineConstraint, TextChanged, TextInput, TextInputSprout,

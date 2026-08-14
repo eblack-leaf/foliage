@@ -35,7 +35,11 @@ use wgpu::{
 ///
 /// `Metrics` come back from the same `metrics_raw` call the non-subpixel path uses, so
 /// `width`, `height` and `xmin` are unchanged and no glyph moves.
-fn rasterize_supersampled(font: &fontdue::Font, index: u16, px: f32) -> (fontdue::Metrics, Vec<u8>) {
+fn rasterize_supersampled(
+    font: &fontdue::Font,
+    index: u16,
+    px: f32,
+) -> (fontdue::Metrics, Vec<u8>) {
     let (metrics, wide) = font.rasterize_indexed_subpixel(index, px);
     if metrics.width == 0 || metrics.height == 0 {
         return (metrics, wide);

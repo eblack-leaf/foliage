@@ -64,7 +64,10 @@ fn main() {
                         .color(Color::stone(300))
                         .at(Location::new().xs(
                             left.px().as_x().with((mid + rise / 2).px().as_y()),
-                            (left + width).px().as_x().with((mid - rise / 2).px().as_y()),
+                            (left + width)
+                                .px()
+                                .as_x()
+                                .with((mid - rise / 2).px().as_y()),
                         ))
                         .elevate(Elevation::up(1)),
                 );

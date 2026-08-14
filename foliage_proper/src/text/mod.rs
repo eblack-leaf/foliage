@@ -89,13 +89,7 @@ impl Attachment for Text {
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
 #[require(FontId, Differential<Text, FontId>)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
-#[require(
-    ResolvedGlyphs,
-    ResolvedColors,
-    GlyphColors,
-    TextContentHeight,
-    TextContentWidth
-)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
 #[require(Differential<Text, ResolvedFontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]
@@ -121,8 +115,9 @@ impl Attachment for Text {
 /// its cell rather than widening it.
 ///
 /// The entity's `Section` is the layout box: it bounds wrapping and doubles as the render
-/// scissor. [`TextContentWidth`]/[`TextContentHeight`] invert that, sizing the box from
-/// the glyphs instead.
+/// scissor. A [`text_content()`](crate::text_content) width or height inverts that on
+/// that axis, sizing the box from the glyphs instead -- and a content width also means no
+/// right edge to wrap against, so the run stays on one line.
 pub struct Text {
     pub value: String,
 }
@@ -296,12 +291,20 @@ impl Text {
         font: Res<MonospacedFont>,
         font_ids: Query<&FontId>,
         scale_factor: Res<ScaleFactor>,
-        auto_heights: Query<&TextContentHeight>,
-        auto_widths: Query<&TextContentWidth>,
+        locations: Query<&Location>,
+        layout: Res<Layout>,
+        short: Res<Short>,
         stems: Query<&Parent>,
         views: Query<&View>,
     ) {
         let this = trigger.event_target();
+        // Read off the `Location` rather than out of flags beside it: an axis is content-sized
+        // exactly when it says `text_content()`, which is also what makes the measure written
+        // below survive the next resolve. See `Location::content_axes`.
+        let (auto_width, auto_height) = locations
+            .get(this)
+            .map(|l| l.content_axes(*layout, *short))
+            .unwrap_or((false, false));
         let font_id = font_ids.get(this).copied().unwrap_or_default();
         let font_size = ResolvedFontSize::new(
             // `round`, not `as`'s own truncation: this is the px size the atlas bitmap is
@@ -364,12 +367,10 @@ impl Text {
         };
         {
             let mut glyphs = glyph_query.get_mut(this).unwrap();
-            let auto_width = auto_widths.get(this).unwrap();
-            let auto_height = auto_heights.get(this).unwrap();
             glyphs.layout.reset(&fontdue::layout::LayoutSettings {
                 horizontal_align: current.horizontal_alignment.into(),
                 vertical_align: current.vertical_alignment.into(),
-                max_width: if auto_width.0 {
+                max_width: if auto_width {
                     None
                 } else {
                     Some(current.section.width())
@@ -386,32 +387,26 @@ impl Text {
                 ),
             );
             let dims = font.character_block(font_id, current.font_size.value);
-            // The `else if` is the first half of `Sprout::sized_by_content`'s TODO: asking for
-            // both axes gets height and drops width without saying so.
-            let adjusted = if auto_height.0 {
-                Some(
-                    current
-                        .section
-                        .with_height(glyphs.layout.height())
-                        .to_logical(scale_factor.value()),
-                )
-            } else if auto_width.0 {
-                Some(
-                    current
-                        .section
-                        .with_width(glyphs.layout.glyphs().len() as f32 * dims.a())
-                        .to_logical(scale_factor.value()),
-                )
-            } else {
-                None
-            };
+            // One box, both axes applied independently. Asking for both is coherent here
+            // because a content-sized width means no `max_width`, so the run is a single line
+            // and the glyph advance and the laid-out height describe the same box.
+            let adjusted = (auto_width || auto_height).then(|| {
+                let mut section = current.section;
+                if auto_width {
+                    section = section.with_width(glyphs.layout.glyphs().len() as f32 * dims.a());
+                }
+                if auto_height {
+                    section = section.with_height(glyphs.layout.height());
+                }
+                section.to_logical(scale_factor.value())
+            });
             let mut insert_adjusted = false;
             if let Some(adjusted) = adjusted {
                 let scaled = adjusted.to_physical(scale_factor.value());
                 tracing::trace!(
                     entity = ?this,
-                    auto_width = auto_width.0,
-                    auto_height = auto_height.0,
+                    auto_width,
+                    auto_height,
                     pre_adjust_section = ?current.section,
                     post_adjust_section = ?scaled,
                     glyph_layout_height = glyphs.layout.height(),
@@ -450,7 +445,7 @@ impl Text {
             }
             let max = (current.section.width() / dims.a()).floor() as u32;
             line_metrics.max_letter_idx_horizontal =
-                max.checked_sub(1).unwrap_or_default() + if auto_width.0 { 1 } else { 0 };
+                max.checked_sub(1).unwrap_or_default() + if auto_width { 1 } else { 0 };
             tree.write_to(
                 this,
                 (
@@ -603,28 +598,6 @@ pub(crate) struct LineMetrics {
 /// component so the renderer clips against the box the current glyphs were fitted to.
 #[derive(Component, Copy, Clone, PartialEq, Debug, Default)]
 pub(crate) struct TextBounds(pub(crate) Section<Physical>);
-/// Take the entity's height from the laid-out glyphs instead of its `Location`.
-///
-/// The `Location`'s own height still decides where the box starts and how wrapping is
-/// measured; this replaces the resulting height once the glyphs are placed. Pair with a
-/// [`text_content()`](crate::text_content) height on a *dependent* entity to have it
-/// follow along.
-///
-/// Set through [`Sprout::sized_by_content`](crate::Sprout::sized_by_content), whose own TODO
-/// covers the two ways this pair is sharp: height silently wins over width when both are
-/// asked for, and the measurement it writes is discarded by the next resolve unless the
-/// `Location` states [`text_content()`](crate::text_content) on the same axis.
-#[derive(Component, Copy, Clone, Default)]
-pub struct TextContentHeight(pub bool);
-/// Take the entity's width from the laid-out glyphs instead of its `Location`.
-///
-/// Also disables wrapping: with no fixed right edge there is nothing to wrap against, so
-/// the run stays on one line and the box grows to the glyph advance times the glyph count.
-///
-/// Never applied while [`TextContentHeight`] is also set -- see that type, and the TODO on
-/// [`Sprout::sized_by_content`](crate::Sprout::sized_by_content).
-#[derive(Component, Copy, Clone, Default)]
-pub struct TextContentWidth(pub bool);
 /// How many distinct characters the run uses -- the number of atlas cells the renderer
 /// has to allocate, since the atlas is keyed per character rather than per glyph
 /// occurrence.

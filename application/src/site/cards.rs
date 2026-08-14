@@ -13,7 +13,7 @@
 
 use foliage::{
     Bare, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Icon, IconId, Leaf,
-    Location, Panel, Rounding, Sprout, Text, VerticalAlignment,
+    Location, Panel, Rounding, Sprout, Text, VerticalAlignment, text_content,
 };
 
 use crate::icons::IconHandles;
@@ -127,11 +127,12 @@ pub(crate) fn card(
                     .px()
                     .as_left()
                     .with(100.pct().as_right().adjust(-space::MD)),
-                TITLE_TOP.px().as_top().with(TITLE_H.px().as_height()),
+                // Grows to what it wraps to rather than being scissored at the slot: [`TITLE_H`]
+                // is the room reserved for it in the layout below, not a lid on it.
+                TITLE_TOP.px().as_top().with(text_content().as_height()),
             ))
             .elevate(Elevation::up(2))
             .align(HorizontalAlignment::Left, VerticalAlignment::Top)
-            .sized_by_content(false, true)
             .pass_through(),
     );
     g.canopy.branch(
@@ -144,14 +145,13 @@ pub(crate) fn card(
                     .px()
                     .as_left()
                     .with(100.pct().as_right().adjust(-space::MD)),
-                BODY_TOP
-                    .px()
-                    .as_top()
-                    .with((CARD_H - BODY_TOP - space::MD).px().as_height()),
+                // Same as the title, and this is where [`CARD_H`]'s "it overflows rather than
+                // stretches" actually happens: the body takes its own height, and a column too
+                // narrow for the text runs past the card's bottom edge instead of being cut at it.
+                BODY_TOP.px().as_top().with(text_content().as_height()),
             ))
             .elevate(Elevation::up(2))
             .align(HorizontalAlignment::Left, VerticalAlignment::Top)
-            .sized_by_content(false, true)
             // a card's body is prose, so it takes the same slant the column's prose does
             .font(crate::site::italic())
             .pass_through(),
@@ -172,11 +172,7 @@ pub(crate) fn grid(g: &mut Grow, column: &mut Column, specs: &[CardSpec]) {
     let n = specs.len() as i32;
     let height = |rows: i32| rows * CELL_H + (rows - 1) * GAP;
     let stacked = height(n);
-    let region = column.region(
-        g.canopy,
-        (stacked, stacked, height((n + 1) / 2)),
-        space::MD,
-    );
+    let region = column.region(g.canopy, (stacked, stacked, height((n + 1) / 2)), space::MD);
 
     for (i, spec) in specs.iter().enumerate() {
         let i = i as i32;

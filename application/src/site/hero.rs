@@ -6,7 +6,7 @@
 use foliage::{
     Bare, Canopy, Color, Ease, Elevation, FontSize, GlyphColors, Grid, GridExt, Grows,
     HorizontalAlignment, Icon, IconId, Layout, Leaf, Location, Motion, Repeat, Sprout, Text,
-    VerticalAlignment, anchor,
+    VerticalAlignment, anchor, text_content,
 };
 
 use crate::icons::IconHandles;
@@ -254,13 +254,16 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
                 // read as the two lines touching -- but the tagline hangs off the wordmark in
                 // px while the buttons sit at a percentage, so every px added here eats into a
                 // gap that is already smallest on the shortest window that is not `short`.
+                // The height is the run's own: it grows to whatever it wraps to instead of being
+                // scissored, since the fixed height it used to carry cut the second line off in
+                // landscape.
                 .xs(
                     0.pct().as_left().with(100.pct().as_right()),
                     anchor()
                         .bottom()
                         .as_top()
                         .adjust(space::LG)
-                        .with(20.px().as_height()),
+                        .with(text_content().as_height()),
                 )
                 .short(
                     0.pct()
@@ -270,13 +273,10 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
                         .bottom()
                         .as_top()
                         .adjust(space::MD)
-                        .with(20.px().as_height()),
+                        .with(text_content().as_height()),
                 ))
             .elevate(Elevation::up(3))
             .align(HorizontalAlignment::Center, VerticalAlignment::Top)
-            // grows to whatever it wraps to instead of being scissored -- the fixed height cut
-            // the second line off in landscape
-            .sized_by_content(false, true)
             .anchored(wordmark)
             .opacity(0.0),
     );

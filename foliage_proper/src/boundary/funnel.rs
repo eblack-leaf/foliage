@@ -3,8 +3,8 @@ use crate::boundary::leaf::{Grown, Leaf};
 use crate::text_input::TextChanged;
 use crate::text_input::action::InputAction;
 use crate::{
-    Disengaged, Dragged, Engaged, Focused, InputSequence, Layout, OnClick, OnRetrieval, Parent,
-    PhysicalInputSequence, Short, Trigger, Unfocused,
+    Disengaged, DragStarted, Dragged, Engaged, Focused, InputSequence, Layout, OnClick,
+    OnRetrieval, Parent, PhysicalInputSequence, Short, Trigger, Unfocused,
 };
 use bevy_ecs::entity::Entity;
 use bevy_ecs::system::{Query, Res, ResMut};
@@ -43,6 +43,7 @@ macro_rules! gesture {
 gesture!(clicked, OnClick, Clicked);
 gesture!(engaged, Engaged, Engaged);
 gesture!(dragged, Dragged, Dragged);
+gesture!(drag_started, DragStarted, DragStarted);
 gesture!(disengaged, Disengaged, Disengaged);
 gesture!(focused, Focused, Focused);
 gesture!(unfocused, Unfocused, Unfocused);
@@ -159,6 +160,7 @@ impl crate::Attachment for Funnel {
         foliage.define(clicked);
         foliage.define(engaged);
         foliage.define(dragged);
+        foliage.define(drag_started);
         foliage.define(disengaged);
         foliage.define(focused);
         foliage.define(unfocused);

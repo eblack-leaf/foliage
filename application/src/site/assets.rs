@@ -235,7 +235,10 @@ const PATH_RUNS: [(f32, f32); 2] = [(18.0, 50.0), (50.0, 82.0)];
 
 fn path_node_at(center: f32) -> Location {
     Location::new().xs(
-        center.pct().as_center_x().with(PATH_NODE_W.pct().as_width()),
+        center
+            .pct()
+            .as_center_x()
+            .with(PATH_NODE_W.pct().as_width()),
         50.pct().as_center_y().with(PATH_NODE_H.px().as_height()),
     )
 }
@@ -267,9 +270,7 @@ fn sources(g: &mut Grow, column: &mut Column) {
                 .color(role::outline())
                 .rounding(Rounding::None)
                 .at(Location::new().xs(
-                    from.pct()
-                        .as_left()
-                        .with(to.pct().as_right()),
+                    from.pct().as_left().with(to.pct().as_right()),
                     50.pct().as_center_y().with(1.px().as_height()),
                 ))
                 .elevate(Elevation::up(1))
@@ -334,4 +335,3 @@ impl Demo for Sources {
         true
     }
 }
-

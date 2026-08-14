@@ -49,6 +49,18 @@ font's* real monospaced advance width (never a guessed constant):
   field/cursor grid is built entirely on this: the cursor's column is a real `.col()`
   address into a letter-pitched grid, not a hand-computed pixel offset.
 
+`text_content()` is the one value that reads back rather than computes. Stated as a
+`Text`'s width or height, it means "this axis is the run's own measured extent": the
+glyph pass writes what it measured onto that axis, and the value itself resolves to
+whatever is already there -- so the measurement survives every later resolve instead of
+being recomputed from the parent and thrown away. That is the whole of sizing a box to
+its text. A single-line field that grows with what is typed states a `text_content()`
+width (which also ends wrapping -- with no right edge there is nothing to wrap against),
+a paragraph that grows as it wraps states a `text_content()` height, and stating both is
+one unwrapped line measured on both axes. It is not a general "size to fit children":
+layout is single-pass and top-down, so nothing but the entity's own glyphs can answer it,
+and a box that needs to follow a run it does not own uses `anchor()` on that run instead.
+
 ## `Grid`: the coordinate system a `Location` resolves against
 
 ```rust

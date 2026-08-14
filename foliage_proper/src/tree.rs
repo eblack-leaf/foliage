@@ -195,7 +195,10 @@ impl<'w, 's> Tree<'w, 's> {
     /// completion, and it fires [`OnEnd`](crate::OnEnd) once the last one finishes.
     pub(crate) fn sequence_at(&mut self, at: Entity) {
         self.commands.queue(move |world: &mut World| {
-            let _ = world.spawn_at(at, (SequenceMarker::default(), crate::boundary::leaf::Grown));
+            let _ = world.spawn_at(
+                at,
+                (SequenceMarker::default(), crate::boundary::leaf::Grown),
+            );
         });
     }
     /// Opens a sequence the app never named, for an animation that was not joined to one.
@@ -249,7 +252,10 @@ impl<'w, 's> Tree<'w, 's> {
         // the room `trimmings` needs.
         let this = self.sow(());
         self.trimmings(this, &seed);
-        self.write_to(this, (seed.location, seed.stem, elevation, spawned_at, spec.root()));
+        self.write_to(
+            this,
+            (seed.location, seed.stem, elevation, spawned_at, spec.root()),
+        );
         S::build(this, self);
         this
     }
@@ -261,8 +267,8 @@ impl<'w, 's> Tree<'w, 's> {
     /// reason the spawn is split in two. Several of these are read by this entity's own first
     /// resolve or its first text shape, and neither is redone on their account: an anchored
     /// `Location` that resolves without its `Anchor` fails outright and auto-hides with
-    /// nothing left to bring it back, and a run that shapes against a default alignment,
-    /// content size or font keeps those glyphs at that size. Landing them first is what
+    /// nothing left to bring it back, and a run that shapes against a default alignment or
+    /// font keeps those glyphs at that size. Landing them first is what
     /// `Author`'s "never a follow-up `write_to` after a bare insert" is asking for; queued
     /// commands apply in order, so ordering the two writes is all it takes.
     fn trimmings(&mut self, this: Entity, seed: &crate::LeafSprout) {
@@ -301,15 +307,6 @@ impl<'w, 's> Tree<'w, 's> {
         }
         if let Some(font_size) = seed.font_size {
             self.write_to(this, font_size);
-        }
-        if let Some((width, height)) = seed.content_size {
-            self.write_to(
-                this,
-                (
-                    crate::TextContentWidth(width),
-                    crate::TextContentHeight(height),
-                ),
-            );
         }
     }
     /// [`grow`](Self::grow) into an id the caller already allocated, rather than one this

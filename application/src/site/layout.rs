@@ -89,7 +89,13 @@ fn grid(g: &mut Grow, column: &mut Column) {
     );
     let host = grid_host(g.canopy, board.stage);
     let (from, to) = GRID_SPANS[0];
-    let cell = blueprint::frame(g.canopy, host, cell_at(from, to), board::GRID_STEPS[0], true);
+    let cell = blueprint::frame(
+        g.canopy,
+        host,
+        cell_at(from, to),
+        board::GRID_STEPS[0],
+        true,
+    );
     g.page.demos.push(Box::new(Tracks { board, cell }));
 }
 
@@ -128,8 +134,14 @@ fn dependent_tone() -> Color {
 /// the target does not, so nothing here reads its position back.
 fn target_at() -> Location {
     Location::new().xs(
-        space::MD.px().as_left().with(ANCHOR_TARGET_SIZE.px().as_width()),
-        space::MD.px().as_top().with(ANCHOR_TARGET_SIZE.px().as_height()),
+        space::MD
+            .px()
+            .as_left()
+            .with(ANCHOR_TARGET_SIZE.px().as_width()),
+        space::MD
+            .px()
+            .as_top()
+            .with(ANCHOR_TARGET_SIZE.px().as_height()),
     )
 }
 

@@ -18,7 +18,7 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::event::EntityEvent;
 use bevy_ecs::lifecycle::HookContext;
 use bevy_ecs::lifecycle::Insert;
-use bevy_ecs::prelude::{ParamSet, Query};
+use bevy_ecs::prelude::{ParamSet, Query, With};
 use bevy_ecs::world::DeferredWorld;
 use std::collections::HashSet;
 use std::ops::Mul;
@@ -236,6 +236,115 @@ impl Location {
         .iter()
         .any(|d| matches!(d.value, LocationValue::Letters(_)))
     }
+    /// Which axes take their extent from the entity's own measured text -- a
+    /// [`text_content()`](text_content) value standing as this box's width or height.
+    /// Returns `(width, height)`.
+    ///
+    /// This is the whole of "size to content", and it lives on the declaration rather than
+    /// beside it in flags of its own. `Text::update` writes the glyph-measured extent back
+    /// onto the `Section` for exactly the axes named here, and `TextContent` resolves to
+    /// "keep the current extent" -- so what the measure wrote is what the next resolve reads
+    /// back, and the two halves cannot be declared apart.
+    pub(crate) fn content_axes(&self, layout: Layout, short: Short) -> (bool, bool) {
+        let Some(config) = self.config(layout, short) else {
+            return (false, false);
+        };
+        let sized_by_content = |d: ValueDescriptor, axis: Designator| {
+            d.value == LocationValue::TextContent && d.designator == axis
+        };
+        (
+            sized_by_content(config.horizontal.a, Designator::Width)
+                || sized_by_content(config.horizontal.b, Designator::Width),
+            sized_by_content(config.vertical.a, Designator::Height)
+                || sized_by_content(config.vertical.b, Designator::Height),
+        )
+    }
+    /// The two ways a content-sized axis can be declared such that it cannot work, both of
+    /// which used to be silent -- one leaving the box frozen at whatever extent it happened to
+    /// have, the other leaving it at whichever of two writers ran last. Neither reads as a
+    /// mistake at the call site; both read as the declaration doing nothing in particular.
+    ///
+    /// Loud rather than logged, matching the missing-`Grid` panic below: an axis that can
+    /// never take the measurement it asks for is a layout that will not come out right on any
+    /// frame, so there is nothing to be gained by carrying on and letting it be noticed as a
+    /// visual oddity three screens later.
+    fn check_content_axes(
+        &self,
+        this: Entity,
+        layout: Layout,
+        short: Short,
+        spawned_at: Option<&SpawnedAt>,
+        has_text: bool,
+        has_aspect_ratio: bool,
+    ) {
+        let Some(config) = self.config(layout, short) else {
+            return;
+        };
+        // The entity ids alone are unusable from an app -- point at the call that spawned it,
+        // the same way the missing-`Grid` panic does.
+        let at = || {
+            spawned_at
+                .map(|s| format!("\n  spawned at {}", s.0))
+                .unwrap_or_default()
+        };
+        let mut width = false;
+        let mut height = false;
+        for descriptor in [
+            config.horizontal.a,
+            config.horizontal.b,
+            config.vertical.a,
+            config.vertical.b,
+        ] {
+            if descriptor.value != LocationValue::TextContent {
+                continue;
+            }
+            match descriptor.designator {
+                Designator::Width => width = true,
+                Designator::Height => height = true,
+                // `calc` has no answer for these and returns `None`, which fails the whole
+                // resolve -- and a failed resolve auto-hides the entity. Left alone, the
+                // symptom is an element that never appears, reported nowhere but a trace log.
+                _ => panic!(
+                    "a `Location` uses `text_content()` as an edge, but it describes an extent \
+                    -- there is no measured left or top for glyphs to have, so this resolves to \
+                    nothing and the entity is auto-hidden.{}\n  fix: `text_content().as_width()` \
+                    or `.as_height()`, and place the other edge with px/pct/letters/anchor().\
+                    \n  (entity {this:?})",
+                    at()
+                ),
+            }
+        }
+        if !width && !height {
+            return;
+        }
+        let axis = if width { "width" } else { "height" };
+        if !has_text {
+            panic!(
+                "a `Location` states `text_content()` as its {axis}, but this entity carries no \
+                `Text` -- nothing ever measures glyphs for it, so that axis would silently keep \
+                whatever extent it already had (zero, at spawn).{}\n  fix: state the {axis} in \
+                px/pct/letters, or, for a box that should follow a run it does not own, \
+                `.anchored(..)` that run and read its edges with `anchor()`.\n  (entity \
+                {this:?})",
+                at()
+            );
+        }
+        if has_aspect_ratio {
+            panic!(
+                "a `Location` states `text_content()` as its {axis} while an `AspectRatio` also \
+                applies to this entity, and the two disagree about that axis: the ratio \
+                recomputes it from the other axis, the glyph pass writes the measured extent \
+                straight back, and neither re-runs the other -- so the box ends up at whichever \
+                ran last and changes the next time anything re-resolves it.{}\n  fix: drop the \
+                ratio, or state the {axis} in px/pct/letters and let the ratio own it. (Deriving \
+                the *other* axis from the measured one would be the coherent version of this and \
+                is not implemented: it works for a content width, which is a single unwrapped \
+                line, and is circular for a content height, whose wrap count depends on the very \
+                width it would be deriving.)\n  (entity {this:?})",
+                at()
+            );
+        }
+    }
     fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;
         world.tree().send_to(Resolve::<Location>::new(), this);
@@ -251,6 +360,7 @@ impl Location {
         mut tree: Tree,
         layout: Res<Layout>,
         locations: Query<(&Location, Option<&SpawnedAt>)>,
+        texts: Query<(), With<crate::Text>>,
         sections: Query<&Section<Logical>>,
         layout_sections: Query<&LayoutSection>,
         mut grids: ParamSet<(Query<(&Grid, &View)>, Query<&mut View>)>,
@@ -336,6 +446,14 @@ impl Location {
                     )
                 };
             let aspect_ratio = aspect_ratios.get(this).ok().copied();
+            location.check_content_axes(
+                this,
+                *layout,
+                *fonts.short,
+                spawned_at,
+                texts.contains(this),
+                aspect_ratio.is_some(),
+            );
             let mut stack = None;
             if let Ok(s) = stacks.get(this) {
                 if let Some(id) = s.id {
@@ -631,31 +749,12 @@ fn resolve(
         }
         let unconstrained = resolution.section;
         if let Some(a) = aspect_ratio {
-            let ratio = if let Some(r) = a.config(layout) {
-                r
-            } else {
-                1.0
-            };
-            if config.horizontal.a.value == LocationValue::TextContent
-                && config.horizontal.a.designator == Designator::Width
-                || config.horizontal.b.value == LocationValue::TextContent
-                    && config.horizontal.b.designator == Designator::Width
-            {
-                resolution
-                    .section
-                    .set_width(resolution.section.height() * ratio);
-            } else if config.vertical.b.value == LocationValue::TextContent
-                && config.vertical.b.designator == Designator::Height
-                || config.vertical.a.value == LocationValue::TextContent
-                    && config.vertical.a.designator == Designator::Height
-            {
-                resolution
-                    .section
-                    .set_height(resolution.section.width() * 1f32 / ratio);
-            } else {
-                if let Some(constrained) = a.constrain(resolution.section, layout) {
-                    resolution.section = constrained;
-                }
+            // No content-axis case here: a `text_content()` axis on an entity that also has an
+            // `AspectRatio` is rejected outright by `check_content_axes`, so by the time this
+            // runs the box has two real extents and fitting the ratio inside them is the only
+            // thing the ratio can mean.
+            if let Some(constrained) = a.constrain(resolution.section, layout) {
+                resolution.section = constrained;
             }
         }
         if let Some(max_w) = config.horizontal.max {

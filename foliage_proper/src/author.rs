@@ -28,7 +28,6 @@ pub struct LeafSprout {
     pub(crate) shape: Option<crate::InteractionShape>,
     pub(crate) clip_to_viewport: bool,
     pub(crate) aspect: Option<crate::AspectRatio>,
-    pub(crate) content_size: Option<(bool, bool)>,
     pub(crate) font: Option<crate::FontId>,
     pub(crate) font_size: Option<crate::FontSize>,
     pub(crate) overscroll: Option<crate::OverscrollPropagation>,
@@ -48,7 +47,6 @@ impl Default for LeafSprout {
             shape: None,
             clip_to_viewport: false,
             aspect: None,
-            content_size: None,
             font: None,
             font_size: None,
             overscroll: None,
@@ -192,36 +190,6 @@ pub trait Sprout: Author {
     /// Constrains the resolved box to a width:height ratio.
     fn aspect(mut self, ratio: crate::AspectRatio) -> Self {
         self.seed().aspect = Some(ratio);
-        self
-    }
-    /// Sizes the box from the text's own measured extent rather than bounding it.
-    ///
-    /// TODO: two independent-looking arguments that are not independent, and a result that does
-    /// not persist on its own. Both traps are silent, and hitting either leaves a box at
-    /// whatever its `Location` declared -- which looks like the call doing nothing.
-    ///
-    /// 1. *`height` wins.* `Text::update` picks the adjustment with
-    ///    `if auto_height { .. } else if auto_width { .. }`, so `sized_by_content(true, true)`
-    ///    silently applies height only and the width argument is dead. The signature offers a
-    ///    combination the engine cannot produce.
-    /// 2. *the measurement is transient.* The measured box is written onto `Section` and
-    ///    `LayoutSection` after glyph layout, and the next `Resolve<Location>` recomputes that
-    ///    axis from the declared `Location` and discards it. It survives only if the `Location`
-    ///    also states [`text_content()`](crate::text_content) on that axis, which resolves to
-    ///    "keep the current extent". Nothing here says so, and `TextInput` -- the only in-tree
-    ///    caller -- pairs them without comment, so the requirement is discoverable only by
-    ///    reading it.
-    ///
-    /// Both point the same way: content sizing is a property of the *axis*, not a pair of flags
-    /// beside it. Fold it into the `Location` -- `text_content().as_width()` already exists and
-    /// is the half that has to be there anyway -- and derive `TextContentWidth`/`TextContentHeight`
-    /// from the declaration rather than accepting them separately. That makes the invalid
-    /// combination unspellable and the persistence automatic, and this method goes away.
-    ///
-    /// Until then, the two working spellings are `(true, false)` with a `text_content()` width
-    /// and `(false, true)` with a `text_content()` height.
-    fn sized_by_content(mut self, width: bool, height: bool) -> Self {
-        self.seed().content_size = Some((width, height));
         self
     }
     /// Draws this element's text in a face registered with

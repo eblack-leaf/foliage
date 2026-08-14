@@ -70,9 +70,7 @@ fn travel_at(center_pct: f32) -> Location {
             .pct()
             .as_center_x()
             .with(TRAVELLER.px().as_width()),
-        50.pct()
-            .as_center_y()
-            .with(TRAVELLER.px().as_height()),
+        50.pct().as_center_y().with(TRAVELLER.px().as_height()),
     )
 }
 
@@ -161,7 +159,11 @@ fn far_end(canopy: &Canopy, stage: Leaf, shape: Leaf) -> f32 {
     // Both are screen boxes, so the shape's centre has to come back into the stage's own
     // percentages before it can be compared with HOME and AWAY.
     let center = (shape.left() + shape.width() / 2.0 - stage.left()) / stage.width() * 100.0;
-    if center > (HOME + AWAY) / 2.0 { HOME } else { AWAY }
+    if center > (HOME + AWAY) / 2.0 {
+        HOME
+    } else {
+        AWAY
+    }
 }
 
 /// Sends the shape to whichever end it is currently further from.
@@ -424,7 +426,11 @@ impl Demo for RepeatDemo {
             canopy,
             self.board.stage,
             self.shape,
-            if backtrack { timing.backtrack() } else { timing },
+            if backtrack {
+                timing.backtrack()
+            } else {
+                timing
+            },
         );
         let [repeat, passes] = board::REPEAT_VALUES[step];
         self.board.set(canopy, 0, repeat);

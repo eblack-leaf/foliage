@@ -5,7 +5,7 @@ use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    Animate, Attachment, Color, Component, Differential, Foliage, Author, LeafSprout, Logical,
+    Animate, Attachment, Author, Color, Component, Differential, Foliage, LeafSprout, Logical,
     ResolvedElevation, Section, Visibility,
 };
 use bevy_ecs::bundle::Bundle;

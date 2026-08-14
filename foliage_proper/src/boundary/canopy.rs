@@ -6,8 +6,8 @@ use crate::coordinate::position::Position;
 use crate::interaction::Click;
 use crate::opacity::BlendedOpacity;
 use crate::{
-    AssetKey, AssetLoader, Color, CurrentInteraction, FontSize, Layout, Logical, ResolvedVisibility, Section, Short, Text,
-    Time, TimeDelta, View,
+    AssetKey, AssetLoader, Color, CurrentInteraction, FontSize, Layout, Logical,
+    ResolvedVisibility, Section, Short, Text, Time, TimeDelta, View,
 };
 use bevy_ecs::system::{Query, Res, SystemParam};
 

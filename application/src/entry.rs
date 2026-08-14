@@ -132,6 +132,11 @@ impl Site {
                     demo.gesture(canopy, leaf, site::Phase::Dragged)
                 });
             }
+            Bloom::DragStarted(leaf) => {
+                self.offer(canopy, |demo, canopy| {
+                    demo.gesture(canopy, leaf, site::Phase::DragStarted)
+                });
+            }
             Bloom::Disengaged(leaf) => {
                 self.offer(canopy, |demo, canopy| {
                     demo.gesture(canopy, leaf, site::Phase::Disengaged)

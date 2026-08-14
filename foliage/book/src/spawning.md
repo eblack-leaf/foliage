@@ -41,7 +41,6 @@ pub trait Sprout: Author {
     fn overscroll(mut self, passes: bool) -> Self;
     fn clip_to_viewport(mut self) -> Self;
     fn aspect(mut self, ratio: AspectRatio) -> Self;
-    fn sized_by_content(mut self, width: bool, height: bool) -> Self;
     fn font(mut self, font: FontId) -> Self;
 }
 ```

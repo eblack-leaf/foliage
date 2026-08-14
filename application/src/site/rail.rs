@@ -179,31 +179,33 @@ pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) ->
                     .elevate(Elevation::up(1)),
             );
         }
-        entries.push(canopy.branch(
-            surface,
-            Text::new(*name)
-                .size(FontSize::new(type_scale::TITLE))
-                // Not the variant tone: these sit on `surface()`, which is a good deal lighter
-                // than the page, and the variant reads washed out against it. What separates an
-                // inactive entry from the active one is the pill behind it, not a dimmer label.
-                .color(if is_active {
-                    role::on_accent()
-                } else {
-                    role::on_surface()
-                })
-                .at(Location::new().xs(
-                    space::MD
-                        .px()
-                        .as_left()
-                        .with(100.pct().as_right().adjust(-space::SM)),
-                    top.px().as_top().with(ENTRY_H.px().as_height()),
-                ))
-                .elevate(Elevation::up(2))
-                .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
-                // the entry *is* the target -- without this it is drawn and never grabbed, so
-                // every section but the one the rail already shows was unreachable
-                .interactive(),
-        ));
+        entries.push(
+            canopy.branch(
+                surface,
+                Text::new(*name)
+                    .size(FontSize::new(type_scale::TITLE))
+                    // Not the variant tone: these sit on `surface()`, which is a good deal lighter
+                    // than the page, and the variant reads washed out against it. What separates an
+                    // inactive entry from the active one is the pill behind it, not a dimmer label.
+                    .color(if is_active {
+                        role::on_accent()
+                    } else {
+                        role::on_surface()
+                    })
+                    .at(Location::new().xs(
+                        space::MD
+                            .px()
+                            .as_left()
+                            .with(100.pct().as_right().adjust(-space::SM)),
+                        top.px().as_top().with(ENTRY_H.px().as_height()),
+                    ))
+                    .elevate(Elevation::up(2))
+                    .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
+                    // the entry *is* the target -- without this it is drawn and never grabbed, so
+                    // every section but the one the rail already shows was unreachable
+                    .interactive(),
+            ),
+        );
     }
 
     Rail {

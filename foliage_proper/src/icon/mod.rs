@@ -9,7 +9,7 @@ use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
-    AssetKey, Attachment, Color, Component, Differential, Foliage, Author, LeafSprout, Logical,
+    AssetKey, Attachment, Author, Color, Component, Differential, Foliage, LeafSprout, Logical,
     ResolvedElevation, Section, Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;

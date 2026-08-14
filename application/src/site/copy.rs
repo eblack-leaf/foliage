@@ -173,15 +173,13 @@ pub(crate) mod headings {
 
 pub(crate) mod overview {
     /// The opener, with the accent rule down its left edge. **Free.**
-    pub(crate) const LEAD: &str =
-        "Everything on screen is a leaf. Any leaf can branch from another becoming its dependent; \
+    pub(crate) const LEAD: &str = "Everything on screen is a leaf. Any leaf can branch from another becoming its dependent; \
          thus forming a tree. Applications then become a collection of trees allowing expressive \
          coordination of visual and non-visual elements. This mental model serves as the basis \
          for the name foliage.";
 
     /// Under `the library`. **Free.**
-    pub(crate) const LIBRARY: &str =
-        "foliage is a UI framework for Rust. It renders through wgpu and runs the same source on \
+    pub(crate) const LIBRARY: &str = "foliage is a UI framework for Rust. It renders through wgpu and runs the same source on \
          desktop, on the web and on Android. State lives in an ECS world and commanded through actions\
          sent to the core engine. Messages can be read back to respond to core internal events. All \
          user logic lives in a per-frame closure handed to the photosynthesis process (event loop), \
@@ -189,8 +187,7 @@ pub(crate) mod overview {
          to life.";
 
     /// Under `where to go`, above the destination buttons. **Free.**
-    pub(crate) const WHERE: &str =
-        "Check out the docs for thorough code reference. If your looking for more explanation, the book\
+    pub(crate) const WHERE: &str = "Check out the docs for thorough code reference. If your looking for more explanation, the book\
         is a guide and in depth walkthrough of the library and its core mechanisms. If you prefer just\
         delving through code; the entire library is available on github.";
 
@@ -264,7 +261,7 @@ pub(crate) const CAPABILITIES: [CardSpec; 7] = [
         icon: IconHandles::Box,
         sides: 5.0,
         route: 8,
-    }
+    },
 ];
 
 /// The overview's plate -- the figure under the lead.
@@ -346,27 +343,22 @@ pub(crate) mod leaf {
     ///
     /// The overview's own lead already says everything is a leaf and that the stem is what
     /// things resolve against, so this one has nowhere to go if it starts there too.
-    pub(crate) const LEAD: &str =
-        "Every element is a leaf. This provides core logic to each element \
+    pub(crate) const LEAD: &str = "Every element is a leaf. This provides core logic to each element \
         that enables visibility, clipping, responsive-locations and more. \
         The `Leaf` type is a handle to this element to allow commands to target it. Below is the core\
         logic illustrated as interactive demos.";
 
     /// The paragraph above each board. **Free**, all four.
-    pub(crate) const RESOLVING: &str =
-        "A child states its box in percentages of its parent, so one declaration is a different \
+    pub(crate) const RESOLVING: &str = "A child states its box in percentages of its parent, so one declaration is a different \
          number of pixels in a different parent. The declaration is written once and never \
          rewritten; the readout is what the tree makes of it this frame.";
-    pub(crate) const CLIPPING: &str =
-        "A parent is a boundary as well as an origin. This child is declared in pixels, so it \
+    pub(crate) const CLIPPING: &str = "A parent is a boundary as well as an origin. This child is declared in pixels, so it \
          cannot shrink along with its parent -- narrow the parent and the child is cut at the \
          edge, while the box it asked for stays exactly what it was.";
-    pub(crate) const INHERITING: &str =
-        "Some of what you write to a parent reaches everything beneath it, and some of it stops \
+    pub(crate) const INHERITING: &str = "Some of what you write to a parent reaches everything beneath it, and some of it stops \
          there. Which is which is not guessable, so the board writes both to the same parent and \
          you read the child.";
-    pub(crate) const LIFETIME: &str =
-        "The branch links lifetimes of elements. When an element that is placed as a dependent of\
+    pub(crate) const LIFETIME: &str = "The branch links lifetimes of elements. When an element that is placed as a dependent of\
         another, pruning the root cleans all branched-leafs.";
 }
 
@@ -374,24 +366,20 @@ pub(crate) mod leaf {
 
 pub(crate) mod layout {
     /// The page's opener. **Free.**
-    pub(crate) const LEAD: &str =
-        "Every box is a `Location`: a percentage, a pixel count, or a grid line, on each axis. \
+    pub(crate) const LEAD: &str = "Every box is a `Location`: a percentage, a pixel count, or a grid line, on each axis. \
          `Grid` is the coordinate system those numbers are read against, and `Anchor` is an \
          escape hatch from it -- resolving against another element instead of the parent. Below \
          are three ways the same kind of declaration ends up a different box.";
 
     /// The paragraph above each board. **Free**, all three.
-    pub(crate) const GRID: &str =
-        "A grid's columns and rows are lines, not percentages -- the second column is the second \
+    pub(crate) const GRID: &str = "A grid's columns and rows are lines, not percentages -- the second column is the second \
          line in from the left, whichever width the grid divided into. A box spanning several \
          columns spans the gaps between them too, so it is not simply the columns it crosses \
          added together.";
-    pub(crate) const ANCHOR: &str =
-        "A box can resolve against any named element instead of its parent. The target and the \
+    pub(crate) const ANCHOR: &str = "A box can resolve against any named element instead of its parent. The target and the \
          box carrying the anchor need not be related at all -- not siblings, not parent and \
          child, just two entities where one reads the other's geometry.";
-    pub(crate) const MEASURE: &str =
-        "A percentage can still be given a ceiling. Below it the box tracks its parent like any \
+    pub(crate) const MEASURE: &str = "A percentage can still be given a ceiling. Below it the box tracks its parent like any \
          other percentage; past it, the parent keeps growing and the box stops -- centered in \
          whatever room that leaves, by default.";
 }
@@ -403,33 +391,27 @@ pub(crate) mod layout {
 /// timing tokens.
 pub(crate) mod motion {
     /// The page's opener. **Free.**
-    pub(crate) const LEAD: &str =
-        "An animation is one value on one element, moved from wherever it currently is to a \
+    pub(crate) const LEAD: &str = "An animation is one value on one element, moved from wherever it currently is to a \
          target, over a window of time. Four numbers decide the whole of it: when it starts, \
          when it finishes, the curve between them, and how many times it runs. Everything is \
          counted against a sequence, which is what reports the group as done.";
 
     /// The paragraph above each board. **Free**, all five.
-    pub(crate) const EASE: &str =
-        "The curve is what the motion feels like, and it is independent of how long the motion \
+    pub(crate) const EASE: &str = "The curve is what the motion feels like, and it is independent of how long the motion \
          lasts. The same travel over the same window reads as arriving, as leaving, or as a \
          machine moving a part, depending only on which one is picked.";
-    pub(crate) const TIMING: &str =
-        "Both numbers are measured from the sequence's own beginning, so a start is a delay \
+    pub(crate) const TIMING: &str = "Both numbers are measured from the sequence's own beginning, so a start is a delay \
          rather than a duration -- a tween from 600 to 1400 waits 600ms and then runs for 800. \
          That is what lets a whole page be staggered by handing each element one number, and \
          it is also the wait you are watching before each of these moves at all.";
-    pub(crate) const TWEENS: &str =
-        "What can be tweened is a closed set: opacity, color, elevation, the box itself, a \
+    pub(crate) const TWEENS: &str = "What can be tweened is a closed set: opacity, color, elevation, the box itself, a \
          polygon's shape, an outline. Anything outside it is tweened as plain numbers instead \
          -- the engine runs the clock and reports each frame's values for you to apply.";
-    pub(crate) const REPEAT: &str =
-        "A repeat replays the same pass. Left alone it snaps back to the start value each time, \
+    pub(crate) const REPEAT: &str = "A repeat replays the same pass. Left alone it snaps back to the start value each time, \
          which is invisible on a rotation and a jolt on anything else; backtracking runs each \
          replay the way it came instead. A loop lives inside the animation rather than in a \
          chain of callbacks, so it cannot outlive what it animates.";
-    pub(crate) const SEQUENCE: &str =
-        "Joining a sequence groups animations; it does not order them. Each keeps its own \
+    pub(crate) const SEQUENCE: &str = "Joining a sequence groups animations; it does not order them. Each keeps its own \
          timing and they may overlap freely -- what the sequence adds is a single report once \
          the last of them lands, which is the hook the next stage of motion hangs off.";
 }
@@ -438,37 +420,30 @@ pub(crate) mod motion {
 
 pub(crate) mod renderers {
     /// The page's opener. **Free.**
-    pub(crate) const LEAD: &str =
-        "Six renderers draw everything on screen: Panel, Polygon, Text, the line quad behind \
+    pub(crate) const LEAD: &str = "Six renderers draw everything on screen: Panel, Polygon, Text, the line quad behind \
          Line and Polyline, Icon, and Image. One board each, pressing the one property that \
          says what the pipeline is for. What surrounds two of them -- Text's sizing, and the \
          assets Icon and Image are fed from -- gets a section of its own further on.";
 
     /// The paragraph above each board. **Free**, all six.
-    pub(crate) const ROUNDING: &str =
-        "A panel's corners are a bracket, not a raw radius -- a step resolves off the panel's \
+    pub(crate) const ROUNDING: &str = "A panel's corners are a bracket, not a raw radius -- a step resolves off the panel's \
          own shorter side, so the same step reads the same on a small chip and a large card.";
-    pub(crate) const SIDES: &str =
-        "Side count and rounding are what every entrance on this site already animates through \
+    pub(crate) const SIDES: &str = "Side count and rounding are what every entrance on this site already animates through \
          -- a shape resolving from a rough triangle into itself is exactly these two numbers, \
          tweened. Here they're a press instead of a timer.";
-    pub(crate) const GLYPH: &str =
-        "A glyph's own box is fixed: on this monospace face every character advances the same \
+    pub(crate) const GLYPH: &str = "A glyph's own box is fixed: on this monospace face every character advances the same \
          distance regardless of its shape, which is what lets the whole site budget copy in \
          characters instead of measuring each string. What changes letter to letter is only \
          which slot in the font's own atlas gets sampled -- looked up by codepoint, not by \
          width.";
-    pub(crate) const DRAW: &str =
-        "A polyline's path can be revealed by length rather than snapped on whole. The fraction \
+    pub(crate) const DRAW: &str = "A polyline's path can be revealed by length rather than snapped on whole. The fraction \
          is of the arc, not the point count, so it reads smoothly regardless of how many \
          vertices make up the shape.";
-    pub(crate) const ICON: &str =
-        "An icon is a distance field rather than a picture. One field is registered at startup \
+    pub(crate) const ICON: &str = "An icon is a distance field rather than a picture. One field is registered at startup \
          -- 48px here, for every icon on the site -- and every size on the page is drawn from \
          that same one, so an icon has no resolution to outgrow: making it larger is a change \
          to its box and nothing else.";
-    pub(crate) const IMAGE: &str =
-        "An image arrives with its own pixels and its own ratio, and the box it lands in rarely \
+    pub(crate) const IMAGE: &str = "An image arrives with its own pixels and its own ratio, and the box it lands in rarely \
          agrees with either. The fit settles it: keep the ratio and leave room, keep the ratio \
          and clip what overhangs, or take the box exactly and wear the distortion. It is chosen \
          as the element is grown, so the three below are three elements and a press picks which \
@@ -479,36 +454,30 @@ pub(crate) mod renderers {
 
 pub(crate) mod input {
     /// The page's opener. **Free.**
-    pub(crate) const LEAD: &str =
-        "Input is reported, not handled. A press is hit-tested against every element on screen \
+    pub(crate) const LEAD: &str = "Input is reported, not handled. A press is hit-tested against every element on screen \
          at once -- a flat scan ranked by draw order, not a walk up the tree -- and whichever \
          one wins is named in an emission your own code answers. Three of the boards below \
          report what the engine said about your own pointer as you use them.";
 
     /// The paragraph above each board. **Free**, all five.
-    pub(crate) const HIT: &str =
-        "A click has to land inside the element's own shape and inside every clip its ancestors \
+    pub(crate) const HIT: &str = "A click has to land inside the element's own shape and inside every clip its ancestors \
          impose. Shape is not always the box: rounding a panel the whole way switches its hit \
          test to a circle, so a dot stops collecting the clicks that land in the square corners \
          it never drew.";
-    pub(crate) const GRAB: &str =
-        "Every element competes for a press by default, drawn or not -- a label lying over a \
+    pub(crate) const GRAB: &str = "Every element competes for a press by default, drawn or not -- a label lying over a \
          button wins on draw order and swallows it. Passing through is how something purely \
          visual withdraws: it is still told the gesture crossed it, but it can no longer take \
          it, so several elements can report one press and they arrive in hit-test order.";
-    pub(crate) const GESTURE: &str =
-        "A press comes apart into three reports: it went down, it moved, and it came back up. \
+    pub(crate) const GESTURE: &str = "A press comes apart into three reports: it went down, it moved, and it came back up. \
          Movement is reported from the first pixel, so on a mouse very nearly every press is \
          also a drag. The threshold of ten pixels decides something else -- whether the release \
          is also a click. A click is an outcome rather than an event, and a gesture that \
          wandered produces none.";
-    pub(crate) const SCROLL: &str =
-        "Any element laid out on a grid can scroll, and what it cannot absorb is handed outward \
+    pub(crate) const SCROLL: &str = "Any element laid out on a grid can scroll, and what it cannot absorb is handed outward \
          to the next one that can. That is what lets a small panel inside a page take the wheel \
          until it reaches its own end and then let the page have the rest, instead of trapping \
          the gesture where it landed.";
-    pub(crate) const FIELD: &str =
-        "The one assembled control: a field with a caret, selection, a hint while it is empty, \
+    pub(crate) const FIELD: &str = "The one assembled control: a field with a caret, selection, a hint while it is empty, \
          and the keyboard handling behind all three. It reports what it now holds after every \
          edit, and reports Enter separately -- on a single-line field that key is not a \
          newline, it is a submission for you to answer.";
@@ -522,37 +491,31 @@ pub(crate) mod input {
 
 pub(crate) mod text {
     /// The page's opener. **Free.**
-    pub(crate) const LEAD: &str =
-        "The renderers page took the glyph -- one character, sampled out of an atlas. This is \
+    pub(crate) const LEAD: &str = "The renderers page took the glyph -- one character, sampled out of an atlas. This is \
          everything around it: a size that changes with the window, boxes measured in \
          characters rather than pixels, a box taking its size from its own string, colour per \
          character, and the one thing about fonts that is decided before the app runs.";
 
     /// The paragraph above each board. **Free**, all five.
-    pub(crate) const SIZE: &str =
-        "A size is declared per breakpoint and resolved against the window, falling back down \
+    pub(crate) const SIZE: &str = "A size is declared per breakpoint and resolved against the window, falling back down \
          the steps to whatever was stated last. A short viewport overrides all of them: a phone \
          on its side is a wide window with almost no height, and large type is the first thing \
          to run out of room there. The frame below stands in for the window, since the window \
          is the one thing on this page you cannot be handed a button for -- the declaration it \
          is resolving, and the size that comes out, are the real ones.";
-    pub(crate) const LETTERS: &str =
-        "A box can be stated in characters instead of pixels, and it resolves against the \
+    pub(crate) const LETTERS: &str = "A box can be stated in characters instead of pixels, and it resolves against the \
          element's own size -- so writing a new size is a change of geometry, not only of \
          drawing. This whole site's copy is budgeted that way: one glyph advances 0.6 of the \
          size, always, so a column's width is a character count.";
-    pub(crate) const CONTENT: &str =
-        "The other direction: the box takes its size from the string rather than the string \
+    pub(crate) const CONTENT: &str = "The other direction: the box takes its size from the string rather than the string \
          being fitted into the box. Sizing to content by width also turns wrapping off -- with \
          no fixed right edge there is nothing to wrap against, so the run stays on one line and \
          the box grows to hold it.";
-    pub(crate) const COLOR: &str =
-        "A run has one colour, and any character in it may be given another by its offset. The \
+    pub(crate) const COLOR: &str = "A run has one colour, and any character in it may be given another by its offset. The \
          wordmark on the hero and the mark at the top of the rail are the same string, coloured \
          this way -- the extension takes the accent and the name stays plain, without splitting \
          either into two elements that would then have to be kept adjacent.";
-    pub(crate) const FONT: &str =
-        "A second face is registered at startup and named per element. This page is set in two: \
+    pub(crate) const FONT: &str = "A second face is registered at startup and named per element. This page is set in two: \
          the upright face everything structural uses, and the italic cut of the same family the \
          prose is in -- same weight, same rhythm, so only the slant changes.";
 }
@@ -561,8 +524,7 @@ pub(crate) mod text {
 
 pub(crate) mod assets {
     /// The page's opener. **Free.**
-    pub(crate) const LEAD: &str =
-        "Everything drawn from bytes -- images, and the fields icons are baked into -- comes \
+    pub(crate) const LEAD: &str = "Everything drawn from bytes -- images, and the fields icons are baked into -- comes \
          through one loader. Asking for an asset hands back a key immediately, before any bytes \
          exist, and the key is what everything else is written against. Loading is decoupled \
          from drawing, so nothing in your layout has to wait for a fetch or branch on whether \
@@ -570,27 +532,23 @@ pub(crate) mod assets {
 
     /// The paragraph above each board, and the two sections with no board of their own.
     /// **Free**, all four.
-    pub(crate) const KEY: &str =
-        "The key is minted before the load is even started, so an element can be grown with it \
+    pub(crate) const KEY: &str = "The key is minted before the load is even started, so an element can be grown with it \
          in the same frame you asked. What arrives later is the bytes, reported once, keyed by \
          the handle you already hold -- there is no second handle to reconcile and nothing to \
          poll. The two states below are one frame apart for this picture, which is compiled \
          into the page; the board holds them apart so the first one can be looked at, because \
          over a network it is the state you would spend the most time in.";
-    pub(crate) const ARTWORK: &str =
-        "An icon is registered under an id at startup and referenced by that id afterwards. \
+    pub(crate) const ARTWORK: &str = "An icon is registered under an id at startup and referenced by that id afterwards. \
          Which artwork an element draws is a write like any other, so one element can be moved \
          between fields without being torn down and regrown -- the renderers page runs the \
          other axis of this, one field drawn at three sizes.";
-    pub(crate) const WHERE: &str =
-        "Bytes in hand and bytes to fetch are two paths, not two halves of one. Which path a \
+    pub(crate) const WHERE: &str = "Bytes in hand and bytes to fetch are two paths, not two halves of one. Which path a \
          build takes is settled at compile time: the native binary embeds the file, the web \
          build asks for it at a URL, and the fetching variant does not exist at all in a native \
          build that opted out of it -- so getting that wrong is a compile error at the call \
          site rather than a failure at load. They differ only at the first step, and the board \
          below draws one path at a time so that the two you cannot have at once are still two.";
-    pub(crate) const FONTS: &str =
-        "Fonts do not go through any of this. A face is registered before the app starts and \
+    pub(crate) const FONTS: &str = "Fonts do not go through any of this. A face is registered before the app starts and \
          cannot be fetched, and it must be monospaced -- a proportional file is refused as it \
          is read rather than drawn badly. Bundle it with the binary; the text page has what \
          happens once you have.";
@@ -700,19 +658,13 @@ pub(crate) mod board {
 
     /// The sides board's readout, one pair per step: the declared count, then the shape it
     /// names.
-    pub(crate) const SIDES_VALUES: [[&str; 2]; 3] = [
-        ["3", "triangle"],
-        ["6", "hexagon"],
-        ["12", "12-gon"],
-    ];
+    pub(crate) const SIDES_VALUES: [[&str; 2]; 3] =
+        [["3", "triangle"], ["6", "hexagon"], ["12", "12-gon"]];
 
     /// The glyph board's readout, one pair per step: the advance every letter shares on this
     /// face, then the codepoint that picks which one is sampled from the atlas.
-    pub(crate) const GLYPH_VALUES: [[&str; 2]; 3] = [
-        ["48px", "u+0061"],
-        ["48px", "u+0067"],
-        ["48px", "u+0040"],
-    ];
+    pub(crate) const GLYPH_VALUES: [[&str; 2]; 3] =
+        [["48px", "u+0061"], ["48px", "u+0067"], ["48px", "u+0040"]];
 
     /// The draw board's readout, one pair per step: the reveal fraction, then the call that
     /// set it.
@@ -751,11 +703,8 @@ pub(crate) mod board {
     /// The timing board's readout, one pair per step: the two numbers the tween is declared
     /// with. Both are offsets into the sequence, which is why the last step's finish is
     /// larger than its duration.
-    pub(crate) const TIMING_VALUES: [[&str; 2]; 3] = [
-        ["200ms", "420ms"],
-        ["200ms", "1100ms"],
-        ["600ms", "1400ms"],
-    ];
+    pub(crate) const TIMING_VALUES: [[&str; 2]; 3] =
+        [["200ms", "420ms"], ["200ms", "1100ms"], ["600ms", "1400ms"]];
 
     /// The tweens board's readout, one pair per step: the variant, then the move it makes.
     ///
@@ -782,8 +731,7 @@ pub(crate) mod board {
 
     /// The sequence board's `starts` row, one per step: the three tweens' own delays inside
     /// the one sequence they are joined to.
-    pub(crate) const SEQUENCE_STARTS: [&str; 2] =
-        ["200 / 460 / 720ms", "200 / 200 / 200ms"];
+    pub(crate) const SEQUENCE_STARTS: [&str; 2] = ["200 / 460 / 720ms", "200 / 200 / 200ms"];
 
     /// The sequence board's `group` row, which is the tree's answer rather than the step's:
     /// what the sequence is doing right now. `FINISHED` is written when the emission naming
@@ -899,7 +847,8 @@ pub(crate) mod board {
     ///
     /// The note is about the *click*, not about `Dragged`. `Dragged` arrives on every move
     /// while an element holds the gesture, from the first pixel; the ten-pixel threshold is
-    /// only what decides whether a `Clicked` follows the release.
+    /// only what decides whether a `Clicked` follows the release, and `DragStarted` -- which
+    /// is what turns this note on -- is the one emission that announces it.
     pub(crate) fn travel(px: f32, past: bool) -> String {
         format!(
             "{}px{}",
@@ -1015,7 +964,8 @@ pub(crate) mod board {
     /// Its `run` row, one per step: what was asked for, in the terms the call takes.
     pub(crate) const COLOR_RUNS: [&str; 3] = ["one color", "add(7..10, accent)", "add(i..i+1, ..)"];
     /// Its `glyphs` row, one per step: how many characters ended up with a colour of their own.
-    pub(crate) const COLOR_OVERRIDES: [&str; 3] = ["none overridden", "3 overridden", "all 10 overridden"];
+    pub(crate) const COLOR_OVERRIDES: [&str; 3] =
+        ["none overridden", "3 overridden", "all 10 overridden"];
 
     /// The font board's specimen, set in whichever face the step names.
     pub(crate) const FONT_SPECIMEN: &str = "the same sentence";
@@ -1414,7 +1364,7 @@ pub(crate) mod reference {
         },
     ];
 
-    pub(crate) const GESTURE: [Entry; 4] = [
+    pub(crate) const GESTURE: [Entry; 5] = [
         Entry {
             call: "Bloom::Engaged",
             gloss: "The pointer went down on this element.",
@@ -1422,6 +1372,10 @@ pub(crate) mod reference {
         Entry {
             call: "Bloom::Dragged",
             gloss: "Every move of the pointer while this element holds the gesture.",
+        },
+        Entry {
+            call: "Bloom::DragStarted",
+            gloss: "Once, when the gesture passes the threshold and stops being a click.",
         },
         Entry {
             call: "Bloom::Disengaged",
@@ -1499,16 +1453,16 @@ pub(crate) mod reference {
 
     pub(crate) const CONTENT: [Entry; 3] = [
         Entry {
-            call: ".sized_by_content(w, h)",
-            gloss: "Takes the box from the laid-out glyphs instead of from the Location.",
+            call: "text_content().as_width()",
+            gloss: "Takes that axis from the laid-out glyphs instead of from the parent.",
         },
         Entry {
             call: "width also ends wrapping",
             gloss: "With no fixed right edge there is nothing left to wrap the run against.",
         },
         Entry {
-            call: "text_content()",
-            gloss: "The same measure as a location value, for a box that follows a run.",
+            call: "anchor() on a neighbour",
+            gloss: "How a box with no text of its own follows a run that measures itself.",
         },
     ];
 

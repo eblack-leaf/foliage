@@ -241,7 +241,8 @@ impl Demo for Letters {
         // longer holds twelve of these characters.
         canopy.font_size(self.specimen, size);
         canopy.font_size(self.cell, size);
-        self.board.set(canopy, 0, board::advance(LETTERS_SIZES[step]));
+        self.board
+            .set(canopy, 0, board::advance(LETTERS_SIZES[step]));
         true
     }
     fn drive(&mut self, canopy: &mut Canopy) {
@@ -279,22 +280,20 @@ fn content(g: &mut Grow, column: &mut Column) {
             .size(FontSize::new(type_scale::HEADLINE))
             .color(role::accent())
             .at(Location::new().xs(
-                // Both halves of the pairing, and neither works alone. `sized_by_content`
-                // writes the glyph-measured box straight onto the `Section` *after* the fact;
-                // `text_content()` is what stops the next resolve recomputing that axis from
-                // the parent and throwing the measurement away. Declared with only the first,
-                // this box stayed at the right edge it was given and took its outline off the
-                // side of the stage. It is also why the two flags are not independent: the
-                // adjustment reads `if auto_height { .. } else if auto_width { .. }`, so
-                // asking for both is asking for height and getting no width at all.
+                // The width is the declaration and the measure both: `text_content()` is what
+                // tells the glyph pass to write its measured extent onto this axis, and what
+                // resolves to "keep what is there" afterwards so the next resolve doesn't
+                // recompute the axis from the parent and throw that measurement away. One
+                // value, because they were never separable -- a box measured and then
+                // re-resolved from the parent is a box that stayed at the right edge it was
+                // given and took its outline off the side of the stage.
                 //
-                // The pairing is `TextInput`'s own, for its single-line field.
+                // The spelling is `TextInput`'s own, for its single-line field.
                 space::MD.px().as_left().with(text_content().as_width()),
                 50.pct().as_center_y().with(1.letters().as_height()),
             ))
             .elevate(Elevation::up(2))
             .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
-            .sized_by_content(true, false)
             .pass_through(),
     );
     // Anchored rather than sized the same way, because a box with no text of its own has no

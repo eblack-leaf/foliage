@@ -298,9 +298,7 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
             }
             Op::Sequence(leaf) => tree.sequence_at(leaf.0),
             Op::Timer { millis, leaf } => tree.timer_at(leaf.0, millis),
-            Op::Hint { text, .. } => {
-                tree.write_to(subject.unwrap(), crate::HintText::new(text))
-            }
+            Op::Hint { text, .. } => tree.write_to(subject.unwrap(), crate::HintText::new(text)),
             Op::InputStyle { style, .. } => tree.write_to(subject.unwrap(), style),
             Op::Tween {
                 tween,
@@ -331,13 +329,7 @@ fn alive(world: &World, leaf: Leaf) -> bool {
     world.entities().contains(leaf.0)
 }
 
-fn animate(
-    tree: &mut Tree,
-    entity: Entity,
-    to: Motion,
-    timing: Timing,
-    sequence: Option<Entity>,
-) {
+fn animate(tree: &mut Tree, entity: Entity, to: Motion, timing: Timing, sequence: Option<Entity>) {
     // Resolved before the macro so the two arms cannot spawn one each. An animation the app
     // did not join to a sequence -- and one whose sequence withered before it was applied --
     // still needs something to be counted against, so it gets an anonymous one that reports

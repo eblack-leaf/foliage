@@ -3,8 +3,8 @@ use crate::ginkgo::viewport::ViewportHandle;
 use crate::grid::location::Resolution;
 use crate::interaction::CurrentInteraction;
 use crate::{
-    AnchorDeps, Children, Component, LayoutSection, Location, Logical, Parent, Points,
-    Position, Resolve, Section, Tree,
+    AnchorDeps, Children, Component, LayoutSection, Location, Logical, Parent, Points, Position,
+    Resolve, Section, Tree,
 };
 use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref, Res, ResMut, Resource};

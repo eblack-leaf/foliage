@@ -6,7 +6,7 @@
 //! a moment later, so the whole cycle repeats for as long as you keep clicking.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, Grid, Grows, GridExt, Leaf, Location, Motion, Panel,
+    Bloom, Canopy, Color, Elevation, Foliage, Grid, GridExt, Grows, Leaf, Location, Motion, Panel,
     Presence, Rounding, Sprout, Text, Timing,
 };
 

@@ -11,8 +11,8 @@ use crate::foliage::DiffMarkers;
 use crate::ginkgo::ScaleFactor;
 use crate::grid::AspectRatio;
 use crate::opacity::BlendedOpacity;
-use crate::rounding::CornerRadii;
 use crate::remove::Remove;
+use crate::rounding::CornerRadii;
 use crate::{
     Area, Attachment, Author, Component, Foliage, Layout, LeafSprout, Logical, Numerical, Parent,
     Resolved, ResolvedElevation, ResolvedVisibility, Rounding, Section, Side,

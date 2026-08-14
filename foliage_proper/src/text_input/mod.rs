@@ -11,11 +11,11 @@ use crate::interaction::CurrentInteraction;
 use crate::text::monospaced::{FontContext, FontId, FontRef};
 use crate::text::{Glyphs, LineMetrics};
 use crate::{
-    Attachment, Color, Component, Dragged, Elevation, Engaged, FocusBehavior, Foliage, FontSize,
-    GlyphOffset, Grid, GridExt, Author, InputSequence, InteractionListener, InteractionPropagation,
-    Key, Layout, LeafSprout, Location, Logical, Node, Opacity, Outline, OverscrollPropagation,
-    Panel, Parent, Rounding, Section, Text, TextContentHeight, TextContentWidth, TextValue, Tree,
-    Unfocused, View, text_content,
+    Attachment, Author, Color, Component, Dragged, Elevation, Engaged, FocusBehavior, Foliage,
+    FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
+    InteractionPropagation, Key, Layout, LeafSprout, Location, Logical, Node, Opacity, Outline,
+    OverscrollPropagation, Panel, Parent, Rounding, Section, Text, TextValue, Tree, Unfocused,
+    View, text_content,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;
@@ -412,14 +412,6 @@ impl TextInput {
                 LineConstraint::Multiple => 0.pct().as_top().with(text_content().as_height()),
             },
         );
-        let auto_width = match line_constraint {
-            LineConstraint::Single => TextContentWidth(true),
-            LineConstraint::Multiple => TextContentWidth(false),
-        };
-        let auto_height = match line_constraint {
-            LineConstraint::Single => TextContentHeight(false),
-            LineConstraint::Multiple => TextContentHeight(true),
-        };
         // Vertical centering is done to the *field*, not to the text inside it: text,
         // cursor and highlights all measure row/column from field's own origin (see above),
         // so shifting the text alone would desync the caret from the glyphs it tracks.
@@ -433,8 +425,8 @@ impl TextInput {
             },
         );
         tree.write_to(handle.field, field_location);
-        tree.write_to(handle.text, (text_location, auto_width, auto_height));
-        tree.write_to(handle.hint_text, (text_location, auto_width, auto_height));
+        tree.write_to(handle.text, text_location);
+        tree.write_to(handle.hint_text, text_location);
     }
     fn update_text_value(
         trigger: Trigger<Insert, TextValue>,
@@ -835,8 +827,7 @@ impl TextInput {
         // `round`, matching how `Text::update` physicalizes the same size -- the cell this
         // measures has to be the one the glyphs are actually rasterized into, and the two
         // disagreeing by a pixel is a caret that drifts along a line.
-        let dims =
-            font.character_block((fsv as f32 * scroll.scale_factor.value()).round() as u32);
+        let dims = font.character_block((fsv as f32 * scroll.scale_factor.value()).round() as u32);
         // Grid's own `.col()`/`.row()` resolution (`grid/location.rs`'s `calc`, the
         // `LocationValue::Column`/`Row`/`Letters` arms) sizes cells from `stem_letters`,
         // computed via `character_block` at the *unscaled* font size -- deliberately

@@ -1,8 +1,8 @@
 use crate::Sprout;
 use crate::Trigger;
 use crate::{
-    Color, Component, Elevation, Entity, Grid, GridExt, Author, LeafSprout, Line, Location, Logical,
-    Opacity, Polygon, Position, Tree,
+    Author, Color, Component, Elevation, Entity, Grid, GridExt, LeafSprout, Line, Location,
+    Logical, Opacity, Polygon, Position, Tree,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::event::EntityEvent;

@@ -11,7 +11,7 @@ monospaced-font metric table, per-character color runs, and content-driven sizin
 #[derive(Component, Clone, PartialEq, Default, Debug)]
 #[require(Color, FontSize, ResolvedFontSize, UpdateCache)]
 #[require(HorizontalAlignment, VerticalAlignment, Glyphs)]
-#[require(ResolvedGlyphs, ResolvedColors, GlyphColors, TextContentHeight, TextContentWidth)]
+#[require(ResolvedGlyphs, ResolvedColors, GlyphColors)]
 #[require(UniqueCharacters, Differential<Text, UniqueCharacters>)]
 #[require(Differential<Text, ResolvedFontSize>)]
 #[require(Differential<Text, BlendedOpacity>)]
@@ -121,3 +121,12 @@ composite -- but unlike most other primitives, `Text`'s *content* itself can dri
 layout: a composite whose text width should shape its own box can't just forward
 `TextValue` to its label unchanged, it has to `react` to it, since [`forward`](./tree.md)
 is a pure copy and this needs to also recompute a size from the new string.
+
+Which axes the content drives is stated in the `Location` itself, as a
+[`text_content()`](./grid.md) width or height -- there is no flag beside it. `Text::update`
+asks the `Location` (`Location::content_axes`) which axes those are, lays the glyphs out
+with no `max_width` when the width is one of them, and writes the measured extent back
+onto exactly those axes; `text_content()` resolving to "keep the current extent" is what
+stops the next resolve recomputing them from the parent. The two halves cannot be
+declared apart, which is the point: they were separable once, and a box declared with
+only one of them silently kept whatever size it started with.

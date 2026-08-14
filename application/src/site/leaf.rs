@@ -96,7 +96,9 @@ fn clip_frame_at(right: Option<f32>) -> Location {
     match right {
         None => frame_at(100.0),
         Some(right) => Location::new().xs(
-            0.pct().as_left().with((right.round() as i32).px().as_right()),
+            0.pct()
+                .as_left()
+                .with((right.round() as i32).px().as_right()),
             0.pct().as_top().with(100.pct().as_bottom()),
         ),
     }

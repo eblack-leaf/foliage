@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ccd1b112.js";
+            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8f4fc17f.js"></script>
@@ -218,6 +218,17 @@ through the <em>parent’s</em> own <code>FontSize</code> rather than the child�
 field/cursor grid is built entirely on this: the cursor’s column is a real <code>.col()</code>
 address into a letter-pitched grid, not a hand-computed pixel offset.</li>
 </ul>
+<p><code>text_content()</code> is the one value that reads back rather than computes. Stated as a
+<code>Text</code>’s width or height, it means “this axis is the run’s own measured extent”: the
+glyph pass writes what it measured onto that axis, and the value itself resolves to
+whatever is already there – so the measurement survives every later resolve instead of
+being recomputed from the parent and thrown away. That is the whole of sizing a box to
+its text. A single-line field that grows with what is typed states a <code>text_content()</code>
+width (which also ends wrapping – with no right edge there is nothing to wrap against),
+a paragraph that grows as it wraps states a <code>text_content()</code> height, and stating both is
+one unwrapped line measured on both axes. It is not a general “size to fit children”:
+layout is single-pass and top-down, so nothing but the entity’s own glyphs can answer it,
+and a box that needs to follow a run it does not own uses <code>anchor()</code> on that run instead.</p>
 <h2 id="grid-the-coordinate-system-a-location-resolves-against"><a class="header" href="#grid-the-coordinate-system-a-location-resolves-against"><code>Grid</code>: the coordinate system a <code>Location</code> resolves against</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
