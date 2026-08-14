@@ -386,6 +386,8 @@ impl Text {
                 ),
             );
             let dims = font.character_block(font_id, current.font_size.value);
+            // The `else if` is the first half of `Sprout::sized_by_content`'s TODO: asking for
+            // both axes gets height and drops width without saying so.
             let adjusted = if auto_height.0 {
                 Some(
                     current
@@ -607,12 +609,20 @@ pub(crate) struct TextBounds(pub(crate) Section<Physical>);
 /// measured; this replaces the resulting height once the glyphs are placed. Pair with a
 /// [`text_content()`](crate::text_content) height on a *dependent* entity to have it
 /// follow along.
+///
+/// Set through [`Sprout::sized_by_content`](crate::Sprout::sized_by_content), whose own TODO
+/// covers the two ways this pair is sharp: height silently wins over width when both are
+/// asked for, and the measurement it writes is discarded by the next resolve unless the
+/// `Location` states [`text_content()`](crate::text_content) on the same axis.
 #[derive(Component, Copy, Clone, Default)]
 pub struct TextContentHeight(pub bool);
 /// Take the entity's width from the laid-out glyphs instead of its `Location`.
 ///
 /// Also disables wrapping: with no fixed right edge there is nothing to wrap against, so
 /// the run stays on one line and the box grows to the glyph advance times the glyph count.
+///
+/// Never applied while [`TextContentHeight`] is also set -- see that type, and the TODO on
+/// [`Sprout::sized_by_content`](crate::Sprout::sized_by_content).
 #[derive(Component, Copy, Clone, Default)]
 pub struct TextContentWidth(pub bool);
 /// How many distinct characters the run uses -- the number of atlas cells the renderer

@@ -147,6 +147,26 @@ pub(crate) mod headings {
     pub(crate) const RENDERERS_DRAW: &str = "draw";
     pub(crate) const RENDERERS_ICON: &str = "icon scale";
     pub(crate) const RENDERERS_IMAGE: &str = "image fit";
+
+    pub(crate) const INPUT: &str = "input";
+    pub(crate) const INPUT_HIT: &str = "hit shape";
+    pub(crate) const INPUT_GRAB: &str = "who answers";
+    pub(crate) const INPUT_GESTURE: &str = "the gesture";
+    pub(crate) const INPUT_SCROLL: &str = "scroll";
+    pub(crate) const INPUT_FIELD: &str = "text input";
+
+    pub(crate) const TEXT: &str = "text";
+    pub(crate) const TEXT_SIZE: &str = "size per step";
+    pub(crate) const TEXT_LETTERS: &str = "the character grid";
+    pub(crate) const TEXT_CONTENT: &str = "content size";
+    pub(crate) const TEXT_COLOR: &str = "per-glyph color";
+    pub(crate) const TEXT_FONT: &str = "registered fonts";
+
+    pub(crate) const ASSETS: &str = "assets";
+    pub(crate) const ASSETS_KEY: &str = "key before bytes";
+    pub(crate) const ASSETS_ARTWORK: &str = "swapping artwork";
+    pub(crate) const ASSETS_WHERE: &str = "bundled or fetched";
+    pub(crate) const ASSETS_FONTS: &str = "fonts are not assets";
 }
 
 // ---- overview ---------------------------------------------------------------------------------
@@ -455,6 +475,127 @@ pub(crate) mod renderers {
          one is showing.";
 }
 
+// ---- input ------------------------------------------------------------------------------------
+
+pub(crate) mod input {
+    /// The page's opener. **Free.**
+    pub(crate) const LEAD: &str =
+        "Input is reported, not handled. A press is hit-tested against every element on screen \
+         at once -- a flat scan ranked by draw order, not a walk up the tree -- and whichever \
+         one wins is named in an emission your own code answers. Three of the boards below \
+         report what the engine said about your own pointer as you use them.";
+
+    /// The paragraph above each board. **Free**, all five.
+    pub(crate) const HIT: &str =
+        "A click has to land inside the element's own shape and inside every clip its ancestors \
+         impose. Shape is not always the box: rounding a panel the whole way switches its hit \
+         test to a circle, so a dot stops collecting the clicks that land in the square corners \
+         it never drew.";
+    pub(crate) const GRAB: &str =
+        "Every element competes for a press by default, drawn or not -- a label lying over a \
+         button wins on draw order and swallows it. Passing through is how something purely \
+         visual withdraws: it is still told the gesture crossed it, but it can no longer take \
+         it, so several elements can report one press and they arrive in hit-test order.";
+    pub(crate) const GESTURE: &str =
+        "A press comes apart into three reports: it went down, it moved, and it came back up. \
+         Movement is reported from the first pixel, so on a mouse very nearly every press is \
+         also a drag. The threshold of ten pixels decides something else -- whether the release \
+         is also a click. A click is an outcome rather than an event, and a gesture that \
+         wandered produces none.";
+    pub(crate) const SCROLL: &str =
+        "Any element laid out on a grid can scroll, and what it cannot absorb is handed outward \
+         to the next one that can. That is what lets a small panel inside a page take the wheel \
+         until it reaches its own end and then let the page have the rest, instead of trapping \
+         the gesture where it landed.";
+    pub(crate) const FIELD: &str =
+        "The one assembled control: a field with a caret, selection, a hint while it is empty, \
+         and the keyboard handling behind all three. It reports what it now holds after every \
+         edit, and reports Enter separately -- on a single-line field that key is not a \
+         newline, it is a submission for you to answer.";
+
+    /// Written across the gesture board's pad. **One line, ~30 chars** -- it is centred across
+    /// the stage, which is the width of the content column less the field's own padding.
+    pub(crate) const PAD: &str = "press, drag, release";
+}
+
+// ---- text -------------------------------------------------------------------------------------
+
+pub(crate) mod text {
+    /// The page's opener. **Free.**
+    pub(crate) const LEAD: &str =
+        "The renderers page took the glyph -- one character, sampled out of an atlas. This is \
+         everything around it: a size that changes with the window, boxes measured in \
+         characters rather than pixels, a box taking its size from its own string, colour per \
+         character, and the one thing about fonts that is decided before the app runs.";
+
+    /// The paragraph above each board. **Free**, all five.
+    pub(crate) const SIZE: &str =
+        "A size is declared per breakpoint and resolved against the window, falling back down \
+         the steps to whatever was stated last. A short viewport overrides all of them: a phone \
+         on its side is a wide window with almost no height, and large type is the first thing \
+         to run out of room there. The frame below stands in for the window, since the window \
+         is the one thing on this page you cannot be handed a button for -- the declaration it \
+         is resolving, and the size that comes out, are the real ones.";
+    pub(crate) const LETTERS: &str =
+        "A box can be stated in characters instead of pixels, and it resolves against the \
+         element's own size -- so writing a new size is a change of geometry, not only of \
+         drawing. This whole site's copy is budgeted that way: one glyph advances 0.6 of the \
+         size, always, so a column's width is a character count.";
+    pub(crate) const CONTENT: &str =
+        "The other direction: the box takes its size from the string rather than the string \
+         being fitted into the box. Sizing to content by width also turns wrapping off -- with \
+         no fixed right edge there is nothing to wrap against, so the run stays on one line and \
+         the box grows to hold it.";
+    pub(crate) const COLOR: &str =
+        "A run has one colour, and any character in it may be given another by its offset. The \
+         wordmark on the hero and the mark at the top of the rail are the same string, coloured \
+         this way -- the extension takes the accent and the name stays plain, without splitting \
+         either into two elements that would then have to be kept adjacent.";
+    pub(crate) const FONT: &str =
+        "A second face is registered at startup and named per element. This page is set in two: \
+         the upright face everything structural uses, and the italic cut of the same family the \
+         prose is in -- same weight, same rhythm, so only the slant changes.";
+}
+
+// ---- assets -----------------------------------------------------------------------------------
+
+pub(crate) mod assets {
+    /// The page's opener. **Free.**
+    pub(crate) const LEAD: &str =
+        "Everything drawn from bytes -- images, and the fields icons are baked into -- comes \
+         through one loader. Asking for an asset hands back a key immediately, before any bytes \
+         exist, and the key is what everything else is written against. Loading is decoupled \
+         from drawing, so nothing in your layout has to wait for a fetch or branch on whether \
+         one is still in flight.";
+
+    /// The paragraph above each board, and the two sections with no board of their own.
+    /// **Free**, all four.
+    pub(crate) const KEY: &str =
+        "The key is minted before the load is even started, so an element can be grown with it \
+         in the same frame you asked. What arrives later is the bytes, reported once, keyed by \
+         the handle you already hold -- there is no second handle to reconcile and nothing to \
+         poll. The two states below are one frame apart for this picture, which is compiled \
+         into the page; the board holds them apart so the first one can be looked at, because \
+         over a network it is the state you would spend the most time in.";
+    pub(crate) const ARTWORK: &str =
+        "An icon is registered under an id at startup and referenced by that id afterwards. \
+         Which artwork an element draws is a write like any other, so one element can be moved \
+         between fields without being torn down and regrown -- the renderers page runs the \
+         other axis of this, one field drawn at three sizes.";
+    pub(crate) const WHERE: &str =
+        "Bytes in hand and bytes to fetch are two paths, not two halves of one. Which path a \
+         build takes is settled at compile time: the native binary embeds the file, the web \
+         build asks for it at a URL, and the fetching variant does not exist at all in a native \
+         build that opted out of it -- so getting that wrong is a compile error at the call \
+         site rather than a failure at load. They differ only at the first step, and the board \
+         below draws one path at a time so that the two you cannot have at once are still two.";
+    pub(crate) const FONTS: &str =
+        "Fonts do not go through any of this. A face is registered before the app starts and \
+         cannot be fetched, and it must be monospaced -- a proportional file is refused as it \
+         is read rather than drawn badly. Bundle it with the binary; the text page has what \
+         happens once you have.";
+}
+
 /// The words on a board: its step buttons, its readout, and the labels drawn into its stage.
 ///
 /// Everything here is tight. A board is the width of the content column, and at a 320px viewport
@@ -710,6 +851,233 @@ pub(crate) mod board {
 
     /// The heading on every reference card. **One line, 30 chars.** Caps, as written.
     pub(crate) const REFERENCE: &str = "REFERENCE";
+
+    // ---- input ---------------------------------------------------------------------------
+
+    /// The input page's steps. The gesture board has none -- its stage is the control, and a
+    /// press, a drag and a release are not states you can pick from a row.
+    pub(crate) const HIT_STEPS: [&str; 2] = ["none", "full"];
+    pub(crate) const GRAB_STEPS: [&str; 2] = ["grab", "pass-through"];
+    pub(crate) const SCROLL_STEPS: [&str; 3] = ["top", "middle", "end"];
+    pub(crate) const FIELD_STEPS: [&str; 2] = ["single", "multi"];
+
+    pub(crate) const HIT_ROWS: [&str; 2] = ["shape", "hit"];
+    pub(crate) const GRAB_ROWS: [&str; 2] = ["child", "heard"];
+    pub(crate) const GESTURE_ROWS: [&str; 2] = ["phase", "travel"];
+    pub(crate) const SCROLL_ROWS: [&str; 2] = ["offset", "at"];
+    pub(crate) const FIELD_ROWS: [&str; 2] = ["value", "report"];
+
+    /// The hit board's `shape` row, one per step: what rounding the panel the whole way does to
+    /// its hit test. Not a name this page invented -- it is the variant the engine writes.
+    pub(crate) const HIT_SHAPES: [&str; 2] = ["Rectangle", "Circle"];
+    /// Its `hit` row, which is live: what the last press actually landed on. The pad is a plain
+    /// target filling the stage behind the shape, so a press the shape declines is caught
+    /// rather than vanishing -- which is what makes a declined corner visible at all.
+    pub(crate) const HIT_NONE: &str = "nothing yet";
+    pub(crate) const HIT_SHAPE: &str = "the shape";
+    pub(crate) const HIT_PAD: &str = "the pad behind it";
+
+    /// The grab board's `child` row, one per step.
+    pub(crate) const GRAB_MODES: [&str; 2] = ["grabs the press", "passes it through"];
+    /// Its `heard` row: who reported the last press. Both names appear when the child passes
+    /// through, in the order the emissions arrived.
+    pub(crate) const GRAB_NONE: &str = "nobody yet";
+    pub(crate) const GRAB_CHILD: &str = "child";
+    pub(crate) const GRAB_PARENT: &str = "parent";
+
+    /// The gesture board's `phase` row: the emission's own name, so what the board says and
+    /// what the engine sent are the same word.
+    pub(crate) const GESTURE_IDLE: &str = "waiting";
+    pub(crate) const GESTURE_ENGAGED: &str = "Engaged";
+    pub(crate) const GESTURE_DRAGGED: &str = "Dragged";
+    pub(crate) const GESTURE_DISENGAGED: &str = "Disengaged";
+    pub(crate) const GESTURE_CLICKED: &str = "Clicked";
+
+    /// The gesture board's `travel` row: how far the pointer has moved from where it went down,
+    /// and whether that is far enough to have cost the gesture its click. **One line, 20
+    /// chars** -- four digits plus the note is 16.
+    ///
+    /// The note is about the *click*, not about `Dragged`. `Dragged` arrives on every move
+    /// while an element holds the gesture, from the first pixel; the ten-pixel threshold is
+    /// only what decides whether a `Clicked` follows the release.
+    pub(crate) fn travel(px: f32, past: bool) -> String {
+        format!(
+            "{}px{}",
+            (px.round() as i32).min(9999),
+            if past { ", no click" } else { "" }
+        )
+    }
+
+    /// The scroll board's two rows, both read back off the view every frame.
+    pub(crate) fn scrolled(px: f32) -> String {
+        format!("{}px down", px.round() as i32)
+    }
+    pub(crate) fn progress(fraction: f32) -> String {
+        format!("{}% of the range", (fraction * 100.0).round() as i32)
+    }
+
+    /// The field board's `value` row: what has been typed, cut to the strip.
+    ///
+    /// The one value on the site written by the reader rather than budgeted here, so it is the
+    /// one that has to be cut at the point of display. A marker rather than a hard stop,
+    /// because a string that simply ends at the edge reads as the readout being broken; and
+    /// newlines are folded to spaces, since the multi-line field can hold them and this row is
+    /// one line tall.
+    const VALUE_WIDEST: usize = 17;
+    pub(crate) fn typed(value: &str) -> String {
+        if value.is_empty() {
+            return FIELD_EMPTY.to_string();
+        }
+        let flat = value.replace('\n', " ");
+        let mut shown: String = flat.chars().take(VALUE_WIDEST).collect();
+        if flat.chars().count() > VALUE_WIDEST {
+            shown.push_str("..");
+        }
+        shown
+    }
+
+    /// What the `value` row says before anything has been typed, and the `report` row: the last
+    /// thing the field itself said. Enter is called out because on a single-line field it is
+    /// not a newline -- it is the submission.
+    pub(crate) const FIELD_EMPTY: &str = "empty";
+    pub(crate) const FIELD_HINT: &str = "type here";
+    pub(crate) const FIELD_FOCUSED: &str = "Focused";
+    pub(crate) const FIELD_UNFOCUSED: &str = "Unfocused";
+    pub(crate) const FIELD_CHANGED: &str = "TextChanged";
+    pub(crate) const FIELD_SUBMITTED: &str = "Enter -- submitted";
+    pub(crate) const FIELD_NONE: &str = "nothing yet";
+
+    // ---- text ----------------------------------------------------------------------------
+
+    /// The size board's steps: the breakpoint the frame on its stage is standing in for.
+    ///
+    /// The board cannot resize the window and does not pretend to. It resizes a frame *inside*
+    /// the stage instead, and states which breakpoint that width would be -- so the fallback is
+    /// acted out rather than merely described, and it works on a phone, where resizing anything
+    /// is not available at all.
+    pub(crate) const SIZE_STEPS: [&str; 3] = ["xs", "md", "lg"];
+    pub(crate) const LETTERS_STEPS: [&str; 3] = ["13", "20", "32"];
+    pub(crate) const CONTENT_STEPS: [&str; 3] = ["short", "longer", "longest"];
+    pub(crate) const COLOR_STEPS: [&str; 3] = ["plain", "extension", "ramp"];
+    pub(crate) const FONT_STEPS: [&str; 2] = ["default", "italic"];
+
+    pub(crate) const SIZE_ROWS: [&str; 2] = ["window", "size"];
+    pub(crate) const LETTERS_ROWS: [&str; 2] = ["advance", "box"];
+    pub(crate) const CONTENT_ROWS: [&str; 2] = ["chars", "box"];
+    pub(crate) const COLOR_ROWS: [&str; 2] = ["run", "glyphs"];
+    pub(crate) const FONT_ROWS: [&str; 2] = ["FontId", "face"];
+
+    /// The one declaration all three of the size board's steps read, written into the stage so
+    /// the thing being resolved is on screen beside its result. **One line, 26 chars** -- the
+    /// stage is 256px at the narrowest breakpoint and this is set at LABEL.
+    pub(crate) const SIZE_DECLARATION: &str = "new(14).md(20).lg(28)";
+    /// What the frame is captioned with, per step. **One line, 11 chars**, like every other
+    /// frame label on the site. The numbers are the engine's real thresholds.
+    pub(crate) const SIZE_FRAMES: [&str; 3] = ["xs to 419", "md 600+", "lg 840+"];
+    /// The `window` row, per step: the span of viewport widths the frame stands in for.
+    pub(crate) const SIZE_WINDOWS: [&str; 3] = ["under 420 wide", "600 to 839", "840 and over"];
+    /// The specimen inside the frame, set at whatever [`SIZE_DECLARATION`] resolves to for the
+    /// step. Short enough to fit the narrowest frame at the largest of those sizes.
+    pub(crate) const SIZE_SPECIMEN: &str = "specimen";
+    pub(crate) fn points(size: u32) -> String {
+        format!("{size}px")
+    }
+
+    /// The letters board's specimen: a box stated as this many characters wide, so what the
+    /// box does when the size changes is the whole demonstration.
+    pub(crate) const LETTERS_SPECIMEN: &str = "12 letters..";
+    pub(crate) const LETTERS_WIDE: i32 = 12;
+    pub(crate) fn advance(size: u32) -> String {
+        format!("{:.1}px a glyph", size as f32 * 0.6)
+    }
+
+    /// A box's resolved width, for the two boards whose subject is what a box came out as.
+    pub(crate) fn box_width(px: f32) -> String {
+        format!("{}px wide", px.round() as i32)
+    }
+
+    /// The content board's strings, one per step. Each is the specimen *and* the step's own
+    /// measurement -- the box is sized from the string, so the string is the input.
+    ///
+    /// Short on purpose, and shorter than they were. The box grows rightward from a fixed left
+    /// edge, so a string that outruns the stage takes its own outline off the edge with it --
+    /// at which point the board is demonstrating clipping rather than content sizing. The
+    /// longest is 14 characters, which at HEADLINE is 185px inside a stage that is 256px at the
+    /// narrowest breakpoint.
+    pub(crate) const CONTENT_STRINGS: [&str; 3] = ["fits", "fits more", "fits much more"];
+    pub(crate) fn characters(count: usize) -> String {
+        format!("{count} characters")
+    }
+
+    /// The colour board's specimen. The site's own wordmark, so the board is colouring the
+    /// exact string the hero and the rail already colour this way.
+    pub(crate) const COLOR_SPECIMEN: &str = "foliage.rs";
+    /// Its `run` row, one per step: what was asked for, in the terms the call takes.
+    pub(crate) const COLOR_RUNS: [&str; 3] = ["one color", "add(7..10, accent)", "add(i..i+1, ..)"];
+    /// Its `glyphs` row, one per step: how many characters ended up with a colour of their own.
+    pub(crate) const COLOR_OVERRIDES: [&str; 3] = ["none overridden", "3 overridden", "all 10 overridden"];
+
+    /// The font board's specimen, set in whichever face the step names.
+    pub(crate) const FONT_SPECIMEN: &str = "the same sentence";
+    /// Its two rows, per step: the handle, and what that handle was registered as.
+    pub(crate) const FONT_IDS: [&str; 2] = ["FontId::default()", "the registered id"];
+    pub(crate) const FONT_FACES: [&str; 2] = ["JetBrains Mono", "the italic cut"];
+
+    // ---- assets --------------------------------------------------------------------------
+
+    /// The key board's steps: the two states of a load, held apart so they can be looked at.
+    ///
+    /// For an asset compiled into the binary these are one frame apart -- which is the fact the
+    /// section is teaching, and also the reason the board has to hold them apart itself. The key
+    /// is real and the picture is real; the only thing stood in for is the wait, which over a
+    /// network is as long as the network is slow.
+    pub(crate) const KEY_STEPS: [&str; 2] = ["asked", "arrived"];
+    pub(crate) const ARTWORK_STEPS: [&str; 4] = ["box", "code", "grid", "play"];
+    /// The sources board's steps: which build you are looking at. Two paths, not two halves of
+    /// one -- the step picks a path and the stage draws that one.
+    pub(crate) const SOURCES_STEPS: [&str; 2] = ["native", "web"];
+
+    pub(crate) const KEY_ROWS: [&str; 2] = ["key", "bytes"];
+    pub(crate) const ARTWORK_ROWS: [&str; 2] = ["icon", "element"];
+    pub(crate) const SOURCES_ROWS: [&str; 2] = ["source", "then"];
+
+    /// The key board's `key` row -- the first digits of a handle the loader really did mint for
+    /// this board, truncated because a key is 128 bits and the strip holds twenty characters.
+    /// That it exists in both states is the point; what it says is not.
+    pub(crate) fn key_digits(key: u128) -> String {
+        format!("{:x}..", key >> 96)
+    }
+    /// Its `bytes` row, per step, and the word in the frame while there is no picture in it.
+    pub(crate) const KEY_NO_BYTES: &str = "none yet";
+    pub(crate) const KEY_SLOT: &str = "no bytes yet";
+    pub(crate) fn key_bytes(len: usize) -> String {
+        format!("{}kb, drawing", len / 1024)
+    }
+
+    /// The sources board's stage: the three shapes a path runs through, left to right. The
+    /// first changes with the step and the other two do not -- which is the whole claim.
+    ///
+    /// **One line, 9 chars.** A shape is 30% of a stage that is 256px at the narrowest
+    /// breakpoint -- 77px, so nine characters at LABEL and no more. The call itself is far
+    /// longer than that and belongs on the readout, where there is room for it; these are what
+    /// the bytes *are* at that point in the path.
+    pub(crate) const SOURCES_ORIGINS: [&str; 2] = ["embedded", "fetched"];
+    pub(crate) const SOURCES_KEY: &str = "one key";
+    pub(crate) const SOURCES_ELEMENT: &str = "Image";
+    /// Its two rows, per step: the variant the call takes, and what happens after it.
+    pub(crate) const SOURCES_CALLS: [&str; 2] = ["AssetSource::Bytes", "AssetSource::Url"];
+    pub(crate) const SOURCES_THEN: [&str; 2] = ["in hand, same frame", "fetched, then drawn"];
+
+    /// The artwork board's `icon` row, one per step -- the generated handle, which is what an
+    /// app writes rather than the number behind it.
+    pub(crate) const ARTWORK_IDS: [&str; 4] = [
+        "IconHandles::Box",
+        "IconHandles::Code",
+        "IconHandles::Grid",
+        "IconHandles::Play",
+    ];
+    /// Its `element` row, which never changes across the row and is the point of the board.
+    pub(crate) const ARTWORK_ELEMENT: &str = "grown once";
 }
 
 /// The reference table under each board: the call, and what it does.
@@ -1015,28 +1383,215 @@ pub(crate) mod reference {
             gloss: "Fills both axes at the image's own ratio and clips whatever overhangs.",
         },
     ];
-}
 
-// ---- unwritten sections -------------------------------------------------------------------
+    pub(crate) const HIT: [Entry; 3] = [
+        Entry {
+            call: "Rounding::Full",
+            gloss: "Switches the hit test to a circle as well as the corners it draws.",
+        },
+        Entry {
+            call: "InteractionShape",
+            gloss: "Rectangle or Circle. Written by Rounding rather than chosen separately.",
+        },
+        Entry {
+            call: "the shape AND every clip",
+            gloss: "A press must land inside both, so an ancestor's box can cut a target down.",
+        },
+    ];
 
-/// The placeholder pages. Each is a real page in the shell -- title, lead, prose -- so the
-/// structure is walkable before the content exists.
-///
-/// All **free**: a placeholder is a `display` title over a `lead` over one `prose` paragraph,
-/// and every one of those wraps and pushes what follows down. Titles are the one-line budget
-/// `headings` states (14 chars), and should match `rail::SECTIONS` by name.
-pub(crate) mod stub {
-    /// Shown on every unwritten page, under its own summary.
-    pub(crate) const NOT_WRITTEN: &str =
-        "Not written yet. Demos here are inlined beside the prose that explains them, rather \
-         than being a page of their own.";
+    pub(crate) const GRAB: [Entry; 3] = [
+        Entry {
+            call: ".interactive()",
+            gloss: "Competes for the press. The topmost element under the pointer wins it.",
+        },
+        Entry {
+            call: ".pass_through()",
+            gloss: "Told the gesture crossed it, never wins it -- for overlays and labels.",
+        },
+        Entry {
+            call: "several per press",
+            gloss: "The winner and every pass-through crossed, reported in hit-test order.",
+        },
+    ];
 
-    pub(crate) const INPUT_TITLE: &str = "input";
-    pub(crate) const INPUT_LEAD: &str =
-        "Hit shapes, click and drag, focus, and the one assembled control foliage ships: \
-         TextInput.";
+    pub(crate) const GESTURE: [Entry; 4] = [
+        Entry {
+            call: "Bloom::Engaged",
+            gloss: "The pointer went down on this element.",
+        },
+        Entry {
+            call: "Bloom::Dragged",
+            gloss: "Every move of the pointer while this element holds the gesture.",
+        },
+        Entry {
+            call: "Bloom::Disengaged",
+            gloss: "The release, however it ended. Always follows an Engaged.",
+        },
+        Entry {
+            call: "Bloom::Clicked",
+            gloss: "The release, if the gesture stayed within 10px on both axes throughout.",
+        },
+    ];
 
-    pub(crate) const TEXT_TITLE: &str = "text";
-    pub(crate) const TEXT_LEAD: &str =
-        "A monospace grid: sizes per breakpoint, per-glyph color, and registered fonts for you.";
+    pub(crate) const SCROLL: [Entry; 3] = [
+        Entry {
+            call: "a Grid on an element",
+            gloss: "Makes it a view: what overflows can be dragged, wheeled and flung.",
+        },
+        Entry {
+            call: "canopy.scroll(leaf, to)",
+            gloss: "Puts it at a fraction of its own range. Either axis left alone stays.",
+        },
+        Entry {
+            call: ".overscroll(false)",
+            gloss: "Traps the gesture here instead of handing the remainder further out.",
+        },
+    ];
+
+    pub(crate) const FIELD: [Entry; 4] = [
+        Entry {
+            call: "TextInput::new()",
+            gloss: "Field, caret, selection and the keyboard handling, as one element.",
+        },
+        Entry {
+            call: ".hint_text(..)",
+            gloss: "Shown only while the field is empty, in the field's own foreground tone.",
+        },
+        Entry {
+            call: "Bloom::TextChanged",
+            gloss: "The whole value after every edit -- typed, pasted, or written to it.",
+        },
+        Entry {
+            call: "TextInputAction::Enter",
+            gloss: "A submission on a single-line field, where the key is not a newline.",
+        },
+    ];
+
+    pub(crate) const SIZE: [Entry; 3] = [
+        Entry {
+            call: "FontSize::new(20).md(28)",
+            gloss: "One size, then overrides from a breakpoint up. Unset steps fall back down.",
+        },
+        Entry {
+            call: ".short(14)",
+            gloss: "Wins outright while the viewport is cramped, whatever its width says.",
+        },
+        Entry {
+            call: "canopy.font_size(leaf, to)",
+            gloss: "Rewrites it later. The glyphs are laid out again where they already are.",
+        },
+    ];
+
+    pub(crate) const LETTERS: [Entry; 3] = [
+        Entry {
+            call: "12.letters().as_width()",
+            gloss: "A box stated in characters of this element's own size, not in pixels.",
+        },
+        Entry {
+            call: ".size(FontSize::new(n))",
+            gloss: "Gives an element carrying no text the cell its .letters() measure against.",
+        },
+        Entry {
+            call: "advance = 0.6 * size",
+            gloss: "Fixed on this face, which is what makes a character count a width.",
+        },
+    ];
+
+    pub(crate) const CONTENT: [Entry; 3] = [
+        Entry {
+            call: ".sized_by_content(w, h)",
+            gloss: "Takes the box from the laid-out glyphs instead of from the Location.",
+        },
+        Entry {
+            call: "width also ends wrapping",
+            gloss: "With no fixed right edge there is nothing left to wrap the run against.",
+        },
+        Entry {
+            call: "text_content()",
+            gloss: "The same measure as a location value, for a box that follows a run.",
+        },
+    ];
+
+    pub(crate) const COLOR: [Entry; 3] = [
+        Entry {
+            call: "GlyphColors::new().add(r, c)",
+            gloss: "Colors a range of character offsets on top of the run's own color.",
+        },
+        Entry {
+            call: "canopy.glyph_colors(leaf, to)",
+            gloss: "Replaces the whole set of overrides in one write.",
+        },
+        Entry {
+            call: "later ranges win",
+            gloss: "Where two added ranges overlap, the one added last decides.",
+        },
+    ];
+
+    pub(crate) const FONT: [Entry; 3] = [
+        Entry {
+            call: "foliage.font(bytes)",
+            gloss: "Registers a face at startup and hands back the id that names it.",
+        },
+        Entry {
+            call: ".font(id)",
+            gloss: "Draws this element in that face. Everything else keeps the built-in one.",
+        },
+        Entry {
+            call: "monospace only",
+            gloss: "A proportional file is refused as it is read, rather than drawn badly.",
+        },
+    ];
+
+    pub(crate) const KEY: [Entry; 4] = [
+        Entry {
+            call: "canopy.load_asset(source)",
+            gloss: "Hands back a key at once. The bytes arrive whenever they arrive.",
+        },
+        Entry {
+            call: "Image::new(key)",
+            gloss: "Growable the same frame, before anything exists behind the key.",
+        },
+        Entry {
+            call: "Bloom::AssetLoaded",
+            gloss: "Reported once the bytes land, naming the key you were already holding.",
+        },
+        Entry {
+            call: "canopy.asset(key)",
+            gloss: "The bytes themselves, undecoded, once there are some.",
+        },
+    ];
+
+    pub(crate) const ARTWORK: [Entry; 3] = [
+        Entry {
+            call: "foliage.icon(Icon::msdf(..))",
+            gloss: "Registers a baked field under an id, before the app runs.",
+        },
+        Entry {
+            call: "canopy.icon(leaf, id)",
+            gloss: "Points an element at another registered field, with no regrow.",
+        },
+        Entry {
+            call: "#[icon_handle] enum",
+            gloss: "Generated from a directory of svgs: one variant per file, ids and all.",
+        },
+    ];
+
+    pub(crate) const SOURCES: [Entry; 4] = [
+        Entry {
+            call: "AssetSource::Bytes(v)",
+            gloss: "Already in hand. Resolves in the same frame it was asked for.",
+        },
+        Entry {
+            call: "AssetSource::Url(s)",
+            gloss: "Fetched, and never blocking: its own thread natively, fetch on the web.",
+        },
+        Entry {
+            call: "bundled_asset!(f, path)",
+            gloss: "States the path once and picks the variant for the platform being built.",
+        },
+        Entry {
+            call: "remote-assets, off",
+            gloss: "Drops the Url variant outright -- a compile error, not a load failure.",
+        },
+    ];
 }

@@ -46,6 +46,29 @@ it once the region hits its own end. Turn it off to trap scrolling inside.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.clip_to_viewport" class="method"><h4 class="code-header">fn <a href="#method.clip_to_viewport" class="fn">clip_to_viewport</a>(self) -&gt; Self</h4></section></summary><div class="docblock"><p>Clips this element to the viewport rather than to its nearest scrolling ancestor.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.aspect" class="method"><h4 class="code-header">fn <a href="#method.aspect" class="fn">aspect</a>(self, ratio: <a class="struct" href="struct.AspectRatio.html" title="struct foliage::AspectRatio">AspectRatio</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Constrains the resolved box to a width:height ratio.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.sized_by_content" class="method"><h4 class="code-header">fn <a href="#method.sized_by_content" class="fn">sized_by_content</a>(self, width: <a class="primitive" href="https://doc.rust-lang.org/1.96.0/std/primitive.bool.html">bool</a>, height: <a class="primitive" href="https://doc.rust-lang.org/1.96.0/std/primitive.bool.html">bool</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Sizes the box from the text’s own measured extent rather than bounding it.</p>
+<p>TODO: two independent-looking arguments that are not independent, and a result that does
+not persist on its own. Both traps are silent, and hitting either leaves a box at
+whatever its <code>Location</code> declared – which looks like the call doing nothing.</p>
+<ol>
+<li><em><code>height</code> wins.</em> <code>Text::update</code> picks the adjustment with
+<code>if auto_height { .. } else if auto_width { .. }</code>, so <code>sized_by_content(true, true)</code>
+silently applies height only and the width argument is dead. The signature offers a
+combination the engine cannot produce.</li>
+<li><em>the measurement is transient.</em> The measured box is written onto <code>Section</code> and
+<code>LayoutSection</code> after glyph layout, and the next <code>Resolve&lt;Location&gt;</code> recomputes that
+axis from the declared <code>Location</code> and discards it. It survives only if the <code>Location</code>
+also states <a href="fn.text_content.html" title="fn foliage::text_content"><code>text_content()</code></a> on that axis, which resolves to
+“keep the current extent”. Nothing here says so, and <code>TextInput</code> – the only in-tree
+caller – pairs them without comment, so the requirement is discoverable only by
+reading it.</li>
+</ol>
+<p>Both point the same way: content sizing is a property of the <em>axis</em>, not a pair of flags
+beside it. Fold it into the <code>Location</code> – <code>text_content().as_width()</code> already exists and
+is the half that has to be there anyway – and derive <code>TextContentWidth</code>/<code>TextContentHeight</code>
+from the declaration rather than accepting them separately. That makes the invalid
+combination unspellable and the persistence automatic, and this method goes away.</p>
+<p>Until then, the two working spellings are <code>(true, false)</code> with a <code>text_content()</code> width
+and <code>(false, true)</code> with a <code>text_content()</code> height.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.font" class="method"><h4 class="code-header">fn <a href="#method.font" class="fn">font</a>(self, font: <a class="struct" href="struct.FontId.html" title="struct foliage::FontId">FontId</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Draws this element’s text in a face registered with
 <a href="struct.Foliage.html#method.font" title="method foliage::Foliage::font"><code>Foliage::font</code></a>, rather than the built-in one.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.size" class="method"><h4 class="code-header">fn <a href="#method.size" class="fn">size</a>(self, size: <a class="struct" href="struct.FontSize.html" title="struct foliage::FontSize">FontSize</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>The character cell this element measures against, for elements that carry no text of

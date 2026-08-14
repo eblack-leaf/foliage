@@ -47,6 +47,29 @@ naming a withered <code>Leaf</code> is a no-op.</p>
 </div></details><h2 id="variants" class="variants section-header">Variants<a href="#variants" class="anchor">§</a></h2><div class="variants"><section id="variant.Clicked" class="variant"><a href="#variant.Clicked" class="anchor">§</a><h3 class="code-header">Clicked(<a class="struct" href="struct.Leaf.html" title="struct foliage::Leaf">Leaf</a>)</h3></section><div class="docblock"><p>Pressed and released on the same element without dragging.</p>
 </div><section id="variant.Engaged" class="variant"><a href="#variant.Engaged" class="anchor">§</a><h3 class="code-header">Engaged(<a class="struct" href="struct.Leaf.html" title="struct foliage::Leaf">Leaf</a>)</h3></section><div class="docblock"><p>Pointer went down on this element.</p>
 </div><section id="variant.Dragged" class="variant"><a href="#variant.Dragged" class="anchor">§</a><h3 class="code-header">Dragged(<a class="struct" href="struct.Leaf.html" title="struct foliage::Leaf">Leaf</a>)</h3></section><div class="docblock"><p>The gesture on this element passed the drag threshold.</p>
+<p>TODO: it does not. This is sent for <em>every</em> pointer move while this element holds the
+gesture, from the first pixel – the send in <code>interaction::interactive_elements</code>’
+<code>moved</code> handling sits outside the <code>past_drag</code> check, which gates only the
+<code>ViewAdjustment</code> that pans a view. So on a mouse, where a press almost always carries
+some movement, nearly every gesture reports as a drag, and the threshold this line
+names is nowhere in what an app receives.</p>
+<p>The threshold is real and does decide something an app can see – whether the release
+also produces <a href="enum.Bloom.html#variant.Clicked" title="variant foliage::Bloom::Clicked"><code>Clicked</code></a> – but nothing announces it being crossed.
+An app that wants “this has become a drag” has to measure travel itself, per axis,
+against a constant it has to know: [<code>InteractionListener::DRAG_THRESHOLD</code>].</p>
+<p>Two ways out, and they are not equivalent:</p>
+<ol>
+<li><em>rename it.</em> Keep the per-move stream and say so – “the pointer moved while this
+element held the gesture”. Truthful, costs nothing, and leaves the threshold
+unobservable.</li>
+<li><em>move the send inside <code>past_drag</code>.</em> Makes the variant mean what it already claims,
+at the cost of the per-move stream – which is what a knob or a slider driving its
+own drag actually consumes, so that stream needs somewhere to go before this is
+safe.</li>
+</ol>
+<p>Doing both is likely right: this variant for the threshold, and a separate per-move
+report for the stream. Whichever, the doc and the send site have to agree – an app
+written against this sentence today gets different behaviour than it asked for.</p>
 </div><section id="variant.Disengaged" class="variant"><a href="#variant.Disengaged" class="anchor">§</a><h3 class="code-header">Disengaged(<a class="struct" href="struct.Leaf.html" title="struct foliage::Leaf">Leaf</a>)</h3></section><div class="docblock"><p>The gesture that grabbed this element ended, however it ended. Always follows an
 <a href="enum.Bloom.html#variant.Engaged" title="variant foliage::Bloom::Engaged"><code>Engaged</code></a>, whether or not a <a href="enum.Bloom.html#variant.Clicked" title="variant foliage::Bloom::Clicked"><code>Clicked</code></a> also fired.</p>
 </div><section id="variant.Focused" class="variant"><a href="#variant.Focused" class="anchor">§</a><h3 class="code-header">Focused(<a class="struct" href="struct.Leaf.html" title="struct foliage::Leaf">Leaf</a>)</h3></section><section id="variant.Unfocused" class="variant"><a href="#variant.Unfocused" class="anchor">§</a><h3 class="code-header">Unfocused(<a class="struct" href="struct.Leaf.html" title="struct foliage::Leaf">Leaf</a>)</h3></section><section id="variant.Key" class="variant"><a href="#variant.Key" class="anchor">§</a><h3 class="code-header">Key</h3></section><div class="docblock"><p>A key, as the layout produces it – what to use for typed text.</p>

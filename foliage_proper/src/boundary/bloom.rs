@@ -20,6 +20,32 @@ pub enum Bloom {
     /// Pointer went down on this element.
     Engaged(Leaf),
     /// The gesture on this element passed the drag threshold.
+    ///
+    /// TODO: it does not. This is sent for *every* pointer move while this element holds the
+    /// gesture, from the first pixel -- the send in `interaction::interactive_elements`'
+    /// `moved` handling sits outside the `past_drag` check, which gates only the
+    /// `ViewAdjustment` that pans a view. So on a mouse, where a press almost always carries
+    /// some movement, nearly every gesture reports as a drag, and the threshold this line
+    /// names is nowhere in what an app receives.
+    ///
+    /// The threshold is real and does decide something an app can see -- whether the release
+    /// also produces [`Clicked`](Bloom::Clicked) -- but nothing announces it being crossed.
+    /// An app that wants "this has become a drag" has to measure travel itself, per axis,
+    /// against a constant it has to know: [`InteractionListener::DRAG_THRESHOLD`].
+    ///
+    /// Two ways out, and they are not equivalent:
+    ///
+    /// 1. *rename it.* Keep the per-move stream and say so -- "the pointer moved while this
+    ///    element held the gesture". Truthful, costs nothing, and leaves the threshold
+    ///    unobservable.
+    /// 2. *move the send inside `past_drag`.* Makes the variant mean what it already claims,
+    ///    at the cost of the per-move stream -- which is what a knob or a slider driving its
+    ///    own drag actually consumes, so that stream needs somewhere to go before this is
+    ///    safe.
+    ///
+    /// Doing both is likely right: this variant for the threshold, and a separate per-move
+    /// report for the stream. Whichever, the doc and the send site have to agree -- an app
+    /// written against this sentence today gets different behaviour than it asked for.
     Dragged(Leaf),
     /// The gesture that grabbed this element ended, however it ended. Always follows an
     /// [`Engaged`](Bloom::Engaged), whether or not a [`Clicked`](Bloom::Clicked) also fired.

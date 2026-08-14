@@ -7,12 +7,14 @@
 //! below just names the tones this app should use.
 
 pub(crate) mod anim;
+pub(crate) mod assets;
 pub(crate) mod blueprint;
 pub(crate) mod cards;
 pub(crate) mod copy;
 pub(crate) mod drawer;
 pub(crate) mod figure;
 pub(crate) mod hero;
+pub(crate) mod input;
 pub(crate) mod leaf;
 pub(crate) mod layout;
 pub(crate) mod overview;
@@ -20,12 +22,12 @@ pub(crate) mod rail;
 pub(crate) mod renderers;
 pub(crate) mod router;
 pub(crate) mod shell;
-pub(crate) mod stub;
+pub(crate) mod text;
 
 use foliage::{
     Bare, Canopy, Color, ConfigurationDescriptor, Ease, Elevation, FontId, FontSize, Grid, GridExt,
     Grows, HorizontalAlignment, Icon, IconId, Leaf, Location, Motion, Panel, Polygon, Rounding,
-    Sprout, Text, Timing, VerticalAlignment, anchor,
+    Sprout, Text, TextInputAction, Timing, VerticalAlignment, anchor,
 };
 
 /// Roles return whole `Color`s rather than tone numbers, so the palette genuinely lives
@@ -125,7 +127,7 @@ pub(crate) fn register_fonts(foliage: &mut foliage::Foliage) {
 }
 
 /// The registered italic, or the default font if [`register_fonts`] has not run.
-fn italic() -> FontId {
+pub(crate) fn italic() -> FontId {
     ITALIC.get().copied().unwrap_or_default()
 }
 
@@ -179,13 +181,33 @@ pub(crate) struct Page {
     pub(crate) readout: Option<hero::Readout>,
 }
 
+/// Where a gesture currently is, as the engine reports it.
+///
+/// A click is not one of these: `Clicked` is the *outcome* of a gesture that stayed put, and it
+/// arrives through [`Demo::clicked`] alongside every other press on the site. These three are
+/// the gesture itself, which only the `input` section has any use for.
+#[derive(Copy, Clone, PartialEq)]
+pub(crate) enum Phase {
+    /// The pointer went down on this element.
+    Engaged,
+    /// It has since travelled past the drag threshold.
+    Dragged,
+    /// It came back up, however the gesture ended.
+    Disengaged,
+}
+
 /// Something on a page the reader drives.
 ///
 /// A trait rather than one more `Option<..>` field on [`Page`], because a section that explains
 /// a part of the library by letting you operate it is the shape every section is heading for,
 /// and the alternative is a field per section plus a match in `entry.rs` that grows with the
 /// site. A demo owns its own elements and its own state; the only thing it shares with the
-/// frame is the click.
+/// frame is the emission.
+///
+/// Every hook but [`clicked`](Demo::clicked) has a default, because a board that presses one
+/// property wants exactly one of them and a page should not have to write five empty methods to
+/// say so. All of them answer the same way: `true` means "that was mine, stop offering it
+/// around".
 pub(crate) trait Demo {
     /// Answers a click. `false` if the `Leaf` is not one of this demo's own, which is what lets
     /// several demos sit on one page and the page still fall through to navigation.
@@ -197,6 +219,26 @@ pub(crate) trait Demo {
     /// a demo that cares has to hold the handle it opened and compare. Most do not care, which
     /// is why this has a default.
     fn finished(&mut self, _canopy: &mut Canopy, _seq: Leaf) -> bool {
+        false
+    }
+    /// Answers one step of a gesture on one of this demo's elements.
+    ///
+    /// The `input` section is the only thing on the site that needs the phases rather than the
+    /// click they add up to.
+    fn gesture(&mut self, _canopy: &mut Canopy, _leaf: Leaf, _phase: Phase) -> bool {
+        false
+    }
+    /// Answers keyboard focus arriving at or leaving one of this demo's elements.
+    fn focus(&mut self, _canopy: &mut Canopy, _leaf: Leaf, _has: bool) -> bool {
+        false
+    }
+    /// Answers an edit to one of this demo's text inputs -- typed, pasted, or written.
+    fn typed(&mut self, _canopy: &mut Canopy, _leaf: Leaf, _value: &str) -> bool {
+        false
+    }
+    /// Answers a binding one of this demo's text inputs matched. Submission is
+    /// [`TextInputAction::Enter`](foliage::TextInputAction::Enter) on a single-line field.
+    fn acted(&mut self, _canopy: &mut Canopy, _leaf: Leaf, _action: TextInputAction) -> bool {
         false
     }
     /// Once a frame, for anything a demo displays that only the tree knows -- a resolved box,
@@ -1139,7 +1181,10 @@ impl Column {
         self.last = Some(leaf);
         leaf
     }
-    /// A caption under a figure. Unused until the sections carrying figures are written.
+    /// A caption under a figure.
+    ///
+    /// Still unused: both figures on the site are plates, and a plate captions itself in its
+    /// own strip below the field. This is for a figure that is not one.
     #[allow(dead_code)]
     pub(crate) fn caption(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
         self.text(

@@ -150,6 +150,11 @@ pub struct Engaged {}
 /// The grabbed entity's gesture has passed
 /// [`DRAG_THRESHOLD`](InteractionListener::DRAG_THRESHOLD) and is now a drag, not a
 /// pending click.
+///
+/// It has not: this is sent on every pointer move while the entity holds the gesture, and the
+/// threshold gates only the pan below. See the TODO on
+/// [`Bloom::Dragged`](crate::Bloom::Dragged), which this funnels into and which carries the
+/// same claim.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct Dragged {}
@@ -459,6 +464,9 @@ pub(crate) fn interactive_elements(
                 }
                 current.last_drag = event.position;
                 current.click.current = event.position;
+                // Outside the `past_drag` branch above, so this fires on every move rather than
+                // on the threshold being crossed -- the mismatch the TODO on `Bloom::Dragged`
+                // describes. Moving it in here is one of the two fixes proposed there.
                 if let Ok(listener) = listeners.get_mut(p) {
                     if !listener.disabled() && event.method != InteractionMethod::ScrollWheel {
                         tree.send_to(

@@ -117,13 +117,55 @@ impl Site {
             // offered around rather than dispatched -- a demo recognises the one it opened, or
             // nobody does and the emission was the entrance finishing.
             Bloom::SequenceFinished(seq) => {
-                for demo in self.page.demos.iter_mut() {
-                    if demo.finished(canopy, seq) {
-                        return;
-                    }
-                }
+                self.offer(canopy, |demo, canopy| demo.finished(canopy, seq));
+            }
+            // The gesture itself, which only the `input` section reads. Every other page hears
+            // about a press as `Clicked` and nothing else -- these three are what that one
+            // emission is made of.
+            Bloom::Engaged(leaf) => {
+                self.offer(canopy, |demo, canopy| {
+                    demo.gesture(canopy, leaf, site::Phase::Engaged)
+                });
+            }
+            Bloom::Dragged(leaf) => {
+                self.offer(canopy, |demo, canopy| {
+                    demo.gesture(canopy, leaf, site::Phase::Dragged)
+                });
+            }
+            Bloom::Disengaged(leaf) => {
+                self.offer(canopy, |demo, canopy| {
+                    demo.gesture(canopy, leaf, site::Phase::Disengaged)
+                });
+            }
+            Bloom::Focused(leaf) => {
+                self.offer(canopy, |demo, canopy| demo.focus(canopy, leaf, true));
+            }
+            Bloom::Unfocused(leaf) => {
+                self.offer(canopy, |demo, canopy| demo.focus(canopy, leaf, false));
+            }
+            Bloom::TextChanged { leaf, value } => {
+                self.offer(canopy, |demo, canopy| demo.typed(canopy, leaf, &value));
+            }
+            Bloom::TextAction { leaf, action } => {
+                self.offer(canopy, |demo, canopy| demo.acted(canopy, leaf, action));
             }
             _ => {}
+        }
+    }
+
+    /// Offers one emission around the page's demos until one claims it.
+    ///
+    /// Every hook but `clicked` is this same three lines, and written out per arm it was the
+    /// whole of `respond` -- the dispatch is not what any of them are about.
+    fn offer(
+        &mut self,
+        canopy: &mut Canopy,
+        mut answer: impl FnMut(&mut Box<dyn site::Demo>, &mut Canopy) -> bool,
+    ) {
+        for demo in self.page.demos.iter_mut() {
+            if answer(demo, canopy) {
+                return;
+            }
         }
     }
 

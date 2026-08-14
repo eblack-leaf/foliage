@@ -40,13 +40,29 @@ const LABEL_GAP: i32 = space::MD;
 /// Bottom up: the control row, the readout above it, then the stage. Every one of these has to
 /// be counted here or they land on top of each other.
 const CONTROLS_FROM_BOTTOM: i32 = space::MD;
-const READOUT_FROM_BOTTOM: i32 = CONTROLS_FROM_BOTTOM + POLY_STEP_ROW_H + space::MD;
 const ABOVE_STAGE: i32 = space::MD;
-const BELOW_STAGE: i32 = READOUT_FROM_BOTTOM + STRIP_H + space::SM;
 
-/// What a region has to be to hold a stage of `stage_h` plus the control and the readout.
-pub(crate) fn height(stage_h: (i32, i32, i32)) -> (i32, i32, i32) {
-    let extra = ABOVE_STAGE + BELOW_STAGE;
+/// Where the readout's strip sits above the field's bottom edge.
+///
+/// A board with no step row ([`live`]) reclaims exactly the row plus the gap that separated the
+/// two, rather than leaving a band of empty field where the controls would have been -- which
+/// is the whole visible difference between the two kinds.
+const fn readout_from_bottom(stepped: bool) -> i32 {
+    if stepped {
+        CONTROLS_FROM_BOTTOM + POLY_STEP_ROW_H + space::MD
+    } else {
+        CONTROLS_FROM_BOTTOM
+    }
+}
+
+const fn below_stage(stepped: bool) -> i32 {
+    readout_from_bottom(stepped) + STRIP_H + space::SM
+}
+
+/// What a region has to be to hold a stage of `stage_h` plus the readout, and the control row
+/// if there is one.
+pub(crate) fn height(stage_h: (i32, i32, i32), stepped: bool) -> (i32, i32, i32) {
+    let extra = ABOVE_STAGE + below_stage(stepped);
     (stage_h.0 + extra, stage_h.1 + extra, stage_h.2 + extra)
 }
 
@@ -68,6 +84,9 @@ pub(crate) struct Blueprint {
 impl Blueprint {
     /// `steps` is the row, left to right. Keep the words short -- four of them share the field's
     /// width, which is about 64px a slot at the narrowest breakpoint.
+    ///
+    /// An empty `steps` builds the board without a control row at all, for the boards whose
+    /// stage *is* the control -- see [`live`].
     pub(crate) fn grow(
         g: &mut Grow,
         region: Leaf,
@@ -76,6 +95,7 @@ impl Blueprint {
         seq: Leaf,
         start: u64,
     ) -> Self {
+        let stepped = !steps.is_empty();
         let field = g.canopy.branch(
             region,
             Panel::new()
@@ -96,37 +116,39 @@ impl Blueprint {
         // of the drawing above it -- what keeps that true now is the row's place rather than its
         // colour: it is below the readout, in a strip nothing else ever enters, and only one of
         // its shapes is lit at a time.
-        let controls = g.canopy.branch(
-            field,
-            Bare::new()
-                .at(Location::new().xs(
-                    space::MD
-                        .px()
-                        .as_left()
-                        .with(100.pct().as_right().adjust(-space::MD)),
-                    POLY_STEP_ROW_H
-                        .px()
-                        .as_height()
-                        .with(100.pct().as_bottom().adjust(-CONTROLS_FROM_BOTTOM)),
-                ))
-                .elevate(Elevation::up(3))
-                .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
-                // a full-width box across the foot of every board would otherwise take the drag
-                // meant for the page and hand it nowhere
-                .pass_through(),
-        );
         let count = steps.len();
         let mut controls_built = Vec::with_capacity(count);
-        for (i, text) in steps.iter().enumerate() {
-            controls_built.push(poly_step(
-                g,
-                controls,
-                text,
-                i,
-                count,
-                seq,
-                start + i as u64 * crate::site::motion::STAGGER,
-            ));
+        if stepped {
+            let controls = g.canopy.branch(
+                field,
+                Bare::new()
+                    .at(Location::new().xs(
+                        space::MD
+                            .px()
+                            .as_left()
+                            .with(100.pct().as_right().adjust(-space::MD)),
+                        POLY_STEP_ROW_H
+                            .px()
+                            .as_height()
+                            .with(100.pct().as_bottom().adjust(-CONTROLS_FROM_BOTTOM)),
+                    ))
+                    .elevate(Elevation::up(3))
+                    .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
+                    // a full-width box across the foot of every board would otherwise take the
+                    // drag meant for the page and hand it nowhere
+                    .pass_through(),
+            );
+            for (i, text) in steps.iter().enumerate() {
+                controls_built.push(poly_step(
+                    g,
+                    controls,
+                    text,
+                    i,
+                    count,
+                    seq,
+                    start + i as u64 * crate::site::motion::STAGGER,
+                ));
+            }
         }
 
         let stage = g.canopy.branch(
@@ -140,7 +162,7 @@ impl Blueprint {
                     ABOVE_STAGE
                         .px()
                         .as_top()
-                        .with(100.pct().as_bottom().adjust(-BELOW_STAGE)),
+                        .with(100.pct().as_bottom().adjust(-below_stage(stepped))),
                 ))
                 .elevate(Elevation::up(1))
                 .grid(Grid::new(1.col().gap(0), 1.row().gap(0))),
@@ -163,7 +185,7 @@ impl Blueprint {
                     STRIP_H
                         .px()
                         .as_height()
-                        .with(100.pct().as_bottom().adjust(-READOUT_FROM_BOTTOM)),
+                        .with(100.pct().as_bottom().adjust(-readout_from_bottom(stepped))),
                 ))
                 .elevate(Elevation::up(2))
                 .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
@@ -254,8 +276,11 @@ impl Blueprint {
 
     /// Moves the mark to `step`. Nothing else about the board changes -- what a step *does* is
     /// the demo's, and this is only the row saying where you are.
+    ///
+    /// A no-op on a board with no control row, which cannot be told to select anything anyway:
+    /// [`pressed`](Self::pressed) never answers, so nothing ever calls this with a step.
     pub(crate) fn select(&mut self, canopy: &mut Canopy, step: usize) {
-        if self.at == step {
+        if self.steps.is_empty() || self.at == step {
             return;
         }
         self.steps[self.at].select(canopy, false);
@@ -285,8 +310,35 @@ pub(crate) fn board(
     steps: &[&'static str],
     entries: &[Entry],
 ) -> Blueprint {
+    grown(g, column, stage_h, labels, steps, entries)
+}
+
+/// The same region with no control row: a stage, a readout, and the reference table.
+///
+/// For the boards whose stage *is* the control -- where what is being shown is the reader's own
+/// gesture, and a row of buttons would be a second way to do the thing the board is asking you
+/// to do directly. Only `input` has any, and only because a press, a drag and a release are not
+/// states you can select.
+pub(crate) fn live(
+    g: &mut Grow,
+    column: &mut Column,
+    stage_h: (i32, i32, i32),
+    labels: [&'static str; 2],
+    entries: &[Entry],
+) -> Blueprint {
+    grown(g, column, stage_h, labels, &[], entries)
+}
+
+fn grown(
+    g: &mut Grow,
+    column: &mut Column,
+    stage_h: (i32, i32, i32),
+    labels: [&'static str; 2],
+    steps: &[&'static str],
+    entries: &[Entry],
+) -> Blueprint {
     let seq = column.sequence();
-    let region = column.region(g.canopy, height(stage_h), space::LG);
+    let region = column.region(g.canopy, height(stage_h, !steps.is_empty()), space::LG);
     let board = Blueprint::grow(g, region, labels, steps, seq, motion::STAGGER);
     let table = column.region_letters(
         g.canopy,

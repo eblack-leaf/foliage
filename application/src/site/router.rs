@@ -21,15 +21,21 @@ pub(crate) type RouteFn = fn(&mut Grow, Leaf);
 
 /// Route 0 is the hero: full screen, no rail. Everything after it is a section the rail
 /// lists, which is why [`rail::SECTIONS`](site::rail::SECTIONS) is indexed from 1.
-pub(crate) const ROUTES: [RouteFn; 8] = [
+///
+/// This list and that one have to stay the same length. They were not: the rail listed eight
+/// sections against seven routes, and `assets` -- the last entry -- was clamped by
+/// [`Site::navigate`](crate::entry::Site::navigate) onto the last route that did exist, so the
+/// rail's own entry and the overview card pointing at it both quietly opened `text` instead.
+pub(crate) const ROUTES: [RouteFn; 9] = [
     site::hero::build,
     site::overview::build,
     site::leaf::build,
     site::layout::build,
     site::renderers::build,
     site::anim::build,
-    site::stub::input,
-    site::stub::text,
+    site::input::build,
+    site::text::build,
+    site::assets::build,
 ];
 
 /// One fresh full-size slot, with the route's builder run against it.
