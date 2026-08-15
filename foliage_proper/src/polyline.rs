@@ -80,17 +80,21 @@ pub struct PolylineDroppedPoints(pub usize);
 /// Polyline's OWN appearance vocabulary, held as one component rather than field-by-field.
 /// Set at spawn through [`PolylineSprout`]'s builder; there is no post-spawn rewrite for it
 /// yet, unlike [`PolylinePoints`]/[`PolylineDrawProgress`].
+///
+/// Colour is deliberately *not* in here. A polyline does nothing with it but forward it to
+/// the [`Line`]s it builds, so it lives in the ordinary [`Color`] component like every other
+/// primitive's does -- which is what makes [`Grows::color`](crate::Grows::color) and
+/// `Motion::Color` reach a polyline at all. Held here it was spawn-only, and animating it
+/// silently did nothing.
 #[derive(Component, Copy, Clone)]
 pub struct PolylineStyle {
     pub weight: i32,
-    pub color: Color,
     pub dash: Option<DashPattern>,
 }
 impl Default for PolylineStyle {
     fn default() -> Self {
         Self {
             weight: crate::MIN_LINE_WEIGHT,
-            color: Color::default(),
             dash: None,
         }
     }
@@ -118,6 +122,7 @@ pub struct PolylineSprout {
     leaf: LeafSprout,
     points: Option<PolylinePoints>,
     style: PolylineStyle,
+    color: Color,
     draw_progress: PolylineDrawProgress,
     dropped_points: PolylineDroppedPoints,
 }
@@ -127,6 +132,7 @@ impl Default for PolylineSprout {
             leaf: LeafSprout::default(),
             points: None,
             style: PolylineStyle::default(),
+            color: Color::default(),
             draw_progress: PolylineDrawProgress::default(),
             dropped_points: PolylineDroppedPoints::default(),
         }
@@ -145,8 +151,10 @@ impl PolylineSprout {
         self.style.weight = w.max(crate::MIN_LINE_WEIGHT);
         self
     }
+    /// Forwarded to every [`Line`] the polyline builds. Rewritable after spawn through
+    /// [`Grows::color`](crate::Grows::color), and animatable as `Motion::Color`.
     pub fn color(mut self, c: Color) -> Self {
-        self.style.color = c;
+        self.color = c;
         self
     }
     pub fn dash(mut self, d: DashPattern) -> Self {
@@ -170,6 +178,7 @@ impl Author for PolylineSprout {
             Polyline {},
             self.points.expect("Polyline::points(..) is required"),
             self.style,
+            self.color,
             self.draw_progress,
             self.dropped_points,
             Grid::default(),
@@ -205,6 +214,24 @@ impl Author for PolylineSprout {
         // always recomputed fresh and in full from the *actual current* `PolylinePoints`
         // below, completely independent of what this says; the drop count only chooses
         // which already-existing entities get reused instead of respawned.
+        // An animated `Color` is mutated in place by the animation runner rather than
+        // inserted, so the `Insert` reaction below never sees it. Every other primitive is
+        // unaffected: they draw from the component themselves and change detection carries
+        // it to the renderer. A polyline is the one that has to *forward* its colour to the
+        // children it builds, so it has to hear about the write -- which is what the
+        // runner's `Resolve<Animation<Color>>` is for. Re-inserting the value it just wrote
+        // turns the mutation back into a real write, exactly as `Node` does for an animated
+        // `Opacity`.
+        tree.subscribe(
+            this,
+            |trigger: Trigger<crate::Resolve<crate::Animation<Color>>>,
+             colors: Query<&Color>,
+             mut tree: Tree| {
+                if let Ok(c) = colors.get(trigger.event_target()) {
+                    tree.write_to(trigger.event_target(), *c);
+                }
+            },
+        );
         let mut segments: Vec<Entity> = Vec::new();
         let mut joints: Vec<Entity> = Vec::new();
         // What each pool entity was last actually written with -- `None` means "currently
@@ -212,8 +239,15 @@ impl Author for PolylineSprout {
         // polyline (e.g. a growing history of points where only the newest segment is
         // still animating in) would otherwise re-`write_to` every visible entity on every
         // single reactive fire, even the ones whose data didn't change at all this frame.
-        let mut segment_cache: Vec<Option<(Position<Logical>, Position<Logical>)>> = Vec::new();
-        let mut joint_cache: Vec<Option<Position<Logical>>> = Vec::new();
+        //
+        // Colour is part of what is cached, not just geometry. It is forwarded to the
+        // children rather than drawn here, so a recolour with every point unmoved is a real
+        // change to what they hold -- keyed on position alone the diff below would find the
+        // entry unchanged and skip the write, and the polyline would keep the colour it was
+        // spawned with however many times it was set.
+        let mut segment_cache: Vec<Option<(Position<Logical>, Position<Logical>, Color)>> =
+            Vec::new();
+        let mut joint_cache: Vec<Option<(Position<Logical>, Color)>> = Vec::new();
         // Cumulative `PolylineDroppedPoints` value as of the last fire -- diffed against
         // the current one to get this tick's actual front-eviction count, so re-sending
         // the same total (or never touching the component at all) is always a no-op.
@@ -221,6 +255,7 @@ impl Author for PolylineSprout {
         tree.react_any::<(
             PolylinePoints,
             PolylineStyle,
+            Color,
             PolylineDrawProgress,
             PolylineDroppedPoints,
         ), _>(
@@ -230,18 +265,24 @@ impl Author for PolylineSprout {
                 (
                     PolylinePoints,
                     PolylineStyle,
+                    Color,
                     PolylineDrawProgress,
                     PolylineDroppedPoints,
                 ),
             >,
                   points_q: Query<&PolylinePoints>,
                   styles: Query<&PolylineStyle>,
+                  colors: Query<&Color>,
                   progresses: Query<&PolylineDrawProgress>,
                   drops: Query<&PolylineDroppedPoints>,
                   mut tree: Tree| {
                 let e = trigger.event_target();
                 let points = points_q.get(e).unwrap().0.clone();
                 let style = *styles.get(e).unwrap();
+                // Defaulted rather than unwrapped: `Color` is an ordinary component now, so
+                // nothing stops it being stripped, and a polyline with no colour should
+                // draw in the default one rather than panic.
+                let color = colors.get(e).copied().unwrap_or_default();
                 let progress = progresses
                     .get(e)
                     .copied()
@@ -313,17 +354,17 @@ impl Author for PolylineSprout {
                 );
                 segment_cache.resize(segments.len(), None);
                 for (i, child) in segments.iter().enumerate() {
-                    let value = visible_segment_data.get(i).copied();
+                    let value = visible_segment_data.get(i).copied().map(|(a, b)| (a, b, color));
                     if segment_cache[i] == value {
                         continue;
                     }
                     match value {
-                        Some((a, b)) => {
+                        Some((a, b, color)) => {
                             tree.write_to(
                                 *child,
                                 (
                                     Line::new_marker(style.weight),
-                                    style.color,
+                                    color,
                                     Opacity::new(1.0),
                                     Location::new().xs(
                                         a.left().px().as_x().with(a.top().px().as_y()),
@@ -365,16 +406,16 @@ impl Author for PolylineSprout {
                 );
                 joint_cache.resize(joints.len(), None);
                 for (i, child) in joints.iter().enumerate() {
-                    let value = visible_joint_data.get(i).copied();
+                    let value = visible_joint_data.get(i).copied().map(|j| (j, color));
                     if joint_cache[i] == value {
                         continue;
                     }
                     match value {
-                        Some(j) => {
+                        Some((j, color)) => {
                             tree.write_to(
                                 *child,
                                 (
-                                    style.color,
+                                    color,
                                     Opacity::new(1.0),
                                     Location::new().xs(
                                         j.left().px().as_center_x().with(diameter.px().as_width()),

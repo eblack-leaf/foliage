@@ -449,3 +449,5 @@ impl_refire_tuple!(A);
 impl_refire_tuple!(A, B);
 impl_refire_tuple!(A, B, C);
 impl_refire_tuple!(A, B, C, D);
+impl_refire_tuple!(A, B, C, D, E);
+impl_refire_tuple!(A, B, C, D, E, F);

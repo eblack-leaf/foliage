@@ -305,6 +305,12 @@ impl Text {
             .get(this)
             .map(|l| l.content_axes(*layout, *short))
             .unwrap_or((false, false));
+        // Which edge the declaration pinned, so the measure below grows away from it rather
+        // than always downward and rightward. See `Location::content_pins`.
+        let (pin_right, pin_bottom) = locations
+            .get(this)
+            .map(|l| l.content_pins(*layout, *short))
+            .unwrap_or((false, false));
         let font_id = font_ids.get(this).copied().unwrap_or_default();
         let font_size = ResolvedFontSize::new(
             // `round`, not `as`'s own truncation: this is the px size the atlas bitmap is
@@ -375,7 +381,19 @@ impl Text {
                 } else {
                     Some(current.section.width())
                 },
-                max_height: Some(current.section.height()),
+                // Unbounded for the same reason `max_width` is when the width is content
+                // sized, and it is the same mistake in the other axis: constraining the
+                // layout by the extent the layout is what *produces* is circular. The
+                // height would bound the measure, the measure would be written back as the
+                // height, and the next resolve would read that back through
+                // `TextContent` -- a stable fixed point at whatever the box happened to
+                // start at. A run that needs two lines stays one line tall forever, lays
+                // its second line outside the box, and has it scissored off.
+                max_height: if auto_height {
+                    None
+                } else {
+                    Some(current.section.height())
+                },
                 ..fontdue::layout::LayoutSettings::default()
             });
             glyphs.layout.append(
@@ -393,10 +411,23 @@ impl Text {
             let adjusted = (auto_width || auto_height).then(|| {
                 let mut section = current.section;
                 if auto_width {
+                    // `with_width` keeps the left edge and grows rightward, which is right
+                    // for the ordinary `left.with(width)` and wrong when it was the *right*
+                    // edge the declaration pinned. Putting the pinned edge back is what
+                    // makes `text_content()` work from either side: the resolve says where
+                    // the pinned edge is, the measure says only how far the free one runs.
+                    let right = section.right();
                     section = section.with_width(glyphs.layout.glyphs().len() as f32 * dims.a());
+                    if pin_right {
+                        section.position.set_left(right - section.width());
+                    }
                 }
                 if auto_height {
+                    let bottom = section.bottom();
                     section = section.with_height(glyphs.layout.height());
+                    if pin_bottom {
+                        section.position.set_top(bottom - section.height());
+                    }
                 }
                 section.to_logical(scale_factor.value())
             });

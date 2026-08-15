@@ -259,6 +259,41 @@ impl Location {
                 || sized_by_content(config.vertical.b, Designator::Height),
         )
     }
+    /// Which edge a content-sized axis is pinned by: `(right, bottom)`, where `false` means
+    /// the near edge or a centre. An axis that is not content-sized answers `false`, which
+    /// is the same answer and costs nothing.
+    ///
+    /// The measure has to know this. Growing a box to fit its glyphs moves one of its two
+    /// edges, and which one is free is exactly what the `Location` already said: a box
+    /// declared `text_content().as_height().with(..as_bottom())` has its bottom pinned and
+    /// must grow *upward*, where the ordinary `..as_top().with(text_content().as_height())`
+    /// grows down. Without this every content-sized box grows downward, and a bottom-pinned
+    /// one walks past the edge it was anchored to by however much taller the measure came
+    /// back -- which puts its last line outside the box it was given.
+    pub(crate) fn content_pins(&self, layout: Layout, short: Short) -> (bool, bool) {
+        let Some(config) = self.config(layout, short) else {
+            return (false, false);
+        };
+        // Ordered by designator, the same way the resolve orders its own pair, so there is
+        // one canonical spelling to compare against rather than two permutations to guess
+        // between. `Designator`'s ordering is what makes that work: `Width` before `Right`,
+        // `Height` before `Bottom`.
+        let ordered = |a: ValueDescriptor, b: ValueDescriptor| {
+            if a.designator > b.designator { (b, a) } else { (a, b) }
+        };
+        let pinned = |a: ValueDescriptor, b: ValueDescriptor, far: Designator| {
+            let (extent, edge) = ordered(a, b);
+            extent.value == LocationValue::TextContent && edge.designator == far
+        };
+        (
+            pinned(
+                config.horizontal.a,
+                config.horizontal.b,
+                Designator::Right,
+            ),
+            pinned(config.vertical.a, config.vertical.b, Designator::Bottom),
+        )
+    }
     /// The two ways a content-sized axis can be declared such that it cannot work, both of
     /// which used to be silent -- one leaving the box frozen at whatever extent it happened to
     /// have, the other leaving it at whichever of two writers ran last. Neither reads as a
