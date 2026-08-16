@@ -1,6 +1,6 @@
 use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
-use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
+use crate::ash::instance::{Instance, InstanceBuffer};
 use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
@@ -175,7 +175,7 @@ impl Render for Image {
         for entity in queues.removes::<Image>() {
             if let Some(group_id) = renderer.resources.entity_to_memory.remove(&entity) {
                 let group = renderer.groups.get_mut(&group_id).unwrap();
-                let id = entity.index().index() as InstanceId;
+                let id = entity.to_bits();
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Image, group_id, id));
@@ -239,7 +239,7 @@ impl Render for Image {
             );
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index().index() as InstanceId;
+                let id = entity.to_bits();
                 if !group.coordinator.has_instance(id) {
                     group
                         .coordinator
@@ -253,14 +253,14 @@ impl Render for Image {
         for (entity, clip) in queues.attribute::<Image, ClipContext>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index().index() as InstanceId;
+                let id = entity.to_bits();
                 group.coordinator.update_clip_context(id, clip.0);
             }
         }
         for (entity, adjustments) in queues.attribute::<Image, CropAdjustment>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index().index() as InstanceId;
+                let id = entity.to_bits();
                 let base = group.group.texture_coordinates;
                 if adjustments.adjustments == Section::default() {
                     group.group.coords.queue(id, base);
@@ -281,23 +281,20 @@ impl Render for Image {
         for (entity, radii) in queues.attribute::<Image, CornerRadii>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                group
-                    .group
-                    .radii
-                    .queue(entity.index().index() as InstanceId, radii);
+                group.group.radii.queue(entity.to_bits(), radii);
             }
         }
         for (entity, opacity) in queues.attribute::<Image, BlendedOpacity>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index().index() as InstanceId;
+                let id = entity.to_bits();
                 group.group.opaque.queue(id, opacity);
             }
         }
         for (entity, section) in queues.attribute::<Image, Section<Logical>>() {
             if let Some(gid) = renderer.resources.entity_to_memory.get(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index().index() as InstanceId;
+                let id = entity.to_bits();
                 tracing::trace!(
                     entity = ?entity,
                     has_instance = group.coordinator.has_instance(id),

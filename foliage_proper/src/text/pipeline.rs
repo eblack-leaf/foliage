@@ -229,7 +229,7 @@ impl Render for Text {
             }
             nodes.remove(RemoveNode::new(
                 PipelineId::Text,
-                entity.index().index() as GroupId,
+                entity.to_bits(),
                 ONE_NODE_PER_GROUP_OPTIMIZATION,
             ));
         }
@@ -242,8 +242,8 @@ impl Render for Text {
                 let group = Group::new(ginkgo, packet);
                 renderer
                     .groups
-                    .insert(entity.index().index() as GroupId, RenderGroup::new(group));
-                e.insert(entity.index().index() as GroupId);
+                    .insert(entity.to_bits(), RenderGroup::new(group));
+                e.insert(entity.to_bits());
             } else {
                 let id = renderer.resources.entity_to_group.get(&entity).unwrap();
                 // OMITTED for optimization renderer.groups.get_mut(id).unwrap().coordinator.needs_sort = true;

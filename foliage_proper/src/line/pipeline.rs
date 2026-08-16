@@ -1,6 +1,6 @@
 use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
-use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
+use crate::ash::instance::{Instance, InstanceBuffer};
 use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
@@ -135,7 +135,7 @@ impl Render for LineQuad {
         let mut nodes = Nodes::new();
         let group = renderer.groups.get_mut(&0).unwrap();
         for entity in queues.removes::<Self>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             if group.coordinator.has_instance(id) {
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
@@ -148,7 +148,7 @@ impl Render for LineQuad {
             }
         }
         for (entity, quad) in queues.attribute::<Self, Self>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             if !group.coordinator.has_instance(id) {
                 group.coordinator.add(Instance::new(
                     ResolvedElevation::default(),
@@ -159,20 +159,20 @@ impl Render for LineQuad {
             group.group.quads.queue(id, quad);
         }
         for (entity, elevation) in queues.attribute::<Self, ResolvedElevation>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.group.elevations.queue(id, elevation);
             group.coordinator.update_elevation(id, elevation);
         }
         for (entity, clip) in queues.attribute::<Self, ClipContext>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.coordinator.update_clip_context(id, clip.0);
         }
         for (entity, color) in queues.attribute::<Self, Color>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.group.colors.queue(id, color.c_repr());
         }
         for (entity, opacity) in queues.attribute::<Self, BlendedOpacity>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.group.opacities.queue(id, opacity);
         }
         if let Some(n) = group.coordinator.grown() {

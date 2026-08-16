@@ -1,6 +1,6 @@
 use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
-use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
+use crate::ash::instance::{Instance, InstanceBuffer};
 use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{GroupId, Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
@@ -150,7 +150,7 @@ impl Render for Icon {
         for entity in queues.removes::<Icon>() {
             if let Some(gid) = renderer.resources.entity_to_group.remove(&entity) {
                 let group = renderer.groups.get_mut(&gid).unwrap();
-                let id = entity.index().index() as InstanceId;
+                let id = entity.to_bits();
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
                 nodes.remove(RemoveNode::new(PipelineId::Icon, gid, id));
@@ -183,10 +183,15 @@ impl Render for Icon {
                 field_size: mem.field_size as f32,
                 px_range: mem.px_range,
             };
-            renderer.groups.insert(mem.id, RenderGroup::new(group));
+            // Widened, not re-derived. An icon's group is its *artwork*, so the id comes from
+            // the registered icon rather than from an entity -- nothing here is recycled and
+            // nothing here had a generation to lose.
+            renderer
+                .groups
+                .insert(mem.id as GroupId, RenderGroup::new(group));
         }
         for (entity, icon) in queues.attribute::<Icon, Icon>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             if let Some(old_gid) = renderer.resources.entity_to_group.remove(&entity) {
                 let old_group = renderer.groups.get_mut(&old_gid).unwrap();
                 let order = old_group.coordinator.order(id);
@@ -197,8 +202,11 @@ impl Render for Icon {
                 // at its last-known position/color/opacity alongside the new group's instance.
                 nodes.remove(RemoveNode::new(PipelineId::Icon, old_gid, id));
             }
-            renderer.resources.entity_to_group.insert(entity, icon.id);
-            if let Some(group) = renderer.groups.get_mut(&icon.id) {
+            renderer
+                .resources
+                .entity_to_group
+                .insert(entity, icon.id as GroupId);
+            if let Some(group) = renderer.groups.get_mut(&(icon.id as GroupId)) {
                 if !group.coordinator.has_instance(id) {
                     // freshly entering this group -- its section/elevation/clip/color/opacity
                     // arrive through their own attribute loops below, exactly like any other
@@ -217,7 +225,7 @@ impl Render for Icon {
         }
         for (entity, section) in queues.attribute::<Icon, Section<Logical>>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             let group = renderer.groups.get_mut(gid).unwrap();
             let sf = ginkgo.configuration().scale_factor;
             let physical = section.to_physical(sf.value()).rounded();
@@ -234,26 +242,26 @@ impl Render for Icon {
         }
         for (entity, elevation) in queues.attribute::<Icon, ResolvedElevation>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             let group = renderer.groups.get_mut(gid).unwrap();
             group.coordinator.update_elevation(id, elevation);
             group.group.elevations.queue(id, elevation);
         }
         for (entity, clip) in queues.attribute::<Icon, ClipContext>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             let group = renderer.groups.get_mut(gid).unwrap();
             group.coordinator.update_clip_context(id, clip.0);
         }
         for (entity, color) in queues.attribute::<Icon, Color>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             let group = renderer.groups.get_mut(gid).unwrap();
             group.group.colors.queue(id, color.c_repr());
         }
         for (entity, opacity) in queues.attribute::<Icon, BlendedOpacity>() {
             let gid = renderer.resources.entity_to_group.get(&entity).unwrap();
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             let group = renderer.groups.get_mut(gid).unwrap();
             group.group.opacities.queue(id, opacity);
         }

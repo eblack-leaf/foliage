@@ -21,7 +21,14 @@ where
     ) -> Nodes;
     fn render(renderer: &mut Renderer<Self>, render_pass: &mut RenderPass, parameters: Parameters);
 }
-pub(crate) type GroupId = i32;
+/// What identifies one batch of drawables.
+///
+/// An entity's whole bit pattern where a group belongs to one -- the text pipeline gives every
+/// text entity a group of its own -- for the same reason
+/// [`InstanceId`](crate::ash::instance::InstanceId) is: bevy recycles entity *indices*, so keyed
+/// on the index alone a despawned text and a newly spawned one shared a group, and the new one
+/// inherited the dead one's rows.
+pub(crate) type GroupId = u64;
 #[derive(Clone, Copy, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub(crate) enum PipelineId {
     Text,

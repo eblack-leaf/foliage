@@ -83,6 +83,18 @@ pub trait Grows: Queues {
     fn location(&mut self, leaf: Leaf, to: Location) {
         self.push(Op::Location { leaf, to });
     }
+    /// Repoints which element `leaf`'s [`anchor()`](crate::anchor) values resolve against.
+    ///
+    /// The counterpart to [`anchored`](crate::Author::anchored), which could only be said once,
+    /// at spawn. Nothing about the component was ever fixed -- it is a plain component with
+    /// hooks that maintain the dependency both ways -- it simply had no verb, so an app that
+    /// wanted a panel to follow a *different* element had to give up anchoring and compute
+    /// coordinates by hand.
+    ///
+    /// Dropped if either end has withered, like every other op naming something gone.
+    fn anchor(&mut self, leaf: Leaf, to: Leaf) {
+        self.push(Op::Anchor { leaf, to });
+    }
     fn elevation(&mut self, leaf: Leaf, to: Elevation) {
         self.push(Op::Elevation { leaf, to });
     }

@@ -126,6 +126,11 @@ pub(crate) enum Op {
         leaf: Leaf,
         to: Location,
     },
+    /// Repoints which element this one's `anchor()` values resolve against.
+    Anchor {
+        leaf: Leaf,
+        to: Leaf,
+    },
     Elevation {
         leaf: Leaf,
         to: Elevation,
@@ -206,6 +211,7 @@ impl Op {
             | Op::Opacity { leaf, .. }
             | Op::Visible { leaf, .. }
             | Op::Location { leaf, .. }
+            | Op::Anchor { leaf, .. }
             | Op::Elevation { leaf, .. }
             | Op::FontSize { leaf, .. }
             | Op::GlyphColors { leaf, .. }
@@ -265,6 +271,16 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
                 joined = sequence.filter(|seq| alive(world, *seq)).map(|seq| seq.0);
                 Some(leaf.0)
             }
+            // The one op whose *target* has to be alive as well as its subject. An `Anchor`
+            // naming a withered element cannot resolve, and a box carrying `anchor()` values
+            // that cannot resolve does not merely stay put -- it has nowhere to be at all.
+            // Dropped rather than written, like every other op that names something gone.
+            Op::Anchor { leaf, to } => {
+                if !alive(world, *leaf) || !alive(world, *to) {
+                    continue;
+                }
+                Some(leaf.0)
+            }
             _ => match op.subject() {
                 Some(leaf) if alive(world, leaf) => Some(leaf.0),
                 _ => continue,
@@ -281,6 +297,7 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
             Op::Opacity { to, .. } => tree.write_to(subject.unwrap(), crate::Opacity::new(to)),
             Op::Visible { yes, .. } => tree.write_to(subject.unwrap(), crate::Visibility::new(yes)),
             Op::Location { to, .. } => tree.write_to(subject.unwrap(), to),
+            Op::Anchor { to, .. } => tree.write_to(subject.unwrap(), crate::Anchor::new(to.0)),
             Op::Elevation { to, .. } => tree.write_to(subject.unwrap(), to),
             Op::FontSize { to, .. } => tree.write_to(subject.unwrap(), to),
             Op::GlyphColors { to, .. } => tree.write_to(subject.unwrap(), to),

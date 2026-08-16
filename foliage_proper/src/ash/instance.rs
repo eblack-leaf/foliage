@@ -44,9 +44,6 @@ pub(crate) struct InstanceCoordinator {
     pub(crate) orders: HashMap<InstanceId, Order>,
     #[allow(unused)]
     pub(crate) node_submit: HashSet<InstanceId>,
-    #[allow(unused)]
-    pub(crate) id_gen: InstanceId,
-    pub(crate) gen_pool: HashSet<InstanceId>,
     pub(crate) capacity: u32,
     pub(crate) needs_sort: bool,
 }
@@ -58,8 +55,6 @@ impl InstanceCoordinator {
             cache: vec![],
             orders: HashMap::new(),
             node_submit: HashSet::new(),
-            id_gen: 0,
-            gen_pool: Default::default(),
             capacity,
             needs_sort: false,
         }
@@ -108,18 +103,11 @@ impl InstanceCoordinator {
     pub(crate) fn count(&self) -> u32 {
         self.instances.len() as u32
     }
-    #[allow(unused)]
-    pub(crate) fn generate_id(&mut self) -> InstanceId {
-        if self.gen_pool.is_empty() {
-            let val = self.id_gen;
-            self.id_gen += 1;
-            val
-        } else {
-            let val = self.gen_pool.iter().last().copied().unwrap();
-            self.gen_pool.remove(&val);
-            val
-        }
-    }
+    // There was a `generate_id` here, minting from a counter and recycling through a pool.
+    // Nothing ever called it and nothing ever put anything in the pool, and it is gone rather
+    // than left dead: every id now comes from an entity's own bits, so a second source handing
+    // out small counting numbers would sooner or later mint one that collided with a real
+    // entity -- which is the bug this type was just widened to make impossible.
     pub(crate) fn grown(&mut self) -> Option<u32> {
         const REPEAT_ALLOCATION_AVOIDANCE: u32 = 2;
         if self.instances.len() > self.capacity as usize {
@@ -279,4 +267,21 @@ impl<I: bytemuck::Pod + bytemuck::Zeroable + Default> InstanceBuffer<I> {
 }
 
 pub(crate) type Order = i32;
-pub(crate) type InstanceId = i32;
+
+/// What identifies one drawable within its group, for the whole time it exists.
+///
+/// Wide enough to hold an [`Entity`](bevy_ecs::entity::Entity)'s *whole* bit pattern, index and
+/// generation both, because that is what every pipeline but text keys its instances by. It used
+/// to be `i32` holding `entity.index()` alone -- the generation thrown away -- and bevy recycles
+/// indices, so a despawned element and a freshly spawned one landing on the same index became
+/// the same `InstanceId`.
+///
+/// That is not a cosmetic collision. Two different entities removed in one frame then produced
+/// two removals naming the identical `(pipeline, group, instance)`, `Ash::prepare` resolved both
+/// to the same row of `nodes`, and the second `Vec::remove` ran off the end of the vector it had
+/// just shortened. Tearing a screen down and building another in the same frame -- which is what
+/// any redraw is -- made it reachable.
+///
+/// The text pipeline keys by glyph offset within a group instead, which is already unique per
+/// group and unaffected.
+pub(crate) type InstanceId = u64;

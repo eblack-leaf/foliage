@@ -142,8 +142,16 @@ pub(crate) struct TextInputField;
 /// poked as one unit: `canopy.input_style(input, TextInputStyle { .. })`.
 #[derive(Component, Copy, Clone, Default)]
 pub struct TextInputStyle {
-    /// text + hint content color
+    /// text content color
     pub foreground: Color,
+    /// placeholder color, for muting a hint against real content
+    ///
+    /// [`HintColor`] has always existed to hold this -- its own doc says so -- and nothing ever
+    /// wrote it, so every field in every app drew its placeholder in `Color::default()`. That is
+    /// opaque white: *brighter* than the content beside it, which is the reverse of what a
+    /// placeholder is for. Carried here rather than derived from `foreground`, because "muted"
+    /// is the palette's business and an app with a tone for secondary text already knows it.
+    pub hint: Color,
     /// field/backdrop panel color
     pub background: Color,
     /// cursor + selection-highlight color
@@ -179,18 +187,25 @@ pub struct TextInputSprout {
     style: TextInputStyle,
     font_size: Option<FontSize>,
     hint_text: Option<String>,
+    /// Kept apart from `style` so "never mentioned" and "set to this" stay distinguishable --
+    /// a `Color` has no spare value meaning unset, and the fallback is the foreground.
+    hint_color: Option<Color>,
     line_constraint: Option<LineConstraint>,
 }
 impl Author for TextInputSprout {
     fn seed(&mut self) -> &mut LeafSprout {
         &mut self.leaf
     }
-    fn root(self) -> impl Bundle {
+    fn root(mut self) -> impl Bundle {
+        // Resolved here rather than at every read: a field that never mentions a hint colour
+        // still gets one from the same palette as its text, instead of `Color::default()`.
+        self.style.hint = self.hint_color.unwrap_or(self.style.foreground);
         (
             TextInput::new_marker(),
             TextValue(self.text.unwrap_or_default()),
             self.style,
             self.font_size.unwrap_or_default(),
+            HintColor(self.style.hint),
             HintText::new(self.hint_text.unwrap_or_default()),
             self.line_constraint.unwrap_or_default(),
             Grid::default(),
@@ -324,9 +339,16 @@ impl TextInputSprout {
         self.text = Some(t.into());
         self
     }
-    /// Color of the text and the hint.
+    /// Color of the text.
     pub fn foreground(mut self, c: Color) -> Self {
         self.style.foreground = c;
+        self
+    }
+    /// Color of the placeholder, for muting it against real content. Defaults to
+    /// [`foreground`](TextInputSprout::foreground) when it is not set, so a field that never
+    /// mentions a hint colour still draws one that belongs to the same palette.
+    pub fn hint_color(mut self, c: Color) -> Self {
+        self.hint_color = Some(c);
         self
     }
     /// Color of the backdrop panel.
@@ -490,7 +512,11 @@ impl TextInput {
         let handle = handles.get(trigger.event_target()).unwrap();
         let style = *styles.get(trigger.event_target()).unwrap();
         tree.write_to(handle.text, style.foreground);
-        tree.write_to(handle.hint_text, style.foreground);
+        // Both the drawn hint and the `HintColor` that `update_hint` re-applies whenever the
+        // placeholder text changes -- writing only the first would put the style back to
+        // `Color::default()` the next time anyone called `Canopy::hint`.
+        tree.write_to(handle.hint_text, style.hint);
+        tree.write_to(trigger.event_target(), HintColor(style.hint));
         tree.write_to(
             handle.panel,
             (style.background, style.rounding, style.outline),

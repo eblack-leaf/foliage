@@ -354,7 +354,10 @@ impl Author for PolylineSprout {
                 );
                 segment_cache.resize(segments.len(), None);
                 for (i, child) in segments.iter().enumerate() {
-                    let value = visible_segment_data.get(i).copied().map(|(a, b)| (a, b, color));
+                    let value = visible_segment_data
+                        .get(i)
+                        .copied()
+                        .map(|(a, b)| (a, b, color));
                     if segment_cache[i] == value {
                         continue;
                     }

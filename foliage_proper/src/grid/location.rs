@@ -279,18 +279,18 @@ impl Location {
         // between. `Designator`'s ordering is what makes that work: `Width` before `Right`,
         // `Height` before `Bottom`.
         let ordered = |a: ValueDescriptor, b: ValueDescriptor| {
-            if a.designator > b.designator { (b, a) } else { (a, b) }
+            if a.designator > b.designator {
+                (b, a)
+            } else {
+                (a, b)
+            }
         };
         let pinned = |a: ValueDescriptor, b: ValueDescriptor, far: Designator| {
             let (extent, edge) = ordered(a, b);
             extent.value == LocationValue::TextContent && edge.designator == far
         };
         (
-            pinned(
-                config.horizontal.a,
-                config.horizontal.b,
-                Designator::Right,
-            ),
+            pinned(config.horizontal.a, config.horizontal.b, Designator::Right),
             pinned(config.vertical.a, config.vertical.b, Designator::Bottom),
         )
     }
@@ -1365,6 +1365,15 @@ impl Anchor {
                 world.tree().write_to(id, anchor_deps);
             }
         }
+        // Re-place this entity, because *which* element it reads its geometry from has just
+        // changed and its own `Location` has not.
+        //
+        // Only ever written once -- at spawn, before there was anything to re-place -- this
+        // never mattered. Now that an anchor can be repointed while an element is on screen,
+        // leaving it out means the new target is recorded and the element stays exactly where
+        // the old one put it, until something else forces a general resolve. A window resize
+        // does, which is a confusing way to find out.
+        world.tree().send_to(Resolve::<Location>::new(), this);
     }
     fn on_replace(mut world: DeferredWorld, ctx: HookContext) {
         let this = ctx.entity;

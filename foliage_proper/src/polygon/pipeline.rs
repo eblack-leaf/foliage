@@ -1,6 +1,6 @@
 use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
-use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
+use crate::ash::instance::{Instance, InstanceBuffer};
 use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
@@ -139,7 +139,7 @@ impl Render for Polygon {
         let mut nodes = Nodes::new();
         let group = renderer.groups.get_mut(&0).unwrap();
         for entity in queues.removes::<Polygon>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             if group.coordinator.has_instance(id) {
                 let order = group.coordinator.order(id);
                 group.coordinator.remove(order);
@@ -153,7 +153,7 @@ impl Render for Polygon {
             }
         }
         for (entity, elevation) in queues.attribute::<Polygon, ResolvedElevation>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             if !group.coordinator.has_instance(id) {
                 group
                     .coordinator
@@ -164,7 +164,7 @@ impl Render for Polygon {
             group.group.elevations.queue(id, elevation);
         }
         for (entity, section) in queues.attribute::<Polygon, Section<Logical>>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.group.sections.queue(
                 id,
                 section
@@ -174,19 +174,19 @@ impl Render for Polygon {
             );
         }
         for (entity, clip) in queues.attribute::<Polygon, ClipContext>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.coordinator.update_clip_context(id, clip.0);
         }
         for (entity, color) in queues.attribute::<Polygon, Color>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.group.colors.queue(id, color.c_repr());
         }
         for (entity, opacity) in queues.attribute::<Polygon, BlendedOpacity>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.group.opacities.queue(id, opacity);
         }
         for (entity, polygon) in queues.attribute::<Polygon, Polygon>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             group.group.params.queue(id, polygon);
         }
         if let Some(n) = group.coordinator.grown() {

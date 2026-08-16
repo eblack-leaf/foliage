@@ -1,6 +1,6 @@
 use crate::ash::clip::ClipContext;
 use crate::ash::differential::RenderQueueHandle;
-use crate::ash::instance::{Instance, InstanceBuffer, InstanceId};
+use crate::ash::instance::{Instance, InstanceBuffer};
 use crate::ash::node::{Nodes, RemoveNode};
 use crate::ash::render::{Parameters, PipelineId, Render, RenderGroup, Renderer};
 use crate::ginkgo::Ginkgo;
@@ -150,19 +150,10 @@ impl Render for Panel {
         let mut nodes = Nodes::new();
         let render_group = renderer.groups.get_mut(&0).unwrap();
         for r in queues.removes::<Panel>() {
-            if render_group
-                .coordinator
-                .has_instance(r.index().index() as InstanceId)
-            {
+            if render_group.coordinator.has_instance(r.to_bits()) {
                 renderer.resources.layer_and_weights.remove(&r);
-                nodes.remove(RemoveNode::new(
-                    PipelineId::Panel,
-                    0,
-                    r.index().index() as InstanceId,
-                ));
-                let order = render_group
-                    .coordinator
-                    .order(r.index().index() as InstanceId);
+                nodes.remove(RemoveNode::new(PipelineId::Panel, 0, r.to_bits()));
+                let order = render_group.coordinator.order(r.to_bits());
                 render_group.coordinator.remove(order);
                 queues.remove_attr::<Panel, ResolvedElevation>(r);
                 queues.remove_attr::<Panel, Section<Logical>>(r);
@@ -174,7 +165,7 @@ impl Render for Panel {
             }
         }
         for (entity, elevation) in queues.attribute::<Panel, ResolvedElevation>() {
-            let id = entity.index().index() as InstanceId;
+            let id = entity.to_bits();
             if !render_group.coordinator.has_instance(id) {
                 render_group
                     .coordinator
@@ -194,7 +185,7 @@ impl Render for Panel {
         }
         for (entity, section) in queues.attribute::<Self, Section<Logical>>() {
             render_group.group.sections.queue(
-                entity.index().index() as InstanceId,
+                entity.to_bits(),
                 section
                     .to_physical(ginkgo.configuration().scale_factor.value())
                     .rounded()
@@ -204,7 +195,7 @@ impl Render for Panel {
         for (entity, clip_context) in queues.attribute::<Panel, ClipContext>() {
             render_group
                 .coordinator
-                .update_clip_context(entity.index().index() as InstanceId, clip_context.0);
+                .update_clip_context(entity.to_bits(), clip_context.0);
         }
         for (entity, outline) in queues.attribute::<Panel, Outline>() {
             renderer
@@ -214,33 +205,30 @@ impl Render for Panel {
                 .unwrap()
                 .weight = outline.value as f32 * ginkgo.configuration().scale_factor.value();
             let lw = *renderer.resources.layer_and_weights.get(&entity).unwrap();
-            render_group
-                .group
-                .lws
-                .queue(entity.index().index() as InstanceId, lw);
+            render_group.group.lws.queue(entity.to_bits(), lw);
         }
         for (entity, opacity) in queues.attribute::<Self, BlendedOpacity>() {
             renderer.resources.opacity.insert(entity, opacity);
             if let Some(color) = renderer.resources.color.get(&entity) {
-                render_group.group.colors.queue(
-                    entity.index().index() as InstanceId,
-                    color.with_opacity(opacity.value).c_repr(),
-                )
+                render_group
+                    .group
+                    .colors
+                    .queue(entity.to_bits(), color.with_opacity(opacity.value).c_repr())
             }
         }
         for (entity, color) in queues.attribute::<Self, Color>() {
             renderer.resources.color.insert(entity, color);
             let opacity = renderer.resources.opacity.get(&entity).unwrap();
-            render_group.group.colors.queue(
-                entity.index().index() as InstanceId,
-                color.with_opacity(opacity.value).c_repr(),
-            );
+            render_group
+                .group
+                .colors
+                .queue(entity.to_bits(), color.with_opacity(opacity.value).c_repr());
         }
         for (entity, panel) in queues.attribute::<Self, Self>() {
             render_group
                 .group
                 .radii
-                .queue(entity.index().index() as InstanceId, panel.radii);
+                .queue(entity.to_bits(), panel.radii);
         }
         if let Some(n) = render_group.coordinator.grown() {
             render_group.group.sections.grow(ginkgo, n);
