@@ -48,9 +48,16 @@ impl Enable {
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
         mut listeners: Query<&mut InteractionListener>,
+        mut propagations: Query<&mut crate::InteractionPropagation>,
     ) {
         if let Ok(mut listener) = listeners.get_mut(trigger.event_target()) {
             listener.state.insert(InteractionState::ENABLED);
+        }
+        // The other half of the pair in `Disable::interactions`. Only the disabled flag is
+        // cleared -- whether the entity grabs or passes through is the author's decision and
+        // was never this call's to restore.
+        if let Ok(mut propagation) = propagations.get_mut(trigger.event_target()) {
+            propagation.set_disabled(false);
         }
     }
 }

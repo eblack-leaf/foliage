@@ -22,9 +22,17 @@ impl Disable {
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
         mut listeners: Query<&mut InteractionListener>,
+        mut propagations: Query<&mut crate::InteractionPropagation>,
     ) {
         if let Ok(mut listener) = listeners.get_mut(trigger.event_target()) {
             listener.state.remove(InteractionState::ENABLED);
+        }
+        // Every entity has one of these; only an `.interactive()` one has a listener. Written
+        // to both, so "disabled" means the same thing whether or not the thing was ever a
+        // target -- without this, disabling a plain container was silently a no-op while the
+        // container carried on winning gestures over everything beneath it.
+        if let Ok(mut propagation) = propagations.get_mut(trigger.event_target()) {
+            propagation.set_disabled(true);
         }
     }
     fn user_signal(

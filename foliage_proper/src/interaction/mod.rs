@@ -245,6 +245,15 @@ pub struct Disengaged {}
 pub struct InteractionPropagation {
     grab: bool,
     disable_drag: bool,
+    /// Turned off by [`Disable`](crate::Disable) and back on by [`Enable`](crate::Enable).
+    ///
+    /// It lives here rather than only on [`InteractionListener`] because *every* entity has an
+    /// `InteractionPropagation` and only an `.interactive()` one has a listener. Held on the
+    /// listener alone, `disable` silently did nothing to anything that was not already a
+    /// target -- and a plain container still grabs, so a disabled overlay went on winning
+    /// gestures on stack order and swallowing input meant for what was underneath it. That is
+    /// the exact case the comment in `interactive_elements` says must not happen.
+    disabled: bool,
 }
 impl InteractionPropagation {
     /// Competes for the gesture; the topmost grabber under the pointer wins.
@@ -252,6 +261,7 @@ impl InteractionPropagation {
         Self {
             grab: true,
             disable_drag: false,
+            disabled: false,
         }
     }
     /// Still notified when a gesture crosses it, but never wins one -- for overlays and
@@ -260,6 +270,7 @@ impl InteractionPropagation {
         Self {
             grab: false,
             disable_drag: false,
+            disabled: false,
         }
     }
     /// Refuses drag-panning through this entity, so a drag starting here scrolls nothing.
@@ -267,6 +278,9 @@ impl InteractionPropagation {
     pub fn disable_drag(mut self) -> Self {
         self.disable_drag = true;
         self
+    }
+    pub(crate) fn set_disabled(&mut self, yes: bool) {
+        self.disabled = yes;
     }
 }
 /// Whether pressing this entity moves keyboard focus to it.
@@ -288,6 +302,7 @@ impl Default for InteractionPropagation {
         Self {
             grab: true,
             disable_drag: false,
+            disabled: false,
         }
     }
 }
@@ -308,6 +323,7 @@ pub(crate) fn interactive_elements(
     mut current: ResMut<CurrentInteraction>,
     contexts: Query<&Parent>,
     views: Query<&View>,
+    visibilities: Query<&crate::ResolvedVisibility>,
     momentum: Res<ScrollMomentum>,
     mut tree: Tree,
 ) {
@@ -377,7 +393,25 @@ pub(crate) fn interactive_elements(
                 // from acting on a grab they won: a disabled overlay sitting on top would
                 // otherwise take the gesture on elevation alone and silently swallow
                 // input meant for what is underneath.
-                if listeners.get(entity).map(|l| l.disabled()).unwrap_or(false) {
+                //
+                // Read off `InteractionPropagation`, which every entity has, rather than off
+                // `InteractionListener`, which only an `.interactive()` one has. Read off the
+                // listener this check was true only for things that were already targets, so
+                // `disable` on a plain container did nothing whatsoever and the container went
+                // on winning gestures -- which is the very case the paragraph above forbids.
+                //
+                // And an entity nobody can see is not a thing anybody can be pointing at, so
+                // it never begins a gesture either. This is the only place the engine picks
+                // what is under the pointer -- `Moved` and `End` act on what was chosen here --
+                // so one test here is the whole rule, and it needs no exception for a target
+                // that is scrolled or faded away mid-drag. A gesture belongs to whoever won
+                // it; this governs the winning, not the holding.
+                if propagation.disabled
+                    || !visibilities
+                        .get(entity)
+                        .map(|v| v.visible())
+                        .unwrap_or(true)
+                {
                     continue;
                 }
                 if propagation.grab {
