@@ -153,6 +153,12 @@ fn resized(
 
 /// Every source of emissions, registered in one place. Adding a `Bloom` variant without a
 /// line here is the one failure this seam can have that nothing catches at compile time.
+///
+/// One exception, deliberately: [`Bloom::ScrollRefused`](crate::Bloom::ScrollRefused) is pushed
+/// by `grid::view::extent_check` rather than by an observer here. It reports a decision taken
+/// partway through resolving scroll -- how much of an adjustment an axis would not take -- and
+/// that number exists nowhere else. Re-deriving it from a trigger would mean redoing the clamp
+/// the resolver had just done, against state it had already moved past.
 pub(crate) struct Funnel;
 
 impl crate::Attachment for Funnel {

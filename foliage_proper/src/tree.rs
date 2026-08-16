@@ -302,6 +302,12 @@ impl<'w, 's> Tree<'w, 's> {
         if let Some(overscroll) = seed.overscroll {
             self.write_to(this, overscroll);
         }
+        if let Some(scroll_axes) = seed.scroll_axes {
+            self.write_to(this, scroll_axes);
+        }
+        if let Some(directional_lock) = seed.directional_lock {
+            self.write_to(this, directional_lock);
+        }
         if let Some(font) = seed.font {
             self.write_to(this, font);
         }

@@ -1083,7 +1083,13 @@ impl TextInput {
                 "text_input: scroll-into-view check"
             );
             if delta.left() != 0.0 || delta.top() != 0.0 {
-                tree.write_to(handle.field, ViewAdjustment(delta));
+                // Not a gesture at all -- the field scrolling itself to keep the caret in
+                // sight. `Mouse` is the honest answer: it is a pointer-driven move rather than
+                // a wheel notch, and nothing downstream should read it as a discrete step.
+                tree.write_to(
+                    handle.field,
+                    ViewAdjustment(delta, crate::InteractionMethod::Mouse),
+                );
             }
         }
     }

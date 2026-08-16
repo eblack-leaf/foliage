@@ -31,6 +31,8 @@ pub struct LeafSprout {
     pub(crate) font: Option<crate::FontId>,
     pub(crate) font_size: Option<crate::FontSize>,
     pub(crate) overscroll: Option<crate::OverscrollPropagation>,
+    pub(crate) scroll_axes: Option<crate::ScrollAxes>,
+    pub(crate) directional_lock: Option<crate::DirectionalLock>,
 }
 impl Default for LeafSprout {
     fn default() -> Self {
@@ -50,6 +52,8 @@ impl Default for LeafSprout {
             font: None,
             font_size: None,
             overscroll: None,
+            scroll_axes: None,
+            directional_lock: None,
         }
     }
 }
@@ -180,6 +184,26 @@ pub trait Sprout: Author {
     /// it once the region hits its own end. Turn it off to trap scrolling inside.
     fn overscroll(mut self, passes: bool) -> Self {
         self.seed().overscroll = Some(crate::OverscrollPropagation(passes));
+        self
+    }
+    /// Which axes this element accepts scroll input on.
+    ///
+    /// Both by default. Turning one off stops drag, wheel and the release coast from moving it;
+    /// [`Grows::scroll`](crate::Grows::scroll) still moves it, which is what a discrete axis is
+    /// built from -- the app owns every position it takes, and the reader cannot leave it
+    /// between two of them.
+    fn scroll_axes(mut self, axes: crate::ScrollAxes) -> Self {
+        self.seed().scroll_axes = Some(axes);
+        self
+    }
+    /// Whether a drag reaching this element is held to the one direction it turned out to be
+    /// going.
+    ///
+    /// Off by default. Turn it on where across and down mean different things, so a drag meant
+    /// as one of them does not quietly do a little of the other -- nobody drags in a straight
+    /// line. See [`DirectionalLock`](crate::DirectionalLock).
+    fn directional_lock(mut self, locked: bool) -> Self {
+        self.seed().directional_lock = Some(crate::DirectionalLock(locked));
         self
     }
     /// Clips this element to the viewport rather than to its nearest scrolling ancestor.

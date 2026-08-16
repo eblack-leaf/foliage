@@ -88,14 +88,16 @@ pub use grid::{
 };
 pub use grid::{
     AspectRatio, Grid, Layout, Location, ScrollMomentum, ScrollProgress, ScrollTo, Short, View,
-    anchor, text_content, view::OverscrollPropagation,
+    anchor, text_content,
+    view::{DirectionalLock, OverscrollPropagation, ScrollAxes},
 };
 pub use icon::{Icon, IconId, IconMemory, IconSprout, IconValue};
 pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
 pub use interaction::{Disengaged, DragStarted, Dragged, Engaged, Focused, Unfocused};
 pub use interaction::{
-    FocusBehavior, InputSequence, Interaction, InteractionMethod, InteractionPhase,
+    AxisCommitment, FocusBehavior, GestureAxis, InputSequence, Interaction, InteractionMethod,
+    InteractionPhase,
     InteractionPropagation, Key, Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
     listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
 };

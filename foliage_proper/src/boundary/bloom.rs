@@ -1,7 +1,10 @@
 use crate::boundary::leaf::Leaf;
 use crate::boundary::tween::Tween;
 use crate::coordinate::area::Area;
-use crate::{AssetKey, Key, Layout, Logical, Modifiers, PhysicalKey, TextInputAction};
+use crate::coordinate::position::Position;
+use crate::{
+    AssetKey, InteractionMethod, Key, Layout, Logical, Modifiers, PhysicalKey, TextInputAction,
+};
 use bevy_ecs::resource::Resource;
 
 /// Something the tree did. The whole of what foliage reports outward.
@@ -84,6 +87,36 @@ pub enum Bloom {
         viewport: Area<Logical>,
         layout: Layout,
         short: bool,
+    },
+    /// Scroll input a view turned away because [`ScrollAxes`](crate::ScrollAxes) has that axis
+    /// switched off -- how far it *would* have moved, in logical pixels, on whichever axis
+    /// refused it.
+    ///
+    /// This is what makes a locked axis usable rather than merely inert. Blocking on its own
+    /// leaves an app with a dead region and nothing to offer in its place; reported, the app
+    /// decides what the gesture meant. A vertically locked view can answer a wheel or a drag by
+    /// turning a page, stepping a carousel, or changing a tab -- responses a continuous offset
+    /// cannot express, reached by the input the reader already uses for "further down" rather
+    /// than by a control put somewhere else on the screen to stand in for it.
+    ///
+    /// One per frame that carries refused input, so a drag arrives as a stream and a wheel notch
+    /// as a single delta. It is a raw amount rather than a gesture: how much of it adds up to a
+    /// step is the app's threshold to choose, because only the app knows what a step is.
+    ///
+    /// `method` is what makes that choosable. The two kinds of input are not the same shape and
+    /// cannot share a rule: a wheel notch is already a discrete step and a reader who turns it
+    /// once expects one thing to happen, while a drag is a continuous stream whose vertical
+    /// component is mostly the tremor in a horizontal gesture. A single threshold serving both
+    /// is either too low, and every pan judders, or too high, and a notch does nothing.
+    ///
+    /// The refusal still travels outward to an ancestor view unless
+    /// [`OverscrollPropagation`](crate::OverscrollPropagation) is turned off, so an app meaning
+    /// to own the gesture outright should turn that off too -- otherwise it acts *and* the
+    /// region behind it scrolls.
+    ScrollRefused {
+        leaf: Leaf,
+        delta: Position<Logical>,
+        method: InteractionMethod,
     },
 }
 

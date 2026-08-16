@@ -36,4 +36,9 @@ macro_rules! tuning {
         )+
     };
 }
-tuning!(crate::ScrollMomentum, crate::KeyBindings, crate::ClearColor);
+tuning!(
+    crate::ScrollMomentum,
+    crate::AxisCommitment,
+    crate::KeyBindings,
+    crate::ClearColor
+);

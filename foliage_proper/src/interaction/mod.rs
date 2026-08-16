@@ -28,6 +28,7 @@ impl Attachment for Interaction {
         foliage.world.insert_resource(MouseAdapter::default());
         foliage.world.insert_resource(TouchAdapter::default());
         foliage.world.insert_resource(CurrentInteraction::default());
+        foliage.world.insert_resource(AxisCommitment::default());
         foliage.enable_queued_event::<Interaction>();
     }
 }
@@ -124,6 +125,72 @@ pub struct CurrentInteraction {
     /// decide whether the release reads as a flick. Read at `ended` to decide whether to
     /// hand off to a [`Coasting`] coast; reset at `started`.
     pub(crate) velocity: Position<Logical>,
+    /// Which way this gesture turned out to be going, once it has gone far enough to say.
+    ///
+    /// Gesture state rather than configuration, and global for the same reason the rest of this
+    /// is: there is one pointer, so there is one answer. Whether a given view *acts* on it is a
+    /// separate, per-view question -- see [`DirectionalLock`](crate::DirectionalLock).
+    ///
+    /// Decided on its own distance rather than at
+    /// [`DRAG_THRESHOLD`](InteractionListener::DRAG_THRESHOLD), which answers a different
+    /// question -- "is this a click" -- and is deliberately tiny. The first pixels of a gesture
+    /// are the least representative part of it, and committing on them guesses wrong constantly.
+    pub(crate) axis: Option<GestureAxis>,
+}
+
+/// Which way a drag turned out to be going.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum GestureAxis {
+    Across,
+    Down,
+}
+
+impl GestureAxis {
+    /// The axis `span` is going along, or `None` while it is still too short to say.
+    fn of(span: Position<Logical>, after: f32) -> Option<Self> {
+        let (across, down) = (span.left().abs(), span.top().abs());
+        if across.max(down) < after {
+            return None;
+        }
+        Some(if across >= down {
+            GestureAxis::Across
+        } else {
+            GestureAxis::Down
+        })
+    }
+}
+
+/// How far a drag travels before [`DirectionalLock`](crate::DirectionalLock) holds it to one
+/// direction.
+///
+/// Tunable rather than fixed because it is a claim about hands, not about content -- an input
+/// device, a screen density or a person's steadiness can all move where the honest answer sits,
+/// and none of those are things the engine can see. `foliage.tune(AxisCommitment { distance: 20.0 })`
+/// before `photosynthesize`, the same way [`ScrollMomentum`](crate::ScrollMomentum) is tuned.
+///
+/// One value for the app rather than one per view, deliberately. Where a gesture is *going* is a
+/// property of the gesture -- there is one pointer, and it does not travel differently depending
+/// on what it happens to be over. Which views act on the answer is the per-view question, and
+/// `DirectionalLock` is where it is asked.
+///
+/// Deliberately **not** [`InteractionListener::DRAG_THRESHOLD`], which answers "is this a click"
+/// and is far smaller for good reason. Reusing it would decide direction off the first two or
+/// three pixels of a gesture, which is the least representative part of it.
+///
+/// Both axes still move until this is passed, so the off-axis drift a lock prevents is bounded
+/// by this distance rather than removed. That is the trade worth making: holding movement back
+/// until the direction is known would remove the drift and pay for it with a jump at the moment
+/// of commitment, and a gesture that stutters before it starts is worse than one that wanders a
+/// few pixels. Raising this buys a steadier decision and a longer wander; lowering it, the
+/// reverse.
+#[derive(Resource, Copy, Clone, Debug)]
+pub struct AxisCommitment {
+    pub distance: f32,
+}
+impl Default for AxisCommitment {
+    fn default() -> Self {
+        Self { distance: 12.0 }
+    }
 }
 impl CurrentInteraction {
     /// The current gesture's own start/current/end positions.
@@ -234,6 +301,7 @@ pub(crate) fn interactive_elements(
         &InteractionPropagation,
         &InteractionShape,
     )>,
+    commitment: Res<AxisCommitment>,
     stack_keys: Query<&StackKey>,
     behaviors: Query<&FocusBehavior>,
     mut listeners: Query<&mut InteractionListener>,
@@ -300,6 +368,10 @@ pub(crate) fn interactive_elements(
                 );
             }
             current.past_drag = false;
+            // A new gesture decides its own direction. Carried over, the last drag's axis would
+            // still be committed on the first pixel of this one -- and the commonest thing a
+            // reader does after a vertical drag is a horizontal one.
+            current.axis = None;
             for (entity, section, _elevation, clip, propagation, shape) in all.iter() {
                 // Disabled entities are out of the running entirely, not merely stopped
                 // from acting on a grab they won: a disabled overlay sitting on top would
@@ -397,6 +469,14 @@ pub(crate) fn interactive_elements(
             // crossed by the gesture, not by an entity, so all of them hear about it on the
             // same move.
             let mut crossed_threshold = false;
+            // Measured from where the gesture began rather than summed per frame, so a drag that
+            // wanders and comes back is judged on where it has actually got to. Once decided it
+            // stays decided for the life of the gesture: re-deciding every frame would hand the
+            // axis back and forth in the middle of a diagonal, which is worse than either answer.
+            if current.axis.is_none() && current.method != InteractionMethod::ScrollWheel {
+                current.axis =
+                    GestureAxis::of(event.position - current.click.start, commitment.distance);
+            }
             if let Some(p) = current.primary {
                 if !current.past_drag {
                     let scroll_delta = event.position - current.click.start;
@@ -441,7 +521,7 @@ pub(crate) fn interactive_elements(
                         // own stale, decaying write could land after (and overwrite) the
                         // live one right back, every single frame, for as long as the
                         // coast kept running -- reading as the coast fighting the drag.
-                        tree.write_to(p, ViewAdjustment(diff));
+                        tree.write_to(p, ViewAdjustment(diff, event.method));
                     } else {
                         let mut context = *contexts.get(p).unwrap();
                         while let Some(id) = context.id {
@@ -463,7 +543,7 @@ pub(crate) fn interactive_elements(
                             let mut wrote = false;
                             if let Ok(_) = views.get(id) {
                                 if !all.get(id).unwrap().4.disable_drag {
-                                    tree.write_to(id, ViewAdjustment(diff));
+                                    tree.write_to(id, ViewAdjustment(diff, event.method));
                                     wrote = true;
                                 }
                             }
@@ -607,16 +687,33 @@ pub(crate) fn interactive_elements(
                         }
                         let speed = current.velocity.left().hypot(current.velocity.top());
                         if speed > momentum.velocity_threshold {
+                            // Flattened onto the gesture's own axis before it is handed off. The
+                            // coast is the drag continuing under its own weight, so it goes
+                            // where the drag was going -- and the velocity is measured from raw
+                            // pointer motion, which still carries every degree of wobble the
+                            // lock was there to take out. Left as it is, a locked drag would
+                            // travel straight and then wander the moment it was let go.
+                            //
+                            // Done here, once, rather than by teaching `extent_check` to read a
+                            // commitment that no longer exists: the gesture has ended by the
+                            // time the coast ticks, so there is nothing left to consult.
+                            let mut velocity = current.velocity;
+                            match current.axis {
+                                Some(GestureAxis::Across) => velocity.set_top(0.0),
+                                Some(GestureAxis::Down) => velocity.set_left(0.0),
+                                None => {}
+                            }
                             tree.write_to(
                                 target,
                                 Coasting {
-                                    velocity: current.velocity,
+                                    velocity,
+                                    method: event.method,
                                 },
                             );
                         }
                     };
                     if let Ok(_) = views.get(p) {
-                        tree.write_to(p, ViewAdjustment(diff));
+                        tree.write_to(p, ViewAdjustment(diff, event.method));
                         maybe_coast(&mut tree, p);
                     } else {
                         let mut context = *contexts.get(p).unwrap();
@@ -633,7 +730,7 @@ pub(crate) fn interactive_elements(
                                 if !all.get(id).unwrap().4.disable_drag
                                     || event.method == InteractionMethod::ScrollWheel
                                 {
-                                    tree.write_to(id, ViewAdjustment(diff));
+                                    tree.write_to(id, ViewAdjustment(diff, event.method));
                                     maybe_coast(&mut tree, id);
                                     wrote = true;
                                 }

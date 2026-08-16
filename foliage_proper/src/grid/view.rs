@@ -10,8 +10,19 @@ use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::{Changed, DetectChanges, Query, Ref, Res, ResMut, Resource};
 use std::collections::HashSet;
 
+/// A scroll to apply, and what kind of input asked for it.
+///
+/// The method rides along because it is gone by the time this is resolved: the input systems
+/// know whether a movement came from a wheel notch or a dragging finger, `extent_check` runs
+/// later and would have no way to ask. It matters to anything that reports scroll outward --
+/// a wheel notch is a discrete step a reader counts, a drag is a continuous stream they expect
+/// to follow the pointer, and an app answering [`ScrollAxes`] refusals has to tell them apart
+/// to respond to either sensibly.
 #[derive(Component, Copy, Clone, Debug, Default)]
-pub(crate) struct ViewAdjustment(pub(crate) Position<Logical>);
+pub(crate) struct ViewAdjustment(
+    pub(crate) Position<Logical>,
+    pub(crate) crate::InteractionMethod,
+);
 /// Author-facing "please scroll here" request, as a 0..1 fraction of the entity's
 /// *current* scrollable range per axis -- not a raw pixel offset. A raw offset would go
 /// stale the instant `extent`/`Section` next shift (content added/removed, a resize), and
@@ -62,6 +73,89 @@ impl Default for OverscrollPropagation {
         OverscrollPropagation(true)
     }
 }
+#[derive(Component, Copy, Clone, Debug)]
+/// Which axes this view accepts scroll *input* on -- drag, wheel, and the momentum coast that
+/// follows a release.
+///
+/// Both on by default, so a view scrolls wherever it has extent to scroll, which is what every
+/// view wants until one does not.
+///
+/// This governs input only. [`ScrollTo`] is applied further down the same pass and does not
+/// consult it, deliberately: turning an axis off says "the reader cannot drag this", never "the
+/// offset is frozen". An app wanting a *discrete* axis -- one that moves in whole steps, to
+/// places it chooses, and never rests between them -- needs exactly that split. Freezing the
+/// offset outright would leave it no way to move the axis at all; gating input at the same place
+/// the app writes it would mean unlocking and relocking around every step, with a window in the
+/// middle for a stray drag to land in.
+///
+/// Distinct from [`InteractionPropagation`](crate::InteractionPropagation)'s `disable_drag`,
+/// which answers a different question and answers it for both axes at once. `disable_drag` means
+/// "this view is not what this gesture is for", and the search **keeps walking outward** to the
+/// next ancestor view that will take it -- right for a control that must not pan the region under
+/// it, wrong here. An axis turned off is not handed to an ancestor: the view consumes the gesture
+/// and drops that component of it, because "does not scroll down" is a fact about this view
+/// rather than a redirection to another one.
+pub struct ScrollAxes {
+    pub x: bool,
+    pub y: bool,
+}
+impl Default for ScrollAxes {
+    fn default() -> Self {
+        ScrollAxes { x: true, y: true }
+    }
+}
+impl ScrollAxes {
+    /// Scrolls across but not down.
+    pub fn horizontal() -> Self {
+        ScrollAxes { x: true, y: false }
+    }
+    /// Scrolls down but not across.
+    pub fn vertical() -> Self {
+        ScrollAxes { x: false, y: true }
+    }
+}
+#[derive(Component, Copy, Clone, Debug, Default)]
+/// Whether a drag reaching this view is held to the one direction it turned out to be going.
+///
+/// Off by default, so a view pans freely in both directions and nothing that exists today
+/// changes. Turn it on where the two axes mean different things and a gesture is meant to be
+/// about one of them.
+///
+/// A plain bool, and not per axis, because committing means choosing *one* direction -- there is
+/// no second axis left to configure. "Neither axis takes input" is a different statement and
+/// [`ScrollAxes`] already makes it: `ScrollAxes { x: false, y: false }` is a view that refuses
+/// every gesture and still answers [`ScrollTo`].
+///
+/// Named for the direction rather than the axis on purpose. `ScrollAxes { x: false }` also reads
+/// in English as "locking an axis", and the two mean quite different things -- that one is about
+/// which axes exist here at all, this one about how a single gesture chooses between them.
+///
+/// Nobody drags in a straight line. On a view whose axes carry different meanings -- time across
+/// and pages down, say -- a drag meant as "down" arrives with a few degrees of sideways in it,
+/// and the sideways is applied just as faithfully as the down. The result is that reaching the
+/// next page also moves you somewhere else, which is not a thing anyone asked for and cannot be
+/// avoided by dragging more carefully.
+///
+/// Per view rather than per app, and that matters: a window can hold a paged region and a
+/// free-panning one at the same time, and a setting made once for the whole app would have to
+/// be wrong for one of them. It is also not something an app can build for itself -- accepted
+/// scroll is consumed by the engine and never reported, so there is nothing for an app to
+/// suppress. The alternative is locking both axes and reimplementing the pan, which means
+/// rebuilding clamping, extent and release momentum to arrive back where you started.
+///
+/// [`AxisCommitment`](crate::AxisCommitment) is how far the gesture travels before the decision
+/// is made -- one value for the app, tuned with `foliage.tune(..)`, because where a gesture is
+/// going is a property of the pointer rather than of whatever it happens to be over.
+/// [`InteractionListener::DRAG_THRESHOLD`](crate::InteractionListener) deliberately is *not* that
+/// distance: one asks "is this a click", this asks "which way is it going", and the honest answer
+/// to the second needs more evidence than the first.
+///
+/// The off-axis component is **dropped, not refused**: unlike [`ScrollAxes`] it does not travel
+/// outward and does not raise
+/// [`Bloom::ScrollRefused`](crate::Bloom::ScrollRefused). A refusal means "not here, try
+/// further out"; this means the movement was never part of the gesture, and handing it to an
+/// ancestor would scroll the page behind out from under a drag that never went sideways.
+pub struct DirectionalLock(pub bool);
 /// End-user-tunable knobs for drag/touch release momentum -- a real `Resource`, the same
 /// "insert your own before `photosynthesize`" pattern [`Layout`](crate::Layout)'s own
 /// breakpoints use, since the right feel here genuinely depends on the app (a dense list
@@ -107,6 +201,10 @@ impl Default for ScrollMomentum {
 #[derive(Component, Copy, Clone, Debug)]
 pub(crate) struct Coasting {
     pub(crate) velocity: Position<Logical>,
+    /// What started the coast, carried so the adjustments it writes report the same kind of
+    /// input the drag they came from did. A coast is the tail of a gesture, not a gesture of
+    /// its own, and anything reading the method should see one continuous thing.
+    pub(crate) method: crate::InteractionMethod,
 }
 pub(crate) fn coast(
     mut coasting: Query<(Entity, &mut Coasting)>,
@@ -159,7 +257,7 @@ pub(crate) fn coast(
             tree.strip::<Coasting>(entity);
             continue;
         }
-        tree.write_to(entity, ViewAdjustment(c.velocity * elapsed_ms));
+        tree.write_to(entity, ViewAdjustment(c.velocity * elapsed_ms, c.method));
         let decayed = momentum.decay.powf(elapsed_ms);
         c.velocity = c.velocity * decayed;
         if c.velocity.left().hypot(c.velocity.top()) < momentum.stop_epsilon {
@@ -168,7 +266,7 @@ pub(crate) fn coast(
     }
 }
 #[derive(Component, Copy, Clone, Debug)]
-#[require(ViewAdjustment, OverscrollPropagation, ScrollProgress)]
+#[require(ViewAdjustment, OverscrollPropagation, ScrollProgress, ScrollAxes, DirectionalLock)]
 /// A scrollable window onto content larger than itself: how far it is scrolled, and how
 /// far it may be.
 ///
@@ -287,10 +385,59 @@ impl ScrollProgress {
         self.y
     }
 }
+/// Splits a movement into the part `entity` will take and the part it turns away.
+///
+/// Two filters, and they dispose of what they stop differently. [`DirectionalLock`] runs first and
+/// **drops** the off-axis component -- that movement was never part of the gesture, so there is
+/// nothing to hand on. [`ScrollAxes`] then **refuses** what is left on a locked axis, and a
+/// refusal is passed outward and reported, because the reader did mean it and something further
+/// out may want it.
+///
+/// Returns `(taken, refused)`. Anything in neither was dropped.
+fn split(
+    entity: Entity,
+    delta: Position<Logical>,
+    axes: &Query<&ScrollAxes>,
+    locks: &Query<&DirectionalLock>,
+    committed: Option<crate::GestureAxis>,
+) -> (Position<Logical>, Position<Logical>) {
+    let mut taken = delta;
+    if locks.get(entity).map(|l| l.0).unwrap_or(false) {
+        match committed {
+            Some(crate::GestureAxis::Across) => taken.set_top(0.0),
+            Some(crate::GestureAxis::Down) => taken.set_left(0.0),
+            // Still too early in the gesture to say which way it is going, so both apply. The
+            // drift this allows is bounded by `GestureAxis::COMMIT` and is the price of not
+            // stalling the first pixels of every drag.
+            None => {}
+        }
+    }
+    let allowed = axes.get(entity).copied().unwrap_or_default();
+    let mut refused = Position::default();
+    if !allowed.x {
+        refused.set_left(taken.left());
+        taken.set_left(0.0);
+    }
+    if !allowed.y {
+        refused.set_top(taken.top());
+        taken.set_top(0.0);
+    }
+    (taken, refused)
+}
+
 fn ovrscrl(
     entity: Entity,
     ovr: Position<Logical>,
+    // What kind of input started this, carried unchanged the whole way out. One gesture is one
+    // gesture however many views it crosses, so a refusal three hops from where the pointer was
+    // still reports the wheel or the drag that caused it.
+    method: crate::InteractionMethod,
+    committed: Option<crate::GestureAxis>,
     views: &mut Query<&mut View>,
+    axes: &Query<&ScrollAxes>,
+    locks: &Query<&DirectionalLock>,
+    grown: &Query<&crate::boundary::leaf::Grown>,
+    emissions: &mut crate::boundary::bloom::Emissions,
     propagations: &Query<&OverscrollPropagation>,
     contexts: &Query<(Entity, Ref<Parent>)>,
     sections: &Query<(Entity, Ref<Section<Logical>>)>,
@@ -298,10 +445,31 @@ fn ovrscrl(
 ) -> (Option<Entity>, Position<Logical>) {
     let propagation = propagations.get(entity).unwrap();
     let old_offset = views.get(entity).unwrap().offset;
+    // A locked axis refuses the movement and *hands it outward*, exactly as a view that has run
+    // out of extent does. The two compose rather than competing: `OverscrollPropagation` says
+    // where unconsumed scroll goes, [`ScrollAxes`] says what counts as unconsumable. Absorbing it
+    // instead would make a horizontally-scrolling strip inside a scrolling page into a dead spot
+    // -- a wheel over the strip would move neither.
+    //
+    // Masked before the clamp below rather than after: the clamp reads `view.offset`, and an
+    // axis that was never allowed to move cannot be over its own end.
+    let (applied, mut over) = split(entity, ovr, axes, locks, committed);
+    // Reported from here as well as from where an adjustment first lands, and this is the one
+    // that usually fires. A gesture is written to the entity that was *grabbed*, which is
+    // ordinarily some content deep inside rather than the view with the lock on it -- content
+    // that has nothing to scroll, so it hands the movement outward and the refusal happens on
+    // this hop instead. Emitting only at the point of first arrival meant a locked view whose
+    // input came from a child swallowed it in silence.
+    if over != Position::default() && grown.contains(entity) {
+        emissions.push(crate::Bloom::ScrollRefused {
+            leaf: crate::Leaf(entity),
+            delta: over,
+            method,
+        });
+    }
     let mut view = views.get_mut(entity).unwrap();
-    view.offset += ovr;
+    view.offset += applied;
     let section = *sections.get(entity).unwrap().1;
-    let mut over = Position::default();
     let over_right = section.right() + view.offset.left();
     if over_right > view.extent.width() {
         let val = view.extent.width() - section.right();
@@ -356,6 +524,11 @@ pub(crate) fn extent_check(
     adjustments: Query<(Entity, &ViewAdjustment), Changed<ViewAdjustment>>,
     scroll_requests: Query<(Entity, &ScrollTo), Changed<ScrollTo>>,
     mut views: Query<&mut View>,
+    axes: Query<&ScrollAxes>,
+    locks: Query<&DirectionalLock>,
+    current: Res<CurrentInteraction>,
+    grown: Query<&crate::boundary::leaf::Grown>,
+    mut emissions: ResMut<crate::boundary::bloom::Emissions>,
     propagations: Query<&OverscrollPropagation>,
     contexts: Query<(Entity, Ref<Parent>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
@@ -450,12 +623,23 @@ pub(crate) fn extent_check(
         );
     }
     let mut to_trigger = HashSet::new();
+    // Movement a locked axis refused this frame, waiting to be handed outward.
+    let mut blocked: std::collections::HashMap<Entity, Position<Logical>> =
+        std::collections::HashMap::new();
     for entity in to_check.iter() {
         let before = views.get(*entity).unwrap().offset;
+        // A zero-delta clamp: nothing can be refused, so neither the method nor the axis is
+        // ever read.
         let _ovr = ovrscrl(
             *entity,
             Position::default(),
+            crate::InteractionMethod::default(),
+            None,
             &mut views,
+            &axes,
+            &locks,
+            &grown,
+            &mut emissions,
             &propagations,
             &contexts,
             &sections,
@@ -473,7 +657,34 @@ pub(crate) fn extent_check(
         let mut view = views.get_mut(*entity).unwrap();
         if let Ok((_, adjustment)) = adjustments.get(*entity) {
             let before = view.offset;
-            view.offset += adjustment.0;
+            // The one place scroll *input* becomes movement, which is why the axis gate is here
+            // and not at the four sites that write `ViewAdjustment`. Drag, wheel and the release
+            // coast all arrive through this component, so gating it once covers the three of
+            // them -- and a coast handed off from a drag on a locked axis cannot outlive the
+            // gate that stopped the drag.
+            //
+            // What the axis refuses is set aside rather than dropped, and seeded into this
+            // entity's own overscroll pass below, so it travels outward the same way scroll a
+            // view has no room for does.
+            let (delta, refused) = split(*entity, adjustment.0, &axes, &locks, current.axis);
+            if refused != Position::default() {
+                blocked.insert(*entity, refused);
+                // Reported as well as turned away. An axis that only ever says no is a dead
+                // region; told about it, the app can answer the gesture with something a
+                // continuous offset could not express -- see `Bloom::ScrollRefused`.
+                //
+                // Only for views the app grew. The engine's own internals hold views too, and an
+                // emission naming one of those would arrive against an id the app has never seen
+                // and could do nothing with, which is the same rule `funnel::ended` follows.
+                if grown.contains(*entity) {
+                    emissions.push(crate::Bloom::ScrollRefused {
+                        leaf: crate::Leaf(*entity),
+                        delta: refused,
+                        method: adjustment.1,
+                    });
+                }
+            }
+            view.offset += delta;
             tracing::trace!(entity = ?entity, before = ?before, after = ?view.offset, "grid::view: applied ViewAdjustment to offset");
             to_trigger.insert(*entity);
         }
@@ -507,10 +718,25 @@ pub(crate) fn extent_check(
         }
     }
     for entity in to_check.iter() {
+        // The gesture that set this chain going, so every hop it reaches reports the same kind
+        // of input. Absent when the entity is here because its extent moved rather than because
+        // anything scrolled it, in which case nothing will be refused and it is never read.
+        let method = adjustments
+            .get(*entity)
+            .map(|(_, a)| a.1)
+            .unwrap_or_default();
+        // Seeded with whatever a locked axis turned away above, so it leaves this view the same
+        // way scroll it had no room for would.
         let mut overscroll = ovrscrl(
             *entity,
-            Position::default(),
+            blocked.get(entity).copied().unwrap_or_default(),
+            method,
+            current.axis,
             &mut views,
+            &axes,
+            &locks,
+            &grown,
+            &mut emissions,
             &propagations,
             &contexts,
             &sections,
@@ -521,7 +747,13 @@ pub(crate) fn extent_check(
             overscroll = ovrscrl(
                 id,
                 overscroll.1,
+                method,
+                current.axis,
                 &mut views,
+                &axes,
+                &locks,
+                &grown,
+                &mut emissions,
                 &propagations,
                 &contexts,
                 &sections,
