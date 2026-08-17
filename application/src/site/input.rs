@@ -519,6 +519,11 @@ struct Field {
     /// One per constraint. `LineConstraint` is chosen as the field is grown, so the two are two
     /// elements -- same as the propagation board above.
     fields: [Leaf; 2],
+    /// `TextInput` no longer carries its own backdrop (a rounded one needs an inset to not clip
+    /// glyphs sitting flush against it, and that inset is exactly what broke `click_at`'s corner
+    /// fractions) -- these are the demo's own, one per `fields`, toggled alongside it since
+    /// they're siblings rather than a parent that would cascade visibility for free.
+    backdrops: [Leaf; 2],
 }
 
 fn field(g: &mut Grow, column: &mut Column) {
@@ -530,7 +535,32 @@ fn field(g: &mut Grow, column: &mut Column) {
         &board::FIELD_STEPS,
         &reference::FIELD,
     );
-    let fields = [0usize, 1].map(|i| {
+    let grown = [0usize, 1].map(|i| {
+        let outer = Location::new().xs(
+            space::SM
+                .px()
+                .as_left()
+                .with(100.pct().as_right().adjust(-space::SM)),
+            // The multi-line field takes the rest of the stage, because wrapping is the
+            // only thing that tells the two apart and one line of it would not.
+            space::SM.px().as_top().with(if i == 0 {
+                FIELD_H.px().as_height()
+            } else {
+                100.pct().as_bottom().adjust(-space::SM)
+            }),
+        );
+        let backdrop = g.canopy.branch(
+            board.stage,
+            Panel::new()
+                .color(role::surface())
+                .rounding(Rounding::Xs)
+                .at(outer)
+                .elevate(Elevation::up(1))
+                .pass_through(),
+        );
+        // Inset from the backdrop by `space::XS`: enough that `Rounding::Xs`'s corner doesn't
+        // clip a glyph sitting at the field's own edge, without a gap wide enough to look like
+        // its own box.
         let leaf = g.canopy.branch(
             board.stage,
             TextInput::new()
@@ -538,31 +568,34 @@ fn field(g: &mut Grow, column: &mut Column) {
                 .line_constraint(FIELD_CONSTRAINTS[i])
                 .font_size(FontSize::new(type_scale::BODY))
                 .foreground(role::on_surface())
-                .background(role::surface())
                 .accent(role::accent())
-                .rounding(Rounding::Xs)
                 .at(Location::new().xs(
-                    space::SM
+                    (space::SM + space::XS)
                         .px()
                         .as_left()
-                        .with(100.pct().as_right().adjust(-space::SM)),
-                    // The multi-line field takes the rest of the stage, because wrapping is the
-                    // only thing that tells the two apart and one line of it would not.
-                    space::SM.px().as_top().with(if i == 0 {
-                        FIELD_H.px().as_height()
+                        .with(100.pct().as_right().adjust(-(space::SM + space::XS))),
+                    (space::SM + space::XS).px().as_top().with(if i == 0 {
+                        (FIELD_H - space::XS * 2).px().as_height()
                     } else {
-                        100.pct().as_bottom().adjust(-space::SM)
+                        100.pct().as_bottom().adjust(-(space::SM + space::XS))
                     }),
                 ))
                 .elevate(Elevation::up(2)),
         );
-        leaf
+        (backdrop, leaf)
     });
+    let backdrops = [grown[0].0, grown[1].0];
+    let fields = [grown[0].1, grown[1].1];
     g.canopy.visible(fields[1], false);
     g.canopy.disable(fields[1]);
+    g.canopy.visible(backdrops[1], false);
     board.set(g.canopy, 0, board::FIELD_EMPTY);
     board.set(g.canopy, 1, board::FIELD_NONE);
-    g.page.demos.push(Box::new(Field { board, fields }));
+    g.page.demos.push(Box::new(Field {
+        board,
+        fields,
+        backdrops,
+    }));
 }
 
 impl Demo for Field {
@@ -573,6 +606,7 @@ impl Demo for Field {
         self.board.select(canopy, step);
         for (i, field) in self.fields.iter().enumerate() {
             canopy.visible(*field, i == step);
+            canopy.visible(self.backdrops[i], i == step);
             if i == step {
                 canopy.enable(*field);
             } else {

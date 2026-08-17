@@ -90,7 +90,7 @@ impl Panel {
         // unset for every square panel -- `Rounding::None` resolves to the same all-zero
         // radii `new_marker` already put there.
         if let Ok(mut panel) = panels.get_mut(this) {
-            panel.radii = CornerRadii::resolve(section, *rounding, side);
+            panel.radii = CornerRadii::resolve(section, *rounding, side, scale_factor.value());
         }
     }
 }

@@ -61,19 +61,6 @@ pub trait Grows: Queues {
     fn disable(&mut self, leaf: Leaf) {
         self.push(Op::Disable(leaf));
     }
-    /// Hands an element the keyboard, taking it off whatever had it.
-    ///
-    /// Focus was reachable only by pressing something, which is fine until a form wants to move
-    /// the caret on the reader's behalf -- a field that fills up and hands on to the next one, or
-    /// a `Tab` that means "the box after this one". Both are the app saying where typing should
-    /// go, and neither involves a pointer.
-    ///
-    /// The same `Unfocused`/`Focused` pair a press sends, in the same order, so nothing listening
-    /// can tell the two apart. Use [`Self::click_on`] instead when the *press* is what is wanted
-    /// -- the two differ in more than politeness, and the difference is spelled out there.
-    fn focus_on(&mut self, leaf: Leaf) {
-        self.push(Op::Focus(leaf));
-    }
     /// Presses and releases the middle of an element's current section.
     ///
     /// A whole gesture rather than a state change: it is queued as real input, so the hit test
@@ -81,10 +68,13 @@ pub trait Grows: Queues {
     /// click observers fire in their usual order, and anything reading the pointer -- a text input
     /// placing its caret -- sees a position rather than nothing.
     ///
-    /// So the choice between this and [`Self::focus_on`] is not style. This runs a gesture and
-    /// everything a gesture does follows, including landing on a child of what was named, or on
-    /// nothing at all if something else is over it. `focus_on` moves the keyboard and does not
-    /// touch the pointer. Reach for that one unless a press is the point.
+    /// This is the only way to move focus programmatically -- there is deliberately no way to
+    /// hand an element the keyboard without also sending the press a real one would: nothing in
+    /// the tree does anything on focus alone that a click doesn't already cover, and a text
+    /// input's own caret placement/visibility runs *only* off the click path (`Engaged`), not off
+    /// `Focused` -- so a focus-only op would have left the caret invisible and at column 0 with
+    /// no way to place it. Landing on a child of what was named, or nothing at all if something
+    /// else is over it, is the cost of that -- real input, not a shortcut around it.
     ///
     /// Queued, not immediate: the messages are read on the pass that follows, so the effect lands
     /// a frame later.

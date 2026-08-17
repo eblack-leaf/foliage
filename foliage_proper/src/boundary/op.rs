@@ -195,8 +195,6 @@ pub(crate) enum Op {
         leaf: Leaf,
         name: String,
     },
-    /// Hands this element the keyboard, and takes it off whatever had it.
-    Focus(Leaf),
     /// Presses and releases a point in this element's current section, given as a fraction of it.
     Click {
         leaf: Leaf,
@@ -234,7 +232,7 @@ impl Op {
                 Some(*leaf)
             }
             Op::Prune(leaf) | Op::Enable(leaf) | Op::Disable(leaf) => Some(*leaf),
-            Op::Focus(leaf) | Op::Click { leaf, .. } => Some(*leaf),
+            Op::Click { leaf, .. } => Some(*leaf),
             // Its own leaf names something that does not exist yet, like a grow.
             Op::Sequence(_) => None,
             // Neither names an element: a tween is a stream of numbers, an asset is bytes.
@@ -294,30 +292,9 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
                 _ => continue,
             },
         };
-        // The two that need the `World` itself rather than a `Tree` over it, and so are answered
-        // before the tree takes it. One reads the focus resource; the other writes input messages.
+        // Needs the `World` itself rather than a `Tree` over it, and so is answered before the
+        // tree takes it: it writes input messages, which a `Tree` has no way to do.
         match op {
-            // The press path's own focus reconciliation, less the press. Kept identical to it --
-            // blur the old, focus the new, record it -- so anything that listens for `Focused`
-            // cannot tell this apart from a finger, which is the entire point of having it.
-            Op::Focus(_) => {
-                let entity = subject.unwrap();
-                let mut current = world.resource_mut::<crate::CurrentInteraction>();
-                if current.focused == Some(entity) {
-                    continue;
-                }
-                let old = current.focused.replace(entity);
-                let mut tree = crate::AsTree::tree(world);
-                // `new()` rather than a struct literal carrying `Entity::PLACEHOLDER`. The target
-                // field is injected by `targeted_event` and rewritten by `send_to` for every
-                // target it fans out to, so whatever is put there now is never read -- and the
-                // generated constructor is the one place that sentinel belongs.
-                if let Some(old) = old {
-                    tree.send_to(crate::Unfocused::new(), old);
-                }
-                tree.send_to(crate::Focused::new(), entity);
-                continue;
-            }
             // A real press and release, queued as input rather than acted out here.
             //
             // Written as two `Interaction` messages so the genuine pass runs over them: the hit
@@ -339,11 +316,12 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
                 let Some(section) = world.get::<crate::Section<Logical>>(entity).copied() else {
                     continue;
                 };
-                // Held half a pixel inside the far edges. `1.0` means "the right-hand end of this
-                // box", and to be hit-tested *against* the box it has to land inside it.
+                // `1.0` means "the right-hand end of this box" -- the far edge itself, not a
+                // pixel short of it, so it lands in whatever a caller's own listener/measuring
+                // box actually covers rather than assuming this element's `Section` is that box.
                 let at: Position<Logical> = (
-                    section.left() + (section.width() - 0.5).max(0.0) * at.0.clamp(0.0, 1.0),
-                    section.top() + (section.height() - 0.5).max(0.0) * at.1.clamp(0.0, 1.0),
+                    section.left() + section.width().max(0.0) * at.0.clamp(0.0, 1.0),
+                    section.top() + section.height().max(0.0) * at.1.clamp(0.0, 1.0),
                 )
                     .into();
                 for phase in [
@@ -362,10 +340,10 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
         }
         let mut tree = crate::AsTree::tree(world);
         match op {
-            // Both are answered above, against the `World` this `Tree` has now taken, and both
-            // `continue` there. Spelled out rather than swept into a catch-all so that adding an
-            // op and forgetting to apply it stays a compile error.
-            Op::Focus(_) | Op::Click { .. } => unreachable!("answered before the tree is taken"),
+            // Answered above, against the `World` this `Tree` has now taken, and `continue`s
+            // there. Spelled out rather than swept into a catch-all so that adding an op and
+            // forgetting to apply it stays a compile error.
+            Op::Click { .. } => unreachable!("answered before the tree is taken"),
             Op::Grow { leaf, spec, .. } => spec.grow(&mut tree, leaf.0, subject),
             Op::Prune(_) => tree.remove(subject.unwrap()),
             Op::Enable(_) => tree.enable(subject.unwrap()),

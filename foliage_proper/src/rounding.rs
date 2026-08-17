@@ -29,17 +29,22 @@ pub enum Rounding {
 impl Rounding {
     /// The radius this bracket resolves to for `section`, in `section`'s own units.
     ///
-    /// Every bracket is a fraction of the shorter *half*-side, so [`Full`](Rounding::Full)
-    /// lands exactly on the largest radius the corner discs in `sdf.wgsl` stay exact at,
-    /// and nothing below it can exceed that.
-    pub(crate) fn depth(self, section: Section<Physical>) -> CoordinateUnit {
+    /// `Xs`-`Lg` are fixed logical-pixel radii -- the same curve on a small chip and a large
+    /// card, which is what "the same treatment" actually looks like; a fraction of the box
+    /// grows into a distorted, oversized curve as the box does. [`Full`](Rounding::Full) is
+    /// the one bracket that has to scale with the box instead: a pill/circle's radius is
+    /// `height / 2` by definition, not a fixed number, so it stays a fraction of the shorter
+    /// *half*-side, landing exactly on the largest radius the corner discs in `sdf.wgsl` stay
+    /// exact at. Every fixed radius is clamped to that same ceiling, so a chip smaller than
+    /// its own bracket can't ask for more curve than its box has room for.
+    pub(crate) fn depth(self, section: Section<Physical>, scale_factor: CoordinateUnit) -> CoordinateUnit {
         let min = section.width().min(section.height()) * 0.5;
         match self {
             Rounding::None => 0.0,
-            Rounding::Xs => 0.1 * min,
-            Rounding::Sm => 0.3 * min,
-            Rounding::Md => 0.5 * min,
-            Rounding::Lg => 0.7 * min,
+            Rounding::Xs => (4.0 * scale_factor).min(min),
+            Rounding::Sm => (8.0 * scale_factor).min(min),
+            Rounding::Md => (12.0 * scale_factor).min(min),
+            Rounding::Lg => (16.0 * scale_factor).min(min),
             Rounding::Full => min,
         }
     }
@@ -160,8 +165,13 @@ pub(crate) struct CornerRadii {
     pub(crate) bottom_right: CoordinateUnit,
 }
 impl CornerRadii {
-    pub(crate) fn resolve(section: Section<Physical>, rounding: Rounding, side: Side) -> Self {
-        let depth = rounding.depth(section);
+    pub(crate) fn resolve(
+        section: Section<Physical>,
+        rounding: Rounding,
+        side: Side,
+        scale_factor: CoordinateUnit,
+    ) -> Self {
+        let depth = rounding.depth(section, scale_factor);
         let of = |rounded: bool| if rounded { depth } else { 0.0 };
         Self {
             top_left: of(side.top_left),

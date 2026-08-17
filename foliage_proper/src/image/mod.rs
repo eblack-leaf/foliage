@@ -240,6 +240,7 @@ impl Image {
                 section.to_physical(scale_factor.value()),
                 *rounding,
                 *side,
+                scale_factor.value(),
             );
             if *radii != resolved {
                 *radii = resolved;

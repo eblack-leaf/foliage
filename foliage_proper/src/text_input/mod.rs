@@ -13,8 +13,8 @@ use crate::text::{Glyphs, LineMetrics};
 use crate::{
     Attachment, Author, Color, Component, Dragged, Elevation, Engaged, FocusBehavior, Foliage,
     FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
-    InteractionPropagation, Key, Layout, LeafSprout, Location, Logical, Node, Opacity, Outline,
-    OverscrollPropagation, Panel, Parent, Rounding, Section, Text, TextValue, Tree, Unfocused,
+    InteractionPropagation, Key, Layout, LeafSprout, Location, Logical, Node, Opacity,
+    OverscrollPropagation, Panel, Parent, Section, Text, TextValue, Tree, Unfocused,
     View, text_content,
 };
 use action::{InputAction, TextInputAction};
@@ -152,14 +152,8 @@ pub struct TextInputStyle {
     /// placeholder is for. Carried here rather than derived from `foreground`, because "muted"
     /// is the palette's business and an app with a tone for secondary text already knows it.
     pub hint: Color,
-    /// field/backdrop panel color
-    pub background: Color,
     /// cursor + selection-highlight color
     pub accent: Color,
-    /// backdrop panel shape -- same knobs `Panel`/`Button` already expose, just never
-    /// forwarded here before
-    pub rounding: Rounding,
-    pub outline: Outline,
 }
 impl TextInput {
     /// Logical pixels of the caret that may sit outside the field before it scrolls to
@@ -213,39 +207,43 @@ impl Author for TextInputSprout {
     }
     fn build(this: Entity, tree: &mut crate::Tree) {
         // static skeleton. One `branch` per child; the parent is a required argument, so a
-        // child can't be orphaned. `cursor` (no visual of its own -- a bare interaction
-        // hit-area) uses `Node::sprout()`.
+        // child can't be orphaned. `panel` and `cursor` draw nothing of their own -- bare
+        // interaction hit-areas -- so both use `Node::sprout()`.
+        //
+        // `panel` used to be a `Panel` -- an actual backdrop, styled via `TextInputStyle` --
+        // but a backdrop with rounded corners needs an inset to keep from clipping glyphs
+        // sitting flush against it, and that inset is exactly what broke `click_at`'s
+        // fraction landing outside the hit-tested/measured box (see the `field` comment
+        // below). Rather than re-add an inset that only some styles need, `TextInput`
+        // draws no backdrop at all: an app that wants one wraps `TextInput` in its own
+        // `Panel`, sized and padded however it likes, so there is exactly one backdrop
+        // rather than two fighting over color/rounding.
         let panel = tree.branch(
             this,
-            Panel::new()
+            Node::sprout()
                 .elevate(Elevation::up(1))
                 .at(Location::new().xs(
-                    0.pct()
-                        .as_left()
-                        .adjust(4)
-                        .with(100.pct().as_right().adjust(-4)),
-                    0.pct()
-                        .as_top()
-                        .adjust(4)
-                        .with(100.pct().as_bottom().adjust(-4)),
+                    0.pct().as_left().with(100.pct().as_right()),
+                    0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .with((Grid::default(), InteractionListener::new())),
         );
         tree.subscribe(panel, TextInput::unfocused);
         tree.subscribe(panel, PlaceCursor::forward);
 
-        // `field` insets further from panel's own edge (breathing room from wherever
-        // panel's outline/rounding is drawn) and hosts the letter-grid -- text, cursor,
-        // and the selection highlight all measure column/row against *this* entity's own
-        // origin, so they stay in sync with each other regardless of panel's own styling.
-        // Panel itself stays free to be sized/outlined/rounded independently.
+        // `field` shares panel's own edges exactly -- no baked-in gap. `this`, `panel`,
+        // and `field` all resolve to the same box, so an `at` fraction from `click_at`
+        // (computed against whatever entity the caller holds, usually `this`) lands
+        // inside the same bounds hit-testing (`panel`'s `InteractionListener`) and caret
+        // placement (`field`-relative) both use -- `(1.0, 1.0)` reaches the real edge
+        // instead of stopping short of it.
         let field = tree.branch(
             panel,
             Node::sprout()
                 .elevate(Elevation::up(1))
                 .at(Location::new().xs(
-                    8.px().as_left().with(100.pct().as_right().adjust(-8)),
-                    4.px().as_top().with(100.pct().as_bottom().adjust(-4)),
+                    0.pct().as_left().with(100.pct().as_right()),
+                    0.pct().as_top().with(100.pct().as_bottom()),
                 ))
                 .with((
                     Grid::new(1.letters(), 1.letters()),
@@ -351,24 +349,9 @@ impl TextInputSprout {
         self.hint_color = Some(c);
         self
     }
-    /// Color of the backdrop panel.
-    pub fn background(mut self, c: Color) -> Self {
-        self.style.background = c;
-        self
-    }
     /// Color of the caret and the selection highlight.
     pub fn accent(mut self, c: Color) -> Self {
         self.style.accent = c;
-        self
-    }
-    /// Corner rounding of the backdrop panel.
-    pub fn rounding(mut self, r: Rounding) -> Self {
-        self.style.rounding = r;
-        self
-    }
-    /// Outline width on the backdrop panel, in logical pixels.
-    pub fn outline(mut self, w: i32) -> Self {
-        self.style.outline = Outline::new(w);
         self
     }
     /// Glyph size, which also sets the character grid the caret addresses.
@@ -440,10 +423,10 @@ impl TextInput {
         // Sizing field to exactly one line and centering that keeps them together.
         // `Multiple` keeps the full-height field it needs to scroll within.
         let field_location = Location::new().xs(
-            8.px().as_left().with(100.pct().as_right().adjust(-8)),
+            0.pct().as_left().with(100.pct().as_right()),
             match line_constraint {
                 LineConstraint::Single => 50.pct().as_center_y().with(1.letters().as_height()),
-                LineConstraint::Multiple => 4.px().as_top().with(100.pct().as_bottom().adjust(-4)),
+                LineConstraint::Multiple => 0.pct().as_top().with(100.pct().as_bottom()),
             },
         );
         tree.write_to(handle.field, field_location);
@@ -517,10 +500,6 @@ impl TextInput {
         // `Color::default()` the next time anyone called `Canopy::hint`.
         tree.write_to(handle.hint_text, style.hint);
         tree.write_to(trigger.event_target(), HintColor(style.hint));
-        tree.write_to(
-            handle.panel,
-            (style.background, style.rounding, style.outline),
-        );
         tree.write_to(handle.visible, style.accent);
         for (_, (e, _, _)) in handle.highlights.iter() {
             tree.write_to(*e, style.accent);
