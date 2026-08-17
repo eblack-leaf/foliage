@@ -70,9 +70,16 @@ impl AutoDisable {
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
         mut listeners: Query<&mut InteractionListener>,
+        mut propagations: Query<&mut crate::InteractionPropagation>,
     ) {
         if let Ok(mut listener) = listeners.get_mut(trigger.event_target()) {
             listener.state.remove(InteractionState::AUTO_ENABLED);
+        }
+        // Same reasoning as `Disable::interactions`: written to both, or a plain container
+        // that auto-disabled (its `Location` failed to resolve) carries on winning gestures
+        // over whatever is actually visible beneath it.
+        if let Ok(mut propagation) = propagations.get_mut(trigger.event_target()) {
+            propagation.set_disabled(true);
         }
     }
 }
@@ -107,9 +114,16 @@ impl InheritDisable {
     pub(crate) fn interactions(
         trigger: Trigger<Self>,
         mut listeners: Query<&mut InteractionListener>,
+        mut propagations: Query<&mut crate::InteractionPropagation>,
     ) {
         if let Ok(mut listener) = listeners.get_mut(trigger.event_target()) {
             listener.state.remove(InteractionState::INHERIT_ENABLED);
+        }
+        // Same reasoning as `Disable::interactions`: written to both, or a descendant that
+        // was never itself a target carries on winning gestures over whatever the disabled
+        // ancestor was meant to take out of the hit test.
+        if let Ok(mut propagation) = propagations.get_mut(trigger.event_target()) {
+            propagation.set_disabled(true);
         }
     }
 }
