@@ -137,16 +137,14 @@ fn asset_loaded(trigger: Trigger<OnRetrieval>, mut emissions: ResMut<Emissions>)
 /// The viewport moved. Reported with the breakpoint alongside, since a resize that does not
 /// cross a breakpoint and one that does call for different responses and an app should not
 /// have to ask separately.
-fn resized(
+fn layout_changed(
     _trigger: Trigger<crate::Resolved<Layout>>,
-    viewport: Res<crate::ginkgo::viewport::ViewportHandle>,
     layout: Res<Layout>,
     short: Res<Short>,
     mut emissions: ResMut<Emissions>,
 ) {
-    emissions.push(Bloom::Resized {
-        viewport: viewport.section().area,
-        layout: *layout,
+    emissions.push(Bloom::LayoutChanged {
+        new: *layout,
         short: *short == Short::Yes,
     });
 }
@@ -176,6 +174,6 @@ impl crate::Attachment for Funnel {
         foliage.define(text_action);
         foliage.define(ended);
         foliage.define(asset_loaded);
-        foliage.define(resized);
+        foliage.define(layout_changed);
     }
 }

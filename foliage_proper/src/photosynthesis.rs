@@ -1,4 +1,4 @@
-use crate::Position;
+use crate::{Bloom, Layout, Position, Short};
 use crate::foliage::Foliage;
 use crate::ginkgo::ScaleFactor;
 use crate::ginkgo::viewport::ViewportHandle;
@@ -10,6 +10,7 @@ use winit::application::ApplicationHandler;
 use winit::event::{MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowId;
+use crate::boundary::bloom::Emissions;
 
 impl ApplicationHandler for Foliage {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -106,14 +107,24 @@ impl Foliage {
         match event {
             WindowEvent::ActivationTokenDone { .. } => {}
             WindowEvent::Resized(_) => {
+                let area = self.willow
+                    .actual_area()
+                    .to_logical(self.ginkgo.configuration().scale_factor.value());
                 self.world
                     .get_resource_mut::<ViewportHandle>()
                     .unwrap()
                     .resize(
-                        self.willow
-                            .actual_area()
-                            .to_logical(self.ginkgo.configuration().scale_factor.value()),
+                        area,
                     );
+                let layout = *self.world.get_resource::<Layout>().expect("layout");
+                let short = *self.world.get_resource::<Short>().expect("short") == Short::Yes;
+                self.world.get_resource_mut::<Emissions>().expect("emissions").push(
+                    Bloom::Resized {
+                        viewport: area,
+                        layout,
+                        short,
+                    }
+                );
                 self.ginkgo.configure_view(&self.willow);
                 self.ginkgo.size_viewport(&self.willow);
                 self.willow.window().request_redraw();
@@ -294,14 +305,24 @@ impl Foliage {
                 scale_factor: _scale_factor,
                 ..
             } => {
+                let area = self.willow
+                    .actual_area()
+                    .to_logical(self.ginkgo.configuration().scale_factor.value());
                 self.world
                     .get_resource_mut::<ViewportHandle>()
                     .unwrap()
                     .resize(
-                        self.willow
-                            .actual_area()
-                            .to_logical(self.ginkgo.configuration().scale_factor.value()),
+                        area,
                     );
+                let layout = *self.world.get_resource::<Layout>().expect("layout");
+                let short = *self.world.get_resource::<Short>().expect("short") == Short::Yes;
+                self.world.get_resource_mut::<Emissions>().expect("emissions").push(
+                    Bloom::Resized {
+                        viewport: area,
+                        layout,
+                        short,
+                    }
+                );
                 self.ginkgo.configure_view(&self.willow);
                 self.ginkgo.size_viewport(&self.willow);
             }

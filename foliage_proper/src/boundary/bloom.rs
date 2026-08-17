@@ -2,9 +2,7 @@ use crate::boundary::leaf::Leaf;
 use crate::boundary::tween::Tween;
 use crate::coordinate::area::Area;
 use crate::coordinate::position::Position;
-use crate::{
-    AssetKey, InteractionMethod, Key, Layout, Logical, Modifiers, PhysicalKey, TextInputAction,
-};
+use crate::{AssetKey, InteractionMethod, Key, Layout, Logical, Modifiers, PhysicalKey, TextInputAction};
 use bevy_ecs::resource::Resource;
 
 /// Something the tree did. The whole of what foliage reports outward.
@@ -118,6 +116,10 @@ pub enum Bloom {
         delta: Position<Logical>,
         method: InteractionMethod,
     },
+    LayoutChanged {
+        new: Layout,
+        short: bool,
+    }
 }
 
 /// Where the funnel observers deposit emissions until the frame collects them.
