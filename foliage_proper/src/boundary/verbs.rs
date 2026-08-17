@@ -89,7 +89,23 @@ pub trait Grows: Queues {
     /// Queued, not immediate: the messages are read on the pass that follows, so the effect lands
     /// a frame later.
     fn click_on(&mut self, leaf: Leaf) {
-        self.push(Op::Click(leaf));
+        self.click_at(leaf, 0.5, 0.5);
+    }
+    /// The same, at a chosen point: `x` and `y` as fractions of the element's own section, from
+    /// `0.0` at its left and top to `1.0` at its right and bottom.
+    ///
+    /// Which point is the caller's business, and has to be, because *where* a press lands is
+    /// often the whole content of it. The middle is right for a button, which is why
+    /// [`Self::click_on`] is that and is the one to reach for by default -- but it is wrong for a
+    /// text field, where the click position becomes the caret position. Landing in the middle of a
+    /// box puts the caret in the middle of whatever is written there; `(1.0, 0.5)` puts it after
+    /// the last character, because a click past the end of a line clamps to the end of it.
+    ///
+    /// A fraction rather than an absolute position so it resolves against the section *as the op
+    /// is applied*. A caller reading `section` itself is reading a frame ago, and something just
+    /// built has no resolved section to read.
+    fn click_at(&mut self, leaf: Leaf, x: f32, y: f32) {
+        self.push(Op::Click { leaf, at: (x, y) });
     }
     /// Replaces a text element's contents.
     fn text(&mut self, leaf: Leaf, value: impl Into<String>) {

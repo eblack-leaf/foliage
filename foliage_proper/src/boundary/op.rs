@@ -197,8 +197,11 @@ pub(crate) enum Op {
     },
     /// Hands this element the keyboard, and takes it off whatever had it.
     Focus(Leaf),
-    /// Presses and releases the middle of this element's current section.
-    Click(Leaf),
+    /// Presses and releases a point in this element's current section, given as a fraction of it.
+    Click {
+        leaf: Leaf,
+        at: (f32, f32),
+    },
     LoadAsset {
         key: AssetKey,
         source: AssetSource,
@@ -231,7 +234,7 @@ impl Op {
                 Some(*leaf)
             }
             Op::Prune(leaf) | Op::Enable(leaf) | Op::Disable(leaf) => Some(*leaf),
-            Op::Focus(leaf) | Op::Click(leaf) => Some(*leaf),
+            Op::Focus(leaf) | Op::Click { leaf, .. } => Some(*leaf),
             // Its own leaf names something that does not exist yet, like a grow.
             Op::Sequence(_) => None,
             // Neither names an element: a tween is a stream of numbers, an asset is bytes.
@@ -324,14 +327,25 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
             // here would be a second interaction system that agrees with the first until it does
             // not.
             //
-            // The middle of the element's own section, so the caret lands in *this* box rather
-            // than wherever the pointer happens to be resting.
-            Op::Click(_) => {
+            // A point in the element's own section, so the caret lands in *this* box rather than
+            // wherever the pointer happens to be resting.
+            //
+            // Resolved here, against the section as it stands this instant, rather than taken as
+            // an absolute position from the caller. A caller reading `section` is reading a frame
+            // ago -- and a form that has just been rebuilt has no resolved section to read at all,
+            // which is exactly when something wants to put the caret in one of its fields.
+            Op::Click { at, .. } => {
                 let entity = subject.unwrap();
                 let Some(section) = world.get::<crate::Section<Logical>>(entity).copied() else {
                     continue;
                 };
-                let at = section.center();
+                // Held half a pixel inside the far edges. `1.0` means "the right-hand end of this
+                // box", and to be hit-tested *against* the box it has to land inside it.
+                let at: Position<Logical> = (
+                    section.left() + (section.width() - 0.5).max(0.0) * at.0.clamp(0.0, 1.0),
+                    section.top() + (section.height() - 0.5).max(0.0) * at.1.clamp(0.0, 1.0),
+                )
+                    .into();
                 for phase in [
                     crate::InteractionPhase::Start,
                     crate::InteractionPhase::End,
@@ -351,7 +365,7 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
             // Both are answered above, against the `World` this `Tree` has now taken, and both
             // `continue` there. Spelled out rather than swept into a catch-all so that adding an
             // op and forgetting to apply it stays a compile error.
-            Op::Focus(_) | Op::Click(_) => unreachable!("answered before the tree is taken"),
+            Op::Focus(_) | Op::Click { .. } => unreachable!("answered before the tree is taken"),
             Op::Grow { leaf, spec, .. } => spec.grow(&mut tree, leaf.0, subject),
             Op::Prune(_) => tree.remove(subject.unwrap()),
             Op::Enable(_) => tree.enable(subject.unwrap()),
