@@ -7,6 +7,17 @@ reach for**, and **the invariants that span modules** and so have no single item
 
 Nothing below lists signatures. Signatures rot; a map does not.
 
+**Scope: this is for building an app on top of Foliage, not for modifying Foliage itself.** An
+app depends on the `foliage` crate, which is `pub use foliage_proper::*` and nothing else
+(`foliage/src/lib.rs`) — the complete list of every `pub` item in `foliage_proper/src/lib.rs`'s
+own `pub use` block *is* the whole reachable surface, structurally, not just by convention. Every
+other file under `foliage_proper/src/` — `boundary/op.rs`, `ash/`, `interaction/mod.rs`'s
+hit-testing, a composite widget's own internal entities (`TextInput`'s field/cursor/handle) — is
+`pub(crate)`: invisible to app code, not just discouraged. If a question about *using* the
+library leads there, that is the rabbit hole, not the answer — the fix is almost always a missing
+line in this file, not a longer read of engine source. (Modifying the engine itself is a
+different task with a different map; this one isn't it.)
+
 ## The shape of an app
 
 ```rust
@@ -45,9 +56,9 @@ closure: drain emissions, then do per-frame work.
 across threads, behind a lock). Both read identically at the call site. Read `verbs.rs` top to
 bottom once; it is the complete list of things an app can ask the engine to do, and it is short.
 
-Every verb goes through `Op` (`boundary/op.rs`), which is also where **liveness** is enforced: an
-op naming a withered `Leaf` is dropped rather than panicking. That is why teardown races are
-mostly not your problem.
+Every verb is safe to queue against a `Leaf` that has withered by the time it applies — it is
+silently dropped, never a panic. That is why teardown races are mostly not your problem, and why
+nothing here asks you to check `Presence` before every call.
 
 ## Elements
 
@@ -161,18 +172,22 @@ a click arrives naming one of *those*, never the `Leaf` you were handed. Match b
 (`Canopy::section(..).contains(Canopy::pointer().current)`) rather than by leaf, or presses into
 your own field read as presses on whatever is behind it.
 
-Style is one unit — `TextInputStyle`, poked via `Grows::input_style` — carrying foreground, hint,
-background, accent, rounding and outline. `LineConstraint::Single` makes Enter a submission
-(`Bloom::TextAction` with `TextInputAction::Enter`); `Multiple` makes it a newline.
+Style is one unit — `TextInputStyle`, poked via `Grows::input_style` — carrying foreground, hint
+and accent only. `TextInput` draws no backdrop of its own (a rounded one needs an inset to avoid
+clipping a glyph flush against it, which fought every other layout invariant here) — wrap it in
+your own `Panel` for background/rounding/outline, sized and inset however that panel's own corners
+need. `LineConstraint::Single` makes Enter a submission (`Bloom::TextAction` with
+`TextInputAction::Enter`); `Multiple` makes it a newline.
 
 ## Colour, rounding, opacity
 
 - `color.rs` — the full Tailwind palette as constructors (`Color::stone(950)`, `Color::sky(400)`,
   …) across luminance steps 50–950. Hues: red amber orange yellow lime green emerald teal cyan sky
   blue indigo violet purple fuchsia pink rose slate gray zinc neutral stone.
-- `rounding.rs` — `Rounding` is **proportional**, resolved against half the shorter side. The same
-  bracket is a gentle cut on a wide bar and a capsule on a narrow one. Pick per element size, not
-  once globally.
+- `rounding.rs` — `Xs`/`Sm`/`Md`/`Lg` are fixed logical-px radii (clamped so a small element can't
+  be asked for more curve than it has room for): the same visible curve on a chip and a card.
+  `Full` is the one bracket that's proportional instead — half the shorter side, always a true
+  pill/circle, which is the only shape where that has to track the box rather than stay fixed.
 - `opacity.rs` — write `Opacity`; the engine maintains `InheritedOpacity` (product of ancestors)
   and `BlendedOpacity` (what the renderer multiplies in). Writing a parent's opacity propagates,
   so fading a subtree is one call on its root.
@@ -194,7 +209,12 @@ It emits a `generated.rs` with an `#[icon_handle]` enum and a `register(&mut Fol
 
 ## Where things live
 
-`foliage` is a thin re-export; `foliage_proper` is the engine.
+`foliage` is a thin re-export; `foliage_proper` is the engine. Every path below is where a `pub`
+item you'd actually reach for is *defined* — not an invitation to read the whole file. Each one
+also holds several times its own weight in `pub(crate)` machinery (a drawable's `pipeline.rs`
+equivalent, a composite's internal entities, reactive systems) that exists to make the `pub`
+surface work, not to be called. `cargo doc --open` already filters that out for you; a raw file
+does not.
 
 | | |
 |---|---|
@@ -202,16 +222,19 @@ It emits a `generated.rs` with an `#[icon_handle]` enum and a `register(&mut Fol
 | `boundary/verbs.rs` | `Grows` — every verb an app can call |
 | `boundary/canopy.rs` | `Canopy` — every read |
 | `boundary/bloom.rs` | `Bloom` — every emission |
-| `boundary/op.rs` | how a verb becomes a world write |
 | `author.rs` | `Author` — the spawn-time builder methods |
 | `grid/location.rs` | `Location`, units, designators, `anchor()`, `text_content()` |
 | `grid/view.rs` | `View` — scroll offsets and extents |
 | `color.rs` `rounding.rs` `opacity.rs` `visibility.rs` | the small vocabularies |
-| `text/` `text_input/` | text layout, and the input composite |
-| `panel/` `icon/` `line/` `polygon/` `image/` | one module per drawable kind |
-| `ash/` | the renderer |
+| `text/mod.rs` | `Text`, `TextSprout`, `GlyphColors`, `FontSize` |
+| `text_input/mod.rs` | `TextInput`, `TextInputStyle`, `LineConstraint` |
+| `panel/` `icon/` `line/` `polygon/` `image/` | one module per drawable kind — `X::new()` + `Author` |
 
-Each drawable module holds both the element an app spawns and the `pipeline.rs` that draws it.
+Nothing in `boundary/op.rs`, `ash/`, or `interaction/mod.rs`'s hit-testing is `pub` at all — they
+are how the above gets executed, not a further surface to reach for. If you find yourself reading
+one of those three to answer an app question, stop: either the answer is a behavioral note that
+belongs in this file (say so, and it'll get added), or the question is actually about modifying
+the engine, which is a different task.
 
 ## Reference app
 
