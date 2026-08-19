@@ -92,15 +92,15 @@ pub use grid::{
     view::{DirectionalLock, OverscrollPropagation, ScrollAxes},
 };
 pub use icon::{Icon, IconId, IconMemory, IconSprout, IconValue};
-pub use image::{Image, ImageMetrics, ImageSprout, ImageView};
+pub use image::{Image, ImageSprout, ImageView};
 pub use interaction::CurrentInteraction;
-pub use interaction::{Disengaged, DragStarted, Dragged, Engaged, Focused, Unfocused};
 pub use interaction::{
     AxisCommitment, FocusBehavior, GestureAxis, InputSequence, Interaction, InteractionMethod,
-    InteractionPhase,
-    InteractionPropagation, Key, Modifiers, OnClick, PhysicalInputSequence, PhysicalKey,
-    listener::InteractionListener, listener::InteractionShape, listener::InteractionState,
+    InteractionPhase, InteractionPropagation, Key, Modifiers, OnClick, PhysicalInputSequence,
+    PhysicalKey, listener::InteractionListener, listener::InteractionShape,
+    listener::InteractionState,
 };
+pub use interaction::{Disengaged, DragStarted, Dragged, Engaged, Focused, Unfocused};
 pub use line::{Line, LineSprout, MIN_LINE_WEIGHT};
 pub use node::Bare;
 pub(crate) use node::{Children, Node, Parent};

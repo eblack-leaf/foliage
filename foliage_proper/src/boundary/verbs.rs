@@ -1,12 +1,12 @@
-use crate::TextInputStyle;
 use crate::boundary::leaf::Leaf;
 use crate::boundary::op::{Motion, Op, Spec, Timing};
 use crate::boundary::tween::{Channel, Tween};
 use crate::coordinate::position::Position;
 use crate::{
-    AssetKey, AssetSource, Color, Elevation, FontSize, GlyphColors, Location, Logical, Polygon,
-    Rounding, ScrollTo,
+    AssetKey, AssetSource, Color, Elevation, FontSize, GlyphColors, LineConstraint, Location,
+    Logical, Polygon, Rounding, ScrollTo, Side,
 };
+use crate::{ImageView, TextInputStyle};
 
 /// The two things a command sink has to be able to do: take an op, and name a new element.
 ///
@@ -247,6 +247,15 @@ pub trait Grows: Queues {
         let key = crate::AssetLoader::generate_key();
         self.push(Op::LoadAsset { key, source });
         key
+    }
+    fn image_view(&mut self, leaf: Leaf, view: ImageView) {
+        self.push(Op::ImageView { leaf, view });
+    }
+    fn rounding_side(&mut self, leaf: Leaf, side: Side) {
+        self.push(Op::RoundingSide { leaf, side });
+    }
+    fn line_constraint(&mut self, leaf: Leaf, constraint: LineConstraint) {
+        self.push(Op::LineConstraint { leaf, constraint });
     }
 }
 

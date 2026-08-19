@@ -37,7 +37,11 @@ impl Rounding {
     /// *half*-side, landing exactly on the largest radius the corner discs in `sdf.wgsl` stay
     /// exact at. Every fixed radius is clamped to that same ceiling, so a chip smaller than
     /// its own bracket can't ask for more curve than its box has room for.
-    pub(crate) fn depth(self, section: Section<Physical>, scale_factor: CoordinateUnit) -> CoordinateUnit {
+    pub(crate) fn depth(
+        self,
+        section: Section<Physical>,
+        scale_factor: CoordinateUnit,
+    ) -> CoordinateUnit {
         let min = section.width().min(section.height()) * 0.5;
         match self {
             Rounding::None => 0.0,

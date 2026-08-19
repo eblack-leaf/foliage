@@ -14,8 +14,8 @@ use crate::{
     Attachment, Author, Color, Component, Dragged, Elevation, Engaged, FocusBehavior, Foliage,
     FontSize, GlyphOffset, Grid, GridExt, InputSequence, InteractionListener,
     InteractionPropagation, Key, Layout, LeafSprout, Location, Logical, Node, Opacity,
-    OverscrollPropagation, Panel, Parent, Section, Text, TextValue, Tree, Unfocused,
-    View, text_content,
+    OverscrollPropagation, Panel, Parent, Section, Text, TextValue, Tree, Unfocused, View,
+    text_content,
 };
 use action::{InputAction, TextInputAction};
 use bevy_ecs::bundle::Bundle;

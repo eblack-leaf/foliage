@@ -291,8 +291,8 @@ impl ImageSprout {
 /// The decoded image's own pixel dimensions, written once the asset resolves. Read it to
 /// size a box to the real image rather than guessing.
 #[derive(Component, Copy, Clone, PartialEq, Default)]
-pub struct ImageMetrics {
-    pub extent: Area<Numerical>,
+pub(crate) struct ImageMetrics {
+    pub(crate) extent: Area<Numerical>,
 }
 #[derive(Clone, PartialEq)]
 pub(crate) struct ImageWrite {

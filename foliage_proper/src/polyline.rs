@@ -232,6 +232,7 @@ impl Author for PolylineSprout {
                 }
             },
         );
+        // TODO this just gets moved into the closure? how can we access again from outside?
         let mut segments: Vec<Entity> = Vec::new();
         let mut joints: Vec<Entity> = Vec::new();
         // What each pool entity was last actually written with -- `None` means "currently

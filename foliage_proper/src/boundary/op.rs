@@ -1,8 +1,9 @@
 use crate::boundary::leaf::Leaf;
 use crate::coordinate::position::Position;
 use crate::{
-    AssetKey, AssetSource, Color, Ease, Elevation, Entity, FontSize, GlyphColors, Location,
-    Logical, Outline, Polygon, Repeat, Rounding, ScrollTo, Tree, World,
+    AssetKey, AssetSource, Color, Ease, Elevation, Entity, FontSize, GlyphColors, ImageView,
+    LineConstraint, Location, Logical, Outline, Polygon, Repeat, Rounding, ScrollTo, Side, Tree,
+    World,
 };
 
 /// What foliage grows. One variant per core primitive -- the set is closed on purpose: this
@@ -204,6 +205,18 @@ pub(crate) enum Op {
         key: AssetKey,
         source: AssetSource,
     },
+    ImageView {
+        leaf: Leaf,
+        view: ImageView,
+    },
+    RoundingSide {
+        leaf: Leaf,
+        side: Side,
+    },
+    LineConstraint {
+        leaf: Leaf,
+        constraint: LineConstraint,
+    },
 }
 
 impl Op {
@@ -227,7 +240,10 @@ impl Op {
             | Op::Icon { leaf, .. }
             | Op::Animate { leaf, .. }
             | Op::Scroll { leaf, .. }
-            | Op::Name { leaf, .. } => Some(*leaf),
+            | Op::Name { leaf, .. }
+            | Op::ImageView { leaf, .. }
+            | Op::RoundingSide { leaf, .. }
+            | Op::LineConstraint { leaf, .. } => Some(*leaf),
             Op::Timer { leaf, .. } | Op::Hint { leaf, .. } | Op::InputStyle { leaf, .. } => {
                 Some(*leaf)
             }
@@ -324,10 +340,7 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
                     section.top() + section.height().max(0.0) * at.1.clamp(0.0, 1.0),
                 )
                     .into();
-                for phase in [
-                    crate::InteractionPhase::Start,
-                    crate::InteractionPhase::End,
-                ] {
+                for phase in [crate::InteractionPhase::Start, crate::InteractionPhase::End] {
                     world.write_message(crate::Interaction::new(
                         phase,
                         at,
@@ -387,6 +400,9 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
             Op::LoadAsset { key, source } => {
                 tree.send(crate::asset::LoadAsset { key, source });
             }
+            Op::ImageView { view, .. } => tree.write_to(subject.unwrap(), view),
+            Op::RoundingSide { side, .. } => tree.write_to(subject.unwrap(), side),
+            Op::LineConstraint { constraint, .. } => tree.write_to(subject.unwrap(), constraint),
         }
         // Flushed per op rather than once at the end: an element's own structure is built by
         // reactions that only run on flush, and a later op in this same queue may name what

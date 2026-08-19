@@ -266,7 +266,13 @@ pub(crate) fn coast(
     }
 }
 #[derive(Component, Copy, Clone, Debug)]
-#[require(ViewAdjustment, OverscrollPropagation, ScrollProgress, ScrollAxes, DirectionalLock)]
+#[require(
+    ViewAdjustment,
+    OverscrollPropagation,
+    ScrollProgress,
+    ScrollAxes,
+    DirectionalLock
+)]
 /// A scrollable window onto content larger than itself: how far it is scrolled, and how
 /// far it may be.
 ///

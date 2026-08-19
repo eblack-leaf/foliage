@@ -10,7 +10,11 @@ use crate::text::monospaced::{FontId, MonospacedFont};
 use crate::time::Time;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::willow::Willow;
-use crate::{AndroidConnection, Animate, Area, Attachment, Bloom, Color, Disable, Elevation, Enable, Grid, Icon, Image, Interaction, Line, Location, Named, Opacity, Panel, Physical, Polygon, Resource, SystemSet, Text, TextInput, Visibility};
+use crate::{
+    AndroidConnection, Animate, Area, Attachment, Bloom, Color, Disable, Elevation, Enable, Grid,
+    Icon, Image, Interaction, Line, Location, Named, Opacity, Panel, Physical, Polygon, Resource,
+    SystemSet, Text, TextInput, Visibility,
+};
 use crate::{Canopy, Sprig};
 use bevy_ecs::component::Component;
 use bevy_ecs::message::{Message, MessageRegistry, Messages, message_update_system};
