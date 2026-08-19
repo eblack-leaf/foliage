@@ -213,9 +213,6 @@ impl Foliage {
         self.sprig.drain_into(&mut self.ops);
         crate::boundary::op::apply(&mut self.world, &mut self.ops);
         let blooms = core::mem::take(&mut self.world.resource_mut::<Emissions>().0);
-        // Off-thread listeners get the same emissions the root does, from the same collection,
-        // before the root has had a chance to act on them and change what they describe.
-        self.sprig.deliver(&blooms);
         let mut reads = self
             .reads
             .take()
@@ -236,6 +233,9 @@ impl Foliage {
                 scale_factor: reads.scale_factor.value(),
                 frame_time: reads.time.frame_diff(),
             });
+            // Off-thread listeners get the same emissions the root does, from the same collection,
+            // before the root has had a chance to act on them and change what they describe.
+            self.sprig.deliver(&blooms);
             let mut canopy = Canopy {
                 reads,
                 queue: &mut self.ops,
