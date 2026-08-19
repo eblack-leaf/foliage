@@ -8,7 +8,7 @@
 
 use foliage::{
     Bloom, Canopy, Color, Elevation, Foliage, FontSize, GridExt, Grows, HorizontalAlignment, Leaf,
-    Location, Modifiers, Sprout, Text, VerticalAlignment,
+    Location, Modifiers, Root, Sprout, Text, VerticalAlignment,
 };
 
 struct Readout {
@@ -22,32 +22,37 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((460, 200));
 
-    let mut readout: Option<Readout> = None;
-    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
-        let readout = readout.get_or_insert_with(|| grow(canopy));
+    foliage.root::<Readout>();
+    foliage.photosynthesize();
+}
+
+impl Root for Readout {
+    fn take_root(canopy: &mut Canopy) -> Self {
+        grow(canopy)
+    }
+    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
         for bloom in blooms {
             match bloom {
                 Bloom::Key { key, mods } => {
-                    canopy.text(readout.logical, format!("key: {key:?}{}", modifiers(mods)));
+                    canopy.text(self.logical, format!("key: {key:?}{}", modifiers(mods)));
                     // The layout-produced key is the one that becomes text.
                     if let foliage::Key::Character(c) = &key {
-                        readout.text.push_str(c);
+                        self.text.push_str(c);
                     } else if matches!(key, foliage::Key::Backspace) {
-                        readout.text.pop();
+                        self.text.pop();
                     }
-                    canopy.text(readout.typed, readout.text.clone());
+                    canopy.text(self.typed, self.text.clone());
                 }
                 Bloom::PhysicalKey { key, mods } => {
                     canopy.text(
-                        readout.physical,
+                        self.physical,
                         format!("physical: {key:?}{}", modifiers(mods)),
                     );
                 }
                 _ => {}
             }
         }
-    });
-    foliage.photosynthesize();
+    }
 }
 
 fn modifiers(mods: Modifiers) -> String {

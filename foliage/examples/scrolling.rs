@@ -8,7 +8,7 @@
 
 use foliage::{
     Bloom, Canopy, Color, Elevation, Foliage, FontSize, Grid, GridExt, Grows, HorizontalAlignment,
-    Leaf, Location, Panel, Rounding, ScrollTo, Sprout, Text, VerticalAlignment,
+    Leaf, Location, Panel, Root, Rounding, ScrollTo, Sprout, Text, VerticalAlignment,
 };
 
 const ROWS: usize = 24;
@@ -24,35 +24,38 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((360, 420));
 
-    let mut scene: Option<Scene> = None;
-    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
-        let scene = scene.get_or_insert_with(|| grow(canopy));
+    foliage.root::<Scene>();
+    foliage.photosynthesize();
+}
 
+impl Root for Scene {
+    fn take_root(canopy: &mut Canopy) -> Self {
+        grow(canopy)
+    }
+    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
         for bloom in blooms {
             if let Bloom::Clicked(leaf) = bloom {
-                if leaf == scene.to_top {
-                    canopy.scroll(scene.column, ScrollTo::y(0.0));
-                } else if leaf == scene.to_bottom {
-                    canopy.scroll(scene.column, ScrollTo::y(1.0));
+                if leaf == self.to_top {
+                    canopy.scroll(self.column, ScrollTo::y(0.0));
+                } else if leaf == self.to_bottom {
+                    canopy.scroll(self.column, ScrollTo::y(1.0));
                 }
             }
         }
 
-        // Sampled every frame rather than remembered. `None` while the column is still being
-        // grown, which is exactly the first frame.
+        // Sampled every frame rather than remembered.
         if let (Some(offset), Some(progress)) = (
-            canopy.scroll_offset(scene.column),
-            canopy.sample(scene.column, foliage::Sap::ScrollProgress),
+            canopy.scroll_offset(self.column),
+            canopy.sample(self.column, foliage::Sap::ScrollProgress),
         ) {
             if let foliage::Sample::Pair(_, y) = progress {
                 canopy.text(
-                    scene.readout,
+                    self.readout,
                     format!("offset {:>6.1}px   {:>3.0}%", offset.top(), y * 100.0),
                 );
             }
         }
-    });
-    foliage.photosynthesize();
+    }
 }
 
 fn grow(canopy: &mut Canopy) -> Scene {

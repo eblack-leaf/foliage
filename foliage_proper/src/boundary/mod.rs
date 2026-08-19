@@ -7,7 +7,7 @@
 //! meeting.
 //!
 //! - [`Leaf`](crate::Leaf) names an element. [`Canopy`](crate::Canopy) is the per-frame
-//!   surface.
+//!   surface, and [`Root`](crate::Root) is the app it is handed to.
 //! - [`Sprig`](crate::Sprig) is the same command set, `Send`, for another thread.
 //! - [`Bloom`](crate::Bloom) is what comes back out; [`Sap`](crate::Sap)/
 //!   [`Sample`](crate::Sample) is what may be looked at.
@@ -17,6 +17,7 @@ pub(crate) mod canopy;
 pub(crate) mod funnel;
 pub(crate) mod leaf;
 pub(crate) mod op;
+pub(crate) mod root;
 pub(crate) mod sprig;
 pub(crate) mod tween;
 pub(crate) mod verbs;

@@ -7,7 +7,7 @@
 
 use foliage::{
     Bloom, Canopy, Color, Elevation, Foliage, Grid, GridExt, Grows, Leaf, Location, Motion, Panel,
-    Presence, Rounding, Sprout, Text, Timing,
+    Presence, Root, Rounding, Sprout, Text, Timing,
 };
 
 struct Demo {
@@ -24,31 +24,37 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((360, 220));
 
-    let mut demo: Option<Demo> = None;
-    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
-        let demo = demo.get_or_insert_with(|| grow(canopy));
+    foliage.root::<Demo>();
+    foliage.photosynthesize();
+}
+
+impl Root for Demo {
+    fn take_root(canopy: &mut Canopy) -> Self {
+        grow(canopy)
+    }
+    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
         for bloom in blooms {
             match bloom {
                 // One physical click can arrive for several elements; only ours matters.
-                Bloom::Clicked(leaf) if Some(leaf) == demo.target => {
-                    demo.clicks += 1;
-                    canopy.text(demo.status, format!("clicked {}x -- fading", demo.clicks));
+                Bloom::Clicked(leaf) if Some(leaf) == self.target => {
+                    self.clicks += 1;
+                    canopy.text(self.status, format!("clicked {}x -- fading", self.clicks));
                     let sequence = canopy.sequence();
                     canopy.animate_during(leaf, Motion::Opacity(0.0), Timing::over(500), sequence);
-                    demo.fading = Some(sequence);
+                    self.fading = Some(sequence);
                 }
                 // The fade finished. Prune what it faded, and start a countdown to regrow.
-                Bloom::SequenceFinished(seq) if Some(seq) == demo.fading => {
-                    demo.fading = None;
-                    if let Some(target) = demo.target.take() {
+                Bloom::SequenceFinished(seq) if Some(seq) == self.fading => {
+                    self.fading = None;
+                    if let Some(target) = self.target.take() {
                         canopy.prune(target);
                     }
-                    demo.waiting = Some(canopy.timer(600));
+                    self.waiting = Some(canopy.timer(600));
                 }
-                Bloom::TimerFinished(timer) if Some(timer) == demo.waiting => {
-                    demo.waiting = None;
-                    demo.target = Some(panel(canopy));
-                    canopy.text(demo.status, "click the square");
+                Bloom::TimerFinished(timer) if Some(timer) == self.waiting => {
+                    self.waiting = None;
+                    self.target = Some(panel(canopy));
+                    canopy.text(self.status, "click the square");
                 }
                 // The pruned element reporting itself gone -- and a good moment to check the
                 // contract, since a withered `Leaf` must read as absent and swallow writes.
@@ -60,8 +66,7 @@ fn main() {
                 _ => {}
             }
         }
-    });
-    foliage.photosynthesize();
+    }
 }
 
 fn grow(canopy: &mut Canopy) -> Demo {

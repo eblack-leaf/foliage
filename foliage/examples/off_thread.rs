@@ -8,7 +8,8 @@
 //! own version, and nothing here would change.
 
 use foliage::{
-    Canopy, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Rounding, Sprout,
+    Bloom, Canopy, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Root, Rounding,
+    Sprout,
 };
 use std::time::Duration;
 
@@ -29,15 +30,37 @@ fn main() {
                         .color(Color::cyan(500))
                         .rounding(Rounding::Xs)
                         .at(bar(i, 0.2))
-                        .elevate(Elevation::up(1)),
+                        .elevate(Elevation::up(1))
+                        .interactive(),
                 )
             })
             .collect();
 
         let mut step = 0usize;
+        let mut held: Option<usize> = None;
         loop {
             std::thread::sleep(Duration::from_millis(90));
             step += 1;
+
+            // The other direction. `blooms` hands over everything the tree reported since the
+            // last pass, so this thread hears its own bars being clicked without the root
+            // relaying anything -- it never wakes the frame and the frame never waits on it.
+            for bloom in sprig.blooms() {
+                if let Bloom::Clicked(leaf) = bloom
+                    && let Some(i) = bars.iter().position(|bar| *bar == leaf)
+                {
+                    let previous = held.take();
+                    if let Some(prev) = previous {
+                        sprig.color(bars[prev], Color::cyan(500));
+                    }
+                    // Clicking the held bar again just clears it.
+                    if previous != Some(i) {
+                        held = Some(i);
+                        sprig.color(leaf, Color::orange(400));
+                    }
+                }
+            }
+
             for (i, bar_leaf) in bars.iter().enumerate() {
                 // A plain sine, computed on this thread with no engine involvement at all.
                 let phase = (step as f32 * 0.15) + i as f32 * 0.7;
@@ -47,11 +70,19 @@ fn main() {
         }
     });
 
-    foliage.define_frame(move |_canopy: &mut Canopy, _blooms| {
-        // Nothing to do here. Everything on screen is being driven from the worker, which is
-        // the point: the frame closure is not where an app has to live.
-    });
+    foliage.root::<Idle>();
     foliage.photosynthesize();
+}
+
+/// Nothing to do here. Everything on screen is being driven from the worker, which is the
+/// point: the root is not where an app has to live.
+struct Idle;
+
+impl Root for Idle {
+    fn take_root(_canopy: &mut Canopy) -> Self {
+        Idle
+    }
+    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
 }
 
 /// A bar `fraction` of the way up, in the `i`th column.

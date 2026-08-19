@@ -5,7 +5,8 @@
 //! `cargo run --example polygon_animation -p foliage`.
 
 use foliage::{
-    Bloom, Canopy, Color, Ease, Elevation, Foliage, GridExt, Leaf, Location, Polygon, Timing, Tween,
+    Bloom, Canopy, Color, Ease, Elevation, Foliage, GridExt, Leaf, Location, Polygon, Root, Timing,
+    Tween,
 };
 use foliage::{Grows, Sprout};
 use std::f32::consts::PI;
@@ -50,38 +51,46 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((420, 200));
 
-    let mut morphs: Vec<Morph> = Vec::new();
-    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
-        if morphs.is_empty() {
-            for (i, period) in [2400u64, 3000, 3600].into_iter().enumerate() {
-                let left = 40 + i as i32 * 130;
-                let leaf = canopy.leaf(
-                    Polygon::new()
-                        .sides(3.0)
-                        .rounding(0.0)
-                        .color(Color::green(300))
-                        .at(Location::new().xs(
-                            left.px().as_left().with(100.px().as_width()),
-                            50.px().as_top().with(100.px().as_height()),
-                        ))
-                        .elevate(Elevation::up(1)),
-                );
-                let mut morph = Morph {
-                    leaf,
-                    // replaced by `leg` immediately; a tween has no meaningful empty value
-                    tween: canopy.tween([(0.0, 0.0)], Timing::over(1)),
-                    step: 0,
-                    period,
-                };
-                morph.leg(canopy);
-                morphs.push(morph);
-            }
-        }
+    foliage.root::<Morphs>();
+    foliage.photosynthesize();
+}
 
+/// The three polygons, each on its own leg.
+struct Morphs(Vec<Morph>);
+
+impl Root for Morphs {
+    fn take_root(canopy: &mut Canopy) -> Self {
+        let mut morphs = Vec::new();
+        for (i, period) in [2400u64, 3000, 3600].into_iter().enumerate() {
+            let left = 40 + i as i32 * 130;
+            let leaf = canopy.leaf(
+                Polygon::new()
+                    .sides(3.0)
+                    .rounding(0.0)
+                    .color(Color::green(300))
+                    .at(Location::new().xs(
+                        left.px().as_left().with(100.px().as_width()),
+                        50.px().as_top().with(100.px().as_height()),
+                    ))
+                    .elevate(Elevation::up(1)),
+            );
+            let mut morph = Morph {
+                leaf,
+                // replaced by `leg` immediately; a tween has no meaningful empty value
+                tween: canopy.tween([(0.0, 0.0)], Timing::over(1)),
+                step: 0,
+                period,
+            };
+            morph.leg(canopy);
+            morphs.push(morph);
+        }
+        Morphs(morphs)
+    }
+    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
         for bloom in blooms {
             match bloom {
                 Bloom::Tween { tween, values } => {
-                    if let Some(morph) = morphs.iter().find(|m| m.tween == tween) {
+                    if let Some(morph) = self.0.iter().find(|m| m.tween == tween) {
                         let leaf = morph.leaf;
                         canopy.polygon(
                             leaf,
@@ -96,15 +105,14 @@ fn main() {
                 // One leg finished; start the next. Endless, with no completion callback and
                 // nothing registered on the engine side -- just an emission and a decision.
                 Bloom::TweenDone(tween) => {
-                    if let Some(index) = morphs.iter().position(|m| m.tween == tween) {
-                        let mut morph = morphs.swap_remove(index);
+                    if let Some(index) = self.0.iter().position(|m| m.tween == tween) {
+                        let mut morph = self.0.swap_remove(index);
                         morph.leg(canopy);
-                        morphs.push(morph);
+                        self.0.push(morph);
                     }
                 }
                 _ => {}
             }
         }
-    });
-    foliage.photosynthesize();
+    }
 }

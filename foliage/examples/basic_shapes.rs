@@ -5,20 +5,23 @@
 //! the closure, which is the only place an app ever touches foliage.
 
 use foliage::{
-    Canopy, Color, Elevation, Foliage, GridExt, Line, Location, Panel, Polygon, Rounding,
+    Bloom, Canopy, Color, Elevation, Foliage, GridExt, Line, Location, Panel, Polygon, Root,
+    Rounding,
 };
 use foliage::{Grows, Sprout};
 
 fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((420, 290));
+    foliage.root::<Shapes>();
+    foliage.photosynthesize();
+}
 
-    let mut grown = false;
-    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
-        if grown {
-            return;
-        }
-        grown = true;
+/// Nothing to keep: the tree is grown once and never changes again.
+struct Shapes;
+
+impl Root for Shapes {
+    fn take_root(canopy: &mut Canopy) -> Self {
         canopy.leaf(
             Panel::new()
                 .rounding(Rounding::Sm)
@@ -56,6 +59,7 @@ fn main() {
                 ))
                 .elevate(Elevation::up(1)),
         );
-    });
-    foliage.photosynthesize();
+        Shapes
+    }
+    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
 }

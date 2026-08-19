@@ -2,20 +2,21 @@
 //! its own, since correct numbers don't guarantee it *looks* right. Run with
 //! `cargo run --example opacity_and_elevation -p foliage`.
 
-use foliage::{Canopy, Color, Elevation, Foliage, Grid, GridExt, Location, Panel};
+use foliage::{Bloom, Canopy, Color, Elevation, Foliage, Grid, GridExt, Location, Panel, Root};
 use foliage::{Grows, Sprout};
 
 fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((300, 200));
+    foliage.root::<Stack>();
+    foliage.photosynthesize();
+}
 
-    let mut grown = false;
-    foliage.define_frame(move |canopy: &mut Canopy, _blooms| {
-        if grown {
-            return;
-        }
-        grown = true;
+/// Nothing to keep: the panels are grown once and never change again.
+struct Stack;
 
+impl Root for Stack {
+    fn take_root(canopy: &mut Canopy) -> Self {
         // Three overlapping panels, each further forward and more transparent than the last
         // -- correct blending reads as a soft stack, not a hard-edged collage.
         let base = canopy.leaf(
@@ -53,6 +54,7 @@ fn main() {
                 .elevate(Elevation::up(2))
                 .opacity(0.6),
         );
-    });
-    foliage.photosynthesize();
+        Stack
+    }
+    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
 }

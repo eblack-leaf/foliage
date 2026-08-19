@@ -1,4 +1,4 @@
-use foliage::{Bloom, Canopy, ClearColor, Foliage};
+use foliage::{Bloom, Canopy, ClearColor, Foliage, Root};
 
 mod entry;
 #[path = "assets/icons/gen/generated.rs"]
@@ -27,15 +27,20 @@ pub fn run(mut foliage: Foliage) {
     site::register_fonts(&mut foliage);
     site::register_assets(&mut foliage);
 
-    // Everything else is the app, and the app is a struct plus a closure. Nothing here is
-    // handed to the engine, and the engine has no way to reach it.
-    let mut site: Option<entry::Site> = None;
-    foliage.define_frame(move |canopy: &mut Canopy, blooms: Vec<Bloom>| {
-        let site = site.get_or_insert_with(|| entry::Site::grow(canopy));
-        for bloom in blooms {
-            site.respond(canopy, bloom);
-        }
-        site.tick(canopy);
-    });
+    // Everything else is the app, and the app is a struct. Nothing here is handed to the
+    // engine, and the engine has no way to reach it.
+    foliage.root::<entry::Site>();
     foliage.photosynthesize();
+}
+
+impl Root for entry::Site {
+    fn take_root(canopy: &mut Canopy) -> Self {
+        entry::Site::grow(canopy)
+    }
+    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
+        for bloom in blooms {
+            self.respond(canopy, bloom);
+        }
+        self.tick(canopy);
+    }
 }

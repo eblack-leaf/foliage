@@ -3,6 +3,7 @@ use crate::ash::Ash;
 use crate::ash::differential::{RenderQueue, RenderRemoveQueue, cached_differential};
 use crate::asset::{Asset, AssetKey, AssetLoader, AssetSource, LoadAsset};
 use crate::boundary::bloom::Emissions;
+use crate::boundary::root::{Root, Rooted};
 use crate::ginkgo::Ginkgo;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::remove::Remove;
@@ -11,7 +12,7 @@ use crate::time::Time;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::willow::Willow;
 use crate::{
-    AndroidConnection, Animate, Area, Attachment, Bloom, Color, Disable, Elevation, Enable, Grid,
+    AndroidConnection, Animate, Area, Attachment, Color, Disable, Elevation, Enable, Grid,
     Icon, Image, Interaction, Line, Location, Named, Opacity, Panel, Physical, Polygon, Resource,
     SystemSet, Text, TextInput, Visibility,
 };
@@ -35,22 +36,21 @@ use winit::event_loop::{ControlFlow, EventLoop};
 /// Built with [`Foliage::new`], configured with the setup calls below -- artwork and font
 /// registration, desktop sizing, tuning -- then handed control with
 /// [`photosynthesize`](Foliage::photosynthesize), which does not return. The tree itself
-/// is never touched here: an app grows and changes it from inside the frame closure,
-/// through the [`Canopy`] that closure is handed each frame.
+/// is never touched here: an app grows and changes it from inside its [`Root`], through the
+/// [`Canopy`] that root is handed each frame.
 pub struct Foliage {
     pub(crate) world: World,
     pub(crate) main: Schedule,
     pub(crate) diff: Schedule,
-    /// The app's per-frame closure. Held here rather than in the world because `Foliage` owns
-    /// the world -- so handing it a `Canopy` borrowed from that same world is a plain
-    /// reborrow, with no interior-mutability dance to arrange it.
-    #[allow(clippy::type_complexity)]
-    pub(crate) frame: Option<Box<dyn FnMut(&mut Canopy<'_, '_>, Vec<Bloom>)>>,
-    /// Read state for the frame closure, kept across frames so its query caches persist.
+    /// The app itself, once [`root`](Foliage::root) has named its type. Held here rather than
+    /// in the world because `Foliage` owns the world -- so handing it a `Canopy` borrowed from
+    /// that same world is a plain reborrow, with no interior-mutability dance to arrange it.
+    pub(crate) root: Option<Box<dyn Rooted>>,
+    /// Read state for the root, kept across frames so its query caches persist.
     pub(crate) reads: Option<SystemState<crate::boundary::canopy::Reads<'static, 'static>>>,
-    /// This frame's commands, drained into the world after the closure returns.
+    /// This frame's commands, drained into the world after the root returns.
     pub(crate) ops: Vec<crate::boundary::op::Op>,
-    /// The off-thread command channel, drained ahead of the closure's own commands.
+    /// The off-thread command channel, drained ahead of the root's own commands.
     pub(crate) sprig: Sprig,
     pub(crate) willow: Willow,
     pub(crate) ginkgo: Ginkgo,
@@ -124,7 +124,7 @@ impl Foliage {
             world,
             main: Default::default(),
             diff: Default::default(),
-            frame: None,
+            root: None,
             reads: None,
             ops: Vec::new(),
             sprig: Sprig::new(allocator),
@@ -195,7 +195,7 @@ impl Foliage {
         foliage
     }
     /// A [`Tree`](crate::Tree) over this instance's world. Internal: an app builds its tree
-    /// inside the frame closure, through [`Canopy`], and never touches the world.
+    /// inside its [`Root`], through [`Canopy`], and never touches the world.
     pub(crate) fn tree(&mut self) -> crate::Tree<'_, '_> {
         crate::AsTree::tree(&mut self.world)
     }
@@ -203,16 +203,19 @@ impl Foliage {
     /// it wants done, and do it.
     ///
     /// Ordering here is the whole contract. Off-thread commands drain first, so they are
-    /// never interleaved with the frame's own; the closure's commands then apply in the order
-    /// it wrote them; and all of it lands before `diff` runs, so a command issued this frame
+    /// never interleaved with the frame's own; the root's commands then apply in the order it
+    /// wrote them; and all of it lands before `diff` runs, so a command issued this frame
     /// reaches the screen this frame.
     pub(crate) fn frame(&mut self) {
-        let Some(mut frame) = self.frame.take() else {
+        let Some(mut root) = self.root.take() else {
             return;
         };
         self.sprig.drain_into(&mut self.ops);
         crate::boundary::op::apply(&mut self.world, &mut self.ops);
         let blooms = core::mem::take(&mut self.world.resource_mut::<Emissions>().0);
+        // Off-thread listeners get the same emissions the root does, from the same collection,
+        // before the root has had a chance to act on them and change what they describe.
+        self.sprig.deliver(&blooms);
         let mut reads = self
             .reads
             .take()
@@ -224,15 +227,24 @@ impl Foliage {
             let reads = reads
                 .get(&self.world)
                 .expect("frame reads are all read-only and always available");
+            // Published from the same reads the root is about to be handed, so a worker's
+            // ambient state is the frame's own rather than a second answer assembled elsewhere.
+            self.sprig.publish(crate::Conditions {
+                viewport: reads.viewport.section(),
+                layout: *reads.layout,
+                short: *reads.short == crate::Short::Yes,
+                scale_factor: reads.scale_factor.value(),
+                frame_time: reads.time.frame_diff(),
+            });
             let mut canopy = Canopy {
                 reads,
                 queue: &mut self.ops,
                 allocator: self.sprig.allocator(),
             };
-            frame(&mut canopy, blooms);
+            root.frame(&mut canopy, blooms);
         }
         self.reads = Some(reads);
-        self.frame = Some(frame);
+        self.root = Some(root);
         crate::boundary::op::apply(&mut self.world, &mut self.ops);
     }
     /// A cloneable, `Send` handle for issuing commands from your own thread.
@@ -243,8 +255,8 @@ impl Foliage {
     pub fn sprig(&self) -> Sprig {
         self.sprig.clone()
     }
-    /// Runs the app, calling `frame` once per frame -- after the engine has settled and
-    /// before anything is drawn. Does not return.
+    /// Runs the app, calling the [`Root`]'s `frame` once per frame -- after the engine has
+    /// settled and before anything is drawn. Does not return.
     pub fn photosynthesize(mut self) {
         // winit's android backend has nothing to poll events from without the `AndroidApp`
         // handle threaded through at event-loop construction -- `EventLoop::new()` alone
@@ -275,13 +287,14 @@ impl Foliage {
             }
         }
     }
-    /// The closure is where an app lives: it takes this frame's emissions, samples whatever
-    /// it needs, and issues commands, which are applied in the order written as soon as it
-    /// returns. It stays on this thread deliberately -- that is what lets it hold a
-    /// [`Canopy`] and read live state directly instead of asking and waiting. For work that
-    /// belongs on another thread, take a [`Sprig`](Self::sprig) before calling this.
-    pub fn define_frame<F: FnMut(&mut Canopy<'_, '_>, Vec<Bloom>) + 'static>(&mut self, frame: F) {
-        self.frame = Some(Box::new(frame));
+    /// Names the [`Root`] this app is. Everything after it is that type's business: it grows
+    /// the tree on the first frame and is called once per frame from then on.
+    ///
+    /// The root stays on this thread deliberately -- that is what lets it hold a [`Canopy`]
+    /// and read live state directly instead of asking and waiting. For work that belongs on
+    /// another thread, take a [`Sprig`](Self::sprig) before calling this.
+    pub fn root<R: Root>(&mut self) {
+        self.root = Some(Box::new(crate::boundary::root::Planted::<R>::new()));
     }
     /// Requests an initial window size on desktop. Ignored where the platform owns the
     /// window's size.

@@ -7,15 +7,20 @@
 //! Run with `cargo run --example text_input -p foliage`.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, FontSize, Grid, GridExt, HorizontalAlignment, Leaf,
-    LineConstraint, Location, Panel, Rounding, Text, TextInput, VerticalAlignment,
+    Bloom, Canopy, Color, Elevation, Foliage, FontId, FontSize, Grid, GridExt, HorizontalAlignment,
+    Leaf, LineConstraint, Location, Panel, Root, Rounding, Text, TextInput, VerticalAlignment,
 };
 use foliage::{Grows, Sprout};
+use std::sync::OnceLock;
 
 struct Boxes {
     title: Leaf,
     multi: Leaf,
 }
+
+/// Font registration is startup-only -- it needs the `Foliage` itself, which is gone by the
+/// time anything is growing. So the id is minted in `main` and read back at boot.
+static DEJAVU: OnceLock<FontId> = OnceLock::new();
 
 fn main() {
     let mut foliage = Foliage::new();
@@ -24,25 +29,33 @@ fn main() {
     // A second monospace face, to see a registered font take effect. Registration is
     // startup-only and rejects anything proportional -- the layout addresses text by a fixed
     // character cell.
-    let dejavu = foliage.font(include_bytes!("DejaVuSansMono.ttf").as_slice());
+    DEJAVU
+        .set(foliage.font(include_bytes!("DejaVuSansMono.ttf").as_slice()))
+        .expect("dejavu registered once");
 
-    let mut boxes: Option<Boxes> = None;
-    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
-        let boxes = boxes.get_or_insert_with(|| grow(canopy, dejavu));
+    foliage.root::<Boxes>();
+    foliage.photosynthesize();
+}
+
+impl Root for Boxes {
+    fn take_root(canopy: &mut Canopy) -> Self {
+        grow(canopy, *DEJAVU.get().expect("dejavu registered"))
+    }
+    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
         for bloom in blooms {
             // The emission carries the new value, but sampling would answer just as well --
             // and does, for anything that did not change this frame.
             if let Bloom::TextChanged { leaf, value } = bloom
-                && leaf == boxes.multi
+                && leaf == self.multi
             {
                 let count = value.chars().count();
-                canopy.text(boxes.title, format!("{count} chars"));
+                canopy.text(self.title, format!("{count} chars"));
             }
         }
-    });
+    }
 }
 
-fn grow(canopy: &mut Canopy, dejavu: foliage::FontId) -> Boxes {
+fn grow(canopy: &mut Canopy, dejavu: FontId) -> Boxes {
     let title = canopy.leaf(
         Text::new("0 chars")
             .size(FontSize::new(14))

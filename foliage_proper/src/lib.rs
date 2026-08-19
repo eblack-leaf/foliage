@@ -67,7 +67,8 @@ pub use boundary::bloom::Bloom;
 pub use boundary::canopy::{Canopy, Sample, Sap};
 pub use boundary::leaf::{Leaf, Presence};
 pub use boundary::op::{Motion, Spec, Timing};
-pub use boundary::sprig::Sprig;
+pub use boundary::root::Root;
+pub use boundary::sprig::{Conditions, Sprig};
 pub use boundary::tween::{Channel, Tween};
 pub use boundary::verbs::Grows;
 /// bevy 0.17+ renamed the observer parameter `Trigger` to `On`. Every observer inside foliage

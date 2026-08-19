@@ -10,8 +10,8 @@
 //! other). Drag slowly through a range of widths: the seam should stay closed at every one.
 
 use foliage::{
-    Canopy, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Location, Panel,
-    Rounding, Text, VerticalAlignment,
+    Bloom, Canopy, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Location,
+    Panel, Root, Rounding, Text, VerticalAlignment,
 };
 use foliage::{Grows, Sprout};
 
@@ -28,13 +28,16 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((720, 480));
 
-    let mut grown = false;
-    foliage.define_frame(move |canopy: &mut Canopy, _blooms| {
-        if grown {
-            return;
-        }
-        grown = true;
+    foliage.root::<Split>();
+    foliage.photosynthesize();
+}
 
+/// Nothing to keep: both panels are stated in percentages, so the reflow is the grid's work
+/// and not the app's.
+struct Split;
+
+impl Root for Split {
+    fn take_root(canopy: &mut Canopy) -> Self {
         // Left at xs -> top when stacked. Ends exactly where the other begins, on both axes.
         canopy.leaf(
             Panel::new()
@@ -97,6 +100,7 @@ fn main() {
                 .elevate(Elevation::up(1))
                 .align(HorizontalAlignment::Center, VerticalAlignment::Middle),
         );
-    });
-    foliage.photosynthesize();
+        Split
+    }
+    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
 }

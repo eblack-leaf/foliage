@@ -13,7 +13,7 @@ use bevy_ecs::system::{Query, Res, SystemParam};
 /// Everything a frame may observe about the tree, in one read-only bundle.
 ///
 /// Read-only is what makes synchronous sampling possible at all: the whole set can be driven
-/// from an immutable borrow of the world while the frame closure runs.
+/// from an immutable borrow of the world while the root's frame runs.
 #[derive(SystemParam)]
 pub(crate) struct Reads<'w, 's> {
     pub(crate) entities: &'w bevy_ecs::entity::Entities,
@@ -106,12 +106,11 @@ pub enum Sample<'a> {
 
 /// The frame surface: what happened, what things are, and what to do about it.
 ///
-/// Handed to the closure given to [`photosynthesize`](crate::Foliage::photosynthesize), once
-/// per frame, at the point where engine state has settled and before the frame is drawn.
-/// Everything sampled here is current as of this frame.
+/// Handed to the [`Root`](crate::Root) once per frame, at the point where engine state has
+/// settled and before the frame is drawn. Everything sampled here is current as of this frame.
 ///
-/// Commands issued here are applied in the order they are written, immediately after the
-/// closure returns -- so they take effect in the same frame that produced them.
+/// Commands issued here are applied in the order they are written, immediately after the root
+/// returns -- so they take effect in the same frame that produced them.
 pub struct Canopy<'w, 's> {
     pub(crate) reads: Reads<'w, 's>,
     pub(crate) queue: &'w mut Vec<Op>,

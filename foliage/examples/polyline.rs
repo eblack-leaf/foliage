@@ -7,7 +7,7 @@
 
 use foliage::{
     Bloom, Canopy, Color, DashPattern, Elevation, Foliage, GridExt, Leaf, Location, Polyline,
-    Position, Repeat, Timing, Tween,
+    Position, Repeat, Root, Timing, Tween,
 };
 use foliage::{Grows, Sprout};
 
@@ -24,26 +24,30 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((420, 160));
 
-    let zigzag: Vec<Position<foliage::Logical>> = vec![
-        (10, 90).into(),
-        (50, 30).into(),
-        (90, 90).into(),
-        (130, 30).into(),
-        (170, 70).into(),
-    ];
+    foliage.root::<Drawing>();
+    foliage.photosynthesize();
+}
 
-    let mut state: Option<Drawing> = None;
-    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
-        let state = state.get_or_insert_with(|| grow(canopy, &zigzag));
+impl Root for Drawing {
+    fn take_root(canopy: &mut Canopy) -> Self {
+        let zigzag: Vec<Position<foliage::Logical>> = vec![
+            (10, 90).into(),
+            (50, 30).into(),
+            (90, 90).into(),
+            (130, 30).into(),
+            (170, 70).into(),
+        ];
+        grow(canopy, &zigzag)
+    }
+    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
         for bloom in blooms {
             if let Bloom::Tween { tween, values } = bloom
-                && tween == state.cycle
+                && tween == self.cycle
             {
-                canopy.draw_progress(state.line, values[0]);
+                canopy.draw_progress(self.line, values[0]);
             }
         }
-    });
-    foliage.photosynthesize();
+    }
 }
 
 /// Sprout the tree on the first frame and keeps the two handles that matter.

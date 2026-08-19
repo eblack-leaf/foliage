@@ -8,8 +8,8 @@
 //! last part is what the floor of 3 used to exist for.
 
 use foliage::{
-    Canopy, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Line, Location,
-    Text, VerticalAlignment,
+    Bloom, Canopy, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Line,
+    Location, Root, Text, VerticalAlignment,
 };
 use foliage::{Grows, Sprout};
 
@@ -33,13 +33,15 @@ fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((460, TOP * 2 + ROW_H * WEIGHTS.len() as i32 + 24));
 
-    let mut grown = false;
-    foliage.define_frame(move |canopy: &mut Canopy, _blooms| {
-        if grown {
-            return;
-        }
-        grown = true;
+    foliage.root::<Weights>();
+    foliage.photosynthesize();
+}
 
+/// Nothing to keep: the rows are grown once and never change again.
+struct Weights;
+
+impl Root for Weights {
+    fn take_root(canopy: &mut Canopy) -> Self {
         for (i, weight) in WEIGHTS.into_iter().enumerate() {
             let row = TOP + i as i32 * ROW_H;
             let mid = row + ROW_H / 2;
@@ -73,6 +75,7 @@ fn main() {
                 );
             }
         }
-    });
-    foliage.photosynthesize();
+        Weights
+    }
+    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
 }
