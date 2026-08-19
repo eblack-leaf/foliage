@@ -1,5 +1,6 @@
 use crate::boundary::leaf::Leaf;
 use crate::boundary::op::Op;
+use crate::boundary::verbs::Queues;
 use crate::boundary::bloom::Bloom;
 use crate::coordinate::section::Section;
 use crate::{Layout, Logical, TimeDelta};
@@ -62,6 +63,23 @@ impl Sprig {
             .conditions
             .lock()
             .unwrap_or_else(|error| error.into_inner())
+    }
+    /// Asks to be told what one property of an element is, and told again whenever it
+    /// changes, as [`Bloom::Reading`].
+    ///
+    /// This is the read path for a thread that cannot sample: the value is pushed rather than
+    /// asked for, so nothing here borrows the world or waits on the frame. The first reading
+    /// arrives with the value as it already stands, so a watch does not have to be seeded by
+    /// waiting for something to move.
+    ///
+    /// Watching the same property twice is one watch, not two. It ends when the element
+    /// withers or [`unwatch`](Sprig::unwatch) says so.
+    pub fn watch(&mut self, leaf: Leaf, sap: crate::Sap) {
+        self.push(Op::Watch { leaf, sap });
+    }
+    /// Stops a [`watch`](Sprig::watch). Watching something never watched does nothing.
+    pub fn unwatch(&mut self, leaf: Leaf, sap: crate::Sap) {
+        self.push(Op::Unwatch { leaf, sap });
     }
     /// Hands over this frame's ambient state.
     pub(crate) fn publish(&self, conditions: Conditions) {

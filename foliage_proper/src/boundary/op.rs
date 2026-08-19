@@ -196,6 +196,16 @@ pub(crate) enum Op {
         leaf: Leaf,
         name: String,
     },
+    /// Start reporting one property of an element as [`Bloom::Reading`](crate::Bloom::Reading).
+    Watch {
+        leaf: Leaf,
+        sap: crate::Sap,
+    },
+    /// Stop reporting it.
+    Unwatch {
+        leaf: Leaf,
+        sap: crate::Sap,
+    },
     /// Presses and releases a point in this element's current section, given as a fraction of it.
     Click {
         leaf: Leaf,
@@ -241,6 +251,8 @@ impl Op {
             | Op::Animate { leaf, .. }
             | Op::Scroll { leaf, .. }
             | Op::Name { leaf, .. }
+            | Op::Watch { leaf, .. }
+            | Op::Unwatch { leaf, .. }
             | Op::ImageView { leaf, .. }
             | Op::RoundingSide { leaf, .. }
             | Op::LineConstraint { leaf, .. } => Some(*leaf),
@@ -349,6 +361,21 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
                 }
                 continue;
             }
+            // Watches live in a resource of their own rather than on the element, so they are
+            // answered here against the world directly, like a `Click`, and never reach the
+            // tree.
+            Op::Watch { leaf, sap } => {
+                world
+                    .resource_mut::<crate::boundary::watch::Watches>()
+                    .add(leaf, sap);
+                continue;
+            }
+            Op::Unwatch { leaf, sap } => {
+                world
+                    .resource_mut::<crate::boundary::watch::Watches>()
+                    .remove(leaf, sap);
+                continue;
+            }
             _ => {}
         }
         let mut tree = crate::AsTree::tree(world);
@@ -356,7 +383,9 @@ pub(crate) fn apply(world: &mut World, queue: &mut Vec<Op>) {
             // Answered above, against the `World` this `Tree` has now taken, and `continue`s
             // there. Spelled out rather than swept into a catch-all so that adding an op and
             // forgetting to apply it stays a compile error.
-            Op::Click { .. } => unreachable!("answered before the tree is taken"),
+            Op::Click { .. } | Op::Watch { .. } | Op::Unwatch { .. } => {
+                unreachable!("answered before the tree is taken")
+            }
             Op::Grow { leaf, spec, .. } => spec.grow(&mut tree, leaf.0, subject),
             Op::Prune(_) => tree.remove(subject.unwrap()),
             Op::Enable(_) => tree.enable(subject.unwrap()),

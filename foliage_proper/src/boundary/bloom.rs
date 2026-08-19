@@ -79,6 +79,22 @@ pub enum Bloom {
     AssetLoaded {
         key: AssetKey,
     },
+    /// What a watched property is now.
+    ///
+    /// The read path for a [`Sprig`](crate::Sprig), which has no world to sample: ask for one
+    /// with [`Sprig::watch`](crate::Sprig::watch) and this arrives once with the value as it
+    /// stands, then again each time it changes, until the element withers or
+    /// [`unwatch`](crate::Sprig::unwatch) stops it. Nothing is reported for a property that
+    /// held still, so a worker mirrors only what it asked about and only when it moved.
+    ///
+    /// A frame that samples has no use for it -- [`Canopy::sample`](crate::Canopy::sample)
+    /// answers on the spot -- but it is emitted into the one stream all the same, so a root
+    /// that wants the same value it is handing a worker can read it here.
+    Reading {
+        leaf: Leaf,
+        sap: crate::Sap,
+        value: crate::Sample<'static>,
+    },
     /// This element is gone -- pruned directly, or taken down with an ancestor. Terminal: the
     /// `Leaf` will never name anything again.
     Withered(Leaf),

@@ -9,6 +9,7 @@ use crate::{
     ResolvedVisibility, Section, Short, Text, Time, TimeDelta, View,
 };
 use bevy_ecs::system::{Query, Res, SystemParam};
+use std::borrow::Cow;
 
 /// Everything a frame may observe about the tree, in one read-only bundle.
 ///
@@ -88,20 +89,45 @@ pub enum Sap {
 }
 
 /// What a [`Sap`] reads back.
-#[derive(Clone, Debug)]
+///
+/// Borrowed where the tree can lend it, which is what makes sampling in the frame free. The
+/// two borrowing variants are [`Cow`]s so the same type can also be handed to a thread that
+/// has nothing to borrow from -- see [`into_owned`](Sample::into_owned) and
+/// [`Bloom::Reading`](crate::Bloom::Reading).
+#[derive(Clone, Debug, PartialEq)]
 pub enum Sample<'a> {
     Section(Section<Logical>),
     Position(Position<Logical>),
     Area(Area<Logical>),
-    Points(&'a [Position<Logical>]),
+    Points(Cow<'a, [Position<Logical>]>),
     Flag(bool),
     Scalar(f32),
     Pair(f32, f32),
     Size(u32),
     Color(Color),
-    Text(&'a str),
+    Text(Cow<'a, str>),
     Leaves(Vec<Leaf>),
     Leaf(Option<Leaf>),
+}
+
+impl Sample<'_> {
+    /// The same reading, owning whatever it was borrowing.
+    pub fn into_owned(self) -> Sample<'static> {
+        match self {
+            Sample::Section(v) => Sample::Section(v),
+            Sample::Position(v) => Sample::Position(v),
+            Sample::Area(v) => Sample::Area(v),
+            Sample::Points(v) => Sample::Points(Cow::Owned(v.into_owned())),
+            Sample::Flag(v) => Sample::Flag(v),
+            Sample::Scalar(v) => Sample::Scalar(v),
+            Sample::Pair(a, b) => Sample::Pair(a, b),
+            Sample::Size(v) => Sample::Size(v),
+            Sample::Color(v) => Sample::Color(v),
+            Sample::Text(v) => Sample::Text(Cow::Owned(v.into_owned())),
+            Sample::Leaves(v) => Sample::Leaves(v),
+            Sample::Leaf(v) => Sample::Leaf(v),
+        }
+    }
 }
 
 /// The frame surface: what happened, what things are, and what to do about it.
@@ -148,44 +174,7 @@ impl<'w, 's> Canopy<'w, 's> {
     /// Reads one property of an element, or `None` if it has withered, has not been grown
     /// yet, or simply does not carry that property.
     pub fn sample(&self, leaf: Leaf, what: Sap) -> Option<Sample<'_>> {
-        let entity = leaf.0;
-        let reads = &self.reads;
-        Some(match what {
-            Sap::Section => Sample::Section(*reads.sections.get(entity).ok()?),
-            Sap::Position => Sample::Position(reads.sections.get(entity).ok()?.position),
-            Sap::Area => Sample::Area(reads.sections.get(entity).ok()?.area),
-            Sap::LayoutSection => Sample::Section(reads.layout_sections.get(entity).ok()?.0),
-            Sap::Points => Sample::Points(reads.points.get(entity).ok()?.data.as_slice()),
-            Sap::Visible => Sample::Flag(reads.visibility.get(entity).ok()?.visible()),
-            Sap::Opacity => Sample::Scalar(reads.opacity.get(entity).ok()?.value),
-            Sap::Elevation => Sample::Scalar(reads.elevation.get(entity).ok()?.value()),
-            Sap::Text => Sample::Text(reads.text.get(entity).ok()?.value.as_str()),
-            Sap::Value => Sample::Text(reads.values.get(entity).ok()?.0.as_str()),
-            Sap::FontSize => Sample::Size(reads.font_sizes.get(entity).ok()?.xs),
-            Sap::Color => Sample::Color(*reads.colors.get(entity).ok()?),
-            Sap::Enabled => Sample::Flag(!reads.enabled.get(entity).ok()?.disabled()),
-            Sap::ScrollOffset => Sample::Position(reads.views.get(entity).ok()?.offset()),
-            Sap::ScrollExtent => Sample::Section(reads.views.get(entity).ok()?.extent()),
-            Sap::ScrollProgress => {
-                let progress = reads.progress.get(entity).ok()?;
-                Sample::Pair(progress.x(), progress.y())
-            }
-            // Only elements the app grew itself: the caret inside a text input is foliage's
-            // business, and reporting it would hand back a `Leaf` naming something the app
-            // never asked for and cannot meaningfully act on.
-            Sap::Children => Sample::Leaves(
-                reads
-                    .children
-                    .get(entity)
-                    .ok()?
-                    .ids
-                    .iter()
-                    .filter(|child| reads.grown.contains(**child))
-                    .map(|child| Leaf(*child))
-                    .collect(),
-            ),
-            Sap::Parent => Sample::Leaf(reads.parents.get(entity).ok()?.id.map(Leaf)),
-        })
+        sample(&self.reads, leaf, what)
     }
 
     /// The on-screen box `leaf` resolved to.
@@ -197,10 +186,7 @@ impl<'w, 's> Canopy<'w, 's> {
     }
     /// A text element's contents.
     pub fn text_of(&self, leaf: Leaf) -> Option<&str> {
-        match self.sample(leaf, Sap::Text)? {
-            Sample::Text(value) => Some(value),
-            _ => None,
-        }
+        Some(self.reads.text.get(leaf.0).ok()?.value.as_str())
     }
     /// A view's current scroll offset.
     pub fn scroll_offset(&self, leaf: Leaf) -> Option<Position<Logical>> {
@@ -264,4 +250,53 @@ impl<'w, 's> Canopy<'w, 's> {
     pub fn asset(&self, key: AssetKey) -> Option<Vec<u8>> {
         self.reads.assets.retrieve(key).map(|asset| asset.data)
     }
+}
+
+/// The one place a [`Sap`] turns into a [`Sample`].
+///
+/// Free rather than a method because two callers need it and only one of them has a `Canopy`:
+/// the frame samples through [`Canopy::sample`], and the watch reporter samples the same way
+/// on behalf of a thread that cannot hold one. Written once so the two can never drift.
+pub(crate) fn sample<'a>(reads: &'a Reads<'_, '_>, leaf: Leaf, what: Sap) -> Option<Sample<'a>> {
+    let entity = leaf.0;
+    Some(match what {
+        Sap::Section => Sample::Section(*reads.sections.get(entity).ok()?),
+        Sap::Position => Sample::Position(reads.sections.get(entity).ok()?.position),
+        Sap::Area => Sample::Area(reads.sections.get(entity).ok()?.area),
+        Sap::LayoutSection => Sample::Section(reads.layout_sections.get(entity).ok()?.0),
+        Sap::Points => Sample::Points(Cow::Borrowed(
+            reads.points.get(entity).ok()?.data.as_slice(),
+        )),
+        Sap::Visible => Sample::Flag(reads.visibility.get(entity).ok()?.visible()),
+        Sap::Opacity => Sample::Scalar(reads.opacity.get(entity).ok()?.value),
+        Sap::Elevation => Sample::Scalar(reads.elevation.get(entity).ok()?.value()),
+        Sap::Text => Sample::Text(Cow::Borrowed(
+            reads.text.get(entity).ok()?.value.as_str(),
+        )),
+        Sap::Value => Sample::Text(Cow::Borrowed(reads.values.get(entity).ok()?.0.as_str())),
+        Sap::FontSize => Sample::Size(reads.font_sizes.get(entity).ok()?.xs),
+        Sap::Color => Sample::Color(*reads.colors.get(entity).ok()?),
+        Sap::Enabled => Sample::Flag(!reads.enabled.get(entity).ok()?.disabled()),
+        Sap::ScrollOffset => Sample::Position(reads.views.get(entity).ok()?.offset()),
+        Sap::ScrollExtent => Sample::Section(reads.views.get(entity).ok()?.extent()),
+        Sap::ScrollProgress => {
+            let progress = reads.progress.get(entity).ok()?;
+            Sample::Pair(progress.x(), progress.y())
+        }
+        // Only elements the app grew itself: the caret inside a text input is foliage's
+        // business, and reporting it would hand back a `Leaf` naming something the app
+        // never asked for and cannot meaningfully act on.
+        Sap::Children => Sample::Leaves(
+            reads
+                .children
+                .get(entity)
+                .ok()?
+                .ids
+                .iter()
+                .filter(|child| reads.grown.contains(**child))
+                .map(|child| Leaf(*child))
+                .collect(),
+        ),
+        Sap::Parent => Sample::Leaf(reads.parents.get(entity).ok()?.id.map(Leaf)),
+    })
 }

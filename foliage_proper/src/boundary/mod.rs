@@ -21,6 +21,7 @@ pub(crate) mod root;
 pub(crate) mod sprig;
 pub(crate) mod tween;
 pub(crate) mod verbs;
+pub(crate) mod watch;
 
 use crate::boundary::bloom::Emissions;
 use crate::boundary::op::Spec;
@@ -33,6 +34,13 @@ pub(crate) struct Boundary;
 impl crate::Attachment for Boundary {
     fn attach(foliage: &mut Foliage) {
         foliage.world.insert_resource(Emissions::default());
+        foliage.world.insert_resource(watch::Watches::default());
+        // In `diff` rather than `main`: this runs after the frame's own commands have landed,
+        // so a watch reports the value the element settled on this frame rather than the one
+        // it held before the frame acted on it.
+        foliage
+            .diff
+            .add_systems(watch::report.in_set(crate::foliage::DiffMarkers::Prepare));
         // Alongside the component animations rather than after them: a tween's numbers and an
         // animated element's values belong to the same instant.
         foliage
