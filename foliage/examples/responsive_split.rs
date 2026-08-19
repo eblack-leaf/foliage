@@ -29,7 +29,7 @@ fn main() {
     foliage.desktop_size((720, 480));
 
     let mut grown = false;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, _blooms| {
         if grown {
             return;
         }
@@ -98,4 +98,5 @@ fn main() {
                 .align(HorizontalAlignment::Center, VerticalAlignment::Middle),
         );
     });
+    foliage.photosynthesize();
 }

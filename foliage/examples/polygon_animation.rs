@@ -51,7 +51,7 @@ fn main() {
     foliage.desktop_size((420, 200));
 
     let mut morphs: Vec<Morph> = Vec::new();
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
         if morphs.is_empty() {
             for (i, period) in [2400u64, 3000, 3600].into_iter().enumerate() {
                 let left = 40 + i as i32 * 130;
@@ -78,7 +78,7 @@ fn main() {
             }
         }
 
-        for bloom in canopy.take() {
+        for bloom in blooms {
             match bloom {
                 Bloom::Tween { tween, values } => {
                     if let Some(morph) = morphs.iter().find(|m| m.tween == tween) {
@@ -106,4 +106,5 @@ fn main() {
             }
         }
     });
+    foliage.photosynthesize();
 }

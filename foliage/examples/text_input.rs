@@ -27,9 +27,9 @@ fn main() {
     let dejavu = foliage.font(include_bytes!("DejaVuSansMono.ttf").as_slice());
 
     let mut boxes: Option<Boxes> = None;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
         let boxes = boxes.get_or_insert_with(|| grow(canopy, dejavu));
-        for bloom in canopy.take() {
+        for bloom in blooms {
             // The emission carries the new value, but sampling would answer just as well --
             // and does, for anything that did not change this frame.
             if let Bloom::TextChanged { leaf, value } = bloom

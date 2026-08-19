@@ -47,10 +47,11 @@ fn main() {
         }
     });
 
-    foliage.photosynthesize(move |_canopy: &mut Canopy| {
+    foliage.define_frame(move |_canopy: &mut Canopy, _blooms| {
         // Nothing to do here. Everything on screen is being driven from the worker, which is
         // the point: the frame closure is not where an app has to live.
     });
+    foliage.photosynthesize();
 }
 
 /// A bar `fraction` of the way up, in the `i`th column.

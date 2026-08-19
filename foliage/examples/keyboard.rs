@@ -23,9 +23,9 @@ fn main() {
     foliage.desktop_size((460, 200));
 
     let mut readout: Option<Readout> = None;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
         let readout = readout.get_or_insert_with(|| grow(canopy));
-        for bloom in canopy.take() {
+        for bloom in blooms {
             match bloom {
                 Bloom::Key { key, mods } => {
                     canopy.text(readout.logical, format!("key: {key:?}{}", modifiers(mods)));
@@ -47,6 +47,7 @@ fn main() {
             }
         }
     });
+    foliage.photosynthesize();
 }
 
 fn modifiers(mods: Modifiers) -> String {

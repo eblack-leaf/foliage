@@ -33,9 +33,9 @@ fn main() {
     ];
 
     let mut state: Option<Drawing> = None;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
         let state = state.get_or_insert_with(|| grow(canopy, &zigzag));
-        for bloom in canopy.take() {
+        for bloom in blooms {
             if let Bloom::Tween { tween, values } = bloom
                 && tween == state.cycle
             {
@@ -43,6 +43,7 @@ fn main() {
             }
         }
     });
+    foliage.photosynthesize();
 }
 
 /// Sprout the tree on the first frame and keeps the two handles that matter.

@@ -10,7 +10,7 @@ fn main() {
     foliage.desktop_size((300, 200));
 
     let mut grown = false;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, _blooms| {
         if grown {
             return;
         }
@@ -54,4 +54,5 @@ fn main() {
                 .opacity(0.6),
         );
     });
+    foliage.photosynthesize();
 }

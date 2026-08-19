@@ -25,10 +25,10 @@ fn main() {
     foliage.desktop_size((360, 420));
 
     let mut scene: Option<Scene> = None;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
         let scene = scene.get_or_insert_with(|| grow(canopy));
 
-        for bloom in canopy.take() {
+        for bloom in blooms {
             if let Bloom::Clicked(leaf) = bloom {
                 if leaf == scene.to_top {
                     canopy.scroll(scene.column, ScrollTo::y(0.0));
@@ -52,6 +52,7 @@ fn main() {
             }
         }
     });
+    foliage.photosynthesize();
 }
 
 fn grow(canopy: &mut Canopy) -> Scene {

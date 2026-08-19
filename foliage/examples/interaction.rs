@@ -25,9 +25,9 @@ fn main() {
     foliage.desktop_size((360, 220));
 
     let mut demo: Option<Demo> = None;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, blooms| {
         let demo = demo.get_or_insert_with(|| grow(canopy));
-        for bloom in canopy.take() {
+        for bloom in blooms {
             match bloom {
                 // One physical click can arrive for several elements; only ours matters.
                 Bloom::Clicked(leaf) if Some(leaf) == demo.target => {
@@ -61,6 +61,7 @@ fn main() {
             }
         }
     });
+    foliage.photosynthesize();
 }
 
 fn grow(canopy: &mut Canopy) -> Demo {
