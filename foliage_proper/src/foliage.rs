@@ -10,11 +10,7 @@ use crate::text::monospaced::{FontId, MonospacedFont};
 use crate::time::Time;
 use crate::virtual_keyboard::VirtualKeyboardAdapter;
 use crate::willow::Willow;
-use crate::{
-    AndroidConnection, Animate, Area, Attachment, Color, Disable, Elevation, Enable, Grid, Icon,
-    Image, Interaction, Line, Location, Named, Opacity, Panel, Physical, Polygon, Resource,
-    SystemSet, Text, TextInput, Visibility,
-};
+use crate::{AndroidConnection, Animate, Area, Attachment, Bloom, Color, Disable, Elevation, Enable, Grid, Icon, Image, Interaction, Line, Location, Named, Opacity, Panel, Physical, Polygon, Resource, SystemSet, Text, TextInput, Visibility};
 use crate::{Canopy, Sprig};
 use bevy_ecs::component::Component;
 use bevy_ecs::message::{Message, MessageRegistry, Messages, message_update_system};
@@ -45,7 +41,7 @@ pub struct Foliage {
     /// the world -- so handing it a `Canopy` borrowed from that same world is a plain
     /// reborrow, with no interior-mutability dance to arrange it.
     #[allow(clippy::type_complexity)]
-    pub(crate) frame: Option<Box<dyn FnMut(&mut Canopy<'_, '_>)>>,
+    pub(crate) frame: Option<Box<dyn FnMut(&mut Canopy<'_, '_>, Vec<Bloom>)>>,
     /// Read state for the frame closure, kept across frames so its query caches persist.
     pub(crate) reads: Option<SystemState<crate::boundary::canopy::Reads<'static, 'static>>>,
     /// This frame's commands, drained into the world after the closure returns.
@@ -227,10 +223,9 @@ impl Foliage {
             let mut canopy = Canopy {
                 reads,
                 queue: &mut self.ops,
-                blooms,
                 allocator: self.sprig.allocator(),
             };
-            frame(&mut canopy);
+            frame(&mut canopy, blooms);
         }
         self.reads = Some(reads);
         self.frame = Some(frame);
@@ -246,17 +241,7 @@ impl Foliage {
     }
     /// Runs the app, calling `frame` once per frame -- after the engine has settled and
     /// before anything is drawn. Does not return.
-    ///
-    /// The closure is where an app lives: it takes this frame's emissions, samples whatever
-    /// it needs, and issues commands, which are applied in the order written as soon as it
-    /// returns. It stays on this thread deliberately -- that is what lets it hold a
-    /// [`Canopy`] and read live state directly instead of asking and waiting. For work that
-    /// belongs on another thread, take a [`Sprig`](Self::sprig) before calling this.
-    pub fn photosynthesize<F: FnMut(&mut Canopy<'_, '_>) + 'static>(mut self, frame: F) {
-        self.frame = Some(Box::new(frame));
-        self.run();
-    }
-    fn run(mut self) {
+    pub fn photosynthesize(mut self) {
         // winit's android backend has nothing to poll events from without the `AndroidApp`
         // handle threaded through at event-loop construction -- `EventLoop::new()` alone
         // panics there. Every other platform has no such handle to give it.
@@ -285,6 +270,14 @@ impl Foliage {
                 event_loop_function(event_loop, &mut self).expect("event-loop-run-app");
             }
         }
+    }
+    /// The closure is where an app lives: it takes this frame's emissions, samples whatever
+    /// it needs, and issues commands, which are applied in the order written as soon as it
+    /// returns. It stays on this thread deliberately -- that is what lets it hold a
+    /// [`Canopy`] and read live state directly instead of asking and waiting. For work that
+    /// belongs on another thread, take a [`Sprig`](Self::sprig) before calling this.
+    pub fn define_frame<F: FnMut(&mut Canopy<'_, '_>, Vec<Bloom>) + 'static>(&mut self, frame: F) {
+        self.frame = Some(Box::new(frame));
     }
     /// Requests an initial window size on desktop. Ignored where the platform owns the
     /// window's size.

@@ -1,4 +1,3 @@
-use crate::boundary::bloom::Bloom;
 use crate::boundary::leaf::{Grown, Leaf, Presence};
 use crate::boundary::op::Op;
 use crate::coordinate::area::Area;
@@ -116,7 +115,6 @@ pub enum Sample<'a> {
 pub struct Canopy<'w, 's> {
     pub(crate) reads: Reads<'w, 's>,
     pub(crate) queue: &'w mut Vec<Op>,
-    pub(crate) blooms: Vec<Bloom>,
     /// Shared with every [`Sprig`](crate::Sprig), so a name allocated here and one allocated
     /// on another thread can never be the same name.
     pub(crate) allocator: bevy_ecs::entity::RemoteAllocator,
@@ -132,13 +130,6 @@ impl crate::boundary::verbs::Queues for Canopy<'_, '_> {
 }
 
 impl<'w, 's> Canopy<'w, 's> {
-    /// Takes this frame's emissions. Moved rather than lent, so the usual
-    /// `for bloom in canopy.take() { canopy.text(..) }` needs no dance to satisfy the
-    /// borrow checker.
-    pub fn take(&mut self) -> Vec<Bloom> {
-        core::mem::take(&mut self.blooms)
-    }
-
     /// What `leaf` names right now.
     ///
     /// Told apart by the id itself: a name that was never spawned and one whose element has

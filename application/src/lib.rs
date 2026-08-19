@@ -1,4 +1,4 @@
-use foliage::{Canopy, ClearColor, Foliage};
+use foliage::{Bloom, Canopy, ClearColor, Foliage};
 
 mod entry;
 #[path = "assets/icons/gen/generated.rs"]
@@ -30,11 +30,12 @@ pub fn run(mut foliage: Foliage) {
     // Everything else is the app, and the app is a struct plus a closure. Nothing here is
     // handed to the engine, and the engine has no way to reach it.
     let mut site: Option<entry::Site> = None;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
+    foliage.define_frame(move |canopy: &mut Canopy, blooms: Vec<Bloom>| {
         let site = site.get_or_insert_with(|| entry::Site::grow(canopy));
-        for bloom in canopy.take() {
+        for bloom in blooms {
             site.respond(canopy, bloom);
         }
         site.tick(canopy);
     });
+    foliage.photosynthesize();
 }
