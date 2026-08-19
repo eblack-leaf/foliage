@@ -54,7 +54,7 @@ fn main() {
         let mut step = 0usize;
         let mut held: Option<usize> = None;
         loop {
-            std::thread::sleep(Duration::from_millis(90));
+            std::thread::sleep(Duration::from_millis(50));
             step += 1;
 
             // The other direction. `blooms` hands over everything the tree reported since the
