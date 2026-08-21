@@ -7,16 +7,6 @@ reach for**, and **the invariants that span modules** and so have no single item
 
 Nothing below lists signatures. Signatures rot; a map does not.
 
-**Scope: this is for building an app on top of Foliage, not for modifying Foliage itself.** An
-app depends on the `foliage` crate, which is `pub use foliage_proper::*` and nothing else
-(`foliage/src/lib.rs`) — the complete list of every `pub` item in `foliage_proper/src/lib.rs`'s
-own `pub use` block *is* the whole reachable surface, structurally, not just by convention. Every
-other file under `foliage_proper/src/` — `boundary/op.rs`, `ash/`, `interaction/mod.rs`'s
-hit-testing, a composite widget's own internal entities (`TextInput`'s field/cursor/handle) — is
-`pub(crate)`: invisible to app code, not just discouraged. If a question about *using* the
-library leads there, that is the rabbit hole, not the answer — the fix is almost always a missing
-line in this file, not a longer read of engine source. (Modifying the engine itself is a
-different task with a different map; this one isn't it.)
 
 ## The shape of an app
 
@@ -27,21 +17,22 @@ pub fn run(mut foliage: Foliage) {
     foliage.tune(ClearColor(some_color));
     icons::register(&mut foliage);   // startup-only: takes &mut Foliage
     fonts::register(&mut foliage);   // ditto
-
-    let mut app: Option<App> = None;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
-        let app = app.get_or_insert_with(|| App::grow(canopy));
-        for bloom in canopy.take() {
-            app.respond(canopy, bloom);
-        }
-        app.tick(canopy);
-    });
+    foliage.root::<App>();
+    foliage.photosynthesize();
+}
+struct App { /*...*/ }
+impl Root for App {
+  fn take_root(canopy: &mut Canopy) -> Self { /* one time boot; good for init */ }
+  fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
+    // see if a Bloom::Clicked(leaf) was emitted and matches my widget.leaf
+    if self.widget.clicked(&blooms) { /* ... */ } // read from blooms as needed
+  }
 }
 ```
 
 Registration (fonts, icons, assets, `tune`) happens **before** `photosynthesize` and only there —
 it needs `&mut Foliage`, which stops existing once the loop takes it. Everything after is the
-closure: drain emissions, then do per-frame work.
+event loop: drain emissions, then do per-frame work.
 
 ## Three surfaces, and which one you want
 

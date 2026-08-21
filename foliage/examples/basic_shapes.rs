@@ -1,8 +1,6 @@
 //! `Panel` + `Polygon` (sides/rounding variants) + a plain `Line` -- the framework's
 //! smallest possible visual vocabulary. Run with `cargo run --example basic_shapes -p foliage`.
 //!
-//! Nothing exists before the loop starts: the tree is grown on the first frame, from inside
-//! the closure, which is the only place an app ever touches foliage.
 
 use foliage::{
     Bloom, Canopy, Color, Elevation, Foliage, GridExt, Line, Location, Panel, Polygon, Root,

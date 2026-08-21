@@ -20,38 +20,22 @@ foliage = { git = "https://github.com/eblack-leaf/foliage" }
 use foliage::{
     Canopy, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Rounding, Sprout,
 };
-
+struct App;
+impl Root for App {
+  fn take_root(canopy: &mut Canopy) -> Self {
+    // ... oneshot to create app structure
+  }
+  fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
+    // ... per frame | events from blooms
+  }
+}
 fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((300, 200));
-
-    // Hands off to the window/event loop. The closure runs once per frame, and is the only
-    // place an app ever touches foliage.
-    let mut grown = false;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
-        if grown {
-            return;
-        }
-        grown = true;
-        canopy.leaf(
-            Panel::new()
-                .color(Color::green(500))
-                .rounding(Rounding::Sm)
-                .at(Location::new().xs(
-                    8.px().as_left().with(160.px().as_width()),
-                    8.px().as_top().with(52.px().as_height()),
-                ))
-                .elevate(Elevation::up(1)),
-        );
-    });
+    foliage.root::<App>();
+    foliage.photosynthesize();
 }
 ```
-
-Nothing exists before the loop starts: the tree is grown on the first frame, from inside the
-closure. `canopy.leaf(..)` grows an element at the top level (no parent) and hands back a
-`Leaf` naming it. `Panel::new()` returns a `PanelSprout` -- a config value, not yet an entity
--- and `.color(..)`/`.at(..)`/`.elevate(..)` all just set fields on it; it becomes a real
-element only once handed to `leaf`/`branch`.
 
 Runnable examples live in [`foliage/examples`](foliage/examples) --
 `cargo run --example basic_shapes -p foliage` is a good first one, and `interaction`,
@@ -67,53 +51,52 @@ keys, finished animations, resizes -- arrives as a `Bloom` from `canopy.take()`:
 ```rust
 use foliage::{
     Bloom, Canopy, Color, Elevation, Foliage, Grid, GridExt, Grows, Leaf, Location, Panel,
-    Rounding, Sprout,
+    Rounding, Sprout, Root
 };
-
+struct App { overlay: Leaf }
+impl Root for App {
+  fn take_root(canopy: &mut Canopy) -> Self {
+    let base = canopy.leaf(
+      Panel::new()
+              .color(Color::orange(700))
+              .at(Location::new().xs(
+                20.px().as_left().with(140.px().as_width()),
+                20.px().as_top().with(140.px().as_height()),
+              ))
+              .elevate(Elevation::up(1))
+              .grid(Grid::default()), // children resolve their Location against this
+    );
+    let overlay = canopy.branch(
+      base, // stemmed to `base` -- moves, clips and withers with it
+      Panel::new()
+              .color(Color::green(500))
+              .rounding(Rounding::Sm)
+              .at(Location::new().xs(
+                50.px().as_left().with(60.px().as_width()),
+                50.px().as_top().with(60.px().as_height()),
+              ))
+              .elevate(Elevation::up(1)) // one layer in front of its stem
+              .interactive(), // what puts it in the hit test at all
+    );
+    App { overlay }
+  }
+  fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
+    for b in blooms {
+      if let Bloom::Clicked(leaf) = b {
+        if leaf == self.overlay {
+          // ... process clicked
+        }
+      }
+    }
+  }
+}
 fn main() {
     let mut foliage = Foliage::new();
     foliage.desktop_size((200, 200));
-
-    let mut overlay: Option<Leaf> = None;
-    foliage.photosynthesize(move |canopy: &mut Canopy| {
-        let overlay = *overlay.get_or_insert_with(|| grow(canopy));
-        for bloom in canopy.take() {
-            // One physical click emits for every pass-through element the gesture crossed,
-            // so several per frame is normal -- only ours matters here.
-            if let Bloom::Clicked(leaf) = bloom
-                && leaf == overlay
-            {
-                canopy.color(overlay, Color::gray(200));
-            }
-        }
-    });
+    foliage.root::<App>();
+    foliage.photosynthesize();
 }
 
-/// Grows the pair and hands back the name of the one that reacts.
-fn grow(canopy: &mut Canopy) -> Leaf {
-    let base = canopy.leaf(
-        Panel::new()
-            .color(Color::orange(700))
-            .at(Location::new().xs(
-                20.px().as_left().with(140.px().as_width()),
-                20.px().as_top().with(140.px().as_height()),
-            ))
-            .elevate(Elevation::up(1))
-            .grid(Grid::default()), // children resolve their Location against this
-    );
-    canopy.branch(
-        base, // stemmed to `base` -- moves, clips and withers with it
-        Panel::new()
-            .color(Color::green(500))
-            .rounding(Rounding::Sm)
-            .at(Location::new().xs(
-                50.px().as_left().with(60.px().as_width()),
-                50.px().as_top().with(60.px().as_height()),
-            ))
-            .elevate(Elevation::up(1)) // one layer in front of its stem
-            .interactive(), // what puts it in the hit test at all
-    )
-}
 ```
 
 `Elevation::up(n)`/`abs(n)` set draw order relative to a stem or absolute. After the initial
