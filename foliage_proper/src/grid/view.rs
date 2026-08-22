@@ -445,7 +445,7 @@ fn ovrscrl(
     grown: &Query<&crate::boundary::leaf::Grown>,
     emissions: &mut crate::boundary::bloom::Emissions,
     propagations: &Query<&OverscrollPropagation>,
-    contexts: &Query<(Entity, Ref<Parent>)>,
+    contexts: &Query<(Entity, Ref<Parent>, Ref<crate::ResolvedVisibility>)>,
     sections: &Query<(Entity, Ref<Section<Logical>>)>,
     to_trigger: &mut HashSet<Entity>,
 ) -> (Option<Entity>, Position<Logical>) {
@@ -536,7 +536,7 @@ pub(crate) fn extent_check(
     grown: Query<&crate::boundary::leaf::Grown>,
     mut emissions: ResMut<crate::boundary::bloom::Emissions>,
     propagations: Query<&OverscrollPropagation>,
-    contexts: Query<(Entity, Ref<Parent>)>,
+    contexts: Query<(Entity, Ref<Parent>, Ref<crate::ResolvedVisibility>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
     clip_to_viewport: Query<&ClipToViewport>,
     mut scrolled: ResMut<ScrolledViews>,
@@ -552,8 +552,14 @@ pub(crate) fn extent_check(
         tracing::trace!(entity = ?entity, request = ?request, "grid::view: extent_check_v2 saw changed ScrollTo");
         to_check.insert(entity);
     }
-    for (_entity, context) in contexts.iter() {
-        if context.is_changed() {
+    // A hide usually arrives as a changed `Section` below: it re-resolves the entity's
+    // `Location`, and the `Section` that resolve writes is what marks the parent. Hiding
+    // something that is *already* auto-hidden writes no `Section` at all -- the resolve fails
+    // again and returns before it gets there -- so the visibility flip is the only signal that
+    // the entity's box just left the extent. `ResolvedVisibility` is written only on a real
+    // flip, so this rides along on a scan that was already happening.
+    for (_entity, context, visibility) in contexts.iter() {
+        if context.is_changed() || visibility.is_changed() {
             if let Some(id) = context.id {
                 to_check.insert(id);
             }
@@ -561,7 +567,7 @@ pub(crate) fn extent_check(
     }
     for (entity, section) in sections.iter() {
         if section.is_changed() {
-            if let Ok((_, context)) = contexts.get(entity) {
+            if let Ok((_, context, _)) = contexts.get(entity) {
                 if let Some(id) = context.id {
                     to_check.insert(id);
                 }
@@ -586,7 +592,7 @@ pub(crate) fn extent_check(
             "grid::view: extent reset to own section (pre-regrow)"
         );
     }
-    for (entity, context) in contexts.iter() {
+    for (entity, context, visibility) in contexts.iter() {
         if let Some(id) = context.id {
             if to_check.contains(&id) {
                 // a `ClipToViewport` child is a floating overlay, not really "contained
@@ -598,6 +604,16 @@ pub(crate) fn extent_check(
                 // renders, falsely reporting scrollable room it was never meant to have
                 // (concretely: Dropdown's trigger vs. its own option-list surface).
                 if clip_to_viewport.get(entity).is_ok() {
+                    continue;
+                }
+                // An authored hide takes the entity out of the content, so the scroll bounds
+                // shrink to match -- and since this loop only walks direct children, skipping
+                // one takes its whole subtree with it. Deliberately *not*
+                // `ResolvedVisibility::visible`: an entity the engine auto-hid (a `Location`
+                // that did not resolve) is still content, and dropping it would shrink the
+                // extent out from under the very box that is waiting to be pushed back into
+                // it. See `ResolvedVisibility::user_visible`.
+                if !visibility.user_visible() {
                     continue;
                 }
                 if let Ok(mut view) = views.get_mut(id) {

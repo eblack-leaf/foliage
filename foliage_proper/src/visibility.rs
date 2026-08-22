@@ -67,6 +67,7 @@ impl Visibility {
                 this,
                 InheritedVisibility {
                     visible: resolved.visible,
+                    user_visible: resolved.user_visible,
                 },
             );
         }
@@ -91,6 +92,7 @@ impl Visibility {
         let auto = auto.get(this).unwrap();
         let resolved = ResolvedVisibility {
             visible: inherited.visible && current.visible && auto.visible,
+            user_visible: inherited.user_visible && current.visible,
         };
         let cached = cached.get(this).unwrap();
         tracing::trace!(
@@ -99,16 +101,21 @@ impl Visibility {
             current = current.visible,
             auto = auto.visible,
             resolved = resolved.visible,
+            user_visible = resolved.user_visible,
             was_cached = cached.visible,
             "visibility: resolved"
         );
-        if cached.visible != resolved.visible {
+        // Both fields, not just `visible`: hiding something that is *already* auto-hidden
+        // flips only `user_visible`, and a guard on `visible` alone would write nothing and
+        // cascade nothing -- leaving the author's hide with no effect on the extent.
+        if cached.visible != resolved.visible || cached.user_visible != resolved.user_visible {
             tree.write_to(
                 this,
                 (
                     resolved,
                     CachedVisibility {
                         visible: resolved.visible,
+                        user_visible: resolved.user_visible,
                     },
                 ),
             );
@@ -128,6 +135,7 @@ impl Visibility {
                     d,
                     InheritedVisibility {
                         visible: resolved.visible,
+                        user_visible: resolved.user_visible,
                     },
                 );
             }
@@ -188,10 +196,14 @@ impl Default for AutoVisibility {
 #[derive(Component, Copy, Clone)]
 pub(crate) struct CachedVisibility {
     pub(crate) visible: bool,
+    pub(crate) user_visible: bool,
 }
 impl Default for CachedVisibility {
     fn default() -> Self {
-        Self { visible: true }
+        Self {
+            visible: true,
+            user_visible: true,
+        }
     }
 }
 impl Default for Visibility {
@@ -206,10 +218,16 @@ impl Default for Visibility {
 #[component(on_insert = Visibility::on_insert)]
 pub struct InheritedVisibility {
     visible: bool,
+    /// The ancestors' *authored* answer alone, with every engine veto left out -- see
+    /// [`ResolvedVisibility::user_visible`].
+    user_visible: bool,
 }
 impl Default for InheritedVisibility {
     fn default() -> Self {
-        Self { visible: true }
+        Self {
+            visible: true,
+            user_visible: true,
+        }
     }
 }
 /// Whether this entity is actually drawn: its own [`Visibility`], every ancestor's, and
@@ -219,15 +237,31 @@ impl Default for InheritedVisibility {
 #[derive(Copy, Clone, Ord, PartialOrd, PartialEq, Eq, Hash, Component)]
 pub struct ResolvedVisibility {
     visible: bool,
+    user_visible: bool,
 }
 impl ResolvedVisibility {
     /// `true` when this entity is drawn and hit-tested.
     pub fn visible(&self) -> bool {
         self.visible
     }
+    /// The same chain as [`visible`](Self::visible) with [`AutoVisibility`] left out: `false`
+    /// only when the author hid this entity, an ancestor, or its anchor target.
+    ///
+    /// This is what decides whether an entity takes up room in its view's scrollable extent
+    /// (`grid::view::extent_check`). The two answers differ deliberately. An author's hide
+    /// means "this is not part of the content", so the scroll bounds shrink to match. The
+    /// engine's own veto means "there is no box to draw here *yet*" -- a `Location` that did
+    /// not resolve -- and the content is still there, so it keeps its room and the extent
+    /// stays somewhere the entity can be pushed back into.
+    pub fn user_visible(&self) -> bool {
+        self.user_visible
+    }
 }
 impl Default for ResolvedVisibility {
     fn default() -> Self {
-        Self { visible: true }
+        Self {
+            visible: true,
+            user_visible: true,
+        }
     }
 }
