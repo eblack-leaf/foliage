@@ -133,6 +133,20 @@ impl Visibility {
             }
         }
     }
+    /// Keeps the renderer's `hidden` lane meaning *hidden when the frame reached the
+    /// renderer*, rather than *passed through hidden on the way there*.
+    ///
+    /// Both directions are needed because one frame can flip visibility more than once --
+    /// a pooled widget parked and then claimed again in the same frame is hidden, then
+    /// shown. Queueing only the hide leaves the entity queued for removal while it is
+    /// visible, and `RenderQueueHandle::attribute` *discards* this frame's packets for
+    /// anything queued. Nothing re-sends them: the `Differential` caches were filled by
+    /// the same pass that queued them, so the values never look changed again. A `Text`
+    /// that loses `ResolvedFontSize` this way goes on to build a render group with no
+    /// `TextureAtlas` behind it.
+    ///
+    /// Only this lane is retracted -- a despawn is not something a later show can take
+    /// back.
     pub(crate) fn push_remove_packet<R: Clone + Send + Sync + 'static>(
         trigger: Trigger<Resolved<Visibility>>,
         visibilities: Query<&ResolvedVisibility>,
@@ -140,7 +154,11 @@ impl Visibility {
     ) {
         let value = visibilities.get(trigger.event_target()).unwrap();
         if !value.visible {
-            queue.queue.insert(trigger.event_target());
+            queue.hidden.insert(trigger.event_target());
+        } else {
+            // Shown again before the renderer ever saw the hide, so there is nothing to
+            // tear down.
+            queue.hidden.remove(&trigger.event_target());
         }
     }
 }

@@ -121,18 +121,31 @@ impl<R: Clone + Send + Sync + 'static, RP: Clone + Send + Sync + 'static> Render
     }
 }
 
+/// What `R`'s pipeline must tear down this frame, kept in two lanes by who asked.
+///
+/// `hidden` is retractable: visibility can flip more than once in a frame, and only where
+/// it lands matters to the renderer. `despawned` is not -- the entity is gone, and no later
+/// event in the same frame can make dropping it wrong. Held apart because the queue is
+/// keyed by entity alone, so a single set would let a re-show cancel a despawn and strand
+/// the entity's group on the GPU with nothing left to remove it.
 #[derive(Resource)]
 pub(crate) struct RenderRemoveQueue<R: Clone + Send + Sync + 'static> {
-    pub(crate) queue: HashSet<Entity>,
+    pub(crate) hidden: HashSet<Entity>,
+    pub(crate) despawned: HashSet<Entity>,
     _phantom: PhantomData<R>,
 }
 
 impl<R: Clone + Send + Sync + 'static> RenderRemoveQueue<R> {
     pub(crate) fn new() -> Self {
         Self {
-            queue: HashSet::new(),
+            hidden: HashSet::new(),
+            despawned: HashSet::new(),
             _phantom: Default::default(),
         }
+    }
+    /// Everything to be torn down, whichever lane asked for it.
+    fn all(&self) -> HashSet<Entity> {
+        self.hidden.union(&self.despawned).copied().collect()
     }
 }
 pub(crate) struct RenderQueueHandle<'a> {
@@ -148,18 +161,18 @@ impl<'a> RenderQueueHandle<'a> {
         self.world
             .get_resource::<RenderRemoveQueue<R>>()
             .unwrap()
-            .queue
-            .iter()
-            .copied()
+            .all()
+            .into_iter()
             .collect()
     }
     /// Ends the frame for `R`'s removals. Called once, after every pipeline has prepared.
     pub(crate) fn clear_removes<R: Clone + Send + Sync + 'static>(&mut self) {
-        self.world
+        let mut queue = self
+            .world
             .get_resource_mut::<RenderRemoveQueue<R>>()
-            .unwrap()
-            .queue
-            .clear();
+            .unwrap();
+        queue.hidden.clear();
+        queue.despawned.clear();
     }
     pub(crate) fn remove_attr<
         R: Clone + Send + Sync + 'static,
@@ -192,7 +205,7 @@ impl<'a> RenderQueueHandle<'a> {
         let removed = self
             .world
             .get_resource::<RenderRemoveQueue<R>>()
-            .map(|q| q.queue.clone())
+            .map(|q| q.all())
             .unwrap_or_default();
         self.world
             .get_resource_mut::<RenderQueue<R, RP>>()

@@ -20,7 +20,7 @@ impl Remove {
         trigger: Trigger<Self>,
         mut queue: ResMut<RenderRemoveQueue<R>>,
     ) {
-        queue.queue.insert(trigger.event_target());
+        queue.despawned.insert(trigger.event_target());
     }
     fn observer(
         trigger: Trigger<Self>,
