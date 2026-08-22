@@ -10,7 +10,7 @@ use crate::opacity::BlendedOpacity;
 use crate::remove::Remove;
 use crate::{
     AssetKey, Attachment, Author, Color, Component, Differential, Foliage, LeafSprout, Logical,
-    ResolvedElevation, Section, Tree, Visibility,
+    ResolvedElevation, ResolvedVisibility, Section, Tree, Visibility,
 };
 use bevy_ecs::bundle::Bundle;
 use bevy_ecs::entity::Entity;
@@ -135,6 +135,27 @@ impl Icon {
     /// resent through the *normal* queue path -- exactly like any entity entering the render
     /// queue for the first time -- or the new group's instance never receives them (nothing
     /// else changed this frame to trigger their own differentials).
+    ///
+    /// # Invisible icons are skipped, and must be
+    ///
+    /// This writes straight into the render queues, bypassing [`cached_differential`], so it has
+    /// to honour that function's gates itself. The load-bearing one is visibility: an invisible
+    /// entity queues *nothing* there, `Icon` included -- and `Icon` is the only attribute that
+    /// creates the entity's render group (`pipeline::prepare`'s id loop is what fills
+    /// `entity_to_group`). Queue a `Section` for an icon that never got a group and the section
+    /// loop's lookup finds nothing.
+    ///
+    /// Note the trigger is `Changed<Icon>`, not "the id differs" -- `Icon::apply_icon_value`
+    /// writes the component unconditionally, so `Canopy::icon` fires this even when handed the id
+    /// already there. That made *any* icon write to an element inside a hidden subtree panic the
+    /// renderer, which is reachable from safe user code: a pane built up-front and shown later is
+    /// the ordinary case, not an exotic one.
+    ///
+    /// Skipping loses nothing. When the entity becomes visible again, `cached_differential`'s
+    /// visibility-restore branch re-queues every attribute it owns -- and because
+    /// `differential::<Icon, Icon>` is registered alongside the rest, that includes the id, so the
+    /// group is created before the section is read. Restore reads the live component rather than
+    /// the cache, so an id written while hidden is the one that arrives.
     fn resend_attributes_on_group_change(
         changed: Query<
             (
@@ -144,6 +165,7 @@ impl Icon {
                 &ClipContext,
                 &Color,
                 &BlendedOpacity,
+                &ResolvedVisibility,
             ),
             Changed<Icon>,
         >,
@@ -153,7 +175,13 @@ impl Icon {
         mut colors: ResMut<RenderQueue<Icon, Color>>,
         mut opacities: ResMut<RenderQueue<Icon, BlendedOpacity>>,
     ) {
-        for (entity, section, elevation, clip, color, opacity) in changed.iter() {
+        for (entity, section, elevation, clip, color, opacity, visibility) in changed.iter() {
+            // Requiring `&ResolvedVisibility` in the query rather than taking it as an `Option`
+            // is deliberate: an entity that has not resolved one yet is skipped here exactly as
+            // `cached_differential` skips it, so the two cannot disagree about who is queued.
+            if !visibility.visible() {
+                continue;
+            }
             sections.queue.insert(entity, *section);
             elevations.queue.insert(entity, *elevation);
             clips.queue.insert(entity, *clip);
