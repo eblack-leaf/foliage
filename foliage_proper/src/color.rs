@@ -224,8 +224,8 @@ impl Color {
     color_fn!(zinc: tailwind::ZINC_50, tailwind::ZINC_100, tailwind::ZINC_200, tailwind::ZINC_300, tailwind::ZINC_400, tailwind::ZINC_500, tailwind::ZINC_600, tailwind::ZINC_700, tailwind::ZINC_800, tailwind::ZINC_900, tailwind::ZINC_950);
     color_fn!(neutral: tailwind::NEUTRAL_50, tailwind::NEUTRAL_100, tailwind::NEUTRAL_200, tailwind::NEUTRAL_300, tailwind::NEUTRAL_400, tailwind::NEUTRAL_500, tailwind::NEUTRAL_600, tailwind::NEUTRAL_700, tailwind::NEUTRAL_800, tailwind::NEUTRAL_900, tailwind::NEUTRAL_950);
     color_fn!(stone: tailwind::STONE_50, tailwind::STONE_100, tailwind::STONE_200, tailwind::STONE_300, tailwind::STONE_400, tailwind::STONE_500, tailwind::STONE_600, tailwind::STONE_700, tailwind::STONE_800, tailwind::STONE_900, tailwind::STONE_950);
-    // Families beyond the Tailwind set, on the same eleven-step scale -- see
-    // [`crate::palette`] for what they are and how each step was placed.
+    // Families beyond the Tailwind set, on the same eleven-step scale. Each one's hue and
+    // chroma are calibrated against a reference hex for its name -- see [`crate::palette`].
     color_fn!(sand: palette::SAND_50, palette::SAND_100, palette::SAND_200, palette::SAND_300, palette::SAND_400, palette::SAND_500, palette::SAND_600, palette::SAND_700, palette::SAND_800, palette::SAND_900, palette::SAND_950);
     color_fn!(khaki: palette::KHAKI_50, palette::KHAKI_100, palette::KHAKI_200, palette::KHAKI_300, palette::KHAKI_400, palette::KHAKI_500, palette::KHAKI_600, palette::KHAKI_700, palette::KHAKI_800, palette::KHAKI_900, palette::KHAKI_950);
     color_fn!(olive: palette::OLIVE_50, palette::OLIVE_100, palette::OLIVE_200, palette::OLIVE_300, palette::OLIVE_400, palette::OLIVE_500, palette::OLIVE_600, palette::OLIVE_700, palette::OLIVE_800, palette::OLIVE_900, palette::OLIVE_950);
