@@ -17,6 +17,16 @@ pub(crate) struct Willow {
     pub(crate) min_size: Option<Area<Physical>>,
     pub(crate) requested_size: Option<Area<Physical>>,
     pub(crate) title: Option<String>,
+    /// How the desktop identifies this *application*, as against how it labels this *window*.
+    ///
+    /// Not interchangeable with [`Willow::title`]. A title is prose shown to a person and free to
+    /// change while the app runs; this is a stable identifier a shell matches against the
+    /// `.desktop` file that launched it, to tie a running window back to its entry.
+    ///
+    /// Left unset no identity is published at all, and the consequence is not a missing name --
+    /// it is that a shell has no way to recognise the window as the application the user
+    /// launched, so it draws a second, generic icon beside the one they clicked.
+    pub(crate) app_id: Option<String>,
     /// Only read by `requested_area`, which is desktop-only.
     #[allow(dead_code)]
     pub(crate) max_size: Option<Area<Physical>>,
@@ -63,6 +73,32 @@ impl Willow {
             .with_title(self.title.clone().unwrap_or_default())
             .with_resizable(self.resizable.unwrap_or(true))
             .with_min_inner_size(self.min_size.unwrap_or(Area::physical((290, 290))));
+        // Publish the application identity, where the platform has one.
+        //
+        // One call covers both display servers. The trait is spelled `...ExtWayland`, but the
+        // field it writes -- `platform_specific.name` -- is shared by the whole Linux backend, so
+        // the same value becomes the `xdg_toplevel` app_id under Wayland and the `WM_CLASS` pair
+        // under X11. Calling the X11 trait as well would overwrite it with itself.
+        //
+        // Winit publishes nothing here unless asked, and an absent app_id is not a cosmetic gap:
+        // it is what makes a desktop unable to match the window to the `.desktop` entry that
+        // started it. `general` and `instance` are given the same string, which is what a
+        // single-window application wants -- the distinction only matters to apps that run several
+        // kinds of window under one identity.
+        #[cfg(any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd",
+            target_os = "openbsd",
+        ))]
+        let attributes = match &self.app_id {
+            Some(app_id) => {
+                use winit::platform::wayland::WindowAttributesExtWayland;
+                attributes.with_name(app_id.clone(), app_id.clone())
+            }
+            None => attributes,
+        };
         #[cfg(all(
             not(target_family = "wasm"),
             not(target_os = "android"),

@@ -301,6 +301,22 @@ impl Foliage {
     pub fn desktop_size<V: Into<Area<Physical>>>(&mut self, v: V) {
         self.willow.requested_size.replace(v.into());
     }
+    /// How the desktop identifies this application. Ignored where the platform has no such notion.
+    ///
+    /// Not a title. A title labels a window for a person to read and may change while the app
+    /// runs; this identifies the *application* so a shell can match the running window back to the
+    /// `.desktop` entry that launched it, and it should stay fixed for the life of the program.
+    ///
+    /// Set it to the same string as the entry's `StartupWMClass` -- conventionally the binary's
+    /// name, or a reverse-DNS id if the app ships one. **Unset, nothing is published**, and a
+    /// desktop that cannot recognise the window shows a second, generic icon next to the one the
+    /// user clicked to start it.
+    ///
+    /// On Linux and the BSDs this becomes the `xdg_toplevel` app_id under Wayland and the
+    /// `WM_CLASS` pair under X11, from the one value.
+    pub fn app_id<S: Into<String>>(&mut self, v: S) {
+        self.willow.app_id.replace(v.into());
+    }
     /// The browser's own origin (e.g. `https://example.com`) -- a raw environment fact, not a
     /// hosting convention. Callers building a full URL for `AssetSource::Url` compose whatever
     /// path structure their own deployment uses on top of this themselves; the crate assumes
