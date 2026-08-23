@@ -24,6 +24,7 @@ mod line;
 mod node;
 mod opacity;
 mod ops;
+mod palette;
 mod panel;
 mod photosynthesis;
 mod platform;

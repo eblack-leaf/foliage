@@ -1,6 +1,7 @@
 use crate::anim::interpolation::Interpolations;
 use crate::{Animate, Attachment, Component, Foliage};
 use bevy_color::Alpha;
+use crate::palette;
 use bevy_color::palettes::tailwind;
 
 /// An sRGBA color, and the color channel every primitive reads.
@@ -223,4 +224,39 @@ impl Color {
     color_fn!(zinc: tailwind::ZINC_50, tailwind::ZINC_100, tailwind::ZINC_200, tailwind::ZINC_300, tailwind::ZINC_400, tailwind::ZINC_500, tailwind::ZINC_600, tailwind::ZINC_700, tailwind::ZINC_800, tailwind::ZINC_900, tailwind::ZINC_950);
     color_fn!(neutral: tailwind::NEUTRAL_50, tailwind::NEUTRAL_100, tailwind::NEUTRAL_200, tailwind::NEUTRAL_300, tailwind::NEUTRAL_400, tailwind::NEUTRAL_500, tailwind::NEUTRAL_600, tailwind::NEUTRAL_700, tailwind::NEUTRAL_800, tailwind::NEUTRAL_900, tailwind::NEUTRAL_950);
     color_fn!(stone: tailwind::STONE_50, tailwind::STONE_100, tailwind::STONE_200, tailwind::STONE_300, tailwind::STONE_400, tailwind::STONE_500, tailwind::STONE_600, tailwind::STONE_700, tailwind::STONE_800, tailwind::STONE_900, tailwind::STONE_950);
+    // Families beyond the Tailwind set, on the same eleven-step scale -- see
+    // [`crate::palette`] for what they are and how each step was placed.
+    color_fn!(sand: palette::SAND_50, palette::SAND_100, palette::SAND_200, palette::SAND_300, palette::SAND_400, palette::SAND_500, palette::SAND_600, palette::SAND_700, palette::SAND_800, palette::SAND_900, palette::SAND_950);
+    color_fn!(khaki: palette::KHAKI_50, palette::KHAKI_100, palette::KHAKI_200, palette::KHAKI_300, palette::KHAKI_400, palette::KHAKI_500, palette::KHAKI_600, palette::KHAKI_700, palette::KHAKI_800, palette::KHAKI_900, palette::KHAKI_950);
+    color_fn!(olive: palette::OLIVE_50, palette::OLIVE_100, palette::OLIVE_200, palette::OLIVE_300, palette::OLIVE_400, palette::OLIVE_500, palette::OLIVE_600, palette::OLIVE_700, palette::OLIVE_800, palette::OLIVE_900, palette::OLIVE_950);
+    color_fn!(gold: palette::GOLD_50, palette::GOLD_100, palette::GOLD_200, palette::GOLD_300, palette::GOLD_400, palette::GOLD_500, palette::GOLD_600, palette::GOLD_700, palette::GOLD_800, palette::GOLD_900, palette::GOLD_950);
+    color_fn!(bronze: palette::BRONZE_50, palette::BRONZE_100, palette::BRONZE_200, palette::BRONZE_300, palette::BRONZE_400, palette::BRONZE_500, palette::BRONZE_600, palette::BRONZE_700, palette::BRONZE_800, palette::BRONZE_900, palette::BRONZE_950);
+    color_fn!(copper: palette::COPPER_50, palette::COPPER_100, palette::COPPER_200, palette::COPPER_300, palette::COPPER_400, palette::COPPER_500, palette::COPPER_600, palette::COPPER_700, palette::COPPER_800, palette::COPPER_900, palette::COPPER_950);
+    color_fn!(clay: palette::CLAY_50, palette::CLAY_100, palette::CLAY_200, palette::CLAY_300, palette::CLAY_400, palette::CLAY_500, palette::CLAY_600, palette::CLAY_700, palette::CLAY_800, palette::CLAY_900, palette::CLAY_950);
+    color_fn!(terracotta: palette::TERRACOTTA_50, palette::TERRACOTTA_100, palette::TERRACOTTA_200, palette::TERRACOTTA_300, palette::TERRACOTTA_400, palette::TERRACOTTA_500, palette::TERRACOTTA_600, palette::TERRACOTTA_700, palette::TERRACOTTA_800, palette::TERRACOTTA_900, palette::TERRACOTTA_950);
+    color_fn!(brown: palette::BROWN_50, palette::BROWN_100, palette::BROWN_200, palette::BROWN_300, palette::BROWN_400, palette::BROWN_500, palette::BROWN_600, palette::BROWN_700, palette::BROWN_800, palette::BROWN_900, palette::BROWN_950);
+    color_fn!(sepia: palette::SEPIA_50, palette::SEPIA_100, palette::SEPIA_200, palette::SEPIA_300, palette::SEPIA_400, palette::SEPIA_500, palette::SEPIA_600, palette::SEPIA_700, palette::SEPIA_800, palette::SEPIA_900, palette::SEPIA_950);
+    color_fn!(taupe: palette::TAUPE_50, palette::TAUPE_100, palette::TAUPE_200, palette::TAUPE_300, palette::TAUPE_400, palette::TAUPE_500, palette::TAUPE_600, palette::TAUPE_700, palette::TAUPE_800, palette::TAUPE_900, palette::TAUPE_950);
+    color_fn!(peach: palette::PEACH_50, palette::PEACH_100, palette::PEACH_200, palette::PEACH_300, palette::PEACH_400, palette::PEACH_500, palette::PEACH_600, palette::PEACH_700, palette::PEACH_800, palette::PEACH_900, palette::PEACH_950);
+    color_fn!(coral: palette::CORAL_50, palette::CORAL_100, palette::CORAL_200, palette::CORAL_300, palette::CORAL_400, palette::CORAL_500, palette::CORAL_600, palette::CORAL_700, palette::CORAL_800, palette::CORAL_900, palette::CORAL_950);
+    color_fn!(salmon: palette::SALMON_50, palette::SALMON_100, palette::SALMON_200, palette::SALMON_300, palette::SALMON_400, palette::SALMON_500, palette::SALMON_600, palette::SALMON_700, palette::SALMON_800, palette::SALMON_900, palette::SALMON_950);
+    color_fn!(blush: palette::BLUSH_50, palette::BLUSH_100, palette::BLUSH_200, palette::BLUSH_300, palette::BLUSH_400, palette::BLUSH_500, palette::BLUSH_600, palette::BLUSH_700, palette::BLUSH_800, palette::BLUSH_900, palette::BLUSH_950);
+    color_fn!(crimson: palette::CRIMSON_50, palette::CRIMSON_100, palette::CRIMSON_200, palette::CRIMSON_300, palette::CRIMSON_400, palette::CRIMSON_500, palette::CRIMSON_600, palette::CRIMSON_700, palette::CRIMSON_800, palette::CRIMSON_900, palette::CRIMSON_950);
+    color_fn!(wine: palette::WINE_50, palette::WINE_100, palette::WINE_200, palette::WINE_300, palette::WINE_400, palette::WINE_500, palette::WINE_600, palette::WINE_700, palette::WINE_800, palette::WINE_900, palette::WINE_950);
+    color_fn!(chartreuse: palette::CHARTREUSE_50, palette::CHARTREUSE_100, palette::CHARTREUSE_200, palette::CHARTREUSE_300, palette::CHARTREUSE_400, palette::CHARTREUSE_500, palette::CHARTREUSE_600, palette::CHARTREUSE_700, palette::CHARTREUSE_800, palette::CHARTREUSE_900, palette::CHARTREUSE_950);
+    color_fn!(moss: palette::MOSS_50, palette::MOSS_100, palette::MOSS_200, palette::MOSS_300, palette::MOSS_400, palette::MOSS_500, palette::MOSS_600, palette::MOSS_700, palette::MOSS_800, palette::MOSS_900, palette::MOSS_950);
+    color_fn!(sage: palette::SAGE_50, palette::SAGE_100, palette::SAGE_200, palette::SAGE_300, palette::SAGE_400, palette::SAGE_500, palette::SAGE_600, palette::SAGE_700, palette::SAGE_800, palette::SAGE_900, palette::SAGE_950);
+    color_fn!(forest: palette::FOREST_50, palette::FOREST_100, palette::FOREST_200, palette::FOREST_300, palette::FOREST_400, palette::FOREST_500, palette::FOREST_600, palette::FOREST_700, palette::FOREST_800, palette::FOREST_900, palette::FOREST_950);
+    color_fn!(jade: palette::JADE_50, palette::JADE_100, palette::JADE_200, palette::JADE_300, palette::JADE_400, palette::JADE_500, palette::JADE_600, palette::JADE_700, palette::JADE_800, palette::JADE_900, palette::JADE_950);
+    color_fn!(mint: palette::MINT_50, palette::MINT_100, palette::MINT_200, palette::MINT_300, palette::MINT_400, palette::MINT_500, palette::MINT_600, palette::MINT_700, palette::MINT_800, palette::MINT_900, palette::MINT_950);
+    color_fn!(seafoam: palette::SEAFOAM_50, palette::SEAFOAM_100, palette::SEAFOAM_200, palette::SEAFOAM_300, palette::SEAFOAM_400, palette::SEAFOAM_500, palette::SEAFOAM_600, palette::SEAFOAM_700, palette::SEAFOAM_800, palette::SEAFOAM_900, palette::SEAFOAM_950);
+    color_fn!(aqua: palette::AQUA_50, palette::AQUA_100, palette::AQUA_200, palette::AQUA_300, palette::AQUA_400, palette::AQUA_500, palette::AQUA_600, palette::AQUA_700, palette::AQUA_800, palette::AQUA_900, palette::AQUA_950);
+    color_fn!(mist: palette::MIST_50, palette::MIST_100, palette::MIST_200, palette::MIST_300, palette::MIST_400, palette::MIST_500, palette::MIST_600, palette::MIST_700, palette::MIST_800, palette::MIST_900, palette::MIST_950);
+    color_fn!(steel: palette::STEEL_50, palette::STEEL_100, palette::STEEL_200, palette::STEEL_300, palette::STEEL_400, palette::STEEL_500, palette::STEEL_600, palette::STEEL_700, palette::STEEL_800, palette::STEEL_900, palette::STEEL_950);
+    color_fn!(azure: palette::AZURE_50, palette::AZURE_100, palette::AZURE_200, palette::AZURE_300, palette::AZURE_400, palette::AZURE_500, palette::AZURE_600, palette::AZURE_700, palette::AZURE_800, palette::AZURE_900, palette::AZURE_950);
+    color_fn!(periwinkle: palette::PERIWINKLE_50, palette::PERIWINKLE_100, palette::PERIWINKLE_200, palette::PERIWINKLE_300, palette::PERIWINKLE_400, palette::PERIWINKLE_500, palette::PERIWINKLE_600, palette::PERIWINKLE_700, palette::PERIWINKLE_800, palette::PERIWINKLE_900, palette::PERIWINKLE_950);
+    color_fn!(lavender: palette::LAVENDER_50, palette::LAVENDER_100, palette::LAVENDER_200, palette::LAVENDER_300, palette::LAVENDER_400, palette::LAVENDER_500, palette::LAVENDER_600, palette::LAVENDER_700, palette::LAVENDER_800, palette::LAVENDER_900, palette::LAVENDER_950);
+    color_fn!(lilac: palette::LILAC_50, palette::LILAC_100, palette::LILAC_200, palette::LILAC_300, palette::LILAC_400, palette::LILAC_500, palette::LILAC_600, palette::LILAC_700, palette::LILAC_800, palette::LILAC_900, palette::LILAC_950);
+    color_fn!(plum: palette::PLUM_50, palette::PLUM_100, palette::PLUM_200, palette::PLUM_300, palette::PLUM_400, palette::PLUM_500, palette::PLUM_600, palette::PLUM_700, palette::PLUM_800, palette::PLUM_900, palette::PLUM_950);
+    color_fn!(mauve: palette::MAUVE_50, palette::MAUVE_100, palette::MAUVE_200, palette::MAUVE_300, palette::MAUVE_400, palette::MAUVE_500, palette::MAUVE_600, palette::MAUVE_700, palette::MAUVE_800, palette::MAUVE_900, palette::MAUVE_950);
 }
