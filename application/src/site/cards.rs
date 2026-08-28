@@ -68,7 +68,7 @@ pub(crate) fn card(
     seq: Leaf,
     start: u64,
 ) -> Leaf {
-    let cell = g.canopy.branch(
+    let cell = g.forest.branch(
         parent,
         Bare::new()
             .at(at)
@@ -76,7 +76,7 @@ pub(crate) fn card(
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .pass_through(),
     );
-    let card = g.canopy.branch(
+    let card = g.forest.branch(
         cell,
         Panel::new()
             .color(role::surface_container())
@@ -92,13 +92,13 @@ pub(crate) fn card(
             .interactive()
             .opacity(0.0),
     );
-    crate::site::fade_in(g.canopy, card, seq, start);
+    crate::site::fade_in(g.forest, card, seq, start);
     // Armed on the fade rather than at spawn: a card is a full-width target, and an invisible
     // one that navigates is worse than one that arrives a moment late.
     crate::site::arm_at(g, card, start + crate::site::motion::FADE);
     g.page.nav.push((card, spec.route));
 
-    g.canopy.branch(
+    g.forest.branch(
         card,
         Icon::new(IconId::from(spec.icon))
             .color(role::accent())
@@ -112,7 +112,7 @@ pub(crate) fn card(
             // clickable
             .pass_through(),
     );
-    g.canopy.branch(
+    g.forest.branch(
         card,
         // caps like every other title on the site -- a card's title is a heading for the
         // paragraph under it, and was the one that stayed in sentence case
@@ -135,7 +135,7 @@ pub(crate) fn card(
             .align(HorizontalAlignment::Left, VerticalAlignment::Top)
             .pass_through(),
     );
-    g.canopy.branch(
+    g.forest.branch(
         card,
         Text::new(spec.body)
             .size(FontSize::new(type_scale::BODY))
@@ -157,7 +157,7 @@ pub(crate) fn card(
             .pass_through(),
     );
 
-    cutout_badge(g.canopy, cell, spec.sides, BADGE, seq, start);
+    cutout_badge(g.forest, cell, spec.sides, BADGE, seq, start);
     card
 }
 
@@ -172,7 +172,7 @@ pub(crate) fn grid(g: &mut Grow, column: &mut Column, specs: &[CardSpec]) {
     let n = specs.len() as i32;
     let height = |rows: i32| rows * CELL_H + (rows - 1) * GAP;
     let stacked = height(n);
-    let region = column.region(g.canopy, (stacked, stacked, height((n + 1) / 2)), space::MD);
+    let region = column.region(g.forest, (stacked, stacked, height((n + 1) / 2)), space::MD);
 
     for (i, spec) in specs.iter().enumerate() {
         let i = i as i32;

@@ -1,13 +1,13 @@
 //! Keyboard emissions, which arrive whether or not anything is focused. Run with
 //! `cargo run --example keyboard -p foliage`.
 //!
-//! Two streams for two different jobs: [`Bloom::Key`] is the key as the layout produces it,
-//! which is what typed text is made of, and [`Bloom::PhysicalKey`] is the key by position
+//! Two streams for two different jobs: [`Moss::Key`] is the key as the layout produces it,
+//! which is what typed text is made of, and [`Moss::PhysicalKey`] is the key by position
 //! regardless of layout, which is what a chord bound to *where* a key sits should use. Press
 //! things and both lines update.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, FontSize, GridExt, Grows, HorizontalAlignment, Leaf,
+    Moss, Forest, Color, Elevation, Foliage, FontSize, GridExt, Grows, HorizontalAlignment, Leaf,
     Location, Modifiers, Root, Sprout, Text, VerticalAlignment,
 };
 
@@ -27,24 +27,24 @@ fn main() {
 }
 
 impl Root for Readout {
-    fn take_root(canopy: &mut Canopy) -> Self {
-        grow(canopy)
+    fn take_root(forest: &mut Forest) -> Self {
+        grow(forest)
     }
-    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-        for bloom in blooms {
-            match bloom {
-                Bloom::Key { key, mods } => {
-                    canopy.text(self.logical, format!("key: {key:?}{}", modifiers(mods)));
+    fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+        for moss in mosses {
+            match moss {
+                Moss::Key { key, mods } => {
+                    forest.text(self.logical, format!("key: {key:?}{}", modifiers(mods)));
                     // The layout-produced key is the one that becomes text.
                     if let foliage::Key::Character(c) = &key {
                         self.text.push_str(c);
                     } else if matches!(key, foliage::Key::Backspace) {
                         self.text.pop();
                     }
-                    canopy.text(self.typed, self.text.clone());
+                    forest.text(self.typed, self.text.clone());
                 }
-                Bloom::PhysicalKey { key, mods } => {
-                    canopy.text(
+                Moss::PhysicalKey { key, mods } => {
+                    forest.text(
                         self.physical,
                         format!("physical: {key:?}{}", modifiers(mods)),
                     );
@@ -76,9 +76,9 @@ fn modifiers(mods: Modifiers) -> String {
     }
 }
 
-fn grow(canopy: &mut Canopy) -> Readout {
+fn grow(forest: &mut Forest) -> Readout {
     let mut line = |top: i32, color: Color, initial: &str| {
-        canopy.leaf(
+        forest.leaf(
             Text::new(initial)
                 .size(FontSize::new(14))
                 .color(color)

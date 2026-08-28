@@ -50,7 +50,7 @@ a bare `Timer` entity and observes `OnEnd` on it -- when the countdown reaches z
 handle to cancel or a separate scheduler resource to manage -- the timer entity *is* the
 whole lifecycle, and pruning it before it fires is cancellation, the same
 [Remove](./lifecycle.md) mechanism every other teardown uses. Across the boundary this is
-[`Grows::timer`](./canopy.md)/[`Bloom::TimerFinished`](./canopy.md).
+[`Grows::timer`](./forest.md)/[`Moss::TimerFinished`](./forest.md).
 
 ## `Moment`/`TimeDelta`: not `std::time`
 

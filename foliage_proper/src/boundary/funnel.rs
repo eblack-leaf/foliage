@@ -1,4 +1,4 @@
-use crate::boundary::bloom::{Bloom, Emissions};
+use crate::boundary::moss::{Moss, Emissions};
 use crate::boundary::leaf::{Grown, Leaf};
 use crate::text_input::TextChanged;
 use crate::text_input::action::InputAction;
@@ -27,7 +27,7 @@ fn attribute(entity: Entity, grown: &Query<&Grown>, parents: &Query<&Parent>) ->
 
 /// One observer per gesture, all the same shape: attribute the target, push the emission.
 macro_rules! gesture {
-    ($name:ident, $event:ty, $bloom:ident) => {
+    ($name:ident, $event:ty, $moss:ident) => {
         fn $name(
             trigger: Trigger<$event>,
             grown: Query<&Grown>,
@@ -35,7 +35,7 @@ macro_rules! gesture {
             mut emissions: ResMut<Emissions>,
         ) {
             if let Some(leaf) = attribute(trigger.event_target(), &grown, &parents) {
-                emissions.push(Bloom::$bloom(leaf));
+                emissions.push(Moss::$moss(leaf));
             }
         }
     };
@@ -50,7 +50,7 @@ gesture!(unfocused, Unfocused, Unfocused);
 
 fn key(trigger: Trigger<InputSequence>, mut emissions: ResMut<Emissions>) {
     let event = trigger.event();
-    emissions.push(Bloom::Key {
+    emissions.push(Moss::Key {
         key: event.key.clone(),
         mods: event.mods,
     });
@@ -58,7 +58,7 @@ fn key(trigger: Trigger<InputSequence>, mut emissions: ResMut<Emissions>) {
 
 fn physical_key(trigger: Trigger<PhysicalInputSequence>, mut emissions: ResMut<Emissions>) {
     let event = trigger.event();
-    emissions.push(Bloom::PhysicalKey {
+    emissions.push(Moss::PhysicalKey {
         key: event.code,
         mods: event.mods,
     });
@@ -79,7 +79,7 @@ fn text_changed(
         .get(entity)
         .map(|value| value.0.clone())
         .unwrap_or_default();
-    emissions.push(Bloom::TextChanged { leaf, value });
+    emissions.push(Moss::TextChanged { leaf, value });
 }
 
 fn text_action(
@@ -89,7 +89,7 @@ fn text_action(
     mut emissions: ResMut<Emissions>,
 ) {
     if let Some(leaf) = attribute(trigger.event_target(), &grown, &parents) {
-        emissions.push(Bloom::TextAction {
+        emissions.push(Moss::TextAction {
             leaf,
             action: trigger.event().action,
         });
@@ -122,14 +122,14 @@ fn ended(
     }
     let leaf = Leaf(entity);
     emissions.push(if timers.contains(entity) {
-        Bloom::TimerFinished(leaf)
+        Moss::TimerFinished(leaf)
     } else {
-        Bloom::SequenceFinished(leaf)
+        Moss::SequenceFinished(leaf)
     });
 }
 
 fn asset_loaded(trigger: Trigger<OnRetrieval>, mut emissions: ResMut<Emissions>) {
-    emissions.push(Bloom::AssetLoaded {
+    emissions.push(Moss::AssetLoaded {
         key: trigger.event().key,
     });
 }
@@ -143,16 +143,16 @@ fn layout_changed(
     short: Res<Short>,
     mut emissions: ResMut<Emissions>,
 ) {
-    emissions.push(Bloom::LayoutChanged {
+    emissions.push(Moss::LayoutChanged {
         new: *layout,
         short: *short == Short::Yes,
     });
 }
 
-/// Every source of emissions, registered in one place. Adding a `Bloom` variant without a
+/// Every source of emissions, registered in one place. Adding a `Moss` variant without a
 /// line here is the one failure this seam can have that nothing catches at compile time.
 ///
-/// One exception, deliberately: [`Bloom::ScrollRefused`](crate::Bloom::ScrollRefused) is pushed
+/// One exception, deliberately: [`Moss::ScrollRefused`](crate::Moss::ScrollRefused) is pushed
 /// by `grid::view::extent_check` rather than by an observer here. It reports a decision taken
 /// partway through resolving scroll -- how much of an adjustment an axis would not take -- and
 /// that number exists nowhere else. Re-deriving it from a trigger would mean redoing the clamp

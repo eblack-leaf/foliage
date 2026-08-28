@@ -51,7 +51,7 @@ if !self.tick_pending {
 ```
 
 `self.frame()` is where the app's own closure runs -- see [The App](./app.md) for what
-it does before and after calling out to [`Canopy`](./canopy.md). There is no separate
+it does before and after calling out to [`Forest`](./forest.md). There is no separate
 `user` schedule; app code is not an ECS system, so it has no slot among `main`'s or
 `diff`'s own `SystemSet`s to run in.
 

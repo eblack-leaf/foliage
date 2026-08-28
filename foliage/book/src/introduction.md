@@ -7,13 +7,13 @@ screen, using a small closed vocabulary, and gets back what happened.
 - [**Leaf**](./leaf.md) is that vocabulary's name for a thing on screen: an opaque
   handle, allocated the moment you ask for one, usable immediately even though the
   element it names doesn't exist until the frame's commands are applied.
-- [**Canopy**](./canopy.md) is the surface an app actually holds, once per frame: grow
+- [**Forest**](./forest.md) is the surface an app actually holds, once per frame: grow
   and change elements by `Leaf`, read back what a frame produced as
-  [`Bloom`](./canopy.md)s, sample current state directly. [**Sprig**](./canopy.md) is
+  [`Moss`](./forest.md)s, sample current state directly. [**Sprig**](./forest.md) is
   the same command set from another thread.
 - [**Sprout**](./spawning.md) is how an element gets configured before it exists --
   `Panel::new().color(..).at(..).elevate(..)` -- and [**Specs**](./spawning.md) are the
-  closed set of things `Canopy`/`Sprig` know how to grow: `Panel`, `Text`, `Icon`,
+  closed set of things `Forest`/`Sprig` know how to grow: `Panel`, `Text`, `Icon`,
   `Image`, `Line`, `Polygon`, `Polyline`, `TextInput`, and a bare container.
 
 That's the whole surface. Underneath it, the [**Inside the Engine**](./tree.md) section
@@ -21,7 +21,7 @@ covers how a `Spec` actually becomes a `bevy_ecs` entity, how per-tick state cha
 into GPU uploads, and how a window and a render loop come together -- useful for
 understanding *why* the API is shaped the way it is, and required reading if you're
 extending the engine itself, but nothing an app needs in order to use it. The seam
-between the two is deliberate: an app cannot reach the ECS from its side of `Canopy`,
+between the two is deliberate: an app cannot reach the ECS from its side of `Forest`,
 which is what lets it run its own `bevy_ecs`, at whatever version it likes, without the
 two ever meeting.
 
@@ -34,9 +34,9 @@ it can't solve alone:
   can still be used as a parent or a write target in the same frame --
   [**Leaf**](./leaf.md) is that name.
 - Something has to collect what an app wants done and hand back what happened, once per
-  frame -- [**Canopy**](./canopy.md) is that surface, and [`Bloom`](./canopy.md) is what
+  frame -- [**Forest**](./forest.md) is that surface, and [`Moss`](./forest.md) is what
   comes back out.
-- Something has to turn a config struct like `Panel::new()` into a spec `Canopy` can
+- Something has to turn a config struct like `Panel::new()` into a spec `Forest` can
   grow, without an app ever assembling one by hand --
   [**Sprout**](./spawning.md) is that builder.
 - Underneath all of it, an actual entity has to exist, with a position, a parent, a draw

@@ -8,7 +8,7 @@
 //! own version, and nothing here would change.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Root, Rounding,
+    Moss, Forest, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Root, Rounding,
     Sample, Sap, Sprout,
 };
 use std::time::Duration;
@@ -57,12 +57,12 @@ fn main() {
             std::thread::sleep(Duration::from_millis(50));
             step += 1;
 
-            // The other direction. `blooms` hands over everything the tree reported since the
+            // The other direction. `mosses` hands over everything the tree reported since the
             // last pass, so this thread hears its own bars being clicked without the root
             // relaying anything -- it never wakes the frame and the frame never waits on it.
-            for bloom in sprig.blooms() {
-                match bloom {
-                    Bloom::Clicked(leaf) => {
+            for moss in sprig.mosses() {
+                match moss {
+                    Moss::Clicked(leaf) => {
                         let Some(i) = bars.iter().position(|bar| *bar == leaf) else {
                             continue;
                         };
@@ -77,7 +77,7 @@ fn main() {
                         }
                     }
                     // Where the first bar actually landed, as the engine resolved it.
-                    Bloom::Reading {
+                    Moss::Reading {
                         value: Sample::Section(section),
                         ..
                     } => {
@@ -120,10 +120,10 @@ fn main() {
 struct Idle;
 
 impl Root for Idle {
-    fn take_root(_canopy: &mut Canopy) -> Self {
+    fn take_root(_forest: &mut Forest) -> Self {
         Idle
     }
-    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
+    fn frame(&mut self, _forest: &mut Forest, _mosses: Vec<Moss>) {}
 }
 
 /// A bar `fraction` of the way up from `floor`, in the `i`th column.

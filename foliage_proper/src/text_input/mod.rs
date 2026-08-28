@@ -139,7 +139,7 @@ pub struct TextInput {}
 #[derive(Component, Copy, Clone)]
 pub(crate) struct TextInputField;
 /// TextInput's OWN config vocabulary (widgets each own theirs -- nothing is library-blessed),
-/// poked as one unit: `canopy.input_style(input, TextInputStyle { .. })`.
+/// poked as one unit: `forest.input_style(input, TextInputStyle { .. })`.
 #[derive(Component, Copy, Clone, Default)]
 pub struct TextInputStyle {
     /// text content color
@@ -165,7 +165,7 @@ impl TextInput {
     #[allow(dead_code)]
     const HIGHLIGHT_SCROLL_THRESHOLD: f32 = 10.0;
     /// Starts a [`TextInput`] entity:
-    /// `canopy.branch(parent, TextInput::new().hint_text("Search").at(loc))`.
+    /// `forest.branch(parent, TextInput::new().hint_text("Search").at(loc))`.
     pub fn new() -> TextInputSprout {
         TextInputSprout::default()
     }
@@ -497,7 +497,7 @@ impl TextInput {
         tree.write_to(handle.text, style.foreground);
         // Both the drawn hint and the `HintColor` that `update_hint` re-applies whenever the
         // placeholder text changes -- writing only the first would put the style back to
-        // `Color::default()` the next time anyone called `Canopy::hint`.
+        // `Color::default()` the next time anyone called `Forest::hint`.
         tree.write_to(handle.hint_text, style.hint);
         tree.write_to(trigger.event_target(), HintColor(style.hint));
         tree.write_to(handle.visible, style.accent);
@@ -2118,7 +2118,7 @@ impl TextInput {
 }
 /// Fired at the `TextInput` root whenever its text content changes (typing, deletion, paste,
 /// programmatic `TextValue` writes). Reported across the boundary as
-/// [`Bloom::TextChanged`](crate::Bloom::TextChanged).
+/// [`Moss::TextChanged`](crate::Moss::TextChanged).
 #[foliage_macros::targeted_event]
 #[derive(Copy)]
 pub struct TextChanged {}

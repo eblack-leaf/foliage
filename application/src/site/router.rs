@@ -43,7 +43,7 @@ pub(crate) const ROUTES: [RouteFn; 9] = [
 /// The slot is what a navigation prunes, so a route's whole scene has exactly one root and
 /// tearing it down cannot leave anything behind.
 pub(crate) fn build_route(g: &mut Grow, router: Leaf, index: usize) -> Leaf {
-    let slot = g.canopy.branch(
+    let slot = g.forest.branch(
         router,
         Bare::new()
             .at(Location::new().xs(

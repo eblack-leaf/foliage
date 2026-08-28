@@ -9,15 +9,15 @@ use bevy_ecs::resource::Resource;
 
 /// Something the tree did. The whole of what foliage reports outward.
 ///
-/// Collected during the frame and handed over by [`Canopy::take`](crate::Canopy::take).
+/// Collected during the frame and handed over by [`Forest::take`](crate::Forest::take).
 ///
-/// Two things worth knowing. A single physical click emits [`Clicked`](Bloom::Clicked) for
+/// Two things worth knowing. A single physical click emits [`Clicked`](Moss::Clicked) for
 /// the element under the pointer *and* for every pass-through element the gesture crossed, so
 /// several per frame is normal and they arrive in hit-test order. And a `Leaf` reported here
 /// may already have withered by the time you act on it -- which is safe, since every command
 /// naming a withered `Leaf` is a no-op.
 #[derive(Clone, Debug)]
-pub enum Bloom {
+pub enum Moss {
     /// Pressed and released on the same element without dragging.
     Clicked(Leaf),
     /// Pointer went down on this element.
@@ -27,16 +27,16 @@ pub enum Bloom {
     ///
     /// This is the stream, not the threshold: it arrives below
     /// [`InteractionListener::DRAG_THRESHOLD`](crate::InteractionListener::DRAG_THRESHOLD)
-    /// too, and a gesture that reports moves can still end in [`Clicked`](Bloom::Clicked).
+    /// too, and a gesture that reports moves can still end in [`Clicked`](Moss::Clicked).
     /// Take it for anything that follows the pointer -- a knob, a slider, a drag proxy --
-    /// and [`DragStarted`](Bloom::DragStarted) for the moment the gesture commits.
+    /// and [`DragStarted`](Moss::DragStarted) for the moment the gesture commits.
     Dragged(Leaf),
     /// The gesture holding this element passed the drag threshold: it is a drag now, and the
-    /// release will not [`Clicked`](Bloom::Clicked). Once per gesture, ahead of the
-    /// [`Dragged`](Bloom::Dragged) for the same move.
+    /// release will not [`Clicked`](Moss::Clicked). Once per gesture, ahead of the
+    /// [`Dragged`](Moss::Dragged) for the same move.
     DragStarted(Leaf),
     /// The gesture that grabbed this element ended, however it ended. Always follows an
-    /// [`Engaged`](Bloom::Engaged), whether or not a [`Clicked`](Bloom::Clicked) also fired.
+    /// [`Engaged`](Moss::Engaged), whether or not a [`Clicked`](Moss::Clicked) also fired.
     Disengaged(Leaf),
     Focused(Leaf),
     Unfocused(Leaf),
@@ -75,7 +75,7 @@ pub enum Bloom {
     /// Every animation joined to this sequence has finished.
     SequenceFinished(Leaf),
     /// An asset's bytes arrived and can now be read with
-    /// [`Canopy::asset`](crate::Canopy::asset).
+    /// [`Forest::asset`](crate::Forest::asset).
     AssetLoaded {
         key: AssetKey,
     },
@@ -87,7 +87,7 @@ pub enum Bloom {
     /// [`unwatch`](crate::Sprig::unwatch) stops it. Nothing is reported for a property that
     /// held still, so a worker mirrors only what it asked about and only when it moved.
     ///
-    /// A frame that samples has no use for it -- [`Canopy::sample`](crate::Canopy::sample)
+    /// A frame that samples has no use for it -- [`Forest::sample`](crate::Forest::sample)
     /// answers on the spot -- but it is emitted into the one stream all the same, so a root
     /// that wants the same value it is handing a worker can read it here.
     Reading {
@@ -142,10 +142,10 @@ pub enum Bloom {
 
 /// Where the funnel observers deposit emissions until the frame collects them.
 #[derive(Resource, Default)]
-pub(crate) struct Emissions(pub(crate) Vec<Bloom>);
+pub(crate) struct Emissions(pub(crate) Vec<Moss>);
 
 impl Emissions {
-    pub(crate) fn push(&mut self, bloom: Bloom) {
-        self.0.push(bloom);
+    pub(crate) fn push(&mut self, moss: Moss) {
+        self.0.push(moss);
     }
 }

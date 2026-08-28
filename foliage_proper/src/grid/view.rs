@@ -152,7 +152,7 @@ impl ScrollAxes {
 ///
 /// The off-axis component is **dropped, not refused**: unlike [`ScrollAxes`] it does not travel
 /// outward and does not raise
-/// [`Bloom::ScrollRefused`](crate::Bloom::ScrollRefused). A refusal means "not here, try
+/// [`Moss::ScrollRefused`](crate::Moss::ScrollRefused). A refusal means "not here, try
 /// further out"; this means the movement was never part of the gesture, and handing it to an
 /// ancestor would scroll the page behind out from under a drag that never went sideways.
 pub struct DirectionalLock(pub bool);
@@ -373,8 +373,8 @@ impl Default for View {
 /// same "author states intent, a resolved value is what everything else reads" split
 /// `Visibility`/`ResolvedVisibility` already uses. Kept live by `extent_check` (a real
 /// `Insert` on every change, not a `Query`-mutation, so nothing reacting to it misses an
-/// update) -- read it with [`Canopy::sample`](crate::Canopy::sample)/
-/// [`Canopy::scroll_offset`](crate::Canopy::scroll_offset)-style sampling rather than
+/// update) -- read it with [`Forest::sample`](crate::Forest::sample)/
+/// [`Forest::scroll_offset`](crate::Forest::scroll_offset)-style sampling rather than
 /// re-deriving it from `View`/`Section` yourself. 0 on an axis with nothing to scroll.
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub struct ScrollProgress {
@@ -443,7 +443,7 @@ fn ovrscrl(
     axes: &Query<&ScrollAxes>,
     locks: &Query<&DirectionalLock>,
     grown: &Query<&crate::boundary::leaf::Grown>,
-    emissions: &mut crate::boundary::bloom::Emissions,
+    emissions: &mut crate::boundary::moss::Emissions,
     propagations: &Query<&OverscrollPropagation>,
     contexts: &Query<(Entity, Ref<Parent>, Ref<crate::ResolvedVisibility>)>,
     sections: &Query<(Entity, Ref<Section<Logical>>)>,
@@ -467,7 +467,7 @@ fn ovrscrl(
     // this hop instead. Emitting only at the point of first arrival meant a locked view whose
     // input came from a child swallowed it in silence.
     if over != Position::default() && grown.contains(entity) {
-        emissions.push(crate::Bloom::ScrollRefused {
+        emissions.push(crate::Moss::ScrollRefused {
             leaf: crate::Leaf(entity),
             delta: over,
             method,
@@ -534,7 +534,7 @@ pub(crate) fn extent_check(
     locks: Query<&DirectionalLock>,
     current: Res<CurrentInteraction>,
     grown: Query<&crate::boundary::leaf::Grown>,
-    mut emissions: ResMut<crate::boundary::bloom::Emissions>,
+    mut emissions: ResMut<crate::boundary::moss::Emissions>,
     propagations: Query<&OverscrollPropagation>,
     contexts: Query<(Entity, Ref<Parent>, Ref<crate::ResolvedVisibility>)>,
     sections: Query<(Entity, Ref<Section<Logical>>)>,
@@ -693,13 +693,13 @@ pub(crate) fn extent_check(
                 blocked.insert(*entity, refused);
                 // Reported as well as turned away. An axis that only ever says no is a dead
                 // region; told about it, the app can answer the gesture with something a
-                // continuous offset could not express -- see `Bloom::ScrollRefused`.
+                // continuous offset could not express -- see `Moss::ScrollRefused`.
                 //
                 // Only for views the app grew. The engine's own internals hold views too, and an
                 // emission naming one of those would arrive against an id the app has never seen
                 // and could do nothing with, which is the same rule `funnel::ended` follows.
                 if grown.contains(*entity) {
-                    emissions.push(crate::Bloom::ScrollRefused {
+                    emissions.push(crate::Moss::ScrollRefused {
                         leaf: crate::Leaf(*entity),
                         delta: refused,
                         method: adjustment.1,

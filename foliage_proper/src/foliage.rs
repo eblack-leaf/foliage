@@ -2,7 +2,7 @@ use crate::anim::animate;
 use crate::ash::Ash;
 use crate::ash::differential::{RenderQueue, RenderRemoveQueue, cached_differential};
 use crate::asset::{Asset, AssetKey, AssetLoader, AssetSource, LoadAsset};
-use crate::boundary::bloom::Emissions;
+use crate::boundary::moss::Emissions;
 use crate::boundary::root::{Root, Rooted};
 use crate::ginkgo::Ginkgo;
 use crate::ginkgo::viewport::ViewportHandle;
@@ -16,7 +16,7 @@ use crate::{
     Icon, Image, Interaction, Line, Location, Named, Opacity, Panel, Physical, Polygon, Resource,
     SystemSet, Text, TextInput, Visibility,
 };
-use crate::{Canopy, Sprig};
+use crate::{Forest, Sprig};
 use bevy_ecs::component::Component;
 use bevy_ecs::message::{Message, MessageRegistry, Messages, message_update_system};
 use bevy_ecs::observer::IntoObserver;
@@ -37,17 +37,17 @@ use winit::event_loop::{ControlFlow, EventLoop};
 /// registration, desktop sizing, tuning -- then handed control with
 /// [`photosynthesize`](Foliage::photosynthesize), which does not return. The tree itself
 /// is never touched here: an app grows and changes it from inside its [`Root`], through the
-/// [`Canopy`] that root is handed each frame.
+/// [`Forest`] that root is handed each frame.
 pub struct Foliage {
     pub(crate) world: World,
     pub(crate) main: Schedule,
     pub(crate) diff: Schedule,
     /// The app itself, once [`root`](Foliage::root) has named its type. Held here rather than
-    /// in the world because `Foliage` owns the world -- so handing it a `Canopy` borrowed from
+    /// in the world because `Foliage` owns the world -- so handing it a `Forest` borrowed from
     /// that same world is a plain reborrow, with no interior-mutability dance to arrange it.
     pub(crate) root: Option<Box<dyn Rooted>>,
     /// Read state for the root, kept across frames so its query caches persist.
-    pub(crate) reads: Option<SystemState<crate::boundary::canopy::Reads<'static, 'static>>>,
+    pub(crate) reads: Option<SystemState<crate::boundary::forest::Reads<'static, 'static>>>,
     /// This frame's commands, drained into the world after the root returns.
     pub(crate) ops: Vec<crate::boundary::op::Op>,
     /// The off-thread command channel, drained ahead of the root's own commands.
@@ -195,7 +195,7 @@ impl Foliage {
         foliage
     }
     /// A [`Tree`](crate::Tree) over this instance's world. Internal: an app builds its tree
-    /// inside its [`Root`], through [`Canopy`], and never touches the world.
+    /// inside its [`Root`], through [`Forest`], and never touches the world.
     pub(crate) fn tree(&mut self) -> crate::Tree<'_, '_> {
         crate::AsTree::tree(&mut self.world)
     }
@@ -212,7 +212,7 @@ impl Foliage {
         };
         self.sprig.drain_into(&mut self.ops);
         crate::boundary::op::apply(&mut self.world, &mut self.ops);
-        let blooms = core::mem::take(&mut self.world.resource_mut::<Emissions>().0);
+        let mosses = core::mem::take(&mut self.world.resource_mut::<Emissions>().0);
         let mut reads = self
             .reads
             .take()
@@ -235,13 +235,13 @@ impl Foliage {
             });
             // Off-thread listeners get the same emissions the root does, from the same collection,
             // before the root has had a chance to act on them and change what they describe.
-            self.sprig.deliver(&blooms);
-            let mut canopy = Canopy {
+            self.sprig.deliver(&mosses);
+            let mut forest = Forest {
                 reads,
                 queue: &mut self.ops,
                 allocator: self.sprig.allocator(),
             };
-            root.frame(&mut canopy, blooms);
+            root.frame(&mut forest, mosses);
         }
         self.reads = Some(reads);
         self.root = Some(root);
@@ -290,7 +290,7 @@ impl Foliage {
     /// Names the [`Root`] this app is. Everything after it is that type's business: it grows
     /// the tree on the first frame and is called once per frame from then on.
     ///
-    /// The root stays on this thread deliberately -- that is what lets it hold a [`Canopy`]
+    /// The root stays on this thread deliberately -- that is what lets it hold a [`Forest`]
     /// and read live state directly instead of asking and waiting. For work that belongs on
     /// another thread, take a [`Sprig`](Self::sprig) before calling this.
     pub fn root<R: Root>(&mut self) {

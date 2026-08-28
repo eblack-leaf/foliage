@@ -1,7 +1,7 @@
 # Animation
 
 An app doesn't build an `Animation` directly -- it calls
-[`Grows::animate`](./canopy.md) with a [`Motion`](./spawning.md) and a
+[`Grows::animate`](./forest.md) with a [`Motion`](./spawning.md) and a
 [`Timing`](./spawning.md). What follows is how that request actually runs underneath,
 and the two pieces of it (`Ease`, `Repeat`) an app configures directly through `Timing`.
 
@@ -47,7 +47,7 @@ than a per-type one.
 `Motion`'s variants are exactly the `Animate` types the engine exposes across the
 boundary. An app never implements `Animate` for its own component, because it has no
 component of its own for the engine to animate -- everything an app can grow and change
-already goes through [`Grows`](./canopy.md).
+already goes through [`Grows`](./forest.md).
 
 ## `Animation<A>`: the internal builder
 
@@ -72,7 +72,7 @@ impl<A: Animate> Animation<A> {
 
 `a` is the **end** value -- `Animation::new(Color::gray(900))` means "animate to this
 color," starting from whatever the target's current value is. This is what
-[`Grows::animate`](./canopy.md) builds and runs on an app's behalf, through
+[`Grows::animate`](./forest.md) builds and runs on an app's behalf, through
 [`Tree::animate`](./tree.md), which spawns an `AnimationRunner<A>` entity that drives the
 interpolation tick by tick against [`Time`](./time.md)'s frame delta, writing the
 interpolated value onto the target every frame until it finishes.
@@ -84,5 +84,5 @@ interpolated value onto the target every frame until it finishes.
 sequence groups them only for the purpose of knowing when *all* of them are done. Full
 mechanism (the `SequenceMarker` counter, why the sequence entity self-despawns) is in
 [Inside the Engine](./tree.md); across the boundary this is
-[`Grows::sequence`/`Grows::animate_during`](./canopy.md) and
-[`Bloom::SequenceFinished`](./canopy.md).
+[`Grows::sequence`/`Grows::animate_during`](./forest.md) and
+[`Moss::SequenceFinished`](./forest.md).

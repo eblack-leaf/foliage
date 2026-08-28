@@ -146,7 +146,7 @@ impl Icon {
     /// loop's lookup finds nothing.
     ///
     /// Note the trigger is `Changed<Icon>`, not "the id differs" -- `Icon::apply_icon_value`
-    /// writes the component unconditionally, so `Canopy::icon` fires this even when handed the id
+    /// writes the component unconditionally, so `Forest::icon` fires this even when handed the id
     /// already there. That made *any* icon write to an element inside a hidden subtree panic the
     /// renderer, which is reachable from safe user code: a pane built up-front and shown later is
     /// the ordinary case, not an exotic one.

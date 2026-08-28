@@ -10,7 +10,7 @@ pub struct Foliage {
     pub(crate) world: World,
     pub(crate) main: Schedule,
     pub(crate) diff: Schedule,
-    pub(crate) frame: Option<Box<dyn FnMut(&mut Canopy<'_, '_>)>>,
+    pub(crate) frame: Option<Box<dyn FnMut(&mut Forest<'_, '_>)>>,
     pub(crate) ops: Vec<Op>,
     pub(crate) sprig: Sprig,
     pub(crate) willow: Willow,
@@ -22,7 +22,7 @@ pub struct Foliage {
 
 Every field is `pub(crate)` -- an app never reaches the world, the schedules, or the
 render backend directly. What it gets instead is the setup calls below, and the
-[`Canopy`](./canopy.md) handed to the closure passed to
+[`Forest`](./forest.md) handed to the closure passed to
 [`photosynthesize`](#running-the-app).
 
 ## Two schedules, plus the frame closure, run in order every tick
@@ -35,7 +35,7 @@ given to `photosynthesize`, run once per tick between the other two:
 ```rust
 // foliage_proper/src/photosynthesis.rs
 self.main.run(&mut self.world);
-self.frame();   // drains Sprig, applies queued ops, runs the app's Canopy closure, applies its ops
+self.frame();   // drains Sprig, applies queued ops, runs the app's Forest closure, applies its ops
 self.diff.run(&mut self.world);
 ```
 
@@ -92,5 +92,5 @@ hosting convention.
 `foliage.photosynthesize(closure)` hands control to a `winit::EventLoop` and never
 returns (on native) -- see [Photosynthesis](./photosynthesis.md) for what happens inside
 that loop. `foliage.sprig()` -- callable any time before or after `photosynthesize` --
-hands back a `Send`, cloneable [`Sprig`](./canopy.md) for issuing commands from another
+hands back a `Send`, cloneable [`Sprig`](./forest.md) for issuing commands from another
 thread.

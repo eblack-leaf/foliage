@@ -5,7 +5,7 @@ on every on-screen entity unconditionally -- so the interaction system never nee
 special-case "this entity might not be able to receive input." Whether it actually
 *does* is a separate question, answered by `InteractionListener`. From an app, this
 whole system is what turns into [`Sprout::interactive`/`Sprout::pass_through`/etc.](./spawning.md)
-on the way in and [`Bloom::Clicked`/`Engaged`/`Dragged`/etc.](./canopy.md) on the way
+on the way in and [`Moss::Clicked`/`Engaged`/`Dragged`/etc.](./forest.md) on the way
 out.
 
 ## Hit-testing: shape + clip, not bounding-box-only

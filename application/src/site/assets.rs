@@ -16,7 +16,7 @@
 //! decides, never something the library does. A board that faked a *call* would be lying.
 
 use foliage::{
-    AssetSource, Canopy, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment,
+    AssetSource, Forest, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment,
     Icon, IconId, Image, ImageView, Leaf, Location, Panel, Rounding, Sprout, Text,
     VerticalAlignment,
 };
@@ -29,29 +29,29 @@ use crate::site::{Column, Demo, Grow, SCROLL_TAIL, role, space, type_scale};
 const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
-    let container = crate::site::shell::content_area(g.canopy, slot);
-    let mut column = Column::new(g.canopy, container);
+    let container = crate::site::shell::content_area(g.forest, slot);
+    let mut column = Column::new(g.forest, container);
 
-    column.display(g.canopy, headings::ASSETS);
-    column.lead(g.canopy, copy::LEAD);
+    column.display(g.forest, headings::ASSETS);
+    column.lead(g.forest, copy::LEAD);
 
-    column.heading(g.canopy, headings::ASSETS_KEY);
-    column.prose(g.canopy, copy::KEY);
+    column.heading(g.forest, headings::ASSETS_KEY);
+    column.prose(g.forest, copy::KEY);
     key(g, &mut column);
 
-    column.heading(g.canopy, headings::ASSETS_ARTWORK);
-    column.prose(g.canopy, copy::ARTWORK);
+    column.heading(g.forest, headings::ASSETS_ARTWORK);
+    column.prose(g.forest, copy::ARTWORK);
     artwork(g, &mut column);
 
-    column.heading(g.canopy, headings::ASSETS_WHERE);
-    column.prose(g.canopy, copy::WHERE);
+    column.heading(g.forest, headings::ASSETS_WHERE);
+    column.prose(g.forest, copy::WHERE);
     sources(g, &mut column);
 
-    column.rule(g.canopy);
-    column.heading(g.canopy, headings::ASSETS_FONTS);
-    column.prose(g.canopy, copy::FONTS);
+    column.rule(g.forest);
+    column.heading(g.forest, headings::ASSETS_FONTS);
+    column.prose(g.forest, copy::FONTS);
 
-    column.tail(g.canopy, SCROLL_TAIL);
+    column.tail(g.forest, SCROLL_TAIL);
 }
 
 // ---- key before bytes ------------------------------------------------------------------------
@@ -89,9 +89,9 @@ fn key(g: &mut Grow, column: &mut Column) {
     );
     // The two calls the section is about, in the order it describes and in one breath: the key
     // comes back from the ask, and the element naming it is grown before anything is decoded.
-    let key = g.canopy.load_asset(AssetSource::Bytes(SAMPLE.to_vec()));
+    let key = g.forest.load_asset(AssetSource::Bytes(SAMPLE.to_vec()));
     let frame = blueprint::frame(
-        g.canopy,
+        g.forest,
         board.stage,
         Location::new().xs(
             0.pct().as_left().with(100.pct().as_right()),
@@ -100,7 +100,7 @@ fn key(g: &mut Grow, column: &mut Column) {
         board::SOURCES_ELEMENT,
         false,
     );
-    let slot = g.canopy.branch(
+    let slot = g.forest.branch(
         frame.leaf,
         Text::new(board::KEY_SLOT)
             .size(FontSize::new(type_scale::LABEL))
@@ -113,7 +113,7 @@ fn key(g: &mut Grow, column: &mut Column) {
             .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
             .pass_through(),
     );
-    let image = g.canopy.branch(
+    let image = g.forest.branch(
         frame.leaf,
         Image::new(key)
             .view(ImageView::Aspect)
@@ -130,9 +130,9 @@ fn key(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(2))
             .pass_through(),
     );
-    g.canopy.visible(image, false);
-    board.set(g.canopy, 0, board::key_digits(key));
-    board.set(g.canopy, 1, board::KEY_NO_BYTES);
+    g.forest.visible(image, false);
+    board.set(g.forest, 0, board::key_digits(key));
+    board.set(g.forest, 1, board::KEY_NO_BYTES);
     g.page.demos.push(Box::new(Key {
         board,
         image,
@@ -144,18 +144,18 @@ fn key(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Key {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         let arrived = step == 1;
-        canopy.visible(self.image, arrived);
-        canopy.visible(self.slot, !arrived);
+        forest.visible(self.image, arrived);
+        forest.visible(self.slot, !arrived);
         // The key row never changes across the row. That is the claim: one handle, valid from
         // the moment it was issued, naming nothing and then naming a picture.
         self.board.set(
-            canopy,
+            forest,
             1,
             if arrived {
                 board::key_bytes(self.bytes)
@@ -193,7 +193,7 @@ fn artwork(g: &mut Grow, column: &mut Column) {
         &board::ARTWORK_STEPS,
         &reference::ARTWORK,
     );
-    let mark = g.canopy.branch(
+    let mark = g.forest.branch(
         board.stage,
         Icon::new(IconId::from(ARTWORK[0]))
             .color(role::accent())
@@ -204,20 +204,20 @@ fn artwork(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(2))
             .pass_through(),
     );
-    board.set(g.canopy, 0, board::ARTWORK_IDS[0]);
-    board.set(g.canopy, 1, board::ARTWORK_ELEMENT);
+    board.set(g.forest, 0, board::ARTWORK_IDS[0]);
+    board.set(g.forest, 1, board::ARTWORK_ELEMENT);
     g.page.demos.push(Box::new(Artwork { board, mark }));
 }
 
 impl Demo for Artwork {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         // One write, no respawn: the element outlives every field it draws.
-        canopy.icon(self.mark, IconId::from(ARTWORK[step]));
-        self.board.set(canopy, 0, board::ARTWORK_IDS[step]);
+        forest.icon(self.mark, IconId::from(ARTWORK[step]));
+        self.board.set(forest, 0, board::ARTWORK_IDS[step]);
         true
     }
 }
@@ -264,7 +264,7 @@ fn sources(g: &mut Grow, column: &mut Column) {
     // rather than three things that happen to be in a row. Drawn in two segments so the middle
     // shape sits on the line rather than over a line that passes behind it.
     for (from, to) in PATH_RUNS {
-        g.canopy.branch(
+        g.forest.branch(
             board.stage,
             Panel::new()
                 .color(role::outline())
@@ -279,7 +279,7 @@ fn sources(g: &mut Grow, column: &mut Column) {
     }
     // Built out rather than taken from `child_box`, which names its shape on the way in and
     // hands back only the shape -- and this is the one caption on the stage that gets rewritten.
-    let source = g.canopy.branch(
+    let source = g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::accent())
@@ -289,23 +289,23 @@ fn sources(g: &mut Grow, column: &mut Column) {
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .pass_through(),
     );
-    let origin = blueprint::name(g.canopy, source, board::SOURCES_ORIGINS[0]);
+    let origin = blueprint::name(g.forest, source, board::SOURCES_ORIGINS[0]);
     blueprint::child_box(
-        g.canopy,
+        g.forest,
         board.stage,
         path_node_at(PATH_AT[1]),
         role::surface(),
         board::SOURCES_KEY,
     );
     blueprint::child_box(
-        g.canopy,
+        g.forest,
         board.stage,
         path_node_at(PATH_AT[2]),
         role::surface(),
         board::SOURCES_ELEMENT,
     );
-    board.set(g.canopy, 0, board::SOURCES_CALLS[0]);
-    board.set(g.canopy, 1, board::SOURCES_THEN[0]);
+    board.set(g.forest, 0, board::SOURCES_CALLS[0]);
+    board.set(g.forest, 1, board::SOURCES_THEN[0]);
     g.page.demos.push(Box::new(Sources {
         board,
         origin,
@@ -314,15 +314,15 @@ fn sources(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Sources {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.text(self.origin, board::SOURCES_ORIGINS[step]);
+        self.board.select(forest, step);
+        forest.text(self.origin, board::SOURCES_ORIGINS[step]);
         // A second tone for the second path, so which one you are looking at is legible from
         // the drawing and not only from the row under it.
-        canopy.color(
+        forest.color(
             self.source,
             if step == 0 {
                 role::accent()
@@ -330,8 +330,8 @@ impl Demo for Sources {
                 Color::rose(400)
             },
         );
-        self.board.set(canopy, 0, board::SOURCES_CALLS[step]);
-        self.board.set(canopy, 1, board::SOURCES_THEN[step]);
+        self.board.set(forest, 0, board::SOURCES_CALLS[step]);
+        self.board.set(forest, 1, board::SOURCES_THEN[step]);
         true
     }
 }

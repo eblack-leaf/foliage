@@ -747,7 +747,7 @@ pub(crate) mod board {
     /// the API rather than becoming prose about it.
     pub(crate) const LIFETIME_CALLS: [&str; 4] = [
         "nothing yet",
-        "canopy.leaf(..)",
+        "forest.leaf(..)",
         "branch(parent)",
         "prune(parent)",
     ];
@@ -1055,7 +1055,7 @@ pub(crate) mod reference {
             gloss: "One edge, then the opposite one. Width and right are interchangeable.",
         },
         Entry {
-            call: "canopy.section(leaf)",
+            call: "forest.section(leaf)",
             gloss: "What that declaration works out to right now, in real pixels.",
         },
         Entry {
@@ -1070,7 +1070,7 @@ pub(crate) mod reference {
             gloss: "An element draws only where its own box and all of its parents' overlap.",
         },
         Entry {
-            call: "canopy.section(leaf)",
+            call: "forest.section(leaf)",
             gloss: "Reports the box it asked for, whether or not all of it is drawn.",
         },
         Entry {
@@ -1081,34 +1081,34 @@ pub(crate) mod reference {
 
     pub(crate) const INHERITING: [Entry; 4] = [
         Entry {
-            call: "canopy.opacity(leaf, to)",
+            call: "forest.opacity(leaf, to)",
             gloss: "Inherited. Everything beneath is drawn through the parent's value.",
         },
         Entry {
-            call: "canopy.color(leaf, to)",
+            call: "forest.color(leaf, to)",
             gloss: "Not inherited. It is one element's own component and stops there.",
         },
         Entry {
-            call: "canopy.visible(leaf, yes)",
+            call: "forest.visible(leaf, yes)",
             gloss: "Inherited, and the subtree keeps its state while it is hidden.",
         },
         Entry {
-            call: "canopy.disable(leaf)",
+            call: "forest.disable(leaf)",
             gloss: "Inherited. The subtree still draws, and stops taking input.",
         },
     ];
 
     pub(crate) const LIFETIME: [Entry; 4] = [
         Entry {
-            call: "canopy.prune(leaf)",
+            call: "forest.prune(leaf)",
             gloss: "Removes it and everything beneath it, in the one call.",
         },
         Entry {
-            call: "canopy.presence(leaf)",
+            call: "forest.presence(leaf)",
             gloss: "Planted while it is still being grown, then Live, then Withered.",
         },
         Entry {
-            call: "Bloom::Withered(leaf)",
+            call: "Moss::Withered(leaf)",
             gloss: "Reported once per element that went, after the frame applies it.",
         },
         Entry {
@@ -1189,7 +1189,7 @@ pub(crate) mod reference {
             gloss: "A delay, not a duration -- both numbers are read from the same origin.",
         },
         Entry {
-            call: "canopy.animate(leaf, to, t)",
+            call: "forest.animate(leaf, to, t)",
             gloss: "Starts it. The start value is whatever the element holds when it begins.",
         },
     ];
@@ -1200,7 +1200,7 @@ pub(crate) mod reference {
             gloss: "The closed set: opacity, color, elevation, location, polygon, outline.",
         },
         Entry {
-            call: "canopy.tween(channels, t)",
+            call: "forest.tween(channels, t)",
             gloss: "Plain numbers on the same clock, reported back for you to apply yourself.",
         },
         Entry {
@@ -1219,14 +1219,14 @@ pub(crate) mod reference {
             gloss: "Each replay runs back the way it came instead of snapping to the start.",
         },
         Entry {
-            call: "canopy.prune(leaf)",
+            call: "forest.prune(leaf)",
             gloss: "Ends any loop on it -- a runner cannot outlive what it animates.",
         },
     ];
 
     pub(crate) const SEQUENCE: [Entry; 3] = [
         Entry {
-            call: "canopy.sequence()",
+            call: "forest.sequence()",
             gloss: "Opens one. Every animation is counted against a sequence, named or not.",
         },
         Entry {
@@ -1235,14 +1235,14 @@ pub(crate) mod reference {
                     timing.",
         },
         Entry {
-            call: "Bloom::SequenceFinished(s)",
+            call: "Moss::SequenceFinished(s)",
             gloss: "Fires once the last of them lands. The hook for chaining the next stage.",
         },
     ];
 
     pub(crate) const ROUNDING: [Entry; 3] = [
         Entry {
-            call: "canopy.rounding(leaf, to)",
+            call: "forest.rounding(leaf, to)",
             gloss: "A size bracket, not a raw radius -- resolved off the panel's own shorter \
                     side.",
         },
@@ -1258,7 +1258,7 @@ pub(crate) mod reference {
 
     pub(crate) const SIDES: [Entry; 3] = [
         Entry {
-            call: "canopy.polygon(leaf, to)",
+            call: "forest.polygon(leaf, to)",
             gloss: "Rewrites sides, rounding and rotation together -- no respawn needed.",
         },
         Entry {
@@ -1274,7 +1274,7 @@ pub(crate) mod reference {
 
     pub(crate) const GLYPH: [Entry; 3] = [
         Entry {
-            call: "canopy.text(leaf, s)",
+            call: "forest.text(leaf, s)",
             gloss: "Replaces a Text element's whole string, even a lone character.",
         },
         Entry {
@@ -1290,7 +1290,7 @@ pub(crate) mod reference {
 
     pub(crate) const DRAW: [Entry; 3] = [
         Entry {
-            call: "canopy.draw_progress(leaf, t)",
+            call: "forest.draw_progress(leaf, t)",
             gloss: "Reveals the path by arc length, 0.0 to 1.0.",
         },
         Entry {
@@ -1298,7 +1298,7 @@ pub(crate) mod reference {
             gloss: "A Line segment plus a rounded Polygon joint per vertex, chained.",
         },
         Entry {
-            call: "canopy.points(leaf, v)",
+            call: "forest.points(leaf, v)",
             gloss: "Rewrites the whole vertex chain in one call.",
         },
     ];
@@ -1309,11 +1309,11 @@ pub(crate) mod reference {
             gloss: "Registers one field under an id, at startup. Every size draws from it.",
         },
         Entry {
-            call: "canopy.location(leaf, to)",
+            call: "forest.location(leaf, to)",
             gloss: "An icon has no size of its own -- resizing one is resizing its box.",
         },
         Entry {
-            call: "canopy.icon(leaf, id)",
+            call: "forest.icon(leaf, id)",
             gloss: "Swaps which registered artwork is drawn, without regrowing the element.",
         },
     ];
@@ -1366,23 +1366,23 @@ pub(crate) mod reference {
 
     pub(crate) const GESTURE: [Entry; 5] = [
         Entry {
-            call: "Bloom::Engaged",
+            call: "Moss::Engaged",
             gloss: "The pointer went down on this element.",
         },
         Entry {
-            call: "Bloom::Dragged",
+            call: "Moss::Dragged",
             gloss: "Every move of the pointer while this element holds the gesture.",
         },
         Entry {
-            call: "Bloom::DragStarted",
+            call: "Moss::DragStarted",
             gloss: "Once, when the gesture passes the threshold and stops being a click.",
         },
         Entry {
-            call: "Bloom::Disengaged",
+            call: "Moss::Disengaged",
             gloss: "The release, however it ended. Always follows an Engaged.",
         },
         Entry {
-            call: "Bloom::Clicked",
+            call: "Moss::Clicked",
             gloss: "The release, if the gesture stayed within 10px on both axes throughout.",
         },
     ];
@@ -1393,7 +1393,7 @@ pub(crate) mod reference {
             gloss: "Makes it a view: what overflows can be dragged, wheeled and flung.",
         },
         Entry {
-            call: "canopy.scroll(leaf, to)",
+            call: "forest.scroll(leaf, to)",
             gloss: "Puts it at a fraction of its own range. Either axis left alone stays.",
         },
         Entry {
@@ -1412,7 +1412,7 @@ pub(crate) mod reference {
             gloss: "Shown only while the field is empty, in the field's own foreground tone.",
         },
         Entry {
-            call: "Bloom::TextChanged",
+            call: "Moss::TextChanged",
             gloss: "The whole value after every edit -- typed, pasted, or written to it.",
         },
         Entry {
@@ -1431,7 +1431,7 @@ pub(crate) mod reference {
             gloss: "Wins outright while the viewport is cramped, whatever its width says.",
         },
         Entry {
-            call: "canopy.font_size(leaf, to)",
+            call: "forest.font_size(leaf, to)",
             gloss: "Rewrites it later. The glyphs are laid out again where they already are.",
         },
     ];
@@ -1472,7 +1472,7 @@ pub(crate) mod reference {
             gloss: "Colors a range of character offsets on top of the run's own color.",
         },
         Entry {
-            call: "canopy.glyph_colors(leaf, to)",
+            call: "forest.glyph_colors(leaf, to)",
             gloss: "Replaces the whole set of overrides in one write.",
         },
         Entry {
@@ -1498,7 +1498,7 @@ pub(crate) mod reference {
 
     pub(crate) const KEY: [Entry; 4] = [
         Entry {
-            call: "canopy.load_asset(source)",
+            call: "forest.load_asset(source)",
             gloss: "Hands back a key at once. The bytes arrive whenever they arrive.",
         },
         Entry {
@@ -1506,11 +1506,11 @@ pub(crate) mod reference {
             gloss: "Growable the same frame, before anything exists behind the key.",
         },
         Entry {
-            call: "Bloom::AssetLoaded",
+            call: "Moss::AssetLoaded",
             gloss: "Reported once the bytes land, naming the key you were already holding.",
         },
         Entry {
-            call: "canopy.asset(key)",
+            call: "forest.asset(key)",
             gloss: "The bytes themselves, undecoded, once there are some.",
         },
     ];
@@ -1521,7 +1521,7 @@ pub(crate) mod reference {
             gloss: "Registers a baked field under an id, before the app runs.",
         },
         Entry {
-            call: "canopy.icon(leaf, id)",
+            call: "forest.icon(leaf, id)",
             gloss: "Points an element at another registered field, with no regrow.",
         },
         Entry {

@@ -1,4 +1,4 @@
-use foliage::{Bloom, Canopy, ClearColor, Foliage, Root};
+use foliage::{Moss, Forest, ClearColor, Foliage, Root};
 
 mod entry;
 #[path = "assets/icons/gen/generated.rs"]
@@ -34,13 +34,13 @@ pub fn run(mut foliage: Foliage) {
 }
 
 impl Root for entry::Site {
-    fn take_root(canopy: &mut Canopy) -> Self {
-        entry::Site::grow(canopy)
+    fn take_root(forest: &mut Forest) -> Self {
+        entry::Site::grow(forest)
     }
-    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-        for bloom in blooms {
-            self.respond(canopy, bloom);
+    fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+        for moss in mosses {
+            self.respond(forest, moss);
         }
-        self.tick(canopy);
+        self.tick(forest);
     }
 }

@@ -8,7 +8,7 @@
 //! last part is what the floor of 3 used to exist for.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Line,
+    Moss, Forest, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Line,
     Location, Root, Text, VerticalAlignment,
 };
 use foliage::{Grows, Sprout};
@@ -41,12 +41,12 @@ fn main() {
 struct Weights;
 
 impl Root for Weights {
-    fn take_root(canopy: &mut Canopy) -> Self {
+    fn take_root(forest: &mut Forest) -> Self {
         for (i, weight) in WEIGHTS.into_iter().enumerate() {
             let row = TOP + i as i32 * ROW_H;
             let mid = row + ROW_H / 2;
 
-            canopy.leaf(
+            forest.leaf(
                 Text::new(format!("{weight}"))
                     .size(FontSize::new(14))
                     .color(Color::stone(400))
@@ -61,7 +61,7 @@ impl Root for Weights {
             // The flat column is the only one the CPU-side whole-pixel snap applies to; the
             // other two are the shader's feather alone.
             for (left, width, rise) in COLUMNS {
-                canopy.leaf(
+                forest.leaf(
                     Line::new(weight)
                         .color(Color::stone(300))
                         .at(Location::new().xs(
@@ -77,5 +77,5 @@ impl Root for Weights {
         }
         Weights
     }
-    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
+    fn frame(&mut self, _forest: &mut Forest, _mosses: Vec<Moss>) {}
 }

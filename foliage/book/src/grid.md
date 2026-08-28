@@ -195,7 +195,7 @@ pub struct ScrollProgress { x: f32, y: f32 } // a readout: `.x()`/`.y()` getters
   `extent_check` on every entity with a `View`. This is a real `.insert()`, not a `Query`
   mutation, so anything reacting to it internally fires on every scroll change (drag,
   wheel, or a `ScrollTo` write) and not just the first. From an app, read it with
-  [`Canopy::sample`](./canopy.md)/`Sap::ScrollProgress`.
+  [`Forest::sample`](./forest.md)/`Sap::ScrollProgress`.
 
 This split -- author states intent via `ScrollTo`, a resolved value comes back via
 `ScrollProgress` -- mirrors `Visibility`/`ResolvedVisibility` (see

@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -194,7 +194,7 @@ pub struct Coordinates(pub [CoordinateUnit; 2]);
 generic over one of these three marker types, so <code>Position&lt;Logical&gt;</code> and
 <code>Position&lt;Physical&gt;</code> are different types – passing one where the other is expected is a
 compile error, not a runtime scaling bug. <code>Section&lt;Logical&gt;</code> is the one every on-screen
-entity carries – read it back through <a href="./canopy.html"><code>Canopy::section</code></a>, by
+entity carries – read it back through <a href="./forest.html"><code>Forest::section</code></a>, by
 <a href="./leaf.html"><code>Leaf</code></a>. <code>ResolvedElevation</code>/<code>ScaleFactor</code> (see <a href="./ginkgo.html">Ginkgo</a>) are
 what convert between contexts when a value actually needs to cross into the render
 backend (logical units in, physical pixels out to the GPU).</p>

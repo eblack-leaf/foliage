@@ -10,7 +10,7 @@
 //! what a stem is.
 
 use foliage::{
-    Canopy, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf, Location,
+    Forest, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf, Location,
     Panel, Polygon, Presence, Rounding, Sprout, Text, VerticalAlignment,
 };
 
@@ -51,29 +51,29 @@ fn parent_write_tone() -> Color {
 }
 
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
-    let container = crate::site::shell::content_area(g.canopy, slot);
-    let mut column = Column::new(g.canopy, container);
+    let container = crate::site::shell::content_area(g.forest, slot);
+    let mut column = Column::new(g.forest, container);
 
-    column.display(g.canopy, headings::LEAF);
-    column.lead(g.canopy, text::LEAD);
+    column.display(g.forest, headings::LEAF);
+    column.lead(g.forest, text::LEAD);
 
-    column.heading(g.canopy, headings::LEAF_RESOLVING);
-    column.prose(g.canopy, text::RESOLVING);
+    column.heading(g.forest, headings::LEAF_RESOLVING);
+    column.prose(g.forest, text::RESOLVING);
     resolving(g, &mut column);
 
-    column.heading(g.canopy, headings::LEAF_CLIPPING);
-    column.prose(g.canopy, text::CLIPPING);
+    column.heading(g.forest, headings::LEAF_CLIPPING);
+    column.prose(g.forest, text::CLIPPING);
     clipping(g, &mut column);
 
-    column.heading(g.canopy, headings::LEAF_INHERITING);
-    column.prose(g.canopy, text::INHERITING);
+    column.heading(g.forest, headings::LEAF_INHERITING);
+    column.prose(g.forest, text::INHERITING);
     inheriting(g, &mut column);
 
-    column.heading(g.canopy, headings::LEAF_LIFETIME);
-    column.prose(g.canopy, text::LIFETIME);
+    column.heading(g.forest, headings::LEAF_LIFETIME);
+    column.prose(g.forest, text::LIFETIME);
     lifetime(g, &mut column);
 
-    column.tail(g.canopy, SCROLL_TAIL);
+    column.tail(g.forest, SCROLL_TAIL);
 }
 
 fn frame_at(width: f32) -> Location {
@@ -104,9 +104,9 @@ fn clip_frame_at(right: Option<f32>) -> Location {
     }
 }
 
-fn clip_resize(canopy: &mut Canopy, frame: &Frame, right: Option<f32>) {
-    canopy.location(frame.leaf, clip_frame_at(right));
-    canopy.text(
+fn clip_resize(forest: &mut Forest, frame: &Frame, right: Option<f32>) {
+    forest.location(frame.leaf, clip_frame_at(right));
+    forest.text(
         frame.label,
         if right.is_none() {
             board::CLIP_FULL
@@ -117,9 +117,9 @@ fn clip_resize(canopy: &mut Canopy, frame: &Frame, right: Option<f32>) {
 }
 
 /// Resizes a parent and keeps its label honest.
-fn resize(canopy: &mut Canopy, frame: &Frame, width: f32) {
-    canopy.location(frame.leaf, frame_at(width));
-    canopy.text(frame.label, board::frame(width));
+fn resize(forest: &mut Forest, frame: &Frame, width: f32) {
+    forest.location(frame.leaf, frame_at(width));
+    forest.text(frame.label, board::frame(width));
 }
 
 /// Below the parent's own label, so a narrow parent never puts the two on top of each other.
@@ -152,14 +152,14 @@ fn resolving(g: &mut Grow, column: &mut Column) {
         &reference::RESOLVING,
     );
     let frame = blueprint::frame(
-        g.canopy,
+        g.forest,
         board.stage,
         frame_at(FRAME_WIDTHS[0]),
         board::frame(FRAME_WIDTHS[0]),
         false,
     );
     let child = blueprint::child_box(
-        g.canopy,
+        g.forest,
         frame.leaf,
         child_band(CHILD_LEFT, CHILD_RIGHT),
         child_tone(),
@@ -173,19 +173,19 @@ fn resolving(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Resolving {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        resize(canopy, &self.frame, FRAME_WIDTHS[step]);
+        self.board.select(forest, step);
+        resize(forest, &self.frame, FRAME_WIDTHS[step]);
         true
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
-        let parent = blueprint::resolved(canopy, self.frame.leaf);
-        let child = blueprint::resolved(canopy, self.child);
-        self.board.set(canopy, 0, parent);
-        self.board.set(canopy, 1, child);
+    fn drive(&mut self, forest: &mut Forest) {
+        let parent = blueprint::resolved(forest, self.frame.leaf);
+        let child = blueprint::resolved(forest, self.child);
+        self.board.set(forest, 0, parent);
+        self.board.set(forest, 1, child);
     }
 }
 
@@ -224,8 +224,8 @@ fn clip_child_at(left: f32, size: f32) -> Location {
 /// its target in layout space, so a second subtraction cancels for the anchored value and
 /// survives for the plain percentage beside it. Measuring the centre reaches the same place
 /// without putting this element on that path at all.
-fn clip_child(canopy: &mut Canopy, parent: Leaf, tone: Color) -> Leaf {
-    let child = canopy.branch(
+fn clip_child(forest: &mut Forest, parent: Leaf, tone: Color) -> Leaf {
+    let child = forest.branch(
         parent,
         Polygon::new()
             .sides(6.0)
@@ -239,7 +239,7 @@ fn clip_child(canopy: &mut Canopy, parent: Leaf, tone: Color) -> Leaf {
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .pass_through(),
     );
-    blueprint::name(canopy, child, board::CHILD);
+    blueprint::name(forest, child, board::CHILD);
     child
 }
 
@@ -281,16 +281,16 @@ fn clipping(g: &mut Grow, column: &mut Column) {
         &reference::CLIPPING,
     );
     let frame = blueprint::frame(
-        g.canopy,
+        g.forest,
         board.stage,
         frame_at(FRAME_WIDTHS[0]),
         board::frame(FRAME_WIDTHS[0]),
         false,
     );
-    let child = clip_child(g.canopy, frame.leaf, written_tone());
+    let child = clip_child(g.forest, frame.leaf, written_tone());
     // This board labels its parent full/narrowed rather than by percentage, so it says so from
     // the start instead of after the first press.
-    clip_resize(g.canopy, &frame, None);
+    clip_resize(g.forest, &frame, None);
     g.page.demos.push(Box::new(Clipping {
         board,
         frame,
@@ -301,17 +301,17 @@ fn clipping(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Clipping {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         self.step = step;
-        clip_resize(canopy, &self.frame, self.right());
+        clip_resize(forest, &self.frame, self.right());
         true
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
-        if let Some(stage) = canopy.section(self.board.stage) {
+    fn drive(&mut self, forest: &mut Forest) {
+        if let Some(stage) = forest.section(self.board.stage) {
             // Derived from the stage, not read back off the child: reading the child would make
             // whatever was written last frame the input to this one, and a resize could never
             // recentre it.
@@ -319,17 +319,17 @@ impl Demo for Clipping {
             let left = ((stage.width() - size) / 2.0).max(0.0);
             if self.full != Some((left, size)) {
                 self.full = Some((left, size));
-                canopy.location(self.child, clip_child_at(left, size));
+                forest.location(self.child, clip_child_at(left, size));
                 // The parent's edge is px derived from the old measurement, so left alone through
                 // a resize it means nothing at the new size. Re-applied here rather than waiting
                 // for the next press to notice.
-                clip_resize(canopy, &self.frame, self.right());
+                clip_resize(forest, &self.frame, self.right());
             }
         }
-        let parent = blueprint::resolved(canopy, self.frame.leaf);
-        let child = blueprint::resolved(canopy, self.child);
-        self.board.set(canopy, 0, parent);
-        self.board.set(canopy, 1, child);
+        let parent = blueprint::resolved(forest, self.frame.leaf);
+        let child = blueprint::resolved(forest, self.child);
+        self.board.set(forest, 0, parent);
+        self.board.set(forest, 1, child);
     }
 }
 
@@ -354,20 +354,20 @@ fn inheriting(g: &mut Grow, column: &mut Column) {
     // Filled, so a colour write is visibly the parent's own surface changing. Full width like the
     // boards above it -- nothing here resizes the parent, so a narrow one is just a smaller stage.
     let frame = blueprint::frame(
-        g.canopy,
+        g.forest,
         board.stage,
         frame_at(FRAME_WIDTHS[0]),
         board::frame(FRAME_WIDTHS[0]),
         true,
     );
     blueprint::child(
-        g.canopy,
+        g.forest,
         frame.leaf,
         child_band(CHILD_LEFT, CHILD_RIGHT),
         child_tone(),
         board::CHILD,
     );
-    board.set(g.canopy, 0, board::INHERITING_VALUES[0][0]);
+    board.set(g.forest, 0, board::INHERITING_VALUES[0][0]);
     g.page.demos.push(Box::new(Inheriting { board, frame }));
 }
 
@@ -376,28 +376,28 @@ impl Demo for Inheriting {
     /// pressed in any order, so a step has to state the whole parent it means -- written as a
     /// change from whatever came before, jumping from "color" back to "opacity" would leave the
     /// parent wearing the previous step's tone.
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         match step {
             1 => {
-                canopy.opacity(self.frame.leaf, 0.6);
-                canopy.color(self.frame.leaf, role::surface());
+                forest.opacity(self.frame.leaf, 0.6);
+                forest.color(self.frame.leaf, role::surface());
             }
             2 => {
-                canopy.opacity(self.frame.leaf, 1.0);
-                canopy.color(self.frame.leaf, parent_write_tone());
+                forest.opacity(self.frame.leaf, 1.0);
+                forest.color(self.frame.leaf, parent_write_tone());
             }
             _ => {
-                canopy.opacity(self.frame.leaf, 1.0);
-                canopy.color(self.frame.leaf, role::surface());
+                forest.opacity(self.frame.leaf, 1.0);
+                forest.color(self.frame.leaf, role::surface());
             }
         }
         let [wrote, child] = board::INHERITING_VALUES[step];
-        self.board.set(canopy, 0, wrote);
-        self.board.set(canopy, 1, child);
+        self.board.set(forest, 0, wrote);
+        self.board.set(forest, 1, child);
         true
     }
 }
@@ -440,7 +440,7 @@ fn lifetime(g: &mut Grow, column: &mut Column) {
     );
     // The room the pair occupies, drawn once and never pruned. Without it the board empties to
     // nothing and there is no telling what left or where it was.
-    let room = g.canopy.branch(
+    let room = g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::outline())
@@ -455,8 +455,8 @@ fn lifetime(g: &mut Grow, column: &mut Column) {
     // right rectangle and still not where the thing they stand for will be: a frame's label is
     // left-aligned in a box a fixed number of characters wide, a child's name is centred across
     // its whole band.
-    let marker = |canopy: &mut Canopy, text: &'static str, at: Location, h: HorizontalAlignment| {
-        canopy.branch(
+    let marker = |forest: &mut Forest, text: &'static str, at: Location, h: HorizontalAlignment| {
+        forest.branch(
             room,
             Text::new(text)
                 .size(FontSize::new(type_scale::LABEL))
@@ -470,21 +470,21 @@ fn lifetime(g: &mut Grow, column: &mut Column) {
     // Hidden one at a time as the presses fill the slots, and both back on the prune.
     let empty = [
         marker(
-            g.canopy,
+            g.forest,
             board::NO_PARENT,
             blueprint::frame_label_at(),
             HorizontalAlignment::Left,
         ),
         marker(
-            g.canopy,
+            g.forest,
             board::NO_CHILD,
             child_band(CHILD_LEFT, CHILD_RIGHT),
             HorizontalAlignment::Center,
         ),
     ];
     let stage = board.stage;
-    board.set(g.canopy, 0, board::LIFETIME_CALLS[0]);
-    board.set(g.canopy, 1, board::CHILD_NONE);
+    board.set(g.forest, 0, board::LIFETIME_CALLS[0]);
+    board.set(g.forest, 1, board::CHILD_NONE);
     g.page.demos.push(Box::new(Lifetime {
         board,
         stage,
@@ -503,22 +503,22 @@ impl Lifetime {
     /// reader press them in any order, so a step that only knew how to advance from the one
     /// before it would either wedge or lie. Replaying from empty is a handful of spawns, and it
     /// is the only thing that makes every button land on the state its word names.
-    fn goto(&mut self, canopy: &mut Canopy, step: usize) {
+    fn goto(&mut self, forest: &mut Forest, step: usize) {
         if let Some(frame) = self.frame.take() {
-            canopy.prune(frame.leaf);
+            forest.prune(frame.leaf);
         }
         // Dropping the handle is what takes the child row back to "none", so an empty board reads
         // the same on every pass through.
         self.child = None;
         // Each marker says "nothing is here yet", which is true of an empty slot and not of one
         // that was just pruned -- so both go off from the moment the child exists and stay off.
-        canopy.visible(self.empty[0], step == 0);
-        canopy.visible(self.empty[1], step <= 1);
+        forest.visible(self.empty[0], step == 0);
+        forest.visible(self.empty[1], step <= 1);
         if step >= 1 {
             // Filled, not outlined: the room is already an outline, and placing a second one over
             // it is a press that appears to do nothing.
             self.frame = Some(blueprint::frame(
-                canopy,
+                forest,
                 self.stage,
                 frame_at(FRAME_WIDTHS[0]),
                 board::frame(FRAME_WIDTHS[0]),
@@ -528,7 +528,7 @@ impl Lifetime {
         if step >= 2 {
             let parent = self.frame.as_ref().unwrap().leaf;
             self.child = Some(blueprint::child(
-                canopy,
+                forest,
                 parent,
                 child_band(CHILD_LEFT, CHILD_RIGHT),
                 child_tone(),
@@ -538,39 +538,39 @@ impl Lifetime {
         if step == PRUNED {
             // Only the parent is named. Both go -- and the child's handle is kept, because this
             // step exists to read it.
-            canopy.prune(self.frame.take().unwrap().leaf);
+            forest.prune(self.frame.take().unwrap().leaf);
         }
         self.at = step;
-        self.board.set(canopy, 0, board::LIFETIME_CALLS[step]);
+        self.board.set(forest, 0, board::LIFETIME_CALLS[step]);
     }
 }
 
 impl Demo for Lifetime {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        self.goto(canopy, step);
+        self.board.select(forest, step);
+        self.goto(forest, step);
         true
     }
 
     /// The child's row is the tree's answer, not a copy kept here: while a child exists the row
     /// is whatever `presence` says about it that frame, and each state is reported as itself
     /// rather than folded together.
-    fn drive(&mut self, canopy: &mut Canopy) {
+    fn drive(&mut self, forest: &mut Forest) {
         let text = match (self.at, self.child) {
             // The prune is a command, not an edit: for the frames before it lands the handle still
             // reads `Planted`, which would put "growing" on a board that just emptied. The step is
             // the authority on having pruned; `presence` is the authority on everything else.
             (PRUNED, _) => board::CHILD_WITHERED,
             (_, None) => board::CHILD_NONE,
-            (_, Some(child)) => match canopy.presence(child) {
+            (_, Some(child)) => match forest.presence(child) {
                 Presence::Planted => board::CHILD_GROWING,
                 Presence::Live => board::CHILD_LIVE,
                 Presence::Withered => board::CHILD_WITHERED,
             },
         };
-        self.board.set(canopy, 1, text);
+        self.board.set(forest, 1, text);
     }
 }

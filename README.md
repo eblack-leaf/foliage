@@ -18,15 +18,15 @@ foliage = { git = "https://github.com/eblack-leaf/foliage" }
 ```rust
 // src/main.rs
 use foliage::{
-    Canopy, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Rounding, Sprout,
+    Forest, Color, Elevation, Foliage, GridExt, Grows, Location, Panel, Rounding, Sprout,
 };
 struct App;
 impl Root for App {
-  fn take_root(canopy: &mut Canopy) -> Self {
+  fn take_root(forest: &mut Forest) -> Self {
     // ... oneshot to create app structure
   }
-  fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-    // ... per frame | events from blooms
+  fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+    // ... per frame | events from mosses
   }
 }
 fn main() {
@@ -45,18 +45,18 @@ no feature flags.
 
 ## Composing and reacting
 
-Elements nest via `canopy.branch(parent, ..)`. Everything foliage reports back -- clicks,
-keys, finished animations, resizes -- arrives as a `Bloom` from `canopy.take()`:
+Elements nest via `forest.branch(parent, ..)`. Everything foliage reports back -- clicks,
+keys, finished animations, resizes -- arrives as a `Moss` from `forest.take()`:
 
 ```rust
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, Grid, GridExt, Grows, Leaf, Location, Panel,
+    Moss, Forest, Color, Elevation, Foliage, Grid, GridExt, Grows, Leaf, Location, Panel,
     Rounding, Sprout, Root
 };
 struct App { overlay: Leaf }
 impl Root for App {
-  fn take_root(canopy: &mut Canopy) -> Self {
-    let base = canopy.leaf(
+  fn take_root(forest: &mut Forest) -> Self {
+    let base = forest.leaf(
       Panel::new()
               .color(Color::orange(700))
               .at(Location::new().xs(
@@ -66,7 +66,7 @@ impl Root for App {
               .elevate(Elevation::up(1))
               .grid(Grid::default()), // children resolve their Location against this
     );
-    let overlay = canopy.branch(
+    let overlay = forest.branch(
       base, // stemmed to `base` -- moves, clips and withers with it
       Panel::new()
               .color(Color::green(500))
@@ -80,9 +80,9 @@ impl Root for App {
     );
     App { overlay }
   }
-  fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-    for b in blooms {
-      if let Bloom::Clicked(leaf) = b {
+  fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+    for b in mosses {
+      if let Moss::Clicked(leaf) = b {
         if leaf == self.overlay {
           // ... process clicked
         }

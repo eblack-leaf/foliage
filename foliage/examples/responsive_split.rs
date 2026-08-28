@@ -10,7 +10,7 @@
 //! other). Drag slowly through a range of widths: the seam should stay closed at every one.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Location,
+    Moss, Forest, Color, Elevation, Foliage, FontSize, GridExt, HorizontalAlignment, Location,
     Panel, Root, Rounding, Text, VerticalAlignment,
 };
 use foliage::{Grows, Sprout};
@@ -37,9 +37,9 @@ fn main() {
 struct Split;
 
 impl Root for Split {
-    fn take_root(canopy: &mut Canopy) -> Self {
+    fn take_root(forest: &mut Forest) -> Self {
         // Left at xs -> top when stacked. Ends exactly where the other begins, on both axes.
-        canopy.leaf(
+        forest.leaf(
             Panel::new()
                 .rounding(Rounding::None)
                 .color(Color::cyan(600))
@@ -61,7 +61,7 @@ impl Root for Split {
         // Right at xs -> bottom when stacked. Its leading edge is the *same* percentage the
         // panel above ends on, which is what makes this a seam test rather than two rectangles
         // that happen to be near each other.
-        canopy.leaf(
+        forest.leaf(
             Panel::new()
                 .rounding(Rounding::None)
                 .color(Color::orange(600))
@@ -86,7 +86,7 @@ impl Root for Split {
                 .elevate(Elevation::up(1)),
         );
 
-        canopy.leaf(
+        forest.leaf(
             Text::new("drag the window -- stacked under md, split at md and up")
                 .size(FontSize::new(13))
                 .color(Color::gray(500))
@@ -102,5 +102,5 @@ impl Root for Split {
         );
         Split
     }
-    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
+    fn frame(&mut self, _forest: &mut Forest, _mosses: Vec<Moss>) {}
 }

@@ -88,8 +88,8 @@ pub(crate) fn update_time(mut time: ResMut<Time>) {
 }
 /// Fired at a [`Timer`] entity when it runs out, and at a sequence entity when its last
 /// joined animation finishes -- reported across the boundary as
-/// [`Bloom::TimerFinished`](crate::Bloom::TimerFinished)/
-/// [`Bloom::SequenceFinished`](crate::Bloom::SequenceFinished), the hook for chaining one
+/// [`Moss::TimerFinished`](crate::Moss::TimerFinished)/
+/// [`Moss::SequenceFinished`](crate::Moss::SequenceFinished), the hook for chaining one
 /// stage of motion onto the next.
 #[foliage_macros::targeted_event]
 #[derive(Copy)]

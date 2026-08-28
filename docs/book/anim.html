@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -176,7 +176,7 @@
                     <main>
                         <h1 id="animation"><a class="header" href="#animation">Animation</a></h1>
 <p>An app doesn’t build an <code>Animation</code> directly – it calls
-<a href="./canopy.html"><code>Grows::animate</code></a> with a <a href="./spawning.html"><code>Motion</code></a> and a
+<a href="./forest.html"><code>Grows::animate</code></a> with a <a href="./spawning.html"><code>Motion</code></a> and a
 <a href="./spawning.html"><code>Timing</code></a>. What follows is how that request actually runs underneath,
 and the two pieces of it (<code>Ease</code>, <code>Repeat</code>) an app configures directly through <code>Timing</code>.</p>
 <h2 id="ease-and-repeat-the-author-facing-knobs"><a class="header" href="#ease-and-repeat-the-author-facing-knobs"><code>Ease</code> and <code>Repeat</code>: the author-facing knobs</a></h2>
@@ -216,7 +216,7 @@ than a per-type one.</p>
 <p><code>Motion</code>’s variants are exactly the <code>Animate</code> types the engine exposes across the
 boundary. An app never implements <code>Animate</code> for its own component, because it has no
 component of its own for the engine to animate – everything an app can grow and change
-already goes through <a href="./canopy.html"><code>Grows</code></a>.</p>
+already goes through <a href="./forest.html"><code>Grows</code></a>.</p>
 <h2 id="animationa-the-internal-builder"><a class="header" href="#animationa-the-internal-builder"><code>Animation&lt;A&gt;</code>: the internal builder</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -239,7 +239,7 @@ impl&lt;A: Animate&gt; Animation&lt;A&gt; {
 <span class="boring">}</span></code></pre>
 <p><code>a</code> is the <strong>end</strong> value – <code>Animation::new(Color::gray(900))</code> means “animate to this
 color,” starting from whatever the target’s current value is. This is what
-<a href="./canopy.html"><code>Grows::animate</code></a> builds and runs on an app’s behalf, through
+<a href="./forest.html"><code>Grows::animate</code></a> builds and runs on an app’s behalf, through
 <a href="./tree.html"><code>Tree::animate</code></a>, which spawns an <code>AnimationRunner&lt;A&gt;</code> entity that drives the
 interpolation tick by tick against <a href="./time.html"><code>Time</code></a>’s frame delta, writing the
 interpolated value onto the target every frame until it finishes.</p>
@@ -249,8 +249,8 @@ interpolated value onto the target every frame until it finishes.</p>
 sequence groups them only for the purpose of knowing when <em>all</em> of them are done. Full
 mechanism (the <code>SequenceMarker</code> counter, why the sequence entity self-despawns) is in
 <a href="./tree.html">Inside the Engine</a>; across the boundary this is
-<a href="./canopy.html"><code>Grows::sequence</code>/<code>Grows::animate_during</code></a> and
-<a href="./canopy.html"><code>Bloom::SequenceFinished</code></a>.</p>
+<a href="./forest.html"><code>Grows::sequence</code>/<code>Grows::animate_during</code></a> and
+<a href="./forest.html"><code>Moss::SequenceFinished</code></a>.</p>
 
                     </main>
 

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Canopy: The Frame Surface - foliage</title>
+        <title>Forest: The Frame Surface - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -174,7 +174,7 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="canopy-the-frame-surface"><a class="header" href="#canopy-the-frame-surface">Canopy: The Frame Surface</a></h1>
+                        <h1 id="forest-the-frame-surface"><a class="header" href="#forest-the-frame-surface">Forest: The Frame Surface</a></h1>
 <p>Once <a href="./app.html"><code>Foliage::photosynthesize</code></a> is called, an app lives entirely inside one
 closure, called once per frame:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -184,9 +184,9 @@ let mut foliage = Foliage::new();
 foliage.desktop_size((360, 220));
 
 let mut demo: Option&lt;Demo&gt; = None;
-foliage.photosynthesize(move |canopy: &amp;mut Canopy| {
-    let demo = demo.get_or_insert_with(|| grow(canopy));
-    for bloom in canopy.take() {
+foliage.photosynthesize(move |forest: &amp;mut Forest| {
+    let demo = demo.get_or_insert_with(|| grow(forest));
+    for moss in forest.take() {
         // ...
     }
 });
@@ -194,29 +194,29 @@ foliage.photosynthesize(move |canopy: &amp;mut Canopy| {
 <p>There is no separate setup phase that builds an initial tree before the loop starts –
 the opening screen is just the first frame’s <code>get_or_insert_with</code>. Everything an app
 does, from the very first element it grows to the last one it prunes, goes through the
-<code>&amp;mut Canopy</code> this closure is handed.</p>
+<code>&amp;mut Forest</code> this closure is handed.</p>
 <h2 id="what-crosses-the-seam"><a class="header" href="#what-crosses-the-seam">What crosses the seam</a></h2>
-<p>Canopy is a read-only bundle of engine state plus a command queue, not a window onto the
+<p>Forest is a read-only bundle of engine state plus a command queue, not a window onto the
 <code>bevy_ecs</code> world itself:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/boundary/canopy.rs
-pub struct Canopy&lt;'w, 's&gt; {
+</span>// foliage_proper/src/boundary/forest.rs
+pub struct Forest&lt;'w, 's&gt; {
     pub(crate) reads: Reads&lt;'w, 's&gt;,
     pub(crate) queue: &amp;'w mut Vec&lt;Op&gt;,
-    pub(crate) blooms: Vec&lt;Bloom&gt;,
+    pub(crate) mosses: Vec&lt;Moss&gt;,
     pub(crate) allocator: bevy_ecs::entity::RemoteAllocator,
 }
 <span class="boring">}</span></code></pre>
 <p>Everything on it is plain data: commands queued in (<a href="./spawning.html"><code>Op</code></a>, never named by
 app code directly – see <a href="#grows-the-command-vocabulary"><code>Grows</code></a> below), emissions taken
-out (<a href="#bloom-what-happened"><code>Bloom</code></a>), and read-only samples taken at the callsite
+out (<a href="#moss-what-happened"><code>Moss</code></a>), and read-only samples taken at the callsite
 (<a href="#sampling-sap-and-sample"><code>Sap</code></a>). No engine type is handed out, and nothing an app
 holds borrows from the world – which is what makes it safe for an app to run its own
 <code>bevy_ecs</code>, at whatever version it likes, without the two ever meeting.</p>
 <h2 id="grows-the-command-vocabulary"><a class="header" href="#grows-the-command-vocabulary"><code>Grows</code>: the command vocabulary</a></h2>
 <p>Every way an app can change the tree lives on one trait, implemented identically by
-<code>Canopy</code> and <a href="#sprig-the-off-thread-half"><code>Sprig</code></a>:</p>
+<code>Forest</code> and <a href="#sprig-the-off-thread-half"><code>Sprig</code></a>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/boundary/verbs.rs
@@ -242,11 +242,11 @@ more, and nothing an app defines itself.</p>
 in the order it was written, immediately after the closure returns. A <code>leaf</code> followed by
 a write to the <code>Leaf</code> it returned behaves exactly the way it reads, even though the
 element doesn’t exist as a real entity until that queue is drained.</p>
-<h2 id="bloom-what-happened"><a class="header" href="#bloom-what-happened">Bloom: what happened</a></h2>
+<h2 id="moss-what-happened"><a class="header" href="#moss-what-happened">Moss: what happened</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/boundary/bloom.rs
-pub enum Bloom {
+</span>// foliage_proper/src/boundary/moss.rs
+pub enum Moss {
     Clicked(Leaf),
     Engaged(Leaf),
     Dragged(Leaf),
@@ -266,8 +266,8 @@ pub enum Bloom {
     // ..
 }
 <span class="boring">}</span></code></pre>
-<p><code>canopy.take()</code> moves this frame’s emissions out, ready for a <code>for bloom in canopy.take()</code>
-loop that can itself call back into <code>canopy</code> without a borrow-checker dance. A single
+<p><code>forest.take()</code> moves this frame’s emissions out, ready for a <code>for moss in forest.take()</code>
+loop that can itself call back into <code>forest</code> without a borrow-checker dance. A single
 physical click can produce several <code>Clicked</code> emissions in one frame – one for the
 element under the pointer, and one for every pass-through element the gesture crossed –
 arriving in hit-test order. A <code>Leaf</code> reported here may already have withered by the time
@@ -277,7 +277,7 @@ you act on it; that’s safe, since every command naming a withered <code>Leaf</
 method:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/boundary/canopy.rs
+</span>// foliage_proper/src/boundary/forest.rs
 pub fn sample(&amp;self, leaf: Leaf, what: Sap) -&gt; Option&lt;Sample&lt;'_&gt;&gt;;
 <span class="boring">}</span></code></pre>
 <p><code>Sap</code> is the exhaustive list of what a frame may observe about an element – <code>Section</code>,
@@ -287,7 +287,7 @@ clip) are deliberately absent, since they’re the engine’s own working state 
 anything an app needs. <code>Sample</code> is what a given <code>Sap</code> reads back as; a handful of common
 cases (<code>section</code>, <code>text_of</code>, <code>scroll_offset</code>, <code>is_visible</code>, …) are typed convenience
 wrappers over <code>sample</code> for the lookups every app ends up doing anyway.</p>
-<p><code>Canopy</code> also answers questions that aren’t about a specific element: <code>layout()</code>, the
+<p><code>Forest</code> also answers questions that aren’t about a specific element: <code>layout()</code>, the
 current breakpoint; <code>short()</code>, whether the viewport is vertically cramped; <code>frame_time()</code>,
 for scaling per-frame motion so it runs at the same speed regardless of frame rate;
 <code>viewport()</code>; <code>pointer()</code>/<code>pointer_velocity()</code>; <code>named(..)</code>/<code>asset_named(..)</code>, looking up
@@ -303,7 +303,7 @@ pub struct Sprig {
     allocator: RemoteAllocator,
 }
 <span class="boring">}</span></code></pre>
-<p><code>Sprig</code> carries the exact same <code>Grows</code> vocabulary as <code>Canopy</code>, so code that changes the
+<p><code>Sprig</code> carries the exact same <code>Grows</code> vocabulary as <code>Forest</code>, so code that changes the
 tree reads identically whether it runs in the frame closure or on another thread. It’s
 <code>Send</code> and <code>Clone</code> – obtained once via <a href="./app.html"><code>Foliage::sprig</code></a> – and command-only:
 there is no sampling half, because reads only make sense at the frame callsite, where the

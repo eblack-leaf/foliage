@@ -1,6 +1,6 @@
 # Inside the Engine: Node, Author, and Tree
 
-Everything in [Leaf](./leaf.md), [Canopy](./canopy.md), and
+Everything in [Leaf](./leaf.md), [Forest](./forest.md), and
 [Specs and Sprout](./spawning.md) is what an app sees. None of it says how a `Spec`
 actually becomes something in `bevy_ecs`. This chapter is engine-internal -- every type
 here is `pub(crate)`, reachable only from inside `foliage_proper` itself -- but it's
@@ -25,7 +25,7 @@ A bare `bevy_ecs::Entity` has no position, no parent, no draw order, and can't r
 click. `Node` bundles exactly the set of components that stops all of that being true, via
 `#[require(...)]`. Its `on_add` hook registers the observers that let opacity/elevation/
 location animate; its `on_remove` hook is where a pruned entity's `Leaf` gets reported as
-[`Bloom::Withered`](./canopy.md) and where stale `CurrentInteraction` state gets cleared
+[`Moss::Withered`](./forest.md) and where stale `CurrentInteraction` state gets cleared
 -- both run for every widget, without each one remembering to register them itself.
 
 `Node` attaches itself rather than being declared on `Panel`/`Text`/etc: every entity the
@@ -125,8 +125,8 @@ counted against a sequence entity (`spawn_sequence` for one an app never named,
 sequence's own counter on insert, finishing decrements it, and once it reaches zero the
 sequence fires `OnEnd` at itself and despawns. Nothing outside the crate ever names that
 entity directly -- across the boundary this whole mechanism is what
-[`Grows::sequence`/`Grows::animate_during`](./canopy.md) and
-[`Bloom::SequenceFinished`](./canopy.md) surface.
+[`Grows::sequence`/`Grows::animate_during`](./forest.md) and
+[`Moss::SequenceFinished`](./forest.md) surface.
 
 ## What `Sprout` being sealed actually buys
 
@@ -134,5 +134,5 @@ entity directly -- across the boundary this whole mechanism is what
 `Tree::branch` being `pub(crate)` stops an app from calling them directly even if it
 could. Combined, there is no path from outside this crate to a spawned, `Node`-bearing
 entity that skips the mandatory `.elevate(...)` or hand-rolls a parent link -- the only
-way onto the tree is [`Canopy`/`Sprig`](./canopy.md) queuing a [`Spec`](./spawning.md) for
+way onto the tree is [`Forest`/`Sprig`](./forest.md) queuing a [`Spec`](./spawning.md) for
 the engine to grow on its own side of the boundary.

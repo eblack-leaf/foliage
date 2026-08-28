@@ -2,7 +2,7 @@
 //! its own, since correct numbers don't guarantee it *looks* right. Run with
 //! `cargo run --example opacity_and_elevation -p foliage`.
 
-use foliage::{Bloom, Canopy, Color, Elevation, Foliage, Grid, GridExt, Location, Panel, Root};
+use foliage::{Moss, Forest, Color, Elevation, Foliage, Grid, GridExt, Location, Panel, Root};
 use foliage::{Grows, Sprout};
 
 fn main() {
@@ -16,10 +16,10 @@ fn main() {
 struct Stack;
 
 impl Root for Stack {
-    fn take_root(canopy: &mut Canopy) -> Self {
+    fn take_root(forest: &mut Forest) -> Self {
         // Three overlapping panels, each further forward and more transparent than the last
         // -- correct blending reads as a soft stack, not a hard-edged collage.
-        let base = canopy.leaf(
+        let base = forest.leaf(
             Panel::new()
                 .color(Color::orange(700))
                 .at(Location::new().xs(
@@ -32,7 +32,7 @@ impl Root for Stack {
                 // resolves against its parent's, whether or not it is expressed in percent.
                 .grid(Grid::default()),
         );
-        canopy.branch(
+        forest.branch(
             base,
             Panel::new()
                 .color(Color::green(500))
@@ -43,7 +43,7 @@ impl Root for Stack {
                 .elevate(Elevation::up(1))
                 .opacity(0.6),
         );
-        canopy.branch(
+        forest.branch(
             base,
             Panel::new()
                 .color(Color::gray(200))
@@ -56,5 +56,5 @@ impl Root for Stack {
         );
         Stack
     }
-    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
+    fn frame(&mut self, _forest: &mut Forest, _mosses: Vec<Moss>) {}
 }

@@ -1,7 +1,7 @@
 //! Section navigation. Peers, not a sequence -- there is no prev/next here on purpose.
 
 use foliage::{
-    Bare, Canopy, Elevation, FontSize, GridExt, Grows, HorizontalAlignment, Icon, IconId, Leaf,
+    Bare, Forest, Elevation, FontSize, GridExt, Grows, HorizontalAlignment, Icon, IconId, Leaf,
     Location, Panel, Rounding, Sprout, Text, VerticalAlignment,
 };
 
@@ -72,17 +72,17 @@ impl Rail {
 ///
 /// `active` is `None` on the hero route, which has no rail at all -- so nothing is built.
 /// Section indices here are 0-based; the router's are one higher, since route 0 is the hero.
-pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) -> Rail {
+pub(crate) fn build(forest: &mut Forest, parent: Leaf, active: Option<usize>) -> Rail {
     let Some(active) = active else {
         return Rail::default();
     };
-    let surface = rail_surface(canopy, parent);
+    let surface = rail_surface(forest, parent);
 
     // One target covering the chevron and the wordmark together, rather than a listener on
     // each. They are one control -- "back to the hero" -- and as two they had two dead strips
     // between and around them where the obvious click did nothing. Unpainted: the rail's own
     // surface is the background here, so a panel would only be a shape to keep in sync.
-    let back = canopy.branch(
+    let back = forest.branch(
         surface,
         Bare::new()
             .at(Location::new().xs(
@@ -101,7 +101,7 @@ pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) ->
 
     // both pass through, or each would win the hit-test on the pixels it covers and split the
     // one control back into three
-    canopy.branch(
+    forest.branch(
         surface,
         Icon::new(IconId::from(IconHandles::ChevronUp))
             .color(role::accent())
@@ -116,7 +116,7 @@ pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) ->
             .pass_through(),
     );
 
-    canopy.branch(
+    forest.branch(
         surface,
         Text::new(BRAND)
             .size(FontSize::new(type_scale::TITLE))
@@ -140,7 +140,7 @@ pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) ->
             .pass_through(),
     );
 
-    canopy.branch(
+    forest.branch(
         surface,
         Panel::new()
             .color(role::outline())
@@ -162,7 +162,7 @@ pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) ->
         // the active entry gets a filled pill behind it -- M3's rail indicator. Inactive
         // entries are label-only, so the accent stays scarce enough to mean something.
         if is_active {
-            canopy.branch(
+            forest.branch(
                 surface,
                 Panel::new()
                     .color(role::accent())
@@ -180,7 +180,7 @@ pub(crate) fn build(canopy: &mut Canopy, parent: Leaf, active: Option<usize>) ->
             );
         }
         entries.push(
-            canopy.branch(
+            forest.branch(
                 surface,
                 Text::new(*name)
                     .size(FontSize::new(type_scale::TITLE))

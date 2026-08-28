@@ -5,7 +5,7 @@
 //! hero's fold hint" is this module's whole job, and it does it against plain Rust fields.
 
 use foliage::{
-    Bare, Bloom, Canopy, Elevation, Grid, GridExt, Grows, HrefLink, Leaf, Location, Sprout,
+    Bare, Moss, Forest, Elevation, Grid, GridExt, Grows, HrefLink, Leaf, Location, Sprout,
 };
 
 use crate::site;
@@ -34,8 +34,8 @@ pub(crate) struct Site {
 
 impl Site {
     /// Everything that outlives a route, plus the opening screen.
-    pub(crate) fn grow(canopy: &mut Canopy) -> Self {
-        let router = canopy.leaf(
+    pub(crate) fn grow(forest: &mut Forest) -> Self {
+        let router = forest.leaf(
             Bare::new()
                 .at(Location::new().xs(
                     0.pct().as_left().with(100.pct().as_right()),
@@ -47,8 +47,8 @@ impl Site {
                 // parent that has none.
                 .grid(Grid::default()),
         );
-        let host = site::drawer::host(canopy);
-        let controls = site::drawer::build(canopy);
+        let host = site::drawer::host(forest);
+        let controls = site::drawer::build(forest);
         let mut site = Self {
             router,
             host,
@@ -61,7 +61,7 @@ impl Site {
         };
         // Route 0 is the hero. There is no separate initial-build path -- the opening screen
         // is just the first navigation.
-        site.navigate(canopy, 0);
+        site.navigate(forest, 0);
         site
     }
 
@@ -70,31 +70,31 @@ impl Site {
     /// The rail is respawned rather than diffed -- six labels and an indicator is cheaper to
     /// rebuild than to reconcile, and it keeps "which entry is active" a build-time input
     /// instead of live state to keep in sync.
-    pub(crate) fn navigate(&mut self, canopy: &mut Canopy, index: usize) {
+    pub(crate) fn navigate(&mut self, forest: &mut Forest, index: usize) {
         let index = index.min(router::ROUTES.len() - 1);
         if self.route == Some(index) {
             return;
         }
         self.route = Some(index);
         if let Some(slot) = self.slot.take() {
-            canopy.prune(slot);
+            forest.prune(slot);
         }
         if let Some(surface) = self.rail.surface.take() {
-            canopy.prune(surface);
+            forest.prune(surface);
         }
         // Dropped with the scene it describes, so a click on a `Leaf` from the section you
         // just left cannot be answered by the one you are now in.
         self.page = Page::default();
         let slot = {
-            let mut g = Grow::new(&mut *canopy, &mut self.page);
+            let mut g = Grow::new(&mut *forest, &mut self.page);
             router::build_route(&mut g, self.router, index)
         };
         self.slot = Some(slot);
         // route 0 is the hero and has no rail; sections start at 1
         let section = index.checked_sub(1);
-        self.rail = site::rail::build(canopy, self.host, section);
+        self.rail = site::rail::build(forest, self.host, section);
         self.drawer
-            .set_available(canopy, self.host, self.controls, section.is_some());
+            .set_available(forest, self.host, self.controls, section.is_some());
     }
 
     /// Answers one emission.
@@ -102,57 +102,57 @@ impl Site {
     /// Ordered by how permanent the target is: the drawer's controls outlive every route, the
     /// rail outlives the scene inside it, and the page's own targets are the ones that were
     /// built moments ago. A `Leaf` can only ever be in one of the three.
-    pub(crate) fn respond(&mut self, canopy: &mut Canopy, bloom: Bloom) {
-        match bloom {
-            Bloom::Clicked(leaf) => self.clicked(canopy, leaf),
+    pub(crate) fn respond(&mut self, forest: &mut Forest, moss: Moss) {
+        match moss {
+            Moss::Clicked(leaf) => self.clicked(forest, leaf),
             // The `Leaf` names a timer and is spent, so it is taken out of the list rather
             // than left to be re-matched.
-            Bloom::TimerFinished(timer) => {
+            Moss::TimerFinished(timer) => {
                 if let Some(at) = self.page.arming.iter().position(|(t, _)| *t == timer) {
                     let (_, target) = self.page.arming.swap_remove(at);
-                    canopy.enable(target);
+                    forest.enable(target);
                 }
             }
             // Every named sequence reports here, the page's own entrance included, so this is
             // offered around rather than dispatched -- a demo recognises the one it opened, or
             // nobody does and the emission was the entrance finishing.
-            Bloom::SequenceFinished(seq) => {
-                self.offer(canopy, |demo, canopy| demo.finished(canopy, seq));
+            Moss::SequenceFinished(seq) => {
+                self.offer(forest, |demo, forest| demo.finished(forest, seq));
             }
             // The gesture itself, which only the `input` section reads. Every other page hears
             // about a press as `Clicked` and nothing else -- these three are what that one
             // emission is made of.
-            Bloom::Engaged(leaf) => {
-                self.offer(canopy, |demo, canopy| {
-                    demo.gesture(canopy, leaf, site::Phase::Engaged)
+            Moss::Engaged(leaf) => {
+                self.offer(forest, |demo, forest| {
+                    demo.gesture(forest, leaf, site::Phase::Engaged)
                 });
             }
-            Bloom::Dragged(leaf) => {
-                self.offer(canopy, |demo, canopy| {
-                    demo.gesture(canopy, leaf, site::Phase::Dragged)
+            Moss::Dragged(leaf) => {
+                self.offer(forest, |demo, forest| {
+                    demo.gesture(forest, leaf, site::Phase::Dragged)
                 });
             }
-            Bloom::DragStarted(leaf) => {
-                self.offer(canopy, |demo, canopy| {
-                    demo.gesture(canopy, leaf, site::Phase::DragStarted)
+            Moss::DragStarted(leaf) => {
+                self.offer(forest, |demo, forest| {
+                    demo.gesture(forest, leaf, site::Phase::DragStarted)
                 });
             }
-            Bloom::Disengaged(leaf) => {
-                self.offer(canopy, |demo, canopy| {
-                    demo.gesture(canopy, leaf, site::Phase::Disengaged)
+            Moss::Disengaged(leaf) => {
+                self.offer(forest, |demo, forest| {
+                    demo.gesture(forest, leaf, site::Phase::Disengaged)
                 });
             }
-            Bloom::Focused(leaf) => {
-                self.offer(canopy, |demo, canopy| demo.focus(canopy, leaf, true));
+            Moss::Focused(leaf) => {
+                self.offer(forest, |demo, forest| demo.focus(forest, leaf, true));
             }
-            Bloom::Unfocused(leaf) => {
-                self.offer(canopy, |demo, canopy| demo.focus(canopy, leaf, false));
+            Moss::Unfocused(leaf) => {
+                self.offer(forest, |demo, forest| demo.focus(forest, leaf, false));
             }
-            Bloom::TextChanged { leaf, value } => {
-                self.offer(canopy, |demo, canopy| demo.typed(canopy, leaf, &value));
+            Moss::TextChanged { leaf, value } => {
+                self.offer(forest, |demo, forest| demo.typed(forest, leaf, &value));
             }
-            Bloom::TextAction { leaf, action } => {
-                self.offer(canopy, |demo, canopy| demo.acted(canopy, leaf, action));
+            Moss::TextAction { leaf, action } => {
+                self.offer(forest, |demo, forest| demo.acted(forest, leaf, action));
             }
             _ => {}
         }
@@ -164,37 +164,37 @@ impl Site {
     /// whole of `respond` -- the dispatch is not what any of them are about.
     fn offer(
         &mut self,
-        canopy: &mut Canopy,
-        mut answer: impl FnMut(&mut Box<dyn site::Demo>, &mut Canopy) -> bool,
+        forest: &mut Forest,
+        mut answer: impl FnMut(&mut Box<dyn site::Demo>, &mut Forest) -> bool,
     ) {
         for demo in self.page.demos.iter_mut() {
-            if answer(demo, canopy) {
+            if answer(demo, forest) {
                 return;
             }
         }
     }
 
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) {
         if leaf == self.controls.backing {
             let open = !self.drawer.open;
-            self.drawer.set_open(canopy, self.host, self.controls, open);
+            self.drawer.set_open(forest, self.host, self.controls, open);
             return;
         }
         // tapping the content behind is the other half of the gesture, and the reason the
         // scrim exists at all
         if leaf == self.controls.scrim {
             self.drawer
-                .set_open(canopy, self.host, self.controls, false);
+                .set_open(forest, self.host, self.controls, false);
             return;
         }
         if let Some(route) = self.rail.route_for(leaf) {
-            self.navigate(canopy, route);
+            self.navigate(forest, route);
             return;
         }
         // Ahead of nav and links: a demo's own controls are the innermost thing on the page,
         // and a demo answering the click is the end of it.
         for demo in self.page.demos.iter_mut() {
-            if demo.clicked(canopy, leaf) {
+            if demo.clicked(forest, leaf) {
                 return;
             }
         }
@@ -205,7 +205,7 @@ impl Site {
             .find(|(target, _)| *target == leaf)
             .map(|(_, route)| *route);
         if let Some(route) = nav {
-            self.navigate(canopy, route);
+            self.navigate(forest, route);
             return;
         }
         let link = self
@@ -221,16 +221,16 @@ impl Site {
 
     /// Everything that has to be recomputed every frame, because every input it reads is
     /// something only this frame knows.
-    pub(crate) fn tick(&mut self, canopy: &mut Canopy) {
+    pub(crate) fn tick(&mut self, forest: &mut Forest) {
         if let Some(readout) = self.page.readout.as_mut() {
-            readout.drive(canopy);
+            readout.drive(forest);
         }
         for demo in self.page.demos.iter_mut() {
-            demo.drive(canopy);
+            demo.drive(forest);
         }
-        let dt = canopy.frame_time().as_secs_f32();
+        let dt = forest.frame_time().as_secs_f32();
         for traverse in self.page.traverses.iter_mut() {
-            traverse.drive(canopy, dt);
+            traverse.drive(forest, dt);
         }
     }
 }

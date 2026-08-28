@@ -1,11 +1,11 @@
 # Specs and Sprout: What You Grow
 
 `Panel::new()` doesn't create anything -- it returns a `PanelSprout`, a plain config
-struct you build up with a chained call, then hand to [`Grows::leaf`/`Grows::branch`](./canopy.md):
+struct you build up with a chained call, then hand to [`Grows::leaf`/`Grows::branch`](./forest.md):
 
 ```rust
 // foliage/examples/interaction.rs
-canopy.leaf(
+forest.leaf(
     Panel::new()
         .color(Color::orange(600))
         .rounding(Rounding::Sm)
@@ -78,21 +78,21 @@ pub enum Spec {
 ```
 
 `Grows::leaf`/`Grows::branch` take `impl Into<Spec>`, and every builder type converts
-into it, so a call site writes `canopy.branch(under, Panel::new()...)` rather than
-`canopy.branch(under, Spec::Panel(Panel::new()...))` -- the enum is the queued form, not
+into it, so a call site writes `forest.branch(under, Panel::new()...)` rather than
+`forest.branch(under, Spec::Panel(Panel::new()...))` -- the enum is the queued form, not
 something you name yourself. `Bare` is the one variant with no primitive of its own: a
 container for children, or a bare interaction hit area, built with
 [`Bare::new()`](./panel.md) and taking the same `Sprout` chain as anything else.
 
 This is the whole vocabulary foliage knows how to grow. There is no way to hand
-`Canopy`/`Sprig` a type they don't already know about -- extending the set of things that
+`Forest`/`Sprig` a type they don't already know about -- extending the set of things that
 can be grown, or composing these primitives into a reusable widget, is engine-internal
 work, covered in [Inside the Engine](./tree.md).
 
 ## `Motion`/`Timing`: animating a grown element
 
 Changing a property once is `Grows::color`/`Grows::location`/etc. Tweening one is
-[`Grows::animate`](./canopy.md), which takes a `Motion` (the closed set of things foliage
+[`Grows::animate`](./forest.md), which takes a `Motion` (the closed set of things foliage
 knows how to interpolate on an element) and a `Timing`:
 
 ```rust
@@ -117,8 +117,8 @@ pub struct Timing {
 `Timing::over(finish)` is the common case -- a single linear pass from now to `finish`
 milliseconds -- with `.after(..)`/`.eased(..)`/`.repeat(..)`/`.backtrack()` layered on.
 `Grows::animate_during` joins the tween to a sequence opened with
-[`Grows::sequence`](./canopy.md), so its completion counts toward that sequence's
-[`Bloom::SequenceFinished`](./canopy.md) -- the hook for chaining one stage of motion onto
-the next. For values foliage has no concept of, [`Grows::tween`](./canopy.md) runs the
+[`Grows::sequence`](./forest.md), so its completion counts toward that sequence's
+[`Moss::SequenceFinished`](./forest.md) -- the hook for chaining one stage of motion onto
+the next. For values foliage has no concept of, [`Grows::tween`](./forest.md) runs the
 same easing and timing over plain numbers you supply, reporting each frame's values as
-[`Bloom::Tween`](./canopy.md) instead of writing them anywhere.
+[`Moss::Tween`](./forest.md) instead of writing them anywhere.

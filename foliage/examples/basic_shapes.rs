@@ -3,7 +3,7 @@
 //!
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, GridExt, Line, Location, Panel, Polygon, Root,
+    Moss, Forest, Color, Elevation, Foliage, GridExt, Line, Location, Panel, Polygon, Root,
     Rounding,
 };
 use foliage::{Grows, Sprout};
@@ -19,8 +19,8 @@ fn main() {
 struct Shapes;
 
 impl Root for Shapes {
-    fn take_root(canopy: &mut Canopy) -> Self {
-        canopy.leaf(
+    fn take_root(forest: &mut Forest) -> Self {
+        forest.leaf(
             Panel::new()
                 .rounding(Rounding::Sm)
                 .color(Color::gray(700))
@@ -36,7 +36,7 @@ impl Root for Shapes {
         let polygons: [(f32, f32); 4] = [(3.0, 0.0), (5.0, 0.15), (6.0, 0.4), (8.0, 1.0)];
         for (i, (sides, rounding)) in polygons.into_iter().enumerate() {
             let left = 120 + i as i32 * 70;
-            canopy.leaf(
+            forest.leaf(
                 Polygon::new()
                     .sides(sides)
                     .rounding(rounding)
@@ -48,7 +48,7 @@ impl Root for Shapes {
                     .elevate(Elevation::up(1)),
             );
         }
-        canopy.leaf(
+        forest.leaf(
             Line::new(3)
                 .color(Color::green(400))
                 .at(Location::new().xs(
@@ -59,5 +59,5 @@ impl Root for Shapes {
         );
         Shapes
     }
-    fn frame(&mut self, _canopy: &mut Canopy, _blooms: Vec<Bloom>) {}
+    fn frame(&mut self, _forest: &mut Forest, _mosses: Vec<Moss>) {}
 }

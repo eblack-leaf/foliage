@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -183,13 +183,13 @@ screen, using a small closed vocabulary, and gets back what happened.</p>
 <li><a href="#a-name-for-an-element-leaf"><strong>Leaf</strong></a> is that vocabulary’s name for a thing on screen: an opaque
 handle, allocated the moment you ask for one, usable immediately even though the
 element it names doesn’t exist until the frame’s commands are applied.</li>
-<li><a href="#canopy-the-frame-surface"><strong>Canopy</strong></a> is the surface an app actually holds, once per frame: grow
+<li><a href="#forest-the-frame-surface"><strong>Forest</strong></a> is the surface an app actually holds, once per frame: grow
 and change elements by <code>Leaf</code>, read back what a frame produced as
-<a href="#canopy-the-frame-surface"><code>Bloom</code></a>s, sample current state directly. <a href="#canopy-the-frame-surface"><strong>Sprig</strong></a> is
+<a href="#forest-the-frame-surface"><code>Moss</code></a>s, sample current state directly. <a href="#forest-the-frame-surface"><strong>Sprig</strong></a> is
 the same command set from another thread.</li>
 <li><a href="#specs-and-sprout-what-you-grow"><strong>Sprout</strong></a> is how an element gets configured before it exists –
 <code>Panel::new().color(..).at(..).elevate(..)</code> – and <a href="#specs-and-sprout-what-you-grow"><strong>Specs</strong></a> are the
-closed set of things <code>Canopy</code>/<code>Sprig</code> know how to grow: <code>Panel</code>, <code>Text</code>, <code>Icon</code>,
+closed set of things <code>Forest</code>/<code>Sprig</code> know how to grow: <code>Panel</code>, <code>Text</code>, <code>Icon</code>,
 <code>Image</code>, <code>Line</code>, <code>Polygon</code>, <code>Polyline</code>, <code>TextInput</code>, and a bare container.</li>
 </ul>
 <p>That’s the whole surface. Underneath it, the <a href="#inside-the-engine-node-author-and-tree"><strong>Inside the Engine</strong></a> section
@@ -197,7 +197,7 @@ covers how a <code>Spec</code> actually becomes a <code>bevy_ecs</code> entity, 
 into GPU uploads, and how a window and a render loop come together – useful for
 understanding <em>why</em> the API is shaped the way it is, and required reading if you’re
 extending the engine itself, but nothing an app needs in order to use it. The seam
-between the two is deliberate: an app cannot reach the ECS from its side of <code>Canopy</code>,
+between the two is deliberate: an app cannot reach the ECS from its side of <code>Forest</code>,
 which is what lets it run its own <code>bevy_ecs</code>, at whatever version it likes, without the
 two ever meeting.</p>
 <p>This book builds that picture up from nothing, in the order a from-scratch
@@ -209,9 +209,9 @@ it can’t solve alone:</p>
 can still be used as a parent or a write target in the same frame –
 <a href="#a-name-for-an-element-leaf"><strong>Leaf</strong></a> is that name.</li>
 <li>Something has to collect what an app wants done and hand back what happened, once per
-frame – <a href="#canopy-the-frame-surface"><strong>Canopy</strong></a> is that surface, and <a href="#canopy-the-frame-surface"><code>Bloom</code></a> is what
+frame – <a href="#forest-the-frame-surface"><strong>Forest</strong></a> is that surface, and <a href="#forest-the-frame-surface"><code>Moss</code></a> is what
 comes back out.</li>
-<li>Something has to turn a config struct like <code>Panel::new()</code> into a spec <code>Canopy</code> can
+<li>Something has to turn a config struct like <code>Panel::new()</code> into a spec <code>Forest</code> can
 grow, without an app ever assembling one by hand –
 <a href="#specs-and-sprout-what-you-grow"><strong>Sprout</strong></a> is that builder.</li>
 <li>Underneath all of it, an actual entity has to exist, with a position, a parent, a draw
@@ -237,12 +237,12 @@ pub struct Leaf(pub(crate) Entity);
 <span class="boring">}</span></code></pre>
 <p>The wrapped <code>Entity</code> is <code>pub(crate)</code> – nothing outside the crate can read, construct, or
 match on it. A <code>Leaf</code> is opaque by construction: the only things you can do with one are
-name it as a parent, pass it to a <a href="#canopy-the-frame-surface"><code>Grows</code></a> verb, or compare it for
+name it as a parent, pass it to a <a href="#forest-the-frame-surface"><code>Grows</code></a> verb, or compare it for
 equality. <code>Leaf::id()</code> hands back a stable <code>u64</code> for logging or as a map key – not an
 address, nothing to dereference, just a way to tell two elements apart.</p>
 <h2 id="usable-before-it-exists"><a class="header" href="#usable-before-it-exists">Usable before it exists</a></h2>
 <p>A <code>Leaf</code> is allocated the moment you ask for one, from a shared allocator
-<a href="#canopy-the-frame-surface"><code>Canopy</code></a> and <a href="#canopy-the-frame-surface"><code>Sprig</code></a> both draw from – which is what lets a
+<a href="#forest-the-frame-surface"><code>Forest</code></a> and <a href="#forest-the-frame-surface"><code>Sprig</code></a> both draw from – which is what lets a
 name minted on a background thread never collide with one minted in the frame closure.
 The element it names doesn’t come into being until that frame’s commands are applied, but
 the name is real immediately: it can be used as a parent for a child grown in the same
@@ -262,7 +262,7 @@ pub enum Presence {
 Every command targeting a withered <code>Leaf</code> is silently dropped; every sample of one reads
 <code>None</code>. Nothing panics, and a name is never reused within its generation, so a stale
 handle held past its element’s lifetime cannot silently address whatever grew after it.
-<a href="#canopy-the-frame-surface"><code>Canopy::presence</code></a> reads which of the three states a <code>Leaf</code> is currently
+<a href="#forest-the-frame-surface"><code>Forest::presence</code></a> reads which of the three states a <code>Leaf</code> is currently
 in.</p>
 <h2 id="whats-underneath"><a class="header" href="#whats-underneath">What’s underneath</a></h2>
 <p>Every element a <code>Leaf</code> names is, on the engine’s own side of the boundary, a <code>bevy_ecs</code>
@@ -272,7 +272,7 @@ and interaction defaults anything on screen needs. None of that is reachable fro
 See <a href="#inside-the-engine-node-author-and-tree">Inside the Engine</a> for what <code>Node</code> actually is and why spawning one is
 funneled through a single door.</p>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="canopy-the-frame-surface"><a class="header" href="#canopy-the-frame-surface">Canopy: The Frame Surface</a></h1>
+<h1 id="forest-the-frame-surface"><a class="header" href="#forest-the-frame-surface">Forest: The Frame Surface</a></h1>
 <p>Once <a href="#the-app-foliage-and-its-schedules"><code>Foliage::photosynthesize</code></a> is called, an app lives entirely inside one
 closure, called once per frame:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -282,9 +282,9 @@ let mut foliage = Foliage::new();
 foliage.desktop_size((360, 220));
 
 let mut demo: Option&lt;Demo&gt; = None;
-foliage.photosynthesize(move |canopy: &amp;mut Canopy| {
-    let demo = demo.get_or_insert_with(|| grow(canopy));
-    for bloom in canopy.take() {
+foliage.photosynthesize(move |forest: &amp;mut Forest| {
+    let demo = demo.get_or_insert_with(|| grow(forest));
+    for moss in forest.take() {
         // ...
     }
 });
@@ -292,29 +292,29 @@ foliage.photosynthesize(move |canopy: &amp;mut Canopy| {
 <p>There is no separate setup phase that builds an initial tree before the loop starts –
 the opening screen is just the first frame’s <code>get_or_insert_with</code>. Everything an app
 does, from the very first element it grows to the last one it prunes, goes through the
-<code>&amp;mut Canopy</code> this closure is handed.</p>
+<code>&amp;mut Forest</code> this closure is handed.</p>
 <h2 id="what-crosses-the-seam"><a class="header" href="#what-crosses-the-seam">What crosses the seam</a></h2>
-<p>Canopy is a read-only bundle of engine state plus a command queue, not a window onto the
+<p>Forest is a read-only bundle of engine state plus a command queue, not a window onto the
 <code>bevy_ecs</code> world itself:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/boundary/canopy.rs
-pub struct Canopy&lt;'w, 's&gt; {
+</span>// foliage_proper/src/boundary/forest.rs
+pub struct Forest&lt;'w, 's&gt; {
     pub(crate) reads: Reads&lt;'w, 's&gt;,
     pub(crate) queue: &amp;'w mut Vec&lt;Op&gt;,
-    pub(crate) blooms: Vec&lt;Bloom&gt;,
+    pub(crate) mosses: Vec&lt;Moss&gt;,
     pub(crate) allocator: bevy_ecs::entity::RemoteAllocator,
 }
 <span class="boring">}</span></code></pre>
 <p>Everything on it is plain data: commands queued in (<a href="#specs-and-sprout-what-you-grow"><code>Op</code></a>, never named by
 app code directly – see <a href="#grows-the-command-vocabulary"><code>Grows</code></a> below), emissions taken
-out (<a href="#bloom-what-happened"><code>Bloom</code></a>), and read-only samples taken at the callsite
+out (<a href="#moss-what-happened"><code>Moss</code></a>), and read-only samples taken at the callsite
 (<a href="#sampling-sap-and-sample"><code>Sap</code></a>). No engine type is handed out, and nothing an app
 holds borrows from the world – which is what makes it safe for an app to run its own
 <code>bevy_ecs</code>, at whatever version it likes, without the two ever meeting.</p>
 <h2 id="grows-the-command-vocabulary"><a class="header" href="#grows-the-command-vocabulary"><code>Grows</code>: the command vocabulary</a></h2>
 <p>Every way an app can change the tree lives on one trait, implemented identically by
-<code>Canopy</code> and <a href="#sprig-the-off-thread-half"><code>Sprig</code></a>:</p>
+<code>Forest</code> and <a href="#sprig-the-off-thread-half"><code>Sprig</code></a>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/boundary/verbs.rs
@@ -340,11 +340,11 @@ more, and nothing an app defines itself.</p>
 in the order it was written, immediately after the closure returns. A <code>leaf</code> followed by
 a write to the <code>Leaf</code> it returned behaves exactly the way it reads, even though the
 element doesn’t exist as a real entity until that queue is drained.</p>
-<h2 id="bloom-what-happened"><a class="header" href="#bloom-what-happened">Bloom: what happened</a></h2>
+<h2 id="moss-what-happened"><a class="header" href="#moss-what-happened">Moss: what happened</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/boundary/bloom.rs
-pub enum Bloom {
+</span>// foliage_proper/src/boundary/moss.rs
+pub enum Moss {
     Clicked(Leaf),
     Engaged(Leaf),
     Dragged(Leaf),
@@ -364,8 +364,8 @@ pub enum Bloom {
     // ..
 }
 <span class="boring">}</span></code></pre>
-<p><code>canopy.take()</code> moves this frame’s emissions out, ready for a <code>for bloom in canopy.take()</code>
-loop that can itself call back into <code>canopy</code> without a borrow-checker dance. A single
+<p><code>forest.take()</code> moves this frame’s emissions out, ready for a <code>for moss in forest.take()</code>
+loop that can itself call back into <code>forest</code> without a borrow-checker dance. A single
 physical click can produce several <code>Clicked</code> emissions in one frame – one for the
 element under the pointer, and one for every pass-through element the gesture crossed –
 arriving in hit-test order. A <code>Leaf</code> reported here may already have withered by the time
@@ -375,7 +375,7 @@ you act on it; that’s safe, since every command naming a withered <code>Leaf</
 method:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
-</span>// foliage_proper/src/boundary/canopy.rs
+</span>// foliage_proper/src/boundary/forest.rs
 pub fn sample(&amp;self, leaf: Leaf, what: Sap) -&gt; Option&lt;Sample&lt;'_&gt;&gt;;
 <span class="boring">}</span></code></pre>
 <p><code>Sap</code> is the exhaustive list of what a frame may observe about an element – <code>Section</code>,
@@ -385,7 +385,7 @@ clip) are deliberately absent, since they’re the engine’s own working state 
 anything an app needs. <code>Sample</code> is what a given <code>Sap</code> reads back as; a handful of common
 cases (<code>section</code>, <code>text_of</code>, <code>scroll_offset</code>, <code>is_visible</code>, …) are typed convenience
 wrappers over <code>sample</code> for the lookups every app ends up doing anyway.</p>
-<p><code>Canopy</code> also answers questions that aren’t about a specific element: <code>layout()</code>, the
+<p><code>Forest</code> also answers questions that aren’t about a specific element: <code>layout()</code>, the
 current breakpoint; <code>short()</code>, whether the viewport is vertically cramped; <code>frame_time()</code>,
 for scaling per-frame motion so it runs at the same speed regardless of frame rate;
 <code>viewport()</code>; <code>pointer()</code>/<code>pointer_velocity()</code>; <code>named(..)</code>/<code>asset_named(..)</code>, looking up
@@ -401,7 +401,7 @@ pub struct Sprig {
     allocator: RemoteAllocator,
 }
 <span class="boring">}</span></code></pre>
-<p><code>Sprig</code> carries the exact same <code>Grows</code> vocabulary as <code>Canopy</code>, so code that changes the
+<p><code>Sprig</code> carries the exact same <code>Grows</code> vocabulary as <code>Forest</code>, so code that changes the
 tree reads identically whether it runs in the frame closure or on another thread. It’s
 <code>Send</code> and <code>Clone</code> – obtained once via <a href="#the-app-foliage-and-its-schedules"><code>Foliage::sprig</code></a> – and command-only:
 there is no sampling half, because reads only make sense at the frame callsite, where the
@@ -412,11 +412,11 @@ to grow and change elements without ever touching the engine’s world.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="specs-and-sprout-what-you-grow"><a class="header" href="#specs-and-sprout-what-you-grow">Specs and Sprout: What You Grow</a></h1>
 <p><code>Panel::new()</code> doesn’t create anything – it returns a <code>PanelSprout</code>, a plain config
-struct you build up with a chained call, then hand to <a href="#canopy-the-frame-surface"><code>Grows::leaf</code>/<code>Grows::branch</code></a>:</p>
+struct you build up with a chained call, then hand to <a href="#forest-the-frame-surface"><code>Grows::leaf</code>/<code>Grows::branch</code></a>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage/examples/interaction.rs
-canopy.leaf(
+forest.leaf(
     Panel::new()
         .color(Color::orange(600))
         .rounding(Rounding::Sm)
@@ -482,18 +482,18 @@ pub enum Spec {
 }
 <span class="boring">}</span></code></pre>
 <p><code>Grows::leaf</code>/<code>Grows::branch</code> take <code>impl Into&lt;Spec&gt;</code>, and every builder type converts
-into it, so a call site writes <code>canopy.branch(under, Panel::new()...)</code> rather than
-<code>canopy.branch(under, Spec::Panel(Panel::new()...))</code> – the enum is the queued form, not
+into it, so a call site writes <code>forest.branch(under, Panel::new()...)</code> rather than
+<code>forest.branch(under, Spec::Panel(Panel::new()...))</code> – the enum is the queued form, not
 something you name yourself. <code>Bare</code> is the one variant with no primitive of its own: a
 container for children, or a bare interaction hit area, built with
 <a href="#panel"><code>Bare::new()</code></a> and taking the same <code>Sprout</code> chain as anything else.</p>
 <p>This is the whole vocabulary foliage knows how to grow. There is no way to hand
-<code>Canopy</code>/<code>Sprig</code> a type they don’t already know about – extending the set of things that
+<code>Forest</code>/<code>Sprig</code> a type they don’t already know about – extending the set of things that
 can be grown, or composing these primitives into a reusable widget, is engine-internal
 work, covered in <a href="#inside-the-engine-node-author-and-tree">Inside the Engine</a>.</p>
 <h2 id="motiontiming-animating-a-grown-element"><a class="header" href="#motiontiming-animating-a-grown-element"><code>Motion</code>/<code>Timing</code>: animating a grown element</a></h2>
 <p>Changing a property once is <code>Grows::color</code>/<code>Grows::location</code>/etc. Tweening one is
-<a href="#canopy-the-frame-surface"><code>Grows::animate</code></a>, which takes a <code>Motion</code> (the closed set of things foliage
+<a href="#forest-the-frame-surface"><code>Grows::animate</code></a>, which takes a <code>Motion</code> (the closed set of things foliage
 knows how to interpolate on an element) and a <code>Timing</code>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -517,14 +517,14 @@ pub struct Timing {
 <p><code>Timing::over(finish)</code> is the common case – a single linear pass from now to <code>finish</code>
 milliseconds – with <code>.after(..)</code>/<code>.eased(..)</code>/<code>.repeat(..)</code>/<code>.backtrack()</code> layered on.
 <code>Grows::animate_during</code> joins the tween to a sequence opened with
-<a href="#canopy-the-frame-surface"><code>Grows::sequence</code></a>, so its completion counts toward that sequence’s
-<a href="#canopy-the-frame-surface"><code>Bloom::SequenceFinished</code></a> – the hook for chaining one stage of motion onto
-the next. For values foliage has no concept of, <a href="#canopy-the-frame-surface"><code>Grows::tween</code></a> runs the
+<a href="#forest-the-frame-surface"><code>Grows::sequence</code></a>, so its completion counts toward that sequence’s
+<a href="#forest-the-frame-surface"><code>Moss::SequenceFinished</code></a> – the hook for chaining one stage of motion onto
+the next. For values foliage has no concept of, <a href="#forest-the-frame-surface"><code>Grows::tween</code></a> runs the
 same easing and timing over plain numbers you supply, reporting each frame’s values as
-<a href="#canopy-the-frame-surface"><code>Bloom::Tween</code></a> instead of writing them anywhere.</p>
+<a href="#forest-the-frame-surface"><code>Moss::Tween</code></a> instead of writing them anywhere.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="inside-the-engine-node-author-and-tree"><a class="header" href="#inside-the-engine-node-author-and-tree">Inside the Engine: Node, Author, and Tree</a></h1>
-<p>Everything in <a href="#a-name-for-an-element-leaf">Leaf</a>, <a href="#canopy-the-frame-surface">Canopy</a>, and
+<p>Everything in <a href="#a-name-for-an-element-leaf">Leaf</a>, <a href="#forest-the-frame-surface">Forest</a>, and
 <a href="#specs-and-sprout-what-you-grow">Specs and Sprout</a> is what an app sees. None of it says how a <code>Spec</code>
 actually becomes something in <code>bevy_ecs</code>. This chapter is engine-internal – every type
 here is <code>pub(crate)</code>, reachable only from inside <code>foliage_proper</code> itself – but it’s
@@ -547,7 +547,7 @@ pub(crate) struct Node {}
 click. <code>Node</code> bundles exactly the set of components that stops all of that being true, via
 <code>#[require(...)]</code>. Its <code>on_add</code> hook registers the observers that let opacity/elevation/
 location animate; its <code>on_remove</code> hook is where a pruned entity’s <code>Leaf</code> gets reported as
-<a href="#canopy-the-frame-surface"><code>Bloom::Withered</code></a> and where stale <code>CurrentInteraction</code> state gets cleared
+<a href="#forest-the-frame-surface"><code>Moss::Withered</code></a> and where stale <code>CurrentInteraction</code> state gets cleared
 – both run for every widget, without each one remembering to register them itself.</p>
 <p><code>Node</code> attaches itself rather than being declared on <code>Panel</code>/<code>Text</code>/etc: every entity the
 engine’s own spawn path produces gets one unconditionally, at the moment it’s spawned,
@@ -634,14 +634,14 @@ counted against a sequence entity (<code>spawn_sequence</code> for one an app ne
 sequence’s own counter on insert, finishing decrements it, and once it reaches zero the
 sequence fires <code>OnEnd</code> at itself and despawns. Nothing outside the crate ever names that
 entity directly – across the boundary this whole mechanism is what
-<a href="#canopy-the-frame-surface"><code>Grows::sequence</code>/<code>Grows::animate_during</code></a> and
-<a href="#canopy-the-frame-surface"><code>Bloom::SequenceFinished</code></a> surface.</p>
+<a href="#forest-the-frame-surface"><code>Grows::sequence</code>/<code>Grows::animate_during</code></a> and
+<a href="#forest-the-frame-surface"><code>Moss::SequenceFinished</code></a> surface.</p>
 <h2 id="what-sprout-being-sealed-actually-buys"><a class="header" href="#what-sprout-being-sealed-actually-buys">What <code>Sprout</code> being sealed actually buys</a></h2>
 <p><code>Author</code> being <code>pub(crate)</code> stops an app from implementing it, and <code>Tree::leaf</code>/
 <code>Tree::branch</code> being <code>pub(crate)</code> stops an app from calling them directly even if it
 could. Combined, there is no path from outside this crate to a spawned, <code>Node</code>-bearing
 entity that skips the mandatory <code>.elevate(...)</code> or hand-rolls a parent link – the only
-way onto the tree is <a href="#canopy-the-frame-surface"><code>Canopy</code>/<code>Sprig</code></a> queuing a <a href="#specs-and-sprout-what-you-grow"><code>Spec</code></a> for
+way onto the tree is <a href="#forest-the-frame-surface"><code>Forest</code>/<code>Sprig</code></a> queuing a <a href="#specs-and-sprout-what-you-grow"><code>Spec</code></a> for
 the engine to grow on its own side of the boundary.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="from-change-to-pixels-differential"><a class="header" href="#from-change-to-pixels-differential">From Change to Pixels: Differential</a></h1>
@@ -735,7 +735,7 @@ pub struct Foliage {
     pub(crate) world: World,
     pub(crate) main: Schedule,
     pub(crate) diff: Schedule,
-    pub(crate) frame: Option&lt;Box&lt;dyn FnMut(&amp;mut Canopy&lt;'_, '_&gt;)&gt;&gt;,
+    pub(crate) frame: Option&lt;Box&lt;dyn FnMut(&amp;mut Forest&lt;'_, '_&gt;)&gt;&gt;,
     pub(crate) ops: Vec&lt;Op&gt;,
     pub(crate) sprig: Sprig,
     pub(crate) willow: Willow,
@@ -746,7 +746,7 @@ pub struct Foliage {
 <span class="boring">}</span></code></pre>
 <p>Every field is <code>pub(crate)</code> – an app never reaches the world, the schedules, or the
 render backend directly. What it gets instead is the setup calls below, and the
-<a href="#canopy-the-frame-surface"><code>Canopy</code></a> handed to the closure passed to
+<a href="#forest-the-frame-surface"><code>Forest</code></a> handed to the closure passed to
 <a href="#running-the-app"><code>photosynthesize</code></a>.</p>
 <h2 id="two-schedules-plus-the-frame-closure-run-in-order-every-tick"><a class="header" href="#two-schedules-plus-the-frame-closure-run-in-order-every-tick">Two schedules, plus the frame closure, run in order every tick</a></h2>
 <p><code>main</code> is the library’s own systems (input translation, animation stepping); <code>diff</code> is
@@ -757,7 +757,7 @@ given to <code>photosynthesize</code>, run once per tick between the other two:<
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/photosynthesis.rs
 self.main.run(&amp;mut self.world);
-self.frame();   // drains Sprig, applies queued ops, runs the app's Canopy closure, applies its ops
+self.frame();   // drains Sprig, applies queued ops, runs the app's Forest closure, applies its ops
 self.diff.run(&amp;mut self.world);
 <span class="boring">}</span></code></pre>
 <p>Ordering it this way means: library input-handling runs first, so the frame closure sees
@@ -806,7 +806,7 @@ hosting convention.</p>
 <p><code>foliage.photosynthesize(closure)</code> hands control to a <code>winit::EventLoop</code> and never
 returns (on native) – see <a href="#the-event-loop-photosynthesis">Photosynthesis</a> for what happens inside
 that loop. <code>foliage.sprig()</code> – callable any time before or after <code>photosynthesize</code> –
-hands back a <code>Send</code>, cloneable <a href="#canopy-the-frame-surface"><code>Sprig</code></a> for issuing commands from another
+hands back a <code>Send</code>, cloneable <a href="#forest-the-frame-surface"><code>Sprig</code></a> for issuing commands from another
 thread.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="the-render-backend-ash"><a class="header" href="#the-render-backend-ash">The Render Backend: Ash</a></h1>
@@ -1072,7 +1072,7 @@ if !self.tick_pending {
 }
 <span class="boring">}</span></code></pre>
 <p><code>self.frame()</code> is where the app’s own closure runs – see <a href="#the-app-foliage-and-its-schedules">The App</a> for what
-it does before and after calling out to <a href="#canopy-the-frame-surface"><code>Canopy</code></a>. There is no separate
+it does before and after calling out to <a href="#forest-the-frame-surface"><code>Forest</code></a>. There is no separate
 <code>user</code> schedule; app code is not an ECS system, so it has no slot among <code>main</code>’s or
 <code>diff</code>’s own <code>SystemSet</code>s to run in.</p>
 <p>The gate exists because <code>about_to_wait</code> isn’t 1:1 with real paint frames – high-frequency
@@ -1283,7 +1283,7 @@ pub struct Coordinates(pub [CoordinateUnit; 2]);
 generic over one of these three marker types, so <code>Position&lt;Logical&gt;</code> and
 <code>Position&lt;Physical&gt;</code> are different types – passing one where the other is expected is a
 compile error, not a runtime scaling bug. <code>Section&lt;Logical&gt;</code> is the one every on-screen
-entity carries – read it back through <a href="#canopy-the-frame-surface"><code>Canopy::section</code></a>, by
+entity carries – read it back through <a href="#forest-the-frame-surface"><code>Forest::section</code></a>, by
 <a href="#a-name-for-an-element-leaf"><code>Leaf</code></a>. <code>ResolvedElevation</code>/<code>ScaleFactor</code> (see <a href="#the-gpu-wrapper-ginkgo">Ginkgo</a>) are
 what convert between contexts when a value actually needs to cross into the render
 backend (logical units in, physical pixels out to the GPU).</p>
@@ -1494,7 +1494,7 @@ current scroll position untouched.</li>
 <code>extent_check</code> on every entity with a <code>View</code>. This is a real <code>.insert()</code>, not a <code>Query</code>
 mutation, so anything reacting to it internally fires on every scroll change (drag,
 wheel, or a <code>ScrollTo</code> write) and not just the first. From an app, read it with
-<a href="#canopy-the-frame-surface"><code>Canopy::sample</code></a>/<code>Sap::ScrollProgress</code>.</li>
+<a href="#forest-the-frame-surface"><code>Forest::sample</code></a>/<code>Sap::ScrollProgress</code>.</li>
 </ul>
 <p>This split – author states intent via <code>ScrollTo</code>, a resolved value comes back via
 <code>ScrollProgress</code> – mirrors <code>Visibility</code>/<code>ResolvedVisibility</code> (see
@@ -1563,7 +1563,7 @@ on every on-screen entity unconditionally – so the interaction system never ne
 special-case “this entity might not be able to receive input.” Whether it actually
 <em>does</em> is a separate question, answered by <code>InteractionListener</code>. From an app, this
 whole system is what turns into <a href="#specs-and-sprout-what-you-grow"><code>Sprout::interactive</code>/<code>Sprout::pass_through</code>/etc.</a>
-on the way in and <a href="#canopy-the-frame-surface"><code>Bloom::Clicked</code>/<code>Engaged</code>/<code>Dragged</code>/etc.</a> on the way
+on the way in and <a href="#forest-the-frame-surface"><code>Moss::Clicked</code>/<code>Engaged</code>/<code>Dragged</code>/etc.</a> on the way
 out.</p>
 <h2 id="hit-testing-shape--clip-not-bounding-box-only"><a class="header" href="#hit-testing-shape--clip-not-bounding-box-only">Hit-testing: shape + clip, not bounding-box-only</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -1713,7 +1713,7 @@ stopping a coast can’t be phrased in terms of the tree – see
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="animation"><a class="header" href="#animation">Animation</a></h1>
 <p>An app doesn’t build an <code>Animation</code> directly – it calls
-<a href="#canopy-the-frame-surface"><code>Grows::animate</code></a> with a <a href="#specs-and-sprout-what-you-grow"><code>Motion</code></a> and a
+<a href="#forest-the-frame-surface"><code>Grows::animate</code></a> with a <a href="#specs-and-sprout-what-you-grow"><code>Motion</code></a> and a
 <a href="#specs-and-sprout-what-you-grow"><code>Timing</code></a>. What follows is how that request actually runs underneath,
 and the two pieces of it (<code>Ease</code>, <code>Repeat</code>) an app configures directly through <code>Timing</code>.</p>
 <h2 id="ease-and-repeat-the-author-facing-knobs"><a class="header" href="#ease-and-repeat-the-author-facing-knobs"><code>Ease</code> and <code>Repeat</code>: the author-facing knobs</a></h2>
@@ -1753,7 +1753,7 @@ than a per-type one.</p>
 <p><code>Motion</code>’s variants are exactly the <code>Animate</code> types the engine exposes across the
 boundary. An app never implements <code>Animate</code> for its own component, because it has no
 component of its own for the engine to animate – everything an app can grow and change
-already goes through <a href="#canopy-the-frame-surface"><code>Grows</code></a>.</p>
+already goes through <a href="#forest-the-frame-surface"><code>Grows</code></a>.</p>
 <h2 id="animationa-the-internal-builder"><a class="header" href="#animationa-the-internal-builder"><code>Animation&lt;A&gt;</code>: the internal builder</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1776,7 +1776,7 @@ impl&lt;A: Animate&gt; Animation&lt;A&gt; {
 <span class="boring">}</span></code></pre>
 <p><code>a</code> is the <strong>end</strong> value – <code>Animation::new(Color::gray(900))</code> means “animate to this
 color,” starting from whatever the target’s current value is. This is what
-<a href="#canopy-the-frame-surface"><code>Grows::animate</code></a> builds and runs on an app’s behalf, through
+<a href="#forest-the-frame-surface"><code>Grows::animate</code></a> builds and runs on an app’s behalf, through
 <a href="#inside-the-engine-node-author-and-tree"><code>Tree::animate</code></a>, which spawns an <code>AnimationRunner&lt;A&gt;</code> entity that drives the
 interpolation tick by tick against <a href="#time"><code>Time</code></a>’s frame delta, writing the
 interpolated value onto the target every frame until it finishes.</p>
@@ -1786,8 +1786,8 @@ interpolated value onto the target every frame until it finishes.</p>
 sequence groups them only for the purpose of knowing when <em>all</em> of them are done. Full
 mechanism (the <code>SequenceMarker</code> counter, why the sequence entity self-despawns) is in
 <a href="#inside-the-engine-node-author-and-tree">Inside the Engine</a>; across the boundary this is
-<a href="#canopy-the-frame-surface"><code>Grows::sequence</code>/<code>Grows::animate_during</code></a> and
-<a href="#canopy-the-frame-surface"><code>Bloom::SequenceFinished</code></a>.</p>
+<a href="#forest-the-frame-surface"><code>Grows::sequence</code>/<code>Grows::animate_during</code></a> and
+<a href="#forest-the-frame-surface"><code>Moss::SequenceFinished</code></a>.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="color"><a class="header" href="#color">Color</a></h1>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -1890,10 +1890,10 @@ distinct steps.</p>
 pub struct Named { map: HashMap&lt;String, Entity&gt; }
 pub struct Keyring { map: HashMap&lt;String, AssetKey&gt; }
 <span class="boring">}</span></code></pre>
-<p><code>Named</code> is the app-facing half: <a href="#canopy-the-frame-surface"><code>Grows::name</code></a> registers a string alias for
-a <code>Leaf</code>, and <a href="#canopy-the-frame-surface"><code>Canopy::named</code></a> resolves it back. <code>Keyring</code> is
+<p><code>Named</code> is the app-facing half: <a href="#forest-the-frame-surface"><code>Grows::name</code></a> registers a string alias for
+a <code>Leaf</code>, and <a href="#forest-the-frame-surface"><code>Forest::named</code></a> resolves it back. <code>Keyring</code> is
 engine-internal – there’s no <code>Grows</code> verb that writes one, since an app already holds
-the <code>AssetKey</code> <a href="#canopy-the-frame-surface"><code>Grows::load_asset</code></a> hands back directly and has no need to
+the <code>AssetKey</code> <a href="#forest-the-frame-surface"><code>Grows::load_asset</code></a> hands back directly and has no need to
 re-look it up by name; <code>Keyring</code> exists for the engine’s own built-in registration paths.
 Both are <code>Resource</code>s populated by a private event (<code>Name</code>/<code>StoredKey</code>) rather than direct
 map mutation, so registering a name follows the same deferred-command path as everything
@@ -1913,7 +1913,7 @@ its own copy of the same logic.</p>
 descendant (via <code>InheritDisable</code>, walking <code>Children</code>/<code>AnchorDeps</code>) without touching the
 author’s own <code>ENABLED</code> bit or the library’s own internal <code>AUTO_ENABLED</code> opt-outs. <code>Enable</code>
 is the exact mirror, setting the same three bits back. Across the boundary this is
-<a href="#canopy-the-frame-surface"><code>Grows::enable</code>/<code>Grows::disable</code></a>.</p>
+<a href="#forest-the-frame-surface"><code>Grows::enable</code>/<code>Grows::disable</code></a>.</p>
 <h2 id="visibility-own-flag-inherited-flag-resolved"><a class="header" href="#visibility-own-flag-inherited-flag-resolved">Visibility: own flag, inherited flag, resolved</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1930,7 +1930,7 @@ cascade to already-spawned children, which is exactly what
 <code>visible: bool</code> branch) exists to handle for the <em>render</em> side: a value that goes
 invisible then visible again gets re-sent to the renderer even though it didn’t itself
 change, since the renderer may have dropped it while hidden. Across the boundary this is
-<a href="#canopy-the-frame-surface"><code>Grows::visible</code></a>.</p>
+<a href="#forest-the-frame-surface"><code>Grows::visible</code></a>.</p>
 <h2 id="opacity-multiplicative-blend-not-an-override"><a class="header" href="#opacity-multiplicative-blend-not-an-override">Opacity: multiplicative blend, not an override</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1947,8 +1947,8 @@ fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
 the product of the whole ancestor chain, propagated to every <code>Children</code> descendant on
 change, the same cascade shape <code>Visibility</code> follows. <code>Opacity</code> implements
 <a href="#animation"><code>Animate</code></a>; across the boundary, fading is
-<code>canopy.animate(leaf, Motion::Opacity(0.0), Timing::over(300))</code> – the same
-<a href="#canopy-the-frame-surface"><code>Grows::animate</code></a> call every other animatable value uses.</p>
+<code>forest.animate(leaf, Motion::Opacity(0.0), Timing::over(300))</code> – the same
+<a href="#forest-the-frame-surface"><code>Grows::animate</code></a> call every other animatable value uses.</p>
 <h2 id="remove-a-cascade-not-a-per-entity-despawn"><a class="header" href="#remove-a-cascade-not-a-per-entity-despawn">Remove: a cascade, not a per-entity despawn</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -1964,8 +1964,8 @@ fn observer(trigger: Trigger&lt;Self&gt;, mut tree: Tree, branches: Query&lt;&am
 <code>AnchorDeps</code> dependent (an entity that anchored itself to this one via
 <a href="#layout-grid-location-anchor"><code>Anchor::new</code></a>, even if it isn’t a structural <code>Parent</code>-child) –
 recursively, until the whole subtree is gone. Across the boundary this whole cascade is
-one call: <a href="#canopy-the-frame-surface"><code>Grows::prune</code></a>, which emits
-<a href="#canopy-the-frame-surface"><code>Bloom::Withered</code></a> for every <code>Leaf</code> that goes, with no manual teardown list
+one call: <a href="#forest-the-frame-surface"><code>Grows::prune</code></a>, which emits
+<a href="#forest-the-frame-surface"><code>Moss::Withered</code></a> for every <code>Leaf</code> that goes, with no manual teardown list
 to maintain per widget.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="panel"><a class="header" href="#panel">Panel</a></h1>
@@ -2247,7 +2247,7 @@ controls how sharp vs. soft the rendered edge looks regardless of on-screen size
 <h2 id="the-public-value-channel"><a class="header" href="#the-public-value-channel">The public value channel</a></h2>
 <p>An icon entity’s actual glyph is driven by <code>IconValue</code>, the same shared value-channel
 convention <code>TextValue</code> follows – across the boundary this is
-<a href="#canopy-the-frame-surface"><code>Grows::icon</code></a>:</p>
+<a href="#forest-the-frame-surface"><code>Grows::icon</code></a>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/icon/mod.rs
@@ -2514,13 +2514,13 @@ pub enum AssetSource {
 }
 <span class="boring">}</span></code></pre>
 <p><code>foliage.load_asset(AssetSource::Bytes(data))</code>/<code>::Url(url)</code> – called during setup,
-before <a href="#the-app-foliage-and-its-schedules"><code>photosynthesize</code></a> – or <a href="#canopy-the-frame-surface"><code>Grows::load_asset</code></a> –
-called on a <code>Canopy</code>/<code>Sprig</code> from inside a running app – both return a key immediately.
+before <a href="#the-app-foliage-and-its-schedules"><code>photosynthesize</code></a> – or <a href="#forest-the-frame-surface"><code>Grows::load_asset</code></a> –
+called on a <code>Forest</code>/<code>Sprig</code> from inside a running app – both return a key immediately.
 <code>Image::new(key)</code> can be spawned that same tick, before a <code>Url</code> fetch has even started,
 because loading is decoupled from rendering: the entity exists and starts rendering once
 the key resolves behind it, not before. Across the boundary, an app finds out a key has
-resolved via <a href="#canopy-the-frame-surface"><code>Bloom::AssetLoaded</code></a>, then reads the bytes with
-<a href="#canopy-the-frame-surface"><code>Canopy::asset</code></a>.</p>
+resolved via <a href="#forest-the-frame-surface"><code>Moss::AssetLoaded</code></a>, then reads the bytes with
+<a href="#forest-the-frame-surface"><code>Forest::asset</code></a>.</p>
 <p><code>Url</code> only <em>exists</em> as a variant on wasm (the browser’s fetch is unconditional there) or
 when the <code>remote-assets</code> Cargo feature is enabled on native (<code>default = ["remote-assets"]</code>
 in <code>foliage_proper/Cargo.toml</code> – an app that only ever loads bundled <code>Bytes</code> assets can
@@ -2569,7 +2569,7 @@ marker, so it only ever fires once) the moment it has. <code>Tree::on_asset</cod
 ready-made observer for the common case of “give me the raw bytes once they land.” Both
 <a href="#image">Image</a> and <a href="#icon">Icon</a>’s <code>msdf_from_asset</code> path use exactly this – no
 separate, per-primitive loading logic. An app reaches the same information across the
-boundary via <a href="#canopy-the-frame-surface"><code>Bloom::AssetLoaded</code></a>/<a href="#canopy-the-frame-surface"><code>Canopy::asset</code></a>, covered
+boundary via <a href="#forest-the-frame-surface"><code>Moss::AssetLoaded</code></a>/<a href="#forest-the-frame-surface"><code>Forest::asset</code></a>, covered
 above.</p>
 <h2 id="bundled_asset-the-common-case-without-repeating-yourself"><a class="header" href="#bundled_asset-the-common-case-without-repeating-yourself"><code>bundled_asset!</code>: the common case, without repeating yourself</a></h2>
 <p>Most assets aren’t dynamically-URL’d at all – they’re compiled into the native binary
@@ -2675,7 +2675,7 @@ a bare <code>Timer</code> entity and observes <code>OnEnd</code> on it – when 
 handle to cancel or a separate scheduler resource to manage – the timer entity <em>is</em> the
 whole lifecycle, and pruning it before it fires is cancellation, the same
 <a href="#lifecycle-disable-enable-remove-visibility-opacity">Remove</a> mechanism every other teardown uses. Across the boundary this is
-<a href="#canopy-the-frame-surface"><code>Grows::timer</code></a>/<a href="#canopy-the-frame-surface"><code>Bloom::TimerFinished</code></a>.</p>
+<a href="#forest-the-frame-surface"><code>Grows::timer</code></a>/<a href="#forest-the-frame-surface"><code>Moss::TimerFinished</code></a>.</p>
 <h2 id="momenttimedelta-not-stdtime"><a class="header" href="#momenttimedelta-not-stdtime"><code>Moment</code>/<code>TimeDelta</code>: not <code>std::time</code></a></h2>
 <p>Both are <code>web_time</code> types, not <code>std::time::Instant</code>/<code>Duration</code> – <code>std::time::Instant</code>
 doesn’t exist on <code>wasm32-unknown-unknown</code> (there’s no OS clock syscall to back it), so

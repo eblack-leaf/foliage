@@ -6,7 +6,7 @@
 //! row, a live readout -- for a `Location` idea that percent/px resolving doesn't cover.
 
 use foliage::{
-    Canopy, Color, Elevation, Grid, GridExt, Grows, Leaf, Location, Panel, Polygon, Rounding,
+    Forest, Color, Elevation, Grid, GridExt, Grows, Leaf, Location, Panel, Polygon, Rounding,
     Sprout, anchor,
 };
 
@@ -17,25 +17,25 @@ use crate::site::{Column, Demo, Grow, SCROLL_TAIL, role, space};
 const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
-    let container = crate::site::shell::content_area(g.canopy, slot);
-    let mut column = Column::new(g.canopy, container);
+    let container = crate::site::shell::content_area(g.forest, slot);
+    let mut column = Column::new(g.forest, container);
 
-    column.display(g.canopy, headings::LAYOUT);
-    column.lead(g.canopy, text::LEAD);
+    column.display(g.forest, headings::LAYOUT);
+    column.lead(g.forest, text::LEAD);
 
-    column.heading(g.canopy, headings::LAYOUT_GRID);
-    column.prose(g.canopy, text::GRID);
+    column.heading(g.forest, headings::LAYOUT_GRID);
+    column.prose(g.forest, text::GRID);
     grid(g, &mut column);
 
-    column.heading(g.canopy, headings::LAYOUT_ANCHOR);
-    column.prose(g.canopy, text::ANCHOR);
+    column.heading(g.forest, headings::LAYOUT_ANCHOR);
+    column.prose(g.forest, text::ANCHOR);
     anchoring(g, &mut column);
 
-    column.heading(g.canopy, headings::LAYOUT_MEASURE);
-    column.prose(g.canopy, text::MEASURE);
+    column.heading(g.forest, headings::LAYOUT_MEASURE);
+    column.prose(g.forest, text::MEASURE);
     measure(g, &mut column);
 
-    column.tail(g.canopy, SCROLL_TAIL);
+    column.tail(g.forest, SCROLL_TAIL);
 }
 
 // ---- grid ------------------------------------------------------------------------------------
@@ -49,8 +49,8 @@ const GRID_SPANS: [(i32, i32); 3] = [(1, 1), (2, 2), (1, 3)];
 /// The stage's own division into columns, drawn as an outline so the tracks stay visible
 /// wherever the cell currently is -- otherwise a single-column step looks like a box floating
 /// in empty space rather than one slot of three.
-fn grid_host(canopy: &mut Canopy, stage: Leaf) -> Leaf {
-    canopy.branch(
+fn grid_host(forest: &mut Forest, stage: Leaf) -> Leaf {
+    forest.branch(
         stage,
         Panel::new()
             .color(role::outline())
@@ -87,10 +87,10 @@ fn grid(g: &mut Grow, column: &mut Column) {
         &board::GRID_STEPS,
         &reference::GRID,
     );
-    let host = grid_host(g.canopy, board.stage);
+    let host = grid_host(g.forest, board.stage);
     let (from, to) = GRID_SPANS[0];
     let cell = blueprint::frame(
-        g.canopy,
+        g.forest,
         host,
         cell_at(from, to),
         board::GRID_STEPS[0],
@@ -100,21 +100,21 @@ fn grid(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Tracks {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         let (from, to) = GRID_SPANS[step];
-        canopy.location(self.cell.leaf, cell_at(from, to));
-        canopy.text(self.cell.label, board::GRID_STEPS[step]);
+        forest.location(self.cell.leaf, cell_at(from, to));
+        forest.text(self.cell.label, board::GRID_STEPS[step]);
         true
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
-        let stage = blueprint::resolved(canopy, self.board.stage);
-        let cell = blueprint::resolved(canopy, self.cell.leaf);
-        self.board.set(canopy, 0, stage);
-        self.board.set(canopy, 1, cell);
+    fn drive(&mut self, forest: &mut Forest) {
+        let stage = blueprint::resolved(forest, self.board.stage);
+        let cell = blueprint::resolved(forest, self.cell.leaf);
+        self.board.set(forest, 0, stage);
+        self.board.set(forest, 1, cell);
     }
 }
 
@@ -172,8 +172,8 @@ fn dependent_at(step: usize) -> Location {
     }
 }
 
-fn dependent(canopy: &mut Canopy, stage: Leaf, target: Leaf) -> Leaf {
-    let dep = canopy.branch(
+fn dependent(forest: &mut Forest, stage: Leaf, target: Leaf) -> Leaf {
+    let dep = forest.branch(
         stage,
         Polygon::new()
             .sides(5.0)
@@ -188,7 +188,7 @@ fn dependent(canopy: &mut Canopy, stage: Leaf, target: Leaf) -> Leaf {
             .anchored(target)
             .pass_through(),
     );
-    blueprint::name(canopy, dep, board::DEPENDENT);
+    blueprint::name(forest, dep, board::DEPENDENT);
     dep
 }
 
@@ -207,29 +207,29 @@ fn anchoring(g: &mut Grow, column: &mut Column) {
         &reference::ANCHOR,
     );
     let target = blueprint::child(
-        g.canopy,
+        g.forest,
         board.stage,
         target_at(),
         target_tone(),
         board::TARGET,
     );
-    let dependent = dependent(g.canopy, board.stage, target);
+    let dependent = dependent(g.forest, board.stage, target);
     let [call, sits] = board::ANCHOR_VALUES[0];
-    board.set(g.canopy, 0, call);
-    board.set(g.canopy, 1, sits);
+    board.set(g.forest, 0, call);
+    board.set(g.forest, 1, sits);
     g.page.demos.push(Box::new(Anchoring { board, dependent }));
 }
 
 impl Demo for Anchoring {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.location(self.dependent, dependent_at(step));
+        self.board.select(forest, step);
+        forest.location(self.dependent, dependent_at(step));
         let [call, sits] = board::ANCHOR_VALUES[step];
-        self.board.set(canopy, 0, call);
-        self.board.set(canopy, 1, sits);
+        self.board.set(forest, 0, call);
+        self.board.set(forest, 1, sits);
         true
     }
 }
@@ -276,14 +276,14 @@ fn measure(g: &mut Grow, column: &mut Column) {
         &reference::MEASURE,
     );
     let frame = blueprint::frame(
-        g.canopy,
+        g.forest,
         board.stage,
         frame_at(MEASURE_WIDTHS[0]),
         board::frame(MEASURE_WIDTHS[0]),
         false,
     );
     let cell = blueprint::frame(
-        g.canopy,
+        g.forest,
         frame.leaf,
         cell_cap_at(MEASURE_CAP),
         format!("max {}px", MEASURE_CAP as i32),
@@ -293,19 +293,19 @@ fn measure(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Measure {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.location(self.frame.leaf, frame_at(MEASURE_WIDTHS[step]));
-        canopy.text(self.frame.label, board::frame(MEASURE_WIDTHS[step]));
+        self.board.select(forest, step);
+        forest.location(self.frame.leaf, frame_at(MEASURE_WIDTHS[step]));
+        forest.text(self.frame.label, board::frame(MEASURE_WIDTHS[step]));
         true
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
-        let frame = blueprint::resolved(canopy, self.frame.leaf);
-        let cell = blueprint::resolved(canopy, self.cell.leaf);
-        self.board.set(canopy, 0, frame);
-        self.board.set(canopy, 1, cell);
+    fn drive(&mut self, forest: &mut Forest) {
+        let frame = blueprint::resolved(forest, self.frame.leaf);
+        let cell = blueprint::resolved(forest, self.cell.leaf);
+        self.board.set(forest, 0, frame);
+        self.board.set(forest, 1, cell);
     }
 }

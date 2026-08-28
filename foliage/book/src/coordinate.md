@@ -20,7 +20,7 @@ pub struct Coordinates(pub [CoordinateUnit; 2]);
 generic over one of these three marker types, so `Position<Logical>` and
 `Position<Physical>` are different types -- passing one where the other is expected is a
 compile error, not a runtime scaling bug. `Section<Logical>` is the one every on-screen
-entity carries -- read it back through [`Canopy::section`](./canopy.md), by
+entity carries -- read it back through [`Forest::section`](./forest.md), by
 [`Leaf`](./leaf.md). `ResolvedElevation`/`ScaleFactor` (see [Ginkgo](./ginkgo.md)) are
 what convert between contexts when a value actually needs to cross into the render
 backend (logical units in, physical pixels out to the GPU).

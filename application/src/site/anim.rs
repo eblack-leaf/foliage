@@ -15,7 +15,7 @@
 //! [`far_end`], which is where the one exception tried to live.
 
 use foliage::{
-    Canopy, Color, Ease, Elevation, GridExt, Grows, Leaf, Location, Motion, Panel, Polygon, Repeat,
+    Forest, Color, Ease, Elevation, GridExt, Grows, Leaf, Location, Motion, Panel, Polygon, Repeat,
     Rounding, Sprout, Timing,
 };
 
@@ -26,33 +26,33 @@ use crate::site::{Column, Demo, Grow, SCROLL_TAIL, role};
 const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
-    let container = crate::site::shell::content_area(g.canopy, slot);
-    let mut column = Column::new(g.canopy, container);
+    let container = crate::site::shell::content_area(g.forest, slot);
+    let mut column = Column::new(g.forest, container);
 
-    column.display(g.canopy, headings::MOTION);
-    column.lead(g.canopy, text::LEAD);
+    column.display(g.forest, headings::MOTION);
+    column.lead(g.forest, text::LEAD);
 
-    column.heading(g.canopy, headings::MOTION_EASE);
-    column.prose(g.canopy, text::EASE);
+    column.heading(g.forest, headings::MOTION_EASE);
+    column.prose(g.forest, text::EASE);
     ease(g, &mut column);
 
-    column.heading(g.canopy, headings::MOTION_TIMING);
-    column.prose(g.canopy, text::TIMING);
+    column.heading(g.forest, headings::MOTION_TIMING);
+    column.prose(g.forest, text::TIMING);
     timing(g, &mut column);
 
-    column.heading(g.canopy, headings::MOTION_TWEENS);
-    column.prose(g.canopy, text::TWEENS);
+    column.heading(g.forest, headings::MOTION_TWEENS);
+    column.prose(g.forest, text::TWEENS);
     tweens(g, &mut column);
 
-    column.heading(g.canopy, headings::MOTION_REPEAT);
-    column.prose(g.canopy, text::REPEAT);
+    column.heading(g.forest, headings::MOTION_REPEAT);
+    column.prose(g.forest, text::REPEAT);
     repeat(g, &mut column);
 
-    column.heading(g.canopy, headings::MOTION_SEQUENCE);
-    column.prose(g.canopy, text::SEQUENCE);
+    column.heading(g.forest, headings::MOTION_SEQUENCE);
+    column.prose(g.forest, text::SEQUENCE);
     sequence(g, &mut column);
 
-    column.tail(g.canopy, SCROLL_TAIL);
+    column.tail(g.forest, SCROLL_TAIL);
 }
 
 // ---- the travelling shape --------------------------------------------------------------------
@@ -79,8 +79,8 @@ fn travel_at(center_pct: f32) -> Location {
 /// Without it a shape crossing an empty field is something wandering; with it the same move is
 /// a distance being covered, and the difference between two curves over that distance is what
 /// three of these boards are asking you to look at.
-fn track(canopy: &mut Canopy, stage: Leaf) {
-    canopy.branch(
+fn track(forest: &mut Forest, stage: Leaf) {
+    forest.branch(
         stage,
         Panel::new()
             .color(role::outline())
@@ -96,8 +96,8 @@ fn track(canopy: &mut Canopy, stage: Leaf) {
 
 /// The shape three of the boards move: resting at [`HOME`], out of the hit test like every
 /// other drawn thing on a board.
-fn traveller(canopy: &mut Canopy, stage: Leaf) -> Leaf {
-    canopy.branch(
+fn traveller(forest: &mut Forest, stage: Leaf) -> Leaf {
+    forest.branch(
         stage,
         Polygon::new()
             .sides(6.0)
@@ -133,7 +133,7 @@ fn after_lead(length: u64) -> Timing {
 /// did first, and it is broken in a way worth writing down, because nothing about the call
 /// looks wrong. A resolved box is `declaration + Diff * animation_percent`
 /// (`grid/location.rs:396`); a `Location` tween sets `CreateDiff(true)` once, at its first
-/// tick, and then drives `animation_percent` from 1 to 0. A plain `canopy.location` write
+/// tick, and then drives `animation_percent` from 1 to 0. A plain `forest.location` write
 /// triggers a resolve but never sets `CreateDiff`, so a reset landing mid-tween resolves the
 /// new declaration against the *previous* tween's cached diff at whatever percent it is
 /// currently at -- putting the shape a fraction of a full travel off the end of the track.
@@ -148,8 +148,8 @@ fn after_lead(length: u64) -> Timing {
 /// Read off the tree rather than remembered, because the shape does not always finish where
 /// the step that sent it said it would: `bounce` ends back at its origin, and `forever` is
 /// wherever the loop happens to be. A remembered end would send those two nowhere.
-fn far_end(canopy: &Canopy, stage: Leaf, shape: Leaf) -> f32 {
-    let (Some(stage), Some(shape)) = (canopy.section(stage), canopy.section(shape)) else {
+fn far_end(forest: &Forest, stage: Leaf, shape: Leaf) -> f32 {
+    let (Some(stage), Some(shape)) = (forest.section(stage), forest.section(shape)) else {
         // Nothing has resolved yet, so the shape is still at its declared HOME.
         return AWAY;
     };
@@ -167,9 +167,9 @@ fn far_end(canopy: &Canopy, stage: Leaf, shape: Leaf) -> f32 {
 }
 
 /// Sends the shape to whichever end it is currently further from.
-fn travel(canopy: &mut Canopy, stage: Leaf, shape: Leaf, timing: Timing) {
-    let to = far_end(canopy, stage, shape);
-    canopy.animate(shape, Motion::Location(travel_at(to)), timing);
+fn travel(forest: &mut Forest, stage: Leaf, shape: Leaf, timing: Timing) {
+    let to = far_end(forest, stage, shape);
+    forest.animate(shape, Motion::Location(travel_at(to)), timing);
 }
 
 // ---- easing ------------------------------------------------------------------------------
@@ -200,29 +200,29 @@ fn ease(g: &mut Grow, column: &mut Column) {
         &board::EASE_STEPS,
         &reference::EASE,
     );
-    track(g.canopy, board.stage);
-    let shape = traveller(g.canopy, board.stage);
+    track(g.forest, board.stage);
+    let shape = traveller(g.forest, board.stage);
     let [curve, reads] = board::EASE_VALUES[0];
-    board.set(g.canopy, 0, curve);
-    board.set(g.canopy, 1, reads);
+    board.set(g.forest, 0, curve);
+    board.set(g.forest, 1, reads);
     g.page.demos.push(Box::new(EaseDemo { board, shape }));
 }
 
 impl Demo for EaseDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         travel(
-            canopy,
+            forest,
             self.board.stage,
             self.shape,
             after_lead(EASE_MS).eased(EASE_CURVES[step].clone()),
         );
         let [curve, reads] = board::EASE_VALUES[step];
-        self.board.set(canopy, 0, curve);
-        self.board.set(canopy, 1, reads);
+        self.board.set(forest, 0, curve);
+        self.board.set(forest, 1, reads);
         true
     }
 }
@@ -256,30 +256,30 @@ fn timing(g: &mut Grow, column: &mut Column) {
         &board::TIMING_STEPS,
         &reference::TIMING,
     );
-    track(g.canopy, board.stage);
-    let shape = traveller(g.canopy, board.stage);
+    track(g.forest, board.stage);
+    let shape = traveller(g.forest, board.stage);
     let [start, finish] = board::TIMING_VALUES[0];
-    board.set(g.canopy, 0, start);
-    board.set(g.canopy, 1, finish);
+    board.set(g.forest, 0, start);
+    board.set(g.forest, 1, finish);
     g.page.demos.push(Box::new(TimingDemo { board, shape }));
 }
 
 impl Demo for TimingDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         let (start, finish) = TIMING_WINDOWS[step];
         travel(
-            canopy,
+            forest,
             self.board.stage,
             self.shape,
             Timing::over(finish).after(start).eased(Ease::DECELERATE),
         );
         let [start, finish] = board::TIMING_VALUES[step];
-        self.board.set(canopy, 0, start);
-        self.board.set(canopy, 1, finish);
+        self.board.set(forest, 0, start);
+        self.board.set(forest, 1, finish);
         true
     }
 }
@@ -321,11 +321,11 @@ fn tweens(g: &mut Grow, column: &mut Column) {
         &board::TWEENS_STEPS,
         &reference::TWEENS,
     );
-    track(g.canopy, board.stage);
-    let shape = traveller(g.canopy, board.stage);
+    track(g.forest, board.stage);
+    let shape = traveller(g.forest, board.stage);
     let [motion, tween] = board::TWEENS_VALUES[0];
-    board.set(g.canopy, 0, motion);
-    board.set(g.canopy, 1, tween);
+    board.set(g.forest, 0, motion);
+    board.set(g.forest, 1, tween);
     g.page.demos.push(Box::new(TweensDemo {
         board,
         shape,
@@ -349,24 +349,24 @@ impl Demo for TweensDemo {
     /// The reason it is not a reset plus a round trip -- which is what a demo of a single
     /// motion wants to be -- is that a reset is a write to a value a tween owns, and pressing
     /// again before the last one landed is exactly when that goes wrong. See [`far_end`].
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         let timing = after_lead(TWEENS_MS).eased(Ease::DECELERATE);
         let back = self.flipped[step];
         self.flipped[step] = !back;
         let to = match step {
             1 => Motion::Color(if back { role::accent() } else { tween_tone() }),
-            2 => Motion::Location(travel_at(far_end(canopy, self.board.stage, self.shape))),
+            2 => Motion::Location(travel_at(far_end(forest, self.board.stage, self.shape))),
             3 => Motion::Polygon(tween_shape(if back { TWEENS_SIDES } else { 3.0 })),
             _ => Motion::Opacity(if back { 1.0 } else { TWEENS_FADED }),
         };
-        canopy.animate(self.shape, to, timing);
+        forest.animate(self.shape, to, timing);
         let [motion, tween] = board::TWEENS_VALUES[step];
-        self.board.set(canopy, 0, motion);
-        self.board.set(canopy, 1, tween);
+        self.board.set(forest, 0, motion);
+        self.board.set(forest, 1, tween);
         true
     }
 }
@@ -403,11 +403,11 @@ fn repeat(g: &mut Grow, column: &mut Column) {
         &board::REPEAT_STEPS,
         &reference::REPEAT,
     );
-    track(g.canopy, board.stage);
-    let shape = traveller(g.canopy, board.stage);
+    track(g.forest, board.stage);
+    let shape = traveller(g.forest, board.stage);
     let [repeat, passes] = board::REPEAT_VALUES[0];
-    board.set(g.canopy, 0, repeat);
-    board.set(g.canopy, 1, passes);
+    board.set(g.forest, 0, repeat);
+    board.set(g.forest, 1, passes);
     g.page.demos.push(Box::new(RepeatDemo { board, shape }));
 }
 
@@ -415,15 +415,15 @@ impl Demo for RepeatDemo {
     /// Pressing another step is also how the running loop is stopped, and the row says so: the
     /// new animation supersedes the old one on the same value rather than joining it. There is
     /// no stop button here because there is no stop call -- that is the point.
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         let (mode, backtrack) = REPEAT_MODES[step];
         let timing = after_lead(REPEAT_MS).eased(Ease::DECELERATE).repeat(mode);
         travel(
-            canopy,
+            forest,
             self.board.stage,
             self.shape,
             if backtrack {
@@ -433,8 +433,8 @@ impl Demo for RepeatDemo {
             },
         );
         let [repeat, passes] = board::REPEAT_VALUES[step];
-        self.board.set(canopy, 0, repeat);
-        self.board.set(canopy, 1, passes);
+        self.board.set(forest, 0, repeat);
+        self.board.set(forest, 1, passes);
         true
     }
 }
@@ -501,7 +501,7 @@ fn sequence(g: &mut Grow, column: &mut Column) {
         &reference::SEQUENCE,
     );
     let shapes = std::array::from_fn(|i| {
-        g.canopy.branch(
+        g.forest.branch(
             board.stage,
             Polygon::new()
                 .sides(6.0)
@@ -513,8 +513,8 @@ fn sequence(g: &mut Grow, column: &mut Column) {
                 .pass_through(),
         )
     });
-    board.set(g.canopy, 0, board::SEQUENCE_STARTS[0]);
-    board.set(g.canopy, 1, board::SEQUENCE_IDLE);
+    board.set(g.forest, 0, board::SEQUENCE_STARTS[0]);
+    board.set(g.forest, 1, board::SEQUENCE_IDLE);
     g.page.demos.push(Box::new(SequenceDemo {
         board,
         shapes,
@@ -524,21 +524,21 @@ fn sequence(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for SequenceDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         // A fresh one per press. A sequence is spent when its last animation settles -- it
         // reports and is despawned -- so there is nothing to reuse, and holding the old handle
         // would only be holding a withered one.
-        let seq = canopy.sequence();
+        let seq = forest.sequence();
         let apart = if step == 0 { SEQUENCE_STAGGER } else { 0 };
         for (i, shape) in self.shapes.iter().enumerate() {
             // The same beat before the first one moves that every other board on this page
             // takes, and the thing the `starts` row is reporting.
             let start = LEAD_IN + i as u64 * apart;
-            canopy.animate_during(
+            forest.animate_during(
                 *shape,
                 Motion::Opacity(self.to),
                 Timing::over(start + SEQUENCE_MS)
@@ -553,20 +553,20 @@ impl Demo for SequenceDemo {
             SEQUENCE_FADED
         };
         self.running = Some(seq);
-        self.board.set(canopy, 0, board::SEQUENCE_STARTS[step]);
-        self.board.set(canopy, 1, board::SEQUENCE_RUNNING);
+        self.board.set(forest, 0, board::SEQUENCE_STARTS[step]);
+        self.board.set(forest, 1, board::SEQUENCE_RUNNING);
         true
     }
 
     /// The group's own report, and the reason this board exists: the last tween to land is what
     /// ends the sequence, so on the staggered step this arrives a stagger later than the same
     /// three tweens fired together -- with nothing here counting milliseconds to work that out.
-    fn finished(&mut self, canopy: &mut Canopy, seq: Leaf) -> bool {
+    fn finished(&mut self, forest: &mut Forest, seq: Leaf) -> bool {
         if self.running != Some(seq) {
             return false;
         }
         self.running = None;
-        self.board.set(canopy, 1, board::SEQUENCE_FINISHED);
+        self.board.set(forest, 1, board::SEQUENCE_FINISHED);
         true
     }
 }

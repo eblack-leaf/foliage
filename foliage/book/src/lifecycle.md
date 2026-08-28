@@ -14,7 +14,7 @@ Covered in depth in [Interaction](./interaction.md) -- `InteractionState`'s `ENA
 descendant (via `InheritDisable`, walking `Children`/`AnchorDeps`) without touching the
 author's own `ENABLED` bit or the library's own internal `AUTO_ENABLED` opt-outs. `Enable`
 is the exact mirror, setting the same three bits back. Across the boundary this is
-[`Grows::enable`/`Grows::disable`](./canopy.md).
+[`Grows::enable`/`Grows::disable`](./forest.md).
 
 ## Visibility: own flag, inherited flag, resolved
 
@@ -33,7 +33,7 @@ cascade to already-spawned children, which is exactly what
 `visible: bool` branch) exists to handle for the *render* side: a value that goes
 invisible then visible again gets re-sent to the renderer even though it didn't itself
 change, since the renderer may have dropped it while hidden. Across the boundary this is
-[`Grows::visible`](./canopy.md).
+[`Grows::visible`](./forest.md).
 
 ## Opacity: multiplicative blend, not an override
 
@@ -52,8 +52,8 @@ A 50%-opaque child of a 50%-opaque parent renders at 25%, not 50% -- `BlendedOpa
 the product of the whole ancestor chain, propagated to every `Children` descendant on
 change, the same cascade shape `Visibility` follows. `Opacity` implements
 [`Animate`](./anim.md); across the boundary, fading is
-`canopy.animate(leaf, Motion::Opacity(0.0), Timing::over(300))` -- the same
-[`Grows::animate`](./canopy.md) call every other animatable value uses.
+`forest.animate(leaf, Motion::Opacity(0.0), Timing::over(300))` -- the same
+[`Grows::animate`](./forest.md) call every other animatable value uses.
 
 ## Remove: a cascade, not a per-entity despawn
 
@@ -71,6 +71,6 @@ Despawning an entity re-triggers `Remove` on every `Children` child *and* every
 `AnchorDeps` dependent (an entity that anchored itself to this one via
 [`Anchor::new`](./grid.md), even if it isn't a structural `Parent`-child) --
 recursively, until the whole subtree is gone. Across the boundary this whole cascade is
-one call: [`Grows::prune`](./canopy.md), which emits
-[`Bloom::Withered`](./canopy.md) for every `Leaf` that goes, with no manual teardown list
+one call: [`Grows::prune`](./forest.md), which emits
+[`Moss::Withered`](./forest.md) for every `Leaf` that goes, with no manual teardown list
 to maintain per widget.

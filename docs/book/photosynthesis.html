@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -220,7 +220,7 @@ if !self.tick_pending {
 }
 <span class="boring">}</span></code></pre>
 <p><code>self.frame()</code> is where the app’s own closure runs – see <a href="./app.html">The App</a> for what
-it does before and after calling out to <a href="./canopy.html"><code>Canopy</code></a>. There is no separate
+it does before and after calling out to <a href="./forest.html"><code>Forest</code></a>. There is no separate
 <code>user</code> schedule; app code is not an ECS system, so it has no slot among <code>main</code>’s or
 <code>diff</code>’s own <code>SystemSet</code>s to run in.</p>
 <p>The gate exists because <code>about_to_wait</code> isn’t 1:1 with real paint frames – high-frequency

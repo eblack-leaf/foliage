@@ -32,7 +32,7 @@ impl Polyline {
 }
 
 /// Polyline's content: the vertex chain, rewritten as one unit --
-/// `canopy.points(polyline, vec![..])` re-derives every segment and joint.
+/// `forest.points(polyline, vec![..])` re-derives every segment and joint.
 ///
 /// TODO: points are local px only, so a polyline in a percentage-width box does not stretch
 /// with it -- every responsive caller ends up running the same system, reading the resolved
@@ -48,7 +48,7 @@ pub struct PolylinePoints(pub Vec<Position<Logical>>);
 
 /// How much of the path (by arc length, 0.0..=1.0) is currently drawn -- the "draw the
 /// line in" effect, distilled into the composite itself rather than left for every author
-/// to hand-roll. `canopy.draw_progress(polyline, 0.4)` reveals the first 40% of the path;
+/// to hand-roll. `forest.draw_progress(polyline, 0.4)` reveals the first 40% of the path;
 /// a caller driving this every frame (their own per-frame write, or eventually a
 /// [`Motion`](crate::Motion) variant once one covers it) gets a smooth draw-in with the
 /// same zero-churn property `PolylinePoints` writes already have -- see

@@ -6,7 +6,7 @@
 //! the app's business -- here, how much of a line is drawn.
 
 use foliage::{
-    Bloom, Canopy, Color, DashPattern, Elevation, Foliage, GridExt, Leaf, Location, Polyline,
+    Moss, Forest, Color, DashPattern, Elevation, Foliage, GridExt, Leaf, Location, Polyline,
     Position, Repeat, Root, Timing, Tween,
 };
 use foliage::{Grows, Sprout};
@@ -29,7 +29,7 @@ fn main() {
 }
 
 impl Root for Drawing {
-    fn take_root(canopy: &mut Canopy) -> Self {
+    fn take_root(forest: &mut Forest) -> Self {
         let zigzag: Vec<Position<foliage::Logical>> = vec![
             (10, 90).into(),
             (50, 30).into(),
@@ -37,22 +37,22 @@ impl Root for Drawing {
             (130, 30).into(),
             (170, 70).into(),
         ];
-        grow(canopy, &zigzag)
+        grow(forest, &zigzag)
     }
-    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-        for bloom in blooms {
-            if let Bloom::Tween { tween, values } = bloom
+    fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+        for moss in mosses {
+            if let Moss::Tween { tween, values } = moss
                 && tween == self.cycle
             {
-                canopy.draw_progress(self.line, values[0]);
+                forest.draw_progress(self.line, values[0]);
             }
         }
     }
 }
 
 /// Sprout the tree on the first frame and keeps the two handles that matter.
-fn grow(canopy: &mut Canopy, points: &[Position<foliage::Logical>]) -> Drawing {
-    let line = canopy.leaf(
+fn grow(forest: &mut Forest, points: &[Position<foliage::Logical>]) -> Drawing {
+    let line = forest.leaf(
         Polyline::new()
             .points(points.to_vec())
             .weight(3)
@@ -63,7 +63,7 @@ fn grow(canopy: &mut Canopy, points: &[Position<foliage::Logical>]) -> Drawing {
             ))
             .elevate(Elevation::up(1)),
     );
-    canopy.leaf(
+    forest.leaf(
         Polyline::new()
             .points(points.to_vec())
             .weight(3)
@@ -76,7 +76,7 @@ fn grow(canopy: &mut Canopy, points: &[Position<foliage::Logical>]) -> Drawing {
             .elevate(Elevation::up(1)),
     );
     // One channel running 0 to 1, forever.
-    let cycle = canopy.tween(
+    let cycle = forest.tween(
         vec![(0.0, 1.0)],
         Timing::over(DRAW_CYCLE_MS).repeat(Repeat::Forever),
     );

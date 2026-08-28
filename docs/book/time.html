@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -222,7 +222,7 @@ a bare <code>Timer</code> entity and observes <code>OnEnd</code> on it – when 
 handle to cancel or a separate scheduler resource to manage – the timer entity <em>is</em> the
 whole lifecycle, and pruning it before it fires is cancellation, the same
 <a href="./lifecycle.html">Remove</a> mechanism every other teardown uses. Across the boundary this is
-<a href="./canopy.html"><code>Grows::timer</code></a>/<a href="./canopy.html"><code>Bloom::TimerFinished</code></a>.</p>
+<a href="./forest.html"><code>Grows::timer</code></a>/<a href="./forest.html"><code>Moss::TimerFinished</code></a>.</p>
 <h2 id="momenttimedelta-not-stdtime"><a class="header" href="#momenttimedelta-not-stdtime"><code>Moment</code>/<code>TimeDelta</code>: not <code>std::time</code></a></h2>
 <p>Both are <code>web_time</code> types, not <code>std::time::Instant</code>/<code>Duration</code> – <code>std::time::Instant</code>
 doesn’t exist on <code>wasm32-unknown-unknown</code> (there’s no OS clock syscall to back it), so

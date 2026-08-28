@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -176,11 +176,11 @@
                     <main>
                         <h1 id="specs-and-sprout-what-you-grow"><a class="header" href="#specs-and-sprout-what-you-grow">Specs and Sprout: What You Grow</a></h1>
 <p><code>Panel::new()</code> doesn’t create anything – it returns a <code>PanelSprout</code>, a plain config
-struct you build up with a chained call, then hand to <a href="./canopy.html"><code>Grows::leaf</code>/<code>Grows::branch</code></a>:</p>
+struct you build up with a chained call, then hand to <a href="./forest.html"><code>Grows::leaf</code>/<code>Grows::branch</code></a>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>// foliage/examples/interaction.rs
-canopy.leaf(
+forest.leaf(
     Panel::new()
         .color(Color::orange(600))
         .rounding(Rounding::Sm)
@@ -246,18 +246,18 @@ pub enum Spec {
 }
 <span class="boring">}</span></code></pre>
 <p><code>Grows::leaf</code>/<code>Grows::branch</code> take <code>impl Into&lt;Spec&gt;</code>, and every builder type converts
-into it, so a call site writes <code>canopy.branch(under, Panel::new()...)</code> rather than
-<code>canopy.branch(under, Spec::Panel(Panel::new()...))</code> – the enum is the queued form, not
+into it, so a call site writes <code>forest.branch(under, Panel::new()...)</code> rather than
+<code>forest.branch(under, Spec::Panel(Panel::new()...))</code> – the enum is the queued form, not
 something you name yourself. <code>Bare</code> is the one variant with no primitive of its own: a
 container for children, or a bare interaction hit area, built with
 <a href="./panel.html"><code>Bare::new()</code></a> and taking the same <code>Sprout</code> chain as anything else.</p>
 <p>This is the whole vocabulary foliage knows how to grow. There is no way to hand
-<code>Canopy</code>/<code>Sprig</code> a type they don’t already know about – extending the set of things that
+<code>Forest</code>/<code>Sprig</code> a type they don’t already know about – extending the set of things that
 can be grown, or composing these primitives into a reusable widget, is engine-internal
 work, covered in <a href="./tree.html">Inside the Engine</a>.</p>
 <h2 id="motiontiming-animating-a-grown-element"><a class="header" href="#motiontiming-animating-a-grown-element"><code>Motion</code>/<code>Timing</code>: animating a grown element</a></h2>
 <p>Changing a property once is <code>Grows::color</code>/<code>Grows::location</code>/etc. Tweening one is
-<a href="./canopy.html"><code>Grows::animate</code></a>, which takes a <code>Motion</code> (the closed set of things foliage
+<a href="./forest.html"><code>Grows::animate</code></a>, which takes a <code>Motion</code> (the closed set of things foliage
 knows how to interpolate on an element) and a <code>Timing</code>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -281,17 +281,17 @@ pub struct Timing {
 <p><code>Timing::over(finish)</code> is the common case – a single linear pass from now to <code>finish</code>
 milliseconds – with <code>.after(..)</code>/<code>.eased(..)</code>/<code>.repeat(..)</code>/<code>.backtrack()</code> layered on.
 <code>Grows::animate_during</code> joins the tween to a sequence opened with
-<a href="./canopy.html"><code>Grows::sequence</code></a>, so its completion counts toward that sequence’s
-<a href="./canopy.html"><code>Bloom::SequenceFinished</code></a> – the hook for chaining one stage of motion onto
-the next. For values foliage has no concept of, <a href="./canopy.html"><code>Grows::tween</code></a> runs the
+<a href="./forest.html"><code>Grows::sequence</code></a>, so its completion counts toward that sequence’s
+<a href="./forest.html"><code>Moss::SequenceFinished</code></a> – the hook for chaining one stage of motion onto
+the next. For values foliage has no concept of, <a href="./forest.html"><code>Grows::tween</code></a> runs the
 same easing and timing over plain numbers you supply, reporting each frame’s values as
-<a href="./canopy.html"><code>Bloom::Tween</code></a> instead of writing them anywhere.</p>
+<a href="./forest.html"><code>Moss::Tween</code></a> instead of writing them anywhere.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="canopy.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="forest.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
@@ -305,7 +305,7 @@ same easing and timing over plain numbers you supply, reporting each frame’s v
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="canopy.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="forest.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 

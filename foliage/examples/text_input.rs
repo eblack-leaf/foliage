@@ -7,7 +7,7 @@
 //! Run with `cargo run --example text_input -p foliage`.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, FontId, FontSize, Grid, GridExt, HorizontalAlignment,
+    Moss, Forest, Color, Elevation, Foliage, FontId, FontSize, Grid, GridExt, HorizontalAlignment,
     Leaf, LineConstraint, Location, Panel, Root, Rounding, Text, TextInput, VerticalAlignment,
 };
 use foliage::{Grows, Sprout};
@@ -38,25 +38,25 @@ fn main() {
 }
 
 impl Root for Boxes {
-    fn take_root(canopy: &mut Canopy) -> Self {
-        grow(canopy, *DEJAVU.get().expect("dejavu registered"))
+    fn take_root(forest: &mut Forest) -> Self {
+        grow(forest, *DEJAVU.get().expect("dejavu registered"))
     }
-    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-        for bloom in blooms {
+    fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+        for moss in mosses {
             // The emission carries the new value, but sampling would answer just as well --
             // and does, for anything that did not change this frame.
-            if let Bloom::TextChanged { leaf, value } = bloom
+            if let Moss::TextChanged { leaf, value } = moss
                 && leaf == self.multi
             {
                 let count = value.chars().count();
-                canopy.text(self.title, format!("{count} chars"));
+                forest.text(self.title, format!("{count} chars"));
             }
         }
     }
 }
 
-fn grow(canopy: &mut Canopy, dejavu: FontId) -> Boxes {
-    let title = canopy.leaf(
+fn grow(forest: &mut Forest, dejavu: FontId) -> Boxes {
+    let title = forest.leaf(
         Text::new("0 chars")
             .size(FontSize::new(14))
             .color(Color::gray(400))
@@ -71,7 +71,7 @@ fn grow(canopy: &mut Canopy, dejavu: FontId) -> Boxes {
     // `TextInput` draws no backdrop of its own -- these are the example's, one behind each
     // field. `Rounding::None` needs no inset between backdrop and field: a square corner
     // doesn't clip a glyph sitting flush against it the way a rounded one would.
-    let single_backdrop = canopy.leaf(
+    let single_backdrop = forest.leaf(
         Panel::new()
             .color(Color::gray(800))
             .rounding(Rounding::None)
@@ -85,7 +85,7 @@ fn grow(canopy: &mut Canopy, dejavu: FontId) -> Boxes {
     );
     // Single line, given a box taller than one line: `Single` stretches its text to the
     // field's full height, so this is where vertical placement shows.
-    canopy.branch(
+    forest.branch(
         single_backdrop,
         TextInput::new()
             .line_constraint(LineConstraint::Single)
@@ -100,7 +100,7 @@ fn grow(canopy: &mut Canopy, dejavu: FontId) -> Boxes {
             .font(dejavu),
     );
 
-    let multi_backdrop = canopy.leaf(
+    let multi_backdrop = forest.leaf(
         Panel::new()
             .color(Color::gray(800))
             .rounding(Rounding::None)
@@ -112,7 +112,7 @@ fn grow(canopy: &mut Canopy, dejavu: FontId) -> Boxes {
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .pass_through(),
     );
-    let multi = canopy.branch(
+    let multi = forest.branch(
         multi_backdrop,
         TextInput::new()
             .line_constraint(LineConstraint::Multiple)

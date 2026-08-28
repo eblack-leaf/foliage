@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -193,13 +193,13 @@ pub enum AssetSource {
 }
 <span class="boring">}</span></code></pre>
 <p><code>foliage.load_asset(AssetSource::Bytes(data))</code>/<code>::Url(url)</code> – called during setup,
-before <a href="./app.html"><code>photosynthesize</code></a> – or <a href="./canopy.html"><code>Grows::load_asset</code></a> –
-called on a <code>Canopy</code>/<code>Sprig</code> from inside a running app – both return a key immediately.
+before <a href="./app.html"><code>photosynthesize</code></a> – or <a href="./forest.html"><code>Grows::load_asset</code></a> –
+called on a <code>Forest</code>/<code>Sprig</code> from inside a running app – both return a key immediately.
 <code>Image::new(key)</code> can be spawned that same tick, before a <code>Url</code> fetch has even started,
 because loading is decoupled from rendering: the entity exists and starts rendering once
 the key resolves behind it, not before. Across the boundary, an app finds out a key has
-resolved via <a href="./canopy.html"><code>Bloom::AssetLoaded</code></a>, then reads the bytes with
-<a href="./canopy.html"><code>Canopy::asset</code></a>.</p>
+resolved via <a href="./forest.html"><code>Moss::AssetLoaded</code></a>, then reads the bytes with
+<a href="./forest.html"><code>Forest::asset</code></a>.</p>
 <p><code>Url</code> only <em>exists</em> as a variant on wasm (the browser’s fetch is unconditional there) or
 when the <code>remote-assets</code> Cargo feature is enabled on native (<code>default = ["remote-assets"]</code>
 in <code>foliage_proper/Cargo.toml</code> – an app that only ever loads bundled <code>Bytes</code> assets can
@@ -248,7 +248,7 @@ marker, so it only ever fires once) the moment it has. <code>Tree::on_asset</cod
 ready-made observer for the common case of “give me the raw bytes once they land.” Both
 <a href="./image.html">Image</a> and <a href="./icon.html">Icon</a>’s <code>msdf_from_asset</code> path use exactly this – no
 separate, per-primitive loading logic. An app reaches the same information across the
-boundary via <a href="./canopy.html"><code>Bloom::AssetLoaded</code></a>/<a href="./canopy.html"><code>Canopy::asset</code></a>, covered
+boundary via <a href="./forest.html"><code>Moss::AssetLoaded</code></a>/<a href="./forest.html"><code>Forest::asset</code></a>, covered
 above.</p>
 <h2 id="bundled_asset-the-common-case-without-repeating-yourself"><a class="header" href="#bundled_asset-the-common-case-without-repeating-yourself"><code>bundled_asset!</code>: the common case, without repeating yourself</a></h2>
 <p>Most assets aren’t dynamically-URL’d at all – they’re compiled into the native binary

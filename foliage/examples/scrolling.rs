@@ -7,7 +7,7 @@
 //! the bottom to jump, which is the same value going the other way.
 
 use foliage::{
-    Bloom, Canopy, Color, Elevation, Foliage, FontSize, Grid, GridExt, Grows, HorizontalAlignment,
+    Moss, Forest, Color, Elevation, Foliage, FontSize, Grid, GridExt, Grows, HorizontalAlignment,
     Leaf, Location, Panel, Root, Rounding, ScrollTo, Sprout, Text, VerticalAlignment,
 };
 
@@ -29,27 +29,27 @@ fn main() {
 }
 
 impl Root for Scene {
-    fn take_root(canopy: &mut Canopy) -> Self {
-        grow(canopy)
+    fn take_root(forest: &mut Forest) -> Self {
+        grow(forest)
     }
-    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-        for bloom in blooms {
-            if let Bloom::Clicked(leaf) = bloom {
+    fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+        for moss in mosses {
+            if let Moss::Clicked(leaf) = moss {
                 if leaf == self.to_top {
-                    canopy.scroll(self.column, ScrollTo::y(0.0));
+                    forest.scroll(self.column, ScrollTo::y(0.0));
                 } else if leaf == self.to_bottom {
-                    canopy.scroll(self.column, ScrollTo::y(1.0));
+                    forest.scroll(self.column, ScrollTo::y(1.0));
                 }
             }
         }
 
         // Sampled every frame rather than remembered.
         if let (Some(offset), Some(progress)) = (
-            canopy.scroll_offset(self.column),
-            canopy.sample(self.column, foliage::Sap::ScrollProgress),
+            forest.scroll_offset(self.column),
+            forest.sample(self.column, foliage::Sap::ScrollProgress),
         ) {
             if let foliage::Sample::Pair(_, y) = progress {
-                canopy.text(
+                forest.text(
                     self.readout,
                     format!("offset {:>6.1}px   {:>3.0}%", offset.top(), y * 100.0),
                 );
@@ -58,8 +58,8 @@ impl Root for Scene {
     }
 }
 
-fn grow(canopy: &mut Canopy) -> Scene {
-    let readout = canopy.leaf(
+fn grow(forest: &mut Forest) -> Scene {
+    let readout = forest.leaf(
         Text::new("scroll the column")
             .size(FontSize::new(13))
             .color(Color::gray(400))
@@ -73,7 +73,7 @@ fn grow(canopy: &mut Canopy) -> Scene {
 
     // The column. Its grid is what makes it a view, and `overscroll(false)` traps scrolling
     // inside it rather than letting the remainder move anything behind.
-    let column = canopy.leaf(
+    let column = forest.leaf(
         Panel::new()
             .color(Color::gray(850))
             .rounding(Rounding::Sm)
@@ -87,7 +87,7 @@ fn grow(canopy: &mut Canopy) -> Scene {
     );
     for row in 0..ROWS {
         let top = row as i32 * 34;
-        canopy.branch(
+        forest.branch(
             column,
             Text::new(format!("row {:02}", row))
                 .size(FontSize::new(15))
@@ -106,7 +106,7 @@ fn grow(canopy: &mut Canopy) -> Scene {
     }
 
     let mut jump = |left: i32, label: &str, color: Color| {
-        let button = canopy.leaf(
+        let button = forest.leaf(
             Panel::new()
                 .color(color)
                 .rounding(Rounding::Sm)
@@ -118,7 +118,7 @@ fn grow(canopy: &mut Canopy) -> Scene {
                 .grid(Grid::default())
                 .interactive(),
         );
-        canopy.branch(
+        forest.branch(
             button,
             Text::new(label)
                 .size(FontSize::new(14))

@@ -4,7 +4,7 @@
 //! becoming their real form -- which reads as arrival rather than as travel.
 
 use foliage::{
-    Bare, Canopy, Color, Ease, Elevation, FontSize, GlyphColors, Grid, GridExt, Grows,
+    Bare, Forest, Color, Ease, Elevation, FontSize, GlyphColors, Grid, GridExt, Grows,
     HorizontalAlignment, Icon, IconId, Layout, Leaf, Location, Motion, Repeat, Sprout, Text,
     VerticalAlignment, anchor, text_content,
 };
@@ -119,8 +119,8 @@ pub(crate) struct Readout {
 }
 
 impl Readout {
-    pub(crate) fn drive(&mut self, canopy: &mut Canopy) {
-        let dt = canopy.frame_time().as_secs_f32();
+    pub(crate) fn drive(&mut self, forest: &mut Forest) {
+        let dt = forest.frame_time().as_secs_f32();
         let frame_ms = dt * 1000.0;
         // first sample lands whole rather than easing up from zero, or the number spends its
         // first second visibly wrong
@@ -136,20 +136,20 @@ impl Readout {
             return;
         }
         self.since = 0.0;
-        let viewport = canopy.viewport();
+        let viewport = forest.viewport();
         let line = hud_line(viewport.width(), viewport.height(), self.ms);
         // repaint only on a real change -- a text write re-shapes the whole string, and most
         // refreshes round to the same digits
         if self.shown.as_deref() != Some(line.as_str()) {
             self.shown = Some(line.clone());
-            canopy.text(self.leaf, line);
+            forest.text(self.leaf, line);
         }
         // colours change far less often than the string, and only ever together -- one write
         // when the breakpoint moves, not one every refresh
-        let lit = (canopy.layout(), canopy.short());
+        let lit = (forest.layout(), forest.short());
         if self.lit != Some(lit) {
             self.lit = Some(lit);
-            canopy.glyph_colors(self.leaf, hud_colors(lit.0, lit.1));
+            forest.glyph_colors(self.leaf, hud_colors(lit.0, lit.1));
         }
     }
 }
@@ -197,8 +197,8 @@ fn destinations() -> [PolyButton; 3] {
 /// the whole viewport, and `more` navigates rather than scrolls -- which is what people try
 /// to click anyway.
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
-    let seq = g.canopy.sequence();
-    let hero = g.canopy.branch(
+    let seq = g.forest.sequence();
+    let hero = g.forest.branch(
         slot,
         Bare::new()
             .at(Location::new().xs(
@@ -210,7 +210,7 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
             .pass_through(),
     );
 
-    let wordmark = g.canopy.branch(
+    let wordmark = g.forest.branch(
         hero,
         Text::new(WORDMARK)
             .size(
@@ -241,9 +241,9 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
             .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
             .opacity(0.0),
     );
-    fade_in(g.canopy, wordmark, seq, AT_WORDMARK);
+    fade_in(g.forest, wordmark, seq, AT_WORDMARK);
 
-    let tagline = g.canopy.branch(
+    let tagline = g.forest.branch(
         hero,
         Text::new(TAGLINE)
             .size(FontSize::new(type_scale::BODY))
@@ -280,7 +280,7 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
             .anchored(wordmark)
             .opacity(0.0),
     );
-    fade_in(g.canopy, tagline, seq, AT_TAGLINE);
+    fade_in(g.forest, tagline, seq, AT_TAGLINE);
     readout(g, hero, wordmark, seq);
 
     // Capped and centred, so three buttons stay a group instead of drifting to the corners.
@@ -291,7 +291,7 @@ pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     // height, and did, just above the `short` threshold. Chaining costs the row its place on a
     // very tall window, where it now sits higher than a percentage would put it. That is the
     // cheaper of the two: too high is a look, overlapping is a bug.
-    let row = g.canopy.branch(
+    let row = g.forest.branch(
         hero,
         Bare::new()
             .at(Location::new()
@@ -356,7 +356,7 @@ fn readout(g: &mut Grow, hero: Leaf, wordmark: Leaf, seq: Leaf) {
         .as_top()
         .adjust(-(ROW_H + space::LG))
         .with(ROW_H.px().as_height());
-    let line = g.canopy.branch(
+    let line = g.forest.branch(
         hero,
         // Seeded at its final character count, and left with no glyph colours: the first tick
         // writes both. `glyph_colors` on the builder fixes a map at spawn, which cannot express
@@ -384,7 +384,7 @@ fn readout(g: &mut Grow, hero: Leaf, wordmark: Leaf, seq: Leaf) {
             .anchored(wordmark)
             .opacity(0.0),
     );
-    fade_in(g.canopy, line, seq, AT_READOUT);
+    fade_in(g.forest, line, seq, AT_READOUT);
     g.page.readout = Some(Readout {
         leaf: line,
         ms: 0.0,
@@ -446,7 +446,7 @@ fn hint(g: &mut Grow, hero: Leaf, seq: Leaf) {
                     .adjust(-(CHEVRON + chevron_gap) + BOB_PX),
             )
     };
-    let target = g.canopy.branch(
+    let target = g.forest.branch(
         hero,
         Bare::new()
             .at(Location::new()
@@ -469,7 +469,7 @@ fn hint(g: &mut Grow, hero: Leaf, seq: Leaf) {
     // the hero's own next stop, and the whole reason the hint is a control at all
     g.page.nav.push((target, 1));
 
-    let label = g.canopy.branch(
+    let label = g.forest.branch(
         hero,
         Text::new(HINT_TEXT)
             .size(FontSize::new(type_scale::TITLE))
@@ -499,9 +499,9 @@ fn hint(g: &mut Grow, hero: Leaf, seq: Leaf) {
             .pass_through()
             .opacity(0.0),
     );
-    fade_in(g.canopy, label, seq, AT_HINT);
+    fade_in(g.forest, label, seq, AT_HINT);
 
-    let chevron = g.canopy.branch(
+    let chevron = g.forest.branch(
         hero,
         Icon::new(IconId::from(IconHandles::ChevronDown))
             .color(role::accent())
@@ -510,12 +510,12 @@ fn hint(g: &mut Grow, hero: Leaf, seq: Leaf) {
             .pass_through()
             .opacity(0.0),
     );
-    fade_in(g.canopy, chevron, seq, AT_HINT + 120);
+    fade_in(g.forest, chevron, seq, AT_HINT + 120);
 
     // Off the entrance sequence and running forever, backtracking so it returns rather than
     // snapping -- a plain loop would jerk back to the top every cycle. Tied to the chevron's
     // own lifetime, so leaving the route stops it.
-    g.canopy.animate(
+    g.forest.animate(
         chevron,
         Motion::Location(chevron_at(BOB_PX)),
         timing(AT_HINT + 200, BOB_MS, Ease::DECELERATE)

@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -187,7 +187,7 @@ its own copy of the same logic.</p>
 descendant (via <code>InheritDisable</code>, walking <code>Children</code>/<code>AnchorDeps</code>) without touching the
 author’s own <code>ENABLED</code> bit or the library’s own internal <code>AUTO_ENABLED</code> opt-outs. <code>Enable</code>
 is the exact mirror, setting the same three bits back. Across the boundary this is
-<a href="./canopy.html"><code>Grows::enable</code>/<code>Grows::disable</code></a>.</p>
+<a href="./forest.html"><code>Grows::enable</code>/<code>Grows::disable</code></a>.</p>
 <h2 id="visibility-own-flag-inherited-flag-resolved"><a class="header" href="#visibility-own-flag-inherited-flag-resolved">Visibility: own flag, inherited flag, resolved</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -204,7 +204,7 @@ cascade to already-spawned children, which is exactly what
 <code>visible: bool</code> branch) exists to handle for the <em>render</em> side: a value that goes
 invisible then visible again gets re-sent to the renderer even though it didn’t itself
 change, since the renderer may have dropped it while hidden. Across the boundary this is
-<a href="./canopy.html"><code>Grows::visible</code></a>.</p>
+<a href="./forest.html"><code>Grows::visible</code></a>.</p>
 <h2 id="opacity-multiplicative-blend-not-an-override"><a class="header" href="#opacity-multiplicative-blend-not-an-override">Opacity: multiplicative blend, not an override</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -221,8 +221,8 @@ fn on_insert(mut world: DeferredWorld, ctx: HookContext) {
 the product of the whole ancestor chain, propagated to every <code>Children</code> descendant on
 change, the same cascade shape <code>Visibility</code> follows. <code>Opacity</code> implements
 <a href="./anim.html"><code>Animate</code></a>; across the boundary, fading is
-<code>canopy.animate(leaf, Motion::Opacity(0.0), Timing::over(300))</code> – the same
-<a href="./canopy.html"><code>Grows::animate</code></a> call every other animatable value uses.</p>
+<code>forest.animate(leaf, Motion::Opacity(0.0), Timing::over(300))</code> – the same
+<a href="./forest.html"><code>Grows::animate</code></a> call every other animatable value uses.</p>
 <h2 id="remove-a-cascade-not-a-per-entity-despawn"><a class="header" href="#remove-a-cascade-not-a-per-entity-despawn">Remove: a cascade, not a per-entity despawn</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -238,8 +238,8 @@ fn observer(trigger: Trigger&lt;Self&gt;, mut tree: Tree, branches: Query&lt;&am
 <code>AnchorDeps</code> dependent (an entity that anchored itself to this one via
 <a href="./grid.html"><code>Anchor::new</code></a>, even if it isn’t a structural <code>Parent</code>-child) –
 recursively, until the whole subtree is gone. Across the boundary this whole cascade is
-one call: <a href="./canopy.html"><code>Grows::prune</code></a>, which emits
-<a href="./canopy.html"><code>Bloom::Withered</code></a> for every <code>Leaf</code> that goes, with no manual teardown list
+one call: <a href="./forest.html"><code>Grows::prune</code></a>, which emits
+<a href="./forest.html"><code>Moss::Withered</code></a> for every <code>Leaf</code> that goes, with no manual teardown list
 to maintain per widget.</p>
 
                     </main>

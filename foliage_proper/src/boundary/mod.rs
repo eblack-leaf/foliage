@@ -6,14 +6,14 @@
 //! what lets an app run its own `bevy_ecs`, at whatever version it likes, without the two
 //! meeting.
 //!
-//! - [`Leaf`](crate::Leaf) names an element. [`Canopy`](crate::Canopy) is the per-frame
+//! - [`Leaf`](crate::Leaf) names an element. [`Forest`](crate::Forest) is the per-frame
 //!   surface, and [`Root`](crate::Root) is the app it is handed to.
 //! - [`Sprig`](crate::Sprig) is the same command set, `Send`, for another thread.
-//! - [`Bloom`](crate::Bloom) is what comes back out; [`Sap`](crate::Sap)/
+//! - [`Moss`](crate::Moss) is what comes back out; [`Sap`](crate::Sap)/
 //!   [`Sample`](crate::Sample) is what may be looked at.
 
-pub(crate) mod bloom;
-pub(crate) mod canopy;
+pub(crate) mod moss;
+pub(crate) mod forest;
 pub(crate) mod funnel;
 pub(crate) mod leaf;
 pub(crate) mod op;
@@ -23,7 +23,7 @@ pub(crate) mod tween;
 pub(crate) mod verbs;
 pub(crate) mod watch;
 
-use crate::boundary::bloom::Emissions;
+use crate::boundary::moss::Emissions;
 use crate::boundary::op::Spec;
 use crate::foliage::{Foliage, MainMarkers};
 use bevy_ecs::prelude::IntoScheduleConfigs;
@@ -50,8 +50,8 @@ impl crate::Attachment for Boundary {
     }
 }
 
-/// `canopy.branch(under, Panel::new()...)` rather than
-/// `canopy.branch(under, Spec::Panel(Panel::new()...))` -- the enum is the queued form, not
+/// `forest.branch(under, Panel::new()...)` rather than
+/// `forest.branch(under, Spec::Panel(Panel::new()...))` -- the enum is the queued form, not
 /// something a call site should have to name.
 macro_rules! spec_from {
     ($($sprout:ident => $variant:ident),+ $(,)?) => {

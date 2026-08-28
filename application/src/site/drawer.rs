@@ -5,7 +5,7 @@
 //! the menu button brings it in. One list, one set of handlers, two placements.
 
 use foliage::{
-    Bare, Canopy, Color, Ease, Elevation, Grid, GridExt, Grows, Icon, IconId, Leaf, Location,
+    Bare, Forest, Color, Ease, Elevation, Grid, GridExt, Grows, Icon, IconId, Leaf, Location,
     Motion, Panel, Rounding, Sprout,
 };
 
@@ -53,9 +53,9 @@ pub(crate) struct Controls {
 /// Adds the scrim and the menu button. Both are permanent: what makes them inert where they
 /// do not belong is [`Drawer::apply`], not spawning and despawning, so there is no rebuild to
 /// get wrong.
-pub(crate) fn build(canopy: &mut Canopy) -> Controls {
+pub(crate) fn build(forest: &mut Forest) -> Controls {
     // Full-bleed, under the rail and over the content.
-    let scrim = canopy.leaf(
+    let scrim = forest.leaf(
         Panel::new()
             .color(Color::stone(950))
             .rounding(Rounding::None)
@@ -67,7 +67,7 @@ pub(crate) fn build(canopy: &mut Canopy) -> Controls {
             .opacity(0.0)
             .interactive(),
     );
-    canopy.disable(scrim);
+    forest.disable(scrim);
 
     // Both parked off-canvas at `md`+, where the rail is permanent and a menu button would
     // be a control for something already visible.
@@ -85,7 +85,7 @@ pub(crate) fn build(canopy: &mut Canopy) -> Controls {
     // The backing is the button: it is the whole target, so a tap near the glyph rather than
     // exactly on it still lands. The icon passes through, or it would win the hit-test on
     // the pixels it covers and split one control into two.
-    let backing = canopy.leaf(
+    let backing = forest.leaf(
         Panel::new()
             .color(role::surface())
             .rounding(Rounding::Sm)
@@ -93,7 +93,7 @@ pub(crate) fn build(canopy: &mut Canopy) -> Controls {
             .elevate(Elevation::up(6))
             .interactive(),
     );
-    let menu = canopy.leaf(
+    let menu = forest.leaf(
         Icon::new(IconId::from(IconHandles::Menu))
             .color(role::on_surface())
             .at(placement(MENU, MENU_INSET))
@@ -113,25 +113,25 @@ impl Drawer {
     /// the drawer already over it.
     pub(crate) fn set_available(
         &mut self,
-        canopy: &mut Canopy,
+        forest: &mut Forest,
         host: Leaf,
         controls: Controls,
         available: bool,
     ) {
         self.open = false;
         self.available = available;
-        self.apply(canopy, host, controls);
+        self.apply(forest, host, controls);
     }
     /// Opens or closes, keeping whatever the route already decided about availability.
     pub(crate) fn set_open(
         &mut self,
-        canopy: &mut Canopy,
+        forest: &mut Forest,
         host: Leaf,
         controls: Controls,
         open: bool,
     ) {
         self.open = open;
-        self.apply(canopy, host, controls);
+        self.apply(forest, host, controls);
     }
     /// The single writer. Everything the drawer shows is derived from the pair of flags here,
     /// so no two callers can disagree about a control's visibility -- which is what made "does
@@ -139,11 +139,11 @@ impl Drawer {
     ///
     /// `available` dominates: on the hero nothing shows and the rail stays parked, whatever
     /// `open` says.
-    fn apply(&self, canopy: &mut Canopy, host: Leaf, controls: Controls) {
+    fn apply(&self, forest: &mut Forest, host: Leaf, controls: Controls) {
         let showing = self.available && self.open;
         let scrim = controls.scrim;
 
-        canopy.visible(scrim, self.available);
+        forest.visible(scrim, self.available);
         // The button hides while the rail is in: the scrim is the way out, and a menu button
         // over an open menu controls something already in front of you.
         //
@@ -153,31 +153,31 @@ impl Drawer {
         // button was swallowing that click.
         let controls_live = self.available && !self.open;
         for leaf in [controls.backing, controls.menu] {
-            canopy.visible(leaf, controls_live);
+            forest.visible(leaf, controls_live);
         }
         if controls_live {
-            canopy.enable(controls.backing);
+            forest.enable(controls.backing);
         } else {
-            canopy.disable(controls.backing);
+            forest.disable(controls.backing);
         }
 
         // The target carries *both* breakpoints: animating a `Location` writes the whole
         // value, so a target with only `xs` would drop the `md` placement and the rail would
         // jump off-canvas on desktop the first time this ran.
-        canopy.animate(
+        forest.animate(
             host,
             Motion::Location(rail_host_location(showing)),
             timing(0, SLIDE_MS, Ease::EMPHASIS),
         );
-        canopy.animate(
+        forest.animate(
             scrim,
             Motion::Opacity(if showing { SCRIM_OPACITY } else { 0.0 }),
             timing(0, SLIDE_MS, Ease::Linear),
         );
         if showing {
-            canopy.enable(scrim);
+            forest.enable(scrim);
         } else {
-            canopy.disable(scrim);
+            forest.disable(scrim);
         }
     }
 }
@@ -187,8 +187,8 @@ impl Drawer {
 ///
 /// Sized to the rail rather than to the whole screen -- a full-screen host sat on top of the
 /// content and grabbed interaction by default, so every click died in it.
-pub(crate) fn host(canopy: &mut Canopy) -> Leaf {
-    canopy.leaf(
+pub(crate) fn host(forest: &mut Forest) -> Leaf {
+    forest.leaf(
         Bare::new()
             .at(rail_host_location(false))
             .elevate(Elevation::up(5))

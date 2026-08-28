@@ -64,8 +64,8 @@ pub(crate) use author::{Author, LeafSprout};
 /// engine's own modules are written against these names, and `foliage_macros` emits
 /// `crate::bevy_ecs::...` paths for foliage's own internal event types.
 pub(crate) use bevy_ecs::{self, prelude::*};
-pub use boundary::bloom::Bloom;
-pub use boundary::canopy::{Canopy, Sample, Sap};
+pub use boundary::moss::Moss;
+pub use boundary::forest::{Forest, Sample, Sap};
 pub use boundary::leaf::{Leaf, Presence};
 pub use boundary::op::{Motion, Spec, Timing};
 pub use boundary::root::Root;

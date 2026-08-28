@@ -40,7 +40,7 @@ impl Spec {
 }
 
 /// A value that can be tweened -- the closed set foliage knows how to interpolate on an
-/// element. For anything else, tween scalars yourself with `Canopy::tween` and apply the
+/// element. For anything else, tween scalars yourself with `Forest::tween` and apply the
 /// numbers however you like.
 #[derive(Copy, Clone)]
 pub enum Motion {
@@ -96,7 +96,7 @@ impl Timing {
 }
 
 /// One queued instruction. Never named by user code -- the verbs on
-/// [`Canopy`](crate::Canopy)/[`Sprig`](crate::Sprig) push these -- but it is the exhaustive
+/// [`Forest`](crate::Forest)/[`Sprig`](crate::Sprig) push these -- but it is the exhaustive
 /// list of what user code can ask the engine to do, and the thing tests exercise.
 pub(crate) enum Op {
     Grow {
@@ -196,7 +196,7 @@ pub(crate) enum Op {
         leaf: Leaf,
         name: String,
     },
-    /// Start reporting one property of an element as [`Bloom::Reading`](crate::Bloom::Reading).
+    /// Start reporting one property of an element as [`Moss::Reading`](crate::Moss::Reading).
     Watch {
         leaf: Leaf,
         sap: crate::Sap,

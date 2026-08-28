@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -233,10 +233,10 @@ distinct steps.</p>
 pub struct Named { map: HashMap&lt;String, Entity&gt; }
 pub struct Keyring { map: HashMap&lt;String, AssetKey&gt; }
 <span class="boring">}</span></code></pre>
-<p><code>Named</code> is the app-facing half: <a href="./canopy.html"><code>Grows::name</code></a> registers a string alias for
-a <code>Leaf</code>, and <a href="./canopy.html"><code>Canopy::named</code></a> resolves it back. <code>Keyring</code> is
+<p><code>Named</code> is the app-facing half: <a href="./forest.html"><code>Grows::name</code></a> registers a string alias for
+a <code>Leaf</code>, and <a href="./forest.html"><code>Forest::named</code></a> resolves it back. <code>Keyring</code> is
 engine-internal – there’s no <code>Grows</code> verb that writes one, since an app already holds
-the <code>AssetKey</code> <a href="./canopy.html"><code>Grows::load_asset</code></a> hands back directly and has no need to
+the <code>AssetKey</code> <a href="./forest.html"><code>Grows::load_asset</code></a> hands back directly and has no need to
 re-look it up by name; <code>Keyring</code> exists for the engine’s own built-in registration paths.
 Both are <code>Resource</code>s populated by a private event (<code>Name</code>/<code>StoredKey</code>) rather than direct
 map mutation, so registering a name follows the same deferred-command path as everything

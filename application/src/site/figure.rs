@@ -25,7 +25,7 @@
 //! content.
 
 use foliage::{
-    Bare, Canopy, Color, DashPattern, Ease, Elevation, FontSize, Grid, GridExt, Grows,
+    Bare, Forest, Color, DashPattern, Ease, Elevation, FontSize, Grid, GridExt, Grows,
     HorizontalAlignment, Leaf, Line, Location, Logical, Motion, Polygon, Polyline, Position,
     Sprout, Text, VerticalAlignment,
 };
@@ -161,8 +161,8 @@ pub(crate) struct Traverse {
 
 impl Traverse {
     /// One frame of it. `dt` is that frame's length, in seconds.
-    pub(crate) fn drive(&mut self, canopy: &mut Canopy, dt: f32) {
-        let Some(section) = canopy.section(self.leaf) else {
+    pub(crate) fn drive(&mut self, forest: &mut Forest, dt: f32) {
+        let Some(section) = forest.section(self.leaf) else {
             return;
         };
         let size = (section.width(), section.height());
@@ -176,12 +176,12 @@ impl Traverse {
                 .iter()
                 .map(|&(x, y)| Position::<Logical>::new((x * size.0, y * size.1)))
                 .collect::<Vec<_>>();
-            canopy.points(self.leaf, points);
+            forest.points(self.leaf, points);
         }
         if self.elapsed < DRAW_SECS {
             self.elapsed += dt;
             let t = (self.elapsed / DRAW_SECS).clamp(0.0, 1.0);
-            canopy.draw_progress(self.leaf, t);
+            forest.draw_progress(self.leaf, t);
         }
     }
 }
@@ -190,8 +190,8 @@ impl Traverse {
 ///
 /// Fades rather than draws: the traverse is the thing that draws itself in, and a drawing
 /// whose every line animated would be a race rather than a gesture.
-fn fade_to(canopy: &mut Canopy, leaf: Leaf, alpha: f32, seq: Leaf, at: u64) {
-    canopy.animate_during(
+fn fade_to(forest: &mut Forest, leaf: Leaf, alpha: f32, seq: Leaf, at: u64) {
+    forest.animate_during(
         leaf,
         Motion::Opacity(alpha),
         timing(at, motion::FADE, Ease::Linear),
@@ -201,7 +201,7 @@ fn fade_to(canopy: &mut Canopy, leaf: Leaf, alpha: f32, seq: Leaf, at: u64) {
 
 /// One tick: a solid rule from `from` to `to`, in `(px across, fraction down)`.
 fn rule(
-    canopy: &mut Canopy,
+    forest: &mut Forest,
     parent: Leaf,
     from: (i32, f32),
     to: (i32, f32),
@@ -209,7 +209,7 @@ fn rule(
     seq: Leaf,
     at: u64,
 ) {
-    let leaf = canopy.branch(
+    let leaf = forest.branch(
         parent,
         Line::new(weight)
             .color(role::outline())
@@ -220,7 +220,7 @@ fn rule(
             .elevate(Elevation::up(1))
             .opacity(0.0),
     );
-    fade_to(canopy, leaf, 1.0, seq, at);
+    fade_to(forest, leaf, 1.0, seq, at);
 }
 
 /// Draws `spec` into `plate` -- a region the caller owns, typically from `Column::region`.
@@ -230,7 +230,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
     // Two boxes sharing one vertical extent: the frame carries the rule's numbers, the field
     // carries everything drawn. Splitting them is what lets a y fraction mean the same thing
     // to a number in the gutter and a tick inside the drawing.
-    let frame = g.canopy.branch(
+    let frame = g.forest.branch(
         plate,
         Bare::new()
             .at(Location::new().xs(
@@ -242,7 +242,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
             .elevate(Elevation::up(1))
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0))),
     );
-    let field = g.canopy.branch(
+    let field = g.forest.branch(
         frame,
         Bare::new()
             .at(Location::new().xs(
@@ -267,7 +267,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
     for (i, &(y, number)) in spec.scale.iter().enumerate() {
         let major = !number.is_empty();
         let delay = i as u64 * 30;
-        let row = g.canopy.branch(
+        let row = g.forest.branch(
             field,
             Polyline::new()
                 .points(vec![(0, 0); 2])
@@ -296,14 +296,14 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
             resolved: None,
         });
         fade_to(
-            g.canopy,
+            g.forest,
             row,
             if major { ROW_MAJOR } else { ROW_MINOR },
             seq,
             start + delay,
         );
         rule(
-            g.canopy,
+            g.forest,
             field,
             (0, y),
             (if major { TICK_MAJOR } else { TICK_MINOR }, y),
@@ -314,7 +314,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
         if !major {
             continue;
         }
-        let label = g.canopy.branch(
+        let label = g.forest.branch(
             frame,
             Text::new(number)
                 .size(FontSize::new(type_scale::LABEL))
@@ -330,10 +330,10 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
                 .align(HorizontalAlignment::Right, VerticalAlignment::Middle)
                 .opacity(0.0),
         );
-        crate::site::fade_in(g.canopy, label, seq, start + delay);
+        crate::site::fade_in(g.forest, label, seq, start + delay);
     }
 
-    let traverse = g.canopy.branch(
+    let traverse = g.forest.branch(
         field,
         Polyline::new()
             // seeded degenerate and immediately rewritten by `Traverse::drive` -- `points` is
@@ -387,7 +387,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
                         .with(scaled(s).px().as_height()),
                 )
         };
-        let marker = g.canopy.branch(
+        let marker = g.forest.branch(
             field,
             Polygon::new()
                 .sides(3.0)
@@ -399,7 +399,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
                 .opacity(0.0),
         );
         crate::site::morph_in(
-            g.canopy,
+            g.forest,
             marker,
             seq,
             node.sides,
@@ -435,7 +435,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
         };
         let (h_xs, v_xs) = centred(node.size);
         let (h_lg, v_lg) = centred(scaled(node.size));
-        let caption = g.canopy.branch(
+        let caption = g.forest.branch(
             field,
             Text::new(label.text)
                 .size(FontSize::new(type_scale::LABEL))
@@ -448,7 +448,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
                 .opacity(0.0),
         );
         crate::site::fade_in(
-            g.canopy,
+            g.forest,
             caption,
             seq,
             start + motion::STAGGER * (i as u64 + 2),
@@ -456,7 +456,7 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
     }
 
     // in its own strip below the field, so it can never be crowded by the drawing
-    let caption = g.canopy.branch(
+    let caption = g.forest.branch(
         plate,
         Text::new(spec.caption)
             .size(FontSize::new(type_scale::LABEL))
@@ -469,5 +469,5 @@ pub(crate) fn plate(g: &mut Grow, plate: Leaf, spec: &PlateSpec, seq: Leaf, star
             .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
             .opacity(0.0),
     );
-    crate::site::fade_in(g.canopy, caption, seq, start + motion::STAGGER * 4);
+    crate::site::fade_in(g.forest, caption, seq, start + motion::STAGGER * 4);
 }

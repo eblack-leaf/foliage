@@ -93,7 +93,7 @@ pub enum Sap {
 /// Borrowed where the tree can lend it, which is what makes sampling in the frame free. The
 /// two borrowing variants are [`Cow`]s so the same type can also be handed to a thread that
 /// has nothing to borrow from -- see [`into_owned`](Sample::into_owned) and
-/// [`Bloom::Reading`](crate::Bloom::Reading).
+/// [`Moss::Reading`](crate::Moss::Reading).
 #[derive(Clone, Debug, PartialEq)]
 pub enum Sample<'a> {
     Section(Section<Logical>),
@@ -137,7 +137,7 @@ impl Sample<'_> {
 ///
 /// Commands issued here are applied in the order they are written, immediately after the root
 /// returns -- so they take effect in the same frame that produced them.
-pub struct Canopy<'w, 's> {
+pub struct Forest<'w, 's> {
     pub(crate) reads: Reads<'w, 's>,
     pub(crate) queue: &'w mut Vec<Op>,
     /// Shared with every [`Sprig`](crate::Sprig), so a name allocated here and one allocated
@@ -145,7 +145,7 @@ pub struct Canopy<'w, 's> {
     pub(crate) allocator: bevy_ecs::entity::RemoteAllocator,
 }
 
-impl crate::boundary::verbs::Queues for Canopy<'_, '_> {
+impl crate::boundary::verbs::Queues for Forest<'_, '_> {
     fn push(&mut self, op: Op) {
         self.queue.push(op);
     }
@@ -154,7 +154,7 @@ impl crate::boundary::verbs::Queues for Canopy<'_, '_> {
     }
 }
 
-impl<'w, 's> Canopy<'w, 's> {
+impl<'w, 's> Forest<'w, 's> {
     /// What `leaf` names right now.
     ///
     /// Told apart by the id itself: a name that was never spawned and one whose element has
@@ -254,8 +254,8 @@ impl<'w, 's> Canopy<'w, 's> {
 
 /// The one place a [`Sap`] turns into a [`Sample`].
 ///
-/// Free rather than a method because two callers need it and only one of them has a `Canopy`:
-/// the frame samples through [`Canopy::sample`], and the watch reporter samples the same way
+/// Free rather than a method because two callers need it and only one of them has a `Forest`:
+/// the frame samples through [`Forest::sample`], and the watch reporter samples the same way
 /// on behalf of a thread that cannot hold one. Written once so the two can never drift.
 pub(crate) fn sample<'a>(reads: &'a Reads<'_, '_>, leaf: Leaf, what: Sap) -> Option<Sample<'a>> {
     let entity = leaf.0;

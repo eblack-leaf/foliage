@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -182,13 +182,13 @@ screen, using a small closed vocabulary, and gets back what happened.</p>
 <li><a href="./leaf.html"><strong>Leaf</strong></a> is that vocabulary’s name for a thing on screen: an opaque
 handle, allocated the moment you ask for one, usable immediately even though the
 element it names doesn’t exist until the frame’s commands are applied.</li>
-<li><a href="./canopy.html"><strong>Canopy</strong></a> is the surface an app actually holds, once per frame: grow
+<li><a href="./forest.html"><strong>Forest</strong></a> is the surface an app actually holds, once per frame: grow
 and change elements by <code>Leaf</code>, read back what a frame produced as
-<a href="./canopy.html"><code>Bloom</code></a>s, sample current state directly. <a href="./canopy.html"><strong>Sprig</strong></a> is
+<a href="./forest.html"><code>Moss</code></a>s, sample current state directly. <a href="./forest.html"><strong>Sprig</strong></a> is
 the same command set from another thread.</li>
 <li><a href="./spawning.html"><strong>Sprout</strong></a> is how an element gets configured before it exists –
 <code>Panel::new().color(..).at(..).elevate(..)</code> – and <a href="./spawning.html"><strong>Specs</strong></a> are the
-closed set of things <code>Canopy</code>/<code>Sprig</code> know how to grow: <code>Panel</code>, <code>Text</code>, <code>Icon</code>,
+closed set of things <code>Forest</code>/<code>Sprig</code> know how to grow: <code>Panel</code>, <code>Text</code>, <code>Icon</code>,
 <code>Image</code>, <code>Line</code>, <code>Polygon</code>, <code>Polyline</code>, <code>TextInput</code>, and a bare container.</li>
 </ul>
 <p>That’s the whole surface. Underneath it, the <a href="./tree.html"><strong>Inside the Engine</strong></a> section
@@ -196,7 +196,7 @@ covers how a <code>Spec</code> actually becomes a <code>bevy_ecs</code> entity, 
 into GPU uploads, and how a window and a render loop come together – useful for
 understanding <em>why</em> the API is shaped the way it is, and required reading if you’re
 extending the engine itself, but nothing an app needs in order to use it. The seam
-between the two is deliberate: an app cannot reach the ECS from its side of <code>Canopy</code>,
+between the two is deliberate: an app cannot reach the ECS from its side of <code>Forest</code>,
 which is what lets it run its own <code>bevy_ecs</code>, at whatever version it likes, without the
 two ever meeting.</p>
 <p>This book builds that picture up from nothing, in the order a from-scratch
@@ -208,9 +208,9 @@ it can’t solve alone:</p>
 can still be used as a parent or a write target in the same frame –
 <a href="./leaf.html"><strong>Leaf</strong></a> is that name.</li>
 <li>Something has to collect what an app wants done and hand back what happened, once per
-frame – <a href="./canopy.html"><strong>Canopy</strong></a> is that surface, and <a href="./canopy.html"><code>Bloom</code></a> is what
+frame – <a href="./forest.html"><strong>Forest</strong></a> is that surface, and <a href="./forest.html"><code>Moss</code></a> is what
 comes back out.</li>
-<li>Something has to turn a config struct like <code>Panel::new()</code> into a spec <code>Canopy</code> can
+<li>Something has to turn a config struct like <code>Panel::new()</code> into a spec <code>Forest</code> can
 grow, without an app ever assembling one by hand –
 <a href="./spawning.html"><strong>Sprout</strong></a> is that builder.</li>
 <li>Underneath all of it, an actual entity has to exist, with a position, a parent, a draw

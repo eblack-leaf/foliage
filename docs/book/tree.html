@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,7 +175,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="inside-the-engine-node-author-and-tree"><a class="header" href="#inside-the-engine-node-author-and-tree">Inside the Engine: Node, Author, and Tree</a></h1>
-<p>Everything in <a href="./leaf.html">Leaf</a>, <a href="./canopy.html">Canopy</a>, and
+<p>Everything in <a href="./leaf.html">Leaf</a>, <a href="./forest.html">Forest</a>, and
 <a href="./spawning.html">Specs and Sprout</a> is what an app sees. None of it says how a <code>Spec</code>
 actually becomes something in <code>bevy_ecs</code>. This chapter is engine-internal – every type
 here is <code>pub(crate)</code>, reachable only from inside <code>foliage_proper</code> itself – but it’s
@@ -198,7 +198,7 @@ pub(crate) struct Node {}
 click. <code>Node</code> bundles exactly the set of components that stops all of that being true, via
 <code>#[require(...)]</code>. Its <code>on_add</code> hook registers the observers that let opacity/elevation/
 location animate; its <code>on_remove</code> hook is where a pruned entity’s <code>Leaf</code> gets reported as
-<a href="./canopy.html"><code>Bloom::Withered</code></a> and where stale <code>CurrentInteraction</code> state gets cleared
+<a href="./forest.html"><code>Moss::Withered</code></a> and where stale <code>CurrentInteraction</code> state gets cleared
 – both run for every widget, without each one remembering to register them itself.</p>
 <p><code>Node</code> attaches itself rather than being declared on <code>Panel</code>/<code>Text</code>/etc: every entity the
 engine’s own spawn path produces gets one unconditionally, at the moment it’s spawned,
@@ -285,14 +285,14 @@ counted against a sequence entity (<code>spawn_sequence</code> for one an app ne
 sequence’s own counter on insert, finishing decrements it, and once it reaches zero the
 sequence fires <code>OnEnd</code> at itself and despawns. Nothing outside the crate ever names that
 entity directly – across the boundary this whole mechanism is what
-<a href="./canopy.html"><code>Grows::sequence</code>/<code>Grows::animate_during</code></a> and
-<a href="./canopy.html"><code>Bloom::SequenceFinished</code></a> surface.</p>
+<a href="./forest.html"><code>Grows::sequence</code>/<code>Grows::animate_during</code></a> and
+<a href="./forest.html"><code>Moss::SequenceFinished</code></a> surface.</p>
 <h2 id="what-sprout-being-sealed-actually-buys"><a class="header" href="#what-sprout-being-sealed-actually-buys">What <code>Sprout</code> being sealed actually buys</a></h2>
 <p><code>Author</code> being <code>pub(crate)</code> stops an app from implementing it, and <code>Tree::leaf</code>/
 <code>Tree::branch</code> being <code>pub(crate)</code> stops an app from calling them directly even if it
 could. Combined, there is no path from outside this crate to a spawned, <code>Node</code>-bearing
 entity that skips the mandatory <code>.elevate(...)</code> or hand-rolls a parent link – the only
-way onto the tree is <a href="./canopy.html"><code>Canopy</code>/<code>Sprig</code></a> queuing a <a href="./spawning.html"><code>Spec</code></a> for
+way onto the tree is <a href="./forest.html"><code>Forest</code>/<code>Sprig</code></a> queuing a <a href="./spawning.html"><code>Spec</code></a> for
 the engine to grow on its own side of the boundary.</p>
 
                     </main>

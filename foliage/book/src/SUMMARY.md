@@ -5,7 +5,7 @@
 # Building With Foliage
 
 - [A Name for an Element: Leaf](./leaf.md)
-- [Canopy: The Frame Surface](./canopy.md)
+- [Forest: The Frame Surface](./forest.md)
 - [Specs and Sprout: What You Grow](./spawning.md)
 
 # Inside the Engine

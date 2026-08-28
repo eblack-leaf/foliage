@@ -25,7 +25,7 @@ pub(crate) mod shell;
 pub(crate) mod text;
 
 use foliage::{
-    Bare, Canopy, Color, ConfigurationDescriptor, Ease, Elevation, FontId, FontSize, Grid, GridExt,
+    Bare, Forest, Color, ConfigurationDescriptor, Ease, Elevation, FontId, FontSize, Grid, GridExt,
     Grows, HorizontalAlignment, Icon, IconId, Leaf, Location, LocationValue, Motion, Panel,
     Polygon, Rounding, Sprout, Text, TextInputAction, Timing, VerticalAlignment, anchor,
     text_content,
@@ -215,39 +215,39 @@ pub(crate) enum Phase {
 pub(crate) trait Demo {
     /// Answers a click. `false` if the `Leaf` is not one of this demo's own, which is what lets
     /// several demos sit on one page and the page still fall through to navigation.
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool;
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool;
     /// Answers a sequence's completion, the same way [`clicked`](Demo::clicked) answers a
     /// press: `false` if the sequence is not one this demo opened.
     ///
     /// Named sequences all report on one channel and the page's own entrance is one of them, so
     /// a demo that cares has to hold the handle it opened and compare. Most do not care, which
     /// is why this has a default.
-    fn finished(&mut self, _canopy: &mut Canopy, _seq: Leaf) -> bool {
+    fn finished(&mut self, _forest: &mut Forest, _seq: Leaf) -> bool {
         false
     }
     /// Answers one step of a gesture on one of this demo's elements.
     ///
     /// The `input` section is the only thing on the site that needs the phases rather than the
     /// click they add up to.
-    fn gesture(&mut self, _canopy: &mut Canopy, _leaf: Leaf, _phase: Phase) -> bool {
+    fn gesture(&mut self, _forest: &mut Forest, _leaf: Leaf, _phase: Phase) -> bool {
         false
     }
     /// Answers keyboard focus arriving at or leaving one of this demo's elements.
-    fn focus(&mut self, _canopy: &mut Canopy, _leaf: Leaf, _has: bool) -> bool {
+    fn focus(&mut self, _forest: &mut Forest, _leaf: Leaf, _has: bool) -> bool {
         false
     }
     /// Answers an edit to one of this demo's text inputs -- typed, pasted, or written.
-    fn typed(&mut self, _canopy: &mut Canopy, _leaf: Leaf, _value: &str) -> bool {
+    fn typed(&mut self, _forest: &mut Forest, _leaf: Leaf, _value: &str) -> bool {
         false
     }
     /// Answers a binding one of this demo's text inputs matched. Submission is
     /// [`TextInputAction::Enter`](foliage::TextInputAction::Enter) on a single-line field.
-    fn acted(&mut self, _canopy: &mut Canopy, _leaf: Leaf, _action: TextInputAction) -> bool {
+    fn acted(&mut self, _forest: &mut Forest, _leaf: Leaf, _action: TextInputAction) -> bool {
         false
     }
     /// Once a frame, for anything a demo displays that only the tree knows -- a resolved box,
     /// or whether an element is still there.
-    fn drive(&mut self, _canopy: &mut Canopy) {}
+    fn drive(&mut self, _forest: &mut Forest) {}
 }
 
 /// What a builder gets: somewhere to grow, and somewhere to record what it grew.
@@ -256,13 +256,13 @@ pub(crate) trait Demo {
 /// shape *and* a destination, an entrance is an animation *and* a control that must not be
 /// clickable until it finishes.
 pub(crate) struct Grow<'a, 'w, 's> {
-    pub(crate) canopy: &'a mut Canopy<'w, 's>,
+    pub(crate) forest: &'a mut Forest<'w, 's>,
     pub(crate) page: &'a mut Page,
 }
 
 impl<'a, 'w, 's> Grow<'a, 'w, 's> {
-    pub(crate) fn new(canopy: &'a mut Canopy<'w, 's>, page: &'a mut Page) -> Self {
-        Self { canopy, page }
+    pub(crate) fn new(forest: &'a mut Forest<'w, 's>, page: &'a mut Page) -> Self {
+        Self { forest, page }
     }
 }
 
@@ -318,15 +318,15 @@ pub(crate) fn timing(start: u64, length: u64, ease: Ease) -> Timing {
 /// In place is the point -- nothing slides in from offscreen. The shape is already where it
 /// belongs and simply becomes itself, which reads as emphatic rather than as travel.
 pub(crate) fn morph_in(
-    canopy: &mut Canopy,
+    forest: &mut Forest,
     leaf: Leaf,
     seq: Leaf,
     sides: f32,
     rounding: f32,
     start: u64,
 ) {
-    fade_in(canopy, leaf, seq, start);
-    canopy.animate_during(
+    fade_in(forest, leaf, seq, start);
+    forest.animate_during(
         leaf,
         Motion::Polygon(Polygon {
             sides,
@@ -382,7 +382,7 @@ pub(crate) const BADGE_OVERHANG: i32 = 20;
 /// Interaction passes through both layers -- they are decoration, and a shape that swallows
 /// the scroll wheel where it happens to sit is a worse bug than the one it was drawn to fix.
 pub(crate) fn cutout_badge(
-    canopy: &mut Canopy,
+    forest: &mut Forest,
     cell: Leaf,
     sides: f32,
     size: i32,
@@ -406,7 +406,7 @@ pub(crate) fn cutout_badge(
                 .with(w.px().as_height()),
         )
     };
-    let backdrop = canopy.branch(
+    let backdrop = forest.branch(
         cell,
         Polygon::new()
             .sides(sides)
@@ -418,7 +418,7 @@ pub(crate) fn cutout_badge(
             .opacity(0.0)
             .pass_through(),
     );
-    let badge = canopy.branch(
+    let badge = forest.branch(
         cell,
         Polygon::new()
             .sides(3.0)
@@ -432,8 +432,8 @@ pub(crate) fn cutout_badge(
     );
     // the backdrop just appears -- morphing it would animate the hole itself, which reads
     // as the card tearing rather than as something arriving in it
-    fade_in(canopy, backdrop, seq, start);
-    morph_in(canopy, badge, seq, sides, 0.35, start);
+    fade_in(forest, backdrop, seq, start);
+    morph_in(forest, badge, seq, sides, 0.35, start);
     badge
 }
 
@@ -526,7 +526,7 @@ fn poly_shape(
     seq: Leaf,
     start: u64,
 ) -> (Leaf, Leaf) {
-    let shadow = g.canopy.branch(
+    let shadow = g.forest.branch(
         row,
         Polygon::new()
             .sides(3.0)
@@ -544,9 +544,9 @@ fn poly_shape(
             .elevate(Elevation::up(2))
             .opacity(0.0),
     );
-    morph_in(g.canopy, shadow, seq, sides, 0.15, start);
+    morph_in(g.forest, shadow, seq, sides, 0.15, start);
 
-    let shape = g.canopy.branch(
+    let shape = g.forest.branch(
         row,
         Polygon::new()
             .sides(3.0)
@@ -560,10 +560,10 @@ fn poly_shape(
             .elevate(Elevation::up(3))
             .opacity(0.0),
     );
-    morph_in(g.canopy, shape, seq, sides, 0.15, start);
+    morph_in(g.forest, shape, seq, sides, 0.15, start);
 
     let hit_size = size.max(MIN_HIT);
-    let button = g.canopy.branch(
+    let button = g.forest.branch(
         row,
         Bare::new()
             .at(Location::new().xs(
@@ -608,7 +608,7 @@ pub(crate) fn poly_action(
         start,
     );
 
-    let icon = g.canopy.branch(
+    let icon = g.forest.branch(
         row,
         Icon::new(IconId::from(spec.icon))
             .color(role::on_accent())
@@ -629,9 +629,9 @@ pub(crate) fn poly_action(
             .pass_through()
             .opacity(0.0),
     );
-    fade_in(g.canopy, icon, seq, start);
+    fade_in(g.forest, icon, seq, start);
 
-    let label = g.canopy.branch(
+    let label = g.forest.branch(
         row,
         Text::new(spec.label)
             .size(FontSize::new(type_scale::TITLE))
@@ -649,7 +649,7 @@ pub(crate) fn poly_action(
             .anchored(button)
             .opacity(0.0),
     );
-    fade_in(g.canopy, label, seq, start);
+    fade_in(g.forest, label, seq, start);
     button
 }
 
@@ -690,9 +690,9 @@ impl StepControl {
     /// Lit or not. Colour and visibility rather than opacity, because the entrance is animating
     /// opacity up from zero on every one of these and a resting value written underneath it
     /// would be overwritten the moment the tween's next frame lands.
-    fn select(&self, canopy: &mut Canopy, on: bool) {
-        canopy.visible(self.mark, on);
-        canopy.color(
+    fn select(&self, forest: &mut Forest, on: bool) {
+        forest.visible(self.mark, on);
+        forest.color(
             self.label,
             if on {
                 role::on_surface()
@@ -739,7 +739,7 @@ pub(crate) fn poly_step(
     // The ordinal, where a destination carries an icon. These steps are a sequence and the words
     // under them are too short to say so; the number is what makes "prune" the third thing you
     // do rather than one of four things you may.
-    let numeral = g.canopy.branch(
+    let numeral = g.forest.branch(
         row,
         Text::new((i + 1).to_string())
             .size(FontSize::new(type_scale::LABEL))
@@ -762,11 +762,11 @@ pub(crate) fn poly_step(
             .pass_through()
             .opacity(0.0),
     );
-    fade_in(g.canopy, numeral, seq, start);
+    fade_in(g.forest, numeral, seq, start);
 
     // Placed off the row rather than anchored to the button, so every word in the row sits on
     // one baseline whatever the shapes above them resolved to.
-    let label = g.canopy.branch(
+    let label = g.forest.branch(
         row,
         Text::new(text)
             .size(FontSize::new(type_scale::LABEL))
@@ -783,11 +783,11 @@ pub(crate) fn poly_step(
             .pass_through()
             .opacity(0.0),
     );
-    fade_in(g.canopy, label, seq, start);
+    fade_in(g.forest, label, seq, start);
 
     // In the step's own face, not the accent: the mark says *this shape* is live, and a tone the
     // shape above it does not have makes it a second thing to account for.
-    let mark = g.canopy.branch(
+    let mark = g.forest.branch(
         row,
         Panel::new()
             .color(STEP_FACES[i % STEP_FACES.len()]())
@@ -809,7 +809,7 @@ pub(crate) fn poly_step(
     // Faded in with the rest of the row even when it is hidden. `visible` is the switch and it
     // is independent of the tween, so a mark that is turned on later is already at full opacity
     // rather than stuck at the zero it spawned with.
-    fade_in(g.canopy, mark, seq, start);
+    fade_in(g.forest, mark, seq, start);
     StepControl {
         button,
         mark,
@@ -830,14 +830,14 @@ pub(crate) fn poly_step(
 /// mid-entrance needs no guard of its own: the page is pruned, and a command naming a withered
 /// `Leaf` is dropped.
 pub(crate) fn arm_at(g: &mut Grow, leaf: Leaf, at: u64) {
-    g.canopy.disable(leaf);
-    let timer = g.canopy.timer(at);
+    g.forest.disable(leaf);
+    let timer = g.forest.timer(at);
     g.page.arming.push((timer, leaf));
 }
 
 /// Fades an element in without a shape change, for text and panels.
-pub(crate) fn fade_in(canopy: &mut Canopy, leaf: Leaf, seq: Leaf, start: u64) {
-    canopy.animate_during(
+pub(crate) fn fade_in(forest: &mut Forest, leaf: Leaf, seq: Leaf, start: u64) {
+    forest.animate_during(
         leaf,
         Motion::Opacity(1.0),
         timing(start, motion::FADE, Ease::Linear),
@@ -865,8 +865,8 @@ pub(crate) struct Column {
 }
 
 impl Column {
-    pub(crate) fn new(canopy: &mut Canopy, parent: Leaf) -> Self {
-        let seq = canopy.sequence();
+    pub(crate) fn new(forest: &mut Forest, parent: Leaf) -> Self {
+        let seq = forest.sequence();
         Self {
             parent,
             last: None,
@@ -915,7 +915,7 @@ impl Column {
     }
     fn text(
         &mut self,
-        canopy: &mut Canopy,
+        forest: &mut Forest,
         value: &str,
         size: u32,
         tone: Color,
@@ -923,7 +923,7 @@ impl Column {
         font: FontId,
     ) -> Leaf {
         let start = self.stagger();
-        let leaf = canopy.branch(
+        let leaf = forest.branch(
             self.parent,
             Text::new(value)
                 .size(FontSize::new(size))
@@ -935,7 +935,7 @@ impl Column {
                 .opacity(0.0)
                 .font(font),
         );
-        fade_in(canopy, leaf, self.seq, start);
+        fade_in(forest, leaf, self.seq, start);
         self.last = Some(leaf);
         leaf
     }
@@ -948,9 +948,9 @@ impl Column {
     ///
     /// Opens at [`PAGE_TOP`] rather than the usual [`space::XL`], which is what keeps it out
     /// from under the drawer's menu button.
-    pub(crate) fn display(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
+    pub(crate) fn display(&mut self, forest: &mut Forest, value: &str) -> Leaf {
         self.text(
-            canopy,
+            forest,
             &value.to_uppercase(),
             type_scale::DISPLAY,
             role::on_surface_title(),
@@ -959,9 +959,9 @@ impl Column {
         )
     }
     /// A section heading within the page.
-    pub(crate) fn heading(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
+    pub(crate) fn heading(&mut self, forest: &mut Forest, value: &str) -> Leaf {
         self.text(
-            canopy,
+            forest,
             &value.to_uppercase(),
             type_scale::HEADLINE,
             role::on_surface_heading(),
@@ -975,9 +975,9 @@ impl Column {
     /// monospaced family there is no proportional cut to switch to, and weight is already
     /// spent on the type scale. It also reads as commentary next to the upright labels and
     /// numbers in the plates, which is what prose on these pages is.
-    pub(crate) fn prose(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
+    pub(crate) fn prose(&mut self, forest: &mut Forest, value: &str) -> Leaf {
         self.text(
-            canopy,
+            forest,
             value,
             type_scale::BODY,
             role::on_surface_variant(),
@@ -994,9 +994,9 @@ impl Column {
     /// On the measure like every other paragraph, with the rule sitting out in the gutter
     /// beside it. It used to be indented instead, which cost it alignment with the prose under
     /// it; now that the container is full-bleed there is somewhere for the rule to go.
-    pub(crate) fn lead(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
+    pub(crate) fn lead(&mut self, forest: &mut Forest, value: &str) -> Leaf {
         let start = self.stagger();
-        let leaf = canopy.branch(
+        let leaf = forest.branch(
             self.parent,
             Text::new(value)
                 .size(FontSize::new(type_scale::LEAD))
@@ -1008,11 +1008,11 @@ impl Column {
                 .opacity(0.0)
                 .font(italic()),
         );
-        fade_in(canopy, leaf, self.seq, start);
+        fade_in(forest, leaf, self.seq, start);
         // Anchored to the paragraph rather than given a height: the wrap count changes with
         // every breakpoint, and a rule that stops short of the text it marks looks like a
         // mistake at exactly the width nobody tested.
-        let rule = canopy.branch(
+        let rule = forest.branch(
             self.parent,
             Panel::new()
                 .color(role::accent())
@@ -1028,15 +1028,15 @@ impl Column {
                 .anchored(leaf)
                 .opacity(0.0),
         );
-        fade_in(canopy, rule, self.seq, start);
+        fade_in(forest, rule, self.seq, start);
         self.last = Some(leaf);
         leaf
     }
     /// A hairline across the column. Separates one kind of content from another without
     /// spending a heading on it.
-    pub(crate) fn rule(&mut self, canopy: &mut Canopy) -> Leaf {
+    pub(crate) fn rule(&mut self, forest: &mut Forest) -> Leaf {
         let start = self.stagger();
-        let leaf = canopy.branch(
+        let leaf = forest.branch(
             self.parent,
             Panel::new()
                 .color(role::outline())
@@ -1046,7 +1046,7 @@ impl Column {
                 .anchored(self.anchor_to_last())
                 .opacity(0.0),
         );
-        fade_in(canopy, leaf, self.seq, start);
+        fade_in(forest, leaf, self.seq, start);
         self.last = Some(leaf);
         leaf
     }
@@ -1058,11 +1058,11 @@ impl Column {
     /// plate just gets taller at `md`, while the card grid stays one-up until `lg`.
     pub(crate) fn region(
         &mut self,
-        canopy: &mut Canopy,
+        forest: &mut Forest,
         heights: (i32, i32, i32),
         gap: i32,
     ) -> Leaf {
-        self.region_on(canopy, shell::measure(), heights, gap)
+        self.region_on(forest, shell::measure(), heights, gap)
     }
     /// A region on the figure measure: uncapped, so a drawing widens with the window while the
     /// prose above and below it stays at a readable line length.
@@ -1071,11 +1071,11 @@ impl Column {
     /// big screen, and the whole point of the extra room is that the drawing gets to use it.
     pub(crate) fn figure(
         &mut self,
-        canopy: &mut Canopy,
+        forest: &mut Forest,
         heights: (i32, i32, i32),
         gap: i32,
     ) -> Leaf {
-        self.region_on(canopy, shell::figure_measure(), heights, gap)
+        self.region_on(forest, shell::figure_measure(), heights, gap)
     }
     /// A region whose height is stated in characters, plus a fixed allowance for whatever sits
     /// between them that is not text -- rules, gaps, padding.
@@ -1091,7 +1091,7 @@ impl Column {
     /// so would be sized for a different number of lines than it holds.
     pub(crate) fn region_letters(
         &mut self,
-        canopy: &mut Canopy,
+        forest: &mut Forest,
         letters: (i32, i32, i32, i32),
         extra: i32,
         size: u32,
@@ -1110,7 +1110,7 @@ impl Column {
                 gap.px().as_top().with(height)
             }
         };
-        let leaf = canopy.branch(
+        let leaf = forest.branch(
             self.parent,
             Bare::new()
                 .at(Location::new()
@@ -1128,14 +1128,14 @@ impl Column {
     }
     fn region_on(
         &mut self,
-        canopy: &mut Canopy,
+        forest: &mut Forest,
         measure: (ConfigurationDescriptor, ConfigurationDescriptor),
         heights: (i32, i32, i32),
         gap: i32,
     ) -> Leaf {
         let start = self.stagger();
         let (xs, wide) = measure;
-        let leaf = canopy.branch(
+        let leaf = forest.branch(
             self.parent,
             Bare::new()
                 .at(Location::new()
@@ -1150,9 +1150,9 @@ impl Column {
         self.last = Some(leaf);
         leaf
     }
-    pub(crate) fn surface_plain(&mut self, canopy: &mut Canopy, height: i32, gap: i32) -> Leaf {
+    pub(crate) fn surface_plain(&mut self, forest: &mut Forest, height: i32, gap: i32) -> Leaf {
         let start = self.stagger();
-        let leaf = canopy.branch(
+        let leaf = forest.branch(
             self.parent,
             Panel::new()
                 .color(background())
@@ -1163,7 +1163,7 @@ impl Column {
                 .anchored(self.anchor_to_last())
                 .opacity(0.0),
         );
-        fade_in(canopy, leaf, self.seq, start);
+        fade_in(forest, leaf, self.seq, start);
         self.last = Some(leaf);
         leaf
     }
@@ -1176,8 +1176,8 @@ impl Column {
     ///
     /// Interaction passes through, or a full-width invisible box below the buttons would eat
     /// clicks aimed at whatever the layout puts near it.
-    pub(crate) fn tail(&mut self, canopy: &mut Canopy, height: i32) -> Leaf {
-        let leaf = canopy.branch(
+    pub(crate) fn tail(&mut self, forest: &mut Forest, height: i32) -> Leaf {
+        let leaf = forest.branch(
             self.parent,
             Bare::new()
                 .at(self.placed(0, height.px()))
@@ -1193,9 +1193,9 @@ impl Column {
     /// Still unused: both figures on the site are plates, and a plate captions itself in its
     /// own strip below the field. This is for a figure that is not one.
     #[allow(dead_code)]
-    pub(crate) fn caption(&mut self, canopy: &mut Canopy, value: &str) -> Leaf {
+    pub(crate) fn caption(&mut self, forest: &mut Forest, value: &str) -> Leaf {
         self.text(
-            canopy,
+            forest,
             value,
             type_scale::LABEL,
             role::on_surface_variant(),

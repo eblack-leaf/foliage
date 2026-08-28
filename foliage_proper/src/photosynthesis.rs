@@ -1,11 +1,11 @@
-use crate::boundary::bloom::Emissions;
+use crate::boundary::moss::Emissions;
 use crate::foliage::Foliage;
 use crate::ginkgo::ScaleFactor;
 use crate::ginkgo::viewport::ViewportHandle;
 use crate::interaction::{
     Interaction, InteractionMethod, InteractionPhase, KeyboardAdapter, MouseAdapter, TouchAdapter,
 };
-use crate::{Bloom, Layout, Position, Short};
+use crate::{Moss, Layout, Position, Short};
 use tracing::trace;
 use winit::application::ApplicationHandler;
 use winit::event::{MouseScrollDelta, WindowEvent};
@@ -120,7 +120,7 @@ impl Foliage {
                 self.world
                     .get_resource_mut::<Emissions>()
                     .expect("emissions")
-                    .push(Bloom::Resized {
+                    .push(Moss::Resized {
                         viewport: area,
                         layout,
                         short,
@@ -318,7 +318,7 @@ impl Foliage {
                 self.world
                     .get_resource_mut::<Emissions>()
                     .expect("emissions")
-                    .push(Bloom::Resized {
+                    .push(Moss::Resized {
                         viewport: area,
                         layout,
                         short,

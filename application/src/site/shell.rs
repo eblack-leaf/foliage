@@ -4,7 +4,7 @@
 //! without rebuilding the frame around it.
 
 use foliage::{
-    Bare, Canopy, ConfigurationDescriptor, Elevation, Grid, GridExt, Grows, Leaf, Location, Panel,
+    Bare, Forest, ConfigurationDescriptor, Elevation, Grid, GridExt, Grows, Leaf, Location, Panel,
     Rounding, Sprout,
 };
 
@@ -24,8 +24,8 @@ pub(crate) const FIGURE_MAX: i32 = 900;
 ///
 /// The `Grid` is what makes it a view, and the scroll extent grows to cover whatever the
 /// route puts inside -- nothing here needs to know how tall a page is.
-pub(crate) fn content_area(canopy: &mut Canopy, parent: Leaf) -> Leaf {
-    canopy.branch(
+pub(crate) fn content_area(forest: &mut Forest, parent: Leaf) -> Leaf {
+    forest.branch(
         parent,
         Bare::new()
             .at(Location::new().xs(
@@ -106,8 +106,8 @@ pub(crate) fn rail_host_location(open: bool) -> Location {
 /// makes the rounding visible at all: flush to the edges, three of the four corners are
 /// offscreen. `Xs` because `Rounding` is proportional -- `Md` is half the short side, which
 /// on a 148px rail is a 74px radius, i.e. a lozenge.
-pub(crate) fn rail_surface(canopy: &mut Canopy, parent: Leaf) -> Leaf {
-    canopy.branch(
+pub(crate) fn rail_surface(forest: &mut Forest, parent: Leaf) -> Leaf {
+    forest.branch(
         parent,
         Panel::new()
             .color(role::surface())

@@ -88,7 +88,7 @@ impl LeafSprout {
 /// both `pub(crate)`, so a widget can't be spawned orphaned or skip the mandatory
 /// `.elevate(...)` by hand-rolling the chain outside this crate. Nothing outside this
 /// crate can spawn a `Leaf`-bearing entity at all: an app reaches the tree only through
-/// [`Canopy`](crate::Canopy)/[`Sprig`](crate::Sprig), which queue [`Spec`](crate::Spec)
+/// [`Forest`](crate::Forest)/[`Sprig`](crate::Sprig), which queue [`Spec`](crate::Spec)
 /// values for the engine to grow on its own side of the boundary.
 pub(crate) trait Author: Sized {
     fn seed(&mut self) -> &mut LeafSprout;

@@ -14,7 +14,7 @@
 //! panel so the numbers read as an instrument's rather than as two more lines of page.
 
 use foliage::{
-    Bare, Canopy, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf,
+    Bare, Forest, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf,
     Location, LocationValue, Panel, Polygon, Rounding, Sprout, Text, VerticalAlignment,
 };
 
@@ -96,7 +96,7 @@ impl Blueprint {
         start: u64,
     ) -> Self {
         let stepped = !steps.is_empty();
-        let field = g.canopy.branch(
+        let field = g.forest.branch(
             region,
             Panel::new()
                 .color(role::surface_container())
@@ -109,7 +109,7 @@ impl Blueprint {
                 .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
                 .opacity(0.0),
         );
-        fade_in(g.canopy, field, seq, start);
+        fade_in(g.forest, field, seq, start);
 
         // Across the bottom, in the same shapes and the same three tones the hero's destinations
         // use. The bar this replaced was deliberately chrome-toned so it would not read as part
@@ -119,7 +119,7 @@ impl Blueprint {
         let count = steps.len();
         let mut controls_built = Vec::with_capacity(count);
         if stepped {
-            let controls = g.canopy.branch(
+            let controls = g.forest.branch(
                 field,
                 Bare::new()
                     .at(Location::new().xs(
@@ -151,7 +151,7 @@ impl Blueprint {
             }
         }
 
-        let stage = g.canopy.branch(
+        let stage = g.forest.branch(
             field,
             Bare::new()
                 .at(Location::new().xs(
@@ -172,7 +172,7 @@ impl Blueprint {
         // a step *darker* than the field it sits in, so the numbers read as being behind glass.
         // Loose text on the field was two more lines of page below a drawing, which is exactly
         // what a live reading is not.
-        let strip = g.canopy.branch(
+        let strip = g.forest.branch(
             field,
             Panel::new()
                 .color(background())
@@ -194,7 +194,7 @@ impl Blueprint {
         // Full height of the strip and one pixel wide, between the names and the numbers. It is
         // what makes two rows a table: without it the labels and the values are four texts that
         // happen to line up, and a value reading "--" leaves its row looking unfinished.
-        g.canopy.branch(
+        g.forest.branch(
             strip,
             Panel::new()
                 .color(role::outline())
@@ -213,9 +213,9 @@ impl Blueprint {
                 .pass_through(),
         );
 
-        let row = |i: usize, canopy: &mut Canopy| {
+        let row = |i: usize, forest: &mut Forest| {
             let top = READOUT_PAD + i as i32 * ROW_H;
-            canopy.branch(
+            forest.branch(
                 strip,
                 // Capped, like every other structural word on the site. A row's name is a field
                 // on an instrument, not a sentence about the value beside it, and caps at the
@@ -231,7 +231,7 @@ impl Blueprint {
                     .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
                     .pass_through(),
             );
-            canopy.branch(
+            forest.branch(
                 strip,
                 Text::new(crate::site::copy::board::EMPTY_VALUE)
                     .size(FontSize::new(type_scale::LABEL))
@@ -248,7 +248,7 @@ impl Blueprint {
                     .pass_through(),
             )
         };
-        let values = [row(0, g.canopy), row(1, g.canopy)];
+        let values = [row(0, g.forest), row(1, g.forest)];
 
         let board = Self {
             stage,
@@ -264,7 +264,7 @@ impl Blueprint {
         // -- a row with nothing marked would say the demo has not begun, when what it is showing
         // *is* step one.
         for (i, step) in board.steps.iter().enumerate() {
-            step.select(g.canopy, i == board.at);
+            step.select(g.forest, i == board.at);
         }
         board
     }
@@ -279,21 +279,21 @@ impl Blueprint {
     ///
     /// A no-op on a board with no control row, which cannot be told to select anything anyway:
     /// [`pressed`](Self::pressed) never answers, so nothing ever calls this with a step.
-    pub(crate) fn select(&mut self, canopy: &mut Canopy, step: usize) {
+    pub(crate) fn select(&mut self, forest: &mut Forest, step: usize) {
         if self.steps.is_empty() || self.at == step {
             return;
         }
-        self.steps[self.at].select(canopy, false);
-        self.steps[step].select(canopy, true);
+        self.steps[self.at].select(forest, false);
+        self.steps[step].select(forest, true);
         self.at = step;
     }
 
-    pub(crate) fn set(&mut self, canopy: &mut Canopy, row: usize, text: impl Into<String>) {
+    pub(crate) fn set(&mut self, forest: &mut Forest, row: usize, text: impl Into<String>) {
         let text = text.into();
         if self.shown[row] == text {
             return;
         }
-        canopy.text(self.values[row], text.clone());
+        forest.text(self.values[row], text.clone());
         self.shown[row] = text;
     }
 }
@@ -338,10 +338,10 @@ fn grown(
     entries: &[Entry],
 ) -> Blueprint {
     let seq = column.sequence();
-    let region = column.region(g.canopy, height(stage_h, !steps.is_empty()), space::LG);
+    let region = column.region(g.forest, height(stage_h, !steps.is_empty()), space::LG);
     let board = Blueprint::grow(g, region, labels, steps, seq, motion::STAGGER);
     let table = column.region_letters(
-        g.canopy,
+        g.forest,
         reference_letters(entries.len()),
         reference_extra(entries.len()),
         type_scale::LABEL,
@@ -353,8 +353,8 @@ fn grown(
 
 /// A board's readout, read back off the tree: the leaf's resolved box in real pixels, or `--`
 /// before anything has been measured.
-pub(crate) fn resolved(canopy: &mut Canopy, leaf: Leaf) -> String {
-    match canopy.section(leaf) {
+pub(crate) fn resolved(forest: &mut Forest, leaf: Leaf) -> String {
+    match forest.section(leaf) {
         Some(s) => format!("{} x {}", s.width() as i32, s.height() as i32),
         None => "--".to_string(),
     }
@@ -384,7 +384,7 @@ pub(crate) struct Frame {
 /// line range are all just a [`Location`], and the box drawn for one is drawn the same as any
 /// other.
 pub(crate) fn frame(
-    canopy: &mut Canopy,
+    forest: &mut Forest,
     stage: Leaf,
     at: Location,
     label: impl Into<String>,
@@ -407,8 +407,8 @@ pub(crate) fn frame(
         // reader's thumb. Refusing the gesture outright keeps the whole board out of the
         // running, and the page -- which is what a drag here is for -- gets it instead.
         .pass_through();
-    let leaf = canopy.branch(stage, if filled { panel } else { panel.outline(2) });
-    let label = canopy.branch(
+    let leaf = forest.branch(stage, if filled { panel } else { panel.outline(2) });
+    let label = forest.branch(
         leaf,
         Text::new(label.into())
             // A filled frame is written a new surface tone mid-demo, and the label sits a step
@@ -429,8 +429,8 @@ pub(crate) fn frame(
 
 /// Labels a shape at its own center, pass-through so the name never wins the hit-test over
 /// the shape carrying it.
-pub(crate) fn name(canopy: &mut Canopy, shape: Leaf, text: impl Into<String>) -> Leaf {
-    canopy.branch(
+pub(crate) fn name(forest: &mut Forest, shape: Leaf, text: impl Into<String>) -> Leaf {
+    forest.branch(
         shape,
         Text::new(text.into())
             .size(FontSize::new(type_scale::LABEL))
@@ -452,13 +452,13 @@ pub(crate) fn name(canopy: &mut Canopy, shape: Leaf, text: impl Into<String>) ->
 /// cut corner or a vanished shape is the point, and wrong wherever the readout is two numbers
 /// that should track the box's own axes independently -- see [`child_box`].
 pub(crate) fn child(
-    canopy: &mut Canopy,
+    forest: &mut Forest,
     parent: Leaf,
     at: Location,
     tone: Color,
     label: impl Into<String>,
 ) -> Leaf {
-    let child = canopy.branch(
+    let child = forest.branch(
         parent,
         Polygon::new()
             .sides(6.0)
@@ -470,7 +470,7 @@ pub(crate) fn child(
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .pass_through(),
     );
-    name(canopy, child, label);
+    name(forest, child, label);
     child
 }
 
@@ -480,13 +480,13 @@ pub(crate) fn child(
 /// [`child`]'s doc. A `Panel` resolves each axis on its own, so the size actually declared is
 /// the size reported.
 pub(crate) fn child_box(
-    canopy: &mut Canopy,
+    forest: &mut Forest,
     parent: Leaf,
     at: Location,
     tone: Color,
     label: impl Into<String>,
 ) -> Leaf {
-    let child = canopy.branch(
+    let child = forest.branch(
         parent,
         Panel::new()
             .color(tone)
@@ -496,7 +496,7 @@ pub(crate) fn child_box(
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .pass_through(),
     );
-    name(canopy, child, label);
+    name(forest, child, label);
     child
 }
 
@@ -555,7 +555,7 @@ pub(crate) fn reference_extra(count: usize) -> i32 {
 /// The detail a field has no room to act out. A rule above every entry but the first, so the
 /// rows read as separate things rather than one paragraph.
 pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf, start: u64) {
-    let card = g.canopy.branch(
+    let card = g.forest.branch(
         region,
         Panel::new()
             .color(role::surface_container())
@@ -568,9 +568,9 @@ pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .opacity(0.0),
     );
-    fade_in(g.canopy, card, seq, start);
+    fade_in(g.forest, card, seq, start);
 
-    g.canopy.branch(
+    g.forest.branch(
         card,
         Text::new(crate::site::copy::board::REFERENCE)
             .size(FontSize::new(type_scale::LABEL))
@@ -610,7 +610,7 @@ pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf
     for (i, entry) in entries.iter().enumerate() {
         let i = i as i32;
         if i > 0 {
-            g.canopy.branch(
+            g.forest.branch(
                 card,
                 Panel::new()
                     .color(role::outline())
@@ -629,7 +629,7 @@ pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf
         // The call is code and the gloss is prose about it. On one tone a step apart they read as
         // a single wrapped paragraph, so the call takes the accent the demos draw their children
         // in and the gloss stays chrome.
-        g.canopy.branch(
+        g.forest.branch(
             card,
             Text::new(entry.call)
                 .size(FontSize::new(type_scale::LABEL))
@@ -642,7 +642,7 @@ pub(crate) fn reference(g: &mut Grow, region: Leaf, entries: &[Entry], seq: Leaf
                 .elevate(Elevation::up(2))
                 .align(HorizontalAlignment::Left, VerticalAlignment::Middle),
         );
-        g.canopy.branch(
+        g.forest.branch(
             card,
             Text::new(entry.gloss)
                 .size(FontSize::new(type_scale::LABEL))

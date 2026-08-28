@@ -1,4 +1,4 @@
-use crate::boundary::bloom::{Bloom, Emissions};
+use crate::boundary::moss::{Moss, Emissions};
 use crate::boundary::op::Timing;
 use crate::{Ease, Easement, Repeat, Time, Tree};
 use bevy_ecs::component::Component;
@@ -46,7 +46,7 @@ impl From<(f32, f32)> for Channel {
 ///
 /// The engine already reduces every animation to scalar channels, so this exposes that
 /// directly: hand over start/end pairs and a [`Timing`], receive
-/// [`Bloom::Tween`] each frame with the current value of each channel,
+/// [`Moss::Tween`] each frame with the current value of each channel,
 /// and apply them to whatever you like -- including things foliage has no concept of. This is
 /// what lets a library build its own animatable properties without any engine cooperation.
 #[derive(Component)]
@@ -110,7 +110,7 @@ pub(crate) fn drive_tweens(
             .iter()
             .map(|channel| channel.at(eased))
             .collect::<Vec<f32>>();
-        emissions.push(Bloom::Tween {
+        emissions.push(Moss::Tween {
             tween: tweening.tween,
             values,
         });
@@ -133,7 +133,7 @@ pub(crate) fn drive_tweens(
             let ease = tweening.ease.clone();
             tweening.easement = Easement::new(ease);
         } else {
-            emissions.push(Bloom::TweenDone(tweening.tween));
+            emissions.push(Moss::TweenDone(tweening.tween));
             tree.despawn(entity);
         }
     }

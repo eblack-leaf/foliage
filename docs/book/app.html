@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-453d2eeb.js";
+            window.path_to_searchindex_js = "searchindex-27d3ed29.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-8f4fc17f.js"></script>
+        <script src="toc-fa2da114.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -185,7 +185,7 @@ pub struct Foliage {
     pub(crate) world: World,
     pub(crate) main: Schedule,
     pub(crate) diff: Schedule,
-    pub(crate) frame: Option&lt;Box&lt;dyn FnMut(&amp;mut Canopy&lt;'_, '_&gt;)&gt;&gt;,
+    pub(crate) frame: Option&lt;Box&lt;dyn FnMut(&amp;mut Forest&lt;'_, '_&gt;)&gt;&gt;,
     pub(crate) ops: Vec&lt;Op&gt;,
     pub(crate) sprig: Sprig,
     pub(crate) willow: Willow,
@@ -196,7 +196,7 @@ pub struct Foliage {
 <span class="boring">}</span></code></pre>
 <p>Every field is <code>pub(crate)</code> – an app never reaches the world, the schedules, or the
 render backend directly. What it gets instead is the setup calls below, and the
-<a href="./canopy.html"><code>Canopy</code></a> handed to the closure passed to
+<a href="./forest.html"><code>Forest</code></a> handed to the closure passed to
 <a href="#running-the-app"><code>photosynthesize</code></a>.</p>
 <h2 id="two-schedules-plus-the-frame-closure-run-in-order-every-tick"><a class="header" href="#two-schedules-plus-the-frame-closure-run-in-order-every-tick">Two schedules, plus the frame closure, run in order every tick</a></h2>
 <p><code>main</code> is the library’s own systems (input translation, animation stepping); <code>diff</code> is
@@ -207,7 +207,7 @@ given to <code>photosynthesize</code>, run once per tick between the other two:<
 </span><span class="boring">fn main() {
 </span>// foliage_proper/src/photosynthesis.rs
 self.main.run(&amp;mut self.world);
-self.frame();   // drains Sprig, applies queued ops, runs the app's Canopy closure, applies its ops
+self.frame();   // drains Sprig, applies queued ops, runs the app's Forest closure, applies its ops
 self.diff.run(&amp;mut self.world);
 <span class="boring">}</span></code></pre>
 <p>Ordering it this way means: library input-handling runs first, so the frame closure sees
@@ -256,7 +256,7 @@ hosting convention.</p>
 <p><code>foliage.photosynthesize(closure)</code> hands control to a <code>winit::EventLoop</code> and never
 returns (on native) – see <a href="./photosynthesis.html">Photosynthesis</a> for what happens inside
 that loop. <code>foliage.sprig()</code> – callable any time before or after <code>photosynthesize</code> –
-hands back a <code>Send</code>, cloneable <a href="./canopy.html"><code>Sprig</code></a> for issuing commands from another
+hands back a <code>Send</code>, cloneable <a href="./forest.html"><code>Sprig</code></a> for issuing commands from another
 thread.</p>
 
                     </main>

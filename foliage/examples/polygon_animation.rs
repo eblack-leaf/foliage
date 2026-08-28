@@ -5,7 +5,7 @@
 //! `cargo run --example polygon_animation -p foliage`.
 
 use foliage::{
-    Bloom, Canopy, Color, Ease, Elevation, Foliage, GridExt, Leaf, Location, Polygon, Root, Timing,
+    Moss, Forest, Color, Ease, Elevation, Foliage, GridExt, Leaf, Location, Polygon, Root, Timing,
     Tween,
 };
 use foliage::{Grows, Sprout};
@@ -32,10 +32,10 @@ fn shape(step: u32) -> Polygon {
 
 impl Morph {
     /// Starts the next leg, tweening from the shape it currently holds to the next one.
-    fn leg(&mut self, canopy: &mut Canopy) {
+    fn leg(&mut self, forest: &mut Forest) {
         let from = shape(self.step);
         let to = shape(self.step + 1);
-        self.tween = canopy.tween(
+        self.tween = forest.tween(
             [
                 (from.sides, to.sides),
                 (from.rounding, to.rounding),
@@ -59,11 +59,11 @@ fn main() {
 struct Morphs(Vec<Morph>);
 
 impl Root for Morphs {
-    fn take_root(canopy: &mut Canopy) -> Self {
+    fn take_root(forest: &mut Forest) -> Self {
         let mut morphs = Vec::new();
         for (i, period) in [2400u64, 3000, 3600].into_iter().enumerate() {
             let left = 40 + i as i32 * 130;
-            let leaf = canopy.leaf(
+            let leaf = forest.leaf(
                 Polygon::new()
                     .sides(3.0)
                     .rounding(0.0)
@@ -77,22 +77,22 @@ impl Root for Morphs {
             let mut morph = Morph {
                 leaf,
                 // replaced by `leg` immediately; a tween has no meaningful empty value
-                tween: canopy.tween([(0.0, 0.0)], Timing::over(1)),
+                tween: forest.tween([(0.0, 0.0)], Timing::over(1)),
                 step: 0,
                 period,
             };
-            morph.leg(canopy);
+            morph.leg(forest);
             morphs.push(morph);
         }
         Morphs(morphs)
     }
-    fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-        for bloom in blooms {
-            match bloom {
-                Bloom::Tween { tween, values } => {
+    fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+        for moss in mosses {
+            match moss {
+                Moss::Tween { tween, values } => {
                     if let Some(morph) = self.0.iter().find(|m| m.tween == tween) {
                         let leaf = morph.leaf;
-                        canopy.polygon(
+                        forest.polygon(
                             leaf,
                             Polygon {
                                 sides: values[0],
@@ -104,10 +104,10 @@ impl Root for Morphs {
                 }
                 // One leg finished; start the next. Endless, with no completion callback and
                 // nothing registered on the engine side -- just an emission and a decision.
-                Bloom::TweenDone(tween) => {
+                Moss::TweenDone(tween) => {
                     if let Some(index) = self.0.iter().position(|m| m.tween == tween) {
                         let mut morph = self.0.swap_remove(index);
-                        morph.leg(canopy);
+                        morph.leg(forest);
                         self.0.push(morph);
                     }
                 }

@@ -22,10 +22,10 @@ pub fn run(mut foliage: Foliage) {
 }
 struct App { /*...*/ }
 impl Root for App {
-  fn take_root(canopy: &mut Canopy) -> Self { /* one time boot; good for init */ }
-  fn frame(&mut self, canopy: &mut Canopy, blooms: Vec<Bloom>) {
-    // see if a Bloom::Clicked(leaf) was emitted and matches my widget.leaf
-    if self.widget.clicked(&blooms) { /* ... */ } // read from blooms as needed
+  fn take_root(forest: &mut Forest) -> Self { /* one time boot; good for init */ }
+  fn frame(&mut self, forest: &mut Forest, mosses: Vec<Moss>) {
+    // see if a Moss::Clicked(leaf) was emitted and matches my widget.leaf
+    if self.widget.clicked(&mosses) { /* ... */ } // read from mosses as needed
   }
 }
 ```
@@ -40,10 +40,10 @@ event loop: drain emissions, then do per-frame work.
 |---|---|---|
 | describe an element as you spawn it | `Author` (builder methods on every `*Sprout`) | `author.rs` |
 | change an element that already exists | `Grows` (verbs) | `boundary/verbs.rs` |
-| read what the tree resolved to | `Canopy` (inherent methods) | `boundary/canopy.rs` |
-| answer something that happened | `Bloom` | `boundary/bloom.rs` |
+| read what the tree resolved to | `Forest` (inherent methods) | `boundary/forest.rs` |
+| answer something that happened | `Moss` | `boundary/moss.rs` |
 
-`Grows` is sealed — implemented for `Canopy` (queues into the frame's buffer) and `Sprig` (queues
+`Grows` is sealed — implemented for `Forest` (queues into the frame's buffer) and `Sprig` (queues
 across threads, behind a lock). Both read identically at the call site. Read `verbs.rs` top to
 bottom once; it is the complete list of things an app can ask the engine to do, and it is short.
 
@@ -55,7 +55,7 @@ nothing here asks you to check `Presence` before every call.
 
 `Bare` (layout/hit only, draws nothing), `Panel`, `Text`, `TextInput`, `Icon`, `Image`, `Polygon`,
 `Polyline`. Each is `X::new()` returning a sprout you chain `Author` methods onto, then
-`canopy.branch(parent, sprout)` → `Leaf`.
+`forest.branch(parent, sprout)` → `Leaf`.
 
 There is **no widget library**. Buttons, chips, switches, scrollbars are app assembly: a `Bare`
 hit target with decorative children that `.pass_through()`. This is deliberate; see
@@ -90,7 +90,7 @@ Location::new().xs(
 
 Do not conflate them. Each decides exactly one thing:
 
-- **Parenting** (`canopy.branch(parent, …)`) decides ownership, **clipping**, and opacity
+- **Parenting** (`forest.branch(parent, …)`) decides ownership, **clipping**, and opacity
   inheritance. A child is clipped to the intersection of every ancestor's box.
 - **Anchoring** (`Author::anchored`, or `Grows::anchor` to repoint later) decides only *whose
   geometry `anchor()` values read*. The target can be anywhere in the tree. A `Location` carrying
@@ -109,23 +109,23 @@ its **children's sections** (`grid/view.rs`, `extent_check`).
 > A child positioned *outside* its parent's box therefore enlarges what the parent can scroll to,
 > even if it is invisible. An off-screen "parked" element is a scrollbar you did not order.
 
-Drive with `Grows::scroll` + `ScrollTo`; read with `Canopy::sample(view, Sap::ScrollProgress)` or
-`Canopy::scroll_offset`. `Author::overscroll` controls whether unconsumed scroll passes outward;
+Drive with `Grows::scroll` + `ScrollTo`; read with `Forest::sample(view, Sap::ScrollProgress)` or
+`Forest::scroll_offset`. `Author::overscroll` controls whether unconsumed scroll passes outward;
 `Author::holds_drag` stops a drag on a control from also panning the region under it.
 
 ## Animation
 
 `Grows::animate(leaf, Motion::…, Timing)` — or `animate_during(.., sequence)` to join a
-`sequence()`, which emits one `Bloom::SequenceFinished` when the whole group lands.
+`sequence()`, which emits one `Moss::SequenceFinished` when the whole group lands.
 
 `Timing::over(ms).after(ms).eased(Ease::…)`. Easings include `Ease::Linear` and `Ease::EMPHASIS`.
 
 `Motion` does **not** cover everything a verb can write. Notably `draw_progress` (polyline
 draw-in) and `scroll` are plain writes with no tween — drive them by hand from `frame_time()`.
 `Grows::tween` exists for exactly this: it runs the engine's easing over bare numbers and reports
-each frame as `Bloom::Tween`, so a library can build its own animatable properties.
+each frame as `Moss::Tween`, so a library can build its own animatable properties.
 
-> **One writer per property.** A plain `canopy.location()` landing while a `Motion::Location`
+> **One writer per property.** A plain `forest.location()` landing while a `Motion::Location`
 > tween is in flight resolves against that tween's cached difference rather than against the box,
 > and the element jumps. If a property is animated anywhere, animate it everywhere — and build
 > each target as a whole fresh `Location`, never by adjusting the current one.
@@ -139,7 +139,7 @@ child of a control, or the control stops working. `round_hit_area` hit-tests an 
 Hit testing is **rectangles and inscribed circles only**. Anything else — a polyline, a diagonal —
 is not directly targetable; lay invisible `Bare().interactive()` boxes over the parts you want hit.
 
-`Bloom` covers `Clicked` / `Engaged` / `Dragged` / `DragStarted` / `Disengaged`, focus, keys,
+`Moss` covers `Clicked` / `Engaged` / `Dragged` / `DragStarted` / `Disengaged`, focus, keys,
 `TextChanged` / `TextAction`, `Tween` / `TweenDone`, `TimerFinished`, `SequenceFinished`,
 `AssetLoaded`, `Withered`, `Resized`. Read the enum; the per-variant docs say precisely when each
 fires and how they order.
@@ -160,14 +160,14 @@ exactly this reason. `text_content()` gives a run its own measured size.
 
 `TextInput` (`text_input/`) is a composite: field, text, hint and caret are separate entities, so
 a click arrives naming one of *those*, never the `Leaf` you were handed. Match by geometry
-(`Canopy::section(..).contains(Canopy::pointer().current)`) rather than by leaf, or presses into
+(`Forest::section(..).contains(Forest::pointer().current)`) rather than by leaf, or presses into
 your own field read as presses on whatever is behind it.
 
 Style is one unit — `TextInputStyle`, poked via `Grows::input_style` — carrying foreground, hint
 and accent only. `TextInput` draws no backdrop of its own (a rounded one needs an inset to avoid
 clipping a glyph flush against it, which fought every other layout invariant here) — wrap it in
 your own `Panel` for background/rounding/outline, sized and inset however that panel's own corners
-need. `LineConstraint::Single` makes Enter a submission (`Bloom::TextAction` with
+need. `LineConstraint::Single` makes Enter a submission (`Moss::TextAction` with
 `TextInputAction::Enter`); `Multiple` makes it a newline.
 
 ## Colour, rounding, opacity
@@ -186,7 +186,7 @@ need. `LineConstraint::Single` makes Enter a submission (`Bloom::TextAction` wit
 ## Assets and icons
 
 `Grows::load_asset` starts a load and hands back a key immediately; bytes arrive as
-`Bloom::AssetLoaded` and are read with `Canopy::asset`.
+`Moss::AssetLoaded` and are read with `Forest::asset`.
 
 Icons are MTSDF fields baked ahead of time by the `foliage_icons` crate in this workspace:
 
@@ -211,8 +211,8 @@ does not.
 |---|---|
 | `foliage.rs` | `Foliage` — construction, `tune`, `font`, `icon`, `photosynthesize` |
 | `boundary/verbs.rs` | `Grows` — every verb an app can call |
-| `boundary/canopy.rs` | `Canopy` — every read |
-| `boundary/bloom.rs` | `Bloom` — every emission |
+| `boundary/forest.rs` | `Forest` — every read |
+| `boundary/moss.rs` | `Moss` — every emission |
 | `author.rs` | `Author` — the spawn-time builder methods |
 | `grid/location.rs` | `Location`, units, designators, `anchor()`, `text_content()` |
 | `grid/view.rs` | `View` — scroll offsets and extents |

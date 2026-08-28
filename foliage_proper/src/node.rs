@@ -85,9 +85,9 @@ impl Node {
         // itself needs no cleanup; the entity generation is what makes it stale.
         if world.get::<crate::boundary::leaf::Grown>(this).is_some()
             && let Some(mut emissions) =
-                world.get_resource_mut::<crate::boundary::bloom::Emissions>()
+                world.get_resource_mut::<crate::boundary::moss::Emissions>()
         {
-            emissions.push(crate::Bloom::Withered(crate::Leaf(this)));
+            emissions.push(crate::Moss::Withered(crate::Leaf(this)));
         }
         if let Some(mut current) = world.get_resource_mut::<CurrentInteraction>() {
             if let Some(p) = current.primary {

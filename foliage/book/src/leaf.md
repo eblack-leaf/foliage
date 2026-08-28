@@ -10,14 +10,14 @@ pub struct Leaf(pub(crate) Entity);
 
 The wrapped `Entity` is `pub(crate)` -- nothing outside the crate can read, construct, or
 match on it. A `Leaf` is opaque by construction: the only things you can do with one are
-name it as a parent, pass it to a [`Grows`](./canopy.md) verb, or compare it for
+name it as a parent, pass it to a [`Grows`](./forest.md) verb, or compare it for
 equality. `Leaf::id()` hands back a stable `u64` for logging or as a map key -- not an
 address, nothing to dereference, just a way to tell two elements apart.
 
 ## Usable before it exists
 
 A `Leaf` is allocated the moment you ask for one, from a shared allocator
-[`Canopy`](./canopy.md) and [`Sprig`](./canopy.md) both draw from -- which is what lets a
+[`Forest`](./forest.md) and [`Sprig`](./forest.md) both draw from -- which is what lets a
 name minted on a background thread never collide with one minted in the frame closure.
 The element it names doesn't come into being until that frame's commands are applied, but
 the name is real immediately: it can be used as a parent for a child grown in the same
@@ -39,7 +39,7 @@ A `Leaf` naming something that was pruned, or never grew, is inert rather than d
 Every command targeting a withered `Leaf` is silently dropped; every sample of one reads
 `None`. Nothing panics, and a name is never reused within its generation, so a stale
 handle held past its element's lifetime cannot silently address whatever grew after it.
-[`Canopy::presence`](./canopy.md) reads which of the three states a `Leaf` is currently
+[`Forest::presence`](./forest.md) reads which of the three states a `Leaf` is currently
 in.
 
 ## What's underneath

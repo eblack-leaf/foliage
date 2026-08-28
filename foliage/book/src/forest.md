@@ -1,4 +1,4 @@
-# Canopy: The Frame Surface
+# Forest: The Frame Surface
 
 Once [`Foliage::photosynthesize`](./app.md) is called, an app lives entirely inside one
 closure, called once per frame:
@@ -9,9 +9,9 @@ let mut foliage = Foliage::new();
 foliage.desktop_size((360, 220));
 
 let mut demo: Option<Demo> = None;
-foliage.photosynthesize(move |canopy: &mut Canopy| {
-    let demo = demo.get_or_insert_with(|| grow(canopy));
-    for bloom in canopy.take() {
+foliage.photosynthesize(move |forest: &mut Forest| {
+    let demo = demo.get_or_insert_with(|| grow(forest));
+    for moss in forest.take() {
         // ...
     }
 });
@@ -20,26 +20,26 @@ foliage.photosynthesize(move |canopy: &mut Canopy| {
 There is no separate setup phase that builds an initial tree before the loop starts --
 the opening screen is just the first frame's `get_or_insert_with`. Everything an app
 does, from the very first element it grows to the last one it prunes, goes through the
-`&mut Canopy` this closure is handed.
+`&mut Forest` this closure is handed.
 
 ## What crosses the seam
 
-Canopy is a read-only bundle of engine state plus a command queue, not a window onto the
+Forest is a read-only bundle of engine state plus a command queue, not a window onto the
 `bevy_ecs` world itself:
 
 ```rust
-// foliage_proper/src/boundary/canopy.rs
-pub struct Canopy<'w, 's> {
+// foliage_proper/src/boundary/forest.rs
+pub struct Forest<'w, 's> {
     pub(crate) reads: Reads<'w, 's>,
     pub(crate) queue: &'w mut Vec<Op>,
-    pub(crate) blooms: Vec<Bloom>,
+    pub(crate) mosses: Vec<Moss>,
     pub(crate) allocator: bevy_ecs::entity::RemoteAllocator,
 }
 ```
 
 Everything on it is plain data: commands queued in ([`Op`](./spawning.md), never named by
 app code directly -- see [`Grows`](#grows-the-command-vocabulary) below), emissions taken
-out ([`Bloom`](#bloom-what-happened)), and read-only samples taken at the callsite
+out ([`Moss`](#moss-what-happened)), and read-only samples taken at the callsite
 ([`Sap`](#sampling-sap-and-sample)). No engine type is handed out, and nothing an app
 holds borrows from the world -- which is what makes it safe for an app to run its own
 `bevy_ecs`, at whatever version it likes, without the two ever meeting.
@@ -47,7 +47,7 @@ holds borrows from the world -- which is what makes it safe for an app to run it
 ## `Grows`: the command vocabulary
 
 Every way an app can change the tree lives on one trait, implemented identically by
-`Canopy` and [`Sprig`](#sprig-the-off-thread-half):
+`Forest` and [`Sprig`](#sprig-the-off-thread-half):
 
 ```rust
 // foliage_proper/src/boundary/verbs.rs
@@ -76,11 +76,11 @@ in the order it was written, immediately after the closure returns. A `leaf` fol
 a write to the `Leaf` it returned behaves exactly the way it reads, even though the
 element doesn't exist as a real entity until that queue is drained.
 
-## Bloom: what happened
+## Moss: what happened
 
 ```rust
-// foliage_proper/src/boundary/bloom.rs
-pub enum Bloom {
+// foliage_proper/src/boundary/moss.rs
+pub enum Moss {
     Clicked(Leaf),
     Engaged(Leaf),
     Dragged(Leaf),
@@ -101,8 +101,8 @@ pub enum Bloom {
 }
 ```
 
-`canopy.take()` moves this frame's emissions out, ready for a `for bloom in canopy.take()`
-loop that can itself call back into `canopy` without a borrow-checker dance. A single
+`forest.take()` moves this frame's emissions out, ready for a `for moss in forest.take()`
+loop that can itself call back into `forest` without a borrow-checker dance. A single
 physical click can produce several `Clicked` emissions in one frame -- one for the
 element under the pointer, and one for every pass-through element the gesture crossed --
 arriving in hit-test order. A `Leaf` reported here may already have withered by the time
@@ -114,7 +114,7 @@ Reading current state -- as opposed to reacting to what changed -- goes through 
 method:
 
 ```rust
-// foliage_proper/src/boundary/canopy.rs
+// foliage_proper/src/boundary/forest.rs
 pub fn sample(&self, leaf: Leaf, what: Sap) -> Option<Sample<'_>>;
 ```
 
@@ -126,7 +126,7 @@ anything an app needs. `Sample` is what a given `Sap` reads back as; a handful o
 cases (`section`, `text_of`, `scroll_offset`, `is_visible`, ...) are typed convenience
 wrappers over `sample` for the lookups every app ends up doing anyway.
 
-`Canopy` also answers questions that aren't about a specific element: `layout()`, the
+`Forest` also answers questions that aren't about a specific element: `layout()`, the
 current breakpoint; `short()`, whether the viewport is vertically cramped; `frame_time()`,
 for scaling per-frame motion so it runs at the same speed regardless of frame rate;
 `viewport()`; `pointer()`/`pointer_velocity()`; `named(..)`/`asset_named(..)`, looking up
@@ -144,7 +144,7 @@ pub struct Sprig {
 }
 ```
 
-`Sprig` carries the exact same `Grows` vocabulary as `Canopy`, so code that changes the
+`Sprig` carries the exact same `Grows` vocabulary as `Forest`, so code that changes the
 tree reads identically whether it runs in the frame closure or on another thread. It's
 `Send` and `Clone` -- obtained once via [`Foliage::sprig`](./app.md) -- and command-only:
 there is no sampling half, because reads only make sense at the frame callsite, where the

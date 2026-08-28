@@ -15,7 +15,7 @@
 //! the press and still reports one. Every swap below therefore disables what it hides.
 
 use foliage::{
-    Bare, Canopy, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf,
+    Bare, Forest, Color, Elevation, FontSize, Grid, GridExt, Grows, HorizontalAlignment, Leaf,
     LineConstraint, Location, Panel, Polygon, Rounding, Sample, Sap, ScrollTo, Sprout, Text,
     TextInput, TextInputAction, VerticalAlignment,
 };
@@ -27,33 +27,33 @@ use crate::site::{Column, Demo, Grow, Phase, SCROLL_TAIL, role, space, type_scal
 const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
-    let container = crate::site::shell::content_area(g.canopy, slot);
-    let mut column = Column::new(g.canopy, container);
+    let container = crate::site::shell::content_area(g.forest, slot);
+    let mut column = Column::new(g.forest, container);
 
-    column.display(g.canopy, headings::INPUT);
-    column.lead(g.canopy, text::LEAD);
+    column.display(g.forest, headings::INPUT);
+    column.lead(g.forest, text::LEAD);
 
-    column.heading(g.canopy, headings::INPUT_HIT);
-    column.prose(g.canopy, text::HIT);
+    column.heading(g.forest, headings::INPUT_HIT);
+    column.prose(g.forest, text::HIT);
     hit(g, &mut column);
 
-    column.heading(g.canopy, headings::INPUT_GRAB);
-    column.prose(g.canopy, text::GRAB);
+    column.heading(g.forest, headings::INPUT_GRAB);
+    column.prose(g.forest, text::GRAB);
     grab(g, &mut column);
 
-    column.heading(g.canopy, headings::INPUT_GESTURE);
-    column.prose(g.canopy, text::GESTURE);
+    column.heading(g.forest, headings::INPUT_GESTURE);
+    column.prose(g.forest, text::GESTURE);
     gesture(g, &mut column);
 
-    column.heading(g.canopy, headings::INPUT_SCROLL);
-    column.prose(g.canopy, text::SCROLL);
+    column.heading(g.forest, headings::INPUT_SCROLL);
+    column.prose(g.forest, text::SCROLL);
     scroll(g, &mut column);
 
-    column.heading(g.canopy, headings::INPUT_FIELD);
-    column.prose(g.canopy, text::FIELD);
+    column.heading(g.forest, headings::INPUT_FIELD);
+    column.prose(g.forest, text::FIELD);
     field(g, &mut column);
 
-    column.tail(g.canopy, SCROLL_TAIL);
+    column.tail(g.forest, SCROLL_TAIL);
 }
 
 // ---- hit shape -------------------------------------------------------------------------------
@@ -93,7 +93,7 @@ fn hit(g: &mut Grow, column: &mut Column) {
         &board::HIT_STEPS,
         &reference::HIT,
     );
-    let pad = g.canopy.branch(
+    let pad = g.forest.branch(
         board.stage,
         Bare::new()
             .at(Location::new().xs(
@@ -103,7 +103,7 @@ fn hit(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(1))
             .interactive(),
     );
-    g.canopy.branch(
+    g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::outline())
@@ -113,7 +113,7 @@ fn hit(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(2))
             .pass_through(),
     );
-    let shape = g.canopy.branch(
+    let shape = g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::accent())
@@ -122,28 +122,28 @@ fn hit(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(3))
             .interactive(),
     );
-    board.set(g.canopy, 0, board::HIT_SHAPES[0]);
-    board.set(g.canopy, 1, board::HIT_NONE);
+    board.set(g.forest, 0, board::HIT_SHAPES[0]);
+    board.set(g.forest, 1, board::HIT_NONE);
     g.page.demos.push(Box::new(Hit { board, shape, pad }));
 }
 
 impl Demo for Hit {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         if let Some(step) = self.board.pressed(leaf) {
-            self.board.select(canopy, step);
+            self.board.select(forest, step);
             // The write that does it: `Rounding` carries the hit shape with it, so this one
             // call changes both what is drawn and what answers.
-            canopy.rounding(self.shape, HIT_ROUNDINGS[step]);
-            self.board.set(canopy, 0, board::HIT_SHAPES[step]);
-            self.board.set(canopy, 1, board::HIT_NONE);
+            forest.rounding(self.shape, HIT_ROUNDINGS[step]);
+            self.board.set(forest, 0, board::HIT_SHAPES[step]);
+            self.board.set(forest, 1, board::HIT_NONE);
             return true;
         }
         if leaf == self.shape {
-            self.board.set(canopy, 1, board::HIT_SHAPE);
+            self.board.set(forest, 1, board::HIT_SHAPE);
             return true;
         }
         if leaf == self.pad {
-            self.board.set(canopy, 1, board::HIT_PAD);
+            self.board.set(forest, 1, board::HIT_PAD);
             return true;
         }
         false
@@ -186,7 +186,7 @@ fn grab(g: &mut Grow, column: &mut Column) {
         &board::GRAB_STEPS,
         &reference::GRAB,
     );
-    let parent = g.canopy.branch(
+    let parent = g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::surface())
@@ -199,7 +199,7 @@ fn grab(g: &mut Grow, column: &mut Column) {
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .interactive(),
     );
-    g.canopy.branch(
+    g.forest.branch(
         parent,
         Text::new(board::GRAB_PARENT)
             .size(FontSize::new(type_scale::LABEL))
@@ -212,7 +212,7 @@ fn grab(g: &mut Grow, column: &mut Column) {
     // Both carry a listener; only their propagation differs. The pass-through one is still told
     // about the gesture -- that is the whole distinction, and why it can still name itself in
     // the readout while never being the one that won.
-    let grabbing = g.canopy.branch(
+    let grabbing = g.forest.branch(
         parent,
         Polygon::new()
             .sides(6.0)
@@ -224,8 +224,8 @@ fn grab(g: &mut Grow, column: &mut Column) {
             .grid(Grid::new(1.col().gap(0), 1.row().gap(0)))
             .interactive(),
     );
-    blueprint::name(g.canopy, grabbing, board::GRAB_CHILD);
-    let passing = g.canopy.branch(
+    blueprint::name(g.forest, grabbing, board::GRAB_CHILD);
+    let passing = g.forest.branch(
         parent,
         Polygon::new()
             .sides(6.0)
@@ -238,11 +238,11 @@ fn grab(g: &mut Grow, column: &mut Column) {
             .interactive()
             .pass_through(),
     );
-    blueprint::name(g.canopy, passing, board::GRAB_CHILD);
-    g.canopy.visible(passing, false);
-    g.canopy.disable(passing);
-    board.set(g.canopy, 0, board::GRAB_MODES[0]);
-    board.set(g.canopy, 1, board::GRAB_NONE);
+    blueprint::name(g.forest, passing, board::GRAB_CHILD);
+    g.forest.visible(passing, false);
+    g.forest.disable(passing);
+    board.set(g.forest, 0, board::GRAB_MODES[0]);
+    board.set(g.forest, 1, board::GRAB_NONE);
     g.page.demos.push(Box::new(Grab {
         board,
         parent,
@@ -252,19 +252,19 @@ fn grab(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Grab {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         if let Some(step) = self.board.pressed(leaf) {
-            self.board.select(canopy, step);
+            self.board.select(forest, step);
             for (i, child) in self.children.iter().enumerate() {
-                canopy.visible(*child, i == step);
+                forest.visible(*child, i == step);
                 if i == step {
-                    canopy.enable(*child);
+                    forest.enable(*child);
                 } else {
-                    canopy.disable(*child);
+                    forest.disable(*child);
                 }
             }
-            self.board.set(canopy, 0, board::GRAB_MODES[step]);
-            self.board.set(canopy, 1, board::GRAB_NONE);
+            self.board.set(forest, 0, board::GRAB_MODES[step]);
+            self.board.set(forest, 1, board::GRAB_NONE);
             self.heard.clear();
             return true;
         }
@@ -278,13 +278,13 @@ impl Demo for Grab {
         }
         false
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
+    fn drive(&mut self, forest: &mut Forest) {
         if self.heard.is_empty() {
             return;
         }
         let line = self.heard.join(", ");
         self.heard.clear();
-        self.board.set(canopy, 1, line);
+        self.board.set(forest, 1, line);
     }
 }
 
@@ -313,7 +313,7 @@ struct Gesture {
 
 fn gesture(g: &mut Grow, column: &mut Column) {
     let mut board = blueprint::live(g, column, STAGE_H, board::GESTURE_ROWS, &reference::GESTURE);
-    let pad = g.canopy.branch(
+    let pad = g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::surface())
@@ -328,7 +328,7 @@ fn gesture(g: &mut Grow, column: &mut Column) {
             // scrolls it as usual. The board reports the gesture; it does not keep it.
             .interactive(),
     );
-    g.canopy.branch(
+    g.forest.branch(
         pad,
         Text::new(text::PAD)
             .size(FontSize::new(type_scale::LABEL))
@@ -341,8 +341,8 @@ fn gesture(g: &mut Grow, column: &mut Column) {
             .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
             .pass_through(),
     );
-    board.set(g.canopy, 0, board::GESTURE_IDLE);
-    board.set(g.canopy, 1, board::travel(0.0, false));
+    board.set(g.forest, 0, board::GESTURE_IDLE);
+    board.set(g.forest, 1, board::travel(0.0, false));
     g.page.demos.push(Box::new(Gesture {
         board,
         pad,
@@ -352,16 +352,16 @@ fn gesture(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Gesture {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         if leaf != self.pad {
             return false;
         }
         // Arrives after the release, and only when the gesture never became a drag -- so this
         // is the last word on the row rather than a state the pad is now in.
-        self.board.set(canopy, 0, board::GESTURE_CLICKED);
+        self.board.set(forest, 0, board::GESTURE_CLICKED);
         true
     }
-    fn gesture(&mut self, canopy: &mut Canopy, leaf: Leaf, phase: Phase) -> bool {
+    fn gesture(&mut self, forest: &mut Forest, leaf: Leaf, phase: Phase) -> bool {
         if leaf != self.pad {
             return false;
         }
@@ -385,17 +385,17 @@ impl Demo for Gesture {
                 board::GESTURE_DISENGAGED
             }
         };
-        self.board.set(canopy, 0, name);
+        self.board.set(forest, 0, name);
         true
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
+    fn drive(&mut self, forest: &mut Forest) {
         if !self.holding {
             return;
         }
-        let click = canopy.pointer();
+        let click = forest.pointer();
         let travelled = click.current.distance(click.start);
         self.board
-            .set(canopy, 1, board::travel(travelled, self.past_threshold));
+            .set(forest, 1, board::travel(travelled, self.past_threshold));
     }
 }
 
@@ -426,7 +426,7 @@ fn scroll(g: &mut Grow, column: &mut Column) {
     // The grid is what makes this a view. It is also what makes a drag landing here scroll
     // *this* rather than the page -- until it reaches its own end, at which point the rest is
     // handed outward, which is exactly the behaviour the paragraph above describes.
-    let view = g.canopy.branch(
+    let view = g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::surface())
@@ -440,7 +440,7 @@ fn scroll(g: &mut Grow, column: &mut Column) {
     );
     for i in 0..SCROLL_BARS {
         let top = space::SM + i as i32 * (SCROLL_BAR_H + SCROLL_BAR_GAP);
-        g.canopy.branch(
+        g.forest.branch(
             view,
             Panel::new()
                 .color(if i == 0 || i + 1 == SCROLL_BARS {
@@ -467,7 +467,7 @@ fn scroll(g: &mut Grow, column: &mut Column) {
     // A view's extent grows to cover its contents and stops there, so without this the last bar
     // ends flush with the bottom edge while the first is inset from the top -- which reads as
     // the view still having somewhere to go, at exactly the moment it has arrived.
-    g.canopy.branch(
+    g.forest.branch(
         view,
         Bare::new()
             .at(Location::new().xs(
@@ -484,27 +484,27 @@ fn scroll(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Scroll {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.scroll(self.view, ScrollTo::y(SCROLL_STOPS[step]));
+        self.board.select(forest, step);
+        forest.scroll(self.view, ScrollTo::y(SCROLL_STOPS[step]));
         true
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
+    fn drive(&mut self, forest: &mut Forest) {
         // Read back rather than remembered: the steps are not the only way this view moves, and
         // a row showing the last button pressed would be wrong the moment it is dragged.
-        let offset = canopy
+        let offset = forest
             .scroll_offset(self.view)
             .map(|position| board::scrolled(position.top()))
             .unwrap_or_else(|| board::EMPTY_VALUE.to_string());
-        let at = match canopy.sample(self.view, Sap::ScrollProgress) {
+        let at = match forest.sample(self.view, Sap::ScrollProgress) {
             Some(Sample::Pair(_, y)) => board::progress(y),
             _ => board::EMPTY_VALUE.to_string(),
         };
-        self.board.set(canopy, 0, offset);
-        self.board.set(canopy, 1, at);
+        self.board.set(forest, 0, offset);
+        self.board.set(forest, 1, at);
     }
 }
 
@@ -549,7 +549,7 @@ fn field(g: &mut Grow, column: &mut Column) {
                 100.pct().as_bottom().adjust(-space::SM)
             }),
         );
-        let backdrop = g.canopy.branch(
+        let backdrop = g.forest.branch(
             board.stage,
             Panel::new()
                 .color(role::surface())
@@ -561,7 +561,7 @@ fn field(g: &mut Grow, column: &mut Column) {
         // Inset from the backdrop by `space::XS`: enough that `Rounding::Xs`'s corner doesn't
         // clip a glyph sitting at the field's own edge, without a gap wide enough to look like
         // its own box.
-        let leaf = g.canopy.branch(
+        let leaf = g.forest.branch(
             board.stage,
             TextInput::new()
                 .hint_text(board::FIELD_HINT)
@@ -586,11 +586,11 @@ fn field(g: &mut Grow, column: &mut Column) {
     });
     let backdrops = [grown[0].0, grown[1].0];
     let fields = [grown[0].1, grown[1].1];
-    g.canopy.visible(fields[1], false);
-    g.canopy.disable(fields[1]);
-    g.canopy.visible(backdrops[1], false);
-    board.set(g.canopy, 0, board::FIELD_EMPTY);
-    board.set(g.canopy, 1, board::FIELD_NONE);
+    g.forest.visible(fields[1], false);
+    g.forest.disable(fields[1]);
+    g.forest.visible(backdrops[1], false);
+    board.set(g.forest, 0, board::FIELD_EMPTY);
+    board.set(g.forest, 1, board::FIELD_NONE);
     g.page.demos.push(Box::new(Field {
         board,
         fields,
@@ -599,30 +599,30 @@ fn field(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Field {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         for (i, field) in self.fields.iter().enumerate() {
-            canopy.visible(*field, i == step);
-            canopy.visible(self.backdrops[i], i == step);
+            forest.visible(*field, i == step);
+            forest.visible(self.backdrops[i], i == step);
             if i == step {
-                canopy.enable(*field);
+                forest.enable(*field);
             } else {
-                canopy.disable(*field);
+                forest.disable(*field);
             }
         }
-        self.board.set(canopy, 0, board::FIELD_EMPTY);
-        self.board.set(canopy, 1, board::FIELD_NONE);
+        self.board.set(forest, 0, board::FIELD_EMPTY);
+        self.board.set(forest, 1, board::FIELD_NONE);
         true
     }
-    fn focus(&mut self, canopy: &mut Canopy, leaf: Leaf, has: bool) -> bool {
+    fn focus(&mut self, forest: &mut Forest, leaf: Leaf, has: bool) -> bool {
         if !self.fields.contains(&leaf) {
             return false;
         }
         self.board.set(
-            canopy,
+            forest,
             1,
             if has {
                 board::FIELD_FOCUSED
@@ -632,24 +632,24 @@ impl Demo for Field {
         );
         true
     }
-    fn typed(&mut self, canopy: &mut Canopy, leaf: Leaf, value: &str) -> bool {
+    fn typed(&mut self, forest: &mut Forest, leaf: Leaf, value: &str) -> bool {
         if !self.fields.contains(&leaf) {
             return false;
         }
         // Cut at the strip rather than written whole: the multi-line field holds far more than
         // one row of readout can show, and a value running off the end of it took the row's
         // own label with it.
-        self.board.set(canopy, 0, board::typed(value));
-        self.board.set(canopy, 1, board::FIELD_CHANGED);
+        self.board.set(forest, 0, board::typed(value));
+        self.board.set(forest, 1, board::FIELD_CHANGED);
         true
     }
-    fn acted(&mut self, canopy: &mut Canopy, leaf: Leaf, action: TextInputAction) -> bool {
+    fn acted(&mut self, forest: &mut Forest, leaf: Leaf, action: TextInputAction) -> bool {
         // Every binding the field matches is reported; only this one is a submission, and the
         // rest have already said what they did through the value row.
         if action != TextInputAction::Enter || !self.fields.contains(&leaf) {
             return false;
         }
-        self.board.set(canopy, 1, board::FIELD_SUBMITTED);
+        self.board.set(forest, 1, board::FIELD_SUBMITTED);
         true
     }
 }

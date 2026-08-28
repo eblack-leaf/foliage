@@ -1,5 +1,5 @@
-use crate::boundary::bloom::{Bloom, Emissions};
-use crate::boundary::canopy::{Reads, sample};
+use crate::boundary::moss::{Moss, Emissions};
+use crate::boundary::forest::{Reads, sample};
 use crate::boundary::leaf::Leaf;
 use crate::{Sample, Sap};
 use bevy_ecs::resource::Resource;
@@ -62,7 +62,7 @@ pub(crate) fn report(mut watches: ResMut<Watches>, reads: Reads, mut emissions: 
             return true;
         }
         let current = current.into_owned();
-        emissions.push(Bloom::Reading {
+        emissions.push(Moss::Reading {
             leaf: watch.leaf,
             sap: watch.sap,
             value: current.clone(),

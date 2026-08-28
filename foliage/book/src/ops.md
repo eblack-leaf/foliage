@@ -65,10 +65,10 @@ pub struct Named { map: HashMap<String, Entity> }
 pub struct Keyring { map: HashMap<String, AssetKey> }
 ```
 
-`Named` is the app-facing half: [`Grows::name`](./canopy.md) registers a string alias for
-a `Leaf`, and [`Canopy::named`](./canopy.md) resolves it back. `Keyring` is
+`Named` is the app-facing half: [`Grows::name`](./forest.md) registers a string alias for
+a `Leaf`, and [`Forest::named`](./forest.md) resolves it back. `Keyring` is
 engine-internal -- there's no `Grows` verb that writes one, since an app already holds
-the `AssetKey` [`Grows::load_asset`](./canopy.md) hands back directly and has no need to
+the `AssetKey` [`Grows::load_asset`](./forest.md) hands back directly and has no need to
 re-look it up by name; `Keyring` exists for the engine's own built-in registration paths.
 Both are `Resource`s populated by a private event (`Name`/`StoredKey`) rather than direct
 map mutation, so registering a name follows the same deferred-command path as everything

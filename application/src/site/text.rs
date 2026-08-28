@@ -15,7 +15,7 @@
 //! yields are the real ones; only the window is played by an understudy.
 
 use foliage::{
-    Canopy, Color, Elevation, FontSize, GlyphColors, Grid, GridExt, Grows, HorizontalAlignment,
+    Forest, Color, Elevation, FontSize, GlyphColors, Grid, GridExt, Grows, HorizontalAlignment,
     Leaf, Location, Panel, Rounding, Sprout, Text, VerticalAlignment, anchor, text_content,
 };
 
@@ -26,33 +26,33 @@ use crate::site::{Column, Demo, Grow, SCROLL_TAIL, role, space, type_scale};
 const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
-    let container = crate::site::shell::content_area(g.canopy, slot);
-    let mut column = Column::new(g.canopy, container);
+    let container = crate::site::shell::content_area(g.forest, slot);
+    let mut column = Column::new(g.forest, container);
 
-    column.display(g.canopy, headings::TEXT);
-    column.lead(g.canopy, copy::LEAD);
+    column.display(g.forest, headings::TEXT);
+    column.lead(g.forest, copy::LEAD);
 
-    column.heading(g.canopy, headings::TEXT_SIZE);
-    column.prose(g.canopy, copy::SIZE);
+    column.heading(g.forest, headings::TEXT_SIZE);
+    column.prose(g.forest, copy::SIZE);
     size(g, &mut column);
 
-    column.heading(g.canopy, headings::TEXT_LETTERS);
-    column.prose(g.canopy, copy::LETTERS);
+    column.heading(g.forest, headings::TEXT_LETTERS);
+    column.prose(g.forest, copy::LETTERS);
     letters(g, &mut column);
 
-    column.heading(g.canopy, headings::TEXT_CONTENT);
-    column.prose(g.canopy, copy::CONTENT);
+    column.heading(g.forest, headings::TEXT_CONTENT);
+    column.prose(g.forest, copy::CONTENT);
     content(g, &mut column);
 
-    column.heading(g.canopy, headings::TEXT_COLOR);
-    column.prose(g.canopy, copy::COLOR);
+    column.heading(g.forest, headings::TEXT_COLOR);
+    column.prose(g.forest, copy::COLOR);
     color(g, &mut column);
 
-    column.heading(g.canopy, headings::TEXT_FONT);
-    column.prose(g.canopy, copy::FONT);
+    column.heading(g.forest, headings::TEXT_FONT);
+    column.prose(g.forest, copy::FONT);
     font(g, &mut column);
 
-    column.tail(g.canopy, SCROLL_TAIL);
+    column.tail(g.forest, SCROLL_TAIL);
 }
 
 // ---- size per step ---------------------------------------------------------------------------
@@ -91,7 +91,7 @@ fn size(g: &mut Grow, column: &mut Column) {
     // The declaration itself, on the stage above the frame. What is being resolved and what it
     // resolved to are the two halves of this board, and leaving the first of them to the
     // reference card underneath put them too far apart to read as a pair.
-    g.canopy.branch(
+    g.forest.branch(
         board.stage,
         Text::new(board::SIZE_DECLARATION)
             .size(FontSize::new(type_scale::LABEL))
@@ -105,7 +105,7 @@ fn size(g: &mut Grow, column: &mut Column) {
             .pass_through(),
     );
     // Below the declaration, so the frame is the lower two thirds of the stage.
-    let host = g.canopy.branch(
+    let host = g.forest.branch(
         board.stage,
         foliage::Bare::new()
             .at(Location::new().xs(
@@ -120,13 +120,13 @@ fn size(g: &mut Grow, column: &mut Column) {
             .pass_through(),
     );
     let frame = blueprint::frame(
-        g.canopy,
+        g.forest,
         host,
         size_frame_at(SIZE_FRAME_WIDTHS[0]),
         board::SIZE_FRAMES[0],
         false,
     );
-    let specimen = g.canopy.branch(
+    let specimen = g.forest.branch(
         frame.leaf,
         Text::new(board::SIZE_SPECIMEN)
             .size(FontSize::new(SIZE_SIZES[0]))
@@ -139,8 +139,8 @@ fn size(g: &mut Grow, column: &mut Column) {
             .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
             .pass_through(),
     );
-    board.set(g.canopy, 0, board::SIZE_WINDOWS[0]);
-    board.set(g.canopy, 1, board::points(SIZE_SIZES[0]));
+    board.set(g.forest, 0, board::SIZE_WINDOWS[0]);
+    board.set(g.forest, 1, board::points(SIZE_SIZES[0]));
     g.page.demos.push(Box::new(Size {
         board,
         frame,
@@ -149,20 +149,20 @@ fn size(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Size {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.location(self.frame.leaf, size_frame_at(SIZE_FRAME_WIDTHS[step]));
-        canopy.text(self.frame.label, board::SIZE_FRAMES[step]);
+        self.board.select(forest, step);
+        forest.location(self.frame.leaf, size_frame_at(SIZE_FRAME_WIDTHS[step]));
+        forest.text(self.frame.label, board::SIZE_FRAMES[step]);
         // Written here rather than left to the engine, and that is the one thing on this board
         // being stood in for: `FontSize` resolves against the *viewport*, not against whatever
         // box a run happens to sit in, so a frame cannot put its contents at another
         // breakpoint. The number written is what the declaration above says for this step.
-        canopy.font_size(self.specimen, FontSize::new(SIZE_SIZES[step]));
-        self.board.set(canopy, 0, board::SIZE_WINDOWS[step]);
-        self.board.set(canopy, 1, board::points(SIZE_SIZES[step]));
+        forest.font_size(self.specimen, FontSize::new(SIZE_SIZES[step]));
+        self.board.set(forest, 0, board::SIZE_WINDOWS[step]);
+        self.board.set(forest, 1, board::points(SIZE_SIZES[step]));
         true
     }
 }
@@ -189,7 +189,7 @@ fn letters(g: &mut Grow, column: &mut Column) {
         &board::LETTERS_STEPS,
         &reference::LETTERS,
     );
-    let cell = g.canopy.branch(
+    let cell = g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::outline())
@@ -208,7 +208,7 @@ fn letters(g: &mut Grow, column: &mut Column) {
             .size(FontSize::new(LETTERS_SIZES[0]))
             .pass_through(),
     );
-    let specimen = g.canopy.branch(
+    let specimen = g.forest.branch(
         cell,
         Text::new(board::LETTERS_SPECIMEN)
             .size(FontSize::new(LETTERS_SIZES[0]))
@@ -221,7 +221,7 @@ fn letters(g: &mut Grow, column: &mut Column) {
             .align(HorizontalAlignment::Left, VerticalAlignment::Middle)
             .pass_through(),
     );
-    board.set(g.canopy, 0, board::advance(LETTERS_SIZES[0]));
+    board.set(g.forest, 0, board::advance(LETTERS_SIZES[0]));
     g.page.demos.push(Box::new(Letters {
         board,
         cell,
@@ -230,27 +230,27 @@ fn letters(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Letters {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         let size = FontSize::new(LETTERS_SIZES[step]);
         // Both, and for different reasons: one is what is drawn, the other is what the box is
         // measured in. Writing only the text's would leave a twelve-character box that no
         // longer holds twelve of these characters.
-        canopy.font_size(self.specimen, size);
-        canopy.font_size(self.cell, size);
+        forest.font_size(self.specimen, size);
+        forest.font_size(self.cell, size);
         self.board
-            .set(canopy, 0, board::advance(LETTERS_SIZES[step]));
+            .set(forest, 0, board::advance(LETTERS_SIZES[step]));
         true
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
-        let width = canopy
+    fn drive(&mut self, forest: &mut Forest) {
+        let width = forest
             .section(self.cell)
             .map(|section| board::box_width(section.width()))
             .unwrap_or_else(|| board::EMPTY_VALUE.to_string());
-        self.board.set(canopy, 1, width);
+        self.board.set(forest, 1, width);
     }
 }
 
@@ -270,7 +270,7 @@ fn content(g: &mut Grow, column: &mut Column) {
         &board::CONTENT_STEPS,
         &reference::CONTENT,
     );
-    let specimen = g.canopy.branch(
+    let specimen = g.forest.branch(
         board.stage,
         // Grows rightward from a fixed left edge rather than being centred, because a box that
         // moved while it resized would be showing two things at once. What keeps it inside the
@@ -299,7 +299,7 @@ fn content(g: &mut Grow, column: &mut Column) {
     // Anchored rather than sized the same way, because a box with no text of its own has no
     // content to be sized by. Reading the specimen's resolved edges is how something else
     // follows a run that measures itself.
-    g.canopy.branch(
+    g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::outline())
@@ -322,7 +322,7 @@ fn content(g: &mut Grow, column: &mut Column) {
             .pass_through(),
     );
     board.set(
-        g.canopy,
+        g.forest,
         0,
         board::characters(board::CONTENT_STRINGS[0].len()),
     );
@@ -330,25 +330,25 @@ fn content(g: &mut Grow, column: &mut Column) {
 }
 
 impl Demo for Content {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.text(self.specimen, board::CONTENT_STRINGS[step]);
+        self.board.select(forest, step);
+        forest.text(self.specimen, board::CONTENT_STRINGS[step]);
         self.board.set(
-            canopy,
+            forest,
             0,
             board::characters(board::CONTENT_STRINGS[step].len()),
         );
         true
     }
-    fn drive(&mut self, canopy: &mut Canopy) {
-        let width = canopy
+    fn drive(&mut self, forest: &mut Forest) {
+        let width = forest
             .section(self.specimen)
             .map(|section| board::box_width(section.width()))
             .unwrap_or_else(|| board::EMPTY_VALUE.to_string());
-        self.board.set(canopy, 1, width);
+        self.board.set(forest, 1, width);
     }
 }
 
@@ -420,7 +420,7 @@ fn color(g: &mut Grow, column: &mut Column) {
         &board::COLOR_STEPS,
         &reference::COLOR,
     );
-    let specimen = g.canopy.branch(
+    let specimen = g.forest.branch(
         board.stage,
         Text::new(board::COLOR_SPECIMEN)
             .size(FontSize::new(type_scale::DISPLAY))
@@ -433,20 +433,20 @@ fn color(g: &mut Grow, column: &mut Column) {
             .align(HorizontalAlignment::Center, VerticalAlignment::Middle)
             .pass_through(),
     );
-    board.set(g.canopy, 0, board::COLOR_RUNS[0]);
-    board.set(g.canopy, 1, board::COLOR_OVERRIDES[0]);
+    board.set(g.forest, 0, board::COLOR_RUNS[0]);
+    board.set(g.forest, 1, board::COLOR_OVERRIDES[0]);
     g.page.demos.push(Box::new(Colored { board, specimen }));
 }
 
 impl Demo for Colored {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.glyph_colors(self.specimen, color_run(step));
-        self.board.set(canopy, 0, board::COLOR_RUNS[step]);
-        self.board.set(canopy, 1, board::COLOR_OVERRIDES[step]);
+        self.board.select(forest, step);
+        forest.glyph_colors(self.specimen, color_run(step));
+        self.board.set(forest, 0, board::COLOR_RUNS[step]);
+        self.board.set(forest, 1, board::COLOR_OVERRIDES[step]);
         true
     }
 }
@@ -472,7 +472,7 @@ fn font(g: &mut Grow, column: &mut Column) {
     );
     let faces = [foliage::FontId::default(), crate::site::italic()];
     let specimens = [0usize, 1].map(|i| {
-        g.canopy.branch(
+        g.forest.branch(
             board.stage,
             Text::new(board::FONT_SPECIMEN)
                 .size(FontSize::new(type_scale::HEADLINE))
@@ -487,25 +487,25 @@ fn font(g: &mut Grow, column: &mut Column) {
                 .pass_through(),
         )
     });
-    g.canopy.visible(specimens[1], false);
-    board.set(g.canopy, 0, board::FONT_IDS[0]);
-    board.set(g.canopy, 1, board::FONT_FACES[0]);
+    g.forest.visible(specimens[1], false);
+    board.set(g.forest, 0, board::FONT_IDS[0]);
+    board.set(g.forest, 1, board::FONT_FACES[0]);
     g.page.demos.push(Box::new(Faces { board, specimens }));
 }
 
 impl Demo for Faces {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         // Nothing to disable alongside the hide, unlike the input page's swaps: neither of
         // these takes input in the first place.
         for (i, specimen) in self.specimens.iter().enumerate() {
-            canopy.visible(*specimen, i == step);
+            forest.visible(*specimen, i == step);
         }
-        self.board.set(canopy, 0, board::FONT_IDS[step]);
-        self.board.set(canopy, 1, board::FONT_FACES[step]);
+        self.board.set(forest, 0, board::FONT_IDS[step]);
+        self.board.set(forest, 1, board::FONT_FACES[step]);
         true
     }
 }

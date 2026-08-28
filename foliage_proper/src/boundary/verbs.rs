@@ -10,7 +10,7 @@ use crate::{ImageView, TextInputStyle};
 
 /// The two things a command sink has to be able to do: take an op, and name a new element.
 ///
-/// [`Canopy`](crate::Canopy) queues into the frame's own buffer; [`Sprig`](crate::Sprig)
+/// [`Forest`](crate::Forest) queues into the frame's own buffer; [`Sprig`](crate::Sprig)
 /// queues into a shared one behind a lock. Everything else they can do is the same, and lives
 /// on [`Grows`] rather than being written twice.
 pub(crate) trait Queues {
@@ -20,7 +20,7 @@ pub(crate) trait Queues {
 
 /// Everything an app can ask the engine to do.
 ///
-/// Carried identically by [`Canopy`](crate::Canopy) and [`Sprig`](crate::Sprig), so code that
+/// Carried identically by [`Forest`](crate::Forest) and [`Sprig`](crate::Sprig), so code that
 /// changes the tree reads the same whether it runs in the frame or on another thread. Sealed
 /// -- `Queues` is `pub(crate)`, so this can be called but never implemented, which is what
 /// keeps the set of things an app can do closed and reviewable.
@@ -48,7 +48,7 @@ pub trait Grows: Queues {
         leaf
     }
     /// Removes an element and everything beneath it. Emits
-    /// [`Bloom::Withered`](crate::Bloom::Withered) for each `Leaf` that goes.
+    /// [`Moss::Withered`](crate::Moss::Withered) for each `Leaf` that goes.
     fn prune(&mut self, leaf: Leaf) {
         self.push(Op::Prune(leaf));
     }
@@ -172,7 +172,7 @@ pub trait Grows: Queues {
         });
     }
     /// [`animate`](Grows::animate), joined to a sequence so its completion counts toward
-    /// that sequence's [`Bloom::SequenceFinished`](crate::Bloom::SequenceFinished).
+    /// that sequence's [`Moss::SequenceFinished`](crate::Moss::SequenceFinished).
     ///
     /// Entries keep their own timing and may overlap freely -- joining a sequence groups
     /// them, it does not order them.
@@ -186,14 +186,14 @@ pub trait Grows: Queues {
     }
     /// Opens a sequence. Animations joined to it with
     /// [`animate_during`](Grows::animate_during) report completion, and once the last one
-    /// finishes it emits [`Bloom::SequenceFinished`](crate::Bloom::SequenceFinished) -- the
+    /// finishes it emits [`Moss::SequenceFinished`](crate::Moss::SequenceFinished) -- the
     /// hook for chaining one stage of motion onto the next.
     fn sequence(&mut self) -> Leaf {
         let leaf = self.allocate();
         self.push(Op::Sequence(leaf));
         leaf
     }
-    /// Emits [`Bloom::TimerFinished`](crate::Bloom::TimerFinished) once, `millis` from now.
+    /// Emits [`Moss::TimerFinished`](crate::Moss::TimerFinished) once, `millis` from now.
     /// One-shot: repeating means starting another from the emission.
     fn timer(&mut self, millis: u64) -> Leaf {
         let leaf = self.allocate();
@@ -223,7 +223,7 @@ pub trait Grows: Queues {
         });
     }
     /// Tweens plain numbers on foliage's clock, reporting each frame's values as
-    /// [`Bloom::Tween`](crate::Bloom::Tween) for you to apply however you like.
+    /// [`Moss::Tween`](crate::Moss::Tween) for you to apply however you like.
     ///
     /// `channels` is a start/end pair per number. Nothing is written anywhere -- this is the
     /// engine's easing and timing made available to values it has no concept of, which is
@@ -242,7 +242,7 @@ pub trait Grows: Queues {
         tween
     }
     /// Starts loading an asset. The key is valid immediately; the bytes arrive later,
-    /// announced by [`Bloom::AssetLoaded`](crate::Bloom::AssetLoaded).
+    /// announced by [`Moss::AssetLoaded`](crate::Moss::AssetLoaded).
     fn load_asset(&mut self, source: AssetSource) -> AssetKey {
         let key = crate::AssetLoader::generate_key();
         self.push(Op::LoadAsset { key, source });

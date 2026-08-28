@@ -39,34 +39,34 @@ const PLATE_H_LG: i32 = 340;
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
     // straight into the scroll container -- elements carry the measure themselves, so the
     // side gutters are part of the same scrollable box as the text
-    let container = crate::site::shell::content_area(g.canopy, slot);
-    let mut column = Column::new(g.canopy, container);
+    let container = crate::site::shell::content_area(g.forest, slot);
+    let mut column = Column::new(g.forest, container);
 
-    column.display(g.canopy, copy::headings::OVERVIEW);
-    column.lead(g.canopy, copy::overview::LEAD);
-    let plate = column.figure(g.canopy, (PLATE_H_XS, PLATE_H_MD, PLATE_H_LG), space::LG);
+    column.display(g.forest, copy::headings::OVERVIEW);
+    column.lead(g.forest, copy::overview::LEAD);
+    let plate = column.figure(g.forest, (PLATE_H_XS, PLATE_H_MD, PLATE_H_LG), space::LG);
     let seq = column.sequence();
     figure::plate(g, plate, &PLATE, seq, motion::STAGGER * 2);
 
     // The lead is thematic -- it explains the name and the shape of the model, which is what
     // an opener should do and not what an overview is. This is the overview: what the thing
     // actually is, stated plainly, with the cards below breaking it into parts.
-    column.heading(g.canopy, copy::headings::OVERVIEW_LIBRARY);
-    column.prose(g.canopy, copy::overview::LIBRARY);
+    column.heading(g.forest, copy::headings::OVERVIEW_LIBRARY);
+    column.prose(g.forest, copy::overview::LIBRARY);
     cards::grid(g, &mut column, &CAPABILITIES);
 
-    column.rule(g.canopy);
-    column.heading(g.canopy, copy::headings::OVERVIEW_WHERE);
-    column.prose(g.canopy, copy::overview::WHERE);
+    column.rule(g.forest);
+    column.heading(g.forest, copy::headings::OVERVIEW_WHERE);
+    column.prose(g.forest, copy::overview::WHERE);
     destinations(g, &mut column);
-    column.tail(g.canopy, SCROLL_TAIL);
+    column.tail(g.forest, SCROLL_TAIL);
 }
 
 /// The row this page exists for -- the same poly buttons the hero uses, so the two pages
 /// speak with one vocabulary rather than a rounded rectangle here and a polygon there.
 fn destinations(g: &mut Grow, column: &mut Column) {
     let seq = column.sequence();
-    let row = column.surface_plain(g.canopy, POLY_BUTTON_ROW_H, space::MD);
+    let row = column.surface_plain(g.forest, POLY_BUTTON_ROW_H, space::MD);
     let entries = [
         PolyButton {
             label: copy::overview::DOCS,

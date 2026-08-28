@@ -7,7 +7,7 @@
 //! sections of their own.
 
 use foliage::{
-    Canopy, Elevation, FontSize, GridExt, Grows, HorizontalAlignment, Icon, IconId, Image,
+    Forest, Elevation, FontSize, GridExt, Grows, HorizontalAlignment, Icon, IconId, Image,
     ImageView, Leaf, Location, Panel, Polygon, Polyline, Rounding, Sprout, Text, VerticalAlignment,
 };
 
@@ -18,37 +18,37 @@ use crate::site::{Column, Demo, Grow, SCROLL_TAIL, role};
 const STAGE_H: (i32, i32, i32) = (150, 165, 190);
 
 pub(crate) fn build(g: &mut Grow, slot: Leaf) {
-    let container = crate::site::shell::content_area(g.canopy, slot);
-    let mut column = Column::new(g.canopy, container);
+    let container = crate::site::shell::content_area(g.forest, slot);
+    let mut column = Column::new(g.forest, container);
 
-    column.display(g.canopy, headings::RENDERERS);
-    column.lead(g.canopy, text::LEAD);
+    column.display(g.forest, headings::RENDERERS);
+    column.lead(g.forest, text::LEAD);
 
-    column.heading(g.canopy, headings::RENDERERS_ROUNDING);
-    column.prose(g.canopy, text::ROUNDING);
+    column.heading(g.forest, headings::RENDERERS_ROUNDING);
+    column.prose(g.forest, text::ROUNDING);
     rounding(g, &mut column);
 
-    column.heading(g.canopy, headings::RENDERERS_SIDES);
-    column.prose(g.canopy, text::SIDES);
+    column.heading(g.forest, headings::RENDERERS_SIDES);
+    column.prose(g.forest, text::SIDES);
     sides(g, &mut column);
 
-    column.heading(g.canopy, headings::RENDERERS_GLYPH);
-    column.prose(g.canopy, text::GLYPH);
+    column.heading(g.forest, headings::RENDERERS_GLYPH);
+    column.prose(g.forest, text::GLYPH);
     glyph(g, &mut column);
 
-    column.heading(g.canopy, headings::RENDERERS_DRAW);
-    column.prose(g.canopy, text::DRAW);
+    column.heading(g.forest, headings::RENDERERS_DRAW);
+    column.prose(g.forest, text::DRAW);
     draw(g, &mut column);
 
-    column.heading(g.canopy, headings::RENDERERS_ICON);
-    column.prose(g.canopy, text::ICON);
+    column.heading(g.forest, headings::RENDERERS_ICON);
+    column.prose(g.forest, text::ICON);
     icon(g, &mut column);
 
-    column.heading(g.canopy, headings::RENDERERS_IMAGE);
-    column.prose(g.canopy, text::IMAGE);
+    column.heading(g.forest, headings::RENDERERS_IMAGE);
+    column.prose(g.forest, text::IMAGE);
     image(g, &mut column);
 
-    column.tail(g.canopy, SCROLL_TAIL);
+    column.tail(g.forest, SCROLL_TAIL);
 }
 
 // ---- rounding ----------------------------------------------------------------------------
@@ -70,7 +70,7 @@ fn rounding(g: &mut Grow, column: &mut Column) {
         &board::ROUNDING_STEPS,
         &reference::ROUNDING,
     );
-    let panel = g.canopy.branch(
+    let panel = g.forest.branch(
         board.stage,
         Panel::new()
             .color(role::accent())
@@ -82,24 +82,24 @@ fn rounding(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(2)),
     );
     let [round, corners] = board::ROUNDING_VALUES[0];
-    board.set(g.canopy, 0, round);
-    board.set(g.canopy, 1, corners);
+    board.set(g.forest, 0, round);
+    board.set(g.forest, 1, corners);
     g.page.demos.push(Box::new(RoundingDemo { board, panel }));
 }
 
 impl Demo for RoundingDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         // `Rounding` has no `Motion` variant -- it is a bracket, not a tweenable scalar -- so
         // this is a plain write rather than an animated one, same as every other discrete
         // choice on these boards.
-        canopy.rounding(self.panel, ROUNDING_KINDS[step]);
+        forest.rounding(self.panel, ROUNDING_KINDS[step]);
         let [round, corners] = board::ROUNDING_VALUES[step];
-        self.board.set(canopy, 0, round);
-        self.board.set(canopy, 1, corners);
+        self.board.set(forest, 0, round);
+        self.board.set(forest, 1, corners);
         true
     }
 }
@@ -126,7 +126,7 @@ fn sides(g: &mut Grow, column: &mut Column) {
         &board::SIDES_STEPS,
         &reference::SIDES,
     );
-    let shape = g.canopy.branch(
+    let shape = g.forest.branch(
         board.stage,
         Polygon::new()
             .sides(SIDES_COUNTS[0])
@@ -140,18 +140,18 @@ fn sides(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(2)),
     );
     let [count, name] = board::SIDES_VALUES[0];
-    board.set(g.canopy, 0, count);
-    board.set(g.canopy, 1, name);
+    board.set(g.forest, 0, count);
+    board.set(g.forest, 1, name);
     g.page.demos.push(Box::new(SidesDemo { board, shape }));
 }
 
 impl Demo for SidesDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.polygon(
+        self.board.select(forest, step);
+        forest.polygon(
             self.shape,
             Polygon {
                 sides: SIDES_COUNTS[step],
@@ -160,8 +160,8 @@ impl Demo for SidesDemo {
             },
         );
         let [count, name] = board::SIDES_VALUES[step];
-        self.board.set(canopy, 0, count);
-        self.board.set(canopy, 1, name);
+        self.board.set(forest, 0, count);
+        self.board.set(forest, 1, name);
         true
     }
 }
@@ -185,7 +185,7 @@ fn glyph(g: &mut Grow, column: &mut Column) {
         &board::GLYPH_STEPS,
         &reference::GLYPH,
     );
-    let letter = g.canopy.branch(
+    let letter = g.forest.branch(
         board.stage,
         Text::new(board::GLYPH_STEPS[0])
             .size(FontSize::new(GLYPH_SIZE))
@@ -201,21 +201,21 @@ fn glyph(g: &mut Grow, column: &mut Column) {
             .align(HorizontalAlignment::Center, VerticalAlignment::Middle),
     );
     let [advance, atlas] = board::GLYPH_VALUES[0];
-    board.set(g.canopy, 0, advance);
-    board.set(g.canopy, 1, atlas);
+    board.set(g.forest, 0, advance);
+    board.set(g.forest, 1, atlas);
     g.page.demos.push(Box::new(GlyphDemo { board, letter }));
 }
 
 impl Demo for GlyphDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.text(self.letter, board::GLYPH_STEPS[step]);
+        self.board.select(forest, step);
+        forest.text(self.letter, board::GLYPH_STEPS[step]);
         let [advance, atlas] = board::GLYPH_VALUES[step];
-        self.board.set(canopy, 0, advance);
-        self.board.set(canopy, 1, atlas);
+        self.board.set(forest, 0, advance);
+        self.board.set(forest, 1, atlas);
         true
     }
 }
@@ -240,7 +240,7 @@ fn draw(g: &mut Grow, column: &mut Column) {
         &board::DRAW_STEPS,
         &reference::DRAW,
     );
-    let line = g.canopy.branch(
+    let line = g.forest.branch(
         board.stage,
         Polyline::new()
             .points(vec![
@@ -260,21 +260,21 @@ fn draw(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(2)),
     );
     let [drawn, call] = board::DRAW_VALUES[0];
-    board.set(g.canopy, 0, drawn);
-    board.set(g.canopy, 1, call);
+    board.set(g.forest, 0, drawn);
+    board.set(g.forest, 1, call);
     g.page.demos.push(Box::new(DrawDemo { board, line }));
 }
 
 impl Demo for DrawDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.draw_progress(self.line, DRAW_PROGRESS[step]);
+        self.board.select(forest, step);
+        forest.draw_progress(self.line, DRAW_PROGRESS[step]);
         let [drawn, call] = board::DRAW_VALUES[step];
-        self.board.set(canopy, 0, drawn);
-        self.board.set(canopy, 1, call);
+        self.board.set(forest, 0, drawn);
+        self.board.set(forest, 1, call);
         true
     }
 }
@@ -312,7 +312,7 @@ fn icon(g: &mut Grow, column: &mut Column) {
         &board::ICON_STEPS,
         &reference::ICON,
     );
-    let mark = g.canopy.branch(
+    let mark = g.forest.branch(
         board.stage,
         Icon::new(IconId::from(ICON_ART))
             .color(role::accent())
@@ -320,21 +320,21 @@ fn icon(g: &mut Grow, column: &mut Column) {
             .elevate(Elevation::up(2)),
     );
     let [drawn, field] = board::ICON_VALUES[0];
-    board.set(g.canopy, 0, drawn);
-    board.set(g.canopy, 1, field);
+    board.set(g.forest, 0, drawn);
+    board.set(g.forest, 1, field);
     g.page.demos.push(Box::new(IconDemo { board, mark }));
 }
 
 impl Demo for IconDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
-        canopy.location(self.mark, icon_at(ICON_SIZES[step]));
+        self.board.select(forest, step);
+        forest.location(self.mark, icon_at(ICON_SIZES[step]));
         let [drawn, field] = board::ICON_VALUES[step];
-        self.board.set(canopy, 0, drawn);
-        self.board.set(canopy, 1, field);
+        self.board.set(forest, 0, drawn);
+        self.board.set(forest, 1, field);
         true
     }
 }
@@ -395,7 +395,7 @@ fn image(g: &mut Grow, column: &mut Column) {
     );
     let key = crate::site::sample_image();
     let views = IMAGE_VIEWS.map(|view| {
-        g.canopy.branch(
+        g.forest.branch(
             board.stage,
             Image::new(key)
                 .view(view)
@@ -407,26 +407,26 @@ fn image(g: &mut Grow, column: &mut Column) {
         )
     });
     for (i, leaf) in views.iter().enumerate() {
-        g.canopy.visible(*leaf, i == 0);
+        g.forest.visible(*leaf, i == 0);
     }
     let [view, result] = board::IMAGE_VALUES[0];
-    board.set(g.canopy, 0, view);
-    board.set(g.canopy, 1, result);
+    board.set(g.forest, 0, view);
+    board.set(g.forest, 1, result);
     g.page.demos.push(Box::new(ImageDemo { board, views }));
 }
 
 impl Demo for ImageDemo {
-    fn clicked(&mut self, canopy: &mut Canopy, leaf: Leaf) -> bool {
+    fn clicked(&mut self, forest: &mut Forest, leaf: Leaf) -> bool {
         let Some(step) = self.board.pressed(leaf) else {
             return false;
         };
-        self.board.select(canopy, step);
+        self.board.select(forest, step);
         for (i, view) in self.views.iter().enumerate() {
-            canopy.visible(*view, i == step);
+            forest.visible(*view, i == step);
         }
         let [view, result] = board::IMAGE_VALUES[step];
-        self.board.set(canopy, 0, view);
-        self.board.set(canopy, 1, result);
+        self.board.set(forest, 0, view);
+        self.board.set(forest, 1, result);
         true
     }
 }

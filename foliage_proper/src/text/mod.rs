@@ -193,7 +193,7 @@ impl Text {
         }
     }
     /// Starts a [`Text`] entity carrying `value`:
-    /// `canopy.branch(parent, Text::new("hello").size(FontSize::new(24)).at(loc))`.
+    /// `forest.branch(parent, Text::new("hello").size(FontSize::new(24)).at(loc))`.
     ///
     /// Chain [`size`](TextSprout::size)/[`color`](TextSprout::color)/
     /// [`glyph_colors`](TextSprout::glyph_colors) here, and the usual

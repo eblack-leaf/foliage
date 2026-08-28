@@ -1,7 +1,7 @@
 use crate::boundary::leaf::Leaf;
 use crate::boundary::op::Op;
 use crate::boundary::verbs::Queues;
-use crate::boundary::bloom::Bloom;
+use crate::boundary::moss::Moss;
 use crate::coordinate::section::Section;
 use crate::{Layout, Logical, TimeDelta};
 use bevy_ecs::entity::RemoteAllocator;
@@ -13,10 +13,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 ///
 /// `Send + Clone`, so a background thread -- or your own ECS, at whatever version you like,
 /// since nothing but plain data crosses -- can grow and change elements without ever touching
-/// the engine's world. Carries the same verbs as [`Canopy`](crate::Canopy) and no way to
+/// the engine's world. Carries the same verbs as [`Forest`](crate::Forest) and no way to
 /// sample: reads happen at the frame callsite, where the engine is quiescent.
 ///
-/// Emissions come back the same way: [`blooms`](Sprig::blooms) hands over everything the tree
+/// Emissions come back the same way: [`mosses`](Sprig::mosses) hands over everything the tree
 /// has reported since it was last called, so a worker can act on a click on an element it grew
 /// without the [`Root`](crate::Root) having to relay it. Nothing is collected until the first
 /// call, so a handle that only ever pushes never accumulates one.
@@ -29,8 +29,8 @@ pub struct Sprig {
     /// What the frame has reported and this side has not taken yet. Shared by every clone,
     /// exactly like `queue` is: handles are the same handle, so they read the one stream
     /// rather than each getting a copy of it.
-    inbox: Arc<Mutex<Vec<Bloom>>>,
-    /// Set by the first [`blooms`](Sprig::blooms) call. Until then the frame has nowhere to
+    inbox: Arc<Mutex<Vec<Moss>>>,
+    /// Set by the first [`mosses`](Sprig::mosses) call. Until then the frame has nowhere to
     /// deliver and skips the clone entirely -- which is what keeps a worker that only pushes
     /// from growing an inbox it will never read.
     listening: Arc<AtomicBool>,
@@ -65,7 +65,7 @@ impl Sprig {
             .unwrap_or_else(|error| error.into_inner())
     }
     /// Asks to be told what one property of an element is, and told again whenever it
-    /// changes, as [`Bloom::Reading`].
+    /// changes, as [`Moss::Reading`].
     ///
     /// This is the read path for a thread that cannot sample: the value is pushed rather than
     /// asked for, so nothing here borrows the world or waits on the frame. The first reading
@@ -97,19 +97,19 @@ impl Sprig {
     ///
     /// A [`Leaf`] named here may already have withered by the time this thread acts on it,
     /// which is safe: every command naming a withered `Leaf` is a no-op.
-    pub fn blooms(&self) -> Vec<Bloom> {
+    pub fn mosses(&self) -> Vec<Moss> {
         self.listening.store(true, Ordering::Relaxed);
         let mut inbox = self.inbox.lock().unwrap_or_else(|e| e.into_inner());
         core::mem::take(&mut *inbox)
     }
     /// Hands this frame's emissions to whoever is listening. Costs a clone only once someone
     /// actually is.
-    pub(crate) fn deliver(&self, blooms: &[Bloom]) {
-        if blooms.is_empty() || !self.listening.load(Ordering::Relaxed) {
+    pub(crate) fn deliver(&self, mosses: &[Moss]) {
+        if mosses.is_empty() || !self.listening.load(Ordering::Relaxed) {
             return;
         }
         let mut inbox = self.inbox.lock().unwrap_or_else(|e| e.into_inner());
-        inbox.extend_from_slice(blooms);
+        inbox.extend_from_slice(mosses);
     }
     pub(crate) fn allocator(&self) -> RemoteAllocator {
         self.allocator.clone()
@@ -123,7 +123,7 @@ impl Sprig {
 
 /// What is true of the tree as a whole, for a thread that cannot sample it.
 ///
-/// The same values [`Canopy`](crate::Canopy) answers for the viewport, the breakpoint and the
+/// The same values [`Forest`](crate::Forest) answers for the viewport, the breakpoint and the
 /// clock -- which is what a worker positioning anything needs before it can state a location
 /// in something other than hardcoded pixels.
 #[derive(Copy, Clone, Debug)]

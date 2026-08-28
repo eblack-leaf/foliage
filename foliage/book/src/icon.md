@@ -66,7 +66,7 @@ controls how sharp vs. soft the rendered edge looks regardless of on-screen size
 
 An icon entity's actual glyph is driven by `IconValue`, the same shared value-channel
 convention `TextValue` follows -- across the boundary this is
-[`Grows::icon`](./canopy.md):
+[`Grows::icon`](./forest.md):
 
 ```rust
 // foliage_proper/src/icon/mod.rs
