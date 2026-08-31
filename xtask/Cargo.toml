@@ -1,9 +1,0 @@
-[package]
-name = "xtask"
-version = "0.1.0"
-edition = "2024"
-# Repo tooling, not a library -- nothing depends on this and it must never reach crates.io.
-publish = false
-
-[dependencies]
-clap = { version = "4.6.1", features = ["derive"] }

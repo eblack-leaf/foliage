@@ -1,6 +1,0 @@
-[alias]
-# `cargo xtask <command>` -- repo tasks (site, book, api, changelog, release). See xtask/.
-xtask = "run --package xtask --"
-
-[target.wasm32-unknown-unknown]
-rustflags = ["--cfg=web_sys_unstable_apis"]
