@@ -5,7 +5,9 @@
 
 mod frame;
 mod lifecycle;
+mod placement;
 mod root;
+mod rowan;
 mod tracing;
 
 use crate::coordinate::Area;

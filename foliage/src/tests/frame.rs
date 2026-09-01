@@ -14,7 +14,7 @@ use crate::verbs::Grow;
 fn branches(grove: &Grove, leaf: Leaf) -> Option<usize> {
     match grove.tap(leaf, Vein::Branches)? {
         Sap::Leaves(leaves) => Some(leaves.len()),
-        Sap::Leaf(_) => None,
+        _ => None,
     }
 }
 

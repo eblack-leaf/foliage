@@ -9,17 +9,22 @@
 //! - [`Leaf`] names an element and [`Seed`] describes one before it exists. [`Grow`] carries every
 //!   write, [`Pollen`] is what comes back out.
 //! - [`Vein`] asks a read for one property; [`Sap`] is what the tap draws out.
+//! - [`Place`] states where an element sits, and [`Location`] carries the grammar it is said in.
 
 mod clock;
 mod coordinate;
 mod fern;
 mod foliage;
 mod grove;
+mod layout;
 mod leaf;
 mod op;
+mod place;
+mod placement;
 mod pollen;
 mod queue;
 mod root;
+mod rowan;
 mod seed;
 mod stem;
 mod tree;
@@ -29,10 +34,22 @@ mod verbs;
 #[cfg(test)]
 mod tests;
 
-pub use coordinate::Area;
+pub use coordinate::{Area, Position, Section};
 pub use foliage::Foliage;
 pub use grove::Grove;
+pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};
+pub use place::Place;
+pub use placement::anchor::{Anchor, anchor};
+pub use placement::grid::{Columns, Divide, Grid, Rows};
+pub use placement::location::Location;
+pub use placement::role::{
+    Bottom, CenterX, CenterY, Horizontal, Left, Right, Top, Vertical, bottom, center_x, center_y,
+    left, right, top,
+};
+pub use placement::source::{
+    HorizontalCoordinate, Length, Source, VerticalCoordinate, VerticalLength, content,
+};
 pub use pollen::Pollen;
 pub use root::Root;
 pub use seed::Seed;

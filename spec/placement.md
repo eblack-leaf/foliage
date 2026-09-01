@@ -132,11 +132,37 @@ source fill any coordinate.
 
 | | |
 |---|---|
-| **source** | where a number comes from: `20.px()`, `50.pct()`, `2.col()`, `8.letters()`, `anchor().right()`, `text()`, `max_content()`, and arithmetic on any of them |
+| **source** | where a number comes from: `20.px()`, `50.pct()`, `2.col()`, `8.letters()`, `anchor().right()`, `content()`, and arithmetic on any of them |
 | **role** | what it means for this element: left, right, top, bottom, width, height, centre |
 
 A source is **dimensionless until a role names it**. `20.px()` is neither a position nor a length
 on its own; the role decides. This is the good part of the existing design and it is kept.
+
+### Except that a position is not an extent
+
+Two sources are not dimensionless, and pretending otherwise is what made
+`width(anchor().left())` mean something absurd rather than nothing at all.
+
+| | Is | Legal in |
+|---|---|---|
+| **length** | `px` `pct` `col` `letters` `content` `anchor().width()` | any role |
+| **coordinate** | `anchor().right()` and the other anchor edges | position roles only |
+
+A length in a position role is measured from the parent's near edge. An anchor's edge is already a
+position and stays absolute -- no conversion, and no second coordinate space in the expression. The
+one bit that decides it is the source's own type, not an inspection of its terms.
+
+`coordinate - coordinate = length`, `coordinate ± length = coordinate`, and `coordinate + coordinate`
+does not compile. So the algebra closes, and an anchor's edges reach a size the only way that means
+anything: as the distance between two of them.
+
+### And the axes are not symmetric
+
+Width resolves before height, so a horizontal length is available to a vertical role and a vertical
+one is not available to a horizontal role. That is the resolution model, and it is expressible:
+`height(2.col())` is a two-column span used as a height, and `width(2.row())` does not compile.
+
+Coordinates never cross at all -- a position on one axis has no reading on the other.
 
 ### Role first
 
@@ -187,9 +213,9 @@ The resolution model makes intrinsic sizing a real value rather than a special c
 exactly one source, because **which question it asks is decided by the axis**:
 
 ```rust
-left(0.px()).width(content())                 // as wide as the string wants, unwrapped
-top(0.px()).height(content())                 // as tall as it wraps to, at the resolved width
-left(0.px()).width(content()).at_most(300)    // fit-content: whichever is smaller
+left(0.px()).width(content())                      // as wide as the string wants, unwrapped
+top(0.px()).height(content())                      // as tall as it wraps to, at the resolved width
+left(0.px()).width(content()).at_most(300.px())    // fit-content: whichever is smaller
 ```
 
 In a width role it resolves in R2a, where no wrapping has happened and max-content is free from the
@@ -215,15 +241,26 @@ defending against arithmetic that was already correct.
 
 ## Proof obligations — the grammar
 
-Compile-fail tests (`trybuild`), which is where a type-level guarantee is actually demonstrated:
+Compile-fail doctests, which is where a type-level guarantee is actually demonstrated. Each pins
+its **error code** rather than the diagnostic text, so the claim is "this does not compile, for this
+reason" and not a snapshot of how one compiler release worded it. They sit on the type that refuses
+the case, so the refusal is documented where it is met.
 
-- every illegal pairing fails to compile, one test per combination
+- every illegal pairing fails to compile, one case per combination
 - horizontal roles in a vertical slot fail to compile
+- a vertical length in a horizontal role fails to compile
+- an anchor edge used as a size fails to compile, and two of them subtract to one that works
+- two coordinates added fail to compile
+
+`trybuild` was the obvious tool and is the wrong one here: its expected output is the compiler's
+full diagnostic, `help:` suggestions included, so nine cases become nine files that a toolchain bump
+rewrites, and `cargo test --workspace` starts failing for reasons that are not about foliage.
 
 Pure, against the resolver:
 
 - all four legal forms, per axis
-- `anchor()` sources in every role, including an anchor edge used as a size
+- `anchor()` sources in every role they are legal in, and the length between two anchor edges used
+  as a size
 - arithmetic on sources, including negative results
 - `.at_least` / `.at_most` clamping, and `content()` under an `at_most` behaving as fit-content
 - `content()` in a width role and in a height role resolve their two different questions

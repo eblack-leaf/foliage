@@ -40,3 +40,10 @@ pub enum Presence {
 /// Marks an element the app grew itself, as opposed to one foliage spawned underneath it.
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct Grown;
+
+/// Where the element was written into existence.
+///
+/// What a refusal names, so the panic points at the call that caused it rather than at an entity
+/// inside a resolve pass.
+#[derive(Component, Copy, Clone, Debug)]
+pub(crate) struct SpawnedAt(pub(crate) crate::place::Caller);

@@ -2,6 +2,7 @@ use core::time::Duration;
 
 use crate::clock::Clock;
 use crate::coordinate::Area;
+use crate::layout::{Layout, Short};
 use crate::leaf::{Leaf, Presence};
 use crate::op::Op;
 use crate::pollen::Drift;
@@ -18,6 +19,8 @@ pub struct Grove {
     pub(crate) drift: Drift,
     pub(crate) viewport: Area,
     pub(crate) pending_resize: Option<Area>,
+    pub(crate) layout: Layout,
+    pub(crate) short: Short,
     pub(crate) again: bool,
     pub(crate) frames: u64,
 }
@@ -31,6 +34,8 @@ impl Grove {
             drift: Drift::default(),
             viewport,
             pending_resize: None,
+            layout: Layout::of(viewport),
+            short: Short::No.next(viewport),
             again: false,
             frames: 0,
         }
@@ -50,12 +55,25 @@ impl Grove {
         Some(match vein {
             Vein::Branches => Sap::Leaves(self.tree.branches(leaf)),
             Vein::Trunk => Sap::Leaf(self.tree.trunk(leaf)),
+            Vein::Section => Sap::Section(self.tree.screen(leaf)?),
+            Vein::LayoutSection => Sap::Section(self.tree.layout_section(leaf)?),
+            Vein::Anchor => Sap::Leaf(self.tree.anchor(leaf)),
         })
     }
 
     /// The visible area.
     pub fn viewport(&self) -> Area {
         self.viewport
+    }
+
+    /// The width breakpoint in force, which every placement is read against.
+    pub fn layout(&self) -> Layout {
+        self.layout
+    }
+
+    /// Whether the viewport is vertically cramped.
+    pub fn short(&self) -> Short {
+        self.short
     }
 
     /// How long the last frame took.

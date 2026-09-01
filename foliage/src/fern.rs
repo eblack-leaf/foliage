@@ -6,10 +6,13 @@
 use tracing::{debug, trace_span};
 
 use crate::grove::Grove;
+use crate::layout::Layout;
 use crate::leaf::Leaf;
-use crate::op::Op;
+use crate::op::{Bud, Op};
+use crate::place::Caller;
 use crate::pollen::Pollen;
 use crate::root::Rooted;
+use crate::rowan;
 
 /// One frame, steps 1 through 8. Drawing belongs to the caller.
 ///
@@ -31,6 +34,7 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut dyn Rooted>) {
     intake(grove);
     root(grove, app);
     drain(grove);
+    rowan::run(grove);
 }
 
 /// Step 1. Window and input events become input state, and the clock is fixed for the frame.
@@ -41,6 +45,21 @@ fn intake(grove: &mut Grove) {
         grove.viewport = viewport;
         grove.drift.resized = Some(viewport);
         debug!(width = viewport.width, height = viewport.height, "resized");
+        breakpoints(grove);
+    }
+}
+
+/// The responsive state the whole tree is read against, re-derived from the viewport.
+fn breakpoints(grove: &mut Grove) {
+    let layout = Layout::of(grove.viewport);
+    let short = grove.short.next(grove.viewport);
+    if layout != grove.layout {
+        debug!(from = ?grove.layout, to = ?layout, "breakpoint");
+        grove.layout = layout;
+    }
+    if short != grove.short {
+        debug!(from = ?grove.short, to = ?short, "short");
+        grove.short = short;
     }
 }
 
@@ -62,6 +81,7 @@ fn drain(grove: &mut Grove) {
     for op in ops {
         match op {
             Op::Plant { leaf, bud } => {
+                refuse_sown_cycle(grove, leaf, &bud);
                 if grove.tree.grow(leaf, None, bud) {
                     debug!(leaf = leaf.id(), "planted");
                 } else {
@@ -69,6 +89,7 @@ fn drain(grove: &mut Grove) {
                 }
             }
             Op::Branch { leaf, under, bud } => {
+                refuse_sown_cycle(grove, leaf, &bud);
                 if !grove.tree.is_live(under) {
                     dropped("branch", leaf, "trunk is not live");
                 } else if grove.tree.grow(leaf, Some(under), bud) {
@@ -86,8 +107,75 @@ fn drain(grove: &mut Grove) {
                 debug!(leaf = leaf.id(), withered = gone.len(), "pruned");
                 grove.drift.withered.extend(gone);
             }
+            Op::Place { leaf, location } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("at", leaf, "not live");
+                    continue;
+                }
+                grove.tree.set_location(leaf, location);
+                debug!(leaf = leaf.id(), "placed");
+            }
+            Op::Divide { leaf, grid } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("grid", leaf, "not live");
+                    continue;
+                }
+                grove.tree.set_grid(leaf, grid);
+                debug!(leaf = leaf.id(), "divided");
+            }
+            Op::Anchor { leaf, to, at } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("anchor", leaf, "not live");
+                    continue;
+                }
+                if !grove.tree.is_live(to) {
+                    dropped("anchor", leaf, "target is not live");
+                    continue;
+                }
+                refuse_cycle(grove, leaf, to, at, None);
+                grove.tree.set_anchor(leaf, to, at);
+                debug!(leaf = leaf.id(), to = to.id(), "anchored");
+            }
         }
     }
+}
+
+/// The spawn-time half of the same refusal, for an element described with
+/// [`anchored`](crate::Place::anchored).
+fn refuse_sown_cycle(grove: &Grove, leaf: Leaf, bud: &Bud) {
+    if let Some(anchored) = &bud.placement.anchor {
+        refuse_cycle(grove, leaf, anchored.to, anchored.at, Some(bud.at));
+    }
+}
+
+/// Refuses an anchor that would close a cycle, naming both ends and the write that made it.
+///
+/// A ↔ B is a contradiction rather than a scheduling problem, so running more passes would defer it
+/// rather than resolve it. Refusing it here leaves the tree acyclic at all times, which is what
+/// lets resolution order by dependency without any cycle handling of its own. Hiding the element
+/// instead would be absence with extra steps: a placement that cannot resolve has no box, so there
+/// is no state to fall back to, and it would swallow a mistake that has no correct recovery.
+///
+/// `planted` names where the element being anchored was written, for the case where it does not
+/// exist yet to be asked.
+fn refuse_cycle(grove: &Grove, leaf: Leaf, to: Leaf, at: Caller, planted: Option<Caller>) {
+    if !grove.tree.reaches(to, leaf) {
+        return;
+    }
+    let written = |leaf: Leaf, known: Option<Caller>| match known.or(grove.tree.spawned_at(leaf)) {
+        Some(caller) => caller.to_string(),
+        None => "an unknown callsite".to_string(),
+    };
+    panic!(
+        "anchor cycle: leaf {leaf} cannot anchor to leaf {to}, which already reaches back to it\n  \
+         leaf {leaf} was planted at {}\n  \
+         leaf {to} was planted at {}\n  \
+         the anchor was written at {at}",
+        written(leaf, planted),
+        written(to, None),
+        leaf = leaf.id(),
+        to = to.id(),
+    );
 }
 
 fn dropped(verb: &'static str, leaf: Leaf, reason: &'static str) {
