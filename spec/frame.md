@@ -16,6 +16,8 @@ The ordering contract. Everything else in foliage is written against this.
 9  draw      (Ash)
 ```
 
+`Fern` runs this sequence, and is the only thing that does.
+
 `Root::frame` is called exactly once per frame, at step 3, and nowhere else.
 
 ## Laws
@@ -113,9 +115,9 @@ structural, and is gone.
 
 ## Headless
 
-`Grove::headless` runs steps 1–8 and skips 9. Every law above holds identically, which is what
-makes a headless test's evidence worth anything — it is not a simulation of the frame, it is the
-frame without a rasterizer.
+The headless suite runs steps 1–8 and skips 9, by calling the same `Fern` the event loop calls.
+Every law above holds identically, which is what makes a headless test's evidence worth anything —
+it is not a simulation of the frame, it is the frame without a rasterizer.
 
 The clock is advanced explicitly rather than read from the platform, so timing is exact rather than
 approximate.
@@ -143,6 +145,11 @@ scroll coasting, a hand-rolled transition — has nothing the engine can detect,
 `Grove::again()` requests the next frame; called during `frame()`, it keeps the loop running for
 exactly as long as the app is doing something. This is testable headlessly, which is the reason to
 make it explicit rather than heuristic.
+
+Whether a frame is owed is the loop's own question. It is answered inside `photosynthesize`, from
+state the engine already holds, and is not a method on `Grove`, on `Foliage`, or on anything else —
+nothing outside the loop has cause to ask. `again()` is the app's half of this law and the only
+half an app can see.
 
 ## Open
 

@@ -1,0 +1,16 @@
+[package]
+name = "foliage"
+version = "1.0.0"
+edition = "2024"
+description = "Cross-platform, ECS-backed UI -- native, web, and Android from one Rust codebase."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/eblack-leaf/foliage"
+homepage = "https://eblack-leaf.github.io/foliage/"
+documentation = "https://eblack-leaf.github.io/foliage/book/"
+
+[dependencies]
+bevy_ecs = "0.19.0"
+tracing = "0.1.41"
+
+[dev-dependencies]
+tracing-subscriber = "0.3.19"

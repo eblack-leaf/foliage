@@ -21,7 +21,8 @@ prose.
 | `views.md` | Scrolling, extent, pinning, momentum |
 | `interaction.md` | Hit-testing, gesture claiming, focus |
 | `aspen.md` | Animation. What `Motion` covers and why |
-| `harness.md` | `Grove::headless` — the frame minus the rasteriser |
+| `harness.md` | How foliage is proven: the frame minus the rasteriser |
+| `tracing.md` | What foliage reports about itself. The counterpart to silent op drops |
 
 ## The decisions these turn on
 
@@ -35,7 +36,10 @@ prose.
 - **Nothing may depend on emission order** except keystrokes, which are genuinely ordered.
 - **Static errors are compile errors.** Elevation, grids, and illegal axis pairings are types, not
   runtime panics.
-- **Everything is proven headlessly** against the same `frame()` the event loop runs.
+- **Everything is proven headlessly** against the same `Fern` the event loop runs, reached the way
+  the loop reaches it rather than through public API.
+- **A trace of one frame reads as the frame law.** Instrumentation is a convention every slice
+  follows, not something added later once the engine is confusing.
 
 ## Slice order
 
@@ -44,7 +48,7 @@ obligation that section states, a section of `application/` that exercises it, a
 
 | | Slice | Proves |
 |---|---|---|
-| A7 | Skeleton + `Grove::headless` | Built first — it is what every slice below is checked with |
+| A7 | Skeleton + the headless suite | Built first — it is what every slice below is checked with |
 | B1 | `Leaf`, `Grove`, `Grow`, ops, `Pollen` | F1–F3: names, single-drain FIFO, withering, collection |
 | B2 | Coordinates, `Grid`, placement | The layout model and grammar |
 | B3 | `Panel`, `Elm` → `Ash` | First pixels; change → GPU end to end |
@@ -73,7 +77,13 @@ Crate layout: one `foliage` crate — `foliage_proper` and its facade collapse �
 
 ## Status
 
-Phase A is complete. All ten documents are written and carry no open items.
+Phase A is complete. All eleven documents are written and carry no open items.
 
-Next: A7 — collapse the crates, stand up the skeleton, build `Grove::headless` against
-`harness.md`. Then B1.
+A7 has landed. One `foliage` crate on `bevy_ecs` and `tracing`: `Fern` runs the frame, `Grove` is
+the surface it runs against, and `Foliage` holds both at boot. `Leaf`, `Presence`, `Seed`, `Stem`,
+`Grow`, the one queue and its drain, `Pollen`, `Vein`/`Sap`, and `Root`. Sixteen headless tests.
+
+The engine has no entry point until `photosynthesize` lands: nothing outside the suite calls
+`Fern`, and F9 has no loop to govern.
+
+Next: B1 — the rest of `Grow`'s verbs and `Pollen`'s queries, and `Sprig` sharing the one queue.

@@ -38,6 +38,7 @@ named — the subsystems get species names instead.
 | `Root` | The app trait | One root system beneath many trees — literally true of an aspen stand, so this is not a stretch |
 | `Grove` | The per-frame surface | What you plant into and read from. See below |
 | `Leaf` | A name for one element | Any element, not only a childless one. See *Known imprecision* |
+| `Seed` | An element described before it exists | `Stem::new()` is a `Stem`, and a `Stem` is a `Seed`. Sealed. See below |
 | `Stem` | An element that draws nothing | Holds children, takes hits, has a box. Replaces `Bare` |
 | `Sprig` | A cutting you carry off-thread | Keeps its name |
 | `Sap` | What a read returns | Was `Sample` |
@@ -48,8 +49,8 @@ named — the subsystems get species names instead.
 
 | Verb | Does |
 |---|---|
-| `plant(spec) -> Leaf` | Grows a top-level element. Was `leaf()`, which collided with the `Leaf` type |
-| `branch(under, spec) -> Leaf` | Grows an element under another |
+| `plant(seed) -> Leaf` | Grows a top-level element. Was `leaf()`, which collided with the `Leaf` type |
+| `branch(under, seed) -> Leaf` | Grows an element under another |
 | `prune(leaf)` | Takes it and its subtree down; each one `Withered`s |
 | `tap(leaf, Vein::X) -> Option<Sap>` | Reads one property |
 
@@ -67,6 +68,17 @@ bare verbs (`Read`, `Write`, `Display`). The verb was always right; only the con
 Sealed: it can be called, never implemented, so the set of things an app can ask for stays closed
 and reviewable.
 
+### `Seed`
+
+What `plant` and `branch` accept. `Stem::new()` is a `Stem`; that a `Stem` *is a* `Seed` is what
+lets `plant` take it.
+
+A noun rather than a verb, on the same reasoning that named `Grow`: `Stem: Sow` would read
+backwards, because the app sows the stem and not the reverse. `Stem: Seed` reads forwards.
+
+Sealed, so the set of things that can be grown stays closed. The private half is `Buds`, and "a
+`Stem` buds" reads forwards too.
+
 ### `Grove`
 
 The per-frame surface: what the `Root` is handed, what it reads, and what it plants into.
@@ -74,15 +86,17 @@ The per-frame surface: what the `Root` is handed, what it reads, and what it pla
 `Forest` was the wrong scale — `Foliage` is already the whole growth, so a second word for
 "all of it" was redundant. A grove is a stand of trees you tend as one thing, which is what this is.
 
-It also settles the headless harness without a second name. A grove with no window is still a
-grove:
+**A grove is the whole of what an app can touch.** Every write and every read is here. Nothing that
+*advances* the engine is: an app does not own the loop, so it holds no verb that runs a frame,
+moves the clock, or resizes the surface. Those are the platform's, reached from inside the crate.
 
-```rust
-let mut grove = Grove::headless((400, 300));
-```
+`Foliage` is the boot object rather than a second surface. It is constructed, told the desktop
+window size, given the app's `Root` and its one-time fonts and assets, and then it runs. **Nothing
+on `Foliage` names a `Leaf`.**
 
-Same type, same verbs, same reads — constructed differently. That the test harness and the real
-frame surface are one type is not a convenience; it is what makes a test's evidence worth anything.
+A grove with no window is still a grove — same type, same verbs, same reads, constructed
+identically. That the harness and the real frame surface are one type is not a convenience; it is
+what makes a test's evidence worth anything. See `harness.md`.
 
 ### `Pollen`
 
@@ -103,6 +117,7 @@ Species names, alliterating with their function.
 
 | Name | Is | Reading |
 |---|---|---|
+| `Fern` | The frame | Frame. One sequence, and every other subsystem is ordered by it |
 | `Ash` | Render backend | Aesthetics System Handler |
 | `Ginkgo` | GPU layer | Gpu instructions |
 | `Willow` | Window and event loop integration | Window |
@@ -111,11 +126,17 @@ Species names, alliterating with their function.
 | `Aspen` | Animation and timing | Animation |
 | `Lichen` | The opinionated widget layer | Grows on foliage. Keeps its name |
 | `Tree` | The internal ECS door | The one place raw `bevy_ecs` is touched |
+| `Bud` | A queued element, formed and not yet open | What the queue carries until the drain grows it |
 
 `photosynthesize()` keeps its name: light in, growth out, and it does not return.
 
-`Tree` is the one structure word on this side of the line, and it earns the exception — it is not a
-subsystem but the tree itself, seen from the inside. Nothing outside the crate can name it.
+`Fern` is a subsystem in name only — it has no state, because everything a frame touches lives in
+the `Grove`. It is a module and one function, and becomes a type on the day it owns something.
+
+`Tree` and `Bud` are the structure words on this side of the line, and they earn the exception:
+neither is a subsystem. `Tree` is the tree itself, seen from the inside. A `Bud` is an element
+formed and not yet open — which is what a queued op holds, and what `Presence::Planted` names from
+the `Leaf`'s side. Nothing outside the crate can name either.
 
 ## Names that stop existing
 
@@ -123,8 +144,8 @@ subsystem but the tree itself, seen from the inside. Nothing outside the crate c
 
 Six names and a trait hierarchy for one idea — *the thing you configure before it exists*. They
 were the price of letting outside code register its own reactive rebuilds, which nothing has done
-since the boundary landed. `Panel::new()` is a `Panel`; `plant` and `branch` consume it. See
-`internals.md`.
+since the boundary landed. `Panel::new()` is a `Panel`, a `Panel` is a `Seed`, and `plant` and
+`branch` consume it. See `internals.md`.
 
 `Bare` and `Node` fold into `Stem`. `Sample` becomes `Sap`, and the old `Sap` becomes `Vein`.
 

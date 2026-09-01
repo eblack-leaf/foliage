@@ -1,0 +1,42 @@
+use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
+
+/// An opaque name for one element.
+///
+/// Allocated the moment you ask for it and usable immediately -- as a parent, as the target of a
+/// write -- even though the element itself comes into existence when the frame's ops are drained.
+///
+/// A `Leaf` naming something that has since been pruned is inert rather than dangerous: every op
+/// targeting it is dropped and every tap of it reads absent. Nothing panics, and **a name is never
+/// reused**, so a stale one cannot come to address whatever grew after it.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct Leaf(pub(crate) Entity);
+
+impl Leaf {
+    /// A stable number for this element, for logging or as a map key. Not an address -- there is
+    /// nothing to be done with it but tell two elements apart.
+    pub fn id(&self) -> u64 {
+        self.0.to_bits()
+    }
+}
+
+/// What a [`Leaf`] names right now.
+///
+/// The three states are ordered and terminal at the end: `Planted` -> `Live` -> `Withered`.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Presence {
+    /// Named, and the op that grows it has not been drained yet -- the normal state for the
+    /// remainder of the frame that planted it. Taps read absent until it lands.
+    ///
+    /// Also what a name reads as when the op that would have grown it was dropped because its
+    /// parent had withered by the time the drain reached it.
+    Planted,
+    /// Live in the tree.
+    Live,
+    /// Pruned, or taken down with an ancestor. Terminal: growing again means a new `Leaf`.
+    Withered,
+}
+
+/// Marks an element the app grew itself, as opposed to one foliage spawned underneath it.
+#[derive(Component, Copy, Clone, Default)]
+pub(crate) struct Grown;
