@@ -35,7 +35,8 @@ prose.
 - **One op queue, one drain.** `Sprig` and in-frame ops are indistinguishable.
 - **Nothing may depend on emission order** except keystrokes, which are genuinely ordered.
 - **Static errors are compile errors.** Elevation, grids, and illegal axis pairings are types, not
-  runtime panics.
+  runtime panics. Proven with compile-fail doctests pinned to an error *code*, never a snapshot of
+  the compiler's wording.
 - **Everything is proven headlessly** against the same `Fern` the event loop runs, reached the way
   the loop reaches it rather than through public API.
 - **A trace of one frame reads as the frame law.** Instrumentation is a convention every slice
@@ -68,7 +69,7 @@ Crate layout: one `foliage` crate — `foliage_proper` and its facade collapse �
 
 - `cargo test --workspace` — the headless suite. A real gate: no slice merges without tests for the
   obligations its spec section states
-- `trybuild` compile-fail tests for every illegal axis pairing (`placement.md`)
+- compile-fail doctests for every illegal axis pairing (`placement.md`), pinned by error code
 - `cargo check -p application` — the site builds against the public API only. If it cannot be
   built, the API is incomplete, and that *is* the test
 - `cargo check -p foliage --target wasm32-unknown-unknown`
@@ -85,5 +86,15 @@ the surface it runs against, and `Foliage` holds both at boot. `Leaf`, `Presence
 
 The engine has no entry point until `photosynthesize` lands: nothing outside the suite calls
 `Fern`, and F9 has no loop to govern.
+
+B2 has landed. Logical-pixel coordinates; `Layout` and `Short`; the placement grammar as types —
+role-first openers, the coordinate/length split, and the axis asymmetry that width-down/height-up
+implies; `Grid` with its own `columns()`/`rows()` vocabulary; the pure per-axis resolver; `Rowan`'s
+R2a/R2b in dependency order, with anchor cycles refused at the op. Eighty headless tests and nine
+compile-fail doctests.
+
+Still owed by B2: `content()` resolves against an intrinsic that is always empty, and `letters()`
+against a character cell that is always zero, because both come from a font. `Tree::cell` is the one
+seam B6 fills; the resolver arithmetic behind them is proven now.
 
 Next: B1 — `Root` taking root inside the first frame, and a dropped op proven for every verb.

@@ -32,18 +32,27 @@ when its inputs differ. That is a measured exception, not a hedge — everything
 The core is a pure function:
 
 ```rust
-fn resolve(location: &Location, ctx: &Context) -> Resolved
+fn resolve(config: &Config, ctx: &Context) -> Span
 
 struct Context {
-    parent:    Section,        // the parent's layout box — what a grid divides
-    anchor:    Option<Section>,// the anchored element's geometry, if any
-    intrinsic: Option<Area>,   // this element's own measured size, for text_content()
-    viewport:  Section,
-    breakpoint: Layout,
-    short:     bool,
-    cell:      Area,           // the character cell, for letters()
+    axis:        Axis,      // which axis is being resolved
+    parent:      Section,   // the parent's layout box — what a grid divides
+    anchor:      Section,   // the anchored element's geometry; zero when there is none
+    intrinsic:   Area,      // this element's own measured size, for content()
+    tracks:      Tracks,    // the parent's grid, at the breakpoint in force
+    cell:        Area,      // this element's own character cell, for letters()
+    parent_cell: Area,      // the parent's, for a letter-pitched track
 }
 ```
+
+One axis at a time, because that is how R2a and R2b call it. The breakpoint is resolved *before*
+this — picking a `Config` out of a `Location` and a `Tracks` out of a `Grid` is a lookup, not
+arithmetic, and keeping it out leaves the resolver reading only numbers.
+
+There are two character cells because there are two fonts. An app registers as many as it likes and
+each element chooses, so `8.letters()` is eight cells of the element's own, while a letter-pitched
+grid track is in the font of the element the grid is *on*. Collapsing them into one is what would
+stop a letter-pitched grid being addressable by children of a different size.
 
 No world access, no entity ids, no mutation. Given the same inputs it gives the same answer, and it
 may be called as many times per entity per frame as anything needs.
@@ -145,7 +154,7 @@ Pure, against the resolver alone:
 
 - every unit, designator and breakpoint fallback, exhaustively
 - anchor resolution against a given target box
-- `text_content()` against a given measure
+- `content()` against a given measure
 - aspect-ratio constraint
 
 Headless, against the passes:
