@@ -1,0 +1,79 @@
+# foliage spec
+
+The normative documents for foliage 1.0. Written before the implementation, and the authority when
+they and anything else disagree — including any plan file, prior notes, or the previous engine's
+own documentation.
+
+`../../working-foliage` is a **reference to consult, never a source to copy from.** Its docs in
+particular have been wrong three times about behaviour its code contradicts. Read the code, not the
+prose.
+
+## Documents
+
+| | |
+|---|---|
+| `lexicon.md` | The vocabulary. Read first — every other document is written in it |
+| `frame.md` | The frame law. F1–F9: one queue, one drain, one clock, what runs when |
+| `lifecycle.md` | `Planted`/`Live`/`Withered`, and the three separate ways to be off |
+| `pollen.md` | Emissions as a set you interrogate, not a list you walk |
+| `rowan.md` | Resolution. Recompute totally, diff at the edge. The pure resolver |
+| `placement.md` | Width down, height up; the `Location` grammar |
+| `views.md` | Scrolling, extent, pinning, momentum |
+| `interaction.md` | Hit-testing, gesture claiming, focus |
+| `aspen.md` | Animation. What `Motion` covers and why |
+| `harness.md` | `Grove::headless` — the frame minus the rasteriser |
+
+## The decisions these turn on
+
+- **bevy_ecs stays; the internals do not.** The boundary means the ECS layer is free to be whatever
+  the engine needs, and it is not a port of the previous one.
+- **Rowan recomputes; Elm decides what changed.** No dirty tracking, no invalidation, no reactive
+  observers for derived state. The one measured exception is text shaping.
+- **The resolver is a pure function** of `(Location, Context)`, callable twice per entity per frame.
+  This is what makes animated and content-sized layout work at all.
+- **One op queue, one drain.** `Sprig` and in-frame ops are indistinguishable.
+- **Nothing may depend on emission order** except keystrokes, which are genuinely ordered.
+- **Static errors are compile errors.** Elevation, grids, and illegal axis pairings are types, not
+  runtime panics.
+- **Everything is proven headlessly** against the same `frame()` the event loop runs.
+
+## Slice order
+
+Each slice lands complete: spec section, implementation, headless tests discharging every proof
+obligation that section states, a section of `application/` that exercises it, and a book chapter.
+
+| | Slice | Proves |
+|---|---|---|
+| A7 | Skeleton + `Grove::headless` | Built first — it is what every slice below is checked with |
+| B1 | `Leaf`, `Grove`, `Grow`, ops, `Pollen` | F1–F3: names, single-drain FIFO, withering, collection |
+| B2 | Coordinates, `Grid`, placement | The layout model and grammar |
+| B3 | `Panel`, `Elm` → `Ash` | First pixels; change → GPU end to end |
+| B4 | Interaction: stack, claiming, focus | Targeting, handoff, focus order and trapping |
+| B5 | `Aspen`: tweens, sequences, timers | Timing, easing, one writer per property |
+| B6 | `Text` and fonts | The character cell, wrapping, `content()` |
+| B7 | Views and scrolling | Extent, pinning, chain vs contain |
+| B8 | `Icon`, `Image`, `Polygon`, `Line`, `Polyline` | The remaining renderers |
+| B9 | `TextInput` | The one composite |
+| B10 | Assets, clipboard, web ext, virtual keyboard | Platform edges |
+| B11 | `Sprig` | That off-thread ops are genuinely identical to in-frame ops |
+
+Crate layout: one `foliage` crate — `foliage_proper` and its facade collapse — plus
+`foliage_macros`, `foliage_icons`, `application`, `xtask`, and `lichen` later.
+
+## Verification
+
+- `cargo test --workspace` — the headless suite. A real gate: no slice merges without tests for the
+  obligations its spec section states
+- `trybuild` compile-fail tests for every illegal axis pairing (`placement.md`)
+- `cargo check -p application` — the site builds against the public API only. If it cannot be
+  built, the API is incomplete, and that *is* the test
+- `cargo check -p foliage --target wasm32-unknown-unknown`
+- Golden images for the renderers, once B8 lands — wgpu to a texture, no window, runs in CI
+- Native matrix (linux/macos/windows)
+
+## Status
+
+Phase A is complete. All ten documents are written and carry no open items.
+
+Next: A7 — collapse the crates, stand up the skeleton, build `Grove::headless` against
+`harness.md`. Then B1.
