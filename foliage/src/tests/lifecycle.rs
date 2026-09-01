@@ -102,6 +102,59 @@ fn ops_naming_a_withered_leaf_are_dropped() {
 }
 
 #[test]
+fn pruning_a_withered_leaf_is_a_no_op() {
+    let mut grove = grove();
+    let trunk = grove.plant(Stem::new());
+    let keep = grove.plant(Stem::new());
+    tick(&mut grove);
+
+    grove.prune(trunk);
+    tick(&mut grove);
+
+    grove.prune(trunk);
+    tick(&mut grove);
+
+    assert_eq!(grove.presence(trunk), Presence::Withered);
+    assert_eq!(grove.presence(keep), Presence::Live);
+}
+
+#[test]
+fn a_leaf_is_reported_withered_once_and_not_again() {
+    let mut grove = grove();
+    let mut app = Observer::default();
+    let trunk = grove.plant(Stem::new());
+    tick_with(&mut grove, &mut app);
+
+    grove.prune(trunk);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().withered(trunk));
+
+    grove.prune(trunk);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(!app.last().withered(trunk));
+}
+
+/// An op under a name whose own grow was dropped is dropped in turn: the trunk never became live,
+/// so there is nothing to branch off.
+#[test]
+fn an_op_beneath_a_dropped_op_is_dropped_too() {
+    let mut grove = grove();
+    let trunk = grove.plant(Stem::new());
+    tick(&mut grove);
+
+    grove.prune(trunk);
+    let orphan = grove.branch(trunk, Stem::new());
+    let twig = grove.branch(orphan, Stem::new());
+    tick(&mut grove);
+
+    assert_eq!(grove.presence(trunk), Presence::Withered);
+    assert_eq!(grove.presence(orphan), Presence::Planted);
+    assert_eq!(grove.presence(twig), Presence::Planted);
+}
+
+#[test]
 fn a_name_is_never_reused() {
     let mut grove = grove();
     let mut gone = Vec::new();

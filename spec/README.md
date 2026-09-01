@@ -81,9 +81,9 @@ Phase A is complete. All eleven documents are written and carry no open items.
 
 A7 has landed. One `foliage` crate on `bevy_ecs` and `tracing`: `Fern` runs the frame, `Grove` is
 the surface it runs against, and `Foliage` holds both at boot. `Leaf`, `Presence`, `Seed`, `Stem`,
-`Grow`, the one queue and its drain, `Pollen`, `Vein`/`Sap`, and `Root`. Sixteen headless tests.
+`Grow`, the one queue and its drain, `Pollen`, `Vein`/`Sap`, and `Root`. Twenty-two headless tests.
 
 The engine has no entry point until `photosynthesize` lands: nothing outside the suite calls
 `Fern`, and F9 has no loop to govern.
 
-Next: B1 — the rest of `Grow`'s verbs and `Pollen`'s queries, and `Sprig` sharing the one queue.
+Next: B1 — `Root` taking root inside the first frame, and a dropped op proven for every verb.

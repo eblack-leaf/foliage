@@ -29,7 +29,7 @@ pub(crate) trait Rooted {
 }
 
 /// A registered root, before and after it has taken.
-pub(crate) struct Registered<R: Root>(Option<R>);
+pub(crate) struct Registered<R: Root>(pub(crate) Option<R>);
 
 impl<R: Root> Registered<R> {
     pub(crate) fn new() -> Self {
