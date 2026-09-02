@@ -66,7 +66,13 @@ impl Tree {
     }
 
     /// Grows `leaf`, reporting whether the name was still free to grow into.
-    pub(crate) fn grow(&mut self, leaf: Leaf, growth: Growth, under: Option<Leaf>, bud: Bud) -> bool {
+    pub(crate) fn grow(
+        &mut self,
+        leaf: Leaf,
+        growth: Growth,
+        under: Option<Leaf>,
+        bud: Bud,
+    ) -> bool {
         let Ok(mut entity) = self.world.spawn_at(leaf.0, Grown) else {
             return false;
         };

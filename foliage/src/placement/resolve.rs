@@ -168,9 +168,7 @@ fn source(kind: Kind, role: Role, context: &Context) -> f32 {
         Kind::Letters { letters, against } => {
             letters * extent_of_area(context.basis(against).cell, context.axis)
         }
-        Kind::Content { against } => {
-            extent_of_area(context.basis(against).intrinsic, context.axis)
-        }
+        Kind::Content { against } => extent_of_area(context.basis(against).intrinsic, context.axis),
         Kind::Edge { edge, against } => {
             let section = context.basis(against).section;
             match edge {
@@ -202,7 +200,11 @@ fn cell(index: i32, axis: Axis, role: Role, basis: &Basis) -> f32 {
     let index = index as f32;
     let inclusive = matches!(role, Role::Far | Role::Extent);
     let edge = (index - if inclusive { 0.0 } else { 1.0 }) * size + (index - 1.0) * track.gap;
-    edge + if role == Role::Center { size / 2.0 } else { 0.0 }
+    edge + if role == Role::Center {
+        size / 2.0
+    } else {
+        0.0
+    }
 }
 
 fn near_edge(section: Section, axis: Axis) -> f32 {

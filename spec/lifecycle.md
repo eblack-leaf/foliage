@@ -106,6 +106,29 @@ expects: what you grew later sits on top.
 It remains better to separate the elevations deliberately. A defined tie-break means the result is
 not arbitrary; it does not mean the result is what you meant.
 
+## Elevation is relative, and only relative
+
+`up(n)` and `down(n)`, accumulated down the tree. There is no form that states a layer outright.
+
+An absolute layer has to be chosen against every other one in the program, so two composites that
+reach for the same round number collide — and what settles the collision is a tie-break neither of
+them can see. That is the failure this document's tie-break makes *defined* rather than *correct*,
+and a global number namespace is the one way to hit it constantly. It is CSS's `z-index: 9999`, and
+the reason that number keeps growing.
+
+Relative elevation accumulates through the tree, so two elements can only tie if they are
+structurally related — which is where the tie-break means something ("what you grew later sits on
+top") and where the code that grew both can separate them.
+
+**An element that has to clear the stack it was grown in is grown somewhere else.** The trunk
+decides what takes an element down and what it stacks among; `anchored` decides where it sits. A
+dropdown planted at top level still tracks the control that opened it, and still addresses that
+control's grid (`placement.md`), so leaving costs it nothing. It is also the right answer for
+clipping, since a dropdown inside a scrolling view should not be clipped by it (`views.md`).
+
+This is why no stacking tier or reset layer is needed: that machinery exists to arbitrate between
+absolute values, and there are none.
+
 ## Proof obligations
 
 Headless:
@@ -121,3 +144,7 @@ Headless:
 - disabling the subtree holding focus moves focus out and reports it
 - equal-elevation siblings rank by allocation order, and that survives a prune of an earlier
   sibling
+- the tie-break is the order names were allocated, not the order the drain grew them
+- elevation accumulates down the tree, so elevating a trunk moves its whole subtree and nothing
+  inside it is rewritten
+- an element that draws nothing still elevates what is grown under it

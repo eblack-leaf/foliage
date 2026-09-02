@@ -140,4 +140,45 @@ long or bursts, and the override then hangs off its closing paren. A trivial hea
 uniform, which is what keeps a responsive placement readable inline instead of forcing it into a
 temporary.
 
-Next: B3 — `Panel`, `Elm`, and R6 `rank`.
+B3 has landed. `Panel`, the palette, corner rounding, `Elm` and R6 `rank`. A hundred and thirty-two
+headless tests and nine compile-fail doctests.
+
+What an element draws is `Chlorophyll`, and it is the *only* thing that says so: extraction routes
+on it and never on which components an element happens to carry, because a set of components that
+looks like a panel is not a panel — and will not be, once `Icon` also has a fill, a rounding and a
+rank. The renderer's declared state is `PanelPigment` beside it, grown at the same single site, so
+`color` and `round` write the state and nothing ever writes the decision.
+
+The holding `Elm` compares against is updated in place. Rebuilding it would allocate a map per
+renderer per frame, on every frame including the empty ones, which would contradict the one claim
+the phase makes.
+
+A fill is a **role**, not a color: `Panel::new().color(Palette::Accent)`. What a role resolves to is
+the palette's answer and changes in one place; `Color` stays the form a renderer reads and the form
+a palette is stated in. The ramp behind the roles — tints, and a scheme to read them against — is
+still owed, and until it lands each role resolves to one fixed value. No callsite names one, so the
+ramp replaces those values and nothing else.
+
+Elevation is relative and only relative, and the absolute form was cut for a reason stronger than
+the one that first cut it: see `lifecycle.md`. Its tie-break is allocation order, taken where the
+`Leaf` is handed out rather than where the drain grows it, from an atomic counter — `Sprig` will
+allocate off-thread and F1 says those names are ordered by nothing but when they arrived.
+
+B2 amended. An anchor is a **basis**, not a set of edges: `Context` holds one `Basis` per element it
+can read, and every term that reads geometry names whose it reads. `anchor().col(2)`,
+`anchor().content()` and `trunk().letters(8)` are all sayable, `Origin` and the separate parent-cell
+field are gone, and `parent` becomes `trunk` throughout — the lexicon's word, and the one already in
+`Vein::Trunk`.
+
+The amendment is load-bearing rather than a convenience. Relative-only elevation says that an
+element which must clear its stack is grown somewhere else and anchored back; if the anchor grammar
+were the smaller one, that move would silently cost `col`, `row`, `pct` and `letters` against the
+element it still cares about. Escaping has to be free, or it is not an escape.
+
+`application/` plants the page in panels now: a segmented rail whose ends round outward with `Side`,
+a marker elevated over it, an entry recoloured as the tour moves, and a badge grown beside the rail
+rather than inside it — which draws over the rail's elevation while still addressing the rail's grid
+through its anchor.
+
+Next: C1 — `Willow`, `Ginkgo`, `Ash` and `photosynthesize`. Extraction now produces instances that
+nothing consumes, and that is a shape nothing has checked.

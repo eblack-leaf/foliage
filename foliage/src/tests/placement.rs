@@ -149,10 +149,7 @@ fn a_far_edge_and_an_extent_do_not_double_count() {
     let given = Given::default();
     let span = given.across(right(100.pct() - 16.px()).width(140.px()));
     assert_eq!(span.far - given.trunk.left(), given.trunk.width() - 16.0);
-    assert_eq!(
-        span.near - given.trunk.left(),
-        given.trunk.width() - 156.0
-    );
+    assert_eq!(span.near - given.trunk.left(), given.trunk.width() - 156.0);
     assert_eq!(span.extent(), 140.0);
 }
 
@@ -393,7 +390,10 @@ fn letters_are_the_reader_s_own_unless_another_is_named() {
         anchor_cell: Area::new(11.0, 22.0),
         ..Given::default()
     };
-    assert_eq!(given.across(left(0.px()).width(4.letters())), span(10.0, 38.0));
+    assert_eq!(
+        given.across(left(0.px()).width(4.letters())),
+        span(10.0, 38.0)
+    );
     assert_eq!(
         given.across(left(0.px()).width(trunk().letters(4.0))),
         span(10.0, 46.0)

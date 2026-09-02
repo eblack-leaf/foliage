@@ -35,24 +35,35 @@ The core is a pure function:
 fn resolve(config: &Config, ctx: &Context) -> Span
 
 struct Context {
-    axis:        Axis,      // which axis is being resolved
-    parent:      Section,   // the parent's layout box — what a grid divides
-    anchor:      Section,   // the anchored element's geometry; zero when there is none
-    intrinsic:   Area,      // this element's own measured size, for content()
-    tracks:      Tracks,    // the parent's grid, at the breakpoint in force
-    cell:        Area,      // this element's own character cell, for letters()
-    parent_cell: Area,      // the parent's, for a letter-pitched track
+    axis:   Axis,     // which axis is being resolved
+    own:    Basis,    // this element; only its cell and its measure are readable
+    trunk:  Basis,    // what it was grown under, and what it fills when it says nothing
+    anchor: Basis,    // the one other element it may read; zero when there is none
+}
+
+struct Basis {
+    section:   Section,  // its box — edges, and what a percentage is a fraction of
+    intrinsic: Area,     // its measured size, for content()
+    tracks:    Tracks,   // its grid, at the breakpoint in force
+    cell:      Area,     // its character cell, for letters() and a letter-pitched track
 }
 ```
+
+One shape per element rather than a field per reading, because every term that reads geometry names
+whose it reads (`placement.md`). It is what stops the grammar describing a trunk and not an anchor —
+and a letter-pitched track takes its pitch from the basis that owns the grid, which is what makes a
+column a real address into one rather than a hand-computed offset.
+
+The element's own **box** is absent from what it can read: that is the answer being computed.
 
 One axis at a time, because that is how R2a and R2b call it. The breakpoint is resolved *before*
 this — picking a `Config` out of a `Location` and a `Tracks` out of a `Grid` is a lookup, not
 arithmetic, and keeping it out leaves the resolver reading only numbers.
 
-There are two character cells because there are two fonts. An app registers as many as it likes and
-each element chooses, so `8.letters()` is eight cells of the element's own, while a letter-pitched
-grid track is in the font of the element the grid is *on*. Collapsing them into one is what would
-stop a letter-pitched grid being addressable by children of a different size.
+There is a character cell per basis because there is a font per element. An app registers as many as
+it likes and each element chooses, so `8.letters()` is eight cells of the element's own, while a
+letter-pitched grid track is in the font of the element the grid is *on*. Collapsing them into one
+is what would stop a letter-pitched grid being addressable by children of a different size.
 
 No world access, no entity ids, no mutation. Given the same inputs it gives the same answer, and it
 may be called as many times per entity per frame as anything needs.

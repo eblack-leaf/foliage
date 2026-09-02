@@ -1,16 +1,15 @@
 //! The tree the site plants, and every placement in it.
 //!
 //! One page: a rail of sections, a marker that tracks whichever of them is current, a reading
-//! column beside them, and a notice that comes down after a while. It is all `Stem`, because
-//! nothing draws yet -- what is being exercised is the grammar, not the pixels.
+//! column beside them, and a notice that comes down after a while.
 //!
 //! A placement is a chain of breakpoints, each link stating both axes, so what an element looks
 //! like at a given width is read in one place. A link that is never written falls back to the
-//! nearest smaller one that was, and a chain that runs out fills the parent.
+//! nearest smaller one that was, and a chain that runs out fills the trunk.
 
 use foliage::{
-    Divide, Grid, Grove, Grow, Leaf, Location, Place, Source, Stem, anchor, bottom, center_x, left,
-    top,
+    Corners, Divide, Elevation, Grid, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding,
+    Side, Source, Stem, anchor, bottom, center_x, left, top,
 };
 
 /// The space between tracks, and the rhythm every other measurement is stated in.
@@ -23,7 +22,7 @@ const MEASURE: f32 = 680.0;
 const RAIL: f32 = 56.0;
 
 /// How many sections the rail carries.
-const SECTIONS: usize = 4;
+const SECTIONS: i32 = 4;
 
 /// The parts of the page the app writes to again after growing it.
 pub(crate) struct Shell {
@@ -37,10 +36,10 @@ pub(crate) struct Shell {
 
 /// Plants the page.
 pub(crate) fn grow(grove: &mut Grove) -> Shell {
-    // No placement: an element that says nothing fills its parent, and the parent of a planted one
-    // is the surface.
+    // No placement: an element that says nothing fills its trunk, and the trunk of a planted one is
+    // the surface.
     let shell = grove.plant(
-        Stem::new()
+        Panel::new()
             // Four columns on a phone, twelve once there is room for a rail beside the content.
             // The children address columns rather than pixels, so widening the grid moves them
             // and none of them is rewritten.
@@ -53,7 +52,9 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
 
     let rail = grove.branch(
         shell,
-        Stem::new()
+        Panel::new()
+            .color(Palette::Raised)
+            .rounding(Rounding::Md)
             .at(Location::new()
                 .xs(left(1.col()).right(4.col()), top(0.px()).height(RAIL.px()))
                 .md(left(1.col()).right(3.col()), top(0.px()).bottom(100.pct())))
@@ -66,13 +67,18 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
             ),
     );
 
-    let entries = (1..=SECTIONS as i32)
+    // A segmented control: the ends round outward and the joins stay square, so the row reads as
+    // one shape rather than as a line of separate pills.
+    let entries = (1..=SECTIONS)
         .map(|n| {
             grove.branch(
                 rail,
-                Stem::new().at(Location::new()
-                    .xs(left(n.col()).right(n.col()), top(0.px()).bottom(100.pct()))
-                    .md(left(1.col()).right(1.col()), top(n.row()).bottom(n.row()))),
+                Panel::new()
+                    .color(Palette::Muted)
+                    .rounding(ends(n))
+                    .at(Location::new()
+                        .xs(left(n.col()).right(n.col()), top(0.px()).bottom(100.pct()))
+                        .md(left(1.col()).right(1.col()), top(n.row()).bottom(n.row()))),
             )
         })
         .collect::<Vec<_>>();
@@ -82,15 +88,41 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
     // positions, so the trunk decides what takes it down and what it sits among, and nothing else.
     let marker = grove.branch(
         shell,
-        Stem::new().anchored(entries[0]).at(Location::new()
-            .xs(
-                left(anchor().left()).width(anchor().width()),
-                bottom(anchor().bottom()).height(2.px()),
-            )
-            .md(
-                left(anchor().left()).width(2.px()),
-                top(anchor().top()).bottom(anchor().bottom()),
-            )),
+        Panel::new()
+            .color(Palette::Accent)
+            .rounding(Rounding::Full)
+            .elevate(Elevation::up(1))
+            .anchored(entries[0])
+            .at(Location::new()
+                .xs(
+                    left(anchor().left()).width(anchor().width()),
+                    bottom(anchor().bottom()).height(2.px()),
+                )
+                .md(
+                    left(anchor().left()).width(2.px()),
+                    top(anchor().top()).bottom(anchor().bottom()),
+                )),
+    );
+
+    // Grown beside the rail rather than inside it, so it draws over the rail's own elevation
+    // instead of accumulating from it -- and anchored back, so it goes on addressing the rail's
+    // grid exactly as an entry does. Leaving a trunk costs the vocabulary nothing.
+    grove.branch(
+        shell,
+        Panel::new()
+            .color(Palette::Accent)
+            .rounding(Rounding::Full)
+            .elevate(Elevation::up(2))
+            .anchored(rail)
+            .at(Location::new()
+                .xs(
+                    left(anchor().col(SECTIONS)).width(10.px()),
+                    top(anchor().top()).height(10.px()),
+                )
+                .md(
+                    left(anchor().right()).width(10.px()),
+                    top(anchor().row(SECTIONS)).height(10.px()),
+                )),
     );
 
     let content = grove.branch(
@@ -107,13 +139,16 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
 
     let article = grove.branch(
         content,
-        Stem::new().at(Location::new().xs(
-            // As wide as the content area allows, and never wider than a line anyone can read.
-            // The ceiling is on the resolved extent, which is a different statement from the
-            // width the layout offered -- so this stays one declaration at every breakpoint.
-            center_x(50.pct()).width(100.pct()).at_most(MEASURE.px()),
-            top(1.row()).bottom(2.row()),
-        )),
+        Panel::new()
+            .color(Palette::Raised)
+            .rounding(Rounding::Lg)
+            .at(Location::new().xs(
+                // As wide as the content area allows, and never wider than a line anyone can read.
+                // The ceiling is on the resolved extent, which is a different statement from the
+                // width the layout offered -- so this stays one declaration at every breakpoint.
+                center_x(50.pct()).width(100.pct()).at_most(MEASURE.px()),
+                top(1.row()).bottom(2.row()),
+            )),
     );
 
     // Sits under the article wherever the article ended up, which is what an anchor is for: the
@@ -123,20 +158,29 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
     // say to it, and there is nothing left to say to this one.
     grove.branch(
         content,
-        Stem::new().anchored(article).at(Location::new().xs(
-            left(anchor().left()).width(anchor().width()),
-            top(anchor().bottom() + GUTTER.px()).height(40.px()),
-        )),
+        Panel::new()
+            .color(Palette::Muted)
+            .rounding(Rounding::Sm)
+            .anchored(article)
+            .at(Location::new().xs(
+                left(anchor().left()).width(anchor().width()),
+                top(anchor().bottom() + GUTTER.px()).height(40.px()),
+            )),
     );
 
     let notice = grove.branch(
         shell,
-        Stem::new().at(Location::new().xs(
-            center_x(50.pct())
-                .width(100.pct() - GUTTER.px() * 2.0)
-                .at_most(420.px()),
-            bottom(100.pct() - GUTTER.px()).height(48.px()),
-        )),
+        Panel::new()
+            .color(Palette::Raised)
+            .rounding(Rounding::Md)
+            // Above the page it covers, and above it by saying so rather than by being grown late.
+            .elevate(Elevation::up(4))
+            .at(Location::new().xs(
+                center_x(50.pct())
+                    .width(100.pct() - GUTTER.px() * 2.0)
+                    .at_most(420.px()),
+                bottom(100.pct() - GUTTER.px()).height(48.px()),
+            )),
     );
 
     Shell {
@@ -144,4 +188,16 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
         marker,
         notice,
     }
+}
+
+/// The rounding for entry `n` of the rail: the first and last round outward, the rest stay square.
+fn ends(n: i32) -> Corners {
+    let mut corners = Corners::none();
+    if n == 1 {
+        corners = corners.side(Side::Left, Rounding::Sm);
+    }
+    if n == SECTIONS {
+        corners = corners.side(Side::Right, Rounding::Sm);
+    }
+    corners
 }

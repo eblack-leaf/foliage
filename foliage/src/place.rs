@@ -54,16 +54,23 @@ pub trait Place: Places + Sized {
         self
     }
 
-    /// How far in front of its trunk the element sits, from [`up`](crate::up) or
-    /// [`down`](crate::down).
+    /// How far in front of its trunk the element sits, from [`Elevation::up`] or
+    /// [`Elevation::down`].
     ///
     /// Undeclared, it sits at its trunk's own elevation, which leaves it just in front of it.
+    ///
+    /// On every element, not only on one that draws: what is grown under an element accumulates
+    /// from its elevation, so a wrapper that carried none would flatten the subtree beneath it.
     fn elevate(mut self, elevation: Elevation) -> Self {
         self.placement().elevation = Some(elevation);
         self
     }
 
     /// The one other element this one's placement may read through [`anchor()`](crate::anchor).
+    ///
+    /// It carries every reading a trunk does, so an element grown away from what it describes --
+    /// to clear a stack, or a clip -- goes on addressing that element's grid, box, font and measure
+    /// in the same words.
     ///
     /// # Panics
     ///

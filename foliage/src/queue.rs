@@ -23,6 +23,8 @@ impl Queue {
     }
 
     fn lock(&self) -> MutexGuard<'_, Vec<Op>> {
-        self.0.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        self.0
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 }

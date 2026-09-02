@@ -2,7 +2,7 @@
 
 use core::time::Duration;
 
-use foliage::{Grove, Grow, Leaf, Pollen, Root};
+use foliage::{Grove, Grow, Leaf, Palette, Pollen, Root};
 
 use crate::shell::{self, Shell};
 
@@ -41,6 +41,7 @@ impl Root for Site {
             marker,
             notice,
         } = shell::grow(grove);
+        grove.color(entries[0], Palette::Accent);
         Self {
             entries,
             marker,
@@ -67,6 +68,10 @@ impl Site {
             return;
         }
         if step != self.selected {
+            // Two writes, and extraction sends two instances: the entry that lost the fill and the
+            // one that took it. Everything else on the page is compared and found unchanged.
+            grove.color(self.entries[self.selected], Palette::Muted);
+            grove.color(self.entries[step], Palette::Accent);
             self.selected = step;
             // An element has one anchor, and pointing it somewhere else replaces it. So the
             // marker's own placement is written once and never again -- what moves it is which

@@ -13,10 +13,8 @@ use crate::{
 
 /// A panel filling a box of a stated size, so its radii have something to resolve against.
 fn panel(size: f32) -> Panel {
-    Panel::new().at(Location::new().xs(
-        left(0.px()).width(size.px()),
-        top(0.px()).height(size.px()),
-    ))
+    Panel::new()
+        .at(Location::new().xs(left(0.px()).width(size.px()), top(0.px()).height(size.px())))
 }
 
 fn held(grove: &Grove, leaf: Leaf) -> PanelInstance {
@@ -34,7 +32,10 @@ fn a_panel_is_written_on_the_frame_it_is_planted() {
     tick(&mut grove);
     assert_eq!(grove.elm.panels.written.len(), 1);
     assert_eq!(grove.elm.panels.written[0].0, leaf);
-    assert_eq!(held(&grove, leaf).section, Section::from_edges(0.0, 0.0, 40.0, 40.0));
+    assert_eq!(
+        held(&grove, leaf).section,
+        Section::from_edges(0.0, 0.0, 40.0, 40.0)
+    );
 }
 
 /// Carrying no renderer is the whole of what makes an element a stem, so extraction routes past it
@@ -133,7 +134,9 @@ fn a_pruned_panel_is_withdrawn() {
 fn withdrawals_are_in_a_stable_order() {
     let withdraw = || {
         let mut grove = grove();
-        let leaves = (0..16).map(|_| grove.plant(panel(40.0))).collect::<Vec<_>>();
+        let leaves = (0..16)
+            .map(|_| grove.plant(panel(40.0)))
+            .collect::<Vec<_>>();
         tick(&mut grove);
         for leaf in &leaves {
             grove.prune(*leaf);
@@ -186,9 +189,8 @@ fn a_side_rounds_the_two_corners_on_it() {
 #[test]
 fn a_corner_rounds_only_itself() {
     let mut grove = grove();
-    let leaf = grove.plant(
-        panel(100.0).rounding(Corners::none().corner(Corner::BottomRight, Rounding::Lg)),
-    );
+    let leaf = grove
+        .plant(panel(100.0).rounding(Corners::none().corner(Corner::BottomRight, Rounding::Lg)));
     tick(&mut grove);
     assert_eq!(held(&grove, leaf).radii, [0.0, 0.0, 16.0, 0.0]);
 }

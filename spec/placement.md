@@ -89,6 +89,33 @@ The instinct that anchoring is cheaper than fit-content is correct — one depen
 measure — but with the model above, content-sizing is bounded and cheap enough that the choice can
 be made on meaning rather than cost.
 
+### An anchor is a basis, not a set of edges
+
+An element resolves against three elements: itself, its trunk, and its anchor. Each answers the
+same four questions, and every term that reads geometry names which of the three it is asking.
+
+| Reading | From | Spelled |
+|---|---|---|
+| box — edges, and the extent a percentage is of | trunk, anchor | `50.pct()`, `anchor().right()`, `trunk().width()` |
+| grid | trunk, anchor | `2.col()`, `anchor().col(2)` |
+| character cell | own, trunk, anchor | `8.letters()`, `anchor().letters(8.0)` |
+| measured extent | own, trunk, anchor | `content()`, `anchor().content()` |
+
+The bare spellings read the trunk, except `letters` and `content`, which read the element itself —
+an element composes in its own font and measures its own contents. Its **box** is the one thing it
+cannot read of itself: that is the answer being computed.
+
+> **Whatever is sayable about a trunk is sayable about an anchor.**
+
+This is what makes re-parenting a move rather than a downgrade. An element leaves its trunk to
+escape a stack or a clip — see `lifecycle.md` on elevation, and `views.md` on clipping — and anchors
+back to it, and it goes on addressing the same grid in the same words. Without it, "grow it
+somewhere else" silently costs `col`, `row`, `pct` and `letters` against the thing it still cares
+about, which is the coupling of position to parent that this model exists to avoid.
+
+A term names its basis; a *coordinate* names one origin. `anchor().bottom() + 50.pct()` is half the
+trunk's extent below the anchor's bottom edge, and each half reads what it named.
+
 ## What this requires of Rowan
 
 R2 splits into R2a / R2m / R2b. Both sub-passes call the same pure resolver, once per axis, which
@@ -145,12 +172,14 @@ Two sources are not dimensionless, and pretending otherwise is what made
 
 | | Is | Legal in |
 |---|---|---|
-| **length** | `px` `pct` `col` `letters` `content` `anchor().width()` | any role |
-| **coordinate** | `anchor().right()` and the other anchor edges | position roles only |
+| **length** | `px` `pct` `col` `letters` `content` `anchor().width()` `anchor().letters(n)` | any role |
+| **coordinate** | `anchor().right()` and the other edges, `anchor().col(n)` | position roles only |
 
-A length in a position role is measured from the parent's near edge. An anchor's edge is already a
-position and stays absolute -- no conversion, and no second coordinate space in the expression. The
-one bit that decides it is the source's own type, not an inspection of its terms.
+A length in a position role is measured from the trunk's near edge. A reading taken from a named
+basis carries that basis's origin instead: an edge is already a position on the surface, and a track
+of another element's grid is somewhere in *that* element's box. No conversion, and no second
+coordinate space in the expression. The one bit that decides it is the source's own type, not an
+inspection of its terms.
 
 `coordinate - coordinate = length`, `coordinate ± length = coordinate`, and `coordinate + coordinate`
 does not compile. So the algebra closes, and an anchor's edges reach a size the only way that means
@@ -261,6 +290,13 @@ Pure, against the resolver:
 - all four legal forms, per axis
 - `anchor()` sources in every role they are legal in, and the length between two anchor edges used
   as a size
+- every basis reading answers identically whether the element is grown under it or anchored to it:
+  the same grid addressed by a child and by an anchored sibling lands on the same box
+- a track of an anchor's grid carries the anchor's origin, and a letter-pitched one is measured in
+  the anchor's cell rather than the reader's
+- `letters` and `content` read the element itself unless another basis is named, and the named one
+  is a different number
+- one expression reading two bases resolves each term against what it named
 - arithmetic on sources, including negative results
 - `.at_least` / `.at_most` clamping, and `content()` under an `at_most` behaving as fit-content
 - `content()` in a width role and in a height role resolve their two different questions
