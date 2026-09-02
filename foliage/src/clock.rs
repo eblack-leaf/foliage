@@ -25,8 +25,14 @@ impl Clock {
     }
 
     /// Moves the clock forward, to be taken up by the next [`sample`](Clock::sample).
-    pub(crate) fn advance(&mut self, millis: u64) {
-        self.pending += Duration::from_millis(millis);
+    ///
+    /// The one way time enters the engine. The platform loop advances it by what actually elapsed
+    /// between frames and the headless suite advances it by hand, so both reach [`sample`] the same
+    /// way and a frame cannot tell which it is running under.
+    ///
+    /// [`sample`]: Clock::sample
+    pub(crate) fn advance(&mut self, delta: Duration) {
+        self.pending += delta;
     }
 
     /// Time since the engine was built.

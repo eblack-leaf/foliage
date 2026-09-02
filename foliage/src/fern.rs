@@ -28,7 +28,7 @@ use crate::rowan;
 /// 8  extract   changed state -> render instances
 /// 9  draw
 /// ```
-pub(crate) fn run(grove: &mut Grove, app: Option<&mut dyn Rooted>) {
+pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     grove.frames += 1;
     let _frame = trace_span!("frame", n = grove.frames).entered();
     grove.again = false;
@@ -66,7 +66,7 @@ fn breakpoints(grove: &mut Grove) {
 }
 
 /// Step 3. The app reads settled state and this frame's [`Pollen`], and queues ops.
-fn root(grove: &mut Grove, app: Option<&mut dyn Rooted>) {
+fn root(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     let _step = trace_span!("root").entered();
     let pollen = Pollen::seal(core::mem::take(&mut grove.drift));
     if let Some(app) = app {

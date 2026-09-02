@@ -2,9 +2,17 @@
 //!
 //! One unit throughout. Device pixels exist only inside the render backend, where the scale factor
 //! is applied; nothing an app writes or reads is in them.
+//!
+//! Every type here is `#[repr(C)]` over `f32` and nothing else, which is the layout a shader reads
+//! a `vec2` and a `vec4` in. That is a commitment rather than an accident: it is what lets a
+//! renderer's instance be built from these directly instead of from a mirror of them that has to
+//! be kept in step.
+
+use bytemuck::{Pod, Zeroable};
 
 /// A point on the surface, in logical pixels.
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct Position {
     pub x: f32,
     pub y: f32,
@@ -17,7 +25,8 @@ impl Position {
 }
 
 /// A width and a height, in logical pixels.
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct Area {
     pub width: f32,
     pub height: f32,
@@ -30,7 +39,8 @@ impl Area {
 }
 
 /// Where an element is and how large it is.
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct Section {
     pub position: Position,
     pub area: Area,

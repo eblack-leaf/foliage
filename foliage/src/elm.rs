@@ -19,6 +19,7 @@ use bevy_ecs::component::Component;
 use tracing::field::Empty;
 use tracing::trace_span;
 
+use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
 use crate::leaf::Leaf;
 use crate::palette::Palette;
@@ -65,22 +66,37 @@ pub(crate) struct Elm {
 ///
 /// Generic over the instance, because what a renderer sends is the renderer's own business. This
 /// owns the comparison and knows nothing about what is being compared.
+///
+/// The rank is the one thing every renderer has in common, so it is carried here rather than
+/// inside each renderer's instance: where an element sits in the one stack is a fact about the
+/// element, not about what it happens to draw, and the backend needs it in a different form from
+/// the one the resolver produced. Keeping it out is also what leaves an instance free to be
+/// exactly the bytes a vertex buffer takes.
 pub(crate) struct Instances<I> {
     held: HashMap<Leaf, Held<I>>,
     /// What should be drawn this frame, gathered before it is compared. Kept between frames for its
     /// capacity: a frame that changes nothing must not allocate.
-    wanted: Vec<(Leaf, I)>,
-    /// Instances the backend does not hold, or holds at a different value.
-    pub(crate) written: Vec<(Leaf, I)>,
+    wanted: Vec<Stacked<I>>,
+    /// Instances the backend does not hold, or holds at a different value or rank.
+    pub(crate) written: Vec<Stacked<I>>,
     /// Instances the backend holds and should not, in a stable order.
     pub(crate) withdrawn: Vec<Leaf>,
     /// Which extraction is running. An entry left at an older one is no longer wanted.
     pass: u64,
 }
 
+/// One instance, and where in the one stack it is to be drawn.
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct Stacked<I> {
+    pub(crate) leaf: Leaf,
+    pub(crate) rank: ResolvedElevation,
+    pub(crate) instance: I,
+}
+
 /// One instance the backend holds, and the extraction that last asked for it.
 struct Held<I> {
     instance: I,
+    rank: ResolvedElevation,
     seen: u64,
 }
 
@@ -97,9 +113,13 @@ impl<I> Default for Instances<I> {
 }
 
 impl<I: Copy + PartialEq> Instances<I> {
-    /// Adds one instance to what should be drawn this frame.
-    fn want(&mut self, leaf: Leaf, instance: I) {
-        self.wanted.push((leaf, instance));
+    /// Adds one instance to what should be drawn this frame, at the rank it resolved to.
+    fn want(&mut self, leaf: Leaf, rank: ResolvedElevation, instance: I) {
+        self.wanted.push(Stacked {
+            leaf,
+            rank,
+            instance,
+        });
     }
 
     /// Diffs what should be drawn against what the backend holds, and takes the result as the new
@@ -114,22 +134,24 @@ impl<I: Copy + PartialEq> Instances<I> {
         self.pass += 1;
         let pass = self.pass;
         for index in 0..self.wanted.len() {
-            let (leaf, instance) = self.wanted[index];
-            match self.held.entry(leaf) {
+            let wanted = self.wanted[index];
+            match self.held.entry(wanted.leaf) {
                 Entry::Occupied(mut held) => {
                     let held = held.get_mut();
-                    if held.instance != instance {
-                        held.instance = instance;
-                        self.written.push((leaf, instance));
+                    if held.instance != wanted.instance || held.rank != wanted.rank {
+                        held.instance = wanted.instance;
+                        held.rank = wanted.rank;
+                        self.written.push(wanted);
                     }
                     held.seen = pass;
                 }
                 Entry::Vacant(slot) => {
                     slot.insert(Held {
-                        instance,
+                        instance: wanted.instance,
+                        rank: wanted.rank,
                         seen: pass,
                     });
-                    self.written.push((leaf, instance));
+                    self.written.push(wanted);
                 }
             }
         }
@@ -174,9 +196,8 @@ pub(crate) fn run(grove: &mut Grove) {
                     grove.tree.drawn(leaf),
                     grove.scheme.color(pigment.color),
                     pigment.rounding,
-                    grove.tree.rank(leaf),
                 );
-                grove.elm.panels.want(leaf, instance);
+                grove.elm.panels.want(leaf, grove.tree.rank(leaf), instance);
             }
         }
     }

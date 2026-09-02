@@ -1,5 +1,7 @@
 //! Color, in the one form every renderer reads.
 
+use bytemuck::{Pod, Zeroable};
+
 /// An sRGB color with an alpha channel, one channel per field.
 ///
 /// Channels are separate floats in `0.0..=1.0` rather than packed bytes, because each is
@@ -8,7 +10,10 @@
 /// This is what a [`Palette`](crate::Palette) role resolves to, and the form a palette is stated
 /// in. An element declares the role rather than the color, so that what a role resolves to can be
 /// changed in one place.
-#[derive(Copy, Clone, Debug, PartialEq)]
+///
+/// `#[repr(C)]` over four floats, which is the layout a shader reads a `vec4` in.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Pod, Zeroable)]
 pub struct Color {
     pub red: f32,
     pub green: f32,

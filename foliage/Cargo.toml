@@ -10,7 +10,27 @@ documentation = "https://eblack-leaf.github.io/foliage/book/"
 
 [dependencies]
 bevy_ecs = "0.19.0"
+bytemuck = { version = "1.25.0", features = ["derive"] }
 tracing = "0.1.41"
+# `std::time::Instant` panics on wasm. This is std's own on every other target, so the frame
+# reads one clock everywhere.
+web-time = "1.1.0"
+wgpu = { version = "30.0.0", features = ["metal", "webgl", "wgsl"] }
+winit = "0.30.13"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+pollster = "1.0.1"
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+wasm-bindgen-futures = "0.4.76"
+web-sys = { version = "0.3.103", features = [
+    "CssStyleDeclaration",
+    "Document",
+    "Element",
+    "HtmlElement",
+    "Node",
+    "Window",
+] }
 
 [dev-dependencies]
 tracing-subscriber = "0.3.19"

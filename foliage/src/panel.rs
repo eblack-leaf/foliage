@@ -1,8 +1,9 @@
 //! Panel -- a filled rectangle.
 
+use bytemuck::{Pod, Zeroable};
+
 use crate::color::Color;
 use crate::coordinate::Section;
-use crate::elevation::ResolvedElevation;
 use crate::palette::Palette;
 use crate::place::{Placement, Places};
 use crate::rounding::Corners;
@@ -48,15 +49,20 @@ impl Places for Panel {
 
 /// One panel, in the form the backend takes it.
 ///
-/// The renderer's own instance. What it is made of is the renderer's business; extraction only
-/// compares one against what the backend is already holding.
-#[derive(Copy, Clone, Debug, PartialEq)]
+/// The renderer's own instance, and the only form of one: it is `#[repr(C)]` over the types the
+/// coordinate module guarantees the layout of, so this is both what extraction compares and what
+/// the vertex buffer holds. There is no second, upload-shaped copy of it to keep in step.
+///
+/// Where the panel sits in the stack is not here. A rank belongs to every renderer alike, so
+/// [`Instances`](crate::elm::Instances) carries it beside the instance rather than inside it, and
+/// the backend turns it into a depth from the order it puts the instances in.
+#[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq, Pod, Zeroable)]
 pub(crate) struct PanelInstance {
     pub(crate) section: Section,
     pub(crate) color: Color,
     /// The radii the element's [`Corners`] resolved to against its own box, in logical pixels.
     pub(crate) radii: [f32; 4],
-    pub(crate) elevation: ResolvedElevation,
 }
 
 impl PanelInstance {
@@ -65,17 +71,11 @@ impl PanelInstance {
     /// Takes the resolved state rather than reading it, because only the element's
     /// [`Chlorophyll`](crate::elm::Chlorophyll) says whether it is a panel at all -- a set of
     /// components that happens to look like one is not one.
-    pub(crate) fn new(
-        section: Section,
-        color: Color,
-        rounding: Corners,
-        elevation: ResolvedElevation,
-    ) -> Self {
+    pub(crate) fn new(section: Section, color: Color, rounding: Corners) -> Self {
         Self {
             section,
             color,
             radii: rounding.radii(section),
-            elevation,
         }
     }
 }

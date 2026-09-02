@@ -7,3 +7,4 @@ description = "The site foliage is proven against. Builds only against foliage's
 
 [dependencies]
 foliage = { path = "../foliage" }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

@@ -12,6 +12,8 @@ mod root;
 mod rowan;
 mod tracing;
 
+use core::time::Duration;
+
 use crate::coordinate::{Area, Section};
 use crate::fern;
 use crate::grove::Grove;
@@ -45,7 +47,7 @@ fn tick_with(grove: &mut Grove, app: &mut dyn Rooted) {
 
 /// Moves the clock forward, to be taken up by the next frame.
 fn advance(grove: &mut Grove, millis: u64) {
-    grove.clock.advance(millis);
+    grove.clock.advance(Duration::from_millis(millis));
 }
 
 /// Resizes the surface, taking effect at the next frame.

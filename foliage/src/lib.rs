@@ -13,6 +13,7 @@
 //! - [`Panel`] is a filled rectangle; [`Palette`] names what fills it and [`Corners`] how it is
 //!   rounded.
 
+mod ash;
 mod clock;
 mod color;
 mod coordinate;
@@ -20,12 +21,14 @@ mod elevation;
 mod elm;
 mod fern;
 mod foliage;
+mod ginkgo;
 mod grove;
 mod layout;
 mod leaf;
 mod op;
 mod palette;
 mod panel;
+mod photosynthesize;
 mod place;
 mod placement;
 mod pollen;
@@ -38,6 +41,7 @@ mod stem;
 mod tree;
 mod vein;
 mod verbs;
+mod willow;
 
 #[cfg(test)]
 mod tests;

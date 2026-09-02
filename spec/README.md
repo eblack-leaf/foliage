@@ -91,8 +91,8 @@ A7 has landed. One `foliage` crate on `bevy_ecs` and `tracing`: `Fern` runs the 
 the surface it runs against, and `Foliage` holds both at boot. `Leaf`, `Presence`, `Seed`, `Stem`,
 `Grow`, the one queue and its drain, `Pollen`, `Vein`/`Sap`, and `Root`. Twenty-two headless tests.
 
-The engine has no entry point until `photosynthesize` lands: nothing outside the suite calls
-`Fern`, and F9 has no loop to govern.
+`Fern::run` is steps 1 through 8. Step 9 belongs to the caller, which is what lets the suite and the
+event loop share one frame.
 
 B2 has landed. Logical-pixel coordinates; `Layout` and `Short`; the placement grammar as types —
 role-first openers, the coordinate/length split, and the axis asymmetry that width-down/height-up
@@ -185,5 +185,57 @@ a marker elevated over it, an entry recoloured as the tour moves, and a badge gr
 rather than inside it — which draws over the rail's elevation while still addressing the rail's grid
 through its anchor.
 
-Next: C1 — `Willow`, `Ginkgo`, `Ash` and `photosynthesize`. Extraction now produces instances that
-nothing consumes, and that is a shape nothing has checked.
+C1 has landed. `Willow`, `Ginkgo`, `Ash` and `photosynthesize`: the page is on screen, and the loop
+F9 governs is the one that put it there. The headless suite is unchanged and still passes, which is
+the point — C1 adds no test because it is the layer the suite cannot reach.
+
+`Fern::run` is called by the loop exactly as the suite calls it, and step 9 is a separate statement
+after it. `Ash::absorb` sits between the two, in the same breath as the extraction that produced the
+batch: that is what makes Elm's cache safe to keep, since a batch is applied where it is made and a
+paint that fails afterwards costs a picture rather than a change. Painting is therefore its own
+question — a compositor asking for a redraw repaints from what the renderers hold without running a
+frame nothing owed.
+
+Elevation reaches the GPU as a *position*, not a value. `Ash` sorts its instances back to front,
+which alpha blending requires anyway, and takes each depth from where the instance landed in that
+order. A rank is an accumulated elevation beside an allocation counter and has no magnitude to
+scale; it has an order, and a position is exactly that order. The depth test then holds what the
+draw order alone would not, and two identical runs draw identically because the rank is total.
+
+The rank moved out of the renderer's instance and into `Instances`, beside it. Where an element sits
+in the one stack is a fact about the element rather than about what it draws, and every renderer
+will need it. Taking it out is also what leaves `PanelInstance` free to be `#[repr(C)]` over
+`Section`, `Color` and four radii — so what extraction compares and what the vertex buffer holds are
+the same bytes, and there is no second, upload-shaped copy of a panel to keep in step. `Position`,
+`Area`, `Section` and `Color` state that layout where they are defined, which is the commitment that
+buys it.
+
+Logical pixels reach the shader. The projection is built from the logical area and the surface is
+configured in physical ones, so the rasteriser applies the scale factor and no instance, radius or
+section is ever carried in device pixels. Rounding is a distance field rather than geometry, and it
+antialiases from the field's own screen-space derivative — which is what makes one written-once
+radius read the same at any display density.
+
+The platform's clock is capped at 100ms per frame. A wall clock is the one time source that can lie:
+a slept machine, a backgrounded tab, a window held mid-drag or a breakpoint in the loop all report a
+gap that has nothing to do with the app, and reported honestly the frame that wakes the loop hands
+every running tween the whole of it at once — what is on screen tears its way to wherever wall time
+says it should be.
+
+The gap is not skipped, it is waited on. Everything advances by the capped delta, so the whole engine
+is deferred by the same amount rather than any part of it moving; a tween resumes where it was and
+takes longer in wall time instead of arriving at its end value having never been drawn. Playing late
+is the better failure. It is available only because F6 gives the frame one clock — with a second time
+source, a subsystem would have something to fall out of step against. The cap is the loop's and not
+`Clock`'s, because the suite advances by hand and has to stay exact.
+
+`application/` exercises the loop rather than describing it: the tour asks for the next frame with
+`again()` for as long as it is walking the rail, and stops asking when it is done — after which the
+engine idles until the window is touched.
+
+Still owed by C1: the ordering is the panel buffer's own, because there is one renderer. A second
+one makes the stack shared across renderers and the draw a series of spans over it. That is `B6`'s
+to build, not `B8`'s — `Text` is the second renderer, and the three slices before it add none.
+
+Next: B4 — interaction. Hit-testing runs against what was drawn, and there is now something drawn to
+run it against.
