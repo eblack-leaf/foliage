@@ -173,6 +173,10 @@ fn drain(grove: &mut Grove) {
                     dropped("round", leaf, "draws nothing to round");
                 }
             }
+            Op::Repaint(scheme) => {
+                grove.scheme = scheme;
+                debug!("repainted");
+            }
         }
     }
 }

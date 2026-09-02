@@ -1,7 +1,7 @@
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, PanelPigment};
 use crate::leaf::{Growth, Leaf};
-use crate::palette::Palette;
+use crate::palette::{Palette, Scheme};
 use crate::place::{Caller, Placement};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
@@ -46,6 +46,8 @@ pub(crate) enum Op {
         leaf: Leaf,
         rounding: Corners,
     },
+    /// The one op that names no element: what every role resolves to, for the whole tree.
+    Repaint(Scheme),
 }
 
 /// An element formed and not yet open: what the queue carries between the call that described it

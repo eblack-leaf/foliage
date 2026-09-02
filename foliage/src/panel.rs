@@ -62,18 +62,18 @@ pub(crate) struct PanelInstance {
 impl PanelInstance {
     /// What a panel resolved to, from what it was told and where it ended up.
     ///
-    /// Takes the declared state rather than reading it, because only the element's
+    /// Takes the resolved state rather than reading it, because only the element's
     /// [`Chlorophyll`](crate::elm::Chlorophyll) says whether it is a panel at all -- a set of
     /// components that happens to look like one is not one.
     pub(crate) fn new(
         section: Section,
-        color: Palette,
+        color: Color,
         rounding: Corners,
         elevation: ResolvedElevation,
     ) -> Self {
         Self {
             section,
-            color: color.color(),
+            color,
             radii: rounding.radii(section),
             elevation,
         }

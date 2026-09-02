@@ -154,10 +154,15 @@ renderer per frame, on every frame including the empty ones, which would contrad
 the phase makes.
 
 A fill is a **role**, not a color: `Panel::new().color(Palette::Accent)`. What a role resolves to is
-the palette's answer and changes in one place; `Color` stays the form a renderer reads and the form
-a palette is stated in. The ramp behind the roles — tints, and a scheme to read them against — is
-still owed, and until it lands each role resolves to one fixed value. No callsite names one, so the
-ramp replaces those values and nothing else.
+the `Scheme`'s answer, written at any frame with `repaint` — the one op that names no element,
+because a role belongs to the scheme and not to the elements declaring it. Extraction resolves the
+role each frame and compares the result, so a repaint moves exactly the elements painted in a color
+that changed, and a scheme that resolves to what it already did sends nothing.
+
+`Color` stays the form a renderer reads and the form a scheme is stated in. Still owed is the *ramp*
+behind the roles — a tint scale per role, and a light and dark reading of it — which will change
+what a role resolves to and never what an element declares. Five roles is a starting set, and adding
+one is a variant rather than a migration, because no callsite names a color.
 
 Elevation is relative and only relative, and the absolute form was cut for a reason stronger than
 the one that first cut it: see `lifecycle.md`. Its tie-break is allocation order, taken where the

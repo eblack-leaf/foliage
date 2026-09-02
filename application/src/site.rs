@@ -2,7 +2,7 @@
 
 use core::time::Duration;
 
-use foliage::{Grove, Grow, Leaf, Palette, Pollen, Root};
+use foliage::{Color, Grove, Grow, Leaf, Palette, Pollen, Root, Scheme};
 
 use crate::shell::{self, Shell};
 
@@ -41,6 +41,9 @@ impl Root for Site {
             marker,
             notice,
         } = shell::grow(grove);
+        // The scheme is the app's, and stating it is one op rather than a value threaded through
+        // every element that reads a role.
+        grove.repaint(Scheme::new().set(Palette::Accent, Color::rgb(0.42, 0.68, 0.96)));
         grove.color(entries[0], Palette::Accent);
         Self {
             entries,

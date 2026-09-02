@@ -49,7 +49,7 @@ pub use foliage::Foliage;
 pub use grove::Grove;
 pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};
-pub use palette::Palette;
+pub use palette::{Palette, Scheme};
 pub use panel::Panel;
 pub use place::Place;
 pub use placement::basis::{Anchor, Trunk, anchor, trunk};

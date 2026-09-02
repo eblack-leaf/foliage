@@ -6,6 +6,7 @@ use crate::elm::Elm;
 use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf, Presence};
 use crate::op::Op;
+use crate::palette::Scheme;
 use crate::pollen::Drift;
 use crate::queue::Queue;
 use crate::tree::Tree;
@@ -23,6 +24,7 @@ pub struct Grove {
     pub(crate) pending_resize: Option<Area>,
     pub(crate) layout: Layout,
     pub(crate) short: Short,
+    pub(crate) scheme: Scheme,
     pub(crate) again: bool,
     pub(crate) frames: u64,
 }
@@ -39,6 +41,7 @@ impl Grove {
             pending_resize: None,
             layout: Layout::of(viewport),
             short: Short::No.next(viewport),
+            scheme: Scheme::default(),
             again: false,
             frames: 0,
         }
@@ -80,6 +83,14 @@ impl Grove {
     /// Whether the viewport is vertically cramped.
     pub fn short(&self) -> Short {
         self.short
+    }
+
+    /// What every [`Palette`](crate::Palette) role currently resolves to.
+    ///
+    /// Written with [`repaint`](crate::Grow::repaint), which lands at the drain like any other op --
+    /// so this is what the frame was drawn in, not what a repaint queued this frame will make it.
+    pub fn scheme(&self) -> Scheme {
+        self.scheme
     }
 
     /// How long the last frame took.

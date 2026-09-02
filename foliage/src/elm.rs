@@ -172,7 +172,7 @@ pub(crate) fn run(grove: &mut Grove) {
                 };
                 let instance = PanelInstance::new(
                     grove.tree.drawn(leaf),
-                    pigment.color,
+                    grove.scheme.color(pigment.color),
                     pigment.rounding,
                     grove.tree.rank(leaf),
                 );

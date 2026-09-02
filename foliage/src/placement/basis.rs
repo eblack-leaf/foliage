@@ -105,12 +105,28 @@ macro_rules! basis {
             /// A one-based column of its grid, read the way [`col`](crate::Source::col) is.
             ///
             /// A position rather than a length, because a track of someone else's grid is somewhere
-            /// on the surface rather than an offset into this element's own parent.
+            /// on the surface rather than an offset into this element's own trunk. So it is legal
+            /// where an edge is legal, and refused where an edge is:
+            ///
+            /// ```compile_fail,E0277
+            /// use foliage::{Source, anchor, left};
+            /// left(0.px()).width(anchor().col(2));
+            /// ```
+            ///
+            /// A span of another element's tracks is the distance between two of them, exactly as
+            /// it is for edges.
             pub fn col(self, index: i32) -> HorizontalCoordinate {
                 HorizontalCoordinate::cell(index, $against, $origin)
             }
 
             /// A one-based row of its grid, read the way [`row`](crate::Source::row) is.
+            ///
+            /// A position on the vertical axis, so it does not cross:
+            ///
+            /// ```compile_fail,E0277
+            /// use foliage::{Source, anchor, left};
+            /// left(anchor().row(2)).width(10.px());
+            /// ```
             pub fn row(self, index: i32) -> VerticalCoordinate {
                 VerticalCoordinate::cell(index, $against, $origin)
             }

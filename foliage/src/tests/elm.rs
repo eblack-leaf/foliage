@@ -7,8 +7,8 @@ use crate::coordinate::Section;
 use crate::panel::PanelInstance;
 use crate::tests::{grove, tick};
 use crate::{
-    Corner, Corners, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding, Sap, Side,
-    Source, Stem, Vein, left, top,
+    Color, Corner, Corners, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding, Sap,
+    Scheme, Side, Source, Stem, Vein, left, top,
 };
 
 /// A panel filling a box of a stated size, so its radii have something to resolve against.
@@ -273,6 +273,68 @@ fn a_stem_reads_no_fill() {
     tick(&mut grove);
     assert_eq!(grove.tap(leaf, Vein::Color), None);
     assert_eq!(grove.tap(leaf, Vein::Rounding), None);
+}
+
+// Repainting.
+
+/// A role belongs to the scheme, not to the elements declaring it, so changing what it resolves to
+/// moves everything painted in it and nothing else.
+#[test]
+fn a_repaint_rewrites_every_element_in_an_affected_role() {
+    let mut grove = grove();
+    let accented = grove.plant(panel(40.0).color(Palette::Accent));
+    let muted = grove.plant(panel(40.0).color(Palette::Muted));
+    tick(&mut grove);
+    let unaffected = held(&grove, muted).color;
+
+    grove.repaint(Scheme::new().set(Palette::Accent, Color::rgb(1.0, 0.0, 0.0)));
+    tick(&mut grove);
+    assert_eq!(grove.elm.panels.written.len(), 1);
+    assert_eq!(grove.elm.panels.written[0].0, accented);
+    assert_eq!(held(&grove, accented).color, Color::rgb(1.0, 0.0, 0.0));
+    assert_eq!(held(&grove, muted).color, unaffected);
+}
+
+/// The whole tree in one op, and no element rewritten to say so.
+#[test]
+fn a_repaint_of_every_role_needs_no_element_named() {
+    let mut grove = grove();
+    for role in [Palette::Surface, Palette::Raised, Palette::Accent] {
+        grove.plant(panel(40.0).color(role));
+    }
+    tick(&mut grove);
+
+    let inverted = Scheme::new()
+        .set(Palette::Surface, Color::rgb(1.0, 1.0, 1.0))
+        .set(Palette::Raised, Color::rgb(0.9, 0.9, 0.9))
+        .set(Palette::Accent, Color::rgb(0.0, 0.2, 0.8));
+    grove.repaint(inverted);
+    tick(&mut grove);
+    assert_eq!(grove.elm.panels.written.len(), 3);
+    assert_eq!(grove.scheme(), inverted);
+}
+
+/// A scheme that resolves every role to what it already did is not a change, so it is not sent.
+#[test]
+fn a_repaint_that_changes_nothing_writes_nothing() {
+    let mut grove = grove();
+    grove.plant(panel(40.0).color(Palette::Accent));
+    tick(&mut grove);
+
+    grove.repaint(Scheme::new());
+    tick(&mut grove);
+    assert!(grove.elm.panels.written.is_empty());
+}
+
+/// Nothing an app queues lands while it is still running, and a scheme is no exception.
+#[test]
+fn a_repaint_is_not_visible_in_the_frame_that_made_it() {
+    let mut grove = grove();
+    let before = grove.scheme();
+    grove.repaint(Scheme::new().set(Palette::Accent, Color::rgb(1.0, 0.0, 0.0)));
+    assert_eq!(grove.scheme(), before);
+    tick(&mut grove);
+    assert_ne!(grove.scheme(), before);
 }
 
 /// Filling something that draws nothing is dropped the way every op naming something it does not
