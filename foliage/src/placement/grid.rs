@@ -9,9 +9,15 @@ use crate::placement::breakpoints::{Breakpoints, Override};
 /// How a parent's box is divided, per breakpoint.
 ///
 /// What a child's [`col`](crate::Source::col) and [`row`](crate::Source::row) address. Every
-/// element has one -- [`Grid::default()`] is a single column and a single row, which is what makes
-/// an element that is simply a positioned box behave without saying anything -- and declaring one
+/// element has one -- [`Grid::new()`] is a single column and a single row, which is what makes an
+/// element that is simply a positioned box behave without saying anything -- and declaring one
 /// replaces it.
+///
+/// ```ignore
+/// Grid::new()
+///     .xs(4.columns().gap(16.0), 1.rows())
+///     .md(12.columns().gap(16.0), 1.rows())
+/// ```
 ///
 /// A grid decides how children are laid out and nothing else. Whether an element scrolls is
 /// declared separately.
@@ -19,12 +25,18 @@ use crate::placement::breakpoints::{Breakpoints, Override};
 pub struct Grid(pub(crate) Breakpoints<Tracks>);
 
 impl Grid {
-    /// A grid used at every breakpoint. Add exceptions with [`sm`](Grid::sm) upward.
-    pub fn new(columns: Columns, rows: Rows) -> Self {
-        Self(Breakpoints::new(Tracks {
-            columns: columns.0,
-            rows: rows.0,
-        }))
+    /// An undivided grid: a single column and a single row, at every breakpoint.
+    ///
+    /// Each of [`xs`](Grid::xs) upward states one breakpoint's division, and a breakpoint with none
+    /// of its own takes the nearest smaller one that has.
+    pub fn new() -> Self {
+        Self(Breakpoints::new())
+    }
+
+    /// States the division from the smallest breakpoint up, which is to say everywhere that a
+    /// larger one does not override it.
+    pub fn xs(self, columns: Columns, rows: Rows) -> Self {
+        self.set(Override::Xs, columns, rows)
     }
 
     /// Overrides the division from the `sm` breakpoint up.
@@ -72,7 +84,7 @@ impl Default for Grid {
     /// One column and one row: the whole of the parent, which is what a child addressing
     /// `1.col()` and `1.row()` fills.
     fn default() -> Self {
-        Self::new(1.columns(), 1.rows())
+        Self::new()
     }
 }
 
@@ -81,6 +93,17 @@ impl Default for Grid {
 pub(crate) struct Tracks {
     pub(crate) columns: Track,
     pub(crate) rows: Track,
+}
+
+impl Default for Tracks {
+    /// One column and one row, which is what makes an element that is simply a positioned box
+    /// behave without saying anything.
+    fn default() -> Self {
+        Self {
+            columns: 1.columns().0,
+            rows: 1.rows().0,
+        }
+    }
 }
 
 impl Tracks {

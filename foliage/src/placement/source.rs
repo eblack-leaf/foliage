@@ -16,45 +16,60 @@
 //!
 //! So `height(2.col())` is a two-column span used as a height, and `width(2.row())` does not
 //! compile.
+//!
+//! # Whose geometry
+//!
+//! Every term that reads geometry names whose it reads, as an [`Against`]. The bare spellings read
+//! the trunk, which is the ordinary case; [`trunk()`](crate::trunk) and
+//! [`anchor()`](crate::anchor) say it outright, and the second is what lets an element keep
+//! addressing a grid after it has been grown somewhere else.
 
 use core::ops::{Add, Mul, Neg, Sub};
 
 use crate::coordinate::Axis;
 
-/// One addend of an expression: a source, and the factor it was scaled by.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub(crate) struct Term {
-    pub(crate) scale: f32,
-    pub(crate) kind: Kind,
-}
-
-impl Term {
-    fn new(kind: Kind) -> Self {
-        Self { scale: 1.0, kind }
-    }
+/// Whose geometry a term reads.
+///
+/// One question, asked once. A grid, a character cell, a measured size and a box all belong to some
+/// element, and a term that reads one has to say which -- otherwise half the grammar can only ever
+/// describe the trunk, and an element grown somewhere else loses the vocabulary it was written in.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Against {
+    /// The element itself. Its declared character cell and its measured size, which are the only
+    /// two things about itself an element can read: its box is what is being solved for.
+    Own,
+    /// The element this one was grown under.
+    Trunk,
+    /// The one other element the placement may read.
+    Anchor,
 }
 
 /// What a term reads.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) enum Kind {
-    /// Logical pixels, as written.
+    /// Logical pixels, as written. The only source that reads no geometry at all.
     Px(f32),
-    /// A fraction of the parent's extent on the resolving axis, where `1.0` is the whole of it.
-    Pct(f32),
-    /// A one-based track index into the parent's grid on the named axis. Which edge of that track
-    /// it means is the role's decision.
-    Cell { index: i32, axis: Axis },
-    /// A count of character cells on the resolving axis.
-    Letters(f32),
-    /// This element's own intrinsic extent on the resolving axis.
-    Content,
-    /// One edge of the element's anchor.
-    AnchorEdge(Edge),
-    /// One extent of the element's anchor.
-    AnchorExtent(Axis),
+    /// A fraction of an extent on the resolving axis, where `1.0` is the whole of it.
+    Pct { fraction: f32, against: Against },
+    /// An extent on the named axis, whichever axis is resolving. Axis-explicit, so
+    /// `height(anchor().width())` is an element as tall as its anchor is wide.
+    Extent { axis: Axis, against: Against },
+    /// A one-based track index into a grid on the named axis. Which edge of that track it means is
+    /// the role's decision.
+    Cell {
+        index: i32,
+        axis: Axis,
+        against: Against,
+    },
+    /// A count of character cells on the resolving axis, in the named element's font.
+    Letters { letters: f32, against: Against },
+    /// A measured intrinsic extent on the resolving axis.
+    Content { against: Against },
+    /// One edge of a box. Already a position on the surface, so it is measured from nothing.
+    Edge { edge: Edge, against: Against },
 }
 
-/// Which edge of an anchor a term reads.
+/// Which edge of a box a term reads.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) enum Edge {
     Left,
@@ -70,9 +85,25 @@ pub(crate) enum Edge {
 /// Every operator a source supports -- addition, subtraction, and scaling by a plain number --
 /// keeps an expression linear, so this shape is total rather than a simplification. It is built
 /// once, where the placement is written, and never allocates during resolution.
+///
+/// Terms in one expression may read different elements: `anchor().bottom() + 50.pct()` is half the
+/// trunk's extent below the anchor's bottom edge, and each half names its own.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Expr {
     pub(crate) terms: Vec<Term>,
+}
+
+/// One addend of an expression: a source, and the factor it was scaled by.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) struct Term {
+    pub(crate) scale: f32,
+    pub(crate) kind: Kind,
+}
+
+impl Term {
+    fn new(kind: Kind) -> Self {
+        Self { scale: 1.0, kind }
+    }
 }
 
 impl Expr {
@@ -103,13 +134,18 @@ impl Expr {
     }
 }
 
-/// Where a coordinate is measured from.
-#[derive(Copy, Clone, Debug, PartialEq)]
+/// The near edge a coordinate's terms are measured from.
+///
+/// A coordinate is one origin and a sum of deltas. Which element supplies the origin is the basis
+/// the coordinate was opened against: a bare length takes the trunk, `anchor().col(2)` takes the
+/// anchor, and an edge is already a position on the surface and takes nothing.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Origin {
-    /// The near edge of the parent's box on the resolving axis, which is what a length placed in a
-    /// position role is measured from.
-    Parent,
-    /// The surface, which is where an anchor's edges already are.
+    /// The near edge of the trunk's box on the resolving axis.
+    Trunk,
+    /// The near edge of the anchor's box on the resolving axis.
+    Anchor,
+    /// The surface, which is where an edge already is.
     Surface,
 }
 
@@ -140,8 +176,9 @@ impl From<VerticalCoordinate> for Coord {
 
 /// A length: an extent, with no position of its own.
 ///
-/// Produced by [`Source`] and by [`anchor().width()`](crate::Anchor::width). Legal in every role --
-/// as a size directly, and as a position measured from the parent's near edge.
+/// Produced by [`Source`] and by the extent readings of a basis, such as
+/// [`anchor().width()`](crate::Anchor::width). Legal in every role -- as a size directly, and as a
+/// position measured from the trunk's near edge.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Length(pub(crate) Expr);
 
@@ -168,18 +205,18 @@ pub struct VerticalLength(pub(crate) Expr);
 
 /// A position on the horizontal axis.
 ///
-/// Either an anchor's edge, which is already a coordinate, or a [`Length`] measured from the
-/// parent's left.
+/// Either a position read from a basis -- an edge, or a track of its grid -- or a [`Length`]
+/// measured from the trunk's left.
 ///
-/// A position is not an extent, so an anchor's edge cannot be a size:
+/// A position is not an extent, so an edge cannot be a size:
 ///
 /// ```compile_fail,E0277
 /// use foliage::{Source, anchor, left};
 /// left(0.px()).width(anchor().left());
 /// ```
 ///
-/// Subtracting two of them is what gives the [`Length`] between them, which is how an anchor's
-/// edges are used as a size. Adding two is not an operation:
+/// Subtracting two of them is what gives the [`Length`] between them, which is how two edges are
+/// used as a size. Adding two is not an operation:
 ///
 /// ```compile_fail,E0308
 /// use foliage::{Source, anchor, left};
@@ -218,19 +255,45 @@ impl VerticalLength {
 }
 
 impl HorizontalCoordinate {
-    pub(crate) fn anchored(edge: Edge) -> Self {
+    /// An edge, which is already a position on the surface.
+    pub(crate) fn edge(edge: Edge, against: Against) -> Self {
         Self {
-            expr: Expr::of(Kind::AnchorEdge(edge)),
+            expr: Expr::of(Kind::Edge { edge, against }),
             origin: Origin::Surface,
+        }
+    }
+
+    /// A track of a basis's grid, measured from that basis's near edge.
+    pub(crate) fn cell(index: i32, against: Against, origin: Origin) -> Self {
+        Self {
+            expr: Expr::of(Kind::Cell {
+                index,
+                axis: Axis::Horizontal,
+                against,
+            }),
+            origin,
         }
     }
 }
 
 impl VerticalCoordinate {
-    pub(crate) fn anchored(edge: Edge) -> Self {
+    /// An edge, which is already a position on the surface.
+    pub(crate) fn edge(edge: Edge, against: Against) -> Self {
         Self {
-            expr: Expr::of(Kind::AnchorEdge(edge)),
+            expr: Expr::of(Kind::Edge { edge, against }),
             origin: Origin::Surface,
+        }
+    }
+
+    /// A track of a basis's grid, measured from that basis's near edge.
+    pub(crate) fn cell(index: i32, against: Against, origin: Origin) -> Self {
+        Self {
+            expr: Expr::of(Kind::Cell {
+                index,
+                axis: Axis::Vertical,
+                against,
+            }),
+            origin,
         }
     }
 }
@@ -239,22 +302,25 @@ impl VerticalCoordinate {
 ///
 /// Every unit names itself at the call site, which is what keeps an expression readable when it
 /// mixes them: `right(100.pct() - 16.px())`.
+///
+/// These read the trunk. The same units against another element are on
+/// [`trunk()`](crate::trunk) and [`anchor()`](crate::anchor).
 pub trait Source: Sized {
     /// Logical pixels.
     fn px(self) -> Length;
 
-    /// A percentage of the parent's extent on the axis the role names. `100.pct()` is the whole of
-    /// it, so `right(100.pct())` is the parent's right edge.
+    /// A percentage of the trunk's extent on the axis the role names. `100.pct()` is the whole of
+    /// it, so `right(100.pct())` is the trunk's right edge.
     fn pct(self) -> Length;
 
-    /// A one-based column of the parent's grid.
+    /// A one-based column of the trunk's grid.
     ///
     /// The role decides which part of that column is meant: a near role gives its left edge, a far
     /// role its right edge, a centre role its middle, and a size role the width of a span of that
     /// many columns, gaps included. So `left(1.col()).right(1.col())` is exactly the first column.
     fn col(self) -> Length;
 
-    /// A one-based row of the parent's grid, read the same way [`col`](Source::col) is.
+    /// A one-based row of the trunk's grid, read the same way [`col`](Source::col) is.
     fn row(self) -> VerticalLength;
 
     /// A count of character cells, at the element's own font size.
@@ -262,6 +328,9 @@ pub trait Source: Sized {
     /// The right tool whenever the count is genuinely known ahead of time: it costs nothing to
     /// resolve and it says what it means. Where the count is not known ahead of time,
     /// [`content()`] measures instead.
+    ///
+    /// The element's own font, because that is the only one it is composed in. A count in the
+    /// font of another element is [`anchor().letters(n)`](crate::Anchor::letters).
     fn letters(self) -> Length;
 }
 
@@ -277,9 +346,13 @@ pub trait Source: Sized {
 /// Under [`at_most`](crate::Horizontal::at_most) this is fit-content: the smaller of what the
 /// content wants and what the ceiling allows.
 ///
-/// An element with nothing in it has an intrinsic extent of zero.
+/// An element with nothing in it has an intrinsic extent of zero. Another element's measured extent
+/// is [`anchor().content()`](crate::Anchor::content), which is a different number from its box
+/// whenever it was given more room than it asked for.
 pub fn content() -> Length {
-    Length::of(Kind::Content)
+    Length::of(Kind::Content {
+        against: Against::Own,
+    })
 }
 
 macro_rules! source {
@@ -290,19 +363,33 @@ macro_rules! source {
             }
 
             fn pct(self) -> Length {
-                Length::of(Kind::Pct(self as f32 / 100.0))
+                Length::of(Kind::Pct {
+                    fraction: self as f32 / 100.0,
+                    against: Against::Trunk,
+                })
             }
 
             fn col(self) -> Length {
-                Length::of(Kind::Cell { index: self as i32, axis: Axis::Horizontal })
+                Length::of(Kind::Cell {
+                    index: self as i32,
+                    axis: Axis::Horizontal,
+                    against: Against::Trunk,
+                })
             }
 
             fn row(self) -> VerticalLength {
-                VerticalLength::of(Kind::Cell { index: self as i32, axis: Axis::Vertical })
+                VerticalLength::of(Kind::Cell {
+                    index: self as i32,
+                    axis: Axis::Vertical,
+                    against: Against::Trunk,
+                })
             }
 
             fn letters(self) -> Length {
-                Length::of(Kind::Letters(self as f32))
+                Length::of(Kind::Letters {
+                    letters: self as f32,
+                    against: Against::Own,
+                })
             }
         }
     )*};
@@ -320,7 +407,7 @@ impl From<Length> for HorizontalCoordinate {
     fn from(length: Length) -> Self {
         Self {
             expr: length.0,
-            origin: Origin::Parent,
+            origin: Origin::Trunk,
         }
     }
 }
@@ -329,7 +416,7 @@ impl From<Length> for VerticalCoordinate {
     fn from(length: Length) -> Self {
         Self {
             expr: length.0,
-            origin: Origin::Parent,
+            origin: Origin::Trunk,
         }
     }
 }
@@ -338,7 +425,7 @@ impl From<VerticalLength> for VerticalCoordinate {
     fn from(length: VerticalLength) -> Self {
         Self {
             expr: length.0,
-            origin: Origin::Parent,
+            origin: Origin::Trunk,
         }
     }
 }

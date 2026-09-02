@@ -2,8 +2,9 @@ use core::time::Duration;
 
 use crate::clock::Clock;
 use crate::coordinate::Area;
+use crate::elm::Elm;
 use crate::layout::{Layout, Short};
-use crate::leaf::{Leaf, Presence};
+use crate::leaf::{Growth, Leaf, Presence};
 use crate::op::Op;
 use crate::pollen::Drift;
 use crate::queue::Queue;
@@ -14,6 +15,7 @@ use crate::verbs::Queues;
 /// The surface a frame plants into and reads from.
 pub struct Grove {
     pub(crate) tree: Tree,
+    pub(crate) elm: Elm,
     pub(crate) queue: Queue,
     pub(crate) clock: Clock,
     pub(crate) drift: Drift,
@@ -29,6 +31,7 @@ impl Grove {
     pub(crate) fn new(viewport: Area) -> Self {
         Self {
             tree: Tree::new(),
+            elm: Elm::default(),
             queue: Queue::default(),
             clock: Clock::new(),
             drift: Drift::default(),
@@ -55,9 +58,12 @@ impl Grove {
         Some(match vein {
             Vein::Branches => Sap::Leaves(self.tree.branches(leaf)),
             Vein::Trunk => Sap::Leaf(self.tree.trunk(leaf)),
-            Vein::Section => Sap::Section(self.tree.screen(leaf)?),
-            Vein::LayoutSection => Sap::Section(self.tree.layout_section(leaf)?),
+            Vein::Placed => Sap::Section(self.tree.placed(leaf)),
+            Vein::Drawn => Sap::Section(self.tree.drawn(leaf)),
             Vein::Anchor => Sap::Leaf(self.tree.anchor(leaf)),
+            Vein::Elevation => Sap::Elevation(self.tree.elevation(leaf)),
+            Vein::Color => Sap::Color(self.tree.pigment(leaf)?.color),
+            Vein::Rounding => Sap::Rounding(self.tree.pigment(leaf)?.rounding),
         })
     }
 
@@ -101,7 +107,7 @@ impl Queues for Grove {
         self.queue.push(op);
     }
 
-    fn allocate(&self) -> Leaf {
+    fn allocate(&self) -> (Leaf, Growth) {
         self.tree.allocate()
     }
 }

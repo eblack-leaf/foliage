@@ -52,7 +52,8 @@ obligation that section states, a section of `application/` that exercises it, a
 | A7 | Skeleton + the headless suite | Built first — it is what every slice below is checked with |
 | B1 | `Leaf`, `Grove`, `Grow`, ops, `Pollen` | F1–F3: names, single-drain FIFO, withering, collection |
 | B2 | Coordinates, `Grid`, placement | The layout model and grammar |
-| B3 | `Panel`, `Elm` → `Ash` | First pixels; change → GPU end to end |
+| B3 | `Panel`, `Elm`, R6 `rank` | Extraction: change → instance, and that an unchanged frame costs nothing |
+| C1 | `Willow`, `Ginkgo`, `Ash`, `photosynthesize` | First pixels; change → GPU end to end. F9's loop |
 | B4 | Interaction: stack, claiming, focus | Targeting, handoff, focus order and trapping |
 | B5 | `Aspen`: tweens, sequences, timers | Timing, easing, one writer per property |
 | B6 | `Text` and fonts | The character cell, wrapping, `content()` |
@@ -61,6 +62,12 @@ obligation that section states, a section of `application/` that exercises it, a
 | B9 | `TextInput` | The one composite |
 | B10 | Assets, clipboard, web ext, virtual keyboard | Platform edges |
 | B11 | `Sprig` | That off-thread ops are genuinely identical to in-frame ops |
+
+`C1` is lettered apart because its evidence is a different kind. Every `B` slice is discharged by the
+headless suite; `C1` is the platform layer that suite explicitly cannot reach (`harness.md`), and is
+answered for by the site running, by the native matrix, and later by golden images. It sits directly
+after `B3` because an extraction nothing consumes is a shape nothing has checked, and because eight
+slices of renderers with nothing ever on screen is how a wrong instance layout survives to `B8`.
 
 Crate layout: one `foliage` crate — `foliage_proper` and its facade collapse — plus
 `foliage_macros`, `foliage_icons`, `application`, `xtask`, and `lichen` later.
@@ -97,4 +104,40 @@ Still owed by B2: `content()` resolves against an intrinsic that is always empty
 against a character cell that is always zero, because both come from a font. `Tree::cell` is the one
 seam B6 fills; the resolver arithmetic behind them is proven now.
 
-Next: B1 — `Root` taking root inside the first frame, and a dropped op proven for every verb.
+B1 has landed. Every verb on `Grow` is proven against F1–F3: a write lands in the frame that planted
+its leaf, two writes to one property resolve in arrival order, ops of different kinds are not
+reordered against each other, and neither a move nor a teardown is visible inside the frame that
+made it. A dropped op is proven for `at`, `grid` and `anchor` against both reasons a name is not
+live — it withered, or its own grow was dropped — and the drain is proven total across one. Ninety
+-three headless tests.
+
+`plant` has no dropped case to prove: it allocates its own name, and a name is never reused, so
+there is no occupied name for one to land on.
+
+`application/` is a workspace member, and `cargo check -p application` is a gate. It plants a page
+against the public surface alone: nested grids, a rail that turns from a strip into a column at
+`md`, a marker that reads whichever entry it was last anchored to, a reading column under `at_most`,
+and a notice pruned and then let go of when `Pollen` reports it. `content()` and `letters()` are
+absent from it deliberately, because both resolve to zero until B6.
+
+Writing it settled the authoring surface for breakpoints. `Location` and `Grid` are chains, one link
+per breakpoint, each link stating both axes:
+
+```rust
+Location::new()
+    .xs(left(1.col()).right(4.col()), top(0.px()).height(56.px()))
+    .md(left(1.col()).right(3.col()), top(0.px()).bottom(100.pct()))
+```
+
+Both axes together, because what an element looks like at a given width is one thought and belongs
+in one place. A chain per axis would scatter it across two links per breakpoint, which is the
+model Tailwind uses and is the thing to avoid. `xs` is a link like any other rather than a required
+constructor argument, so a chain that is never written falls back to the whole of the parent's box
+and an element that only differs above a certain width states that width and nothing else.
+
+The shape matters because a two-argument call at the head of a chain formats badly — it either runs
+long or bursts, and the override then hangs off its closing paren. A trivial head makes every link
+uniform, which is what keeps a responsive placement readable inline instead of forcing it into a
+temporary.
+
+Next: B3 — `Panel`, `Elm`, and R6 `rank`.

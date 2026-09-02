@@ -13,12 +13,18 @@ use crate::placement::source::Source;
 /// way round.
 ///
 /// ```ignore
-/// Location::new(
-///     left(20.px()).right(100.pct() - 16.px()),
-///     top(anchor().bottom() + 8.px()).height(content()),
-/// )
-/// .md(left(2.col()).right(3.col()), top(0.px()).height(120.px()))
+/// Location::new()
+///     .xs(
+///         left(20.px()).right(100.pct() - 16.px()),
+///         top(anchor().bottom() + 8.px()).height(content()),
+///     )
+///     .md(left(2.col()).right(3.col()), top(0.px()).height(120.px()))
 /// ```
+///
+/// Each link states one breakpoint, both axes together, so what an element looks like at a given
+/// width is read in one place. A breakpoint with nothing of its own takes the nearest smaller one
+/// that has, and a chain that runs out falls back to the whole of the parent's box -- so an element
+/// that only differs above a certain width states that width and nothing else.
 ///
 /// # A value is a source and a role
 ///
@@ -63,12 +69,18 @@ use crate::placement::source::Source;
 pub struct Location(pub(crate) Breakpoints<Axes>);
 
 impl Location {
-    /// A placement used at every breakpoint. Add exceptions with [`sm`](Location::sm) upward.
-    pub fn new(horizontal: Horizontal, vertical: Vertical) -> Self {
-        Self(Breakpoints::new(Axes {
-            horizontal: horizontal.0,
-            vertical: vertical.0,
-        }))
+    /// An empty placement: the whole of the parent's box, at every breakpoint.
+    ///
+    /// Each of [`xs`](Location::xs) upward states one breakpoint's placement, and a breakpoint
+    /// with none of its own takes the nearest smaller one that has.
+    pub fn new() -> Self {
+        Self(Breakpoints::new())
+    }
+
+    /// States the placement from the smallest breakpoint up, which is to say everywhere that a
+    /// larger one does not override it.
+    pub fn xs(self, horizontal: Horizontal, vertical: Vertical) -> Self {
+        self.set(Override::Xs, horizontal, vertical)
     }
 
     /// Overrides the placement from the `sm` breakpoint up.
@@ -115,16 +127,7 @@ impl Location {
 impl Default for Location {
     /// The whole of the parent's box.
     fn default() -> Self {
-        Self::new(
-            left(0.px()).right(100.pct()),
-            top(0.px()).bottom(100.pct()),
-        )
-    }
-}
-
-impl From<(Horizontal, Vertical)> for Location {
-    fn from((horizontal, vertical): (Horizontal, Vertical)) -> Self {
-        Self::new(horizontal, vertical)
+        Self::new()
     }
 }
 
@@ -133,4 +136,14 @@ impl From<(Horizontal, Vertical)> for Location {
 pub(crate) struct Axes {
     pub(crate) horizontal: Config,
     pub(crate) vertical: Config,
+}
+
+impl Default for Axes {
+    /// The whole of the parent's box, which is what an element that says nothing fills.
+    fn default() -> Self {
+        Self {
+            horizontal: left(0.px()).right(100.pct()).0,
+            vertical: top(0.px()).bottom(100.pct()).0,
+        }
+    }
 }

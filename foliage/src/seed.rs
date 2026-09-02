@@ -1,4 +1,6 @@
-use crate::op::{Bud, Sown};
+use crate::elm::{Chlorophyll, PanelPigment};
+use crate::op::Bud;
+use crate::panel::Panel;
 use crate::place::{Caller, Places};
 use crate::stem::Stem;
 
@@ -20,7 +22,24 @@ pub(crate) trait Buds {
 impl Buds for Stem {
     fn bud(self, at: Caller) -> Bud {
         Bud {
-            sown: Sown::Stem,
+            // A stem carries no renderer, which is the whole of what makes it one, and so nothing
+            // for a renderer to have been told.
+            chlorophyll: Chlorophyll::None,
+            pigment: None,
+            placement: self.placement,
+            at,
+        }
+    }
+}
+
+impl Buds for Panel {
+    fn bud(self, at: Caller) -> Bud {
+        Bud {
+            chlorophyll: Chlorophyll::Panel,
+            pigment: Some(PanelPigment {
+                color: self.color,
+                rounding: self.rounding,
+            }),
             placement: self.placement,
             at,
         }

@@ -5,22 +5,31 @@
 
 use crate::coordinate::{Area, Axis, Section};
 use crate::layout::{Layout, Short};
-use crate::placement::grid::Grid;
-use crate::placement::resolve::{Context, Span, resolve};
+use crate::placement::grid::{Grid, Tracks};
+use crate::placement::resolve::{Basis, Context, Span, resolve};
 use crate::placement::role::{Horizontal, Vertical};
 use crate::{
     Columns, Divide, Rows, Source, anchor, bottom, center_x, center_y, content, left, right, top,
+    trunk,
 };
 
-/// Everything a placement is read against, with a parent that is deliberately not at the origin so
-/// that anything failing to add the parent's own position shows up.
+/// Everything a placement is read against, with a trunk that is deliberately not at the origin so
+/// that anything failing to add the trunk's own position shows up.
+///
+/// The trunk and the anchor carry the same four readings, because the grammar says the same things
+/// about either -- so every case that names one can be written against the other.
 struct Given {
-    parent: Section,
+    trunk: Section,
+    trunk_grid: Grid,
+    trunk_cell: Area,
+    trunk_intrinsic: Area,
     anchor: Section,
+    anchor_grid: Grid,
+    anchor_cell: Area,
+    anchor_intrinsic: Area,
+    /// The element's own, which is all it can read of itself.
     intrinsic: Area,
-    grid: Grid,
     cell: Area,
-    parent_cell: Area,
     layout: Layout,
     short: Short,
 }
@@ -28,12 +37,16 @@ struct Given {
 impl Default for Given {
     fn default() -> Self {
         Self {
-            parent: Section::from_edges(10.0, 20.0, 210.0, 120.0),
+            trunk: Section::from_edges(10.0, 20.0, 210.0, 120.0),
+            trunk_grid: Grid::default(),
+            trunk_cell: Area::default(),
+            trunk_intrinsic: Area::default(),
             anchor: Section::default(),
+            anchor_grid: Grid::default(),
+            anchor_cell: Area::default(),
+            anchor_intrinsic: Area::default(),
             intrinsic: Area::default(),
-            grid: Grid::default(),
             cell: Area::default(),
-            parent_cell: Area::default(),
             layout: Layout::Xs,
             short: Short::No,
         }
@@ -44,12 +57,24 @@ impl Given {
     fn context(&self, axis: Axis) -> Context {
         Context {
             axis,
-            parent: self.parent,
-            anchor: self.anchor,
-            intrinsic: self.intrinsic,
-            tracks: self.grid.tracks(self.layout, self.short),
-            cell: self.cell,
-            parent_cell: self.parent_cell,
+            own: Basis {
+                section: Section::default(),
+                intrinsic: self.intrinsic,
+                tracks: Tracks::default(),
+                cell: self.cell,
+            },
+            trunk: Basis {
+                section: self.trunk,
+                intrinsic: self.trunk_intrinsic,
+                tracks: self.trunk_grid.tracks(self.layout, self.short),
+                cell: self.trunk_cell,
+            },
+            anchor: Basis {
+                section: self.anchor,
+                intrinsic: self.anchor_intrinsic,
+                tracks: self.anchor_grid.tracks(self.layout, self.short),
+                cell: self.anchor_cell,
+            },
         }
     }
 
@@ -71,7 +96,10 @@ fn span(near: f32, far: f32) -> Span {
 #[test]
 fn near_and_extent() {
     let given = Given::default();
-    assert_eq!(given.across(left(20.px()).width(140.px())), span(30.0, 170.0));
+    assert_eq!(
+        given.across(left(20.px()).width(140.px())),
+        span(30.0, 170.0)
+    );
     assert_eq!(given.down(top(20.px()).height(40.px())), span(40.0, 80.0));
 }
 
@@ -120,8 +148,11 @@ fn center_and_extent() {
 fn a_far_edge_and_an_extent_do_not_double_count() {
     let given = Given::default();
     let span = given.across(right(100.pct() - 16.px()).width(140.px()));
-    assert_eq!(span.far - given.parent.left(), given.parent.width() - 16.0);
-    assert_eq!(span.near - given.parent.left(), given.parent.width() - 156.0);
+    assert_eq!(span.far - given.trunk.left(), given.trunk.width() - 16.0);
+    assert_eq!(
+        span.near - given.trunk.left(),
+        given.trunk.width() - 156.0
+    );
     assert_eq!(span.extent(), 140.0);
 }
 
@@ -130,7 +161,10 @@ fn a_far_edge_and_an_extent_do_not_double_count() {
 #[test]
 fn a_percentage_is_of_the_parent_on_the_role_s_axis() {
     let given = Given::default();
-    assert_eq!(given.across(left(0.px()).width(50.pct())), span(10.0, 110.0));
+    assert_eq!(
+        given.across(left(0.px()).width(50.pct())),
+        span(10.0, 110.0)
+    );
     assert_eq!(given.down(top(0.px()).height(50.pct())), span(20.0, 70.0));
 }
 
@@ -140,8 +174,14 @@ fn letters_are_the_element_s_own_character_cell() {
         cell: Area::new(9.0, 18.0),
         ..Given::default()
     };
-    assert_eq!(given.across(left(0.px()).width(8.letters())), span(10.0, 82.0));
-    assert_eq!(given.down(top(0.px()).height(2.letters())), span(20.0, 56.0));
+    assert_eq!(
+        given.across(left(0.px()).width(8.letters())),
+        span(10.0, 82.0)
+    );
+    assert_eq!(
+        given.down(top(0.px()).height(2.letters())),
+        span(20.0, 56.0)
+    );
 }
 
 // Cells: a one-based index whose meaning is the role's decision.
@@ -149,7 +189,7 @@ fn letters_are_the_element_s_own_character_cell() {
 /// Four columns with an eight pixel gap across two hundred: `(200 - 3 * 8) / 4 = 44`.
 fn columns() -> Given {
     Given {
-        grid: Grid::new(4.columns().gap(8.0), 2.rows().gap(10.0)),
+        trunk_grid: Grid::new().xs(4.columns().gap(8.0), 2.rows().gap(10.0)),
         ..Given::default()
     }
 }
@@ -180,13 +220,19 @@ fn a_centre_role_gives_a_column_s_middle() {
 
 #[test]
 fn a_size_role_gives_a_span_of_columns_with_its_gaps() {
-    assert_eq!(columns().across(left(0.px()).width(2.col())), span(10.0, 106.0));
+    assert_eq!(
+        columns().across(left(0.px()).width(2.col())),
+        span(10.0, 106.0)
+    );
 }
 
 /// The pair of them is the column itself, which is the pattern a child filling one cell reaches for.
 #[test]
 fn a_column_addressed_from_both_sides_is_that_column() {
-    assert_eq!(columns().across(left(1.col()).right(1.col())), span(10.0, 54.0));
+    assert_eq!(
+        columns().across(left(1.col()).right(1.col())),
+        span(10.0, 54.0)
+    );
     assert_eq!(
         columns().across(left(1.col()).right(3.col())),
         span(10.0, 158.0)
@@ -195,20 +241,26 @@ fn a_column_addressed_from_both_sides_is_that_column() {
 
 #[test]
 fn rows_read_the_same_way_on_the_other_axis() {
-    assert_eq!(columns().down(top(2.row()).bottom(2.row())), span(75.0, 120.0));
+    assert_eq!(
+        columns().down(top(2.row()).bottom(2.row())),
+        span(75.0, 120.0)
+    );
 }
 
 /// The horizontal axis resolves first, so a column span is available as a height. The reverse is
 /// refused by the type system, which is the resolution order stated as types.
 #[test]
 fn a_column_span_can_be_a_height() {
-    assert_eq!(columns().down(top(0.px()).height(2.col())), span(20.0, 116.0));
+    assert_eq!(
+        columns().down(top(0.px()).height(2.col())),
+        span(20.0, 116.0)
+    );
 }
 
 #[test]
 fn tracks_can_be_pitched_in_pixels() {
     let given = Given {
-        grid: Grid::new(Columns::px(40.0).gap(4.0), 1.rows()),
+        trunk_grid: Grid::new().xs(Columns::px(40.0).gap(4.0), 1.rows()),
         ..Given::default()
     };
     assert_eq!(given.across(left(2.col()).right(2.col())), span(54.0, 94.0));
@@ -219,8 +271,8 @@ fn tracks_can_be_pitched_in_pixels() {
 #[test]
 fn tracks_can_be_pitched_in_the_parent_s_letters() {
     let given = Given {
-        grid: Grid::new(Columns::letters(1.0), Rows::letters(1.0)),
-        parent_cell: Area::new(9.0, 18.0),
+        trunk_grid: Grid::new().xs(Columns::letters(1.0), Rows::letters(1.0)),
+        trunk_cell: Area::new(9.0, 18.0),
         cell: Area::new(100.0, 100.0),
         ..Given::default()
     };
@@ -235,6 +287,135 @@ fn anchored() -> Given {
         anchor: Section::from_edges(300.0, 40.0, 400.0, 90.0),
         ..Given::default()
     }
+}
+
+// The anchor as a basis.
+//
+// An element that leaves its trunk -- to escape a stack, or a clip -- anchors back to it, and this
+// is what makes that a move rather than a downgrade: everything it could say against a trunk it can
+// say against an anchor.
+
+/// The same grid, addressed by an element that is no longer under it, lands on the same box.
+#[test]
+fn an_anchor_s_grid_is_addressable() {
+    let grid = Grid::new().xs(4.columns().gap(8.0), 2.rows().gap(10.0));
+    let under = Given {
+        trunk: Section::from_edges(300.0, 40.0, 400.0, 90.0),
+        trunk_grid: grid,
+        ..Given::default()
+    };
+    let beside = Given {
+        anchor: Section::from_edges(300.0, 40.0, 400.0, 90.0),
+        anchor_grid: grid,
+        ..Given::default()
+    };
+    assert_eq!(
+        beside.across(left(anchor().col(2)).right(anchor().col(3))),
+        under.across(left(2.col()).right(3.col()))
+    );
+    assert_eq!(
+        beside.down(top(anchor().row(2)).bottom(anchor().row(2))),
+        under.down(top(2.row()).bottom(2.row()))
+    );
+}
+
+/// A track of someone else's grid is somewhere on the surface, so it carries that element's origin
+/// and not the trunk's.
+#[test]
+fn an_anchor_s_track_takes_the_anchor_s_origin() {
+    let given = Given {
+        anchor: Section::from_edges(300.0, 40.0, 400.0, 90.0),
+        anchor_grid: Grid::new().xs(2.columns(), 1.rows()),
+        ..Given::default()
+    };
+    assert_eq!(
+        given.across(left(anchor().col(1)).right(anchor().col(1))),
+        span(300.0, 350.0)
+    );
+}
+
+/// A letter-pitched grid is measured in the font of the element the grid is on, wherever the
+/// element addressing it happens to be grown.
+#[test]
+fn an_anchor_s_tracks_are_pitched_in_the_anchor_s_letters() {
+    let given = Given {
+        anchor: Section::from_edges(300.0, 40.0, 400.0, 90.0),
+        anchor_grid: Grid::new().xs(Columns::letters(1.0), Rows::letters(1.0)),
+        anchor_cell: Area::new(9.0, 18.0),
+        cell: Area::new(100.0, 100.0),
+        ..Given::default()
+    };
+    assert_eq!(
+        given.across(left(anchor().col(3)).right(anchor().col(3))),
+        span(318.0, 327.0)
+    );
+}
+
+/// What another element measured to, which is a different number from its box whenever it was given
+/// more room than it asked for.
+#[test]
+fn an_anchor_s_content_is_readable_and_is_not_its_box() {
+    let given = Given {
+        anchor: Section::from_edges(300.0, 40.0, 400.0, 90.0),
+        anchor_intrinsic: Area::new(60.0, 12.0),
+        ..Given::default()
+    };
+    assert_eq!(
+        given.across(left(anchor().left()).width(anchor().content())),
+        span(300.0, 360.0)
+    );
+    assert_eq!(
+        given.across(left(anchor().left()).width(anchor().width())),
+        span(300.0, 400.0)
+    );
+}
+
+#[test]
+fn a_trunk_s_content_is_readable() {
+    let given = Given {
+        trunk_intrinsic: Area::new(60.0, 12.0),
+        ..Given::default()
+    };
+    assert_eq!(
+        given.across(left(0.px()).width(trunk().content())),
+        span(10.0, 70.0)
+    );
+}
+
+/// A count of letters is the reader's own font, and another element's is asked for by name -- the
+/// two are different numbers and neither stands in for the other.
+#[test]
+fn letters_are_the_reader_s_own_unless_another_is_named() {
+    let given = Given {
+        cell: Area::new(7.0, 14.0),
+        trunk_cell: Area::new(9.0, 18.0),
+        anchor: Section::from_edges(300.0, 40.0, 400.0, 90.0),
+        anchor_cell: Area::new(11.0, 22.0),
+        ..Given::default()
+    };
+    assert_eq!(given.across(left(0.px()).width(4.letters())), span(10.0, 38.0));
+    assert_eq!(
+        given.across(left(0.px()).width(trunk().letters(4.0))),
+        span(10.0, 46.0)
+    );
+    assert_eq!(
+        given.across(left(0.px()).width(anchor().letters(4.0))),
+        span(10.0, 54.0)
+    );
+}
+
+/// Terms in one expression may read different elements. Sitting below the anchor while being sized
+/// by the trunk is one measurement, not two frames of reference fighting.
+#[test]
+fn one_expression_may_read_two_elements() {
+    let given = Given {
+        anchor: Section::from_edges(300.0, 40.0, 400.0, 90.0),
+        ..Given::default()
+    };
+    assert_eq!(
+        given.down(top(anchor().bottom() + 8.px()).height(50.pct())),
+        span(98.0, 148.0)
+    );
 }
 
 #[test]
@@ -319,13 +500,16 @@ fn arithmetic_may_resolve_negative() {
         given.across(left(20.px() - 50.px()).width(10.px())),
         span(-20.0, -10.0)
     );
-    assert_eq!(given.across(left(-(30.px())).width(10.px())), span(-20.0, -10.0));
+    assert_eq!(
+        given.across(left(-(30.px())).width(10.px())),
+        span(-20.0, -10.0)
+    );
 }
 
 #[test]
 fn terms_of_different_units_sum() {
     let given = Given {
-        grid: Grid::new(4.columns().gap(8.0), 1.rows()),
+        trunk_grid: Grid::new().xs(4.columns().gap(8.0), 1.rows()),
         ..Given::default()
     };
     assert_eq!(
@@ -360,8 +544,12 @@ fn at_least_floors_an_extent() {
 fn a_floor_beats_a_ceiling() {
     let given = Given::default();
     assert_eq!(
-        given
-            .across(left(0.px()).width(10.px()).at_least(80.px()).at_most(40.px())),
+        given.across(
+            left(0.px())
+                .width(10.px())
+                .at_least(80.px())
+                .at_most(40.px())
+        ),
         span(10.0, 90.0)
     );
 }
@@ -400,7 +588,10 @@ fn content_asks_a_different_question_per_axis() {
         intrinsic: Area::new(180.0, 60.0),
         ..Given::default()
     };
-    assert_eq!(given.across(left(0.px()).width(content())), span(10.0, 190.0));
+    assert_eq!(
+        given.across(left(0.px()).width(content())),
+        span(10.0, 190.0)
+    );
     assert_eq!(given.down(top(0.px()).height(content())), span(20.0, 80.0));
 }
 
@@ -424,14 +615,18 @@ fn content_under_a_ceiling_is_fit_content() {
 #[test]
 fn an_element_with_no_content_is_intrinsically_empty() {
     let given = Given::default();
-    assert_eq!(given.across(left(0.px()).width(content())), span(10.0, 10.0));
+    assert_eq!(
+        given.across(left(0.px()).width(content())),
+        span(10.0, 10.0)
+    );
 }
 
 // Breakpoints.
 
 #[test]
 fn a_breakpoint_falls_back_to_the_nearest_smaller_one_given() {
-    let location = crate::Location::new(left(0.px()).width(1.px()), top(0.px()).height(1.px()))
+    let location = crate::Location::new()
+        .xs(left(0.px()).width(1.px()), top(0.px()).height(1.px()))
         .md(left(0.px()).width(2.px()), top(0.px()).height(2.px()));
     let width = |layout| {
         resolve(
@@ -451,7 +646,8 @@ fn a_breakpoint_falls_back_to_the_nearest_smaller_one_given() {
 /// width chain, where only one axis can be ordered.
 #[test]
 fn a_short_configuration_wins_over_the_width_chain() {
-    let location = crate::Location::new(left(0.px()).width(1.px()), top(0.px()).height(1.px()))
+    let location = crate::Location::new()
+        .xs(left(0.px()).width(1.px()), top(0.px()).height(1.px()))
         .xl(left(0.px()).width(2.px()), top(0.px()).height(2.px()))
         .short(left(0.px()).width(3.px()), top(0.px()).height(3.px()));
     let width = |layout, short| {
@@ -468,10 +664,12 @@ fn a_short_configuration_wins_over_the_width_chain() {
 
 #[test]
 fn a_grid_falls_back_the_same_way() {
-    let grid = Grid::new(2.columns(), 1.rows()).lg(4.columns(), 1.rows());
+    let grid = Grid::new()
+        .xs(2.columns(), 1.rows())
+        .lg(4.columns(), 1.rows());
     let column = |layout| {
         Given {
-            grid,
+            trunk_grid: grid,
             layout,
             ..Given::default()
         }

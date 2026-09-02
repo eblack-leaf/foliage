@@ -1,0 +1,9 @@
+[package]
+name = "application"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "The site foliage is proven against. Builds only against foliage's public surface."
+
+[dependencies]
+foliage = { path = "../foliage" }

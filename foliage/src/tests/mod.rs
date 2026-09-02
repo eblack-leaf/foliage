@@ -3,6 +3,8 @@
 //! Runs the whole frame against a grove with no surface: every phase an app can observe, and no
 //! drawing. The clock is moved by hand rather than sampled from the platform.
 
+mod elevation;
+mod elm;
 mod frame;
 mod lifecycle;
 mod placement;
@@ -10,15 +12,25 @@ mod root;
 mod rowan;
 mod tracing;
 
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Section};
 use crate::fern;
 use crate::grove::Grove;
+use crate::leaf::Leaf;
 use crate::pollen::Pollen;
 use crate::root::Rooted;
+use crate::vein::{Sap, Vein};
 
 /// A grove with no surface.
 fn grove() -> Grove {
     Grove::new(Area::new(400.0, 300.0))
+}
+
+/// Where an element ended up, as an app would read it.
+fn section(grove: &Grove, leaf: Leaf) -> Section {
+    match grove.tap(leaf, Vein::Drawn) {
+        Some(Sap::Section(section)) => section,
+        other => panic!("expected a section, got {other:?}"),
+    }
 }
 
 /// One whole frame, with no app to run.

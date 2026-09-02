@@ -1,13 +1,19 @@
-use crate::leaf::Leaf;
+use crate::elevation::Elevation;
+use crate::leaf::{Growth, Leaf};
 use crate::op::Op;
+use crate::palette::Palette;
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
+use crate::rounding::Corners;
 use crate::seed::Seed;
 
 /// The two things an op sink has to be able to do: take an op, and name a new element.
+///
+/// Naming one hands back its place in allocation order along with the name, because that order is
+/// fixed where the name is asked for and not where the element is grown.
 pub(crate) trait Queues {
     fn queue(&mut self, op: Op);
-    fn allocate(&self) -> Leaf;
+    fn allocate(&self) -> (Leaf, Growth);
 }
 
 /// Everything an app can ask the engine to do.
@@ -19,9 +25,10 @@ pub trait Grow: Queues {
     /// including as a trunk in the same frame.
     #[track_caller]
     fn plant(&mut self, seed: impl Seed) -> Leaf {
-        let leaf = self.allocate();
+        let (leaf, growth) = self.allocate();
         self.queue(Op::Plant {
             leaf,
+            growth,
             bud: seed.bud(core::panic::Location::caller()),
         });
         leaf
@@ -30,9 +37,10 @@ pub trait Grow: Queues {
     /// Grows an element off `under`.
     #[track_caller]
     fn branch(&mut self, under: Leaf, seed: impl Seed) -> Leaf {
-        let leaf = self.allocate();
+        let (leaf, growth) = self.allocate();
         self.queue(Op::Branch {
             leaf,
+            growth,
             under,
             bud: seed.bud(core::panic::Location::caller()),
         });
@@ -49,11 +57,8 @@ pub trait Grow: Queues {
     ///
     /// A placement is one value rather than a set of edges, so there is no half-written state
     /// between two of these and no question of which edge a later write meant.
-    fn at(&mut self, leaf: Leaf, location: impl Into<Location>) {
-        self.queue(Op::Place {
-            leaf,
-            location: location.into(),
-        });
+    fn at(&mut self, leaf: Leaf, location: Location) {
+        self.queue(Op::Place { leaf, location });
     }
 
     /// Redivides an element's box for the elements grown under it.
@@ -75,6 +80,29 @@ pub trait Grow: Queues {
             leaf,
             to,
             at: core::panic::Location::caller(),
+        });
+    }
+
+    /// Raises or lowers an element, and everything grown under it with it.
+    ///
+    /// Elevation accumulates down the tree, so this moves a whole subtree by one write and nothing
+    /// inside it is touched.
+    fn elevate(&mut self, leaf: Leaf, elevation: Elevation) {
+        self.queue(Op::Elevate { leaf, elevation });
+    }
+
+    /// Refills an element.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element draws nothing.
+    fn color(&mut self, leaf: Leaf, color: Palette) {
+        self.queue(Op::Recolor { leaf, color });
+    }
+
+    /// Rounds an element's corners, per corner or all at once.
+    fn round(&mut self, leaf: Leaf, rounding: impl Into<Corners>) {
+        self.queue(Op::Round {
+            leaf,
+            rounding: rounding.into(),
         });
     }
 }

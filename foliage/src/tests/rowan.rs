@@ -5,29 +5,24 @@
 //! and in the right order.
 
 use crate::coordinate::{Area, Section};
-use crate::tests::{grove, resize, tick};
+use crate::tests::{grove, resize, section, tick};
 use crate::{
-    Divide, Grid, Grove, Grow, Layout, Leaf, Location, Place, Sap, Source, Stem, Vein, anchor,
-    bottom, center_x, center_y, left, right, top,
+    Divide, Grid, Grove, Grow, Layout, Location, Place, Sap, Source, Stem, Vein, anchor, bottom,
+    center_x, center_y, left, right, top,
 };
-
-/// Where an element ended up, as an app would read it.
-fn section(grove: &Grove, leaf: Leaf) -> Section {
-    match grove.tap(leaf, Vein::Section) {
-        Some(Sap::Section(section)) => section,
-        other => panic!("expected a section, got {other:?}"),
-    }
-}
 
 #[test]
 fn a_top_level_element_resolves_against_the_viewport() {
     let mut grove = grove();
-    let leaf = grove.plant(Stem::new().at((
-        left(20.px()).width(100.px()),
-        top(10.px()).height(40.px()),
-    )));
+    let leaf = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(20.px()).width(100.px()), top(10.px()).height(40.px()))),
+    );
     tick(&mut grove);
-    assert_eq!(section(&grove, leaf), Section::from_edges(20.0, 10.0, 120.0, 50.0));
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(20.0, 10.0, 120.0, 50.0)
+    );
 }
 
 /// No settling frame: the frame that plants an element is the frame it resolves in, because a fresh
@@ -35,13 +30,14 @@ fn a_top_level_element_resolves_against_the_viewport() {
 #[test]
 fn an_element_resolves_on_the_frame_it_is_planted() {
     let mut grove = grove();
-    let trunk = grove.plant(Stem::new().at((
-        left(50.px()).width(100.px()),
-        top(50.px()).height(100.px()),
-    )));
+    let trunk = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(50.px()).width(100.px()), top(50.px()).height(100.px()))),
+    );
     let branch = grove.branch(
         trunk,
-        Stem::new().at((left(10.px()).width(20.px()), top(10.px()).height(20.px()))),
+        Stem::new()
+            .at(Location::new().xs(left(10.px()).width(20.px()), top(10.px()).height(20.px()))),
     );
     tick(&mut grove);
     assert_eq!(
@@ -53,10 +49,10 @@ fn an_element_resolves_on_the_frame_it_is_planted() {
 #[test]
 fn an_element_that_says_nothing_fills_its_trunk() {
     let mut grove = grove();
-    let trunk = grove.plant(Stem::new().at((
-        left(50.px()).width(100.px()),
-        top(50.px()).height(100.px()),
-    )));
+    let trunk = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(50.px()).width(100.px()), top(50.px()).height(100.px()))),
+    );
     let branch = grove.branch(trunk, Stem::new());
     tick(&mut grove);
     assert_eq!(section(&grove, branch), section(&grove, trunk));
@@ -67,15 +63,13 @@ fn a_child_addresses_its_trunk_s_grid() {
     let mut grove = grove();
     let trunk = grove.plant(
         Stem::new()
-            .at((
-                left(0.px()).width(200.px()),
-                top(0.px()).height(100.px()),
-            ))
-            .grid(Grid::new(4.columns().gap(8.0), 2.rows())),
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(100.px())))
+            .grid(Grid::new().xs(4.columns().gap(8.0), 2.rows())),
     );
     let branch = grove.branch(
         trunk,
-        Stem::new().at((left(2.col()).right(2.col()), top(1.row()).bottom(1.row()))),
+        Stem::new()
+            .at(Location::new().xs(left(2.col()).right(2.col()), top(1.row()).bottom(1.row()))),
     );
     tick(&mut grove);
     assert_eq!(
@@ -89,18 +83,15 @@ fn a_child_addresses_its_trunk_s_grid() {
 #[test]
 fn an_anchored_element_follows_its_target() {
     let mut grove = grove();
-    let target = grove.plant(Stem::new().at((
-        left(20.px()).width(60.px()),
-        top(20.px()).height(30.px()),
+    let target =
+        grove
+            .plant(Stem::new().at(
+                Location::new().xs(left(20.px()).width(60.px()), top(20.px()).height(30.px())),
+            ));
+    let follower = grove.plant(Stem::new().anchored(target).at(Location::new().xs(
+        left(anchor().left()).width(anchor().width()),
+        top(anchor().bottom() + 8.px()).height(10.px()),
     )));
-    let follower = grove.plant(
-        Stem::new()
-            .anchored(target)
-            .at((
-                left(anchor().left()).width(anchor().width()),
-                top(anchor().bottom() + 8.px()).height(10.px()),
-            )),
-    );
     tick(&mut grove);
     assert_eq!(
         section(&grove, follower),
@@ -109,10 +100,7 @@ fn an_anchored_element_follows_its_target() {
 
     grove.at(
         target,
-        (
-            left(100.px()).width(40.px()),
-            top(70.px()).height(30.px()),
-        ),
+        Location::new().xs(left(100.px()).width(40.px()), top(70.px()).height(30.px())),
     );
     tick(&mut grove);
     assert_eq!(
@@ -126,14 +114,14 @@ fn an_anchored_element_follows_its_target() {
 #[test]
 fn an_anchor_may_point_forward() {
     let mut grove = grove();
-    let follower = grove.plant(Stem::new().at((
+    let follower = grove.plant(Stem::new().at(Location::new().xs(
         left(anchor().right()).width(10.px()),
         top(0.px()).height(10.px()),
     )));
-    let target = grove.plant(Stem::new().at((
-        left(40.px()).width(30.px()),
-        top(0.px()).height(10.px()),
-    )));
+    let target = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(40.px()).width(30.px()), top(0.px()).height(10.px()))),
+    );
     grove.anchor(follower, target);
     tick(&mut grove);
     assert_eq!(section(&grove, follower).left(), 70.0);
@@ -142,18 +130,18 @@ fn an_anchor_may_point_forward() {
 #[test]
 fn an_anchor_chain_resolves_in_order() {
     let mut grove = grove();
-    let third = grove.plant(Stem::new().at((
+    let third = grove.plant(Stem::new().at(Location::new().xs(
         left(anchor().right()).width(10.px()),
         top(0.px()).height(10.px()),
     )));
-    let second = grove.plant(Stem::new().at((
+    let second = grove.plant(Stem::new().at(Location::new().xs(
         left(anchor().right()).width(10.px()),
         top(0.px()).height(10.px()),
     )));
-    let first = grove.plant(Stem::new().at((
-        left(5.px()).width(10.px()),
-        top(0.px()).height(10.px()),
-    )));
+    let first = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(5.px()).width(10.px()), top(0.px()).height(10.px()))),
+    );
     grove.anchor(third, second);
     grove.anchor(second, first);
     tick(&mut grove);
@@ -223,17 +211,14 @@ fn an_anchor_naming_a_withered_leaf_is_dropped() {
 #[test]
 fn a_placement_written_this_frame_lands_this_frame() {
     let mut grove = grove();
-    let leaf = grove.plant(Stem::new().at((
-        left(0.px()).width(10.px()),
-        top(0.px()).height(10.px()),
-    )));
+    let leaf = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(10.px()), top(0.px()).height(10.px()))),
+    );
     tick(&mut grove);
     grove.at(
         leaf,
-        (
-            left(30.px()).width(20.px()),
-            top(40.px()).height(20.px()),
-        ),
+        Location::new().xs(left(30.px()).width(20.px()), top(40.px()).height(20.px())),
     );
     tick(&mut grove);
     assert_eq!(
@@ -247,20 +232,18 @@ fn redividing_a_grid_moves_the_children_addressing_it() {
     let mut grove = grove();
     let trunk = grove.plant(
         Stem::new()
-            .at((
-                left(0.px()).width(200.px()),
-                top(0.px()).height(100.px()),
-            ))
-            .grid(Grid::new(2.columns(), 1.rows())),
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(100.px())))
+            .grid(Grid::new().xs(2.columns(), 1.rows())),
     );
     let branch = grove.branch(
         trunk,
-        Stem::new().at((left(2.col()).right(2.col()), top(0.px()).height(10.px()))),
+        Stem::new()
+            .at(Location::new().xs(left(2.col()).right(2.col()), top(0.px()).height(10.px()))),
     );
     tick(&mut grove);
     assert_eq!(section(&grove, branch).left(), 100.0);
 
-    grove.grid(trunk, Grid::new(4.columns(), 1.rows()));
+    grove.grid(trunk, Grid::new().xs(4.columns(), 1.rows()));
     tick(&mut grove);
     assert_eq!(section(&grove, branch).left(), 50.0);
 }
@@ -270,10 +253,11 @@ fn redividing_a_grid_moves_the_children_addressing_it() {
 #[test]
 fn a_resize_re_resolves_everything() {
     let mut grove = grove();
-    let leaf = grove.plant(Stem::new().at((
-        left(0.px()).right(100.pct()),
-        top(0.px()).height(10.px()),
-    )));
+    let leaf =
+        grove
+            .plant(Stem::new().at(
+                Location::new().xs(left(0.px()).right(100.pct()), top(0.px()).height(10.px())),
+            ));
     tick(&mut grove);
     assert_eq!(section(&grove, leaf).width(), 400.0);
 
@@ -285,11 +269,11 @@ fn a_resize_re_resolves_everything() {
 #[test]
 fn crossing_a_breakpoint_takes_the_other_configuration() {
     let mut grove = Grove::new(Area::new(400.0, 800.0));
-    let leaf = grove.plant(Stem::new().at(Location::new(
-        left(0.px()).width(10.px()),
-        top(0.px()).height(10.px()),
-    )
-    .md(left(0.px()).width(60.px()), top(0.px()).height(10.px()))));
+    let leaf = grove.plant(
+        Stem::new().at(Location::new()
+            .xs(left(0.px()).width(10.px()), top(0.px()).height(10.px()))
+            .md(left(0.px()).width(60.px()), top(0.px()).height(10.px()))),
+    );
     tick(&mut grove);
     assert_eq!(grove.layout(), Layout::Xs);
     assert_eq!(section(&grove, leaf).width(), 10.0);
@@ -327,15 +311,15 @@ fn resolution_is_idempotent() {
     let mut grove = grove();
     let trunk = grove.plant(
         Stem::new()
-            .at((
+            .at(Location::new().xs(
                 left(10.px()).right(100.pct() - 10.px()),
                 top(10.px()).bottom(100.pct() - 10.px()),
             ))
-            .grid(Grid::new(3.columns().gap(4.0), 3.rows().gap(4.0))),
+            .grid(Grid::new().xs(3.columns().gap(4.0), 3.rows().gap(4.0))),
     );
     let branch = grove.branch(
         trunk,
-        Stem::new().at((
+        Stem::new().at(Location::new().xs(
             center_x(2.col()).width(50.pct()),
             bottom(3.row()).height(1.row()),
         )),
@@ -352,15 +336,12 @@ fn two_identical_scripts_resolve_identically() {
     let script = |grove: &mut Grove| {
         let trunk = grove.plant(
             Stem::new()
-                .at((
-                    left(0.px()).right(100.pct()),
-                    top(0.px()).height(200.px()),
-                ))
-                .grid(Grid::new(5.columns().gap(2.0), 1.rows())),
+                .at(Location::new().xs(left(0.px()).right(100.pct()), top(0.px()).height(200.px())))
+                .grid(Grid::new().xs(5.columns().gap(2.0), 1.rows())),
         );
         let branch = grove.branch(
             trunk,
-            Stem::new().at((
+            Stem::new().at(Location::new().xs(
                 right(4.col()).width(2.col()),
                 center_y(50.pct()).height(30.px()),
             )),
@@ -377,20 +358,19 @@ fn two_identical_scripts_resolve_identically() {
     assert_eq!(section(&one, branch_one), section(&two, branch_two));
 }
 
-/// Where the layout put a box and where it appears are separate reads. Nothing scrolls yet, so they
-/// agree -- which is the statement a scrolling slice has to keep true for everything that does not.
+/// Where the layout put a box and where it is on screen are separate values. Nothing scrolls yet, so
+/// they agree -- which is the statement a scrolling slice has to keep true for everything that does
+/// not scroll.
 #[test]
-fn an_unscrolled_element_appears_where_the_layout_put_it() {
+fn an_unscrolled_element_is_on_screen_where_the_layout_put_it() {
     let mut grove = grove();
-    let leaf = grove.plant(Stem::new().at((
-        left(12.px()).width(34.px()),
-        top(56.px()).height(78.px()),
-    )));
+    let leaf =
+        grove
+            .plant(Stem::new().at(
+                Location::new().xs(left(12.px()).width(34.px()), top(56.px()).height(78.px())),
+            ));
     tick(&mut grove);
-    assert_eq!(
-        grove.tap(leaf, Vein::Section),
-        grove.tap(leaf, Vein::LayoutSection)
-    );
+    assert_eq!(grove.tree.drawn(leaf), grove.tree.placed(leaf));
 }
 
 #[test]
@@ -400,5 +380,5 @@ fn a_withered_element_reads_no_section() {
     tick(&mut grove);
     grove.prune(leaf);
     tick(&mut grove);
-    assert_eq!(grove.tap(leaf, Vein::Section), None);
+    assert_eq!(grove.tap(leaf, Vein::Drawn), None);
 }

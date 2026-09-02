@@ -1,14 +1,21 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use bevy_ecs::component::Component;
 use bevy_ecs::entity::RemoteAllocator;
 use bevy_ecs::hierarchy::{ChildOf, Children};
 use bevy_ecs::world::World;
 
 use crate::coordinate::{Area, Section};
-use crate::leaf::{Grown, Leaf, Presence, SpawnedAt};
-use crate::op::{Bud, Sown};
+use crate::elevation::{Elevation, ResolvedElevation};
+use crate::elm::{Chlorophyll, PanelPigment};
+use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
+use crate::op::Bud;
+use crate::palette::Palette;
 use crate::place::{Anchored, Caller};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
-use crate::rowan::{LayoutSection, Screen};
+use crate::rounding::Corners;
+use crate::rowan::{Drawn, Placed};
 
 /// The tree itself, seen from the inside.
 ///
@@ -17,17 +24,29 @@ use crate::rowan::{LayoutSection, Screen};
 pub(crate) struct Tree {
     world: World,
     allocator: RemoteAllocator,
+    growth: AtomicU64,
 }
 
 impl Tree {
     pub(crate) fn new() -> Self {
         let world = World::new();
         let allocator = world.entity_allocator().build_remote_allocator();
-        Self { world, allocator }
+        Self {
+            world,
+            allocator,
+            growth: AtomicU64::new(0),
+        }
     }
 
-    pub(crate) fn allocate(&self) -> Leaf {
-        Leaf(self.allocator.alloc())
+    /// A name, and its place in allocation order.
+    ///
+    /// Both are taken here rather than at the drain, so the order is the order `plant` and `branch`
+    /// were called in. The counter is atomic because allocation takes `&self` on either side of the
+    /// boundary, and an op issued off-thread is ordered against the frame's own by nothing but when
+    /// it arrived.
+    pub(crate) fn allocate(&self) -> (Leaf, Growth) {
+        let leaf = Leaf(self.allocator.alloc());
+        (leaf, Growth(self.growth.fetch_add(1, Ordering::Relaxed)))
     }
 
     /// What `leaf` names right now.
@@ -47,21 +66,24 @@ impl Tree {
     }
 
     /// Grows `leaf`, reporting whether the name was still free to grow into.
-    pub(crate) fn grow(&mut self, leaf: Leaf, under: Option<Leaf>, bud: Bud) -> bool {
+    pub(crate) fn grow(&mut self, leaf: Leaf, growth: Growth, under: Option<Leaf>, bud: Bud) -> bool {
         let Ok(mut entity) = self.world.spawn_at(leaf.0, Grown) else {
             return false;
         };
-        match bud.sown {
-            // A stem carries no renderer, which is the whole of what makes it one.
-            Sown::Stem => {}
-        }
         entity.insert((
             SpawnedAt(bud.at),
+            growth,
+            bud.chlorophyll,
             bud.placement.location.unwrap_or_default(),
             bud.placement.grid.unwrap_or_default(),
-            LayoutSection::default(),
-            Screen::default(),
+            bud.placement.elevation.unwrap_or_default(),
+            ResolvedElevation::default(),
+            Placed::default(),
+            Drawn::default(),
         ));
+        if let Some(pigment) = bud.pigment {
+            entity.insert(pigment);
+        }
         if let Some(anchored) = bud.placement.anchor {
             entity.insert(anchored);
         }
@@ -149,6 +171,15 @@ impl Tree {
         Area::default()
     }
 
+    /// What `leaf` measured to: max-content across, and the height it wrapped to down.
+    ///
+    /// What [`content()`](crate::content) reads, of the element itself or of one it names. An
+    /// element with nothing in it measures to zero.
+    pub(crate) fn intrinsic(&self, _leaf: Leaf) -> Area {
+        // Measuring lands with text.
+        Area::default()
+    }
+
     /// The element `leaf`'s placement may read, if it has been given one.
     pub(crate) fn anchor(&self, leaf: Leaf) -> Option<Leaf> {
         Some(self.world.get_entity(leaf.0).ok()?.get::<Anchored>()?.to)
@@ -192,18 +223,86 @@ impl Tree {
         }
     }
 
-    pub(crate) fn layout_section(&self, leaf: Leaf) -> Option<Section> {
-        Some(self.world.get_entity(leaf.0).ok()?.get::<LayoutSection>()?.0)
+    /// Where the layout put `leaf`, which is what its children resolve against.
+    ///
+    /// Every grown element carries one, so this is the answer for anything live and a zero box for
+    /// anything else.
+    pub(crate) fn placed(&self, leaf: Leaf) -> Section {
+        self.read::<Placed>(leaf).unwrap_or_default().0
     }
 
-    /// Where `leaf` appears, which is what an app reads and what a hit test runs against.
-    pub(crate) fn screen(&self, leaf: Leaf) -> Option<Section> {
-        Some(self.world.get_entity(leaf.0).ok()?.get::<Screen>()?.0)
+    /// Where `leaf` is on screen, which is what an app reads and what a hit test runs against.
+    pub(crate) fn drawn(&self, leaf: Leaf) -> Section {
+        self.read::<Drawn>(leaf).unwrap_or_default().0
     }
 
-    pub(crate) fn settle(&mut self, leaf: Leaf, layout: Section, screen: Section) {
+    pub(crate) fn settle(&mut self, leaf: Leaf, placed: Section, drawn: Section) {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert((LayoutSection(layout), Screen(screen)));
+            entity.insert((Placed(placed), Drawn(drawn)));
         }
+    }
+
+    /// What `leaf` draws, and what the renderer drawing it was told.
+    pub(crate) fn chlorophyll(&self, leaf: Leaf) -> Chlorophyll {
+        self.read::<Chlorophyll>(leaf).unwrap_or_default()
+    }
+
+    /// How far in front of its trunk `leaf` was told to sit.
+    pub(crate) fn elevation(&self, leaf: Leaf) -> Elevation {
+        self.read::<Elevation>(leaf).unwrap_or_default()
+    }
+
+    /// Where `leaf` sits in the one stack, as R6 last resolved it.
+    pub(crate) fn rank(&self, leaf: Leaf) -> ResolvedElevation {
+        self.read::<ResolvedElevation>(leaf).unwrap_or_default()
+    }
+
+    /// Where `leaf` came in allocation order.
+    pub(crate) fn growth(&self, leaf: Leaf) -> Growth {
+        self.read::<Growth>(leaf).unwrap_or_default()
+    }
+
+    pub(crate) fn set_elevation(&mut self, leaf: Leaf, elevation: Elevation) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(elevation);
+        }
+    }
+
+    pub(crate) fn set_rank(&mut self, leaf: Leaf, rank: ResolvedElevation) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(rank);
+        }
+    }
+
+    /// What the panel renderer on `leaf` was told, or `None` if it draws nothing.
+    pub(crate) fn pigment(&self, leaf: Leaf) -> Option<PanelPigment> {
+        self.read::<PanelPigment>(leaf)
+    }
+
+    /// Refills `leaf`, reporting whether it is something with a fill to write.
+    pub(crate) fn set_color(&mut self, leaf: Leaf, color: Palette) -> bool {
+        self.pigment_mut(leaf, |pigment| pigment.color = color)
+    }
+
+    /// Rounds `leaf`'s corners, reporting whether it is something with corners to round.
+    pub(crate) fn set_rounding(&mut self, leaf: Leaf, rounding: Corners) -> bool {
+        self.pigment_mut(leaf, |pigment| pigment.rounding = rounding)
+    }
+
+    /// An element that draws nothing has no pigment, so there is nothing to write and the op that
+    /// asked is dropped like any other that named something it does not apply to.
+    fn pigment_mut(&mut self, leaf: Leaf, write: impl FnOnce(&mut PanelPigment)) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut pigment) = entity.get_mut::<PanelPigment>() else {
+            return false;
+        };
+        write(&mut pigment);
+        true
+    }
+
+    fn read<C: Component + Copy>(&self, leaf: Leaf) -> Option<C> {
+        self.world.get_entity(leaf.0).ok()?.get::<C>().copied()
     }
 }

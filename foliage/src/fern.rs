@@ -5,6 +5,7 @@
 
 use tracing::{debug, trace_span};
 
+use crate::elm;
 use crate::grove::Grove;
 use crate::layout::Layout;
 use crate::leaf::Leaf;
@@ -35,6 +36,7 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut dyn Rooted>) {
     root(grove, app);
     drain(grove);
     rowan::run(grove);
+    elm::run(grove);
 }
 
 /// Step 1. Window and input events become input state, and the clock is fixed for the frame.
@@ -80,19 +82,24 @@ fn drain(grove: &mut Grove) {
     let _step = trace_span!("drain", ops = ops.len()).entered();
     for op in ops {
         match op {
-            Op::Plant { leaf, bud } => {
+            Op::Plant { leaf, growth, bud } => {
                 refuse_sown_cycle(grove, leaf, &bud);
-                if grove.tree.grow(leaf, None, bud) {
+                if grove.tree.grow(leaf, growth, None, bud) {
                     debug!(leaf = leaf.id(), "planted");
                 } else {
                     dropped("plant", leaf, "name is already grown");
                 }
             }
-            Op::Branch { leaf, under, bud } => {
+            Op::Branch {
+                leaf,
+                growth,
+                under,
+                bud,
+            } => {
                 refuse_sown_cycle(grove, leaf, &bud);
                 if !grove.tree.is_live(under) {
                     dropped("branch", leaf, "trunk is not live");
-                } else if grove.tree.grow(leaf, Some(under), bud) {
+                } else if grove.tree.grow(leaf, growth, Some(under), bud) {
                     debug!(leaf = leaf.id(), under = under.id(), "branched");
                 } else {
                     dropped("branch", leaf, "name is already grown");
@@ -135,6 +142,36 @@ fn drain(grove: &mut Grove) {
                 refuse_cycle(grove, leaf, to, at, None);
                 grove.tree.set_anchor(leaf, to, at);
                 debug!(leaf = leaf.id(), to = to.id(), "anchored");
+            }
+            Op::Elevate { leaf, elevation } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("elevate", leaf, "not live");
+                    continue;
+                }
+                grove.tree.set_elevation(leaf, elevation);
+                debug!(leaf = leaf.id(), "elevated");
+            }
+            Op::Recolor { leaf, color } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("color", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_color(leaf, color) {
+                    debug!(leaf = leaf.id(), "recolored");
+                } else {
+                    dropped("color", leaf, "draws nothing to fill");
+                }
+            }
+            Op::Round { leaf, rounding } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("round", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_rounding(leaf, rounding) {
+                    debug!(leaf = leaf.id(), "rounded");
+                } else {
+                    dropped("round", leaf, "draws nothing to round");
+                }
             }
         }
     }

@@ -15,34 +15,53 @@
 use crate::coordinate::{Area, Axis, Section};
 use crate::placement::grid::Tracks;
 use crate::placement::role::{Config, Form};
-use crate::placement::source::{Coord, Edge, Expr, Kind, Origin};
+use crate::placement::source::{Against, Coord, Edge, Expr, Kind, Origin};
+
+/// Everything one element offers a placement that reads it.
+///
+/// One shape per element rather than a field per reading, so a term names which element it is
+/// asking and every element answers the same questions. It is what stops the grammar being able to
+/// describe a trunk and not an anchor.
+#[derive(Copy, Clone, Debug, Default)]
+pub(crate) struct Basis {
+    /// Its box: the edges a coordinate reads, and the extent a percentage is a fraction of.
+    pub(crate) section: Section,
+    /// Its measured extent, for [`content`](crate::content).
+    pub(crate) intrinsic: Area,
+    /// Its grid, at the breakpoint in force, for a track index.
+    pub(crate) tracks: Tracks,
+    /// Its character cell, for a count of letters and for a letter-pitched track. An element with
+    /// no font has none.
+    pub(crate) cell: Area,
+}
 
 /// Everything one axis of one element resolves against.
 ///
-/// The parent's box is complete here even during the horizontal pass, where its vertical half is
+/// The trunk's box is complete here even during the horizontal pass, where its vertical half is
 /// not yet known. Nothing can read that half: a vertical source cannot enter a horizontal role,
 /// which is what the [`VerticalLength`](crate::VerticalLength) type is for.
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Context {
     /// Which axis is being resolved.
     pub(crate) axis: Axis,
-    /// The parent's box -- what a grid divides, and what a percentage is a fraction of.
-    pub(crate) parent: Section,
-    /// The anchored element's box. Zero when the element has no anchor.
-    pub(crate) anchor: Section,
-    /// This element's own intrinsic extent: max-content on the horizontal pass, and what it
-    /// measured to at the resolved width on the vertical one.
-    pub(crate) intrinsic: Area,
-    /// The parent's grid, at the breakpoint in force.
-    pub(crate) tracks: Tracks,
-    /// This element's own character cell, for [`letters`](crate::Source::letters). An element
-    /// with no font has none.
-    pub(crate) cell: Area,
-    /// The *parent's* character cell, for a letter-pitched track. The grid belongs to the parent,
-    /// so its pitch is in the parent's font, not in the font of the children addressing it. That
-    /// is what makes a column a real address into a letter-pitched grid rather than a hand-computed
-    /// offset.
-    pub(crate) parent_cell: Area,
+    /// The element itself. Only its measured extent and its character cell are readable -- its box
+    /// is the answer being computed.
+    pub(crate) own: Basis,
+    /// The element it was grown under, and what it fills when it says nothing.
+    pub(crate) trunk: Basis,
+    /// The one other element it may read. Zero throughout when it has no anchor.
+    pub(crate) anchor: Basis,
+}
+
+impl Context {
+    /// The element a term is reading.
+    fn basis(&self, against: Against) -> &Basis {
+        match against {
+            Against::Own => &self.own,
+            Against::Trunk => &self.trunk,
+            Against::Anchor => &self.anchor,
+        }
+    }
 }
 
 /// One axis of a resolved box.
@@ -97,11 +116,14 @@ pub(crate) fn resolve(config: &Config, context: &Context) -> Span {
     Span { near, far }
 }
 
-/// A position on the axis. A length in a position role is measured from the parent's near edge;
-/// an anchor's edge is already a position and is measured from nothing.
+/// A position on the axis: one origin, and a sum of deltas measured from it.
+///
+/// The origin is whichever element the coordinate was opened against, and an edge supplies its own
+/// -- it is already a position on the surface, so nothing is added to it.
 fn coordinate(coordinate: &Coord, role: Role, context: &Context) -> f32 {
     let origin = match coordinate.origin {
-        Origin::Parent => near_edge(context.parent, context.axis),
+        Origin::Trunk => near_edge(context.trunk.section, context.axis),
+        Origin::Anchor => near_edge(context.anchor.section, context.axis),
         Origin::Surface => 0.0,
     };
     origin + value(&coordinate.expr, role, context)
@@ -134,31 +156,48 @@ fn value(expr: &Expr, role: Role, context: &Context) -> f32 {
 fn source(kind: Kind, role: Role, context: &Context) -> f32 {
     match kind {
         Kind::Px(px) => px,
-        Kind::Pct(fraction) => fraction * extent_of(context.parent, context.axis),
-        Kind::Cell { index, axis } => cell(index, axis, role, context),
-        Kind::Letters(letters) => letters * extent_of_area(context.cell, context.axis),
-        Kind::Content => extent_of_area(context.intrinsic, context.axis),
-        Kind::AnchorEdge(edge) => match edge {
-            Edge::Left => context.anchor.left(),
-            Edge::Right => context.anchor.right(),
-            Edge::CenterX => context.anchor.center().x,
-            Edge::Top => context.anchor.top(),
-            Edge::Bottom => context.anchor.bottom(),
-            Edge::CenterY => context.anchor.center().y,
-        },
-        Kind::AnchorExtent(axis) => extent_of(context.anchor, axis),
+        Kind::Pct { fraction, against } => {
+            fraction * extent_of(context.basis(against).section, context.axis)
+        }
+        Kind::Extent { axis, against } => extent_of(context.basis(against).section, axis),
+        Kind::Cell {
+            index,
+            axis,
+            against,
+        } => cell(index, axis, role, context.basis(against)),
+        Kind::Letters { letters, against } => {
+            letters * extent_of_area(context.basis(against).cell, context.axis)
+        }
+        Kind::Content { against } => {
+            extent_of_area(context.basis(against).intrinsic, context.axis)
+        }
+        Kind::Edge { edge, against } => {
+            let section = context.basis(against).section;
+            match edge {
+                Edge::Left => section.left(),
+                Edge::Right => section.right(),
+                Edge::CenterX => section.center().x,
+                Edge::Top => section.top(),
+                Edge::Bottom => section.bottom(),
+                Edge::CenterY => section.center().y,
+            }
+        }
     }
 }
 
-/// A one-based track index, read as the role asks.
+/// A one-based track index into `basis`'s grid, read as the role asks.
 ///
 /// A near role gives the track's near edge and a far role its far edge, so a pair of them is the
 /// track itself and `n.col()` in a size role is a span of `n` tracks with the gaps between them.
-fn cell(index: i32, axis: Axis, role: Role, context: &Context) -> f32 {
-    let track = context.tracks.on(axis);
+///
+/// The grid belongs to `basis`, so its extent and its character cell come from `basis` too -- a
+/// letter-pitched track is in the font of the element the grid is on, not in the font of whatever
+/// is addressing it.
+fn cell(index: i32, axis: Axis, role: Role, basis: &Basis) -> f32 {
+    let track = basis.tracks.on(axis);
     let size = track.size(
-        extent_of(context.parent, axis),
-        extent_of_area(context.parent_cell, axis),
+        extent_of(basis.section, axis),
+        extent_of_area(basis.cell, axis),
     );
     let index = index as f32;
     let inclusive = matches!(role, Role::Far | Role::Extent);

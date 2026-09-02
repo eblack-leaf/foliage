@@ -2,6 +2,7 @@
 
 use bevy_ecs::component::Component;
 
+use crate::elevation::Elevation;
 use crate::leaf::Leaf;
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
@@ -16,6 +17,7 @@ pub(crate) struct Placement {
     pub(crate) location: Option<Location>,
     pub(crate) grid: Option<Grid>,
     pub(crate) anchor: Option<Anchored>,
+    pub(crate) elevation: Option<Elevation>,
 }
 
 /// The one other element a placement may read, and where it was named.
@@ -38,12 +40,9 @@ pub(crate) trait Places {
 pub trait Place: Places + Sized {
     /// Where the element sits.
     ///
-    /// Takes one [`Horizontal`](crate::Horizontal) and one [`Vertical`](crate::Vertical) for the
-    /// common case, or a [`Location`] when the placement changes with the breakpoint.
-    ///
     /// An element that says nothing fills its parent.
-    fn at(mut self, location: impl Into<Location>) -> Self {
-        self.placement().location = Some(location.into());
+    fn at(mut self, location: Location) -> Self {
+        self.placement().location = Some(location);
         self
     }
 
@@ -52,6 +51,15 @@ pub trait Place: Places + Sized {
     /// Undeclared, it is a single column and a single row.
     fn grid(mut self, grid: Grid) -> Self {
         self.placement().grid = Some(grid);
+        self
+    }
+
+    /// How far in front of its trunk the element sits, from [`up`](crate::up) or
+    /// [`down`](crate::down).
+    ///
+    /// Undeclared, it sits at its trunk's own elevation, which leaves it just in front of it.
+    fn elevate(mut self, elevation: Elevation) -> Self {
+        self.placement().elevation = Some(elevation);
         self
     }
 

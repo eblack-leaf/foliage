@@ -58,7 +58,7 @@ pub struct Horizontal(pub(crate) Config);
 ///
 /// ```compile_fail,E0308
 /// use foliage::{Location, Source, left, top};
-/// Location::new(top(0.px()).height(10.px()), left(0.px()).width(10.px()));
+/// Location::new().xs(top(0.px()).height(10.px()), left(0.px()).width(10.px()));
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Vertical(pub(crate) Config);

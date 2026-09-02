@@ -41,6 +41,15 @@ pub enum Presence {
 #[derive(Component, Copy, Clone, Default)]
 pub(crate) struct Grown;
 
+/// The order the name was allocated in.
+///
+/// Taken when the [`Leaf`] is handed out rather than when the element is grown, so it is the order
+/// `plant` and `branch` were called in and not the order the drain reached them. Monotonic for the
+/// life of the run and never reused, which is what lets it settle the elevation tie-break totally
+/// and survive a prune of anything allocated earlier.
+#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Growth(pub(crate) u64);
+
 /// Where the element was written into existence.
 ///
 /// What a refusal names, so the panic points at the call that caused it rather than at an entity
