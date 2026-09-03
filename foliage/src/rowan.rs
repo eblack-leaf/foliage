@@ -35,6 +35,7 @@ use std::collections::HashMap;
 use bevy_ecs::component::Component;
 use tracing::trace_span;
 
+use crate::aspen::Departed;
 use crate::coordinate::{Area, Axis, Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
@@ -44,7 +45,8 @@ use crate::leaf::Leaf;
 use crate::lifecycle::Inherited;
 use crate::placement::grid::Tracks;
 use crate::placement::location::Location;
-use crate::placement::resolve::{Basis, Context, resolve};
+use crate::placement::resolve::{Basis, Context, Span, resolve};
+use crate::placement::role::Config;
 use crate::tree::Tree;
 use crate::view::{Clipped, range};
 
@@ -81,6 +83,12 @@ pub(crate) fn run(grove: &mut Grove) {
 }
 
 /// R2a and R2b. One axis at a time, in dependency order, through the one pure resolver.
+///
+/// An element with a placement in motion is resolved twice on each axis -- once for each endpoint,
+/// in the *same* context -- and the two answers are blended. That is what the resolver's purity
+/// buys: the endpoints are consistent with each other because they were asked at the same position
+/// in the same dependency order, against the same settled ancestors, and neither is remembered
+/// afterwards.
 fn axes(grove: &Grove, order: &[Leaf]) -> HashMap<Leaf, Section> {
     let viewport = Section::new(Position::default(), grove.viewport);
     let fallback = Location::default();
@@ -89,12 +97,13 @@ fn axes(grove: &Grove, order: &[Leaf]) -> HashMap<Leaf, Section> {
         for &leaf in order {
             let context = context(grove, &boxes, viewport, leaf, axis);
             let location = grove.tree.location(leaf).unwrap_or(&fallback);
-            let axes = location.axes(grove.layout, grove.short);
-            let config = match axis {
-                Axis::Horizontal => &axes.horizontal,
-                Axis::Vertical => &axes.vertical,
+            let target = resolve(pinned(location, grove, axis), &context);
+            let span = match grove.aspen.location(leaf) {
+                Some((departed, at)) => {
+                    departure(departed, grove, &context, axis).blend(target, at)
+                }
+                None => target,
             };
-            let span = resolve(config, &context);
             let section = boxes.entry(leaf).or_default();
             match axis {
                 Axis::Horizontal => {
@@ -109,6 +118,35 @@ fn axes(grove: &Grove, order: &[Leaf]) -> HashMap<Leaf, Section> {
         }
     }
     boxes
+}
+
+/// How one axis of a placement is pinned down, at the breakpoint in force.
+///
+/// A lookup rather than arithmetic, which is why it is here and not in the resolver: picking a
+/// configuration out of a placement is not part of resolving one.
+fn pinned<'a>(location: &'a Location, grove: &Grove, axis: Axis) -> &'a Config {
+    let axes = location.axes(grove.layout, grove.short);
+    match axis {
+        Axis::Horizontal => &axes.horizontal,
+        Axis::Vertical => &axes.vertical,
+    }
+}
+
+/// One axis of the endpoint a motion left.
+///
+/// A placement it left is resolved in the context the target was resolved in, so anything that
+/// moves one end moves both. A snapshot is already an answer: it is the box the element was blended
+/// to when it was retargeted, and it never corresponded to a placement that could be re-resolved.
+fn departure(
+    departed: &Departed<Location, Section>,
+    grove: &Grove,
+    context: &Context,
+    axis: Axis,
+) -> Span {
+    match departed {
+        Departed::Declared(location) => resolve(pinned(location, grove, axis), context),
+        Departed::Snapshot(section) => Span::of(*section, axis),
+    }
 }
 
 /// R3. How far each region's content reaches, from where its children landed.

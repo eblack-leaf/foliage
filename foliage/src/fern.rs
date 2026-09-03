@@ -5,6 +5,7 @@
 
 use tracing::{debug, trace_span};
 
+use crate::aspen::{self, Property};
 use crate::elm;
 use crate::grove::Grove;
 use crate::interaction;
@@ -24,8 +25,8 @@ use crate::rowan;
 /// 3  root      the app reads settled state and Pollen, and queues ops
 /// 4  drain     the single apply -- every queued op, FIFO by arrival, whatever its origin
 /// 5  animate   tweens advance
-/// 6  resolve   grid -> location -> section -> clip -> elevation rank
-/// 7  settle    visibility, opacity, view extents
+/// 6  resolve   grid -> location -> section -> extent -> scroll -> clip -> rank
+/// 7  settle    the inherited products, the box stack, focus
 /// 8  extract   changed state -> render instances
 /// 9  draw
 /// ```
@@ -37,6 +38,7 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     interaction::dispatch(grove);
     root(grove, app);
     drain(grove);
+    aspen::run(grove);
     rowan::run(grove);
     elm::run(grove);
 }
@@ -114,6 +116,7 @@ fn drain(grove: &mut Grove) {
                 }
                 let gone = grove.tree.wither(leaf);
                 debug!(leaf = leaf.id(), withered = gone.len(), "pruned");
+                grove.aspen.wither(&gone);
                 grove.drift.withered.extend(gone);
             }
             Op::Place { leaf, location } => {
@@ -121,6 +124,7 @@ fn drain(grove: &mut Grove) {
                     dropped("at", leaf, "not live");
                     continue;
                 }
+                cancel(grove, "at", leaf, Property::Location);
                 grove.tree.set_location(leaf, location);
                 debug!(leaf = leaf.id(), "placed");
             }
@@ -153,12 +157,13 @@ fn drain(grove: &mut Grove) {
                 grove.tree.set_elevation(leaf, elevation);
                 debug!(leaf = leaf.id(), "elevated");
             }
-            Op::Recolor { leaf, color } => {
+            Op::Recolor { leaf, fill } => {
                 if !grove.tree.is_live(leaf) {
                     dropped("color", leaf, "not live");
                     continue;
                 }
-                if grove.tree.set_color(leaf, color) {
+                cancel(grove, "color", leaf, Property::Fill);
+                if grove.tree.set_fill(leaf, fill) {
                     debug!(leaf = leaf.id(), "recolored");
                 } else {
                     dropped("color", leaf, "draws nothing to fill");
@@ -177,7 +182,11 @@ fn drain(grove: &mut Grove) {
             }
             Op::Disable { leaf, disabled } => {
                 if !grove.tree.is_live(leaf) {
-                    dropped(if disabled { "disable" } else { "enable" }, leaf, "not live");
+                    dropped(
+                        if disabled { "disable" } else { "enable" },
+                        leaf,
+                        "not live",
+                    );
                     continue;
                 }
                 grove.tree.set_disabled(leaf, disabled);
@@ -196,8 +205,38 @@ fn drain(grove: &mut Grove) {
                     dropped("opacity", leaf, "not live");
                     continue;
                 }
+                cancel(grove, "opacity", leaf, Property::Opacity);
                 grove.tree.set_opacity(leaf, opacity);
                 debug!(leaf = leaf.id(), opacity, "faded");
+            }
+            Op::Animate {
+                leaf,
+                motion,
+                timing,
+            } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("animate", leaf, "not live");
+                    continue;
+                }
+                if aspen::animate(grove, leaf, motion, timing) {
+                    debug!(leaf = leaf.id(), "animating");
+                } else {
+                    dropped("animate", leaf, "draws nothing to fill");
+                }
+            }
+            Op::Channel {
+                tween,
+                from,
+                to,
+                timing,
+            } => {
+                grove.aspen.channel(tween, from, to, timing);
+                debug!("tweening");
+            }
+            Op::Stop(tween) => {
+                if grove.aspen.stop(tween) {
+                    debug!("tween stopped");
+                }
             }
             // Not answered here. Where focus can go depends on geometry and on the inherited state
             // this frame has yet to resolve, so the ask is recorded and settled at step 7 -- which
@@ -247,6 +286,17 @@ fn refuse_cycle(grove: &Grove, leaf: Leaf, to: Leaf, at: Caller, planted: Option
         leaf = leaf.id(),
         to = to.id(),
     );
+}
+
+/// F8. A direct write cancels any motion on the property it writes.
+///
+/// The drain runs before `animate`, so by the time a tween would be advanced no property has both a
+/// pending write and a running one. That is what makes the old advisory rule -- "if a property is
+/// animated anywhere, animate it everywhere" -- structural, and gone.
+fn cancel(grove: &mut Grove, verb: &'static str, leaf: Leaf, property: Property) {
+    if grove.aspen.cancel(leaf, property) {
+        debug!(verb, leaf = leaf.id(), "tween cancelled");
+    }
 }
 
 fn dropped(verb: &'static str, leaf: Leaf, reason: &'static str) {

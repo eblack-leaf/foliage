@@ -40,6 +40,51 @@ impl Palette {
     }
 }
 
+/// What an element is filled with: a role, or a color stated outright.
+///
+/// A role is the ordinary answer and the reason [`Palette`] exists -- a treatment stated once, and
+/// moved for every element carrying it by one [`repaint`](crate::Grow::repaint).
+///
+/// A literal is the opt-out, and it is deliberately visible as one. An element filled with a color
+/// is not part of any scheme, so a repaint does not move it; that is the whole of the difference,
+/// and holding both in one type is what keeps it a difference a reader can see rather than two
+/// parallel paths through the renderer. It is also what lets a fill be animated to either -- a
+/// motion writes the target to the element, and a target has to be something the element can hold.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Fill {
+    Role(Palette),
+    Literal(Color),
+}
+
+impl Fill {
+    /// The color this resolves to under `scheme`. A literal resolves to itself.
+    pub(crate) fn color(self, scheme: &Scheme) -> Color {
+        match self {
+            Fill::Role(role) => scheme.color(role),
+            Fill::Literal(color) => color,
+        }
+    }
+}
+
+impl Default for Fill {
+    /// The ordinary fill's role, which is what an element that says nothing takes.
+    fn default() -> Self {
+        Self::Role(Palette::default())
+    }
+}
+
+impl From<Palette> for Fill {
+    fn from(role: Palette) -> Self {
+        Self::Role(role)
+    }
+}
+
+impl From<Color> for Fill {
+    fn from(color: Color) -> Self {
+        Self::Literal(color)
+    }
+}
+
 /// What each [`Palette`] role resolves to.
 ///
 /// One value per role, written at boot or at any frame after it with

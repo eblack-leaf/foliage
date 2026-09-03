@@ -7,8 +7,8 @@ use crate::coordinate::Section;
 use crate::panel::PanelInstance;
 use crate::tests::{grove, tick};
 use crate::{
-    Color, Corner, Corners, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding, Sap,
-    Scheme, Side, Source, Stem, Vein, left, top,
+    Color, Corner, Corners, Fill, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding,
+    Sap, Scheme, Side, Source, Stem, Vein, left, top,
 };
 
 /// A panel filling a box of a stated size, so its radii have something to resolve against.
@@ -237,7 +237,7 @@ fn a_fill_reads_back() {
     tick(&mut grove);
     assert_eq!(
         grove.tap(leaf, Vein::Color),
-        Some(Sap::Color(Palette::Accent))
+        Some(Sap::Color(Fill::Role(Palette::Accent)))
     );
 }
 
@@ -261,7 +261,7 @@ fn an_undeclared_fill_reads_back_as_surface() {
     tick(&mut grove);
     assert_eq!(
         grove.tap(leaf, Vein::Color),
-        Some(Sap::Color(Palette::Surface))
+        Some(Sap::Color(Fill::Role(Palette::Surface)))
     );
 }
 
@@ -293,6 +293,25 @@ fn a_repaint_rewrites_every_element_in_an_affected_role() {
     assert_eq!(grove.elm.panels.written[0].leaf, accented);
     assert_eq!(held(&grove, accented).color, Color::rgb(1.0, 0.0, 0.0));
     assert_eq!(held(&grove, muted).color, unaffected);
+}
+
+/// A literal is an element saying it is not part of the scheme, so a repaint leaves it alone. That
+/// is the whole of the difference between naming a role and naming a color, and it is why both are
+/// one type: the choice is visible at the callsite and nowhere else.
+#[test]
+fn a_repaint_leaves_a_fill_named_as_a_color_alone() {
+    let mut grove = grove();
+    let named = Color::rgb(1.0, 0.0, 0.0);
+    let role = grove.plant(panel(40.0).color(Palette::Accent));
+    let literal = grove.plant(panel(40.0).color(named));
+    tick(&mut grove);
+    assert_eq!(held(&grove, literal).color, named);
+
+    grove.repaint(Scheme::new().set(Palette::Accent, Color::rgb(0.0, 1.0, 0.0)));
+    tick(&mut grove);
+    assert_eq!(grove.elm.panels.written.len(), 1);
+    assert_eq!(grove.elm.panels.written[0].leaf, role);
+    assert_eq!(held(&grove, literal).color, named);
 }
 
 /// The whole tree in one op, and no element rewritten to say so.

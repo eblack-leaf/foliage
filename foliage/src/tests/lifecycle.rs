@@ -317,15 +317,16 @@ fn a_name_is_never_reused() {
 
 /// A panel filling a box, so there is something to extract and something to hit.
 fn panel() -> Panel {
-    Panel::new().at(Location::new().xs(
-        left(0.px()).width(40.px()),
-        top(0.px()).height(40.px()),
-    ))
+    Panel::new().at(Location::new().xs(left(0.px()).width(40.px()), top(0.px()).height(40.px())))
 }
 
 /// What the backend is holding for an element, if anything.
 fn drawn(grove: &Grove, leaf: Leaf) -> Option<f32> {
-    grove.elm.panels.holding(leaf).map(|panel| panel.color.alpha)
+    grove
+        .elm
+        .panels
+        .holding(leaf)
+        .map(|panel| panel.color.alpha)
 }
 
 /// The pass does not care when an element arrived, so there is no cascade to run at the moment of

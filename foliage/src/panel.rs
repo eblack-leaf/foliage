@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::color::Color;
 use crate::coordinate::Section;
-use crate::palette::Palette;
+use crate::palette::Fill;
 use crate::place::{Placement, Places};
 use crate::rounding::Corners;
 
@@ -18,7 +18,7 @@ use crate::rounding::Corners;
 #[derive(Clone, Debug, Default)]
 pub struct Panel {
     pub(crate) placement: Placement,
-    pub(crate) color: Palette,
+    pub(crate) fill: Fill,
     pub(crate) rounding: Corners,
 }
 
@@ -28,9 +28,13 @@ impl Panel {
         Self::default()
     }
 
-    /// The role it is filled with. Undeclared, it is [`Palette::Surface`].
-    pub fn color(mut self, color: Palette) -> Self {
-        self.color = color;
+    /// What it is filled with: a [`Palette`](crate::Palette) role, or a [`Color`] stated outright. Undeclared, it is
+    /// [`Palette::Surface`](crate::Palette::Surface).
+    ///
+    /// A role is the ordinary answer, and a literal is an element saying it is not part of the
+    /// scheme -- a [`repaint`](crate::Grow::repaint) moves the first and not the second.
+    pub fn color(mut self, fill: impl Into<Fill>) -> Self {
+        self.fill = fill.into();
         self
     }
 

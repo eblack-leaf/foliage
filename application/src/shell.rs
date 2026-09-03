@@ -9,8 +9,8 @@
 //! nearest smaller one that was, and a chain that runs out fills the trunk.
 
 use foliage::{
-    Axes, Corners, Divide, Elevation, Grid, Grove, Grow, Leaf, Location, Palette, Panel, Place,
-    Rounding, Side, Source, Stem, anchor, bottom, center_x, left, right, top,
+    Axes, Color, Corners, Divide, Elevation, Grid, Grove, Grow, Leaf, Location, Palette, Panel,
+    Place, Rounding, Scheme, Side, Source, Stem, anchor, bottom, center_x, left, right, top,
 };
 
 /// The space between tracks, and the rhythm every other measurement is stated in.
@@ -283,12 +283,12 @@ fn drawer(grove: &mut Grove) -> Drawer {
             .rounding(Rounding::Lg)
             .elevate(Elevation::up(8))
             .focus_scope()
+            // Hidden while it is away rather than merely off the bottom of the surface, so nothing
+            // in it can be reached by focus while it is closed. Showing it and sliding it in are
+            // separate statements, and the second is what the reader sees.
             .visible(false)
             .grid(Grid::new().xs(1.columns(), 4.rows().gap(GUTTER)))
-            .at(Location::new().xs(
-                left(0.px()).right(100.pct()),
-                top(45.pct()).bottom(100.pct()),
-            )),
+            .at(sheet_at(false)),
     );
 
     let fields = (1..=2)
@@ -339,6 +339,45 @@ fn drawer(grove: &mut Grove) -> Drawer {
         advance,
         close,
     }
+}
+
+/// Where the drawer sits: over the lower half of the page, or below the surface entirely.
+///
+/// Two placements and nothing between them. What puts the sheet between them is the motion, and it
+/// resolves both of these every frame -- so a resize part way through moves the drawer with it and
+/// it still arrives flush against the bottom.
+pub(crate) fn sheet_at(open: bool) -> Location {
+    match open {
+        true => Location::new().xs(
+            left(0.px()).right(100.pct()),
+            top(45.pct()).bottom(100.pct()),
+        ),
+        false => Location::new().xs(
+            left(0.px()).right(100.pct()),
+            top(100.pct()).height(55.pct()),
+        ),
+    }
+}
+
+/// The site's scheme, `dim` of the way toward the ground it takes while the drawer is over it.
+///
+/// A scheme is the app's own value, and foliage has no concept of one -- so there is no `Motion`
+/// that could move it, and there should not be. Moving it is what a `tween` is for: the engine's
+/// clock and easing, handed to a value it does not know, with the write staying on this side.
+pub(crate) fn scheme(dim: f32) -> Scheme {
+    let base = Scheme::new();
+    let toward = 1.0 - dim.clamp(0.0, 1.0) * 0.6;
+    let shaded = |role: Palette| {
+        let color = base.color(role);
+        Color::rgb(
+            color.red * toward,
+            color.green * toward,
+            color.blue * toward,
+        )
+    };
+    base.set(Palette::Accent, Color::rgb(0.42, 0.68, 0.96))
+        .set(Palette::Surface, shaded(Palette::Surface))
+        .set(Palette::Raised, shaded(Palette::Raised))
 }
 
 /// Where the knob sits along its track, `travelled` pixels from the near end.

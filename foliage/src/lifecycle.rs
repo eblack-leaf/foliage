@@ -71,7 +71,12 @@ pub(crate) struct Inherited {
 
 impl Inherited {
     /// This element's own declarations resolved against what its trunk resolved to.
-    pub(crate) fn under(trunk: Inherited, visible: Visible, opacity: Opacity, disabled: Disabled) -> Self {
+    pub(crate) fn under(
+        trunk: Inherited,
+        visible: Visible,
+        opacity: Opacity,
+        disabled: Disabled,
+    ) -> Self {
         Self {
             visible: trunk.visible && visible.0,
             opacity: trunk.opacity * opacity.0,

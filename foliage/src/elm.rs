@@ -19,11 +19,12 @@ use bevy_ecs::component::Component;
 use tracing::field::Empty;
 use tracing::trace_span;
 
+use crate::aspen::Departed;
 use crate::coordinate::{Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
 use crate::leaf::Leaf;
-use crate::palette::Palette;
+use crate::palette::Fill;
 use crate::panel::PanelInstance;
 use crate::rounding::Corners;
 
@@ -45,15 +46,15 @@ pub(crate) enum Chlorophyll {
     Panel,
 }
 
-/// What a panel is coloured by: everything the panel renderer was told.
+/// What a panel is filled and shaped by: everything the panel renderer was told.
 ///
 /// Grown alongside [`Chlorophyll::Panel`] and by nothing else, so an element carries both or
 /// neither. Ordinary declared state, and what [`color`](crate::Grow::color) and
 /// [`round`](crate::Grow::round) write -- the decision beside it stays untouched, because an
 /// element does not stop being a panel by being repainted.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct PanelPigment {
-    pub(crate) color: Palette,
+    pub(crate) fill: Fill,
     pub(crate) rounding: Corners,
 }
 
@@ -222,11 +223,20 @@ pub(crate) fn run(grove: &mut Grove) {
                 if !inherited.visible || section.intersect(clip).is_empty() {
                     continue;
                 }
-                let instance = PanelInstance::new(
-                    section,
-                    grove.scheme.color(pigment.color).faded(inherited.opacity),
-                    pigment.rounding,
-                );
+                // A blend of two fills is a color rather than a fill, so a motion on one is applied
+                // here -- where a fill becomes a color -- and not written onto the element. Both
+                // ends are read against the same scheme at the same instant, so a repaint
+                // mid-motion moves whichever of them is a role.
+                let target = pigment.fill.color(&grove.scheme);
+                let color = match grove.aspen.fill(leaf) {
+                    Some((Departed::Declared(fill), at)) => {
+                        fill.color(&grove.scheme).blend(target, at)
+                    }
+                    Some((Departed::Snapshot(color), at)) => color.blend(target, at),
+                    None => target,
+                };
+                let instance =
+                    PanelInstance::new(section, color.faded(inherited.opacity), pigment.rounding);
                 grove
                     .elm
                     .panels

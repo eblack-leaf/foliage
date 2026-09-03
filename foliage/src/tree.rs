@@ -12,7 +12,7 @@ use crate::interaction::Gestures;
 use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
 use crate::lifecycle::{Disabled, Inherited, Opacity, Visible};
 use crate::op::Bud;
-use crate::palette::Palette;
+use crate::palette::Fill;
 use crate::place::{Anchored, Caller, Focusing};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
@@ -307,8 +307,8 @@ impl Tree {
     }
 
     /// Refills `leaf`, reporting whether it is something with a fill to write.
-    pub(crate) fn set_color(&mut self, leaf: Leaf, color: Palette) -> bool {
-        self.pigment_mut(leaf, |pigment| pigment.color = color)
+    pub(crate) fn set_fill(&mut self, leaf: Leaf, fill: Fill) -> bool {
+        self.pigment_mut(leaf, |pigment| pigment.fill = fill)
     }
 
     /// Rounds `leaf`'s corners, reporting whether it is something with corners to round.

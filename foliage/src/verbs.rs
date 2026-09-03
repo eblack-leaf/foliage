@@ -1,20 +1,22 @@
+use crate::aspen::{Motion, Timing, Tween};
 use crate::elevation::Elevation;
 use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
 use crate::op::Op;
-use crate::palette::{Palette, Scheme};
+use crate::palette::{Fill, Scheme};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::rounding::Corners;
 use crate::seed::Seed;
 
-/// The two things an op sink has to be able to do: take an op, and name a new element.
+/// What an op sink has to be able to do: take an op, and hand out the names an op may need.
 ///
-/// Naming one hands back its place in allocation order along with the name, because that order is
-/// fixed where the name is asked for and not where the element is grown.
+/// Naming an element hands back its place in allocation order along with the name, because that
+/// order is fixed where the name is asked for and not where the element is grown.
 pub(crate) trait Queues {
     fn queue(&mut self, op: Op);
     fn allocate(&self) -> (Leaf, Growth);
+    fn name(&self) -> Tween;
 }
 
 /// Everything an app can ask the engine to do.
@@ -92,11 +94,18 @@ pub trait Grow: Queues {
         self.queue(Op::Elevate { leaf, elevation });
     }
 
-    /// Refills an element.
+    /// Refills an element, with a [`Palette`](crate::Palette) role or with a [`Color`](crate::Color) stated
+    /// outright.
+    ///
+    /// A role is the ordinary answer, and a literal is an element saying it is not part of the
+    /// scheme: a [`repaint`](Grow::repaint) moves the first and not the second.
     ///
     /// Dropped, like any op naming something it does not apply to, if the element draws nothing.
-    fn color(&mut self, leaf: Leaf, color: Palette) {
-        self.queue(Op::Recolor { leaf, color });
+    fn color(&mut self, leaf: Leaf, fill: impl Into<Fill>) {
+        self.queue(Op::Recolor {
+            leaf,
+            fill: fill.into(),
+        });
     }
 
     /// Rounds an element's corners, per corner or all at once.
@@ -146,6 +155,77 @@ pub trait Grow: Queues {
     /// How opaque an element is, as [`opacity`](crate::Place::opacity) states it at spawn.
     fn opacity(&mut self, leaf: Leaf, opacity: f32) {
         self.queue(Op::Fade { leaf, opacity });
+    }
+
+    /// Moves a property of an element over time.
+    ///
+    /// The target is written to the element at once and the tween carries what it left, so the
+    /// element declares where it is going from the moment it is told to go there. Nothing has to be
+    /// undone when it arrives: the blend at the end is the plain reading of the declaration.
+    ///
+    /// A second `animate` on a property already moving replaces it, starting from where the element
+    /// currently is rather than from where the first one began. A **direct write** to that property
+    /// -- [`at`](Grow::at), [`color`](Grow::color), [`opacity`](Grow::opacity) -- cancels it, and
+    /// the element is at what was written. So a property that is animated somewhere does not have
+    /// to be animated everywhere.
+    ///
+    /// ```no_run
+    /// # use foliage::{Color, Ease, Grow, Grove, Motion, Palette, Timing};
+    /// # fn f(grove: &mut Grove, leaf: foliage::Leaf) {
+    /// grove.animate(leaf, Motion::Palette(Palette::Accent), Timing::ms(180));
+    /// grove.animate(leaf, Motion::Color(Color::rgb(1.0, 0.4, 0.2)), Timing::ms(180));
+    /// grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(240).ease(Ease::Accelerate));
+    /// # }
+    /// ```
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element cannot carry the
+    /// motion -- a fill on something that draws nothing.
+    fn animate(&mut self, leaf: Leaf, motion: Motion, timing: Timing) {
+        self.queue(Op::Animate {
+            leaf,
+            motion,
+            timing,
+        });
+    }
+
+    /// Runs a number from `from` to `to`, reported each frame as [`Pollen::tween`] and written
+    /// nowhere.
+    ///
+    /// The engine's clock and easing, made available to a value it has no concept of. This is the
+    /// answer for everything [`Motion`] deliberately leaves out and for anything an app invents:
+    /// [`Motion`] is closed because the *engine's* obligations should be, not because an app's are.
+    ///
+    /// The frame it ends reports its end value and [`Pollen::finished`] together.
+    ///
+    /// [`Pollen::tween`]: crate::Pollen::tween
+    /// [`Pollen::finished`]: crate::Pollen::finished
+    fn tween(&mut self, from: f32, to: f32, timing: Timing) -> Tween {
+        let tween = self.name();
+        self.queue(Op::Channel {
+            tween,
+            from,
+            to,
+            timing,
+        });
+        tween
+    }
+
+    /// A [`tween`](Grow::tween) whose value is not read: what is wanted is the report that the time
+    /// is up.
+    ///
+    /// A timer of zero fires no earlier than the next frame -- queued at step 3, applied at 4,
+    /// advanced at 5, and reported at step 3 of the frame after. Honest rather than special-cased.
+    fn timer(&mut self, timing: Timing) -> Tween {
+        self.tween(0.0, 1.0, timing)
+    }
+
+    /// Ends a channel or a timer before it has run out.
+    ///
+    /// A channel writes nothing, so it has no declaration for a direct write to cancel it through
+    /// the way one cancels an [`animate`](Grow::animate). Dropped silently if it has already
+    /// finished.
+    fn stop(&mut self, tween: Tween) {
+        self.queue(Op::Stop(tween));
     }
 
     /// Moves focus to an element.

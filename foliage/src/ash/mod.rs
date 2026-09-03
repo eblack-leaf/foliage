@@ -117,19 +117,18 @@ impl Ash {
     fn restack(&mut self, ginkgo: &Ginkgo) {
         let _span = trace_span!("restack").entered();
         self.stack.clear();
-        self.stack
-            .extend(
-                self.panels
-                    .instances
-                    .ranks()
-                    .iter()
-                    .enumerate()
-                    .map(|(slot, rank)| Slot {
-                        rank: *rank,
-                        renderer: Renderer::Panel,
-                        slot: slot as u32,
-                    }),
-            );
+        self.stack.extend(
+            self.panels
+                .instances
+                .ranks()
+                .iter()
+                .enumerate()
+                .map(|(slot, rank)| Slot {
+                    rank: *rank,
+                    renderer: Renderer::Panel,
+                    slot: slot as u32,
+                }),
+        );
         self.stack.sort_unstable();
         let total = self.stack.len();
         self.spans.clear();

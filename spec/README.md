@@ -296,8 +296,96 @@ round badge has a round hit area. The drawer is grown outside the page, declares
 scope, and opens by disabling the page — one write, no scrim — while stepping focus inside it is a
 button standing in for the Tab key that `B10` will bring.
 
-Next: B5 — `Aspen`. Tweens, sequences and timers, against a resolver that was made pure for exactly
-this and a frame that already has one clock.
+B5 has landed. Tweens, easing, channels and timers, against the resolver that was made pure for
+exactly this. Two hundred and twenty-two headless tests and thirteen compile-fail doctests.
+
+`animate(leaf, Motion::_, Timing)` writes the target to the element at once, and the tween carries
+what the element left — so what an element declares is already where it is going, from the frame it
+was told to go there. Ending is therefore a removal, because the blend at the end is the plain
+reading of the declaration; cancelling is the same removal, which is what makes F8 structural.
+
+Which phase applies a blend follows from one line:
+
+> **A blend of the same type as the declaration is written back over it at `animate`. A blend of a
+> different type is left to the phase that reads the declaration.**
+
+Opacity blends to a number and is written back, so a tap reads where the motion has reached, which
+is what is on screen. A `Location` blends to a box and is applied at `resolve`, which resolves both
+endpoints in one context and interpolates the results. A fill blends to a color and is applied at
+`extract`, which is where a fill becomes one.
+
+**B3 amended: a fill is a `Fill`, which is a `Palette` role or a `Color` stated outright.** The
+amendment is what `Motion::Color(Color)` needs to exist at all, and that is the argument for it.
+A motion writes its target to the element the moment it starts — that is what makes ending a removal
+and cancelling trivial — so a target has to be something the element can *hold*. With a role as the
+only declaration, a literal target had nowhere to land, and the choice was between animating to a
+color and keeping the property that makes the whole model work.
+
+Holding both in one type costs nothing and states the difference where it belongs: a role is part of
+the scheme and a `repaint` moves it; a literal is an element saying it is not, and a repaint leaves
+it alone. `Motion::Color` and `Motion::Palette` are two ways of naming the same property, sharing one
+slot and one applier, and a motion may cross between them — the role end follows a repaint while the
+literal end does not, which is the correct answer rather than a special case. `Grow::color` and
+`Panel::color` take `impl Into<Fill>`, so no existing callsite changed.
+
+The one thing this gives up is the reading in which a repaint mid-motion always moves both ends. It
+is not worth what it cost: an app changing its scheme has no way to know which motions are in flight,
+and should not have to, while animating to a color it computed is an ordinary thing to want.
+
+`Motion` carries four variants and is `#[non_exhaustive]`. `Polygon`, `Outline` and `DrawProgress`
+name types `B8` introduces, and `Scroll` names the `ScrollTo` `views.md` still owns, so each arrives
+as a variant beside its renderer rather than as a placeholder now. Adding one is a variant and an
+applier, which is the shape `Property` exists to keep: it names the property, never the kind of value
+stated about it, so a second way to say where something is going shares the first one's slot.
+
+`Ease` is a cubic bezier and nothing else — `Linear`, three named shapes, and `Curve` for the rest —
+read as a function of the *elapsed fraction* rather than of the curve's own parameter, which is the
+difference between an ease and a curve that merely looks like one. It is exact at both ends,
+whatever the shape, so a landing is never a rounding error. `Timing` is a duration, a delay and a
+shape, in milliseconds, and says nothing about what is moving.
+
+A tween takes no time on the frame it starts. A frame's delta is how long the interval *ending* at
+that frame took, and charging it to a tween created at that frame's drain would move the element on
+the frame it was told to begin, away from where it currently is. It is also what makes a zero-length
+timer read as `frame.md` describes it, with nothing special-cased.
+
+`tween` is the other half, and it is what lets `Motion` be closed: a start and an end, reported each
+frame as `Pollen` and written nowhere, so the engine's clock and easing are available to values it
+has no concept of. A `timer` is one whose value is not read, and `stop` ends one — a channel has no
+declaration for a direct write to cancel it through, which is the whole difference between the two.
+Both are keyed on the tween rather than on a `Leaf`, against `pollen.md`'s table, because neither is
+about an element.
+
+F9 gained the clause it was always missing, and animation is what made it visible. An emission is
+produced at steps 4–7 and delivered at step 3 of the *next* frame (F7), so a report made and not yet
+delivered owes the frame that delivers it — otherwise the loop can idle holding one. `withered` had
+the same hole and was covered by the tour asking for frames anyway; `landed` had nowhere to hide.
+
+Still owed by B5:
+
+- The `text_content()` endpoint among `aspen.md`'s proof obligations. `Tree::intrinsic` is B2's
+  outstanding seam and still measures zero, so a test of it would assert nothing. What that
+  obligation is *about* — the endpoint a motion left re-resolving each frame, in the target's own
+  context, through the one resolver — is discharged against an anchor instead, which reaches
+  `resolve` by the same call and the same `Context`.
+- Named sequences. The previous engine's is not a mystery — a marker entity carrying a count that
+  every animation registers against and decrements on finish, plus a per-animation delay taken from
+  the sequence's own time range. B5 has the second half of that and not the first: `Timing::after`
+  is a delay on one tween, which is what staggers a group, and `landed(leaf)` reports one element
+  arriving. What is missing is the *group* report, and with it the question of what names a group.
+  That is a public handle and a decision about who owns the offsets, and neither `aspen.md` nor
+  `pollen.md` settles it — `pollen.md` only lists `sequence_finished` in a table of shapes. It
+  should be decided rather than inherited.
+
+`application/` is in motion. The rail's fills cross rather than swap; the drawer slides in and is
+taken out of the picture once it has finished leaving, which is what `landed` is for; the notice
+waits on a timer, fades, and is pruned when there is nothing left to see. The ground under the page
+moves on a `tween`, because a `Scheme` is the app's own value and foliage has no concept of one —
+the clock is borrowed and the write stays on the app's side. A card lit by a tap and then released
+is recolored by a direct write, which cancels the fill still moving on it: F8's case, on the page.
+
+Next: B6 — `Text` and fonts. The character cell, wrapping and `content()` — which is what pays off
+`Tree::cell` and `Tree::intrinsic`, and with them the one proof obligation B5 could not reach.
 
 ## B4 §3, resolved
 

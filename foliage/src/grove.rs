@@ -1,5 +1,6 @@
 use core::time::Duration;
 
+use crate::aspen::{Aspen, Tween};
 use crate::clock::Clock;
 use crate::coordinate::Area;
 use crate::elm::Elm;
@@ -23,6 +24,8 @@ pub struct Grove {
     pub(crate) elm: Elm,
     pub(crate) queue: Queue,
     pub(crate) clock: Clock,
+    /// Every tween that is running, and the names the channels are drawn from.
+    pub(crate) aspen: Aspen,
     pub(crate) drift: Drift,
     pub(crate) viewport: Area,
     pub(crate) pending_resize: Option<Area>,
@@ -47,6 +50,7 @@ impl Grove {
             elm: Elm::default(),
             queue: Queue::default(),
             clock: Clock::new(),
+            aspen: Aspen::default(),
             drift: Drift::default(),
             viewport,
             pending_resize: None,
@@ -80,7 +84,7 @@ impl Grove {
             Vein::Drawn => Sap::Section(self.tree.drawn(leaf)),
             Vein::Anchor => Sap::Leaf(self.tree.anchor(leaf)),
             Vein::Elevation => Sap::Elevation(self.tree.elevation(leaf)),
-            Vein::Color => Sap::Color(self.tree.pigment(leaf)?.color),
+            Vein::Color => Sap::Color(self.tree.pigment(leaf)?.fill),
             Vein::Rounding => Sap::Rounding(self.tree.pigment(leaf)?.rounding),
             Vein::Visible => Sap::Visible(self.tree.visible(leaf).0),
             Vein::Opacity => Sap::Opacity(self.tree.opacity(leaf).0),
@@ -147,5 +151,9 @@ impl Queues for Grove {
 
     fn allocate(&self) -> (Leaf, Growth) {
         self.tree.allocate()
+    }
+
+    fn name(&self) -> Tween {
+        self.aspen.name()
     }
 }

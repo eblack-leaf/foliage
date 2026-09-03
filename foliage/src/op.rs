@@ -1,8 +1,9 @@
+use crate::aspen::{Motion, Timing, Tween};
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, PanelPigment};
 use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
-use crate::palette::{Palette, Scheme};
+use crate::palette::{Fill, Scheme};
 use crate::place::{Caller, Placement};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
@@ -41,7 +42,7 @@ pub(crate) enum Op {
     },
     Recolor {
         leaf: Leaf,
-        color: Palette,
+        fill: Fill,
     },
     Round {
         leaf: Leaf,
@@ -59,6 +60,22 @@ pub(crate) enum Op {
         leaf: Leaf,
         opacity: f32,
     },
+    /// Moves a property over time. Applied here, which is what makes a write to the same property
+    /// earlier in the same drain cancel it, and one later replace it.
+    Animate {
+        leaf: Leaf,
+        motion: Motion,
+        timing: Timing,
+    },
+    /// A scalar channel, reported outward every frame and written nowhere.
+    Channel {
+        tween: Tween,
+        from: f32,
+        to: f32,
+        timing: Timing,
+    },
+    /// Ends a channel before it has run out.
+    Stop(Tween),
     /// Where focus is to go. Applied here and answered at settle, against the geometry and the
     /// inherited state this frame resolves.
     Focus(Intent),

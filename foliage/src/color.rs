@@ -2,6 +2,8 @@
 
 use bytemuck::{Pod, Zeroable};
 
+use crate::aspen::blend;
+
 /// An sRGB color with an alpha channel, one channel per field.
 ///
 /// Channels are separate floats in `0.0..=1.0` rather than packed bytes, because each is
@@ -35,6 +37,20 @@ impl Color {
             blue: blue.clamp(0.0, 1.0),
             alpha: alpha.clamp(0.0, 1.0),
         }
+    }
+
+    /// This color a fraction `at` of the way to `other`, channel by channel.
+    ///
+    /// What a [`Motion::Color`](crate::Motion::Color) resolves to each frame. Channel-wise because
+    /// that is what separate floats are for, and it is why a color is held as four of them rather
+    /// than as packed bytes.
+    pub(crate) fn blend(self, other: Self, at: f32) -> Self {
+        Self::rgba(
+            blend(self.red, other.red, at),
+            blend(self.green, other.green, at),
+            blend(self.blue, other.blue, at),
+            blend(self.alpha, other.alpha, at),
+        )
     }
 
     /// This color at a fraction of its own alpha.

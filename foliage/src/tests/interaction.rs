@@ -655,8 +655,14 @@ fn an_element_in_a_region_is_extracted_with_that_region_s_clip() {
     let outside = grove.plant(Panel::new().at(at(0.0, 0.0, 40.0, 40.0)));
     tick(&mut grove);
 
-    assert_eq!(clip(&grove, inside), Section::from_edges(0.0, 0.0, 200.0, 100.0));
-    assert_eq!(clip(&grove, outside), Section::new(Position::default(), grove.viewport()));
+    assert_eq!(
+        clip(&grove, inside),
+        Section::from_edges(0.0, 0.0, 200.0, 100.0)
+    );
+    assert_eq!(
+        clip(&grove, outside),
+        Section::new(Position::default(), grove.viewport())
+    );
 }
 
 /// A clip that changed is a change like any other: the element is written again, so the backend

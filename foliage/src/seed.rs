@@ -37,7 +37,7 @@ impl Buds for Panel {
         Bud {
             chlorophyll: Chlorophyll::Panel,
             pigment: Some(PanelPigment {
-                color: self.color,
+                fill: self.fill,
                 rounding: self.rounding,
             }),
             placement: self.placement,

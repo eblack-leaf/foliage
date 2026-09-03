@@ -1,7 +1,7 @@
 use crate::coordinate::Section;
 use crate::elevation::Elevation;
 use crate::leaf::Leaf;
-use crate::palette::Palette;
+use crate::palette::Fill;
 use crate::rounding::Corners;
 
 /// Exactly what a frame may read of an element.
@@ -33,7 +33,12 @@ pub enum Vein {
     /// What was declared, not where it ended up: the resolved value accumulates its whole ancestry
     /// and carries a tie-break, and neither is a number an app has any use for.
     Elevation,
-    /// The role the element is filled with, if it is something with a fill.
+    /// What the element is filled with, if it is something with a fill: the role it declared, or
+    /// the color it named outright.
+    ///
+    /// What was declared, not what it currently paints as. A role's color is the
+    /// [`Scheme`](crate::Scheme)'s answer and is resolved at extraction, so there is no resolved
+    /// color held anywhere for this to report.
     Color,
     /// How the element's corners are rounded, if it is something with corners.
     Rounding,
@@ -44,6 +49,10 @@ pub enum Vein {
     /// ancestor again would leave it as.
     Visible,
     /// How opaque the element was told to be, on the same terms as [`Visible`](Vein::Visible).
+    ///
+    /// While a [`Motion::Opacity`](crate::Motion::Opacity) is running this is where it has reached,
+    /// because a blend of two numbers is a number and is written back over the declaration. That is
+    /// what is on screen, which is what a read is for.
     Opacity,
     /// Whether the element was disabled in its own right, on the same terms as
     /// [`Visible`](Vein::Visible).
@@ -58,7 +67,7 @@ pub enum Sap {
     Leaf(Option<Leaf>),
     Section(Section),
     Elevation(Elevation),
-    Color(Palette),
+    Color(Fill),
     Rounding(Corners),
     Visible(bool),
     Opacity(f32),

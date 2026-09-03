@@ -91,7 +91,8 @@ impl Stack {
     pub(crate) fn settle(&mut self, mut ranked: Vec<(ResolvedElevation, Region)>) {
         ranked.sort_by(|left, right| right.0.cmp(&left.0));
         self.regions.clear();
-        self.regions.extend(ranked.into_iter().map(|(_, region)| region));
+        self.regions
+            .extend(ranked.into_iter().map(|(_, region)| region));
     }
 
     /// The top of the stack at `point`: the front-most element there that is not

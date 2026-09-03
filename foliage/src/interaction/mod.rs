@@ -371,13 +371,17 @@ fn chain(grove: &Grove, from: Leaf) -> Vec<Leaf> {
 
 /// The first element of `chain` at or after `from` that scrolls `axis`.
 fn scrolling(grove: &Grove, chain: &[Leaf], from: usize, axis: Axis) -> Option<usize> {
-    chain.iter().enumerate().skip(from).find_map(|(index, leaf)| {
-        grove
-            .tree
-            .scrolls(*leaf)
-            .is_some_and(|axes| axes.covers(axis))
-            .then_some(index)
-    })
+    chain
+        .iter()
+        .enumerate()
+        .skip(from)
+        .find_map(|(index, leaf)| {
+            grove
+                .tree
+                .scrolls(*leaf)
+                .is_some_and(|axes| axes.covers(axis))
+                .then_some(index)
+        })
 }
 
 /// Moves a region by as much of `wanted` as it can still take, and reports how much that was.

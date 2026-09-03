@@ -81,6 +81,11 @@ impl Foliage {
             || self.grove.pending_resize.is_some()
             || !self.grove.queue.is_empty()
             || !self.grove.pointer.pending.is_empty()
+            || !self.grove.aspen.idle()
+            // Steps 4 through 7 emit into the drift and step 3 of the *next* frame is where an app
+            // is handed it, so a report that has been made and not yet delivered owes the frame
+            // that delivers it. Without this the loop could idle holding one.
+            || self.grove.drift.pending()
     }
 
     /// One platform input event, in the form dispatch takes.
@@ -240,9 +245,7 @@ impl ApplicationHandler for Foliage {
                 let delta = match delta {
                     // A notch is a distance, and the distance one notch stands for is the
                     // platform's convention rather than the engine's.
-                    MouseScrollDelta::LineDelta(x, y) => {
-                        Position::new(x * NOTCH, y * NOTCH)
-                    }
+                    MouseScrollDelta::LineDelta(x, y) => Position::new(x * NOTCH, y * NOTCH),
                     MouseScrollDelta::PixelDelta(delta) => self.at(delta.x, delta.y),
                 };
                 self.input(Input::Wheeled {

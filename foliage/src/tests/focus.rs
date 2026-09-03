@@ -181,11 +181,7 @@ fn tab_order_honours_an_override() {
 fn focus_inside_a_scope_cycles_within_it() {
     let mut grove = grove();
     let page = field(&mut grove, 0.0, 0.0);
-    let drawer = grove.plant(
-        Stem::new()
-            .at(at(200.0, 0.0, 200.0, 300.0))
-            .focus_scope(),
-    );
+    let drawer = grove.plant(Stem::new().at(at(200.0, 0.0, 200.0, 300.0)).focus_scope());
     let first = grove.branch(
         drawer,
         Panel::new().at(at(200.0, 40.0, 80.0, 20.0)).interactive(),

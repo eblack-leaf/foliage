@@ -3,6 +3,7 @@
 //! Runs the whole frame against a grove with no surface: every phase an app can observe, and no
 //! drawing. The clock is moved by hand rather than sampled from the platform.
 
+mod aspen;
 mod elevation;
 mod elm;
 mod focus;
@@ -35,6 +36,14 @@ fn section(grove: &Grove, leaf: Leaf) -> Section {
     match grove.tap(leaf, Vein::Drawn) {
         Some(Sap::Section(section)) => section,
         other => panic!("expected a section, got {other:?}"),
+    }
+}
+
+/// How opaque an element is, as an app would read it.
+fn opacity(grove: &Grove, leaf: Leaf) -> f32 {
+    match grove.tap(leaf, Vein::Opacity) {
+        Some(Sap::Opacity(opacity)) => opacity,
+        other => panic!("expected an opacity, got {other:?}"),
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::aspen::Tween;
 use crate::coordinate::{Area, Position};
 use crate::interaction::Drag;
 use crate::leaf::Leaf;
@@ -65,6 +66,32 @@ impl Pollen {
         self.0.dragged.get(&leaf).copied()
     }
 
+    /// Whether a tween on `leaf` reached its end.
+    ///
+    /// The hook for whatever happens next -- pruning what has faded out, hiding what has slid away.
+    /// There is nothing to settle: what the element declares was already the target from the moment
+    /// the motion started, so this reports an arrival rather than asking for one.
+    ///
+    /// One report for the element rather than one per property. Two motions ending together are one
+    /// arrival to an app, and an app that needs a single value's own end runs it as a
+    /// [`tween`](crate::Grow::tween) instead.
+    pub fn landed(&self, leaf: Leaf) -> bool {
+        self.0.landed.contains(&leaf)
+    }
+
+    /// This frame's value of a scalar channel, for as long as it is running.
+    ///
+    /// The frame it ends reports its end value and [`finished`](Pollen::finished) together, so
+    /// there is never an end value to infer from an absence. After that there is nothing to read.
+    pub fn tween(&self, tween: Tween) -> Option<f32> {
+        self.0.tweens.get(&tween).copied()
+    }
+
+    /// Whether a channel or a [`timer`](crate::Grow::timer) reached its end this frame.
+    pub fn finished(&self, tween: Tween) -> bool {
+        self.0.finished.contains(&tween)
+    }
+
     /// Whether `leaf` took focus.
     pub fn focused(&self, leaf: Leaf) -> bool {
         self.0.focused.contains(&leaf)
@@ -90,7 +117,7 @@ impl fmt::Debug for Pollen {
 }
 
 /// What the frame is collecting, before it is sealed into a [`Pollen`] and handed over.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub(crate) struct Drift {
     pub(crate) withered: HashSet<Leaf>,
     pub(crate) resized: Option<Area>,
@@ -101,9 +128,24 @@ pub(crate) struct Drift {
     pub(crate) dragged: HashMap<Leaf, Drag>,
     pub(crate) focused: HashSet<Leaf>,
     pub(crate) unfocused: HashSet<Leaf>,
+    pub(crate) landed: HashSet<Leaf>,
+    pub(crate) tweens: HashMap<Tween, f32>,
+    pub(crate) finished: HashSet<Tween>,
 }
 
 impl Drift {
+    /// Whether there is anything here to tell the app.
+    ///
+    /// A frame is owed while this is true (F9): steps 4 through 7 emit into the drift, and step 3
+    /// of the *next* frame is where an app is handed it (F7). Without this the loop could idle
+    /// holding a report nothing would ever be run to deliver.
+    ///
+    /// Compared against an empty drift rather than field by field, so a field added later is
+    /// counted without anything having to remember to count it.
+    pub(crate) fn pending(&self) -> bool {
+        *self != Drift::default()
+    }
+
     /// Adds one frame's worth of movement to what `leaf` is being told about its drag.
     ///
     /// Several moves can arrive in one frame, and a reader is handed one answer: where the drag is

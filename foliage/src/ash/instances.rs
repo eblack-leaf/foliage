@@ -85,7 +85,13 @@ impl<I: Pod> Instances<I> {
     /// A rank that is unchanged leaves the order alone, so the ordinary write -- a move, a recolour,
     /// a rounding -- costs one slot rather than a re-sort. A clip that changed while the order did
     /// not costs the stack being cut again, and no upload at all.
-    pub(crate) fn write(&mut self, leaf: Leaf, rank: ResolvedElevation, clip: Section, instance: I) {
+    pub(crate) fn write(
+        &mut self,
+        leaf: Leaf,
+        rank: ResolvedElevation,
+        clip: Section,
+        instance: I,
+    ) {
         match self.held.get_mut(&leaf) {
             Some(held) => {
                 held.instance = instance;

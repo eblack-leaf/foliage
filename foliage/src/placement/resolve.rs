@@ -12,6 +12,7 @@
 //! It is also why the whole placement algebra is testable as arithmetic: a struct in, a struct out,
 //! with no engine anywhere near it.
 
+use crate::aspen::blend;
 use crate::coordinate::{Area, Axis, Section};
 use crate::placement::grid::Tracks;
 use crate::placement::role::{Config, Form};
@@ -74,6 +75,34 @@ pub(crate) struct Span {
 impl Span {
     pub(crate) fn extent(&self) -> f32 {
         self.far - self.near
+    }
+
+    /// One axis of a box that is already settled.
+    ///
+    /// What an endpoint that is a snapshot rather than a placement offers: it has no configuration
+    /// to resolve, because it is already an answer.
+    pub(crate) fn of(section: Section, axis: Axis) -> Self {
+        match axis {
+            Axis::Horizontal => Self {
+                near: section.left(),
+                far: section.right(),
+            },
+            Axis::Vertical => Self {
+                near: section.top(),
+                far: section.bottom(),
+            },
+        }
+    }
+
+    /// A fraction `at` of the way from this span to `other`.
+    ///
+    /// Both edges move together, which is the same thing as moving the near edge and the extent:
+    /// the blend is affine, so there is no third reading of it to disagree with.
+    pub(crate) fn blend(self, other: Self, at: f32) -> Self {
+        Self {
+            near: blend(self.near, other.near, at),
+            far: blend(self.far, other.far, at),
+        }
     }
 }
 

@@ -2,23 +2,33 @@
 
 use core::time::Duration;
 
-use foliage::{Color, Grove, Grow, Leaf, Palette, Pollen, Root, Sap, Scheme, Vein};
+use foliage::{Ease, Grove, Grow, Leaf, Motion, Palette, Pollen, Root, Sap, Timing, Tween, Vein};
 
 use crate::shell::{self, Shell};
 
 /// How long each section holds the marker before the tour moves on.
 const DWELL: Duration = Duration::from_millis(1200);
 
-/// How long the notice stays up.
-const NOTICE: Duration = Duration::from_millis(3000);
+/// How long the notice stays up before it starts going, in milliseconds.
+const NOTICE: u64 = 3000;
+
+/// How long the notice takes to fade out.
+const FADE: u64 = 400;
+
+/// How long the drawer takes to arrive, and to leave.
+const OPENING: u64 = 260;
+const CLOSING: u64 = 220;
 
 /// The site.
 ///
-/// Everything it keeps is a `Leaf` and a little state of its own. Nothing here is handed to the
-/// engine, and the engine has no way to reach it.
+/// Everything it keeps is a `Leaf`, a `Tween` and a little state of its own. Nothing here is handed
+/// to the engine, and the engine has no way to reach it.
 pub(crate) struct Site {
     shell: Shell,
     notice: Notice,
+    /// The timer the notice comes down on. A timer is a tween whose value is not read: what is
+    /// wanted is the report that the time is up.
+    waiting: Tween,
     selected: usize,
     /// Whether the tour is still walking the rail on its own. The first tap ends it: the reader has
     /// said what they want to look at.
@@ -26,15 +36,20 @@ pub(crate) struct Site {
     /// How far the knob has been dragged along its track.
     travelled: f32,
     open: bool,
+    /// The channel moving the page's ground while the drawer is over it, and where it has reached.
+    dimming: Option<Tween>,
+    dimmed: f32,
 }
 
 /// The notice, across the frames it takes to come down.
 ///
-/// Three states rather than an `Option`, because pruning and being gone are a frame apart: the
-/// drain takes the element down, and the tree reports it on the app's next turn.
+/// Four states rather than an `Option`, because each step is a frame apart from the next: the fade
+/// runs, the tree reports where it landed, the drain takes the element down, and the tree reports
+/// that it went.
 #[derive(Copy, Clone)]
 enum Notice {
     Up(Leaf),
+    Fading(Leaf),
     Going(Leaf),
     Gone,
 }
@@ -44,24 +59,30 @@ impl Root for Site {
         let shell = shell::grow(grove);
         // The scheme is the app's, and stating it is one op rather than a value threaded through
         // every element that reads a role.
-        grove.repaint(Scheme::new().set(Palette::Accent, Color::rgb(0.42, 0.68, 0.96)));
+        grove.repaint(shell::scheme(0.0));
         grove.color(shell.entries[0], Palette::Accent);
         let notice = Notice::Up(shell.notice);
+        let waiting = grove.timer(Timing::ms(NOTICE));
         Self {
             shell,
             notice,
+            waiting,
             selected: 0,
             touring: true,
             travelled: 0.0,
             open: false,
+            dimming: None,
+            dimmed: 0.0,
         }
     }
 
     fn frame(&mut self, grove: &mut Grove, pollen: Pollen) {
+        self.dim(grove, &pollen);
         self.retire_notice(grove, &pollen);
         self.take_taps(grove, &pollen);
         self.slide(grove, &pollen);
         self.mark_focus(grove, &pollen);
+        self.settle_drawer(grove, &pollen);
         self.tour(grove);
     }
 }
@@ -102,8 +123,11 @@ impl Site {
         for card in 0..self.shell.cards.len() {
             let card = self.shell.cards[card];
             if pollen.clicked(card) {
-                grove.color(card, Palette::Accent);
+                grove.animate(card, Motion::Palette(Palette::Accent), Timing::ms(160));
             }
+            // A direct write, and it cancels whatever was still moving that fill. The card is at
+            // what was written, with nothing left over to be reconciled -- so a fill being animated
+            // in one place does not oblige every other place to animate it.
             if pollen.disengaged(card) && !pollen.clicked(card) {
                 grove.color(card, Palette::Raised);
             }
@@ -143,29 +167,87 @@ impl Site {
 
     /// Opens the drawer over the page.
     ///
-    /// One write makes the page inert. A disabled element still draws and still blocks, so nothing
-    /// behind the drawer can be pressed and there is no scrim to arrange -- and the drawer is not
-    /// under the page, so it stays live.
+    /// One write makes the page inert, and it takes effect at once however long the fade beside it
+    /// runs for -- being disabled is not a matter of degree. A disabled element still draws and
+    /// still blocks, so nothing behind the drawer can be pressed and there is no scrim to arrange.
     fn open(&mut self, grove: &mut Grove) {
         if self.open {
             return;
         }
         self.open = true;
         grove.visible(self.shell.drawer.sheet, true);
+        grove.animate(
+            self.shell.drawer.sheet,
+            Motion::Location(shell::sheet_at(true)),
+            Timing::ms(OPENING).ease(Ease::Decelerate),
+        );
         grove.disable(self.shell.page);
         // Held back rather than hidden, so it reads as out of play. Opacity is a product down the
-        // tree, so this is one write for the whole page -- and it is well above zero, which is what
-        // keeps the page in the stack to be swallowed by rather than absent from.
-        grove.opacity(self.shell.page, 0.35);
+        // tree, so this is one motion for the whole page -- and it stops well above zero, which is
+        // what keeps the page in the stack to be swallowed by rather than absent from.
+        grove.animate(
+            self.shell.page,
+            Motion::Opacity(0.35),
+            Timing::ms(OPENING).ease(Ease::Decelerate),
+        );
+        self.dimming = Some(self.dim_to(grove, 1.0, OPENING));
         grove.focus(self.shell.drawer.fields[0]);
     }
 
     fn close(&mut self, grove: &mut Grove) {
         self.open = false;
-        grove.visible(self.shell.drawer.sheet, false);
+        grove.animate(
+            self.shell.drawer.sheet,
+            Motion::Location(shell::sheet_at(false)),
+            Timing::ms(CLOSING).ease(Ease::Accelerate),
+        );
         grove.enable(self.shell.page);
-        grove.opacity(self.shell.page, 1.0);
+        grove.animate(
+            self.shell.page,
+            Motion::Opacity(1.0),
+            Timing::ms(CLOSING).ease(Ease::Accelerate),
+        );
+        self.dimming = Some(self.dim_to(grove, 0.0, CLOSING));
         grove.unfocus();
+    }
+
+    /// Takes the sheet out of the picture once it has finished leaving.
+    ///
+    /// There is nothing to settle: the sheet declared where it was going from the moment it was told
+    /// to go there, so a landing is the hook for what happens *next* rather than a correction.
+    fn settle_drawer(&mut self, grove: &mut Grove, pollen: &Pollen) {
+        if !self.open && pollen.landed(self.shell.drawer.sheet) {
+            grove.visible(self.shell.drawer.sheet, false);
+        }
+    }
+
+    /// Moves the ground under the page, from a channel the engine only reports.
+    ///
+    /// A `Scheme` is this app's value and foliage has no concept of one, so there is no `Motion`
+    /// that could carry it. What the engine lends is its clock and its easing; the write stays here.
+    fn dim(&mut self, grove: &mut Grove, pollen: &Pollen) {
+        let Some(dimming) = self.dimming else {
+            return;
+        };
+        let Some(at) = pollen.tween(dimming) else {
+            return;
+        };
+        self.dimmed = at;
+        grove.repaint(shell::scheme(at));
+        if pollen.finished(dimming) {
+            self.dimming = None;
+        }
+    }
+
+    /// Restarts the ground's channel, from wherever the last one had reached.
+    ///
+    /// A channel writes nothing, so no write of the app's cancels it the way one cancels a motion.
+    /// Stopping it is a verb, and that is the whole difference.
+    fn dim_to(&mut self, grove: &mut Grove, to: f32, millis: u64) -> Tween {
+        if let Some(running) = self.dimming.take() {
+            grove.stop(running);
+        }
+        grove.tween(self.dimmed, to, Timing::ms(millis))
     }
 
     /// Walks the marker down the rail, a section at a time, until the reader takes over.
@@ -193,10 +275,20 @@ impl Site {
         if entry == self.selected {
             return;
         }
-        // Two writes, and extraction sends two instances: the entry that lost the fill and the
-        // one that took it. Everything else on the page is compared and found unchanged.
-        grove.color(self.shell.entries[self.selected], Palette::Muted);
-        grove.color(self.shell.entries[entry], Palette::Accent);
+        // Two motions, and the fills cross rather than swap. A fill is a role and a blend of two
+        // roles is a colour, so this is resolved where a role becomes one -- which is also why a
+        // repaint part way through moves both ends of it.
+        let shift = Timing::ms(180).ease(Ease::Decelerate);
+        grove.animate(
+            self.shell.entries[self.selected],
+            Motion::Palette(Palette::Muted),
+            shift,
+        );
+        grove.animate(
+            self.shell.entries[entry],
+            Motion::Palette(Palette::Accent),
+            shift,
+        );
         self.selected = entry;
         // An element has one anchor, and pointing it somewhere else replaces it. So the marker's
         // own placement is written once and never again -- what moves it is which element it is
@@ -204,11 +296,21 @@ impl Site {
         grove.anchor(self.shell.marker, self.shell.entries[entry]);
     }
 
-    /// Takes the notice down once it has been up long enough, and lets go of it once the tree
-    /// says it went.
+    /// Fades the notice out once it has been up long enough, takes it down once there is nothing
+    /// left to see, and lets go of it once the tree says it went.
     fn retire_notice(&mut self, grove: &mut Grove, pollen: &Pollen) {
         self.notice = match self.notice {
-            Notice::Up(notice) if grove.elapsed() >= NOTICE => {
+            // The timer is up. A tap on a timer's report is the same shape as a tap on anything
+            // else's: ask about the one you own.
+            Notice::Up(notice) if pollen.finished(self.waiting) => {
+                grove.animate(
+                    notice,
+                    Motion::Opacity(0.0),
+                    Timing::ms(FADE).ease(Ease::Accelerate),
+                );
+                Notice::Fading(notice)
+            }
+            Notice::Fading(notice) if pollen.landed(notice) => {
                 grove.prune(notice);
                 Notice::Going(notice)
             }
