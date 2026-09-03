@@ -41,6 +41,11 @@ pub(crate) struct Site {
     touring: bool,
     /// How far the knob has been dragged along its track.
     travelled: f32,
+    /// Which cards the reader has lit.
+    ///
+    /// Selection is the app's and the press visual is the engine's report, and they are two things.
+    /// Keeping the choice here is what lets a press put its own visual back without touching it.
+    lit: Vec<bool>,
     /// Whether the last card's menu is open.
     menu: bool,
     /// Where the scrollbar's thumb was last put. Kept so the placement is written when it changes
@@ -79,6 +84,7 @@ impl Root for Site {
         grove.color(shell.entries[0], Palette::Accent);
         let notice = Notice::Up(shell.notice);
         let waiting = grove.timer(Timing::ms(NOTICE));
+        let cards = shell.cards.len();
         Self {
             shell,
             notice,
@@ -86,6 +92,7 @@ impl Root for Site {
             selected: 0,
             touring: true,
             travelled: 0.0,
+            lit: vec![false; cards],
             menu: false,
             thumb: None,
             open: false,
@@ -140,25 +147,33 @@ impl Site {
             }
         }
         // A card in the scrolling column. Tapping one lights it; dragging from one scrolls the
-        // column and leaves it alone, and neither the card nor the column was told about the other.
+        // column and leaves it as it found it, and neither the card nor the column was told about
+        // the other.
+        // A tap is the only thing that moves a card's fill. A drag that scrolled the column is not
+        // a choice about the card it began on, and neither is a press that caught the column still
+        // coasting -- so both leave it exactly as they found it, and neither is written here.
         for card in 0..self.shell.cards.len() {
-            let card = self.shell.cards[card];
-            if pollen.clicked(card) {
-                grove.animate(card, Motion::Palette(Palette::Accent), Timing::ms(160));
+            let leaf = self.shell.cards[card];
+            if !pollen.clicked(leaf) {
+                continue;
             }
+            self.lit[card] = !self.lit[card];
+            grove.animate(leaf, Motion::Palette(self.fill(card)), Timing::ms(160));
             // The last one opens a menu under itself. It hangs past the bottom of the column and
             // is drawn over what is below rather than being cut off there, and the column gains no
             // scroll range leading down to it -- both from the one mark on the menu.
-            if pollen.clicked(card) && card == self.shell.cards[self.shell.cards.len() - 1] {
-                self.menu = !self.menu;
+            if card == self.shell.cards.len() - 1 {
+                self.menu = self.lit[card];
                 grove.visible(self.shell.menu, self.menu);
             }
-            // A direct write, and it cancels whatever was still moving that fill. The card is at
-            // what was written, with nothing left over to be reconciled -- so a fill being animated
-            // in one place does not oblige every other place to animate it.
-            if pollen.disengaged(card) && !pollen.clicked(card) {
-                grove.color(card, Palette::Raised);
-            }
+        }
+    }
+
+    /// What a card is filled with when nothing is pressing it.
+    fn fill(&self, card: usize) -> Palette {
+        match self.lit[card] {
+            true => Palette::Accent,
+            false => Palette::Raised,
         }
     }
 

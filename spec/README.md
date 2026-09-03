@@ -592,9 +592,13 @@ special case, which is `aspen.md`'s claim under test.
 
 **A coast is not a tween**, and is held beside them rather than on elements. There is no target and
 no duration; it is an integration that runs until it settles. Interaction measures the release
-velocity over the frame the release landed in, hands it to the region holding the claim, and stops.
-A release in a frame nothing moved in leaves no speed, which is what makes holding still before
-lifting stop a list rather than fling it. The decay is continuous, so a fling covers the same ground
+velocity as the mean over a **trailing window** of the last hundred milliseconds, hands it to the
+region holding the claim, and stops. One frame is too noisy a sample to measure it from: a hand
+slows as it lifts and a pointer reports nothing at all in the frame its button came up, so a fling
+measured that way reads as a stop and is thrown away by the minimum speed. A hand that came to rest
+before lifting still leaves no speed, because the frames it rested for are inside the window and are
+what bring the mean down — which is what makes holding still before lifting stop a list rather than
+fling it. The decay is continuous, so a fling covers the same ground
 at thirty frames a second as at a hundred and twenty, and it is stated as a **half-life** because
 that is the only form of it a person can read and predict. A coast is not charged the delta of the
 frame it starts in, for the same reason a tween is not: that delta is the interval the drag was

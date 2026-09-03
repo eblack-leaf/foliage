@@ -456,16 +456,17 @@ impl Coasting {
         self.running.insert((leaf, axis), coast);
     }
 
-    /// Stops a region on one axis.
-    pub(crate) fn halt(&mut self, leaf: Leaf, axis: Axis) {
-        self.running.remove(&(leaf, axis));
+    /// Stops a region on one axis, and says whether it was moving.
+    pub(crate) fn halt(&mut self, leaf: Leaf, axis: Axis) -> bool {
+        self.running.remove(&(leaf, axis)).is_some()
     }
 
-    /// Stops a region on both axes, which is what taking hold of it does.
-    pub(crate) fn stop(&mut self, leaf: Leaf) {
-        for axis in Axis::BOTH {
-            self.halt(leaf, axis);
-        }
+    /// Stops a region on both axes, which is what taking hold of it does, and says whether it
+    /// caught anything -- a hand that stopped something has spent its press on stopping it.
+    pub(crate) fn stop(&mut self, leaf: Leaf) -> bool {
+        Axis::BOTH
+            .into_iter()
+            .fold(false, |caught, axis| self.halt(leaf, axis) || caught)
     }
 
     /// Drops every coast on elements that have gone.

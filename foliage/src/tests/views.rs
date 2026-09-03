@@ -800,10 +800,10 @@ fn a_release_with_speed_coasts_on_and_settles() {
     assert_eq!(offset(&grove, region).y, settled);
 }
 
-/// A hand held still before it lifts is a hand that meant to stop. Nothing moved in the frame the
-/// release landed in, so there is no speed to carry.
+/// A hand held still before it lifts is a hand that meant to stop. It rested for longer than the
+/// window, so the movement before it is out of the measurement and there is no speed to carry.
 #[test]
-fn a_release_that_moved_nothing_starts_no_coast() {
+fn a_release_that_rested_before_lifting_starts_no_coast() {
     let mut grove = grove();
     let (region, _) = column(&mut grove);
     tick(&mut grove);
@@ -814,11 +814,85 @@ fn a_release_that_moved_nothing_starts_no_coast() {
     tick(&mut grove);
     assert_eq!(offset(&grove, region).y, 30.0);
 
-    advance(&mut grove, 100);
+    advance(&mut grove, 150);
     release(&mut grove, 50.0, 20.0);
     tick(&mut grove);
     assert!(grove.coasting.idle());
     assert_eq!(offset(&grove, region).y, 30.0);
+}
+
+/// The frame a release lands in carries almost nothing: a pointer reports no movement at all in the
+/// frame its button came up. Measured from that frame alone the fling reads as a hand that stopped
+/// and is thrown away entirely, so it is measured over the window instead and the fling carries.
+#[test]
+fn a_fling_survives_a_release_frame_that_moved_nothing() {
+    let mut grove = grove();
+    let (region, _) = column(&mut grove);
+    tick(&mut grove);
+
+    advance(&mut grove, 16);
+    press(&mut grove, 50.0, 50.0);
+    drag(&mut grove, 50.0, 20.0);
+    tick(&mut grove);
+    assert_eq!(offset(&grove, region).y, 30.0);
+
+    advance(&mut grove, 16);
+    release(&mut grove, 50.0, 20.0);
+    tick(&mut grove);
+    assert!(!grove.coasting.idle());
+
+    settle(&mut grove);
+    assert!(offset(&grove, region).y > 30.0);
+}
+
+/// The window is a mean over time and not a total, so a hand that hesitated before it lifted flings
+/// at what it was doing across the window rather than at the fastest part of it. Both of these are
+/// the same movement and both are inside the window; the one that hesitated is the slower gesture.
+#[test]
+fn a_fling_carries_the_mean_of_the_window() {
+    let mut flicked = grove();
+    let region = runway(&mut flicked);
+    tick(&mut flicked);
+    advance(&mut flicked, 16);
+    press(&mut flicked, 50.0, 50.0);
+    drag(&mut flicked, 50.0, 20.0);
+    release(&mut flicked, 50.0, 20.0);
+    tick(&mut flicked);
+    settle(&mut flicked);
+
+    let mut hesitated = grove();
+    let same = runway(&mut hesitated);
+    tick(&mut hesitated);
+    advance(&mut hesitated, 16);
+    press(&mut hesitated, 50.0, 50.0);
+    drag(&mut hesitated, 50.0, 20.0);
+    tick(&mut hesitated);
+    for _ in 0..2 {
+        advance(&mut hesitated, 16);
+        tick(&mut hesitated);
+    }
+    advance(&mut hesitated, 16);
+    release(&mut hesitated, 50.0, 20.0);
+    tick(&mut hesitated);
+    settle(&mut hesitated);
+
+    // Three times the time for the same distance, so a third of the speed and a third of the ground
+    // -- but still ground, because hesitating inside the window is not stopping.
+    let (flicked, hesitated) = (offset(&flicked, region).y, offset(&hesitated, same).y);
+    assert!(hesitated > 30.0, "the hesitant fling carried nothing");
+    assert!(flicked > hesitated * 2.0, "{flicked} against {hesitated}");
+}
+
+/// A column with far more content than a fling can cross, so how far one was going is readable from
+/// where it stopped rather than from the end it ran into.
+fn runway(grove: &mut Grove) -> Leaf {
+    let region = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    grove.branch(region, Panel::new().at(at(0.0, 0.0, 200.0, 4000.0)));
+    region
 }
 
 /// A coast is clamped against the extent exactly as a drag is, and a region with nothing outside it

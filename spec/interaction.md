@@ -229,8 +229,15 @@ axes the same simply set them the same.
 
 ## What handing off looks like
 
-When a gesture ends with speed, interaction supplies the **release velocity** and stops there.
-Everything after — decay, clamping, whether hitting an end chains or absorbs — is `views.md`'s.
+When a gesture ends with speed, interaction supplies the **release velocity** — the mean over a
+trailing window of the last hundred milliseconds, because one frame is too noisy a sample to measure
+a fling from — and stops there. Everything after — decay, clamping, whether hitting an end chains or
+absorbs — is `views.md`'s.
+
+A press that lands on a region still coasting **stops it and is spent on stopping it**. The gesture
+stays open and keeps its chain, so a drag out of the catch scrolls as any other does, but the
+element under the hand is told nothing: it does not engage, and the release is not a tap. Reaching
+for a list that is still going is not a choice about whatever was under the hand when it halted.
 
 `disable()` stays, cascades to the subtree, and **swallows** rather than passing input through —
 see `lifecycle.md`, which owns the three ways an element can be off and how they differ.

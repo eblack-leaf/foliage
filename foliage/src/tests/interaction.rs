@@ -8,7 +8,7 @@
 use crate::coordinate::{Area, Axes, Position, Section};
 use crate::elm::Key;
 use crate::tests::{
-    Observer, cancel, drag, grove, press, release, section, tick, tick_with, wheel,
+    Observer, advance, cancel, drag, grove, press, release, section, tick, tick_with, wheel,
 };
 use crate::{
     Elevation, Grove, Grow, Leaf, Location, Panel, Place, Pollen, Source, Stem, left, top,
@@ -685,4 +685,45 @@ fn a_moved_region_rewrites_what_its_children_are_clipped_to() {
         clip(&grove, inside),
         Section::from_edges(0.0, 40.0, 200.0, 140.0)
     );
+}
+
+/// A press that catches a running coast is spent on catching it. Stopping a moving list is a thing
+/// the gesture did, and the element it happened to stop over hears nothing of it -- a reader
+/// reaching for a list that is still going did not mean to choose what was under their hand when it
+/// halted.
+#[test]
+fn a_press_that_catches_a_coast_is_not_a_tap() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    let button = grove.branch(
+        region,
+        Panel::new().at(at(0.0, 0.0, 200.0, 400.0)).interactive(),
+    );
+    tick(&mut grove);
+
+    advance(&mut grove, 16);
+    press(&mut grove, 50.0, 50.0);
+    drag(&mut grove, 50.0, 20.0);
+    release(&mut grove, 50.0, 20.0);
+    frame(&mut grove);
+    assert!(!grove.coasting.idle());
+
+    advance(&mut grove, 16);
+    press(&mut grove, 50.0, 50.0);
+    let caught = frame(&mut grove);
+    advance(&mut grove, 16);
+    release(&mut grove, 50.0, 50.0);
+    let lifted = frame(&mut grove);
+    assert!(grove.coasting.idle());
+    // Nothing at all: no pressed visual to put back, and so no tap to take back either.
+    assert!(!caught.engaged(button));
+    assert!(!lifted.clicked(button));
+
+    // Settled, the same press is an ordinary tap. What the catch is about is what the press did,
+    // not where it landed.
+    assert!(tap(&mut grove, 50.0, 50.0).clicked(button));
 }

@@ -46,6 +46,20 @@ const BAR_INSET: f32 = 8.0;
 /// something to see.
 const THUMB: f32 = 24.0;
 
+/// How much of the map the pane shows at once, and how much map there is to pan over. The map is
+/// larger on both axes, which is what gives the pane somewhere to go in either direction.
+const PANE: f32 = 160.0;
+const MAP_WIDTH: f32 = 600.0;
+const MAP_HEIGHT: f32 = 320.0;
+
+/// How many blocks the map is divided into, and how wide the streets between them run.
+const BLOCKS_ACROSS: i32 = 6;
+const BLOCKS_DOWN: i32 = 4;
+const STREET: f32 = 10.0;
+
+/// How large the mark at the middle of the map is.
+const PIN: f32 = 14.0;
+
 /// What the article says about each section of the rail. Rewritten as the reader moves, and of
 /// deliberately different lengths, because the point is that the box follows the words.
 const PROSE: [&str; SECTIONS as usize] = [
@@ -244,15 +258,18 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
                 top(0.px()).height(HEADER.px()),
             )),
     );
+    // A mark rather than a word, so what the header does is legible in what is drawn: the strip
+    // holds still while the reading slides under it, and it carries this with it, because the
+    // children of a pinned element travel with the element.
     grove.branch(
         header,
-        Text::new("reading")
-            .color(Palette::Ink)
-            .font_size(FontSize::new().xs(13))
+        Panel::new()
+            .color(Palette::Accent)
+            .rounding(Rounding::Full)
             .pass_through()
             .at(Location::new().xs(
-                left(GUTTER.px()).width(content()),
-                center_y(50.pct()).height(content()),
+                left(GUTTER.px()).width(48.px()),
+                center_y(50.pct()).height(4.px()),
             )),
     );
 
@@ -395,17 +412,52 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
             .anchored(above)
             .at(Location::new().xs(
                 left(anchor().left()).width(anchor().width()),
-                top(anchor().bottom() + GUTTER.px()).height(120.px()),
+                top(anchor().bottom() + GUTTER.px()).height(PANE.px()),
             )),
     );
-    grove.branch(
+
+    // The ground the pane is a window onto. Its own grid divides it into blocks and the streets
+    // between them are that grid's gaps, so a pan reads as movement across somewhere rather than as
+    // one rectangle sliding about behind a hole.
+    let ground = grove.branch(
         pane,
         Panel::new()
-            .color(Palette::Raised)
-            .rounding(Rounding::Sm)
+            .color(Palette::Muted)
+            .grid(Grid::new().xs(
+                BLOCKS_ACROSS.columns().gap(STREET),
+                BLOCKS_DOWN.rows().gap(STREET),
+            ))
             .at(Location::new().xs(
-                left(0.px()).width(600.px()),
-                top(0.px()).height(320.px()),
+                left(0.px()).width(MAP_WIDTH.px()),
+                top(0.px()).height(MAP_HEIGHT.px()),
+            )),
+    );
+    for down in 1..=BLOCKS_DOWN {
+        for across in 1..=BLOCKS_ACROSS {
+            grove.branch(
+                ground,
+                Panel::new()
+                    .color(Palette::Raised)
+                    .rounding(Rounding::Sm)
+                    .at(Location::new().xs(
+                        left(across.col()).right(across.col()),
+                        top(down.row()).bottom(down.row()),
+                    )),
+            );
+        }
+    }
+
+    // A mark at the middle of the map, which the pane does not show until it has been panned to.
+    // Somewhere to arrive at is what tells the reader they moved rather than that something did.
+    grove.branch(
+        ground,
+        Panel::new()
+            .color(Palette::Accent)
+            .rounding(Rounding::Full)
+            .elevate(Elevation::up(1))
+            .at(Location::new().xs(
+                left(((MAP_WIDTH - PIN) / 2.0).px()).width(PIN.px()),
+                top(((MAP_HEIGHT - PIN) / 2.0).px()).height(PIN.px()),
             )),
     );
 

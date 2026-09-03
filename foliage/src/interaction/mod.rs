@@ -31,6 +31,9 @@ pub(crate) mod focus;
 pub(crate) mod input;
 pub(crate) mod stack;
 
+use core::time::Duration;
+use std::collections::VecDeque;
+
 use bevy_ecs::component::Component;
 use tracing::field::Empty;
 use tracing::{debug, trace_span};
@@ -139,6 +142,22 @@ pub struct Drag {
     pub delta: Position,
 }
 
+/// How far back a release velocity is measured.
+///
+/// A release lands in one frame, and that frame on its own is a poor sample of the gesture that
+/// ended in it: a hand slows as it lifts, a pointer reports nothing at all in the frame the button
+/// came up, and a flick can put the whole of its movement into the frame before. Measured over one
+/// frame, all three read as a hand that stopped -- and with a minimum speed to clear, reading low is
+/// not a coast that starts slow, it is a coast that never starts.
+///
+/// So the speed handed on is the mean over the last of the gesture rather than the last frame of it.
+/// Long enough that a frame or two of nothing does not throw a fling away, short enough that a hand
+/// which came to rest before lifting still reads as stopped.
+///
+/// Not a tuning value: it is how the measurement is taken, not a statement about how a coast feels.
+/// [`Momentum`](crate::Momentum) is the half of momentum an app sets.
+const WINDOW: Duration = Duration::from_millis(100);
+
 /// The gesture in progress.
 pub(crate) struct Gesture {
     /// Where it began, which is where its tap would be.
@@ -152,12 +171,74 @@ pub(crate) struct Gesture {
     /// gesture lands is where it looks for a region, whatever it passes over afterwards.
     chain: Vec<Leaf>,
     held: Held,
-    /// How far the gesture moved during this frame, reset at the top of every dispatch.
+    /// What the gesture did over the last [`WINDOW`], oldest first, which is what a release velocity
+    /// is measured from.
     ///
-    /// One frame's worth, because a release velocity is a speed and a speed needs an interval. It
-    /// is the movement that was actually *applied*, so the travel spent claiming the gesture is out
-    /// of it here for the same reason it is out of every `delta`.
-    travelled: Position,
+    /// One entry per frame the gesture has been open in, each carrying the interval it stands for,
+    /// so the mean is over time rather than over a count of frames. It holds the movement that was
+    /// actually *applied*, so the travel spent claiming the gesture is out of it here for the same
+    /// reason it is out of every `delta`.
+    recent: VecDeque<Sample>,
+}
+
+/// One frame's share of a gesture: how long the frame stood for, and how far it moved in it.
+struct Sample {
+    span: Duration,
+    travel: Position,
+}
+
+impl Gesture {
+    /// Opens this frame's sample and drops what has fallen out of the window.
+    fn open(&mut self, span: Duration) {
+        // A frame that took no time is no interval to measure a speed over, so it opens nothing and
+        // whatever moves in it belongs to the sample already running. The first sample is pushed
+        // whatever its span, so a gesture always has somewhere to put its movement.
+        if span.is_zero() && !self.recent.is_empty() {
+            return;
+        }
+        self.recent.push_back(Sample {
+            span,
+            travel: Position::default(),
+        });
+        // What is kept is the shortest run of frames that still reaches back a whole window, so a
+        // window's worth is always covered and never much more. The last sample is never dropped:
+        // where one frame is longer than the window, that frame is the whole measurement.
+        let mut covered = self.covered();
+        while let Some(oldest) = self.recent.front() {
+            let without = covered - oldest.span;
+            if without < WINDOW {
+                break;
+            }
+            covered = without;
+            self.recent.pop_front();
+        }
+    }
+
+    /// Adds movement to the frame being measured.
+    fn record(&mut self, delta: Position) {
+        if let Some(sample) = self.recent.back_mut() {
+            sample.travel = sample.travel.moved(delta);
+        }
+    }
+
+    /// How much time the samples reach back over.
+    fn covered(&self) -> Duration {
+        self.recent.iter().map(|sample| sample.span).sum()
+    }
+
+    /// The mean velocity of the pointer over the window, in logical pixels per second, or `None`
+    /// where no time has passed to measure one over.
+    fn velocity(&self) -> Option<Position> {
+        let covered = self.covered().as_secs_f32();
+        if covered <= 0.0 {
+            return None;
+        }
+        let travel = self
+            .recent
+            .iter()
+            .fold(Position::default(), |sum, sample| sum.moved(sample.travel));
+        Some(Position::new(travel.x / covered, travel.y / covered))
+    }
 }
 
 /// Who is holding the gesture.
@@ -178,10 +259,12 @@ pub(crate) fn dispatch(grove: &mut Grove) {
     let _entered = step.enter();
     let pending = core::mem::take(&mut grove.pointer.pending);
     step.record("inputs", pending.len());
-    // A frame's worth of movement is what a release velocity is measured over, so the count starts
-    // again here whether or not anything arrives.
+    // Every frame an open gesture lives through is one the window is measured across, so a frame
+    // opens a sample whether or not anything arrives in it: a frame nothing happened in is a hand
+    // that held still, and it counts against the mean exactly as much as one that moved.
+    let span = grove.clock.delta();
     if let Some(gesture) = grove.pointer.gesture.as_mut() {
-        gesture.travelled = Position::default();
+        gesture.open(span);
     }
     for input in pending {
         match input {
@@ -205,24 +288,34 @@ fn pressed(grove: &mut Grove, at: Position) {
         target: None,
         chain: Vec::new(),
         held: Held::Resolving,
-        travelled: Position::default(),
+        recent: VecDeque::new(),
     };
+    // Opened here rather than at the top of the next dispatch, because a flick can press, move and
+    // release inside one frame and that movement has to land somewhere.
+    gesture.open(grove.clock.delta());
     if let Some(region) = grove.stack.top(at) {
         if region.disabled {
             // Swallowed. A disabled element is present and inert: it takes nothing itself, and it
             // does not pass the gesture on to what is behind it or to a region containing it.
             debug!(leaf = region.leaf.id(), "gesture swallowed");
         } else {
-            if region.receives {
-                gesture.target = Some(region.leaf);
-                grove.drift.engaged.insert(region.leaf);
-                debug!(leaf = region.leaf.id(), "engaged");
-            }
             gesture.chain = chain(grove, region.leaf);
             // Taking hold of something still coasting stops it where the hand met it. A coast is
             // the reader's own last gesture carrying on, so catching it is how it is meant to end.
-            for &region in &gesture.chain {
-                grove.coasting.stop(region);
+            let caught = gesture
+                .chain
+                .iter()
+                .fold(false, |caught, &region| grove.coasting.stop(region) || caught);
+            if caught {
+                // And the press is spent on the catch. What is under the hand hears nothing of it,
+                // or stopping a moving list would also be a press on whatever it happened to stop
+                // over -- which is the one thing a reader reaching for it did not mean. The gesture
+                // stays open and keeps its chain, so a drag out of the catch scrolls as any other.
+                debug!(leaf = region.leaf.id(), "coast caught");
+            } else if region.receives {
+                gesture.target = Some(region.leaf);
+                grove.drift.engaged.insert(region.leaf);
+                debug!(leaf = region.leaf.id(), "engaged");
             }
         }
     }
@@ -245,7 +338,7 @@ fn moved(grove: &mut Grove, to: Position) {
             }
         }
     }
-    gesture.travelled = gesture.travelled.moved(delta);
+    gesture.record(delta);
     apply(grove, &mut gesture, delta);
     grove.pointer.gesture = Some(gesture);
 }
@@ -366,24 +459,30 @@ fn close(grove: &mut Grove, released: bool) {
 ///
 /// Only a gesture a *region* was holding leaves one. A target that took the drag owns whatever it
 /// was doing with it and coasts it itself if it wants to; a gesture that ended still resolving is a
-/// tap and has no speed to speak of. A release in a frame nothing moved in leaves no speed either,
-/// which is what makes holding still before lifting stop the list rather than fling it.
+/// tap and has no speed to speak of. A hand that came to rest before lifting leaves no speed either:
+/// the frames it rested for are in the [`WINDOW`] and are what bring the mean down, which is what
+/// makes holding still before lifting stop the list rather than fling it.
 fn launch(grove: &mut Grove, gesture: &Gesture) {
     let Held::Region { index, axis } = gesture.held else {
         return;
     };
-    let elapsed = grove.clock.delta().as_secs_f32();
-    if elapsed <= 0.0 {
+    let Some(velocity) = gesture.velocity() else {
         return;
-    }
+    };
     // Content moves against the pointer, so the offset's velocity is the pointer's reversed --
     // the same sign the drag itself was applied with.
-    view::launch(
-        grove,
-        gesture.chain[index],
-        axis,
-        -gesture.travelled.along(axis) / elapsed,
+    let speed = -velocity.along(axis);
+    // Reported whether or not it turns out to be enough to coast on, because a fling that did not
+    // fling is exactly the question this answers.
+    debug!(
+        leaf = gesture.chain[index].id(),
+        ?axis,
+        speed,
+        over = gesture.covered().as_secs_f32(),
+        frames = gesture.recent.len(),
+        "released"
     );
+    view::launch(grove, gesture.chain[index], axis, speed);
 }
 
 /// A wheel notch: no gesture, no claim, no lifecycle. It moves what is under it, and it is over.
