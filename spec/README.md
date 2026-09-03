@@ -384,8 +384,109 @@ moves on a `tween`, because a `Scheme` is the app's own value and foliage has no
 the clock is borrowed and the write stays on the app's side. A card lit by a tap and then released
 is recolored by a direct write, which cancels the fill still moving on it: F8's case, on the page.
 
-Next: B6 — `Text` and fonts. The character cell, wrapping and `content()` — which is what pays off
-`Tree::cell` and `Tree::intrinsic`, and with them the one proof obligation B5 could not reach.
+B6 has landed. Fonts, the character cell, wrapping, and `content()` on both axes. Two hundred and
+sixty-seven headless tests and thirteen compile-fail doctests.
+
+`Tree::cell` and `Tree::intrinsic` are filled, and with them every arithmetic B2 proved against
+fed-in values now has something real to read. Two passes write them, and the split *is* width-down
+and height-up:
+
+| | Pass | Direction | Writes |
+|---|---|---|---|
+| R1 | `measure` | — | the character cell, and max-content width |
+| R2m | `wrap` | **bottom-up** | the measured height |
+
+R1 reads no geometry at all, because neither answer has anything to do with where the element ended
+up: a monospaced run's max-content width is its longest line's character count times its cell. That
+is what leaves the down-pass with nothing to measure and only the up-pass with anything to do — and
+by then it has a width to do it against. R2m sits between the two halves of R2 because that is the
+one moment when every width is known and no height is. Neither pass iterates, and neither is a
+second resolution: R2a and R2b are still the only two.
+
+A font is a fact about the program rather than about any element, so `Foliage::font` registers one at
+boot and hands back a `Font`. Registration **refuses a proportional font**, naming the two characters
+that disagreed. That is not a nicety — every measurement foliage makes is a count of cells, so a
+proportional font does not degrade, it puts every column address somewhere it does not belong.
+
+`font` and `font_size` are on `Place`, not on `Text`. A cell is what `letters()` and a letter-pitched
+track are measured in, and neither of those is text's — an element sized in characters carries a
+typeface whether or not it draws any. An element that names neither has *no* cell and reads zero,
+which keeps a cell a declaration rather than a default nobody asked for. `FontSize` is the same
+breakpoint chain `Location` and `Grid` are, for the same reason: what an element looks like at a
+given width is one thought.
+
+**`placement.md` amended: `content()` on a container is the reach of what is grown under it.** The
+document promised a container that grows to fit stacked children and did not say how, and the
+two-pass bound is what makes it answerable: R2m runs bottom-up, so everything inside an element is
+measured before the element asks. A run wraps at its own width; anything with children takes the
+furthest any of them reaches down. Both are the one question `content()` asks — *how large is what is
+inside me* — and an element takes the greater of them.
+
+What that needs, and what is new, is a rule about which children count:
+
+> **A child that reads a vertical box does not decide the measure.**
+
+`100.pct()`, a row of the trunk's grid, an anchor's edge: each is asking how tall something else is,
+so none of them can be what answers how tall this is without answering it circularly. Such a child is
+left out of the measure and given its real height by R2b like anything else — so a child sized to its
+trunk still fills it, it just is not what sized it. Everything that describes an extent in its own
+terms counts, and that includes any *horizontal* reading, because the horizontal axis has already
+resolved. The rule falls out of the axis asymmetry the grammar already states as types.
+
+**Shaping is the one thing kept between frames**, keyed on `(value, font, size)` and swept back to
+what the tree states at the end of every resolve. Wrapping is deliberately not kept: it is a function
+of the width the layout produced, which is a different answer every time the layout moves, and
+walking an already-shaped run to find its lines is cheap. That is the whole of the exception, and
+there is no second cache.
+
+`order()` was leaving elements out. It waits on a trunk *and* an anchor, but the cycle refused at the
+op only follows anchors, so an element anchored to something grown under it left both ends waiting
+forever — and they were dropped from the frame with no box, no rank, no place in the stack and
+nothing said about it. That is not the same contradiction an anchor cycle is: both boxes resolve,
+just not both against a settled other. The remainder now resolves in allocation order, so **every
+live element is in the order**, which is the property every pass downstream was already assuming.
+
+**Sequences are settled: a `Sequence` is a handle, and the offsets stay on the tween.** `sequence()`
+hands out a name and `Timing::within` joins one — from any callsite, at any frame, by a motion, a
+channel or a timer alike. That is the whole point of a group: it exists to time together things that
+have no reason to be written together, and a form that had to state its members in one call could not
+do it. The offsets stay where `Timing::after` already puts them, so there is one place a delay is
+stated rather than two that can disagree. `Pollen::sequence_finished` is keyed on the sequence rather
+than on a `Leaf`, against `pollen.md`'s table and for the same reason `finished(tween)` is: a group is
+not about an element. It reports when nothing is running under it any more, however each member
+ended — landed, cancelled by a direct write, or taken down with its element — because a group being
+over is one fact.
+
+B5's other owed item is discharged: `aspen.md`'s `text_content()` endpoint, rewritten mid-tween,
+re-measures and lands exactly, beside the resize, breakpoint and anchor cases that prove the same
+re-resolution through the same resolver.
+
+**A fill is a `Fill` whatever holds it.** A run declares one, `color` writes it, `Motion::Color` and
+`Motion::Palette` move it, and `Vein::Color` reads it back — the same words a panel takes. Rounding
+stays a panel's, because a run has no box of its own to round.
+
+`application/` reads. The rail's entries are labelled and the labels are `pass_through`, which is the
+mark earning itself twice on one page. The article is `height(content() + 16.px())` and the prose
+inside it is `height(content())`, so the card is as tall as its own words turn out to be at whatever
+width the column offered — and the slider anchored below it and the six cards anchored below that all
+follow, none of which is written anywhere. Walking the rail rewrites the prose with `text`, and the
+whole column reflows in that frame. The drawer's opening and closing are each one `Sequence`: a
+placement on the sheet, an opacity on the page, and a channel driving a value foliage has no concept
+of, counted together and waited on as one.
+
+Still owed by B6:
+
+- **The glyph pipeline.** Everything about a run resolves and is readable — its box, its fill, its
+  rank, its clip — and nothing turns them into pixels yet. `Instances` is keyed on a `u64` rather
+  than on a `Leaf` for it: a run is **one** entry in the one stack, whose renderer holds its glyphs
+  under its own numbering, so the stack never learns what a glyph is and R6's tie-break is not
+  reopened.
+- **Per-character tints.** They are `Fill`s over a range of the run's own index space, under the
+  fill a run already declares rather than beside it, and there is nothing to prove about them
+  headlessly until there is something drawing them.
+
+Next: B7 — views and scrolling. `contain`, `pinned`, `.extent(..)`, `ScrollTo` and momentum, over the
+structure B4 already put under them.
 
 ## B4 §3, resolved
 
