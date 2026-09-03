@@ -2,11 +2,9 @@
 
 Hit-testing, gestures, and focus.
 
-The previous system was, in its author's words, overdone and underwhelming — five flags
-(`interactive`, `pass_through`, `holds_drag`, `overscroll`, `directional_lock`) that between them
-tried to predict, at spawn, what a gesture would turn out to mean. Most of this document is
-deletion, but not as much as a first pass suggested: one of those flags was carrying real
-information and survives in a smaller form.
+The previous system carried five flags — `interactive`, `pass_through`, `holds_drag`, `overscroll`,
+`directional_lock` — of which three tried to predict, at spawn, what a gesture would turn out to
+mean. Those three go. `interactive` and `pass_through` state what cannot be derived and stay.
 
 ## 1. Two questions, not one
 
@@ -25,7 +23,8 @@ At a pointer position, the **box stack** is every element whose resolved box con
 and which is not clipped away, hidden, or fully transparent — ordered top-first by resolved
 elevation.
 
-**Membership is universal.** Nothing opts in. This is geometry, and it is what makes two other
+**Membership is universal.** Nothing opts in, and `pass_through` does not opt out — it changes what
+stops a gesture, never what is in the stack. This is geometry, and it is what makes two other
 things work:
 
 - **Occlusion is per-point and automatic.** There is no such thing as an obscured *element*, only
@@ -33,24 +32,37 @@ things work:
   those pixels and absent for the rest, with no special handling.
 - **A drag knows where it started**, in tree terms, whoever is or is not a target there.
 
-## 3. Targets
+## 3. Stopping and receiving
 
-> **Only an element that called `interactive()` receives gestures.**
+Two declarations. Neither is derived from the other, and neither is derived from geometry.
 
-Targeting walks the box stack from the top and stops at the first target. Non-targets are passed
-over: they are present for geometry, not for receiving.
+> **A gesture goes to the top of the box stack** — the one element nearest the viewer at that
+> point, whatever it draws and whether or not it receives. `pass_through` takes an element out of
+> the stack for this purpose, so the element beneath it is the top.
+>
+> **Only an element that called `interactive()` receives.**
 
-**A target blocks targets beneath it.** That is how a backdrop works — a full-screen panel that
-should stop presses reaching the page is a target, so it blocks, and it also receives the press,
-which is usually what a dismiss-on-outside-click wanted anyway. Decoration is not a target, so a
-badge drawn over a button's corner does not break the button.
+An element that is at the top without receiving **eats** the gesture. A backdrop, a sheet backing
+and a menu's padding are all this, and none of them declares anything to be it.
 
-This is exactly what `pass_through` was arranging by hand, so it becomes the default and the flag
-goes. The site marks 20+ elements `pass_through` against 14 `interactive()` calls — more code
-spent saying "not me" than "me" — and its own comment records the discovery:
+### The hit test does not search
 
-> *the card itself is the target — its contents draw above it, so without this each one wins the
-> hit test on the pixels it covers and only the bare backing is clickable*
+Reading the top of the stack is the whole of it. The engine never continues downward looking for an
+element willing to take the gesture, and it never passes over one because it is undeclared or draws
+nothing. What is in the stack is the author's statement; which member of it wins is geometry.
+
+A search would have to judge, at each element it passed, whether that element is *part of* what it
+covers or a *layer over* it. At a point the two are one picture — a target with an undeclared drawn
+element above it — and ancestry, paint, elevation and targethood each answer one of them correctly
+and the other wrong. A searching hit test therefore attributes presses by inference, which is wrong
+silently and at a distance from anything the author wrote.
+
+It also decides more than a press. Where a gesture lands is where a drag that follows it looks for
+its scrolling region (§4), so a press attributed to the wrong element scrolls the wrong region. An
+inferred target is not one mistake but two.
+
+So the distinction is stated where it is known. A composite marks its decoration `pass_through`,
+and nothing else about targeting is declared at all.
 
 ## 4. Scroll ownership is structural
 
@@ -87,7 +99,7 @@ The engine can derive most of this, but not which drags an element wants. A slid
 along-axis drags is information only the app has.
 
 ```
-.takes_drag(Axis::Horizontal)   // or Vertical, or Both
+.drags(Axis::Horizontal)   // or Vertical, or Both
 ```
 
 Default: **takes no drags.** So a target holds a gesture only until it becomes a drag, then yields
@@ -148,25 +160,27 @@ draw that would be right.
 
 ## What is gone
 
-`pass_through`, `holds_drag`, `directional_lock`, `overscroll`, `InteractionPropagation`,
-`ScrollRefused` as a distinct channel, and the drag-cancels-click retraction.
+`holds_drag`, `directional_lock`, `overscroll`, `InteractionPropagation`, `ScrollRefused` as a
+distinct channel, and the drag-cancels-click retraction.
 
-What remains: `interactive()`, `takes_drag(..)`, `round_hit_area()`, `disable()`.
+What remains: `interactive()`, `pass_through()`, `drags(..)`, `round_hit_area()`, `disable()`.
 
 ## Proof obligations
 
 Headless, with synthetic pointer input:
 
-- a decorative child of an interactive parent never wins a tap, with nothing marked
-- a target partially covered by another target is pressable on its uncovered pixels and blocked on
+- a decorative child marked `pass_through` never wins a tap, and wins it when unmarked
+- an undeclared element at the top of the stack eats the gesture, and the target beneath it
+  receives nothing — the hit test does not continue past it
+- a target partially covered by another element is pressable on its uncovered pixels and blocked on
   the covered ones
-- a target partially covered by *decoration* is pressable everywhere
+- a target covered by a `pass_through` element is pressable through it
 - a full-screen target blocks everything beneath it
 - a fully transparent element is not in the stack
 - a drag starting on plain decoration inside a region scrolls that region
 - a drag starting on a *button* inside a region scrolls the region, and the button gets no tap
 - a press and release on that button with no movement gets a tap
-- a drag along a `takes_drag(Horizontal)` slider moves the slider, not the column
+- a drag along a `drags(Horizontal)` slider moves the slider, not the column
 - a drag down the same slider moves the column, not the slider
 - a region at its extent hands a continuing drag outward mid-gesture
 - nested regions hand off outward in order

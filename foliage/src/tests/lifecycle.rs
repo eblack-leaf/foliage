@@ -7,7 +7,7 @@ use crate::placement::location::Location;
 use crate::stem::Stem;
 use crate::vein::{Sap, Vein};
 use crate::verbs::Grow;
-use crate::{Divide, Source, left, top};
+use crate::{Divide, Panel, Place, Source, left, top};
 
 #[test]
 fn a_name_is_planted_until_its_op_drains() {
@@ -311,4 +311,99 @@ fn a_name_is_never_reused() {
     for leaf in gone {
         assert_eq!(grove.presence(leaf), Presence::Withered);
     }
+}
+
+// -- The three ways to be off --------------------------------------------------------------------
+
+/// A panel filling a box, so there is something to extract and something to hit.
+fn panel() -> Panel {
+    Panel::new().at(Location::new().xs(
+        left(0.px()).width(40.px()),
+        top(0.px()).height(40.px()),
+    ))
+}
+
+/// What the backend is holding for an element, if anything.
+fn drawn(grove: &Grove, leaf: Leaf) -> Option<f32> {
+    grove.elm.panels.holding(leaf).map(|panel| panel.color.alpha)
+}
+
+/// The pass does not care when an element arrived, so there is no cascade to run at the moment of
+/// the call and none to miss for something grown afterwards.
+#[test]
+fn a_child_grown_under_a_disabled_trunk_is_disabled_on_its_first_frame() {
+    let mut grove = grove();
+    let trunk = grove.plant(Stem::new());
+    grove.disable(trunk);
+    tick(&mut grove);
+
+    let child = grove.branch(trunk, panel());
+    tick(&mut grove);
+    assert!(grove.tree.inherited(child).disabled);
+    // Its own declaration is untouched: what changed is the product over its ancestry.
+    assert_eq!(grove.tap(child, Vein::Disabled), Some(Sap::Disabled(false)));
+}
+
+/// Re-enabling is symmetric, because what is recomputed is the product over the whole ancestry
+/// rather than a single inherited bit that was overwritten on the way down.
+#[test]
+fn enabling_a_trunk_does_not_enable_a_child_disabled_in_its_own_right() {
+    let mut grove = grove();
+    let trunk = grove.plant(Stem::new());
+    let child = grove.branch(trunk, panel());
+    let sibling = grove.branch(trunk, panel());
+    grove.disable(trunk);
+    grove.disable(child);
+    tick(&mut grove);
+
+    grove.enable(trunk);
+    tick(&mut grove);
+    assert!(grove.tree.inherited(child).disabled);
+    assert!(!grove.tree.inherited(sibling).disabled);
+}
+
+/// Disabled still draws. A greyed control is still a control, and what it looks like disabled is
+/// the app's to say.
+#[test]
+fn a_disabled_element_still_draws() {
+    let mut grove = grove();
+    let leaf = grove.plant(panel());
+    grove.disable(leaf);
+    tick(&mut grove);
+
+    assert_eq!(drawn(&grove, leaf), Some(1.0));
+}
+
+/// Hidden does not, and nor does anything under it.
+#[test]
+fn a_hidden_subtree_is_not_drawn() {
+    let mut grove = grove();
+    let trunk = grove.plant(panel());
+    let child = grove.branch(trunk, panel());
+    tick(&mut grove);
+    assert_eq!(grove.elm.panels.len(), 2);
+
+    grove.visible(trunk, false);
+    tick(&mut grove);
+    assert_eq!(drawn(&grove, trunk), None);
+    assert_eq!(drawn(&grove, child), None);
+}
+
+/// Opacity is a product down the tree, taken at extraction against what the element is painted in.
+/// Nothing holds a resolved color, so a repaint has no second copy to find.
+#[test]
+fn opacity_multiplies_through_the_tree() {
+    let mut grove = grove();
+    let trunk = grove.plant(panel().opacity(0.5));
+    let child = grove.branch(trunk, panel().opacity(0.5));
+    tick(&mut grove);
+
+    assert_eq!(drawn(&grove, trunk), Some(0.5));
+    assert_eq!(drawn(&grove, child), Some(0.25));
+
+    grove.opacity(trunk, 1.0);
+    tick(&mut grove);
+    assert_eq!(drawn(&grove, child), Some(0.5));
+    // The child's own declaration reads back as what it declared, whatever its ancestry did.
+    assert_eq!(grove.tap(child, Vein::Opacity), Some(Sap::Opacity(0.5)));
 }

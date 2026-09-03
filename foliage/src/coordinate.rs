@@ -22,6 +22,24 @@ impl Position {
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
+
+    /// How far `self` is from `other`, as a pair of signed distances.
+    pub fn to(self, other: Self) -> Self {
+        Self::new(other.x - self.x, other.y - self.y)
+    }
+
+    /// This point moved by `offset`.
+    pub fn moved(self, offset: Self) -> Self {
+        Self::new(self.x + offset.x, self.y + offset.y)
+    }
+
+    /// The distance along one axis.
+    pub(crate) fn along(self, axis: Axis) -> f32 {
+        match axis {
+            Axis::Horizontal => self.x,
+            Axis::Vertical => self.y,
+        }
+    }
 }
 
 /// A width and a height, in logical pixels.
@@ -92,6 +110,21 @@ impl Section {
         )
     }
 
+    /// The box both of these cover, which is empty where they do not overlap.
+    pub fn intersect(&self, other: Section) -> Section {
+        Section::from_edges(
+            self.left().max(other.left()),
+            self.top().max(other.top()),
+            self.right().min(other.right()),
+            self.bottom().min(other.bottom()),
+        )
+    }
+
+    /// Whether the box covers anything at all.
+    pub fn is_empty(&self) -> bool {
+        self.area.width <= 0.0 || self.area.height <= 0.0
+    }
+
     /// Whether `point` falls inside the box, near edges inclusive and far edges exclusive.
     pub fn contains(&self, point: Position) -> bool {
         point.x >= self.left()
@@ -109,4 +142,26 @@ impl Section {
 pub(crate) enum Axis {
     Horizontal,
     Vertical,
+}
+
+/// Which axes a declaration covers.
+///
+/// The two axes are stated together because the answer is almost never the same for both: a column
+/// scrolls down and not across, a carousel across and not down. One value naming which is meant is
+/// what keeps the pair from being two independent flags that can disagree.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Axes {
+    Horizontal,
+    Vertical,
+    Both,
+}
+
+impl Axes {
+    pub(crate) fn covers(self, axis: Axis) -> bool {
+        match self {
+            Axes::Horizontal => axis == Axis::Horizontal,
+            Axes::Vertical => axis == Axis::Vertical,
+            Axes::Both => true,
+        }
+    }
 }

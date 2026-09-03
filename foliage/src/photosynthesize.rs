@@ -7,14 +7,16 @@
 use core::time::Duration;
 
 use winit::application::ApplicationHandler;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::WindowId;
 
 use crate::ash::Ash;
+use crate::coordinate::Position;
 use crate::fern;
 use crate::foliage::Foliage;
 use crate::ginkgo::Ginkgo;
+use crate::interaction::input::Input;
 use crate::palette::Palette;
 
 /// The most time one frame is allowed to be told has passed.
@@ -34,6 +36,13 @@ use crate::palette::Palette;
 /// This is the platform's ceiling and not the [`Clock`](crate::clock::Clock)'s. The headless suite
 /// advances by hand and has to be exact: a tween told to advance five seconds advances five.
 const HITCH: Duration = Duration::from_millis(100);
+
+/// How far one wheel notch scrolls, where the platform reports notches rather than pixels.
+///
+/// A notch is a count and the engine works in logical pixels, so something has to say how far one
+/// of them is. Roughly three lines of text, which is the convention every platform reporting them
+/// this way expects.
+const NOTCH: f32 = 48.0;
 
 impl Foliage {
     /// Runs the app. Does not return.
@@ -71,6 +80,21 @@ impl Foliage {
             || self.grove.again
             || self.grove.pending_resize.is_some()
             || !self.grove.queue.is_empty()
+            || !self.grove.pointer.pending.is_empty()
+    }
+
+    /// One platform input event, in the form dispatch takes.
+    ///
+    /// The whole of the translation layer, and the whole of what the headless suite cannot reach:
+    /// past this call there is one path, and a scripted press and a real one are the same event.
+    fn input(&mut self, input: Input) {
+        self.grove.pointer.take(input);
+    }
+
+    /// Where the platform's physical coordinates land in logical ones.
+    fn at(&self, x: f64, y: f64) -> Position {
+        let scale = self.willow.scale();
+        Position::new(x as f32 / scale, y as f32 / scale)
     }
 
     /// Moves the clock by what elapsed, up to [`HITCH`].
@@ -197,6 +221,54 @@ impl ApplicationHandler for Foliage {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => self.reconfigure(),
             WindowEvent::RedrawRequested => self.paint(),
+            WindowEvent::CursorMoved { position, .. } => {
+                self.cursor = self.at(position.x, position.y);
+                // With no hover to report, a move with nothing held says nothing and owes no
+                // frame. Where the pointer is still matters, because a press names no position.
+                if self.held {
+                    self.input(Input::Moved(self.cursor));
+                }
+            }
+            WindowEvent::MouseInput { state, button, .. } if button == MouseButton::Left => {
+                self.held = state == ElementState::Pressed;
+                self.input(match self.held {
+                    true => Input::Pressed(self.cursor),
+                    false => Input::Released(self.cursor),
+                });
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                let delta = match delta {
+                    // A notch is a distance, and the distance one notch stands for is the
+                    // platform's convention rather than the engine's.
+                    MouseScrollDelta::LineDelta(x, y) => {
+                        Position::new(x * NOTCH, y * NOTCH)
+                    }
+                    MouseScrollDelta::PixelDelta(delta) => self.at(delta.x, delta.y),
+                };
+                self.input(Input::Wheeled {
+                    at: self.cursor,
+                    delta,
+                });
+            }
+            WindowEvent::Touch(touch) => {
+                let at = self.at(touch.location.x, touch.location.y);
+                self.cursor = at;
+                // One pointer. A second finger is not a second gesture, and until there is a
+                // gesture that needs one it is not one at all.
+                self.input(match touch.phase {
+                    TouchPhase::Started => Input::Pressed(at),
+                    TouchPhase::Moved => Input::Moved(at),
+                    TouchPhase::Ended => Input::Released(at),
+                    TouchPhase::Cancelled => Input::Cancelled,
+                });
+            }
+            // The gesture was taken away rather than finished, so it never becomes a tap.
+            WindowEvent::CursorLeft { .. } | WindowEvent::Focused(false) => {
+                if self.held {
+                    self.held = false;
+                    self.input(Input::Cancelled);
+                }
+            }
             _ => {}
         }
     }

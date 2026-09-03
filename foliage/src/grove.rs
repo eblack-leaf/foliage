@@ -3,6 +3,10 @@ use core::time::Duration;
 use crate::clock::Clock;
 use crate::coordinate::Area;
 use crate::elm::Elm;
+use crate::interaction::Claim;
+use crate::interaction::focus::Focus;
+use crate::interaction::input::Pointer;
+use crate::interaction::stack::Stack;
 use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf, Presence};
 use crate::op::Op;
@@ -25,6 +29,13 @@ pub struct Grove {
     pub(crate) layout: Layout,
     pub(crate) short: Short,
     pub(crate) scheme: Scheme,
+    /// What arrived from the platform, and the gesture it is making.
+    pub(crate) pointer: Pointer,
+    /// What the last frame drew, which is what a gesture is resolved against.
+    pub(crate) stack: Stack,
+    pub(crate) focus: Focus,
+    /// How far a gesture travels before it is claimed as a drag. Tuned at boot.
+    pub(crate) claim: Claim,
     pub(crate) again: bool,
     pub(crate) frames: u64,
 }
@@ -42,6 +53,10 @@ impl Grove {
             layout: Layout::of(viewport),
             short: Short::No.next(viewport),
             scheme: Scheme::default(),
+            pointer: Pointer::default(),
+            stack: Stack::default(),
+            focus: Focus::default(),
+            claim: Claim::default(),
             again: false,
             frames: 0,
         }
@@ -67,7 +82,19 @@ impl Grove {
             Vein::Elevation => Sap::Elevation(self.tree.elevation(leaf)),
             Vein::Color => Sap::Color(self.tree.pigment(leaf)?.color),
             Vein::Rounding => Sap::Rounding(self.tree.pigment(leaf)?.rounding),
+            Vein::Visible => Sap::Visible(self.tree.visible(leaf).0),
+            Vein::Opacity => Sap::Opacity(self.tree.opacity(leaf).0),
+            Vein::Disabled => Sap::Disabled(self.tree.disabled(leaf).0),
         })
+    }
+
+    /// What holds focus, if anything does.
+    ///
+    /// Frame-wide rather than per-element, because focus is: one element holds it, and asking every
+    /// element in turn whether it is that one is a worse way to ask the same question. Changes are
+    /// reported through [`Pollen`](crate::Pollen) like anything else.
+    pub fn focused(&self) -> Option<Leaf> {
+        self.focus.held()
     }
 
     /// The visible area.

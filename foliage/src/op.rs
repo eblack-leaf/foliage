@@ -1,5 +1,6 @@
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, PanelPigment};
+use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
 use crate::palette::{Palette, Scheme};
 use crate::place::{Caller, Placement};
@@ -46,6 +47,21 @@ pub(crate) enum Op {
         leaf: Leaf,
         rounding: Corners,
     },
+    Disable {
+        leaf: Leaf,
+        disabled: bool,
+    },
+    Reveal {
+        leaf: Leaf,
+        visible: bool,
+    },
+    Fade {
+        leaf: Leaf,
+        opacity: f32,
+    },
+    /// Where focus is to go. Applied here and answered at settle, against the geometry and the
+    /// inherited state this frame resolves.
+    Focus(Intent),
     /// The one op that names no element: what every role resolves to, for the whole tree.
     Repaint(Scheme),
 }

@@ -14,25 +14,39 @@
 //! |---|---|---|---|
 //! | R2a | horizontal | dependency order | the horizontal axis |
 //! | R2b | vertical | dependency order | the vertical axis, and with it [`Placed`] |
+//! | R3 | extent | **bottom-up** | [`Extent`](crate::view::Extent): how far a region's content reaches |
 //! | R4 | scroll | top-down | [`Drawn`]: [`Placed`] less every scrolling ancestor's offset |
+//! | R5 | clip | top-down | [`Clipped`]: what a scrolling ancestor leaves visible |
 //! | R6 | rank | dependency order | `ResolvedElevation`: elevation accumulated, then tie-broken |
+//! | R7 | inherit | top-down | [`Inherited`]: the visible, opacity and disabled products |
+//! | R8 | regions | rank order | the box stack the next frame's dispatch reads |
 //!
 //! Both halves of R2 call the same pure resolver, once per axis. That is only safe because it is
 //! pure: there is no accumulated state for a second call to corrupt.
+//!
+//! R3 is the one pass that runs the other way, and the reason is a genuine cycle: a child resolves
+//! against its parent's box, a scrolling parent's extent comes from where its children landed, and
+//! that extent is what its offset is clamped to. The cycle is not vicious, because extent affects
+//! only the clamp and never the parent's own box -- so a top-down layout sweep, a bottom-up extent
+//! sweep and a top-down scroll application resolve it in one pass each, with no iteration.
 
 use std::collections::HashMap;
 
 use bevy_ecs::component::Component;
 use tracing::trace_span;
 
-use crate::coordinate::{Axis, Position, Section};
+use crate::coordinate::{Area, Axis, Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
+use crate::interaction::focus;
+use crate::interaction::stack::Region;
 use crate::leaf::Leaf;
+use crate::lifecycle::Inherited;
 use crate::placement::grid::Tracks;
 use crate::placement::location::Location;
 use crate::placement::resolve::{Basis, Context, resolve};
 use crate::tree::Tree;
+use crate::view::{Clipped, range};
 
 /// Where the layout put an element. What its children resolve against.
 #[derive(Component, Copy, Clone, Debug, Default)]
@@ -49,16 +63,30 @@ pub(crate) struct Placed(pub(crate) Section);
 #[derive(Component, Copy, Clone, Debug, Default)]
 pub(crate) struct Drawn(pub(crate) Section);
 
-/// Step 6. Declared placement becomes resolved geometry, for everything.
+/// Steps 6 and 7. Declared state becomes resolved geometry and resolved products, for everything.
 pub(crate) fn run(grove: &mut Grove) {
     let order = order(&grove.tree);
-    let _step = trace_span!("resolve", elements = order.len()).entered();
+    {
+        let _step = trace_span!("resolve", elements = order.len()).entered();
+        let boxes = axes(grove, &order);
+        extent(grove, &order, &boxes);
+        scroll(grove, &order, &boxes);
+        clip(grove, &order);
+        rank(grove, &order);
+    }
+    let _step = trace_span!("settle").entered();
+    inherit(grove, &order);
+    regions(grove, &order);
+    focus::settle(grove);
+}
+
+/// R2a and R2b. One axis at a time, in dependency order, through the one pure resolver.
+fn axes(grove: &Grove, order: &[Leaf]) -> HashMap<Leaf, Section> {
     let viewport = Section::new(Position::default(), grove.viewport);
     let fallback = Location::default();
     let mut boxes: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
-
     for axis in [Axis::Horizontal, Axis::Vertical] {
-        for &leaf in &order {
+        for &leaf in order {
             let context = context(grove, &boxes, viewport, leaf, axis);
             let location = grove.tree.location(leaf).unwrap_or(&fallback);
             let axes = location.axes(grove.layout, grove.short);
@@ -80,14 +108,188 @@ pub(crate) fn run(grove: &mut Grove) {
             }
         }
     }
+    boxes
+}
 
-    // R4. Nothing scrolls yet, so every accumulated offset is zero and an element appears exactly
-    // where the layout put it.
-    for (&leaf, &section) in &boxes {
-        grove.tree.settle(leaf, section, section);
+/// R3. How far each region's content reaches, from where its children landed.
+///
+/// Bottom-up, so a subtree is measured before whatever contains it. Two things are deliberately not
+/// consulted: what is currently drawn, because content scrolled out of sight is exactly what an
+/// extent describes and has to remain reachable; and the offset, because measuring against it would
+/// make the extent depend on the clamp that depends on the extent.
+///
+/// A child that scrolls in its own right contributes its box and not its content -- what overflows
+/// inside it is its own to reach, and is already reachable there.
+fn extent(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
+    let _pass = trace_span!("extent").entered();
+    // The far corner of everything under an element, in absolute coordinates.
+    let mut reach: HashMap<Leaf, Position> = HashMap::with_capacity(order.len());
+    for &leaf in order.iter().rev() {
+        // A hidden element is not content, and neither is anything under it: that is what makes
+        // hiding the whole answer for parking something out of the way, rather than half of one.
+        if !grove.tree.visible(leaf).0 {
+            continue;
+        }
+        let section = boxes.get(&leaf).copied().unwrap_or_default();
+        let mut far = Position::new(section.right(), section.bottom());
+        for child in grove.tree.branches(leaf) {
+            let Some(child) = reach.get(&child).copied() else {
+                continue;
+            };
+            far = Position::new(far.x.max(child.x), far.y.max(child.y));
+        }
+        if grove.tree.scrolls(leaf).is_some() {
+            // Measured outward from the region's own near edges and never smaller than its own
+            // box, so content sitting behind the origin creates no range to scroll back into and an
+            // empty region has a range of zero rather than a negative one.
+            grove.tree.set_extent(
+                leaf,
+                Area::new(
+                    (far.x - section.left()).max(section.width()),
+                    (far.y - section.top()).max(section.height()),
+                ),
+            );
+            far = Position::new(section.right(), section.bottom());
+        }
+        reach.insert(leaf, far);
     }
+}
 
-    rank(grove, &order);
+/// R4. Where each element is drawn: where the layout put it, less what its scrolling ancestors have
+/// moved.
+///
+/// A region's own box does not move under its own offset -- what moves is everything grown inside
+/// it. The offset is clamped here, against the extent R3 just measured, so a region whose content
+/// shrank under it comes back into range on the next frame rather than staying somewhere it can no
+/// longer reach.
+fn scroll(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
+    let _pass = trace_span!("scroll").entered();
+    let mut accumulated: HashMap<Leaf, Position> = HashMap::with_capacity(order.len());
+    for &leaf in order {
+        let placed = boxes.get(&leaf).copied().unwrap_or_default();
+        let inherited = grove
+            .tree
+            .trunk(leaf)
+            .and_then(|trunk| accumulated.get(&trunk).copied())
+            .unwrap_or_default();
+        let drawn = Section::new(
+            Position::new(placed.left() - inherited.x, placed.top() - inherited.y),
+            placed.area,
+        );
+        grove.tree.settle(leaf, placed, drawn);
+        let mut carried = inherited;
+        if let Some(axes) = grove.tree.scrolls(leaf) {
+            let offset = grove.tree.offset(leaf);
+            let extent = grove.tree.extent(leaf);
+            // An axis that was not declared does not scroll, so nothing can have moved along it.
+            let clamped = Position::new(
+                match axes.covers(Axis::Horizontal) {
+                    true => offset
+                        .x
+                        .clamp(0.0, range(extent, placed.area, Axis::Horizontal)),
+                    false => 0.0,
+                },
+                match axes.covers(Axis::Vertical) {
+                    true => offset
+                        .y
+                        .clamp(0.0, range(extent, placed.area, Axis::Vertical)),
+                    false => 0.0,
+                },
+            );
+            if clamped != offset {
+                grove.tree.set_offset(leaf, clamped);
+            }
+            carried = Position::new(carried.x + clamped.x, carried.y + clamped.y);
+        }
+        accumulated.insert(leaf, carried);
+    }
+}
+
+/// R5. What a scrolling ancestor leaves visible of each element.
+///
+/// A rect, and nothing else. A region does not clip itself, only what is grown inside it, and an
+/// element with no scrolling ancestor is clipped by nothing at all. Whether an element is *culled*
+/// is extraction's decision from this rect, and is never recorded on the element -- so there is no
+/// state saying "currently clipped away" for anything else, extent first among them, to read.
+fn clip(grove: &mut Grove, order: &[Leaf]) {
+    let _pass = trace_span!("clip").entered();
+    let mut passed: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
+    for &leaf in order {
+        let inherited = grove
+            .tree
+            .trunk(leaf)
+            .and_then(|trunk| passed.get(&trunk).copied())
+            .unwrap_or(Clipped::unbounded().0);
+        grove.tree.set_clip(leaf, inherited);
+        let carried = match grove.tree.scrolls(leaf).is_some() {
+            true => inherited.intersect(grove.tree.drawn(leaf)),
+            false => inherited,
+        };
+        passed.insert(leaf, carried);
+    }
+}
+
+/// R7. The three off-states, resolved over each element's whole ancestry.
+///
+/// One walk, in the same order the axes used, which puts every trunk before what hangs off it.
+/// Nothing has a cascade to write: an element grown under a disabled trunk is disabled on its first
+/// frame because the pass does not care when it arrived, and enabling that trunk leaves anything
+/// disabled in its own right disabled because the product is over the whole ancestry rather than a
+/// single bit that was overwritten on the way down.
+fn inherit(grove: &mut Grove, order: &[Leaf]) {
+    let _pass = trace_span!("inherit").entered();
+    let mut products: HashMap<Leaf, Inherited> = HashMap::with_capacity(order.len());
+    for &leaf in order {
+        let trunk = grove
+            .tree
+            .trunk(leaf)
+            .and_then(|trunk| products.get(&trunk).copied())
+            .unwrap_or_default();
+        let product = Inherited::under(
+            trunk,
+            grove.tree.visible(leaf),
+            grove.tree.opacity(leaf),
+            grove.tree.disabled(leaf),
+        );
+        products.insert(leaf, product);
+        grove.tree.set_inherited(leaf, product);
+    }
+}
+
+/// R8. The box stack the next frame's dispatch reads.
+///
+/// Membership is universal: an element is here because it is there. What is left out is only what
+/// is not there at all -- hidden, fully transparent, or clipped away by a region it sits inside.
+/// `pass_through` is not a way out of the stack; it is carried on the region and decides what may
+/// be the top of it.
+fn regions(grove: &mut Grove, order: &[Leaf]) {
+    let _pass = trace_span!("regions").entered();
+    let mut ranked = Vec::with_capacity(order.len());
+    for &leaf in order {
+        let inherited = grove.tree.inherited(leaf);
+        if !inherited.present() {
+            continue;
+        }
+        let section = grove.tree.drawn(leaf);
+        let clip = grove.tree.clip(leaf);
+        if section.intersect(clip).is_empty() {
+            continue;
+        }
+        let gestures = grove.tree.gestures(leaf);
+        ranked.push((
+            grove.tree.rank(leaf),
+            Region {
+                leaf,
+                section,
+                clip,
+                shape: gestures.shape,
+                transparent: gestures.transparent,
+                receives: gestures.receives,
+                disabled: inherited.disabled,
+            },
+        ));
+    }
+    grove.stack.settle(ranked);
 }
 
 /// R6. Declared elevation accumulates down the tree, and allocation order settles what it leaves

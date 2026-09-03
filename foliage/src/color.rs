@@ -36,4 +36,16 @@ impl Color {
             alpha: alpha.clamp(0.0, 1.0),
         }
     }
+
+    /// This color at a fraction of its own alpha.
+    ///
+    /// What an element's resolved opacity does to what it is painted in. Taken at extraction rather
+    /// than written onto the element, so nothing holds a second copy of a color that a repaint
+    /// would have to find.
+    pub(crate) fn faded(self, opacity: f32) -> Self {
+        Self {
+            alpha: self.alpha * opacity.clamp(0.0, 1.0),
+            ..self
+        }
+    }
 }

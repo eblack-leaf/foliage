@@ -37,6 +37,17 @@ pub enum Vein {
     Color,
     /// How the element's corners are rounded, if it is something with corners.
     Rounding,
+    /// Whether the app has hidden the element.
+    ///
+    /// What was declared of this element, not the product over its ancestry: an element inside a
+    /// hidden subtree reads visible, because that is what it says about itself and what showing its
+    /// ancestor again would leave it as.
+    Visible,
+    /// How opaque the element was told to be, on the same terms as [`Visible`](Vein::Visible).
+    Opacity,
+    /// Whether the element was disabled in its own right, on the same terms as
+    /// [`Visible`](Vein::Visible).
+    Disabled,
 }
 
 /// What a [`Vein`] draws out.
@@ -49,4 +60,7 @@ pub enum Sap {
     Elevation(Elevation),
     Color(Palette),
     Rounding(Corners),
+    Visible(bool),
+    Opacity(f32),
+    Disabled(bool),
 }

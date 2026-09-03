@@ -192,9 +192,18 @@ pub(crate) fn run(grove: &mut Grove) {
                 let Some(pigment) = grove.tree.pigment(leaf) else {
                     continue;
                 };
+                let inherited = grove.tree.inherited(leaf);
+                let section = grove.tree.drawn(leaf);
+                // Hidden is the app's intent and culled is this pass's decision, taken here from
+                // the clip rect and recorded nowhere: an element scrolled out of its region is
+                // absent from the batch and unchanged in every other respect, so scrolling back to
+                // it needs nothing to be undone.
+                if !inherited.visible || section.intersect(grove.tree.clip(leaf)).is_empty() {
+                    continue;
+                }
                 let instance = PanelInstance::new(
-                    grove.tree.drawn(leaf),
-                    grove.scheme.color(pigment.color),
+                    section,
+                    grove.scheme.color(pigment.color).faded(inherited.opacity),
                     pigment.rounding,
                 );
                 grove.elm.panels.want(leaf, grove.tree.rank(leaf), instance);

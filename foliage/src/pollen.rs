@@ -1,6 +1,7 @@
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Position};
+use crate::interaction::Drag;
 use crate::leaf::Leaf;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 
@@ -22,6 +23,61 @@ impl Pollen {
         self.0.resized
     }
 
+    /// Whether a gesture went down on `leaf`.
+    ///
+    /// The hook for a pressed visual. It says a gesture is being held, not what it will turn out to
+    /// be -- [`clicked`](Pollen::clicked) and [`drag_started`](Pollen::drag_started) are the two
+    /// things it can become, and [`disengaged`](Pollen::disengaged) is where a pressed visual is
+    /// put back however it ended.
+    pub fn engaged(&self, leaf: Leaf) -> bool {
+        self.0.engaged.contains(&leaf)
+    }
+
+    /// Whether `leaf` stopped holding a gesture, however it stopped.
+    ///
+    /// It ended, or it became a drag this element does not take and passed to a region containing
+    /// it. Either way this element is no longer holding anything, so there is always somewhere to
+    /// put a pressed visual back.
+    pub fn disengaged(&self, leaf: Leaf) -> bool {
+        self.0.disengaged.contains(&leaf)
+    }
+
+    /// Whether `leaf` was tapped: a gesture that began on it and ended without ever becoming a
+    /// drag.
+    ///
+    /// Not a click that was issued and then taken back. Nothing is emitted while a gesture is
+    /// resolving, so there is nothing to retract when it turns out to be a drag.
+    pub fn clicked(&self, leaf: Leaf) -> bool {
+        self.0.clicked.contains(&leaf)
+    }
+
+    /// Whether the gesture `leaf` is holding has become a drag.
+    ///
+    /// Reported once per gesture, and only to an element that declared
+    /// [`drags`](crate::Place::drags) on the axis the gesture went. An element that takes no drags
+    /// hears [`disengaged`](Pollen::disengaged) instead, because it has let the gesture go.
+    pub fn drag_started(&self, leaf: Leaf) -> bool {
+        self.0.drag_started.contains(&leaf)
+    }
+
+    /// How far the drag `leaf` is holding has moved, if it moved this frame.
+    pub fn dragged(&self, leaf: Leaf) -> Option<Drag> {
+        self.0.dragged.get(&leaf).copied()
+    }
+
+    /// Whether `leaf` took focus.
+    pub fn focused(&self, leaf: Leaf) -> bool {
+        self.0.focused.contains(&leaf)
+    }
+
+    /// Whether `leaf` lost focus.
+    ///
+    /// It was moved elsewhere, or `leaf` stopped being something focus can rest on -- it withered,
+    /// was hidden, or was disabled.
+    pub fn unfocused(&self, leaf: Leaf) -> bool {
+        self.0.unfocused.contains(&leaf)
+    }
+
     pub(crate) fn seal(drift: Drift) -> Self {
         Self(Arc::new(drift))
     }
@@ -38,4 +94,30 @@ impl fmt::Debug for Pollen {
 pub(crate) struct Drift {
     pub(crate) withered: HashSet<Leaf>,
     pub(crate) resized: Option<Area>,
+    pub(crate) engaged: HashSet<Leaf>,
+    pub(crate) disengaged: HashSet<Leaf>,
+    pub(crate) clicked: HashSet<Leaf>,
+    pub(crate) drag_started: HashSet<Leaf>,
+    pub(crate) dragged: HashMap<Leaf, Drag>,
+    pub(crate) focused: HashSet<Leaf>,
+    pub(crate) unfocused: HashSet<Leaf>,
+}
+
+impl Drift {
+    /// Adds one frame's worth of movement to what `leaf` is being told about its drag.
+    ///
+    /// Several moves can arrive in one frame, and a reader is handed one answer: where the drag is
+    /// now, and how far it came this frame. Which platform events that was made of is engine
+    /// bookkeeping.
+    pub(crate) fn dragged(&mut self, leaf: Leaf, drag: Drag) {
+        let carried = self.dragged.entry(leaf).or_insert(Drag {
+            delta: Position::default(),
+            ..drag
+        });
+        carried.current = drag.current;
+        carried.delta = Position::new(
+            carried.delta.x + drag.delta.x,
+            carried.delta.y + drag.delta.y,
+        );
+    }
 }

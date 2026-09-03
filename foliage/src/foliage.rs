@@ -2,9 +2,10 @@ use tracing::info;
 use web_time::Instant;
 
 use crate::ash::Ash;
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Position};
 use crate::ginkgo::Ginkgo;
 use crate::grove::Grove;
+use crate::interaction::Claim;
 use crate::root::{Registered, Root, Rooted};
 use crate::willow::Willow;
 
@@ -22,6 +23,12 @@ pub struct Foliage {
     pub(crate) ash: Option<Ash>,
     /// When the last frame was sampled, which is what the clock is advanced by.
     pub(crate) sampled: Option<Instant>,
+    /// Where the pointer was last reported. The platform tells us where a press happened only by
+    /// having told us where the pointer went, and a wheel notch names no position at all.
+    pub(crate) cursor: Position,
+    /// Whether the pointer is down. A move with nothing held means nothing to an engine with no
+    /// hover, so it is not queued and does not owe a frame.
+    pub(crate) held: bool,
     /// The device on its way over, on the one platform that cannot wait for one.
     #[cfg(target_family = "wasm")]
     pub(crate) acquiring: Option<std::sync::mpsc::Receiver<Ginkgo>>,
@@ -37,6 +44,8 @@ impl Foliage {
             ginkgo: None,
             ash: None,
             sampled: None,
+            cursor: Position::default(),
+            held: false,
             #[cfg(target_family = "wasm")]
             acquiring: None,
         }
@@ -77,6 +86,41 @@ impl Foliage {
     pub fn desktop_size(&mut self, size: Area) -> &mut Self {
         self.willow.desktop_size(size);
         self
+    }
+
+    /// Sets one of the engine's tuning values.
+    ///
+    /// These are the numbers behind how the engine feels rather than what it does -- how far a
+    /// gesture travels before it is a drag, and later how a coast decays and what a key is bound
+    /// to. Each is a value for the whole app, because feel that varies from element to element is
+    /// what makes an app feel unpredictable, and each is set here rather than per element for that
+    /// reason.
+    ///
+    /// ```no_run
+    /// # use foliage::{Claim, Foliage};
+    /// # let mut foliage = Foliage::new();
+    /// foliage.tune(Claim {
+    ///     horizontal: 18.0,
+    ///     vertical: 8.0,
+    /// });
+    /// ```
+    ///
+    /// Sealed: the set of tuning values is closed.
+    #[allow(private_bounds)]
+    pub fn tune(&mut self, tuning: impl Tuning) -> &mut Self {
+        tuning.tune(&mut self.grove);
+        self
+    }
+}
+
+/// One of the engine's tuning values, and where it lands.
+pub(crate) trait Tuning {
+    fn tune(self, grove: &mut Grove);
+}
+
+impl Tuning for Claim {
+    fn tune(self, grove: &mut Grove) {
+        grove.claim = self;
     }
 }
 

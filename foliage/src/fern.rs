@@ -7,6 +7,7 @@ use tracing::{debug, trace_span};
 
 use crate::elm;
 use crate::grove::Grove;
+use crate::interaction;
 use crate::layout::Layout;
 use crate::leaf::Leaf;
 use crate::op::{Bud, Op};
@@ -33,6 +34,7 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     let _frame = trace_span!("frame", n = grove.frames).entered();
     grove.again = false;
     intake(grove);
+    interaction::dispatch(grove);
     root(grove, app);
     drain(grove);
     rowan::run(grove);
@@ -173,6 +175,34 @@ fn drain(grove: &mut Grove) {
                     dropped("round", leaf, "draws nothing to round");
                 }
             }
+            Op::Disable { leaf, disabled } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped(if disabled { "disable" } else { "enable" }, leaf, "not live");
+                    continue;
+                }
+                grove.tree.set_disabled(leaf, disabled);
+                debug!(leaf = leaf.id(), disabled, "disabled");
+            }
+            Op::Reveal { leaf, visible } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("visible", leaf, "not live");
+                    continue;
+                }
+                grove.tree.set_visible(leaf, visible);
+                debug!(leaf = leaf.id(), visible, "revealed");
+            }
+            Op::Fade { leaf, opacity } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("opacity", leaf, "not live");
+                    continue;
+                }
+                grove.tree.set_opacity(leaf, opacity);
+                debug!(leaf = leaf.id(), opacity, "faded");
+            }
+            // Not answered here. Where focus can go depends on geometry and on the inherited state
+            // this frame has yet to resolve, so the ask is recorded and settled at step 7 -- which
+            // is what lets an app open a drawer and focus into it in one frame.
+            Op::Focus(intent) => grove.focus.ask(intent),
             Op::Repaint(scheme) => {
                 grove.scheme = scheme;
                 debug!("repainted");

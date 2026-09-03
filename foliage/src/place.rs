@@ -1,11 +1,15 @@
-//! Stating an element's placement when it is described, before it exists.
+//! Stating what an element is when it is described, before it exists.
 
 use bevy_ecs::component::Component;
 
+use crate::coordinate::Axes;
 use crate::elevation::Elevation;
+use crate::interaction::{Gestures, Shape};
 use crate::leaf::Leaf;
+use crate::lifecycle::{Opacity, Visible};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
+use crate::view::Scrolls;
 
 /// Where the caller was standing. Carried from the call that wrote a placement to the drain that
 /// applies it, so a refusal names the write rather than the pass that noticed it.
@@ -18,6 +22,31 @@ pub(crate) struct Placement {
     pub(crate) grid: Option<Grid>,
     pub(crate) anchor: Option<Anchored>,
     pub(crate) elevation: Option<Elevation>,
+    pub(crate) manner: Manner,
+}
+
+/// What a seed carries about how it behaves: what it does with a gesture, whether it scrolls, and
+/// which of the ways to be off it starts in.
+///
+/// Everything here is one element's own declaration. None of it predicts what a gesture will turn
+/// out to mean, and none of it is derived from anything else -- which is the whole test for
+/// belonging here rather than being worked out at the time.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Manner {
+    pub(crate) gestures: Gestures,
+    pub(crate) scrolls: Option<Scrolls>,
+    pub(crate) focusing: Focusing,
+    pub(crate) visible: Visible,
+    pub(crate) opacity: Opacity,
+}
+
+/// Where an element sits in focus order, and whether it holds focus inside itself.
+#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Focusing {
+    /// What [`focus_order`](Place::focus_order) declared. Equal values keep reading order.
+    pub(crate) order: i32,
+    /// Declared [`focus_scope`](Place::focus_scope).
+    pub(crate) scope: bool,
 }
 
 /// The one other element a placement may read, and where it was named.
@@ -32,10 +61,10 @@ pub(crate) trait Places {
     fn placement(&mut self) -> &mut Placement;
 }
 
-/// Stating where an element will sit.
+/// Stating where an element will sit, and how it behaves.
 ///
-/// Implemented by every [`Seed`](crate::Seed), so placement reads identically whatever is being
-/// grown. Sealed: it can be called, never implemented.
+/// Implemented by every [`Seed`](crate::Seed), so this reads identically whatever is being grown.
+/// Sealed: it can be called, never implemented.
 #[allow(private_bounds)]
 pub trait Place: Places + Sized {
     /// Where the element sits.
@@ -84,6 +113,109 @@ pub trait Place: Places + Sized {
             to,
             at: core::panic::Location::caller(),
         });
+        self
+    }
+
+    /// The element receives gestures.
+    ///
+    /// A gesture goes to the top of the box stack whatever is there; this decides whether the
+    /// element at the top does anything with it. An element at the top that did not say this
+    /// **eats** the gesture, which is what a backdrop, a sheet backing and a menu's padding are,
+    /// and none of them declares anything to be it.
+    ///
+    /// It is also what makes an element reachable by focus, because the set that asked to receive
+    /// input is the set a keyboard should be able to reach.
+    fn interactive(mut self) -> Self {
+        self.placement().manner.gestures.receives = true;
+        self
+    }
+
+    /// The element is not the top of the box stack: a gesture over it goes to whatever is beneath.
+    ///
+    /// What a composite marks its own decoration with. A label drawn over a button, a highlight, a
+    /// gradient across a card -- each of them is above its target at those pixels, and each would
+    /// otherwise be what a press lands on.
+    ///
+    /// It does not take the element out of the stack itself, only off the top of it: the drag that
+    /// follows a press still finds the region containing it, so scrolling works over decoration
+    /// exactly as it does over anything else.
+    fn pass_through(mut self) -> Self {
+        self.placement().manner.gestures.transparent = true;
+        self
+    }
+
+    /// Which drags this element takes.
+    ///
+    /// The one thing about a gesture the engine cannot work out for itself: a slider taking drags
+    /// along its own axis is information only the app has.
+    ///
+    /// Undeclared, an element **takes no drags** -- so it holds a gesture only until that gesture
+    /// becomes a drag and then yields, which is what makes a button inside a scrolling list behave
+    /// on touch. Press it and it holds; drag and the list scrolls; release without moving and it
+    /// gets a tap.
+    fn drags(mut self, axes: Axes) -> Self {
+        self.placement().manner.gestures.drags = Some(axes);
+        self
+    }
+
+    /// Hits are tested against the ellipse inscribed in the element's box rather than the box.
+    ///
+    /// For a round control, so it does not take presses in the square corners it does not draw.
+    fn round_hit_area(mut self) -> Self {
+        self.placement().manner.gestures.shape = Shape::Round;
+        self
+    }
+
+    /// The element scrolls, on the axes named.
+    ///
+    /// Dividing an element's box with a [`grid`](Place::grid) says nothing about scrolling: an
+    /// element scrolls because it said so, and for no other reason. An axis that was not named does
+    /// not scroll and has no extent -- it is not a scrolling axis with a range of zero.
+    ///
+    /// A drag anywhere inside it scrolls it, whether or not what the drag landed on is a target,
+    /// and a region that can no longer move hands the drag outward to the next one containing it.
+    fn scrolls(mut self, axes: Axes) -> Self {
+        self.placement().manner.scrolls = Some(Scrolls(axes));
+        self
+    }
+
+    /// Where the element sits in focus order, relative to the elements around it.
+    ///
+    /// Focus order is reading order, derived. This pulls one element earlier (negative) or later
+    /// (positive) where a layout's meaning differs from its geometry; everything sharing a value
+    /// keeps reading order among themselves, so stating one moves one element and renumbers
+    /// nothing.
+    fn focus_order(mut self, order: i32) -> Self {
+        self.placement().manner.focusing.order = order;
+        self
+    }
+
+    /// Focus cycles inside this element while it is in there.
+    ///
+    /// What a drawer or a dialog declares. Without it, stepping through an overlay walks off into
+    /// the page behind it.
+    fn focus_scope(mut self) -> Self {
+        self.placement().manner.focusing.scope = true;
+        self
+    }
+
+    /// Whether the element is drawn at all.
+    ///
+    /// The real hide: skipped by drawing, out of the box stack, and contributing nothing to a
+    /// containing region's extent, while keeping its state and its [`Leaf`]. App intent only --
+    /// content scrolled out of sight is not hidden, and still counts.
+    fn visible(mut self, visible: bool) -> Self {
+        self.placement().manner.visible = Visible(visible);
+        self
+    }
+
+    /// How opaque the element is, in `0.0..=1.0`, multiplied through everything grown under it.
+    ///
+    /// Fully transparent is **not there**: it is out of the box stack and receives nothing, which
+    /// closes the case of an element faded out that went on taking presses. Anything above zero is
+    /// there and takes them normally.
+    fn opacity(mut self, opacity: f32) -> Self {
+        self.placement().manner.opacity = Opacity::new(opacity);
         self
     }
 }

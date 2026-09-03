@@ -5,17 +5,20 @@ use bevy_ecs::entity::RemoteAllocator;
 use bevy_ecs::hierarchy::{ChildOf, Children};
 use bevy_ecs::world::World;
 
-use crate::coordinate::{Area, Section};
+use crate::coordinate::{Area, Axes, Position, Section};
 use crate::elevation::{Elevation, ResolvedElevation};
 use crate::elm::{Chlorophyll, PanelPigment};
+use crate::interaction::Gestures;
 use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
+use crate::lifecycle::{Disabled, Inherited, Opacity, Visible};
 use crate::op::Bud;
 use crate::palette::Palette;
-use crate::place::{Anchored, Caller};
+use crate::place::{Anchored, Caller, Focusing};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::rounding::Corners;
 use crate::rowan::{Drawn, Placed};
+use crate::view::{Clipped, Extent, Offset, Scrolls};
 
 /// The tree itself, seen from the inside.
 ///
@@ -87,6 +90,24 @@ impl Tree {
             Placed::default(),
             Drawn::default(),
         ));
+        // Everything an element declares about how it behaves, and the values the passes that read
+        // those declarations write back. Each is present on every element, so no pass has to ask
+        // whether an element is the kind of thing that has one.
+        let manner = bud.placement.manner;
+        entity.insert((
+            manner.gestures,
+            manner.focusing,
+            manner.visible,
+            manner.opacity,
+            Disabled::default(),
+            Inherited::default(),
+            Offset::default(),
+            Extent::default(),
+            Clipped::default(),
+        ));
+        if let Some(scrolls) = manner.scrolls {
+            entity.insert(scrolls);
+        }
         if let Some(pigment) = bud.pigment {
             entity.insert(pigment);
         }
@@ -306,6 +327,103 @@ impl Tree {
         };
         write(&mut pigment);
         true
+    }
+
+    /// What `leaf` declared about gestures.
+    pub(crate) fn gestures(&self, leaf: Leaf) -> Gestures {
+        self.read::<Gestures>(leaf).unwrap_or_default()
+    }
+
+    /// Which axes `leaf` scrolls, or `None` if it does not scroll.
+    pub(crate) fn scrolls(&self, leaf: Leaf) -> Option<Axes> {
+        Some(self.read::<Scrolls>(leaf)?.0)
+    }
+
+    /// Where `leaf` was told to sit in focus order, relative to the elements around it.
+    pub(crate) fn focus_order(&self, leaf: Leaf) -> i32 {
+        self.read::<Focusing>(leaf).unwrap_or_default().order
+    }
+
+    /// Whether focus cycles inside `leaf`.
+    pub(crate) fn focus_scope(&self, leaf: Leaf) -> bool {
+        self.read::<Focusing>(leaf).unwrap_or_default().scope
+    }
+
+    /// How far `leaf` has been scrolled.
+    pub(crate) fn offset(&self, leaf: Leaf) -> Position {
+        self.read::<Offset>(leaf).unwrap_or_default().0
+    }
+
+    pub(crate) fn set_offset(&mut self, leaf: Leaf, offset: Position) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(Offset(offset));
+        }
+    }
+
+    /// How far `leaf`'s content reaches, as R3 last measured it.
+    pub(crate) fn extent(&self, leaf: Leaf) -> Area {
+        self.read::<Extent>(leaf).unwrap_or_default().0
+    }
+
+    pub(crate) fn set_extent(&mut self, leaf: Leaf, extent: Area) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(Extent(extent));
+        }
+    }
+
+    /// What a scrolling ancestor leaves visible of `leaf`.
+    pub(crate) fn clip(&self, leaf: Leaf) -> Section {
+        self.read::<Clipped>(leaf).unwrap_or_default().0
+    }
+
+    pub(crate) fn set_clip(&mut self, leaf: Leaf, clip: Section) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(Clipped(clip));
+        }
+    }
+
+    /// Whether the app has hidden `leaf` itself, as against an ancestor of it.
+    pub(crate) fn visible(&self, leaf: Leaf) -> Visible {
+        self.read::<Visible>(leaf).unwrap_or_default()
+    }
+
+    pub(crate) fn set_visible(&mut self, leaf: Leaf, visible: bool) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(Visible(visible));
+        }
+    }
+
+    /// How opaque `leaf` was told to be, before its ancestry is taken into account.
+    pub(crate) fn opacity(&self, leaf: Leaf) -> Opacity {
+        self.read::<Opacity>(leaf).unwrap_or_default()
+    }
+
+    pub(crate) fn set_opacity(&mut self, leaf: Leaf, opacity: f32) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(Opacity::new(opacity));
+        }
+    }
+
+    /// Whether `leaf` was disabled in its own right.
+    pub(crate) fn disabled(&self, leaf: Leaf) -> Disabled {
+        self.read::<Disabled>(leaf).unwrap_or_default()
+    }
+
+    pub(crate) fn set_disabled(&mut self, leaf: Leaf, disabled: bool) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(Disabled(disabled));
+        }
+    }
+
+    /// What the three off-states resolved to over `leaf`'s whole ancestry, as R7 last computed it.
+    pub(crate) fn inherited(&self, leaf: Leaf) -> Inherited {
+        self.read::<Inherited>(leaf).unwrap_or_default()
+    }
+
+    pub(crate) fn set_inherited(&mut self, leaf: Leaf, inherited: Inherited) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(inherited);
+        }
     }
 
     fn read<C: Component + Copy>(&self, leaf: Leaf) -> Option<C> {

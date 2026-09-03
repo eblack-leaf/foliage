@@ -7,7 +7,7 @@
 mod shell;
 mod site;
 
-use foliage::{Area, Foliage};
+use foliage::{Area, Claim, Foliage};
 
 /// Shared by every platform's entry point.
 ///
@@ -20,6 +20,13 @@ pub fn run(mut foliage: Foliage) {
     foliage.title("foliage");
     foliage.app_id("foliage");
     foliage.desktop_size(Area::new(390.0, 844.0));
+    // How far a gesture travels before it stops being a tap, per axis. The page scrolls down and
+    // has one control that takes a drag across, so a claim across is held off until it is clearly
+    // meant -- otherwise every attempt to scroll would steal into the slider it passed over.
+    foliage.tune(Claim {
+        horizontal: 20.0,
+        vertical: 8.0,
+    });
     foliage.root::<site::Site>();
     foliage.photosynthesize();
 }

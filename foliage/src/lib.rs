@@ -9,9 +9,13 @@
 //! - [`Leaf`] names an element and [`Seed`] describes one before it exists. [`Grow`] carries every
 //!   write, [`Pollen`] is what comes back out.
 //! - [`Vein`] asks a read for one property; [`Sap`] is what the tap draws out.
-//! - [`Place`] states where an element sits, and [`Location`] carries the grammar it is said in.
+//! - [`Place`] states where an element sits and how it behaves, and [`Location`] carries the
+//!   grammar the first of those is said in.
 //! - [`Panel`] is a filled rectangle; [`Palette`] names what fills it and [`Corners`] how it is
 //!   rounded.
+//! - A gesture goes to the top of the box stack: [`interactive`](Place::interactive) says who
+//!   receives one, [`pass_through`](Place::pass_through) says who is never the top, and
+//!   [`Drag`] is what one reports while it is held.
 
 mod ash;
 mod clock;
@@ -23,8 +27,10 @@ mod fern;
 mod foliage;
 mod ginkgo;
 mod grove;
+mod interaction;
 mod layout;
 mod leaf;
+mod lifecycle;
 mod op;
 mod palette;
 mod panel;
@@ -41,16 +47,18 @@ mod stem;
 mod tree;
 mod vein;
 mod verbs;
+mod view;
 mod willow;
 
 #[cfg(test)]
 mod tests;
 
 pub use color::Color;
-pub use coordinate::{Area, Position, Section};
+pub use coordinate::{Area, Axes, Position, Section};
 pub use elevation::Elevation;
 pub use foliage::Foliage;
 pub use grove::Grove;
+pub use interaction::{Claim, Drag};
 pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};
 pub use palette::{Palette, Scheme};

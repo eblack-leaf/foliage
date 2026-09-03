@@ -239,3 +239,27 @@ to build, not `B8`'s — `Text` is the second renderer, and the three slices bef
 
 Next: B4 — interaction. Hit-testing runs against what was drawn, and there is now something drawn to
 run it against.
+
+## B4 §3, resolved
+
+A gesture goes to the top of the box stack, and `pass_through` takes an element out of that stack.
+That is the previous engine's rule, kept — and kept for a reason the previous engine never stated.
+
+The law behind it is that **the hit test does not search.** It reads the top of the stack and stops
+there. Every alternative considered for §3 replaces that single read with a walk down the stack
+looking for an element willing to take the gesture, whatever it calls the walk: making stopping
+opt-in through `interactive()`, giving blocking its own word and defaulting to transparent, or
+attributing a press upward from where it landed. They are one mechanism and they fail one way. At a
+point, a composite's decoration over its own target and a backdrop over the page it covers are the
+same picture, so a walk decides between them by inference — silently, at a distance from anything
+the author wrote, and twice over, because the element a gesture lands on is also where a following
+drag looks for its scrolling region.
+
+The marks that model costs are real, and they compound with nesting: a composite states
+`pass_through` on each of its decorations. They are not a defect to be designed away. They are the
+price of a hit test that never guesses, and the alternative is not fewer marks but a press reaching
+something the author never put in its way.
+
+The rest of B4 is unaffected — the five flags collapsing to `drags(..)` alone, tap as an outcome
+rather than a retracted click, overscroll as a runtime handoff, focus as a verb with derived order
+and trapping scopes, and the per-axis claim threshold under `Foliage::tune`.
