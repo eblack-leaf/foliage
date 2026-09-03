@@ -2,7 +2,9 @@
 
 use core::time::Duration;
 
-use foliage::{Ease, Grove, Grow, Leaf, Motion, Palette, Pollen, Root, Sap, Timing, Tween, Vein};
+use foliage::{
+    Ease, Grove, Grow, Leaf, Motion, Palette, Pollen, Root, Sap, Sequence, Timing, Tween, Vein,
+};
 
 use crate::shell::{self, Shell};
 
@@ -36,6 +38,10 @@ pub(crate) struct Site {
     /// How far the knob has been dragged along its track.
     travelled: f32,
     open: bool,
+    /// Everything the drawer's last opening or closing set running, as one name. What the sheet is
+    /// waiting on is the whole group rather than its own arrival: the ground moves on a channel the
+    /// engine only reports, so no single element's landing is the end of it.
+    moving: Option<Sequence>,
     /// The channel moving the page's ground while the drawer is over it, and where it has reached.
     dimming: Option<Tween>,
     dimmed: f32,
@@ -71,6 +77,7 @@ impl Root for Site {
             touring: true,
             travelled: 0.0,
             open: false,
+            moving: None,
             dimming: None,
             dimmed: 0.0,
         }
@@ -175,11 +182,16 @@ impl Site {
             return;
         }
         self.open = true;
+        // One name for three things that have nothing in common but when they are over: a placement
+        // on the sheet, an opacity on the page, and a channel driving a value foliage has no concept
+        // of. None of them has to be written beside the others to be counted in.
+        let moving = grove.sequence();
+        self.moving = Some(moving);
         grove.visible(self.shell.drawer.sheet, true);
         grove.animate(
             self.shell.drawer.sheet,
             Motion::Location(shell::sheet_at(true)),
-            Timing::ms(OPENING).ease(Ease::Decelerate),
+            Timing::ms(OPENING).ease(Ease::Decelerate).within(moving),
         );
         grove.disable(self.shell.page);
         // Held back rather than hidden, so it reads as out of play. Opacity is a product down the
@@ -188,26 +200,28 @@ impl Site {
         grove.animate(
             self.shell.page,
             Motion::Opacity(0.35),
-            Timing::ms(OPENING).ease(Ease::Decelerate),
+            Timing::ms(OPENING).ease(Ease::Decelerate).within(moving),
         );
-        self.dimming = Some(self.dim_to(grove, 1.0, OPENING));
+        self.dimming = Some(self.dim_to(grove, 1.0, OPENING, moving));
         grove.focus(self.shell.drawer.fields[0]);
     }
 
     fn close(&mut self, grove: &mut Grove) {
         self.open = false;
+        let moving = grove.sequence();
+        self.moving = Some(moving);
         grove.animate(
             self.shell.drawer.sheet,
             Motion::Location(shell::sheet_at(false)),
-            Timing::ms(CLOSING).ease(Ease::Accelerate),
+            Timing::ms(CLOSING).ease(Ease::Accelerate).within(moving),
         );
         grove.enable(self.shell.page);
         grove.animate(
             self.shell.page,
             Motion::Opacity(1.0),
-            Timing::ms(CLOSING).ease(Ease::Accelerate),
+            Timing::ms(CLOSING).ease(Ease::Accelerate).within(moving),
         );
-        self.dimming = Some(self.dim_to(grove, 0.0, CLOSING));
+        self.dimming = Some(self.dim_to(grove, 0.0, CLOSING, moving));
         grove.unfocus();
     }
 
@@ -216,7 +230,14 @@ impl Site {
     /// There is nothing to settle: the sheet declared where it was going from the moment it was told
     /// to go there, so a landing is the hook for what happens *next* rather than a correction.
     fn settle_drawer(&mut self, grove: &mut Grove, pollen: &Pollen) {
-        if !self.open && pollen.landed(self.shell.drawer.sheet) {
+        let Some(moving) = self.moving else {
+            return;
+        };
+        if !pollen.sequence_finished(moving) {
+            return;
+        }
+        self.moving = None;
+        if !self.open {
             grove.visible(self.shell.drawer.sheet, false);
         }
     }
@@ -243,11 +264,11 @@ impl Site {
     ///
     /// A channel writes nothing, so no write of the app's cancels it the way one cancels a motion.
     /// Stopping it is a verb, and that is the whole difference.
-    fn dim_to(&mut self, grove: &mut Grove, to: f32, millis: u64) -> Tween {
+    fn dim_to(&mut self, grove: &mut Grove, to: f32, millis: u64, within: Sequence) -> Tween {
         if let Some(running) = self.dimming.take() {
             grove.stop(running);
         }
-        grove.tween(self.dimmed, to, Timing::ms(millis))
+        grove.tween(self.dimmed, to, Timing::ms(millis).within(within))
     }
 
     /// Walks the marker down the rail, a section at a time, until the reader takes over.
@@ -290,6 +311,10 @@ impl Site {
             shift,
         );
         self.selected = entry;
+        // The article says something else about each section, and each says it in a different number
+        // of words. Rewriting the run re-measures it in the same frame, so the card resizes and the
+        // slider and the cards anchored below it all follow -- none of which is written here.
+        grove.text(self.shell.prose, shell::prose(entry));
         // An element has one anchor, and pointing it somewhere else replaces it. So the marker's
         // own placement is written once and never again -- what moves it is which element it is
         // reading, not what it says about itself.

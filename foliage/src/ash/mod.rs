@@ -98,10 +98,10 @@ impl Ash {
         for wanted in &elm.panels.written {
             self.panels
                 .instances
-                .write(wanted.leaf, wanted.rank, wanted.clip, wanted.instance);
+                .write(wanted.key, wanted.rank, wanted.clip, wanted.instance);
         }
-        for leaf in &elm.panels.withdrawn {
-            self.panels.instances.withdraw(*leaf);
+        for key in &elm.panels.withdrawn {
+            self.panels.instances.withdraw(*key);
         }
         self.panels.instances.flush(ginkgo.device(), ginkgo.queue());
         if self.panels.instances.disturbed() {

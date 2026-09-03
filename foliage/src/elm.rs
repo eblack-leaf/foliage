@@ -20,6 +20,7 @@ use tracing::field::Empty;
 use tracing::trace_span;
 
 use crate::aspen::Departed;
+use crate::color::Color;
 use crate::coordinate::{Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
@@ -27,6 +28,7 @@ use crate::leaf::Leaf;
 use crate::palette::Fill;
 use crate::panel::PanelInstance;
 use crate::rounding::Corners;
+use crate::text::TextPigment;
 
 /// Which renderer an element carries, and so which instances it is gathered into.
 ///
@@ -44,6 +46,18 @@ pub(crate) enum Chlorophyll {
     None,
     /// A filled rectangle.
     Panel,
+    /// A run of monospaced glyphs.
+    Text,
+}
+
+/// What a renderer was told, for whichever renderer the element carries.
+///
+/// Carried by the [`Bud`](crate::op::Bud) as one value so that growing an element inserts the
+/// pigment its own renderer reads and no other. Past that point each is an ordinary component and
+/// nothing asks which kind it was.
+pub(crate) enum Pigment {
+    Panel(PanelPigment),
+    Text(TextPigment),
 }
 
 /// What a panel is filled and shaped by: everything the panel renderer was told.
@@ -64,6 +78,21 @@ pub(crate) struct Elm {
     pub(crate) panels: Instances<PanelInstance>,
 }
 
+/// What one instance is held under.
+///
+/// A plain number, and deliberately not a [`Leaf`]. An element is one of these -- its name's own
+/// bits -- and so is a glyph inside a run, so a renderer whose element draws *many* things keeps its
+/// own [`Instances`] under its own numbering and hands the one stack a single entry. Nothing about
+/// holding, diffing or uploading has to know which of the two it is looking at.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub(crate) struct Key(pub(crate) u64);
+
+impl From<Leaf> for Key {
+    fn from(leaf: Leaf) -> Self {
+        Self(leaf.id())
+    }
+}
+
 /// One renderer's instances: what the backend holds, and the difference the last extraction found.
 ///
 /// Generic over the instance, because what a renderer sends is the renderer's own business. This
@@ -75,14 +104,14 @@ pub(crate) struct Elm {
 /// the one the resolver produced. Keeping it out is also what leaves an instance free to be
 /// exactly the bytes a vertex buffer takes.
 pub(crate) struct Instances<I> {
-    held: HashMap<Leaf, Held<I>>,
+    held: HashMap<Key, Held<I>>,
     /// What should be drawn this frame, gathered before it is compared. Kept between frames for its
     /// capacity: a frame that changes nothing must not allocate.
     wanted: Vec<Stacked<I>>,
     /// Instances the backend does not hold, or holds at a different value or rank.
     pub(crate) written: Vec<Stacked<I>>,
     /// Instances the backend holds and should not, in a stable order.
-    pub(crate) withdrawn: Vec<Leaf>,
+    pub(crate) withdrawn: Vec<Key>,
     /// Which extraction is running. An entry left at an older one is no longer wanted.
     pass: u64,
 }
@@ -94,7 +123,7 @@ pub(crate) struct Instances<I> {
 /// region the element sits in, and the backend applies it to the pass rather than to the panel.
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Stacked<I> {
-    pub(crate) leaf: Leaf,
+    pub(crate) key: Key,
     pub(crate) rank: ResolvedElevation,
     pub(crate) clip: Section,
     pub(crate) instance: I,
@@ -123,9 +152,9 @@ impl<I> Default for Instances<I> {
 impl<I: Copy + PartialEq> Instances<I> {
     /// Adds one instance to what should be drawn this frame, at the rank it resolved to and inside
     /// the clip it resolved under.
-    fn want(&mut self, leaf: Leaf, rank: ResolvedElevation, clip: Section, instance: I) {
+    fn want(&mut self, key: impl Into<Key>, rank: ResolvedElevation, clip: Section, instance: I) {
         self.wanted.push(Stacked {
-            leaf,
+            key: key.into(),
             rank,
             clip,
             instance,
@@ -145,7 +174,7 @@ impl<I: Copy + PartialEq> Instances<I> {
         let pass = self.pass;
         for index in 0..self.wanted.len() {
             let wanted = self.wanted[index];
-            match self.held.entry(wanted.leaf) {
+            match self.held.entry(wanted.key) {
                 Entry::Occupied(mut held) => {
                     let held = held.get_mut();
                     if held.instance != wanted.instance
@@ -172,11 +201,11 @@ impl<I: Copy + PartialEq> Instances<I> {
         }
         self.wanted.clear();
         let withdrawn = &mut self.withdrawn;
-        self.held.retain(|leaf, held| {
+        self.held.retain(|key, held| {
             if held.seen == pass {
                 return true;
             }
-            withdrawn.push(*leaf);
+            withdrawn.push(*key);
             false
         });
         // Nothing may depend on the order a map iterates, and two identical runs have to extract
@@ -189,9 +218,9 @@ impl<I: Copy + PartialEq> Instances<I> {
         self.held.len()
     }
 
-    /// What the backend is holding for `leaf`.
-    pub(crate) fn holding(&self, leaf: Leaf) -> Option<I> {
-        self.held.get(&leaf).map(|held| held.instance)
+    /// What the backend is holding for `key`.
+    pub(crate) fn holding(&self, key: impl Into<Key>) -> Option<I> {
+        self.held.get(&key.into()).map(|held| held.instance)
     }
 }
 
@@ -200,51 +229,86 @@ pub(crate) fn run(grove: &mut Grove) {
     let step = trace_span!("extract", written = Empty, withdrawn = Empty);
     let _entered = step.enter();
     for leaf in grove.tree.leaves() {
-        match grove.tree.chlorophyll(leaf) {
+        let chlorophyll = grove.tree.chlorophyll(leaf);
+        if chlorophyll == Chlorophyll::None {
+            continue;
+        }
+        let Some(painted) = painted(grove, leaf) else {
+            continue;
+        };
+        match chlorophyll {
+            // Answered above: carrying no renderer is the whole of what makes an element a stem.
             Chlorophyll::None => {}
             Chlorophyll::Panel => {
                 // Grown together and by nothing else, so a panel always has one.
-                let Some(pigment) = grove.tree.pigment(leaf) else {
+                let Some(pigment) = grove.tree.panel_pigment(leaf) else {
                     continue;
                 };
-                let inherited = grove.tree.inherited(leaf);
-                let section = grove.tree.drawn(leaf);
-                // What a scrolling ancestor leaves visible, never wider than the surface: a clip is
-                // what the backend scissors the pass to, and nothing outside the surface is painted
-                // whatever the rect says.
-                let clip = grove
-                    .tree
-                    .clip(leaf)
-                    .intersect(Section::new(Position::default(), grove.viewport));
-                // Hidden is the app's intent and culled is this pass's decision, taken here from
-                // the clip rect and recorded nowhere: an element scrolled out of its region is
-                // absent from the batch and unchanged in every other respect, so scrolling back to
-                // it needs nothing to be undone.
-                if !inherited.visible || section.intersect(clip).is_empty() {
-                    continue;
-                }
-                // A blend of two fills is a color rather than a fill, so a motion on one is applied
-                // here -- where a fill becomes a color -- and not written onto the element. Both
-                // ends are read against the same scheme at the same instant, so a repaint
-                // mid-motion moves whichever of them is a role.
-                let target = pigment.fill.color(&grove.scheme);
-                let color = match grove.aspen.fill(leaf) {
-                    Some((Departed::Declared(fill), at)) => {
-                        fill.color(&grove.scheme).blend(target, at)
-                    }
-                    Some((Departed::Snapshot(color), at)) => color.blend(target, at),
-                    None => target,
-                };
-                let instance =
-                    PanelInstance::new(section, color.faded(inherited.opacity), pigment.rounding);
+                let instance = PanelInstance::new(
+                    painted.section,
+                    tint(grove, leaf, pigment.fill).faded(painted.opacity),
+                    pigment.rounding,
+                );
                 grove
                     .elm
                     .panels
-                    .want(leaf, grove.tree.rank(leaf), clip, instance);
+                    .want(leaf, grove.tree.rank(leaf), painted.clip, instance);
             }
+            // A run's box, fill, rank and clip resolve exactly as a panel's do, and are settled by
+            // the time this runs. What is not here is the glyph pipeline that turns them into
+            // instances: a run is *one* entry in the one stack, whose renderer holds its glyphs
+            // under its own numbering -- which is what a [`Key`] is a number rather than a [`Leaf`]
+            // for.
+            Chlorophyll::Text => {}
         }
     }
     grove.elm.panels.extract();
     step.record("written", grove.elm.panels.written.len());
     step.record("withdrawn", grove.elm.panels.withdrawn.len());
+}
+
+/// Where an element is painted, and inside what.
+struct Painted {
+    section: Section,
+    clip: Section,
+    opacity: f32,
+}
+
+/// What is painted of `leaf`, or `None` if nothing is.
+///
+/// Hidden is the app's intent and culled is this pass's decision, taken here from the clip rect and
+/// recorded nowhere: an element scrolled out of its region is absent from the batch and unchanged in
+/// every other respect, so scrolling back to it needs nothing to be undone.
+fn painted(grove: &Grove, leaf: Leaf) -> Option<Painted> {
+    let inherited = grove.tree.inherited(leaf);
+    let section = grove.tree.drawn(leaf);
+    // What a scrolling ancestor leaves visible, never wider than the surface: a clip is what the
+    // backend scissors the pass to, and nothing outside the surface is painted whatever the rect
+    // says.
+    let clip = grove
+        .tree
+        .clip(leaf)
+        .intersect(Section::new(Position::default(), grove.viewport));
+    if !inherited.visible || section.intersect(clip).is_empty() {
+        return None;
+    }
+    Some(Painted {
+        section,
+        clip,
+        opacity: inherited.opacity,
+    })
+}
+
+/// What a fill currently paints as.
+///
+/// A blend of two fills is a color rather than a fill, so a motion on one is applied here -- where a
+/// fill becomes a color -- and not written onto the element. Both ends are read against the same
+/// scheme at the same instant, so a repaint mid-motion moves whichever of them is a role.
+fn tint(grove: &Grove, leaf: Leaf, fill: Fill) -> Color {
+    let target = fill.color(&grove.scheme);
+    match grove.aspen.fill(leaf) {
+        Some((Departed::Declared(fill), at)) => fill.color(&grove.scheme).blend(target, at),
+        Some((Departed::Snapshot(color), at)) => color.blend(target, at),
+        None => target,
+    }
 }

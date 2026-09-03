@@ -11,6 +11,7 @@ documentation = "https://eblack-leaf.github.io/foliage/book/"
 [dependencies]
 bevy_ecs = "0.19.0"
 bytemuck = { version = "1.25.0", features = ["derive"] }
+fontdue = "0.9.4"
 tracing = "0.1.41"
 # `std::time::Instant` panics on wasm. This is std's own on every other target, so the frame
 # reads one clock everywhere.

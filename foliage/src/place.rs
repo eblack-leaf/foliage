@@ -9,6 +9,7 @@ use crate::leaf::Leaf;
 use crate::lifecycle::{Opacity, Visible};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
+use crate::text::font::{Font, FontSize, Typeface};
 use crate::view::Scrolls;
 
 /// Where the caller was standing. Carried from the call that wrote a placement to the drain that
@@ -22,6 +23,9 @@ pub(crate) struct Placement {
     pub(crate) grid: Option<Grid>,
     pub(crate) anchor: Option<Anchored>,
     pub(crate) elevation: Option<Elevation>,
+    /// Absent until the element names a font or a size, because an element with neither has no
+    /// character cell and reads zero for everything measured in one.
+    pub(crate) typeface: Option<Typeface>,
     pub(crate) manner: Manner,
 }
 
@@ -113,6 +117,27 @@ pub trait Place: Places + Sized {
             to,
             at: core::panic::Location::caller(),
         });
+        self
+    }
+
+    /// Which registered font the element composes in.
+    ///
+    /// On every element, not only on one that draws glyphs: a font and a size are what give a
+    /// character cell its size, and a cell is what [`letters`](crate::Source::letters) and a
+    /// letter-pitched track are measured in. An element that names neither has no cell and reads
+    /// zero for both.
+    ///
+    /// Undeclared, it is the bundled font.
+    fn font(mut self, font: Font) -> Self {
+        self.placement().typeface.get_or_insert_default().font = font;
+        self
+    }
+
+    /// How large the element's characters are, per breakpoint.
+    ///
+    /// Undeclared, it is [`FontSize::DEFAULT`].
+    fn font_size(mut self, size: FontSize) -> Self {
+        self.placement().typeface.get_or_insert_default().size = size;
         self
     }
 

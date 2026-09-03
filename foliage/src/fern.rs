@@ -169,6 +169,17 @@ fn drain(grove: &mut Grove) {
                     dropped("color", leaf, "draws nothing to fill");
                 }
             }
+            Op::Letter { leaf, value } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("text", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_lettering(leaf, value) {
+                    debug!(leaf = leaf.id(), "lettered");
+                } else {
+                    dropped("text", leaf, "says nothing to rewrite");
+                }
+            }
             Op::Round { leaf, rounding } => {
                 if !grove.tree.is_live(leaf) {
                     dropped("round", leaf, "not live");

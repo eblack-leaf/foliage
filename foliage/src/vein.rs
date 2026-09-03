@@ -42,6 +42,11 @@ pub enum Vein {
     Color,
     /// How the element's corners are rounded, if it is something with corners.
     Rounding,
+    /// What the element says, if it is a run of glyphs.
+    ///
+    /// What was written, not how it wrapped: where the lines fell is a function of the box the
+    /// layout gave it, and the box is [`Drawn`](Vein::Drawn).
+    Text,
     /// Whether the app has hidden the element.
     ///
     /// What was declared of this element, not the product over its ancestry: an element inside a
@@ -69,6 +74,7 @@ pub enum Sap {
     Elevation(Elevation),
     Color(Fill),
     Rounding(Corners),
+    Text(String),
     Visible(bool),
     Opacity(f32),
     Disabled(bool),

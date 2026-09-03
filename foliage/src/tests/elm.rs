@@ -4,6 +4,7 @@
 //! costs nothing -- which is what the whole recompute-totally thesis is bought with.
 
 use crate::coordinate::Section;
+use crate::elm::Key;
 use crate::panel::PanelInstance;
 use crate::tests::{grove, tick};
 use crate::{
@@ -31,7 +32,7 @@ fn a_panel_is_written_on_the_frame_it_is_planted() {
     let leaf = grove.plant(panel(40.0));
     tick(&mut grove);
     assert_eq!(grove.elm.panels.written.len(), 1);
-    assert_eq!(grove.elm.panels.written[0].leaf, leaf);
+    assert_eq!(grove.elm.panels.written[0].key, Key::from(leaf));
     assert_eq!(
         held(&grove, leaf).section,
         Section::from_edges(0.0, 0.0, 40.0, 40.0)
@@ -93,7 +94,7 @@ fn a_recolor_writes_only_the_element_it_named() {
     grove.color(one, Palette::Accent);
     tick(&mut grove);
     assert_eq!(grove.elm.panels.written.len(), 1);
-    assert_eq!(grove.elm.panels.written[0].leaf, one);
+    assert_eq!(grove.elm.panels.written[0].key, Key::from(one));
     assert!(grove.elm.panels.holding(two).is_some());
 }
 
@@ -123,7 +124,7 @@ fn a_pruned_panel_is_withdrawn() {
 
     grove.prune(leaf);
     tick(&mut grove);
-    assert_eq!(grove.elm.panels.withdrawn, vec![leaf]);
+    assert_eq!(grove.elm.panels.withdrawn, vec![Key::from(leaf)]);
     assert_eq!(grove.elm.panels.len(), 0);
     assert_eq!(grove.elm.panels.holding(leaf), None);
 }
@@ -290,7 +291,7 @@ fn a_repaint_rewrites_every_element_in_an_affected_role() {
     grove.repaint(Scheme::new().set(Palette::Accent, Color::rgb(1.0, 0.0, 0.0)));
     tick(&mut grove);
     assert_eq!(grove.elm.panels.written.len(), 1);
-    assert_eq!(grove.elm.panels.written[0].leaf, accented);
+    assert_eq!(grove.elm.panels.written[0].key, Key::from(accented));
     assert_eq!(held(&grove, accented).color, Color::rgb(1.0, 0.0, 0.0));
     assert_eq!(held(&grove, muted).color, unaffected);
 }
@@ -310,7 +311,7 @@ fn a_repaint_leaves_a_fill_named_as_a_color_alone() {
     grove.repaint(Scheme::new().set(Palette::Accent, Color::rgb(0.0, 1.0, 0.0)));
     tick(&mut grove);
     assert_eq!(grove.elm.panels.written.len(), 1);
-    assert_eq!(grove.elm.panels.written[0].leaf, role);
+    assert_eq!(grove.elm.panels.written[0].key, Key::from(role));
     assert_eq!(held(&grove, literal).color, named);
 }
 

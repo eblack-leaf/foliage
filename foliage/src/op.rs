@@ -1,6 +1,6 @@
 use crate::aspen::{Motion, Timing, Tween};
 use crate::elevation::Elevation;
-use crate::elm::{Chlorophyll, PanelPigment};
+use crate::elm::{Chlorophyll, Pigment};
 use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
 use crate::palette::{Fill, Scheme};
@@ -8,6 +8,7 @@ use crate::place::{Caller, Placement};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::rounding::Corners;
+use crate::text::Lettering;
 
 /// One queued change.
 pub(crate) enum Op {
@@ -43,6 +44,12 @@ pub(crate) enum Op {
     Recolor {
         leaf: Leaf,
         fill: Fill,
+    },
+    /// Rewrites what a run says. The measure follows in the same frame, because measuring is a pass
+    /// and not a reaction to the write.
+    Letter {
+        leaf: Leaf,
+        value: String,
     },
     Round {
         leaf: Leaf,
@@ -88,10 +95,11 @@ pub(crate) enum Op {
 ///
 /// It carries the components the element will hold rather than a second enum describing them: a bud
 /// is the element before it exists, not an account of one. The pigment is present exactly when the
-/// chlorophyll is a renderer that has one.
+/// chlorophyll is a renderer that has one, and the lettering exactly when there is a run to read.
 pub(crate) struct Bud {
     pub(crate) chlorophyll: Chlorophyll,
-    pub(crate) pigment: Option<PanelPigment>,
+    pub(crate) pigment: Option<Pigment>,
+    pub(crate) lettering: Option<Lettering>,
     pub(crate) placement: Placement,
     pub(crate) at: Caller,
 }

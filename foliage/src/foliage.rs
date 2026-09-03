@@ -7,6 +7,7 @@ use crate::ginkgo::Ginkgo;
 use crate::grove::Grove;
 use crate::interaction::Claim;
 use crate::root::{Registered, Root, Rooted};
+use crate::text::Font;
 use crate::willow::Willow;
 
 /// The engine.
@@ -86,6 +87,22 @@ impl Foliage {
     pub fn desktop_size(&mut self, size: Area) -> &mut Self {
         self.willow.desktop_size(size);
         self
+    }
+
+    /// Registers a font and hands back the name elements choose it by.
+    ///
+    /// Once per run, at boot, because a font is a fact about the program rather than about any
+    /// element in it. Elements name one with [`font`](crate::Place::font); anything that names none
+    /// composes in the bundled one.
+    ///
+    /// # Panics
+    ///
+    /// If the font is not monospaced. Every measurement foliage makes is a count of character
+    /// cells -- [`letters`](crate::Source::letters), a letter-pitched track, max-content width,
+    /// wrapping -- so a proportional font does not degrade, it silently puts every column address
+    /// somewhere it does not belong. Refusing it here names the problem where it can still be fixed.
+    pub fn font(&mut self, bytes: &[u8]) -> Font {
+        self.grove.fonts.register(bytes)
     }
 
     /// Sets one of the engine's tuning values.

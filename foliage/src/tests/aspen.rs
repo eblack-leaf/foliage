@@ -9,7 +9,7 @@ use crate::panel::PanelInstance;
 use crate::tests::{Observer, advance, grove, opacity, resize, section, tick, tick_with};
 use crate::{
     Color, Fill, Grove, Grow, Leaf, Location, Motion, Palette, Panel, Place, Sap, Scheme, Source,
-    Stem, Timing, Vein, anchor, left, top,
+    Stem, Text, Timing, Vein, anchor, content, left, top,
 };
 
 /// A box of a stated width on one line, so a placement reads as one number.
@@ -880,4 +880,184 @@ fn two_properties_of_one_element_move_independently() {
     tick(&mut grove);
     assert_eq!(section(&grove, leaf).left(), 100.0);
     assert!(grove.aspen.idle());
+}
+
+/// A measured endpoint, re-measured mid-motion.
+///
+/// The case `aspen.md` names and `B5` could not reach, because nothing measured anything yet. It is
+/// the same claim as the resize, the breakpoint and the anchor: an endpoint is a placement rather
+/// than a box, so whatever changes what it resolves to changes where the motion is going -- and the
+/// landing is exact rather than near.
+#[test]
+fn a_measured_endpoint_rewritten_mid_motion_re_measures_and_lands() {
+    let mut grove = grove();
+    // Fifty logical pixels is five cells of the default font, so "hello" is one line of twenty-two.
+    let run = grove.plant(Text::new("hello").at(Location::new().xs(
+        left(0.px()).width(50.px()),
+        top(0.px()).height(20.px()),
+    )));
+    tick(&mut grove);
+    assert_eq!(section(&grove, run).height(), 20.0);
+
+    grove.animate(
+        run,
+        Motion::Location(Location::new().xs(
+            left(0.px()).width(50.px()),
+            top(0.px()).height(content()),
+        )),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    // Halfway between the twenty it left and the one line it is going to.
+    assert_eq!(section(&grove, run).height(), 21.0);
+
+    // The string changes under it, so the target measures to two lines instead of one. The same
+    // instant of the same motion now reads against the new measure.
+    grove.text(run, "hello world");
+    tick(&mut grove);
+    assert_eq!(section(&grove, run).height(), 32.0);
+
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    // Exactly the measure, not near it.
+    assert_eq!(section(&grove, run).height(), 44.0);
+}
+
+// Sequences.
+
+/// A group is over when the last thing running under it ends -- not when the first does, and not at
+/// a time anything had to state up front.
+#[test]
+fn a_sequence_is_reported_when_its_last_member_ends() {
+    let mut grove = grove();
+    let first = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    let second = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick(&mut grove);
+
+    let group = grove.sequence();
+    grove.animate(first, Motion::Opacity(0.0), Timing::ms(100).within(group));
+    grove.animate(second, Motion::Opacity(0.0), Timing::ms(300).within(group));
+    let mut app = Observer::default();
+    tick_with(&mut grove, &mut app);
+
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().landed(first));
+    assert!(
+        !app.last().sequence_finished(group),
+        "one member is still running"
+    );
+
+    advance(&mut grove, 200);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().landed(second));
+    assert!(app.last().sequence_finished(group));
+}
+
+/// A sequence is a handle and nothing else, so what it times together needs no reason to be written
+/// together: two elements, a channel that moves a value the engine has no concept of, and three
+/// separate frames.
+#[test]
+fn a_sequence_takes_members_from_anywhere_and_at_any_frame() {
+    let mut grove = grove();
+    let leaf = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick(&mut grove);
+
+    let group = grove.sequence();
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100).within(group));
+    let mut app = Observer::default();
+    tick_with(&mut grove, &mut app);
+
+    // A second member, two frames after the first and from nowhere near it.
+    let channel = grove.tween(0.0, 1.0, Timing::ms(300).within(group));
+    tick_with(&mut grove, &mut app);
+
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().landed(leaf));
+    assert!(!app.last().sequence_finished(group));
+
+    advance(&mut grove, 200);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().finished(channel));
+    assert!(app.last().sequence_finished(group));
+}
+
+/// However a member stopped running. A direct write cancels a motion (F8) and a prune takes one down
+/// with its element, and neither leaves a group waiting on something that will never end.
+#[test]
+fn a_cancelled_member_leaves_the_group() {
+    let mut grove = grove();
+    let written = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    let pruned = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    let running = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick(&mut grove);
+
+    let group = grove.sequence();
+    grove.animate(written, Motion::Opacity(0.0), Timing::ms(500).within(group));
+    grove.animate(pruned, Motion::Opacity(0.0), Timing::ms(500).within(group));
+    grove.animate(running, Motion::Opacity(0.0), Timing::ms(100).within(group));
+    let mut app = Observer::default();
+    tick_with(&mut grove, &mut app);
+
+    grove.opacity(written, 1.0);
+    grove.prune(pruned);
+    tick_with(&mut grove, &mut app);
+    assert!(
+        !app.last().sequence_finished(group),
+        "one member is still running"
+    );
+
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().sequence_finished(group));
+    assert!(grove.aspen.idle());
+}
+
+/// A name that has emptied can be filled again, because a group holds nothing once it is over.
+#[test]
+fn a_sequence_may_be_used_again() {
+    let mut grove = grove();
+    let leaf = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick(&mut grove);
+
+    let group = grove.sequence();
+    let mut app = Observer::default();
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100).within(group));
+    tick_with(&mut grove, &mut app);
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().sequence_finished(group));
+
+    grove.animate(leaf, Motion::Opacity(1.0), Timing::ms(100).within(group));
+    tick_with(&mut grove, &mut app);
+    assert!(!app.last().sequence_finished(group));
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().sequence_finished(group));
+}
+
+/// A group that reported is owed the frame that delivers it, exactly as a landing is (F9).
+#[test]
+fn a_finished_sequence_owes_a_frame() {
+    let mut grove = grove();
+    let leaf = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick(&mut grove);
+
+    let group = grove.sequence();
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100).within(group));
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert!(grove.aspen.idle(), "nothing is running");
+    assert!(grove.drift.pending(), "but the report has not been handed over");
 }

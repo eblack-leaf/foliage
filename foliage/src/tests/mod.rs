@@ -13,6 +13,7 @@ mod lifecycle;
 mod placement;
 mod root;
 mod rowan;
+mod text;
 mod tracing;
 
 use core::time::Duration;

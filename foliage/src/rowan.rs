@@ -12,7 +12,9 @@
 //!
 //! | | Pass | Direction | Produces |
 //! |---|---|---|---|
+//! | R1 | measure | — | [`Cell`], and the max-content width half of [`Intrinsic`] |
 //! | R2a | horizontal | dependency order | the horizontal axis |
+//! | R2m | wrap | **bottom-up** | the measured-height half of [`Intrinsic`] |
 //! | R2b | vertical | dependency order | the vertical axis, and with it [`Placed`] |
 //! | R3 | extent | **bottom-up** | [`Extent`](crate::view::Extent): how far a region's content reaches |
 //! | R4 | scroll | top-down | [`Drawn`]: [`Placed`] less every scrolling ancestor's offset |
@@ -24,11 +26,20 @@
 //! Both halves of R2 call the same pure resolver, once per axis. That is only safe because it is
 //! pure: there is no accumulated state for a second call to corrupt.
 //!
-//! R3 is the one pass that runs the other way, and the reason is a genuine cycle: a child resolves
-//! against its parent's box, a scrolling parent's extent comes from where its children landed, and
-//! that extent is what its offset is clamped to. The cycle is not vicious, because extent affects
+//! Two passes run the other way, and each is a cycle that turns out not to be vicious.
+//!
+//! R2m is one: wrapping makes a height depend on a width, and the width comes from the layout, so a
+//! box sized to its contents looks circular. It is not, because **width flows down and height flows
+//! up** -- a monospaced run's widest unwrapped line is free from its character count, so the
+//! down-pass needs nothing measured. R2m sits between the two halves of R2 for that reason: it is
+//! the one moment when every width is known and no height is, which is exactly what measuring needs.
+//!
+//! R3 is the other: a child resolves against its parent's box, a scrolling parent's extent comes
+//! from where its children landed, and that extent is what its offset is clamped to. Extent affects
 //! only the clamp and never the parent's own box -- so a top-down layout sweep, a bottom-up extent
-//! sweep and a top-down scroll application resolve it in one pass each, with no iteration.
+//! sweep and a top-down scroll application resolve it in one pass each.
+//!
+//! Neither iterates to convergence. Every pass here runs exactly once.
 
 use std::collections::HashMap;
 
@@ -65,12 +76,36 @@ pub(crate) struct Placed(pub(crate) Section);
 #[derive(Component, Copy, Clone, Debug, Default)]
 pub(crate) struct Drawn(pub(crate) Section);
 
+/// The character cell an element's own font and size make, as R1 measured it.
+///
+/// On every element, because every element may be sized in characters: it is what
+/// [`letters`](crate::Source::letters) and a letter-pitched track are measured in. An element that
+/// named no font and no size has none, and reads zero.
+#[derive(Component, Copy, Clone, Debug, Default)]
+pub(crate) struct Cell(pub(crate) Area);
+
+/// What an element measured to, which is what [`content()`](crate::content) reads.
+///
+/// The two halves are written by different passes and mean different questions, which is the whole
+/// of width-down and height-up:
+///
+/// - **width** is max-content, written by R1 -- the widest the element would like to be, unwrapped.
+///   In a monospaced font that is a character count times a cell, so it is free and is available
+///   before any layout has happened.
+/// - **height** is measured, written by R2m -- what the element turned out to be at the width R2a
+///   gave it.
+#[derive(Component, Copy, Clone, Debug, Default)]
+pub(crate) struct Intrinsic(pub(crate) Area);
+
 /// Steps 6 and 7. Declared state becomes resolved geometry and resolved products, for everything.
 pub(crate) fn run(grove: &mut Grove) {
     let order = order(&grove.tree);
     {
         let _step = trace_span!("resolve", elements = order.len()).entered();
+        measure(grove, &order);
         let boxes = axes(grove, &order);
+        // Both of the passes that shape have run, so what is not held now is a run nothing states.
+        grove.shaping.sweep();
         extent(grove, &order, &boxes);
         scroll(grove, &order, &boxes);
         clip(grove, &order);
@@ -82,42 +117,94 @@ pub(crate) fn run(grove: &mut Grove) {
     focus::settle(grove);
 }
 
-/// R2a and R2b. One axis at a time, in dependency order, through the one pure resolver.
+/// R1. What an element's own font makes of it: its character cell, and the widest its content would
+/// like to be.
+///
+/// Ahead of every other pass, and reading no geometry at all, because neither answer has anything to
+/// do with where the element ended up. A monospaced run's max-content width is its longest line's
+/// character count times its cell, so the whole of the down-pass's input is available before the
+/// down-pass runs -- which is what leaves only the up-pass with anything to measure.
+fn measure(grove: &mut Grove, order: &[Leaf]) {
+    let _pass = trace_span!("measure").entered();
+    let Grove {
+        tree,
+        fonts,
+        shaping,
+        layout,
+        short,
+        ..
+    } = grove;
+    for &leaf in order {
+        // No font and no size is no cell, and nothing measured in one.
+        let Some(typeface) = tree.typeface(leaf) else {
+            continue;
+        };
+        let size = typeface.size.at(*layout, *short);
+        let cell = fonts.cell(typeface.font, size);
+        let width = match tree.lettering(leaf) {
+            Some(value) => shaping.shape(fonts, typeface.font, size, value).max_content(),
+            None => 0.0,
+        };
+        tree.set_cell(leaf, cell);
+        // The height half is R2m's, and is written before anything reads it.
+        tree.set_intrinsic(leaf, Area::new(width, 0.0));
+    }
+}
+
+/// R2a, R2m and R2b: the horizontal axis, then the measure it makes possible, then the vertical one.
 ///
 /// An element with a placement in motion is resolved twice on each axis -- once for each endpoint,
 /// in the *same* context -- and the two answers are blended. That is what the resolver's purity
 /// buys: the endpoints are consistent with each other because they were asked at the same position
 /// in the same dependency order, against the same settled ancestors, and neither is remembered
 /// afterwards.
-fn axes(grove: &Grove, order: &[Leaf]) -> HashMap<Leaf, Section> {
+fn axes(grove: &mut Grove, order: &[Leaf]) -> HashMap<Leaf, Section> {
+    let mut boxes: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
+    axis(grove, order, Axis::Horizontal, &mut boxes);
+    wrap(grove, order, &boxes);
+    axis(grove, order, Axis::Vertical, &mut boxes);
+    boxes
+}
+
+/// One axis of the whole tree, in dependency order, through the one pure resolver.
+fn axis(grove: &Grove, order: &[Leaf], axis: Axis, boxes: &mut HashMap<Leaf, Section>) {
+    let _pass = trace_span!("axis", vertical = (axis == Axis::Vertical)).entered();
     let viewport = Section::new(Position::default(), grove.viewport);
     let fallback = Location::default();
-    let mut boxes: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
-    for axis in [Axis::Horizontal, Axis::Vertical] {
-        for &leaf in order {
-            let context = context(grove, &boxes, viewport, leaf, axis);
-            let location = grove.tree.location(leaf).unwrap_or(&fallback);
-            let target = resolve(pinned(location, grove, axis), &context);
-            let span = match grove.aspen.location(leaf) {
-                Some((departed, at)) => {
-                    departure(departed, grove, &context, axis).blend(target, at)
-                }
-                None => target,
-            };
-            let section = boxes.entry(leaf).or_default();
-            match axis {
-                Axis::Horizontal => {
-                    section.position.x = span.near;
-                    section.area.width = span.extent();
-                }
-                Axis::Vertical => {
-                    section.position.y = span.near;
-                    section.area.height = span.extent();
-                }
+    for &leaf in order {
+        let context = context(grove, boxes, viewport, leaf, axis);
+        let span = span(grove, leaf, &fallback, &context, axis);
+        let section = boxes.entry(leaf).or_default();
+        match axis {
+            Axis::Horizontal => {
+                section.position.x = span.near;
+                section.area.width = span.extent();
+            }
+            Axis::Vertical => {
+                section.position.y = span.near;
+                section.area.height = span.extent();
             }
         }
     }
-    boxes
+}
+
+/// One axis of where `leaf` currently is: what it declares, blended with the endpoint a motion left.
+///
+/// The one place a placement becomes a span, so a measure and a layout are answering the same
+/// question -- an element in motion is measured where it *is* rather than where it is going.
+fn span(
+    grove: &Grove,
+    leaf: Leaf,
+    fallback: &Location,
+    context: &Context,
+    axis: Axis,
+) -> Span {
+    let location = grove.tree.location(leaf).unwrap_or(fallback);
+    let target = resolve(pinned(location, grove, axis), context);
+    match grove.aspen.location(leaf) {
+        Some((departed, at)) => departure(departed, grove, context, axis).blend(target, at),
+        None => target,
+    }
 }
 
 /// How one axis of a placement is pinned down, at the breakpoint in force.
@@ -146,6 +233,113 @@ fn departure(
     match departed {
         Departed::Declared(location) => resolve(pinned(location, grove, axis), context),
         Departed::Snapshot(section) => Span::of(*section, axis),
+    }
+}
+
+/// R2m. How tall each element's contents turned out at the width R2a gave it.
+///
+/// Bottom-up, so everything inside an element is measured before the element asks. Two things are
+/// measured, and an element takes the greater of them, because both answer the one question
+/// [`content()`](crate::content) asks -- *how large is what is inside me*:
+///
+/// - a run of glyphs wraps at its own resolved width, and its lines times its cell is its height
+/// - anything with elements grown under it takes the furthest any of them reaches down
+///
+/// The second is resolved in the element's own space, with its vertical extent taken as **not yet
+/// known**, which is exactly what it is at this point in the frame. So a child that reads that
+/// extent -- `100.pct()`, a row of a grid, an anchor's edge -- contributes nothing to the measure
+/// and is given its real height by R2b like anything else. That is the correct reading rather than a
+/// limitation: a child sized to its trunk cannot also be what sizes it, and nothing is asked to
+/// converge.
+fn wrap(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
+    let _pass = trace_span!("wrap").entered();
+    let fallback = Location::default();
+    for &leaf in order.iter().rev() {
+        let width = boxes.get(&leaf).copied().unwrap_or_default().width();
+        let height = wrapped(grove, leaf, width).max(reach(grove, boxes, &fallback, leaf));
+        let mut intrinsic = grove.tree.intrinsic(leaf);
+        intrinsic.height = height;
+        grove.tree.set_intrinsic(leaf, intrinsic);
+    }
+}
+
+/// How tall `leaf`'s own run of glyphs is at `width`, or zero if it says nothing.
+fn wrapped(grove: &mut Grove, leaf: Leaf, width: f32) -> f32 {
+    let Grove {
+        tree,
+        fonts,
+        shaping,
+        layout,
+        short,
+        ..
+    } = grove;
+    let Some(typeface) = tree.typeface(leaf) else {
+        return 0.0;
+    };
+    let Some(value) = tree.lettering(leaf) else {
+        return 0.0;
+    };
+    let size = typeface.size.at(*layout, *short);
+    shaping
+        .shape(fonts, typeface.font, size, value)
+        .measure(width)
+}
+
+/// How far the elements grown under `leaf` reach below its top edge.
+fn reach(
+    grove: &Grove,
+    boxes: &HashMap<Leaf, Section>,
+    fallback: &Location,
+    leaf: Leaf,
+) -> f32 {
+    let mut reach: f32 = 0.0;
+    for child in grove.tree.branches(leaf) {
+        let context = raised(grove, boxes, leaf, child);
+        reach = reach.max(span(grove, child, fallback, &context, Axis::Vertical).far);
+    }
+    reach
+}
+
+/// What one child resolves its vertical axis against while its trunk is being measured.
+///
+/// The same [`Context`] R2b will build, with every vertical reading taken as zero: no box on this
+/// axis has resolved yet, which is the point of measuring. Every horizontal reading is real, so a
+/// height stated in columns or read off a width still answers.
+fn raised(
+    grove: &Grove,
+    boxes: &HashMap<Leaf, Section>,
+    trunk: Leaf,
+    child: Leaf,
+) -> Context {
+    let flattened = |leaf: Leaf| {
+        let section = boxes.get(&leaf).copied().unwrap_or_default();
+        Basis {
+            section: Section::new(
+                Position::new(section.left(), 0.0),
+                Area::new(section.width(), 0.0),
+            ),
+            intrinsic: grove.tree.intrinsic(leaf),
+            tracks: grove
+                .tree
+                .grid(leaf)
+                .unwrap_or_default()
+                .tracks(grove.layout, grove.short),
+            cell: grove.tree.cell(leaf),
+        }
+    };
+    Context {
+        axis: Axis::Vertical,
+        own: Basis {
+            section: Section::default(),
+            intrinsic: grove.tree.intrinsic(child),
+            tracks: Tracks::default(),
+            cell: grove.tree.cell(child),
+        },
+        trunk: flattened(trunk),
+        anchor: match grove.tree.anchor(child) {
+            Some(anchor) => flattened(anchor),
+            None => Basis::default(),
+        },
     }
 }
 
@@ -412,8 +606,15 @@ fn basis(
 ///
 /// An anchor may point anywhere -- a later sibling, a cousin, an element in another subtree -- so
 /// this is ordered by dependency rather than by tree depth: an element resolves after its parent
-/// *and* after whatever it anchors to. Cycles are refused where they are written, so the graph is a
-/// valid one by construction and this needs no cycle handling.
+/// *and* after whatever it anchors to.
+///
+/// A chain of anchors cannot close on itself, because one that would is refused where it is written.
+/// A trunk and an anchor still can, between them: an element anchored to something grown under it
+/// waits on a box that is waiting on its own. That is not the same contradiction -- both boxes
+/// resolve, just not both against a settled other -- so the remainder is ordered by allocation order
+/// and resolves against what its dependency last was. **Every live element is in the order**, which
+/// is the property the passes downstream rely on: an element left out would have no box, no rank and
+/// no place in the stack, and nothing would say so.
 fn order(tree: &Tree) -> Vec<Leaf> {
     let leaves = tree.leaves();
     let mut waiting: HashMap<Leaf, usize> = HashMap::with_capacity(leaves.len());
@@ -447,6 +648,9 @@ fn order(tree: &Tree) -> Vec<Leaf> {
                 ready.push(*dependent);
             }
         }
+    }
+    if order.len() != leaves.len() {
+        order.extend(leaves.iter().copied().filter(|leaf| waiting[leaf] != 0));
     }
     order
 }

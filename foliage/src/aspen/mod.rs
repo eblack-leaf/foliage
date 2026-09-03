@@ -83,6 +83,19 @@ pub use ease::{Ease, Timing};
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Tween(u64);
 
+/// A group of running tweens, reported when the last of them ends.
+///
+/// Handed out by [`sequence`](crate::Grow::sequence) and joined with
+/// [`Timing::within`] -- from anywhere, at any frame, by anything that runs on the clock. A group is
+/// a *name*, not a call: the whole point of one is timing things together that have no reason to be
+/// written together, so nothing about it requires the members to be stated in one place.
+///
+/// It is over when nothing is running under it any more, however each member ended -- landed,
+/// cancelled by a direct write, or taken down with its element. There is no second report for the
+/// ways a group can stop being busy, because a group being over is one fact.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct Sequence(u64);
+
 /// What can be animated.
 ///
 /// A property belongs here if animating it is a normal thing to want, or if it **cannot be animated
@@ -213,6 +226,8 @@ impl Progress {
 struct Motioning {
     moving: Moving,
     progress: Progress,
+    /// The group its ending is counted into, if it was counted into one.
+    within: Option<Sequence>,
 }
 
 impl Motioning {
@@ -239,6 +254,7 @@ struct Channel {
     from: f32,
     to: f32,
     progress: Progress,
+    within: Option<Sequence>,
 }
 
 /// Every running tween.
@@ -250,15 +266,51 @@ struct Channel {
 pub(crate) struct Aspen {
     motions: HashMap<(Leaf, Property), Motioning>,
     channels: HashMap<Tween, Channel>,
+    /// How many tweens are still running under each named group. An entry exists only while the
+    /// group has something in it, so a group that is over holds nothing and a name that is used
+    /// again starts a new one.
+    sequences: HashMap<Sequence, usize>,
+    /// Groups whose last member ended, waiting to be reported. Drained once a frame, so a group
+    /// emptied at the drain and one emptied by a tween finishing read the same way.
+    finished: Vec<Sequence>,
     /// Where a channel's name comes from. Atomic because naming one takes `&self` on either side of
     /// the boundary, like every other name the engine hands out.
     names: AtomicU64,
+    /// Where a group's name comes from, on the same terms.
+    groups: AtomicU64,
 }
 
 impl Aspen {
     /// A name for one channel. Never reused, so a stale one is inert.
     pub(crate) fn name(&self) -> Tween {
         Tween(self.names.fetch_add(1, Ordering::Relaxed))
+    }
+
+    /// A name for one group.
+    pub(crate) fn group(&self) -> Sequence {
+        Sequence(self.groups.fetch_add(1, Ordering::Relaxed))
+    }
+
+    /// Counts one more tween into a group.
+    fn enroll(&mut self, within: Option<Sequence>) {
+        if let Some(sequence) = within {
+            *self.sequences.entry(sequence).or_default() += 1;
+        }
+    }
+
+    /// Takes one tween out of a group, however it ended, and notes the group if that was the last.
+    fn release(&mut self, within: Option<Sequence>) {
+        let Some(sequence) = within else {
+            return;
+        };
+        let Some(running) = self.sequences.get_mut(&sequence) else {
+            return;
+        };
+        *running -= 1;
+        if *running == 0 {
+            self.sequences.remove(&sequence);
+            self.finished.push(sequence);
+        }
     }
 
     /// Whether nothing is running, which is half of whether the loop owes a frame.
@@ -304,7 +356,11 @@ impl Aspen {
     /// F8: this is what a direct write does before it lands, so no property ever reaches its
     /// applying phase with both a pending write and a running tween.
     pub(crate) fn cancel(&mut self, leaf: Leaf, property: Property) -> bool {
-        self.motions.remove(&(leaf, property)).is_some()
+        let Some(motioning) = self.motions.remove(&(leaf, property)) else {
+            return false;
+        };
+        self.release(motioning.within);
+        true
     }
 
     /// Drops everything running on elements that have gone.
@@ -314,7 +370,9 @@ impl Aspen {
         }
         for leaf in gone {
             for property in [Property::Location, Property::Opacity, Property::Fill] {
-                self.motions.remove(&(*leaf, property));
+                if let Some(motioning) = self.motions.remove(&(*leaf, property)) {
+                    self.release(motioning.within);
+                }
             }
         }
     }
@@ -324,18 +382,29 @@ impl Aspen {
     /// A channel has no declaration to write, so there is no direct write for it to be cancelled by
     /// the way a motion is. This is that.
     pub(crate) fn stop(&mut self, tween: Tween) -> bool {
-        self.channels.remove(&tween).is_some()
+        let Some(channel) = self.channels.remove(&tween) else {
+            return false;
+        };
+        self.release(channel.within);
+        true
     }
 
     pub(crate) fn channel(&mut self, tween: Tween, from: f32, to: f32, timing: Timing) {
-        self.channels.insert(
+        let within = timing.sequence();
+        self.enroll(within);
+        if let Some(replaced) = self.channels.insert(
             tween,
             Channel {
                 from,
                 to,
                 progress: Progress::new(timing),
+                within,
             },
-        );
+        ) {
+            // A name is never reused, so this cannot happen from an app -- but the count is the
+            // group's only record and it has to survive anything that takes a member out.
+            self.release(replaced.within);
+        }
     }
 }
 
@@ -382,13 +451,20 @@ pub(crate) fn animate(grove: &mut Grove, leaf: Leaf, motion: Motion, timing: Tim
             None => return false,
         },
     };
-    aspen.motions.insert(
+    let within = timing.sequence();
+    aspen.enroll(within);
+    if let Some(replaced) = aspen.motions.insert(
         (leaf, property),
         Motioning {
             moving,
             progress: Progress::new(timing),
+            within,
         },
-    );
+    ) {
+        // One writer per property: a second motion replaces the first, and the first is out of
+        // whatever group it was counted into whether or not the second joined the same one.
+        aspen.release(replaced.within);
+    }
     true
 }
 
@@ -406,10 +482,10 @@ fn filling(
     leaf: Leaf,
     to: Fill,
 ) -> Option<Moving> {
-    let pigment = tree.pigment(leaf)?;
+    let declared = tree.fill(leaf)?;
     let departed = match aspen.motions.get(&(leaf, Property::Fill)) {
-        Some(motioning) => Departed::Snapshot(motioning.tint(scheme, pigment.fill)),
-        None => Departed::Declared(pigment.fill),
+        Some(motioning) => Departed::Snapshot(motioning.tint(scheme, declared)),
+        None => Departed::Declared(declared),
     };
     tree.set_fill(leaf, to);
     Some(Moving::Fill(departed))
@@ -424,11 +500,13 @@ pub(crate) fn run(grove: &mut Grove) {
     let delta = grove.clock.delta();
     channels(grove, delta);
     motions(grove, delta);
+    sequences(grove);
 }
 
 /// The channels: a value each, reported outward and written nowhere.
 fn channels(grove: &mut Grove, delta: Duration) {
     let Grove { aspen, drift, .. } = grove;
+    let mut ended = Vec::new();
     aspen.channels.retain(|tween, channel| {
         let at = channel.progress.advance(delta);
         drift
@@ -441,8 +519,12 @@ fn channels(grove: &mut Grove, delta: Duration) {
         // never has to infer the other from an absence.
         drift.finished.insert(*tween);
         debug!(tween = tween.0, "tween finished");
+        ended.push(channel.within);
         false
     });
+    for within in ended {
+        aspen.release(within);
+    }
 }
 
 /// The motions: advanced here, and applied by whichever phase owns what they are moving.
@@ -450,6 +532,7 @@ fn motions(grove: &mut Grove, delta: Duration) {
     let Grove {
         aspen, tree, drift, ..
     } = grove;
+    let mut ended = Vec::new();
     aspen.motions.retain(|(leaf, _), motioning| {
         let at = motioning.progress.advance(delta);
         if let Moving::Opacity { from, to } = motioning.moving {
@@ -462,8 +545,26 @@ fn motions(grove: &mut Grove, delta: Duration) {
         // end equals the plain reading of the declaration, and the frame after is identical.
         drift.landed.insert(*leaf);
         debug!(leaf = leaf.id(), "tween landed");
+        ended.push(motioning.within);
         false
     });
+    for within in ended {
+        aspen.release(within);
+    }
+}
+
+/// The groups that emptied, however their last member ended.
+///
+/// Drained once, here, rather than reported where each member ended: a group is over when nothing
+/// is running under it, and that can be settled by a landing, by a direct write cancelling the last
+/// one, or by the element carrying it being taken down. One place to report it is what keeps those
+/// three the same fact.
+fn sequences(grove: &mut Grove) {
+    let Grove { aspen, drift, .. } = grove;
+    for sequence in aspen.finished.drain(..) {
+        drift.sequences.insert(sequence);
+        debug!(sequence = sequence.0, "sequence finished");
+    }
 }
 
 /// One number a fraction of the way to another.

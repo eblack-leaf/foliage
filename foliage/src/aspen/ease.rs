@@ -6,6 +6,8 @@
 
 use core::time::Duration;
 
+use crate::aspen::Sequence;
+
 /// The shape of a motion: how its elapsed fraction maps onto its progress.
 ///
 /// Every shape here is a cubic bezier through `(0, 0)` and `(1, 1)`, so all of them start where the
@@ -120,7 +122,7 @@ fn parameter(x1: f32, x2: f32, fraction: f32) -> f32 {
     u
 }
 
-/// How long a motion takes, when it starts, and what shape it moves in.
+/// How long a motion takes, when it starts, what shape it moves in, and what it arrives as part of.
 ///
 /// ```no_run
 /// # use foliage::{Ease, Timing};
@@ -134,10 +136,11 @@ pub struct Timing {
     duration: Duration,
     delay: Duration,
     ease: Ease,
+    within: Option<Sequence>,
 }
 
 impl Timing {
-    /// A motion lasting `millis`, beginning at once, unshaped.
+    /// A motion lasting `millis`, beginning at once, unshaped, arriving on its own.
     ///
     /// A duration of zero is a motion that is over on the frame it starts, which is what makes a
     /// [`timer`](crate::Grow::timer) of zero the next frame's report rather than a special case.
@@ -146,7 +149,25 @@ impl Timing {
             duration: Duration::from_millis(millis),
             delay: Duration::ZERO,
             ease: Ease::Linear,
+            within: None,
         }
+    }
+
+    /// Counts this into a [`Sequence`], so its end is reported as part of the group's rather than
+    /// only as its own.
+    ///
+    /// Here rather than as an argument to [`animate`](crate::Grow::animate) because a sequence is
+    /// about *when a group is over*, which is the one question this type exists to answer. What is
+    /// moving stays out of it: a motion, a channel and a timer join a sequence in the same words,
+    /// and none of them has to be near any of the others to do it.
+    pub fn within(mut self, sequence: Sequence) -> Self {
+        self.within = Some(sequence);
+        self
+    }
+
+    /// The sequence this was counted into, if any.
+    pub(crate) fn sequence(&self) -> Option<Sequence> {
+        self.within
     }
 
     /// The shape it moves in.

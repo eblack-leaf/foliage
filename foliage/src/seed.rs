@@ -1,4 +1,4 @@
-use crate::elm::{Chlorophyll, PanelPigment};
+use crate::elm::{Chlorophyll, PanelPigment, Pigment};
 use crate::op::Bud;
 use crate::panel::Panel;
 use crate::place::{Caller, Places};
@@ -26,6 +26,7 @@ impl Buds for Stem {
             // for a renderer to have been told.
             chlorophyll: Chlorophyll::None,
             pigment: None,
+            lettering: None,
             placement: self.placement,
             at,
         }
@@ -36,10 +37,11 @@ impl Buds for Panel {
     fn bud(self, at: Caller) -> Bud {
         Bud {
             chlorophyll: Chlorophyll::Panel,
-            pigment: Some(PanelPigment {
+            pigment: Some(Pigment::Panel(PanelPigment {
                 fill: self.fill,
                 rounding: self.rounding,
-            }),
+            })),
+            lettering: None,
             placement: self.placement,
             at,
         }

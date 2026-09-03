@@ -9,8 +9,9 @@
 //! nearest smaller one that was, and a chain that runs out fills the trunk.
 
 use foliage::{
-    Axes, Color, Corners, Divide, Elevation, Grid, Grove, Grow, Leaf, Location, Palette, Panel,
-    Place, Rounding, Scheme, Side, Source, Stem, anchor, bottom, center_x, left, right, top,
+    Axes, Color, Corners, Divide, Elevation, FontSize, Grid, Grove, Grow, Leaf, Location, Palette,
+    Panel, Place, Rounding, Scheme, Side, Source, Stem, Text, anchor, bottom, center_x, center_y,
+    content, left, right, top,
 };
 
 /// The space between tracks, and the rhythm every other measurement is stated in.
@@ -34,6 +35,18 @@ const CARD: f32 = 72.0;
 /// How wide the knob is, and so how much of the track it cannot reach.
 const KNOB: f32 = 28.0;
 
+/// What the article says about each section of the rail. Rewritten as the reader moves, and of
+/// deliberately different lengths, because the point is that the box follows the words.
+const PROSE: [&str; SECTIONS as usize] = [
+    "Width flows down and height flows up.",
+    "A monospaced run knows how wide it wants to be before any layout has happened, so the pass \
+     going down needs nothing measured.",
+    "Only the pass coming up measures, and by then it has a width to measure against. Two passes, \
+     no iteration.",
+    "So a box can be as tall as its text turns out to be, and a container as tall as what is \
+     grown under it.",
+];
+
 /// The parts of the page the app writes to again after growing it.
 pub(crate) struct Shell {
     /// The page itself, which is what goes inert while the drawer is open.
@@ -42,6 +55,8 @@ pub(crate) struct Shell {
     pub(crate) entries: Vec<Leaf>,
     /// The bar that marks the current section.
     pub(crate) marker: Leaf,
+    /// The article's prose, which is rewritten as the reader moves down the rail.
+    pub(crate) prose: Leaf,
     /// The notice, until it is pruned.
     pub(crate) notice: Leaf,
     /// The round badge that opens the drawer.
@@ -101,7 +116,7 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
     // selects it; nothing else in the rail does.
     let entries = (1..=SECTIONS)
         .map(|n| {
-            grove.branch(
+            let entry = grove.branch(
                 rail,
                 Panel::new()
                     .color(Palette::Muted)
@@ -110,7 +125,22 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
                     .at(Location::new()
                         .xs(left(n.col()).right(n.col()), top(0.px()).bottom(100.pct()))
                         .md(left(1.col()).right(1.col()), top(n.row()).bottom(n.row()))),
-            )
+            );
+            // A label centred on its entry, and as large as the two characters make it. It is drawn
+            // over the thing it labels, so it is `pass_through` for the same reason the marker is --
+            // otherwise the entry would stop being tappable exactly where the label is.
+            grove.branch(
+                entry,
+                Text::new(format!("0{n}"))
+                    .color(Palette::Ink)
+                    .font_size(FontSize::new().xs(13).md(15))
+                    .pass_through()
+                    .at(Location::new().xs(
+                        center_x(50.pct()).width(content()),
+                        center_y(50.pct()).height(content()),
+                    )),
+            );
+            entry
         })
         .collect::<Vec<_>>();
 
@@ -169,7 +199,7 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
     // The reading column scrolls, and it scrolls because it said so: dividing it with a grid says
     // nothing about scrolling. A drag anywhere inside it moves it, including on the cards, which
     // asked only to be tappable.
-    let content = grove.branch(
+    let column = grove.branch(
         page,
         Stem::new()
             .scrolls(Axes::Vertical)
@@ -183,7 +213,7 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
     );
 
     let article = grove.branch(
-        content,
+        column,
         Panel::new()
             .color(Palette::Raised)
             .rounding(Rounding::Lg)
@@ -192,14 +222,32 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
                 // The ceiling is on the resolved extent, which is a different statement from the
                 // width the layout offered -- so this stays one declaration at every breakpoint.
                 center_x(50.pct()).width(100.pct()).at_most(MEASURE.px()),
-                top(1.row()).bottom(2.row()),
+                // As tall as what is grown inside it, plus the gutter it is inset by. The width is
+                // decided above and the height falls out of it, which is the whole of width-down and
+                // height-up said in one placement.
+                top(1.row()).height(content() + GUTTER.px()),
+            )),
+    );
+
+    // The prose the article is measured from. It wraps at whatever width the column ended up
+    // offering, and how many lines that takes is what the article's height turns out to be -- so a
+    // resize, a breakpoint or a rewritten string all move the card and everything anchored below it.
+    let prose = grove.branch(
+        article,
+        Text::new(PROSE[0])
+            .color(Palette::Ink)
+            .font_size(FontSize::new().xs(14).lg(16))
+            .pass_through()
+            .at(Location::new().xs(
+                left(GUTTER.px()).right(100.pct() - GUTTER.px()),
+                top(GUTTER.px()).height(content()),
             )),
     );
 
     // The slider. The knob is what takes drags along the track; a drag down it is not the knob's,
     // and reaches the column instead without either of them being told about the other.
     let track = grove.branch(
-        content,
+        column,
         Panel::new()
             .color(Palette::Muted)
             .rounding(Rounding::Full)
@@ -228,7 +276,7 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
     let mut above = track;
     for _ in 0..CARDS {
         above = grove.branch(
-            content,
+            column,
             Panel::new()
                 .color(Palette::Raised)
                 .rounding(Rounding::Sm)
@@ -261,6 +309,7 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
         page,
         entries,
         marker,
+        prose,
         notice,
         opener,
         cards,
@@ -333,6 +382,20 @@ fn drawer(grove: &mut Grove) -> Drawer {
             )),
     );
 
+    for (button, word) in [(advance, "next"), (close, "close")] {
+        grove.branch(
+            button,
+            Text::new(word)
+                .color(Palette::Ink)
+                .font_size(FontSize::new().xs(14))
+                .pass_through()
+                .at(Location::new().xs(
+                    center_x(50.pct()).width(content()),
+                    center_y(50.pct()).height(content()),
+                )),
+        );
+    }
+
     Drawer {
         sheet,
         fields,
@@ -391,6 +454,11 @@ pub(crate) fn knob_at(travelled: f32) -> Location {
 /// How far the knob can travel along a track of this width.
 pub(crate) fn knob_room(track: f32) -> f32 {
     (track - KNOB).max(0.0)
+}
+
+/// What the article says about section `n`.
+pub(crate) fn prose(n: usize) -> &'static str {
+    PROSE[n.min(PROSE.len() - 1)]
 }
 
 /// The rounding for entry `n` of the rail: the first and last round outward, the rest stay square.

@@ -16,8 +16,11 @@
 //! - A gesture goes to the top of the box stack: [`interactive`](Place::interactive) says who
 //!   receives one, [`pass_through`](Place::pass_through) says who is never the top, and
 //!   [`Drag`] is what one reports while it is held.
+//! - [`Text`] is a run of monospaced glyphs, [`Font`] names one an app registered and [`FontSize`]
+//!   says how large it is; [`content()`] is a box measured rather than declared.
 //! - [`Motion`] is what can be animated and [`Timing`] how long it takes; [`Ease`] is the shape it
-//!   moves in, and [`Tween`] names a value the engine only reports.
+//!   moves in, [`Tween`] names a value the engine only reports, and [`Sequence`] names a group of
+//!   them arriving.
 
 mod ash;
 mod aspen;
@@ -47,6 +50,7 @@ mod rounding;
 mod rowan;
 mod seed;
 mod stem;
+mod text;
 mod tree;
 mod vein;
 mod verbs;
@@ -56,7 +60,7 @@ mod willow;
 #[cfg(test)]
 mod tests;
 
-pub use aspen::{Ease, Motion, Timing, Tween};
+pub use aspen::{Ease, Motion, Sequence, Timing, Tween};
 pub use color::Color;
 pub use coordinate::{Area, Axes, Position, Section};
 pub use elevation::Elevation;
@@ -83,5 +87,6 @@ pub use root::Root;
 pub use rounding::{Corner, Corners, Rounding, Side};
 pub use seed::Seed;
 pub use stem::Stem;
+pub use text::{Font, FontSize, Text};
 pub use vein::{Sap, Vein};
 pub use verbs::Grow;

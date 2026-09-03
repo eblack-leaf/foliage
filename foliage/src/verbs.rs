@@ -1,4 +1,4 @@
-use crate::aspen::{Motion, Timing, Tween};
+use crate::aspen::{Motion, Sequence, Timing, Tween};
 use crate::elevation::Elevation;
 use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
@@ -17,6 +17,7 @@ pub(crate) trait Queues {
     fn queue(&mut self, op: Op);
     fn allocate(&self) -> (Leaf, Growth);
     fn name(&self) -> Tween;
+    fn group(&self) -> Sequence;
 }
 
 /// Everything an app can ask the engine to do.
@@ -105,6 +106,21 @@ pub trait Grow: Queues {
         self.queue(Op::Recolor {
             leaf,
             fill: fill.into(),
+        });
+    }
+
+    /// Rewrites what a run of glyphs says.
+    ///
+    /// The measure follows in the same frame: R1 shapes what is written here and R2m wraps it, both
+    /// of them before anything reads a box, so an element sized to its own content is the right size
+    /// on the frame the string changed rather than the frame after.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is not a
+    /// [`Text`](crate::Text).
+    fn text(&mut self, leaf: Leaf, value: impl Into<String>) {
+        self.queue(Op::Letter {
+            leaf,
+            value: value.into(),
         });
     }
 
@@ -217,6 +233,36 @@ pub trait Grow: Queues {
     /// advanced at 5, and reported at step 3 of the frame after. Honest rather than special-cased.
     fn timer(&mut self, timing: Timing) -> Tween {
         self.tween(0.0, 1.0, timing)
+    }
+
+    /// Names a group of tweens, so their *last* ending is reported as well as each of their own.
+    ///
+    /// A handle and nothing else. Anything that runs on the clock joins one with
+    /// [`Timing::within`](crate::Timing::within), from any callsite and at any frame, which is the
+    /// whole point: a sequence exists to time together things that have no reason to be written
+    /// together, and one that had to be declared in a single call would not be able to.
+    ///
+    /// ```no_run
+    /// # use foliage::{Ease, Grow, Grove, Motion, Palette, Timing};
+    /// # fn f(grove: &mut Grove, first: foliage::Leaf, second: foliage::Leaf) {
+    /// let intro = grove.sequence();
+    /// grove.animate(first, Motion::Opacity(1.0), Timing::ms(200).within(intro));
+    /// grove.animate(
+    ///     second,
+    ///     Motion::Palette(Palette::Accent),
+    ///     Timing::ms(200).after(80).ease(Ease::Decelerate).within(intro),
+    /// );
+    /// # }
+    /// ```
+    ///
+    /// The offsets stay on each tween, where [`after`](crate::Timing::after) already puts them: a
+    /// group says *when it is over*, not when its members start, so there is one place a delay is
+    /// stated rather than two that can disagree.
+    ///
+    /// Reported as [`sequence_finished`](crate::Pollen::sequence_finished) the frame nothing is
+    /// running under it any more. A name that has emptied can be filled again.
+    fn sequence(&mut self) -> Sequence {
+        self.group()
     }
 
     /// Ends a channel or a timer before it has run out.

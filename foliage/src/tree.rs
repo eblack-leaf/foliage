@@ -7,7 +7,7 @@ use bevy_ecs::world::World;
 
 use crate::coordinate::{Area, Axes, Position, Section};
 use crate::elevation::{Elevation, ResolvedElevation};
-use crate::elm::{Chlorophyll, PanelPigment};
+use crate::elm::{Chlorophyll, PanelPigment, Pigment};
 use crate::interaction::Gestures;
 use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
 use crate::lifecycle::{Disabled, Inherited, Opacity, Visible};
@@ -17,7 +17,9 @@ use crate::place::{Anchored, Caller, Focusing};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::rounding::Corners;
-use crate::rowan::{Drawn, Placed};
+use crate::rowan::{Cell, Drawn, Intrinsic, Placed};
+use crate::text::font::Typeface;
+use crate::text::{Lettering, TextPigment};
 use crate::view::{Clipped, Extent, Offset, Scrolls};
 
 /// The tree itself, seen from the inside.
@@ -89,6 +91,10 @@ impl Tree {
             ResolvedElevation::default(),
             Placed::default(),
             Drawn::default(),
+            // What R1 and R2m write. Present on every element, so no measuring pass has to ask
+            // whether the element is the kind of thing that has one.
+            Cell::default(),
+            Intrinsic::default(),
         ));
         // Everything an element declares about how it behaves, and the values the passes that read
         // those declarations write back. Each is present on every element, so no pass has to ask
@@ -108,8 +114,20 @@ impl Tree {
         if let Some(scrolls) = manner.scrolls {
             entity.insert(scrolls);
         }
-        if let Some(pigment) = bud.pigment {
-            entity.insert(pigment);
+        match bud.pigment {
+            Some(Pigment::Panel(pigment)) => {
+                entity.insert(pigment);
+            }
+            Some(Pigment::Text(pigment)) => {
+                entity.insert(pigment);
+            }
+            None => {}
+        }
+        if let Some(lettering) = bud.lettering {
+            entity.insert(lettering);
+        }
+        if let Some(typeface) = bud.placement.typeface {
+            entity.insert(typeface);
         }
         if let Some(anchored) = bud.placement.anchor {
             entity.insert(anchored);
@@ -188,23 +206,63 @@ impl Tree {
         self.world.get_entity(leaf.0).ok()?.get::<Grid>().copied()
     }
 
-    /// The character cell of `leaf`'s own font, at its own size.
+    /// The character cell of `leaf`'s own font, at its own size, as R1 measured it.
     ///
     /// Per element rather than per engine: an app registers as many fonts as it likes and each
     /// element chooses, so `8.letters()` is eight cells of *that* element's font. An element that
     /// has not been given one has no cell.
-    pub(crate) fn cell(&self, _leaf: Leaf) -> Area {
-        // Fonts and their metrics land with text.
-        Area::default()
+    pub(crate) fn cell(&self, leaf: Leaf) -> Area {
+        self.read::<Cell>(leaf).unwrap_or_default().0
     }
 
     /// What `leaf` measured to: max-content across, and the height it wrapped to down.
     ///
-    /// What [`content()`](crate::content) reads, of the element itself or of one it names. An
-    /// element with nothing in it measures to zero.
-    pub(crate) fn intrinsic(&self, _leaf: Leaf) -> Area {
-        // Measuring lands with text.
-        Area::default()
+    /// What [`content()`](crate::content) reads, of the element itself or of one it names. R1 writes
+    /// the width and R2m the height, which is the whole of width-down and height-up. An element with
+    /// nothing in it measures to zero.
+    pub(crate) fn intrinsic(&self, leaf: Leaf) -> Area {
+        self.read::<Intrinsic>(leaf).unwrap_or_default().0
+    }
+
+    pub(crate) fn set_cell(&mut self, leaf: Leaf, cell: Area) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(Cell(cell));
+        }
+    }
+
+    pub(crate) fn set_intrinsic(&mut self, leaf: Leaf, intrinsic: Area) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(Intrinsic(intrinsic));
+        }
+    }
+
+    /// Which font `leaf` composes in and at what size, or `None` if it was never given one.
+    pub(crate) fn typeface(&self, leaf: Leaf) -> Option<Typeface> {
+        self.read::<Typeface>(leaf)
+    }
+
+    /// What `leaf` says, if it is a run of glyphs.
+    pub(crate) fn lettering(&self, leaf: Leaf) -> Option<&str> {
+        Some(
+            self.world
+                .get_entity(leaf.0)
+                .ok()?
+                .get::<Lettering>()?
+                .0
+                .as_str(),
+        )
+    }
+
+    /// Rewrites what `leaf` says, reporting whether it is something with a run to write.
+    pub(crate) fn set_lettering(&mut self, leaf: Leaf, value: String) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut lettering) = entity.get_mut::<Lettering>() else {
+            return false;
+        };
+        lettering.0 = value;
+        true
     }
 
     /// The element `leaf`'s placement may read, if it has been given one.
@@ -301,31 +359,50 @@ impl Tree {
         }
     }
 
-    /// What the panel renderer on `leaf` was told, or `None` if it draws nothing.
-    pub(crate) fn pigment(&self, leaf: Leaf) -> Option<PanelPigment> {
+    /// What the panel renderer on `leaf` was told, or `None` if `leaf` is not a panel.
+    pub(crate) fn panel_pigment(&self, leaf: Leaf) -> Option<PanelPigment> {
         self.read::<PanelPigment>(leaf)
+    }
+
+    /// What `leaf` is filled with, whichever renderer holds the fill, or `None` if it has none.
+    ///
+    /// One question across the renderers, because a fill is one property: the same
+    /// [`color`](crate::Grow::color) refills a panel and a run, and the same motion moves either.
+    pub(crate) fn fill(&self, leaf: Leaf) -> Option<Fill> {
+        if let Some(pigment) = self.read::<PanelPigment>(leaf) {
+            return Some(pigment.fill);
+        }
+        Some(self.read::<TextPigment>(leaf)?.fill)
     }
 
     /// Refills `leaf`, reporting whether it is something with a fill to write.
     pub(crate) fn set_fill(&mut self, leaf: Leaf, fill: Fill) -> bool {
-        self.pigment_mut(leaf, |pigment| pigment.fill = fill)
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        if let Some(mut pigment) = entity.get_mut::<PanelPigment>() {
+            pigment.fill = fill;
+            return true;
+        }
+        if let Some(mut pigment) = entity.get_mut::<TextPigment>() {
+            pigment.fill = fill;
+            return true;
+        }
+        false
     }
 
     /// Rounds `leaf`'s corners, reporting whether it is something with corners to round.
+    ///
+    /// Panels only: a run of glyphs has no box of its own to round, and an op naming one is dropped
+    /// like any other that named something it does not apply to.
     pub(crate) fn set_rounding(&mut self, leaf: Leaf, rounding: Corners) -> bool {
-        self.pigment_mut(leaf, |pigment| pigment.rounding = rounding)
-    }
-
-    /// An element that draws nothing has no pigment, so there is nothing to write and the op that
-    /// asked is dropped like any other that named something it does not apply to.
-    fn pigment_mut(&mut self, leaf: Leaf, write: impl FnOnce(&mut PanelPigment)) -> bool {
         let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
             return false;
         };
         let Some(mut pigment) = entity.get_mut::<PanelPigment>() else {
             return false;
         };
-        write(&mut pigment);
+        pigment.rounding = rounding;
         true
     }
 

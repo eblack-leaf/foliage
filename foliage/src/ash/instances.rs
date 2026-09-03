@@ -7,7 +7,7 @@ use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferSlice, BufferUsages, D
 
 use crate::coordinate::Section;
 use crate::elevation::ResolvedElevation;
-use crate::leaf::Leaf;
+use crate::elm::Key;
 
 /// One renderer's instance buffers, kept in rank order.
 ///
@@ -29,7 +29,7 @@ use crate::leaf::Leaf;
 /// walk of the whole stack meets them in slot order, and reports the rank and clip of each so that
 /// walk has something to sort and cut on.
 pub(crate) struct Instances<I: Pod> {
-    held: HashMap<Leaf, Held<I>>,
+    held: HashMap<Key, Held<I>>,
     /// The renderer's data, in slot order.
     data: Vec<I>,
     /// One depth per slot, written by `Ash` from the whole stack's order.
@@ -87,12 +87,12 @@ impl<I: Pod> Instances<I> {
     /// not costs the stack being cut again, and no upload at all.
     pub(crate) fn write(
         &mut self,
-        leaf: Leaf,
+        key: Key,
         rank: ResolvedElevation,
         clip: Section,
         instance: I,
     ) {
-        match self.held.get_mut(&leaf) {
+        match self.held.get_mut(&key) {
             Some(held) => {
                 held.instance = instance;
                 let recut = held.clip != clip;
@@ -112,7 +112,7 @@ impl<I: Pod> Instances<I> {
             }
             None => {
                 self.held.insert(
-                    leaf,
+                    key,
                     Held {
                         instance,
                         rank,
@@ -126,8 +126,8 @@ impl<I: Pod> Instances<I> {
     }
 
     /// Drops one instance from what is held.
-    pub(crate) fn withdraw(&mut self, leaf: Leaf) {
-        if self.held.remove(&leaf).is_some() {
+    pub(crate) fn withdraw(&mut self, key: Key) {
+        if self.held.remove(&key).is_some() {
             self.resort = true;
         }
     }
@@ -163,7 +163,7 @@ impl<I: Pod> Instances<I> {
         let mut order = self
             .held
             .iter()
-            .map(|(leaf, held)| (held.rank, *leaf))
+            .map(|(key, held)| (held.rank, *key))
             .collect::<Vec<_>>();
         // A rank orders back to front and is total -- its allocation counter separates two elements
         // that accumulated to the same elevation -- so this is one sort with no tie left in it, and
@@ -175,8 +175,8 @@ impl<I: Pod> Instances<I> {
         self.clips.clear();
         self.depths.clear();
         self.depths.resize(total, 0.0);
-        for (slot, (rank, leaf)) in order.into_iter().enumerate() {
-            let held = self.held.get_mut(&leaf).expect("held");
+        for (slot, (rank, key)) in order.into_iter().enumerate() {
+            let held = self.held.get_mut(&key).expect("held");
             held.slot = slot as u32;
             self.data.push(held.instance);
             self.ranks.push(rank);

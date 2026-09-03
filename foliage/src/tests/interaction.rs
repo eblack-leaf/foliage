@@ -6,6 +6,7 @@
 //! else.
 
 use crate::coordinate::{Area, Axes, Position, Section};
+use crate::elm::Key;
 use crate::tests::{
     Observer, cancel, drag, grove, press, release, section, tick, tick_with, wheel,
 };
@@ -33,7 +34,7 @@ fn clip(grove: &Grove, leaf: Leaf) -> Section {
         .panels
         .written
         .iter()
-        .find(|written| written.leaf == leaf)
+        .find(|written| written.key == Key::from(leaf))
         .expect("the element was written this frame")
         .clip
 }

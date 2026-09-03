@@ -1,6 +1,6 @@
 use core::time::Duration;
 
-use crate::aspen::{Aspen, Tween};
+use crate::aspen::{Aspen, Sequence, Tween};
 use crate::clock::Clock;
 use crate::coordinate::Area;
 use crate::elm::Elm;
@@ -14,6 +14,8 @@ use crate::op::Op;
 use crate::palette::Scheme;
 use crate::pollen::Drift;
 use crate::queue::Queue;
+use crate::text::font::Fonts;
+use crate::text::shape::Shaping;
 use crate::tree::Tree;
 use crate::vein::{Sap, Vein};
 use crate::verbs::Queues;
@@ -26,6 +28,10 @@ pub struct Grove {
     pub(crate) clock: Clock,
     /// Every tween that is running, and the names the channels are drawn from.
     pub(crate) aspen: Aspen,
+    /// Every registered font. Read by R1 alone, which is the only pass that asks a font anything.
+    pub(crate) fonts: Fonts,
+    /// The one thing kept between frames: every run that has been shaped.
+    pub(crate) shaping: Shaping,
     pub(crate) drift: Drift,
     pub(crate) viewport: Area,
     pub(crate) pending_resize: Option<Area>,
@@ -51,6 +57,8 @@ impl Grove {
             queue: Queue::default(),
             clock: Clock::new(),
             aspen: Aspen::default(),
+            fonts: Fonts::new(),
+            shaping: Shaping::default(),
             drift: Drift::default(),
             viewport,
             pending_resize: None,
@@ -84,8 +92,9 @@ impl Grove {
             Vein::Drawn => Sap::Section(self.tree.drawn(leaf)),
             Vein::Anchor => Sap::Leaf(self.tree.anchor(leaf)),
             Vein::Elevation => Sap::Elevation(self.tree.elevation(leaf)),
-            Vein::Color => Sap::Color(self.tree.pigment(leaf)?.fill),
-            Vein::Rounding => Sap::Rounding(self.tree.pigment(leaf)?.rounding),
+            Vein::Color => Sap::Color(self.tree.fill(leaf)?),
+            Vein::Rounding => Sap::Rounding(self.tree.panel_pigment(leaf)?.rounding),
+            Vein::Text => Sap::Text(self.tree.lettering(leaf)?.to_string()),
             Vein::Visible => Sap::Visible(self.tree.visible(leaf).0),
             Vein::Opacity => Sap::Opacity(self.tree.opacity(leaf).0),
             Vein::Disabled => Sap::Disabled(self.tree.disabled(leaf).0),
@@ -155,5 +164,9 @@ impl Queues for Grove {
 
     fn name(&self) -> Tween {
         self.aspen.name()
+    }
+
+    fn group(&self) -> Sequence {
+        self.aspen.group()
     }
 }

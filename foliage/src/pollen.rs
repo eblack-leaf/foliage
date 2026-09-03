@@ -1,4 +1,4 @@
-use crate::aspen::Tween;
+use crate::aspen::{Sequence, Tween};
 use crate::coordinate::{Area, Position};
 use crate::interaction::Drag;
 use crate::leaf::Leaf;
@@ -92,6 +92,18 @@ impl Pollen {
         self.0.finished.contains(&tween)
     }
 
+    /// Whether the last tween running under a [`Sequence`](crate::Sequence) ended this frame.
+    ///
+    /// The group's own arrival, as against each member's. Keyed on the sequence rather than on a
+    /// [`Leaf`], because a group is not about an element -- its whole purpose is to time things
+    /// together that have nothing else in common.
+    ///
+    /// However the members ended: landed, cancelled by a direct write, or taken down with their
+    /// element. A group being over is one fact and gets one report.
+    pub fn sequence_finished(&self, sequence: Sequence) -> bool {
+        self.0.sequences.contains(&sequence)
+    }
+
     /// Whether `leaf` took focus.
     pub fn focused(&self, leaf: Leaf) -> bool {
         self.0.focused.contains(&leaf)
@@ -131,6 +143,7 @@ pub(crate) struct Drift {
     pub(crate) landed: HashSet<Leaf>,
     pub(crate) tweens: HashMap<Tween, f32>,
     pub(crate) finished: HashSet<Tween>,
+    pub(crate) sequences: HashSet<Sequence>,
 }
 
 impl Drift {
