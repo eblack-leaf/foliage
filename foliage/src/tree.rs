@@ -5,7 +5,7 @@ use bevy_ecs::entity::RemoteAllocator;
 use bevy_ecs::hierarchy::{ChildOf, Children};
 use bevy_ecs::world::World;
 
-use crate::coordinate::{Area, Axes, Position, Section};
+use crate::coordinate::{Area, Position, Section};
 use crate::elevation::{Elevation, ResolvedElevation};
 use crate::elm::{Chlorophyll, PanelPigment, Pigment};
 use crate::interaction::Gestures;
@@ -20,7 +20,7 @@ use crate::rounding::Corners;
 use crate::rowan::{Cell, Drawn, Intrinsic, Placed};
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment};
-use crate::view::{Clipped, Extent, Offset, Scrolls};
+use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrolls};
 
 /// The tree itself, seen from the inside.
 ///
@@ -113,6 +113,14 @@ impl Tree {
         ));
         if let Some(scrolls) = manner.scrolls {
             entity.insert(scrolls);
+        }
+        // Absent unless declared: an element that travels with its region's content and is clipped
+        // by it is the ordinary case, and neither is a value to hold.
+        if manner.pinned {
+            entity.insert(Pinned);
+        }
+        if let Some(escape) = manner.floats {
+            entity.insert(Floats(escape));
         }
         match bud.pigment {
             Some(Pigment::Panel(pigment)) => {
@@ -275,6 +283,21 @@ impl Tree {
         Some(self.world.get_entity(leaf.0).ok()?.get::<SpawnedAt>()?.0)
     }
 
+    /// Whether `leaf` is grown somewhere under `trunk`, however deep.
+    ///
+    /// What [`ScrollTo::show`](crate::ScrollTo::show) is asked, because bringing an element into
+    /// view means nothing unless the region is what it is inside.
+    pub(crate) fn grown_under(&self, leaf: Leaf, trunk: Leaf) -> bool {
+        let mut step = self.trunk(leaf);
+        while let Some(above) = step {
+            if above == trunk {
+                return true;
+            }
+            step = self.trunk(above);
+        }
+        false
+    }
+
     /// Whether `from` reaches `target` by following anchors.
     ///
     /// Bounded by construction: an anchor is refused if it would close a cycle, so the chain this
@@ -411,9 +434,20 @@ impl Tree {
         self.read::<Gestures>(leaf).unwrap_or_default()
     }
 
-    /// Which axes `leaf` scrolls, or `None` if it does not scroll.
-    pub(crate) fn scrolls(&self, leaf: Leaf) -> Option<Axes> {
+    /// What `leaf` declared about scrolling, or `None` if it does not scroll.
+    pub(crate) fn scrolls(&self, leaf: Leaf) -> Option<Scroll> {
         Some(self.read::<Scrolls>(leaf)?.0)
+    }
+
+    /// Whether `leaf` stays put while its region's content slides under it.
+    pub(crate) fn pinned(&self, leaf: Leaf) -> bool {
+        self.read::<Pinned>(leaf).is_some()
+    }
+
+    /// How far `leaf` floats out of the regions above it, or `None` if it sits in its region like
+    /// anything else.
+    pub(crate) fn floats(&self, leaf: Leaf) -> Option<Escape> {
+        Some(self.read::<Floats>(leaf)?.0)
     }
 
     /// Where `leaf` was told to sit in focus order, relative to the elements around it.

@@ -35,11 +35,12 @@ use bevy_ecs::component::Component;
 use tracing::field::Empty;
 use tracing::{debug, trace_span};
 
+use crate::aspen::Property;
 use crate::coordinate::{Axes, Axis, Position};
 use crate::grove::Grove;
 use crate::interaction::input::Input;
 use crate::leaf::Leaf;
-use crate::view::{consumable, range};
+use crate::view::{self, consumable, range};
 
 /// What an element declared about gestures.
 ///
@@ -151,6 +152,12 @@ pub(crate) struct Gesture {
     /// gesture lands is where it looks for a region, whatever it passes over afterwards.
     chain: Vec<Leaf>,
     held: Held,
+    /// How far the gesture moved during this frame, reset at the top of every dispatch.
+    ///
+    /// One frame's worth, because a release velocity is a speed and a speed needs an interval. It
+    /// is the movement that was actually *applied*, so the travel spent claiming the gesture is out
+    /// of it here for the same reason it is out of every `delta`.
+    travelled: Position,
 }
 
 /// Who is holding the gesture.
@@ -171,6 +178,11 @@ pub(crate) fn dispatch(grove: &mut Grove) {
     let _entered = step.enter();
     let pending = core::mem::take(&mut grove.pointer.pending);
     step.record("inputs", pending.len());
+    // A frame's worth of movement is what a release velocity is measured over, so the count starts
+    // again here whether or not anything arrives.
+    if let Some(gesture) = grove.pointer.gesture.as_mut() {
+        gesture.travelled = Position::default();
+    }
     for input in pending {
         match input {
             Input::Pressed(at) => pressed(grove, at),
@@ -193,6 +205,7 @@ fn pressed(grove: &mut Grove, at: Position) {
         target: None,
         chain: Vec::new(),
         held: Held::Resolving,
+        travelled: Position::default(),
     };
     if let Some(region) = grove.stack.top(at) {
         if region.disabled {
@@ -206,6 +219,11 @@ fn pressed(grove: &mut Grove, at: Position) {
                 debug!(leaf = region.leaf.id(), "engaged");
             }
             gesture.chain = chain(grove, region.leaf);
+            // Taking hold of something still coasting stops it where the hand met it. A coast is
+            // the reader's own last gesture carrying on, so catching it is how it is meant to end.
+            for &region in &gesture.chain {
+                grove.coasting.stop(region);
+            }
         }
     }
     grove.pointer.gesture = Some(gesture);
@@ -227,6 +245,7 @@ fn moved(grove: &mut Grove, to: Position) {
             }
         }
     }
+    gesture.travelled = gesture.travelled.moved(delta);
     apply(grove, &mut gesture, delta);
     grove.pointer.gesture = Some(gesture);
 }
@@ -286,6 +305,14 @@ fn apply(grove: &mut Grove, gesture: &mut Gesture, delta: Position) {
             // Content moves against the pointer: dragging toward the near edge carries the content
             // that way, which is the region moving further into its own extent.
             let wanted = -delta.along(axis);
+            // A move that went nowhere on this axis is not a region declining to move: nothing was
+            // asked of it. Reading it as a refusal is what would hand the claim outward on the
+            // release itself, which re-delivers the last position and so always has a delta of
+            // zero -- and the region that ends up holding the gesture is the region that is handed
+            // the coast.
+            if wanted == 0.0 {
+                return;
+            }
             let mut index = index;
             loop {
                 if scroll(grove, gesture.chain[index], axis, wanted) != 0.0 {
@@ -294,7 +321,7 @@ fn apply(grove: &mut Grove, gesture: &mut Gesture, delta: Position) {
                 // This one can no longer consume, so it yields and the claim passes outward. The
                 // outermost region keeps it and moves nothing: a claim never travels back inward,
                 // or a drag would hand itself between regions every time it reversed.
-                match scrolling(grove, &gesture.chain, index + 1, axis) {
+                match outward(grove, &gesture.chain, index, axis) {
                     Some(outward) => {
                         debug!(
                             from = gesture.chain[index].id(),
@@ -311,11 +338,15 @@ fn apply(grove: &mut Grove, gesture: &mut Gesture, delta: Position) {
     }
 }
 
-/// Ends the open gesture, taking the tap it earned if it earned one.
+/// Ends the open gesture, taking the tap it earned if it earned one and handing on the speed it
+/// ended with.
 fn close(grove: &mut Grove, released: bool) {
     let Some(gesture) = grove.pointer.gesture.take() else {
         return;
     };
+    if released {
+        launch(grove, &gesture);
+    }
     let Some(target) = gesture.target else {
         return;
     };
@@ -326,6 +357,33 @@ fn close(grove: &mut Grove, released: bool) {
         debug!(leaf = target.id(), "tapped");
     }
     grove.drift.disengaged.insert(target);
+}
+
+/// Hands the region that was holding the gesture its release velocity, and stops there.
+///
+/// This is the whole of interaction's part in momentum. The decay, the clamp against the extent and
+/// whether reaching an end chains outward or absorbs are the region's, and are `views.md`'s.
+///
+/// Only a gesture a *region* was holding leaves one. A target that took the drag owns whatever it
+/// was doing with it and coasts it itself if it wants to; a gesture that ended still resolving is a
+/// tap and has no speed to speak of. A release in a frame nothing moved in leaves no speed either,
+/// which is what makes holding still before lifting stop the list rather than fling it.
+fn launch(grove: &mut Grove, gesture: &Gesture) {
+    let Held::Region { index, axis } = gesture.held else {
+        return;
+    };
+    let elapsed = grove.clock.delta().as_secs_f32();
+    if elapsed <= 0.0 {
+        return;
+    }
+    // Content moves against the pointer, so the offset's velocity is the pointer's reversed --
+    // the same sign the drag itself was applied with.
+    view::launch(
+        grove,
+        gesture.chain[index],
+        axis,
+        -gesture.travelled.along(axis) / elapsed,
+    );
 }
 
 /// A wheel notch: no gesture, no claim, no lifecycle. It moves what is under it, and it is over.
@@ -348,7 +406,7 @@ fn wheeled(grove: &mut Grove, at: Position, delta: Position) {
         if scroll(grove, chain[index], axis, wanted) != 0.0 {
             break;
         }
-        next = scrolling(grove, &chain, index + 1, axis);
+        next = outward(grove, &chain, index, axis);
     }
 }
 
@@ -357,7 +415,7 @@ fn wheeled(grove: &mut Grove, at: Position, delta: Position) {
 /// Targethood is not consulted. A drag anywhere inside a region must scroll it -- on touch that is
 /// the only way to scroll at all -- and that has to work on plain decoration, which asked for
 /// nothing. So scrolling is structural, and it is not the reason anything opts in.
-fn chain(grove: &Grove, from: Leaf) -> Vec<Leaf> {
+pub(crate) fn chain(grove: &Grove, from: Leaf) -> Vec<Leaf> {
     let mut chain = Vec::new();
     let mut step = Some(from);
     while let Some(leaf) = step {
@@ -379,9 +437,30 @@ fn scrolling(grove: &Grove, chain: &[Leaf], from: usize, axis: Axis) -> Option<u
             grove
                 .tree
                 .scrolls(*leaf)
-                .is_some_and(|axes| axes.covers(axis))
+                .is_some_and(|scroll| scroll.covers(axis))
                 .then_some(index)
         })
+}
+
+/// Where a gesture goes when the region at `index` can consume no more of it, or `None` where it
+/// stops there.
+///
+/// Chaining is the default and is what lets a drag inside a list keep moving the page once the list
+/// is done. A region that declared [`contain`](crate::Scroll::contain) on this axis owns its
+/// gesture outright and is where the walk ends -- reaching its bottom and having the whole page
+/// lurch is the bug the declaration exists to prevent.
+///
+/// The same question for a drag and for a coast, asked of the same region at the same place in its
+/// own extent, because there is only one answer to it.
+pub(crate) fn outward(grove: &Grove, chain: &[Leaf], index: usize, axis: Axis) -> Option<usize> {
+    if grove
+        .tree
+        .scrolls(chain[index])
+        .is_some_and(|scroll| scroll.absorbs(axis))
+    {
+        return None;
+    }
+    scrolling(grove, chain, index + 1, axis)
 }
 
 /// Moves a region by as much of `wanted` as it can still take, and reports how much that was.
@@ -392,10 +471,12 @@ fn scroll(grove: &mut Grove, leaf: Leaf, axis: Axis, wanted: f32) -> f32 {
     if taken == 0.0 {
         return 0.0;
     }
-    let moved = match axis {
-        Axis::Horizontal => Position::new(offset.x + taken, offset.y),
-        Axis::Vertical => Position::new(offset.x, offset.y + taken),
-    };
-    grove.tree.set_offset(leaf, moved);
+    // The region moved, which makes this a write to where it sits: it ends a coast still running on
+    // this axis, and cancels a motion moving the same region (F8). The reader wins over both.
+    grove.coasting.halt(leaf, axis);
+    if grove.aspen.cancel(leaf, Property::Scroll) {
+        debug!(leaf = leaf.id(), "tween cancelled");
+    }
+    grove.tree.set_offset(leaf, offset.set(axis, offset.along(axis) + taken));
     taken
 }

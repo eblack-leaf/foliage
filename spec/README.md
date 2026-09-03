@@ -485,8 +485,158 @@ Still owed by B6:
   fill a run already declares rather than beside it, and there is nothing to prove about them
   headlessly until there is something drawing them.
 
-Next: B7 — views and scrolling. `contain`, `pinned`, `.extent(..)`, `ScrollTo` and momentum, over the
-structure B4 already put under them.
+B7 has landed. `contain`, `pinned`, `floats`, `ScrollTo` and momentum, over the structure B4 put
+under them. Three hundred and twenty headless tests and thirteen compile-fail doctests.
+
+**The glyph pipeline waits for B8, and that is a decision rather than a deferral.** B7 is a
+resolution slice: extent, offsets, clips and a coast, every one of which is proven headlessly and
+none of which needs a glyph on screen. The pipeline is a *renderer*, and what it needs — the atlas,
+the per-renderer numbering behind the `u64` key, the spans the shared walk cuts — is what `Icon`,
+`Image`, `Polygon`, `Line` and `Polyline` need too. Building it for one and revisiting it for five
+is how a wrong shape survives. Per-character tints go with it, because there is nothing to prove
+about them until something draws them.
+
+### B7 — what is content
+
+`rowan.md` asked whether a child parked outside its parent grows the extent, and the answer is
+**yes, and that is not where the problem was**. On the axis a region declares, a child past its far
+edge and the tenth item of a list are the same picture, and no geometry separates them — so any rule
+excluding the far child excludes the list, which is the thing scrolling exists for.
+
+What was accidental was accidental for four other reasons, and all four are closed:
+
+| | before | now |
+|---|---|---|
+| a child reaching sideways out of a column that scrolls down | grew the extent | no extent is computed on an undeclared axis at all |
+| a child the app hid | counted, because culling wrote the same flag | out, and its subtree with it |
+| a child behind the content origin | created backward range | clamped at the near side |
+| **an overlay grown inside a region** | **grew the extent, and was sliced at the region's edge** | **`floats`** |
+
+The last of those is the one this slice found, and it was a hole in the spec rather than in the code.
+`lifecycle.md` sends the question of a dropdown inside a scrolling view to `views.md`, and `views.md`
+never answered it: the rewrite deleted the previous engine's `ClipToViewport` and put nothing in its
+place. So an overlay grown inside a region was cut off at the region's edge — measured, a
+hundred-and-twenty-pixel menu with twenty pixels of it left — *and* fed the region a stretch of
+scroll range leading to content drawn over it rather than in it.
+
+Those are one question. An overlay is not content of the thing it hangs off, and saying so once
+settles both:
+
+> **`pinned` escapes the movement. `floats` escapes the clip. Both leave the extent, because neither
+> is content.**
+
+An element that says nothing is content: clipped by its region and counted. That is what an inline
+expander wants — options that push into the flow and are scrolled down to — and it is the default
+because it is the one that needs no thought.
+
+**How far a float escapes is stated, not defaulted.** A menu on a row of a table with its own
+scrollbar inside a settings panel with another wants out of both; a tooltip on a file in a list
+inside a sidebar wants out of the list and not out of the sidebar. Nothing distinguishes them to the
+engine, so `Escape::Region`, `Escape::Surface` and `Escape::Within(leaf)` are three answers and the
+callsite picks. `Within` names an element rather than counting regions, because a count is a fact
+about the tree's current shape and would mean something else the moment a wrapper was added; naming
+something not above it falls back to `Region`, since a mistake is not permission to leave everything.
+Escape depth is about clipping alone — a region contributes its own box and never its content to
+whatever contains it, so an overlay out of its own region has no second one to be excluded from.
+
+### B7 — pinning
+
+`pinned` is one declaration because it answers one question, and R3 and R4 read the same bit. The
+rule R4 applies is the *nearest* scrolling ancestor: a pinned header inside an inner region still
+travels when the page under it moves, which is the only reading where pinning composes. That needs a
+second accumulation carried down beside the first — what a pinned child of each element would
+receive — and R5 now carries the matching one for `floats`. Both are three lines, because the answer
+at a region is the accumulation as it stood before that region's own contribution.
+
+Nothing under a pinned element needs marking. Offsets accumulate down the tree and a pinned element
+adds none, so its children cannot move independently of it. That is the accumulation doing its job,
+not a second rule about inheriting a mark.
+
+### B7 — chain, contain, and where a gesture goes
+
+`scrolls` takes an `impl Into<Scroll>`, so `.scrolls(Axes::Vertical)` is unchanged and
+`.scrolls(Scroll::new(Axes::Both).contain(Axes::Vertical))` is the other case. Two `Axes`-shaped
+declarations that could disagree about which axes are in play is the failure the per-axis split
+exists to avoid, and a boundary policy on an axis the region does not scroll describes nothing.
+
+Chain and contain are one function — `outward` — asked by a drag, a wheel notch and a coast alike,
+because there is one answer to where a gesture goes when a region can take no more of it.
+
+**`views.md` amended: `ScrollTo` names an axis only where its unit needs one.** Four of the five
+framings are stated against the region's own range — the end is the end of each axis, half way is
+half of each, `show` is one place in two dimensions — so they mean the same thing on either axis and
+need nothing said. `px` is the one absolute distance, and two hundred pixels down and two hundred
+across are unrelated distances that share a number: on a region scrolling both it names one with
+`.on(..)`, and an op that does not is dropped rather than moving two axes by a coincidence.
+
+**Every destination is answered in R4**, not where it was written. A `scroll` verb, a
+`Motion::Scroll` and a coast all need the extent, and the extent is R3's — one pass earlier in the
+same frame. So the verb records a destination and the pass answers it, which is what makes
+`scroll(column, ScrollTo::end())` land at the end of a list that grew in the same frame.
+
+The read surface a scrollbar needs is three veins and no state: `Vein::Offset` in the pixels it was
+written in, `Vein::Extent`, and the derived `Vein::Progress`. All three read `None` on anything that
+does not scroll — an element with no scrolling axis has no offset rather than one it can never
+leave. `Sap::Progress` is held apart from `Sap::Position` although it carries the same two numbers,
+so a read cannot quietly take a fraction for pixels.
+
+### B7 — motion and momentum
+
+**`Motion::Scroll` needed one line of `aspen.md`'s rule extended.** A region holds no *declaration*
+of where it is going, because an offset is a resolved value rather than a placement. So the motion
+carries both ends — a departed number of pixels and a live `ScrollTo` — and R4 applies the blend,
+re-resolving the target every frame like a placement's endpoints. Ending is then not quite a removal:
+the destination is written out as the ordinary one-shot on the frame the motion finishes, so it lands
+exactly and the frame after is identical. A drag cancels it through the existing cancel path with no
+special case, which is `aspen.md`'s claim under test.
+
+**A coast is not a tween**, and is held beside them rather than on elements. There is no target and
+no duration; it is an integration that runs until it settles. Interaction measures the release
+velocity over the frame the release landed in, hands it to the region holding the claim, and stops.
+A release in a frame nothing moved in leaves no speed, which is what makes holding still before
+lifting stop a list rather than fling it. The decay is continuous, so a fling covers the same ground
+at thirty frames a second as at a hundred and twenty, and it is stated as a **half-life** because
+that is the only form of it a person can read and predict. A coast is not charged the delta of the
+frame it starts in, for the same reason a tween is not: that delta is the interval the drag was
+still being made in. It is pending work under F9 in its own right, so frames run until it settles.
+
+### B7 — the defect momentum found
+
+A delta of **zero** was being read as a region declining to move, so the claim was handed outward —
+and a release re-delivers the last position, whose delta is always zero. Every gesture was ending one
+region further out than it was made in. Nothing depended on it until something did: the region
+holding the claim at the release is the region handed the coast, so a fling in an inner list coasted
+the page behind it. Nothing was asked of a region by a move that went nowhere, and nothing about who
+holds the gesture changes now.
+
+The B4 suite could not have caught it. No test asked *who holds the claim when a gesture ends*,
+because until momentum nothing read it: the three handoff tests never release, and the tests that do
+release have one region and nowhere outward to go. There is a test for it now.
+
+### B7 — deferred
+
+**`.extent(..)` is not in this slice.** `views.md` names it for virtualised content, and it is the
+one value in the whole engine that can contradict where the children actually are. There is no
+virtualised list yet, so there is nothing to prove it against and nothing that needs it — and a
+declared number that can disagree with the layout, with no consumer and no way back to derivation, is
+worse shipped than deferred. It comes back with the list that wants it, and with a verb that undoes
+it.
+
+`application/` scrolls in earnest. The reading column carries a pinned header the article slides
+under and a pinned scrollbar beside it — the thumb is grown under the track and does not move,
+because offsets accumulate and the track adds none. Its length and position are written from
+`Vein::Extent` and `Vein::Progress` and from nothing the app keeps, so a drag, a wheel notch, a coast
+and a `Motion::Scroll` all move it without any of them being known about; it is written when it
+changes rather than every frame, because an op queued every frame is a loop that never idles. Tapping
+a section of the rail runs the column to the matching card with `Motion::Scroll(ScrollTo::show(..))`,
+which knows neither how long the column is nor where the card sits, and which the reader cancels by
+taking hold of the column. The last card opens a menu that `floats` out of the column — drawn over
+what is below rather than cut off at the edge, and adding no scroll range leading down to it. A map
+sits at the foot of the column and `contain`s both axes, so panning it to an edge does not carry on
+into the column behind it.
+
+Next: B8 — the remaining renderers. `Icon`, `Image`, `Polygon`, `Line`, `Polyline`, and the glyph
+pipeline B6 left, which is why they arrive together.
 
 ## B4 §3, resolved
 

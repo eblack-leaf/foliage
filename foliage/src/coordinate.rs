@@ -40,6 +40,14 @@ impl Position {
             Axis::Vertical => self.y,
         }
     }
+
+    /// This point with one axis replaced.
+    pub(crate) fn set(self, axis: Axis, distance: f32) -> Self {
+        match axis {
+            Axis::Horizontal => Self::new(distance, self.y),
+            Axis::Vertical => Self::new(self.x, distance),
+        }
+    }
 }
 
 /// A width and a height, in logical pixels.
@@ -53,6 +61,14 @@ pub struct Area {
 impl Area {
     pub fn new(width: f32, height: f32) -> Self {
         Self { width, height }
+    }
+
+    /// The extent along one axis.
+    pub(crate) fn along(self, axis: Axis) -> f32 {
+        match axis {
+            Axis::Horizontal => self.width,
+            Axis::Vertical => self.height,
+        }
     }
 }
 
@@ -138,10 +154,15 @@ impl Section {
 ///
 /// The two are not interchangeable: the horizontal axis resolves first, so a horizontal length is
 /// available to a vertical role but never the reverse. See [`placement`](crate::placement).
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Axis {
     Horizontal,
     Vertical,
+}
+
+impl Axis {
+    /// Both axes, in resolution order.
+    pub(crate) const BOTH: [Axis; 2] = [Axis::Horizontal, Axis::Vertical];
 }
 
 /// Which axes a declaration covers.
@@ -162,6 +183,23 @@ impl Axes {
             Axes::Horizontal => axis == Axis::Horizontal,
             Axes::Vertical => axis == Axis::Vertical,
             Axes::Both => true,
+        }
+    }
+
+    /// Which axes these two both cover, or `None` where they share none.
+    ///
+    /// `None` rather than an empty variant, because there is no such thing as a declaration
+    /// covering neither axis: something that names no axis is not a narrower statement, it is the
+    /// absence of one.
+    pub(crate) fn shared(self, other: Axes) -> Option<Axes> {
+        match (
+            self.covers(Axis::Horizontal) && other.covers(Axis::Horizontal),
+            self.covers(Axis::Vertical) && other.covers(Axis::Vertical),
+        ) {
+            (true, true) => Some(Axes::Both),
+            (true, false) => Some(Axes::Horizontal),
+            (false, true) => Some(Axes::Vertical),
+            (false, false) => None,
         }
     }
 }

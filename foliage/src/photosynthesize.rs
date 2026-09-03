@@ -82,6 +82,10 @@ impl Foliage {
             || !self.grove.queue.is_empty()
             || !self.grove.pointer.pending.is_empty()
             || !self.grove.aspen.idle()
+            // A coasting region is pending work in its own right: it is not a tween, and there is
+            // nothing on the app's side asking for the frames it needs. So frames keep running
+            // until it settles, and stop afterwards.
+            || !self.grove.coasting.idle()
             // Steps 4 through 7 emit into the drift and step 3 of the *next* frame is where an app
             // is handed it, so a report that has been made and not yet delivered owes the frame
             // that delivers it. Without this the loop could idle holding one.

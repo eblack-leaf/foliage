@@ -9,9 +9,9 @@
 //! nearest smaller one that was, and a chain that runs out fills the trunk.
 
 use foliage::{
-    Axes, Color, Corners, Divide, Elevation, FontSize, Grid, Grove, Grow, Leaf, Location, Palette,
-    Panel, Place, Rounding, Scheme, Side, Source, Stem, Text, anchor, bottom, center_x, center_y,
-    content, left, right, top,
+    Axes, Color, Corners, Divide, Elevation, Escape, FontSize, Grid, Grove, Grow, Leaf, Location,
+    Palette, Panel, Place, Rounding, Scheme, Scroll, Side, Source, Stem, Text, anchor, bottom,
+    center_x, center_y, content, left, right, top,
 };
 
 /// The space between tracks, and the rhythm every other measurement is stated in.
@@ -34,6 +34,17 @@ const CARD: f32 = 72.0;
 
 /// How wide the knob is, and so how much of the track it cannot reach.
 const KNOB: f32 = 28.0;
+
+/// How tall the column's pinned header is.
+const HEADER: f32 = 32.0;
+
+/// How wide the column's scrollbar is, and how far in from its right edge it sits.
+const BAR: f32 = 4.0;
+const BAR_INSET: f32 = 8.0;
+
+/// The shortest the scrollbar's thumb is allowed to get, so a very long column still leaves
+/// something to see.
+const THUMB: f32 = 24.0;
 
 /// What the article says about each section of the rail. Rewritten as the reader moves, and of
 /// deliberately different lengths, because the point is that the box follows the words.
@@ -61,6 +72,12 @@ pub(crate) struct Shell {
     pub(crate) notice: Leaf,
     /// The round badge that opens the drawer.
     pub(crate) opener: Leaf,
+    /// The reading column, which is what scrolls.
+    pub(crate) column: Leaf,
+    /// The column's own scrollbar: a pinned track, and a thumb the app sizes from what it reads.
+    pub(crate) thumb: Leaf,
+    /// The menu the last card opens, which floats out of the column rather than sitting in it.
+    pub(crate) menu: Leaf,
     /// The cards in the scrolling column.
     pub(crate) cards: Vec<Leaf>,
     /// The slider: a track, and the knob that takes drags along it.
@@ -212,6 +229,57 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
             .grid(Grid::new().xs(1.columns(), 3.rows().gap(GUTTER))),
     );
 
+    // A header that stays at the top of the column while the reading slides under it. One
+    // declaration says both halves of that: it takes none of the column's offset, and it gives the
+    // column nothing to scroll to. Elevated, because what stays put has to be what is drawn over.
+    let header = grove.branch(
+        column,
+        Panel::new()
+            .color(Palette::Muted)
+            .rounding(Rounding::Sm)
+            .elevate(Elevation::up(3))
+            .pinned()
+            .at(Location::new().xs(
+                left(0.px()).right(100.pct()),
+                top(0.px()).height(HEADER.px()),
+            )),
+    );
+    grove.branch(
+        header,
+        Text::new("reading")
+            .color(Palette::Ink)
+            .font_size(FontSize::new().xs(13))
+            .pass_through()
+            .at(Location::new().xs(
+                left(GUTTER.px()).width(content()),
+                center_y(50.pct()).height(content()),
+            )),
+    );
+
+    // The scrollbar. Both parts are outside the movement -- the track says so, and the thumb
+    // inherits it by being grown under something that did, because a pinned element's children
+    // travel with the element and not with the content.
+    let bar = grove.branch(
+        column,
+        Panel::new()
+            .color(Palette::Muted)
+            .rounding(Rounding::Full)
+            .elevate(Elevation::up(3))
+            .pinned()
+            .at(Location::new().xs(
+                right(100.pct() - BAR_INSET.px()).width(BAR.px()),
+                top(HEADER.px() + GUTTER.px()).bottom(100.pct() - GUTTER.px()),
+            )),
+    );
+    let thumb = grove.branch(
+        bar,
+        Panel::new()
+            .color(Palette::Accent)
+            .rounding(Rounding::Full)
+            .pass_through()
+            .at(thumb_at(0.0, THUMB)),
+    );
+
     let article = grove.branch(
         column,
         Panel::new()
@@ -225,7 +293,10 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
                 // As tall as what is grown inside it, plus the gutter it is inset by. The width is
                 // decided above and the height falls out of it, which is the whole of width-down and
                 // height-up said in one placement.
-                top(1.row()).height(content() + GUTTER.px()),
+                //
+                // Below the header rather than under it, because the header is opaque: what slides
+                // under a pinned strip is the reading further down, and the top of it starts clear.
+                top(1.row() + (HEADER + GUTTER).px()).height(content() + GUTTER.px()),
             )),
     );
 
@@ -290,6 +361,54 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
         cards.push(above);
     }
 
+    // The menu the last card opens. Grown under the column and positioned by the card, which is
+    // what an anchor is for -- and it **floats**, which is the whole of what that costs it
+    // otherwise: without the mark the column would cut the options off at its own bottom edge, and
+    // would gain a stretch of scroll range leading to options that are drawn over the reading
+    // rather than sitting in it.
+    //
+    // Out of the column and no further, so it can never paint across the rail beside it.
+    let menu = grove.branch(
+        column,
+        Panel::new()
+            .color(Palette::Muted)
+            .rounding(Rounding::Sm)
+            .elevate(Elevation::up(6))
+            .floats(Escape::Region)
+            // Hidden until the card is tapped, which also keeps it out of the extent while it is
+            // away -- two different reasons for the same absence, and neither relies on the other.
+            .visible(false)
+            .anchored(above)
+            .at(Location::new().xs(
+                left(anchor().left()).width(anchor().width()),
+                top(anchor().bottom() + 4.px()).height(96.px()),
+            )),
+    );
+
+    // A map. It **contains** both axes: a drag that runs it to an edge stops there rather than
+    // carrying on into the column behind it, which is the difference between panning a map and
+    // losing your place on the page.
+    let pane = grove.branch(
+        column,
+        Stem::new()
+            .scrolls(Scroll::new(Axes::Both).contain(Axes::Both))
+            .anchored(above)
+            .at(Location::new().xs(
+                left(anchor().left()).width(anchor().width()),
+                top(anchor().bottom() + GUTTER.px()).height(120.px()),
+            )),
+    );
+    grove.branch(
+        pane,
+        Panel::new()
+            .color(Palette::Raised)
+            .rounding(Rounding::Sm)
+            .at(Location::new().xs(
+                left(0.px()).width(600.px()),
+                top(0.px()).height(320.px()),
+            )),
+    );
+
     let notice = grove.branch(
         page,
         Panel::new()
@@ -312,11 +431,35 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
         prose,
         notice,
         opener,
+        column,
+        thumb,
+        menu,
         cards,
         track,
         knob,
         drawer: drawer(grove),
     }
+}
+
+/// Where the scrollbar's thumb sits along its track, and how much of it there is.
+///
+/// Both are read off the column rather than kept: how far through its range it is, and how much of
+/// its content is on screen. foliage draws no scrollbar of its own, and this is why it does not
+/// need to -- the three readings a scrollbar is are all readable.
+pub(crate) fn thumb_at(travelled: f32, length: f32) -> Location {
+    Location::new().xs(
+        left(0.px()).right(100.pct()),
+        top(travelled.px()).height(length.px()),
+    )
+}
+
+/// How long the thumb is and how far down it sits, for a column `seen` tall whose content reaches
+/// `extent` and which is `progress` of the way through its range.
+pub(crate) fn thumb(seen: f32, extent: f32, progress: f32) -> (f32, f32) {
+    // The floor first and the track's own length after it, in that order: a column shorter than the
+    // floor has a thumb the length of the track rather than one longer than what holds it.
+    let length = (seen / extent.max(1.0) * seen).max(THUMB).min(seen);
+    (progress * (seen - length), length)
 }
 
 /// The drawer, planted at top level rather than under the page.

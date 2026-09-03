@@ -10,7 +10,8 @@ use crate::lifecycle::{Opacity, Visible};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::text::font::{Font, FontSize, Typeface};
-use crate::view::Scrolls;
+use crate::view::{Escape, Scroll, Scrolls};
+
 
 /// Where the caller was standing. Carried from the call that wrote a placement to the drain that
 /// applies it, so a refusal names the write rather than the pass that noticed it.
@@ -39,6 +40,11 @@ pub(crate) struct Placement {
 pub(crate) struct Manner {
     pub(crate) gestures: Gestures,
     pub(crate) scrolls: Option<Scrolls>,
+    /// Declared [`pinned`](Place::pinned): does not travel with its region's content.
+    pub(crate) pinned: bool,
+    /// Declared [`floats`](Place::floats): sits over its region rather than in it, and how far out
+    /// of the regions above it that reaches.
+    pub(crate) floats: Option<Escape>,
     pub(crate) focusing: Focusing,
     pub(crate) visible: Visible,
     pub(crate) opacity: Opacity,
@@ -198,9 +204,63 @@ pub trait Place: Places + Sized {
     /// not scroll and has no extent -- it is not a scrolling axis with a range of zero.
     ///
     /// A drag anywhere inside it scrolls it, whether or not what the drag landed on is a target,
-    /// and a region that can no longer move hands the drag outward to the next one containing it.
-    fn scrolls(mut self, axes: Axes) -> Self {
-        self.placement().manner.scrolls = Some(Scrolls(axes));
+    /// and a region that reaches its end hands the drag outward to the next one containing it --
+    /// unless it said it [`contain`](Scroll::contain)s that axis, which is the one knob.
+    ///
+    /// ```no_run
+    /// # use foliage::{Axes, Place, Scroll, Stem};
+    /// Stem::new().scrolls(Axes::Vertical);
+    /// Stem::new().scrolls(Scroll::new(Axes::Both).contain(Axes::Vertical));
+    /// ```
+    fn scrolls(mut self, scroll: impl Into<Scroll>) -> Self {
+        self.placement().manner.scrolls = Some(Scrolls(scroll.into()));
+        self
+    }
+
+    /// The element does not travel with its region's content.
+    ///
+    /// A header that stays at the top while content slides under it, a button pinned to a corner.
+    /// *Moving with the content* and *counting toward extent* are the same question, so this is one
+    /// declaration rather than two that could drift out of agreement: a pinned element receives no
+    /// offset from its nearest scrolling ancestor, and contributes nothing to that region's extent.
+    ///
+    /// It keeps its place in the tree, and with it the clipping, the opacity product and the
+    /// disable cascade that parenting it outside the view and anchoring back would have cost.
+    fn pinned(mut self) -> Self {
+        self.placement().manner.pinned = true;
+        self
+    }
+
+    /// The element sits over the region it is grown in rather than in it.
+    ///
+    /// A menu that opens past the edge of the list it belongs to, a tooltip beside a row. What an
+    /// [`anchor`](Place::anchored) buys is a position taken from one element while living under
+    /// another; without this, an element positioned *outside* its trunk is still cut off at the
+    /// trunk's edge, which is the whole point of having put it out there.
+    ///
+    /// Two consequences, from one declaration because they are one question: it is **not clipped**
+    /// by that region, and it **contributes nothing** to that region's extent. An overlay is not
+    /// content, so it neither hides behind the edge nor invents room to scroll to.
+    ///
+    /// It still travels with the region's content, which is what keeps a menu against the row that
+    /// opened it. That is the whole difference from [`pinned`](Place::pinned): this one escapes the
+    /// clip and keeps the movement, and that one escapes the movement and keeps the clip.
+    ///
+    /// How far the clip escape reaches is [`Escape`]'s, and is stated rather than defaulted because
+    /// no one answer is right everywhere. The extent half takes no such argument and needs none: a
+    /// region contributes its own box and never its content to whatever contains it, so there is no
+    /// second region for an overlay to be excluded from.
+    ///
+    /// ```no_run
+    /// # use foliage::{Escape, Leaf, Panel, Place};
+    /// # fn f(sheet: Leaf) {
+    /// Panel::new().floats(Escape::Region);        // out of the list it is in
+    /// Panel::new().floats(Escape::Surface);       // out of everything
+    /// Panel::new().floats(Escape::Within(sheet)); // out of everything up to the sheet
+    /// # }
+    /// ```
+    fn floats(mut self, escape: Escape) -> Self {
+        self.placement().manner.floats = Some(escape);
         self
     }
 

@@ -9,6 +9,7 @@ use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::rounding::Corners;
 use crate::text::Lettering;
+use crate::view::ScrollTo;
 
 /// One queued change.
 pub(crate) enum Op {
@@ -54,6 +55,12 @@ pub(crate) enum Op {
     Round {
         leaf: Leaf,
         rounding: Corners,
+    },
+    /// Moves a region. Recorded here and answered in R4, which is the one place that has both this
+    /// frame's extent and the offset it clamps.
+    Scroll {
+        leaf: Leaf,
+        to: ScrollTo,
     },
     Disable {
         leaf: Leaf,

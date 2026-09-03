@@ -15,6 +15,7 @@ mod root;
 mod rowan;
 mod text;
 mod tracing;
+mod views;
 
 use core::time::Duration;
 

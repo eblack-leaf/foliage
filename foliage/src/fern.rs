@@ -5,7 +5,7 @@
 
 use tracing::{debug, trace_span};
 
-use crate::aspen::{self, Property};
+use crate::aspen::{self, Motion, Property};
 use crate::elm;
 use crate::grove::Grove;
 use crate::interaction;
@@ -16,6 +16,7 @@ use crate::place::Caller;
 use crate::pollen::Pollen;
 use crate::root::Rooted;
 use crate::rowan;
+use crate::view::ScrollTo;
 
 /// One frame, steps 1 through 8. Drawing belongs to the caller.
 ///
@@ -117,6 +118,7 @@ fn drain(grove: &mut Grove) {
                 let gone = grove.tree.wither(leaf);
                 debug!(leaf = leaf.id(), withered = gone.len(), "pruned");
                 grove.aspen.wither(&gone);
+                grove.coasting.wither(&gone);
                 grove.drift.withered.extend(gone);
             }
             Op::Place { leaf, location } => {
@@ -191,6 +193,23 @@ fn drain(grove: &mut Grove) {
                     dropped("round", leaf, "draws nothing to round");
                 }
             }
+            Op::Scroll { leaf, to } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("scroll", leaf, "not live");
+                    continue;
+                }
+                if !reaches(grove, "scroll", leaf, &to) {
+                    continue;
+                }
+                // A direct write to where the region sits: it cancels a motion moving the same
+                // region, and ends the coast the reader's last release left running.
+                cancel(grove, "scroll", leaf, Property::Scroll);
+                grove.coasting.stop(leaf);
+                // Answered in R4, against the extent this frame's R3 measures rather than the one
+                // the last frame left.
+                grove.sought.push((leaf, to));
+                debug!(leaf = leaf.id(), "scrolling");
+            }
             Op::Disable { leaf, disabled } => {
                 if !grove.tree.is_live(leaf) {
                     dropped(
@@ -228,6 +247,13 @@ fn drain(grove: &mut Grove) {
                 if !grove.tree.is_live(leaf) {
                     dropped("animate", leaf, "not live");
                     continue;
+                }
+                // The one motion whose target is a statement about the element it names rather than
+                // a value, so it is checked the same way the verb writing it directly is.
+                if let Motion::Scroll(to) = &motion {
+                    if !reaches(grove, "animate", leaf, to) {
+                        continue;
+                    }
                 }
                 if aspen::animate(grove, leaf, motion, timing) {
                     debug!(leaf = leaf.id(), "animating");
@@ -297,6 +323,29 @@ fn refuse_cycle(grove: &Grove, leaf: Leaf, to: Leaf, at: Caller, planted: Option
         leaf = leaf.id(),
         to = to.id(),
     );
+}
+
+/// Whether a destination has anywhere to move `leaf`, naming the reason where it has not.
+///
+/// One check for both ways a destination is written -- the verb and the motion -- because both are
+/// the same statement about the same region, and a refusal belongs where the write was made rather
+/// than three passes later where the answer would simply be missing.
+fn reaches(grove: &Grove, verb: &'static str, leaf: Leaf, to: &ScrollTo) -> bool {
+    let Some(scroll) = grove.tree.scrolls(leaf) else {
+        dropped(verb, leaf, "does not scroll");
+        return false;
+    };
+    if to.over(scroll).is_none() {
+        dropped(verb, leaf, "no axis to move; name one with `on`");
+        return false;
+    }
+    match to.names() {
+        Some(shown) if !grove.tree.grown_under(shown, leaf) => {
+            dropped(verb, leaf, "shows an element not grown under it");
+            false
+        }
+        _ => true,
+    }
 }
 
 /// F8. A direct write cancels any motion on the property it writes.

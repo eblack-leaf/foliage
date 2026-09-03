@@ -8,6 +8,7 @@ use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::rounding::Corners;
 use crate::seed::Seed;
+use crate::view::ScrollTo;
 
 /// What an op sink has to be able to do: take an op, and hand out the names an op may need.
 ///
@@ -130,6 +131,31 @@ pub trait Grow: Queues {
             leaf,
             rounding: rounding.into(),
         });
+    }
+
+    /// Moves a scrolling region to a stated place.
+    ///
+    /// The destination is answered against the extent of the frame it lands in, so scrolling to the
+    /// end of a list that grew in the same frame lands at the end of the list rather than where the
+    /// list used to stop. It is clamped to what the region can reach, and reading the offset back
+    /// afterwards returns the pixels it settled at.
+    ///
+    /// ```no_run
+    /// # use foliage::{Grove, Grow, Leaf, ScrollTo};
+    /// # fn f(grove: &mut Grove, column: Leaf, section: Leaf) {
+    /// grove.scroll(column, ScrollTo::px(240.0));
+    /// grove.scroll(column, ScrollTo::show(section));
+    /// # }
+    /// ```
+    ///
+    /// A direct write, so it cancels a [`Motion::Scroll`](crate::Motion::Scroll) still moving the
+    /// region, and it ends a coast the reader's last drag left running.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element does not scroll,
+    /// if the destination leaves no axis to move, or if
+    /// [`ScrollTo::show`](ScrollTo::show) names an element not grown under it.
+    fn scroll(&mut self, leaf: Leaf, to: ScrollTo) {
+        self.queue(Op::Scroll { leaf, to });
     }
 
     /// Makes an element inert without taking it out of the picture.

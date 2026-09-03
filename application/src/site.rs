@@ -3,7 +3,8 @@
 use core::time::Duration;
 
 use foliage::{
-    Ease, Grove, Grow, Leaf, Motion, Palette, Pollen, Root, Sap, Sequence, Timing, Tween, Vein,
+    Ease, Grove, Grow, Leaf, Motion, Palette, Pollen, Root, Sap, ScrollTo, Sequence, Timing, Tween,
+    Vein,
 };
 
 use crate::shell::{self, Shell};
@@ -21,6 +22,9 @@ const FADE: u64 = 400;
 const OPENING: u64 = 260;
 const CLOSING: u64 = 220;
 
+/// How long the column takes to travel to a section the reader picked.
+const JUMP: u64 = 320;
+
 /// The site.
 ///
 /// Everything it keeps is a `Leaf`, a `Tween` and a little state of its own. Nothing here is handed
@@ -37,6 +41,12 @@ pub(crate) struct Site {
     touring: bool,
     /// How far the knob has been dragged along its track.
     travelled: f32,
+    /// Whether the last card's menu is open.
+    menu: bool,
+    /// Where the scrollbar's thumb was last put. Kept so the placement is written when it changes
+    /// and not on every frame -- an op queued every frame is a loop that never idles, and the
+    /// engine has no way to know this one would have been a no-op.
+    thumb: Option<(f32, f32)>,
     open: bool,
     /// Everything the drawer's last opening or closing set running, as one name. What the sheet is
     /// waiting on is the whole group rather than its own arrival: the ground moves on a channel the
@@ -76,6 +86,8 @@ impl Root for Site {
             selected: 0,
             touring: true,
             travelled: 0.0,
+            menu: false,
+            thumb: None,
             open: false,
             moving: None,
             dimming: None,
@@ -88,6 +100,7 @@ impl Root for Site {
         self.retire_notice(grove, &pollen);
         self.take_taps(grove, &pollen);
         self.slide(grove, &pollen);
+        self.mark_scroll(grove);
         self.mark_focus(grove, &pollen);
         self.settle_drawer(grove, &pollen);
         self.tour(grove);
@@ -104,6 +117,7 @@ impl Site {
             if pollen.clicked(self.shell.entries[entry]) {
                 self.touring = false;
                 self.select(grove, entry);
+                self.jump(grove, entry);
             }
         }
         if pollen.clicked(self.shell.opener) {
@@ -132,6 +146,13 @@ impl Site {
             if pollen.clicked(card) {
                 grove.animate(card, Motion::Palette(Palette::Accent), Timing::ms(160));
             }
+            // The last one opens a menu under itself. It hangs past the bottom of the column and
+            // is drawn over what is below rather than being cut off there, and the column gains no
+            // scroll range leading down to it -- both from the one mark on the menu.
+            if pollen.clicked(card) && card == self.shell.cards[self.shell.cards.len() - 1] {
+                self.menu = !self.menu;
+                grove.visible(self.shell.menu, self.menu);
+            }
             // A direct write, and it cancels whatever was still moving that fill. The card is at
             // what was written, with nothing left over to be reconciled -- so a fill being animated
             // in one place does not oblige every other place to animate it.
@@ -155,6 +176,29 @@ impl Site {
         self.travelled =
             (self.travelled + drag.delta.x).clamp(0.0, shell::knob_room(track.width()));
         grove.at(self.shell.knob, shell::knob_at(self.travelled));
+    }
+
+    /// Draws the scrollbar, because the engine does not.
+    ///
+    /// Three readings and no state: how far through its range the column is, how far its content
+    /// reaches, and how much of it is on screen. A drag, a wheel notch, a coast still running and a
+    /// `Motion::Scroll` all move the same one offset, so all four of them move the thumb without
+    /// any of them being known about here.
+    fn mark_scroll(&mut self, grove: &mut Grove) {
+        let column = self.shell.column;
+        let (Some(Sap::Section(seen)), Some(Sap::Area(extent)), Some(Sap::Progress(progress))) = (
+            grove.tap(column, Vein::Drawn),
+            grove.tap(column, Vein::Extent),
+            grove.tap(column, Vein::Progress),
+        ) else {
+            return;
+        };
+        let thumb = shell::thumb(seen.height(), extent.height, progress.y);
+        if self.thumb == Some(thumb) {
+            return;
+        }
+        self.thumb = Some(thumb);
+        grove.at(self.shell.thumb, shell::thumb_at(thumb.0, thumb.1));
     }
 
     /// Draws the focus, because the engine does not.
@@ -319,6 +363,27 @@ impl Site {
         // own placement is written once and never again -- what moves it is which element it is
         // reading, not what it says about itself.
         grove.anchor(self.shell.marker, self.shell.entries[entry]);
+    }
+
+    /// Runs the column to the card that goes with a section of the rail.
+    ///
+    /// A destination rather than a distance: the least movement that brings the card into view, and
+    /// no more -- so a card already on screen moves the column nowhere and one below it is brought
+    /// just to the bottom edge. Nothing here knows how long the column is or where the card sits,
+    /// and it stays right through a resize or a rewritten article because both ends are answered
+    /// again every frame.
+    ///
+    /// Taking hold of the column part way through cancels it, because a drag is a write. The reader
+    /// wins, and this app says nothing to make that happen.
+    fn jump(&mut self, grove: &mut Grove, entry: usize) {
+        let Some(&card) = self.shell.cards.get(entry) else {
+            return;
+        };
+        grove.animate(
+            self.shell.column,
+            Motion::Scroll(ScrollTo::show(card)),
+            Timing::ms(JUMP).ease(Ease::Emphasis),
+        );
     }
 
     /// Fades the notice out once it has been up long enough, takes it down once there is nothing

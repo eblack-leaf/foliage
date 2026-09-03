@@ -2,7 +2,7 @@ use core::time::Duration;
 
 use crate::aspen::{Aspen, Sequence, Tween};
 use crate::clock::Clock;
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Axis, Position};
 use crate::elm::Elm;
 use crate::interaction::Claim;
 use crate::interaction::focus::Focus;
@@ -19,6 +19,7 @@ use crate::text::shape::Shaping;
 use crate::tree::Tree;
 use crate::vein::{Sap, Vein};
 use crate::verbs::Queues;
+use crate::view::{Coasting, Momentum, ScrollTo, progress};
 
 /// The surface a frame plants into and reads from.
 pub struct Grove {
@@ -43,8 +44,14 @@ pub struct Grove {
     /// What the last frame drew, which is what a gesture is resolved against.
     pub(crate) stack: Stack,
     pub(crate) focus: Focus,
+    /// Every region still moving from a release, held beside the tree like the running tweens.
+    pub(crate) coasting: Coasting,
+    /// The destinations written this frame, waiting on the extent R3 measures. Drained at R4.
+    pub(crate) sought: Vec<(Leaf, ScrollTo)>,
     /// How far a gesture travels before it is claimed as a drag. Tuned at boot.
     pub(crate) claim: Claim,
+    /// How a released drag coasts. Tuned at boot.
+    pub(crate) momentum: Momentum,
     pub(crate) again: bool,
     pub(crate) frames: u64,
 }
@@ -68,7 +75,10 @@ impl Grove {
             pointer: Pointer::default(),
             stack: Stack::default(),
             focus: Focus::default(),
+            coasting: Coasting::default(),
+            sought: Vec::new(),
             claim: Claim::default(),
+            momentum: Momentum::default(),
             again: false,
             frames: 0,
         }
@@ -98,6 +108,26 @@ impl Grove {
             Vein::Visible => Sap::Visible(self.tree.visible(leaf).0),
             Vein::Opacity => Sap::Opacity(self.tree.opacity(leaf).0),
             Vein::Disabled => Sap::Disabled(self.tree.disabled(leaf).0),
+            // The three a region has and nothing else does. `None` where the element does not
+            // scroll, which is the reading that keeps "an axis that was not declared has no extent"
+            // true of the whole element as well as of one of its axes.
+            Vein::Offset => {
+                self.tree.scrolls(leaf)?;
+                Sap::Position(self.tree.offset(leaf))
+            }
+            Vein::Extent => {
+                self.tree.scrolls(leaf)?;
+                Sap::Area(self.tree.extent(leaf))
+            }
+            Vein::Progress => {
+                self.tree.scrolls(leaf)?;
+                let (offset, extent) = (self.tree.offset(leaf), self.tree.extent(leaf));
+                let own = self.tree.placed(leaf).area;
+                Sap::Progress(Position::new(
+                    progress(offset, extent, own, Axis::Horizontal),
+                    progress(offset, extent, own, Axis::Vertical),
+                ))
+            }
         })
     }
 

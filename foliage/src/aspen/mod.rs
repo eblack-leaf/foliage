@@ -41,6 +41,7 @@
 //! | [`Motion::Opacity`] | a number, like its declaration | `animate` -- written back |
 //! | [`Motion::Location`] | a box, where the declaration is a placement | `resolve` |
 //! | [`Motion::Color`], [`Motion::Palette`] | a color, where the declaration is a [`Fill`] | `extract` |
+//! | [`Motion::Scroll`] | an offset, where the target is a [`ScrollTo`] | `resolve`, at R4 |
 //!
 //! The fill case is the one that needs saying. A [`Fill`] is a role *or* a color, and a blend of two
 //! of them is always a color -- so even two literals cannot be written back, and the blend belongs
@@ -66,12 +67,13 @@ use core::time::Duration;
 use tracing::{debug, trace_span};
 
 use crate::color::Color;
-use crate::coordinate::Section;
+use crate::coordinate::{Position, Section};
 use crate::grove::Grove;
 use crate::leaf::Leaf;
 use crate::palette::{Fill, Palette, Scheme};
 use crate::placement::location::Location;
 use crate::tree::Tree;
+use crate::view::ScrollTo;
 
 pub use ease::{Ease, Timing};
 
@@ -99,9 +101,10 @@ pub struct Sequence(u64);
 /// What can be animated.
 ///
 /// A property belongs here if animating it is a normal thing to want, or if it **cannot be animated
-/// from outside** because it needs context only the engine has. [`Location`](Motion::Location) and
-/// [`Palette`](Motion::Palette) are the second kind: nothing outside can resolve a placement against
-/// a breakpoint and an anchor, or a role against the scheme in force.
+/// from outside** because it needs context only the engine has. [`Location`](Motion::Location),
+/// [`Palette`](Motion::Palette) and [`Scroll`](Motion::Scroll) are the second kind: nothing outside
+/// can resolve a placement against a breakpoint and an anchor, a role against the scheme in force,
+/// or a destination against an extent the frame has yet to measure.
 ///
 /// The list is closed because the engine's obligations should be, not because an app's are.
 /// Everything else -- a font size, a count of sides, a value foliage has no concept of -- is a
@@ -126,6 +129,18 @@ pub enum Motion {
     /// Where the element sits. Both endpoints re-resolve every frame in the same context, so the
     /// motion stays correct through anything that moves either of them.
     Location(Location),
+    /// Where a scrolling region is moved to.
+    ///
+    /// The other kind that cannot be animated from outside: nothing outside can answer
+    /// [`ScrollTo::end`] against an extent the frame has yet to measure. The destination
+    /// re-resolves every frame like a placement does, so a motion toward the end of a list that
+    /// grows under it still lands on the end.
+    ///
+    /// A drag is a write, so a reader taking hold of the region cancels it (F8). The person wins.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element does not scroll
+    /// or the destination leaves no axis to move.
+    Scroll(ScrollTo),
 }
 
 /// Which declared property a motion is moving.
@@ -139,6 +154,18 @@ pub(crate) enum Property {
     Location,
     Opacity,
     Fill,
+    Scroll,
+}
+
+impl Property {
+    /// Every property a motion can be running on, which is what an element being taken down has to
+    /// be cleared from.
+    const ALL: [Property; 4] = [
+        Property::Location,
+        Property::Opacity,
+        Property::Fill,
+        Property::Scroll,
+    ];
 }
 
 /// Where a motion started from.
@@ -169,6 +196,11 @@ enum Moving {
     /// declaration every frame, so the element holds where the motion has reached and not where it
     /// began or where it is going.
     Opacity { from: f32, to: f32 },
+    /// Both ends again, and for the opposite reason: an offset is a *resolved* value rather than a
+    /// declaration, so there is nothing on the element for a target to be written to and nothing
+    /// for a departure to be re-resolved from. What it left is a number of pixels and is carried as
+    /// one; where it is going is a statement about the region and re-resolves every frame.
+    Scroll { from: Position, to: ScrollTo },
 }
 
 /// How far a tween has come, against the one clock.
@@ -335,6 +367,23 @@ impl Aspen {
         }
     }
 
+    /// Every region a motion is moving: what it left, where it is going, and how far it has come.
+    ///
+    /// Read by R4, which is the one pass holding both this frame's extent and the offset the
+    /// destination is answered into. Collected rather than borrowed because applying one writes to
+    /// the tree, and the set is at most a handful of regions.
+    pub(crate) fn scrolling(&self) -> Vec<(Leaf, Position, ScrollTo, f32)> {
+        self.motions
+            .iter()
+            .filter_map(|((leaf, _), motioning)| match &motioning.moving {
+                Moving::Scroll { from, to } => {
+                    Some((*leaf, *from, *to, motioning.progress.at()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     /// The motion moving `leaf`'s fill, on the same terms. Read by extraction.
     pub(crate) fn fill(&self, leaf: Leaf) -> Option<(&Departed<Fill, Color>, f32)> {
         let motioning = self.moving(leaf, Property::Fill)?;
@@ -369,7 +418,7 @@ impl Aspen {
             return;
         }
         for leaf in gone {
-            for property in [Property::Location, Property::Opacity, Property::Fill] {
+            for property in Property::ALL {
                 if let Some(motioning) = self.motions.remove(&(*leaf, property)) {
                     self.release(motioning.within);
                 }
@@ -416,7 +465,12 @@ impl Aspen {
 /// declaration -- both of its ends.
 pub(crate) fn animate(grove: &mut Grove, leaf: Leaf, motion: Motion, timing: Timing) -> bool {
     let scheme = grove.scheme;
-    let Grove { tree, aspen, .. } = grove;
+    let Grove {
+        tree,
+        aspen,
+        coasting,
+        ..
+    } = grove;
     let (property, moving) = match motion {
         Motion::Location(to) => {
             let departed = match aspen.motions.contains_key(&(leaf, Property::Location)) {
@@ -450,6 +504,15 @@ pub(crate) fn animate(grove: &mut Grove, leaf: Leaf, motion: Motion, timing: Tim
             Some(moving) => (Property::Fill, moving),
             None => return false,
         },
+        Motion::Scroll(to) => {
+            // Where the region is now, which is what the last frame's R4 settled it at. A retarget
+            // needs nothing else: an offset is already a number, so there is no departed
+            // declaration a snapshot could be a worse answer than.
+            let from = tree.offset(leaf);
+            // A motion is a write, and the region cannot be moving under two of them.
+            coasting.stop(leaf);
+            (Property::Scroll, Moving::Scroll { from, to })
+        }
     };
     let within = timing.sequence();
     aspen.enroll(within);
@@ -530,7 +593,11 @@ fn channels(grove: &mut Grove, delta: Duration) {
 /// The motions: advanced here, and applied by whichever phase owns what they are moving.
 fn motions(grove: &mut Grove, delta: Duration) {
     let Grove {
-        aspen, tree, drift, ..
+        aspen,
+        tree,
+        drift,
+        sought,
+        ..
     } = grove;
     let mut ended = Vec::new();
     aspen.motions.retain(|(leaf, _), motioning| {
@@ -540,6 +607,12 @@ fn motions(grove: &mut Grove, delta: Duration) {
         }
         if !motioning.progress.done() {
             return true;
+        }
+        // A region holds no declaration for its ending to already read as, so the destination is
+        // written out as though it had been written directly -- which is what makes the last frame
+        // of a `Motion::Scroll` land exactly on it, and the frame after identical.
+        if let Moving::Scroll { to, .. } = &motioning.moving {
+            sought.push((*leaf, *to));
         }
         // What the element declares is already the target, so ending is a removal: the blend at the
         // end equals the plain reading of the declaration, and the frame after is identical.

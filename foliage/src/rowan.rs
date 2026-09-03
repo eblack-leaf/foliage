@@ -59,7 +59,7 @@ use crate::placement::location::Location;
 use crate::placement::resolve::{Basis, Context, Span, resolve};
 use crate::placement::role::Config;
 use crate::tree::Tree;
-use crate::view::{Clipped, range};
+use crate::view::{self, Clipped, Escape, Scroll, range};
 
 /// Where the layout put an element. What its children resolve against.
 #[derive(Component, Copy, Clone, Debug, Default)]
@@ -361,6 +361,16 @@ fn raised(
 ///
 /// A child that scrolls in its own right contributes its box and not its content -- what overflows
 /// inside it is its own to reach, and is already reachable there.
+///
+/// A **visible child that is simply far away is content**, and is counted. That is the answer
+/// `views.md` gives to the parking footgun, and it is deliberately not a guess about intent: if it
+/// is visible and out there it is reachable, which is coherent where the old behaviour was a
+/// surprise. What removes a child from the extent is the app saying so -- [`visible(false)`] takes
+/// it and its subtree out, and [`pinned`] takes out something that is inside the region without
+/// travelling with it.
+///
+/// [`visible(false)`]: crate::Place::visible
+/// [`pinned`]: crate::Place::pinned
 fn extent(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
     let _pass = trace_span!("extent").entered();
     // The far corner of everything under an element, in absolute coordinates.
@@ -374,26 +384,54 @@ fn extent(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
         let section = boxes.get(&leaf).copied().unwrap_or_default();
         let mut far = Position::new(section.right(), section.bottom());
         for child in grove.tree.branches(leaf) {
+            // The two ways an element grown inside a region is not part of its content, and each
+            // is left out here by the same one declaration that says the rest of what it means --
+            // which is what keeps the halves from disagreeing.
+            //
+            // A pinned child does not move with the content. A floating one moves with it but sits
+            // over the region rather than in it, so it is not content either: an overlay that
+            // invented room to scroll to is the scrollbar nobody ordered.
+            if grove.tree.pinned(child) || grove.tree.floats(child).is_some() {
+                continue;
+            }
             let Some(child) = reach.get(&child).copied() else {
                 continue;
             };
             far = Position::new(far.x.max(child.x), far.y.max(child.y));
         }
-        if grove.tree.scrolls(leaf).is_some() {
-            // Measured outward from the region's own near edges and never smaller than its own
-            // box, so content sitting behind the origin creates no range to scroll back into and an
-            // empty region has a range of zero rather than a negative one.
-            grove.tree.set_extent(
-                leaf,
-                Area::new(
-                    (far.x - section.left()).max(section.width()),
-                    (far.y - section.top()).max(section.height()),
-                ),
-            );
+        if let Some(scroll) = grove.tree.scrolls(leaf) {
+            grove.tree.set_extent(leaf, reached(scroll, section, far));
             far = Position::new(section.right(), section.bottom());
         }
         reach.insert(leaf, far);
     }
+}
+
+/// How far a region's content reaches, on each axis.
+///
+/// Three rules, and each of them is what stops a scrollbar nobody ordered:
+///
+/// - **only along a declared axis.** An axis the region does not scroll reads its own box and
+///   nothing else, so a child extending sideways out of a column that scrolls down is simply out of
+///   frame. Most accidental extent came from the axis nobody was scrolling.
+/// - **measured outward from the content origin, clamped at the near side.** A child at a negative
+///   offset creates no range to scroll *back* into: content above the origin is a layout mistake,
+///   and the previous behaviour turned it into a feature.
+/// - **never smaller than the region's own box**, so an empty region has a range of zero rather
+///   than a negative one.
+///
+fn reached(scroll: Scroll, section: Section, far: Position) -> Area {
+    let along = |axis: Axis, reach: f32, near: f32| {
+        let own = section.area.along(axis);
+        if !scroll.covers(axis) {
+            return own;
+        }
+        (reach - near).max(own)
+    };
+    Area::new(
+        along(Axis::Horizontal, far.x, section.left()),
+        along(Axis::Vertical, far.y, section.top()),
+    )
 }
 
 /// R4. Where each element is drawn: where the layout put it, less what its scrolling ancestors have
@@ -403,47 +441,81 @@ fn extent(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
 /// it. The offset is clamped here, against the extent R3 just measured, so a region whose content
 /// shrank under it comes back into range on the next frame rather than staying somewhere it can no
 /// longer reach.
+///
+/// The three ways a region is *asked* to move -- a coast still running from a release, a
+/// [`scroll`](crate::Grow::scroll) written this frame, and a
+/// [`Motion::Scroll`](crate::Motion::Scroll) part way through -- are answered first, here rather
+/// than where they were written, because all three need the extent and the extent is one pass old.
 fn scroll(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
-    let _pass = trace_span!("scroll").entered();
+    let _pass = trace_span!("scroll", coasting = grove.coasting.len()).entered();
+    view::asked(grove, boxes);
     let mut accumulated: HashMap<Leaf, Position> = HashMap::with_capacity(order.len());
+    // What a *pinned* child of each element receives, which is the accumulation with its nearest
+    // scrolling ancestor left out of it.
+    let mut unpinned: HashMap<Leaf, Position> = HashMap::with_capacity(order.len());
     for &leaf in order {
         let placed = boxes.get(&leaf).copied().unwrap_or_default();
-        let inherited = grove
-            .tree
-            .trunk(leaf)
+        let trunk = grove.tree.trunk(leaf);
+        let inherited = trunk
             .and_then(|trunk| accumulated.get(&trunk).copied())
             .unwrap_or_default();
+        let outside = trunk
+            .and_then(|trunk| unpinned.get(&trunk).copied())
+            .unwrap_or_default();
+        // A pinned element does not receive its nearest scrolling ancestor's offset, and receives
+        // every offset outside that one: pinning is relative to the region the element sits in and
+        // says nothing about what contains that region.
+        let applied = match grove.tree.pinned(leaf) {
+            true => outside,
+            false => inherited,
+        };
         let drawn = Section::new(
-            Position::new(placed.left() - inherited.x, placed.top() - inherited.y),
+            Position::new(placed.left() - applied.x, placed.top() - applied.y),
             placed.area,
         );
         grove.tree.settle(leaf, placed, drawn);
-        let mut carried = inherited;
-        if let Some(axes) = grove.tree.scrolls(leaf) {
-            let offset = grove.tree.offset(leaf);
-            let extent = grove.tree.extent(leaf);
-            // An axis that was not declared does not scroll, so nothing can have moved along it.
-            let clamped = Position::new(
-                match axes.covers(Axis::Horizontal) {
-                    true => offset
-                        .x
-                        .clamp(0.0, range(extent, placed.area, Axis::Horizontal)),
-                    false => 0.0,
-                },
-                match axes.covers(Axis::Vertical) {
-                    true => offset
-                        .y
-                        .clamp(0.0, range(extent, placed.area, Axis::Vertical)),
-                    false => 0.0,
-                },
-            );
-            if clamped != offset {
-                grove.tree.set_offset(leaf, clamped);
+        let (carried, escaped) = match grove.tree.scrolls(leaf) {
+            Some(scroll) => {
+                let clamped = clamp(grove, leaf, scroll, placed);
+                (
+                    Position::new(applied.x + clamped.x, applied.y + clamped.y),
+                    // A pinned child of this element is pinned to *this* region, so its offset is
+                    // the accumulation as it stood before this region's own.
+                    applied,
+                )
             }
-            carried = Position::new(carried.x + clamped.x, carried.y + clamped.y);
-        }
+            // Nothing here to be pinned against, so a pinned child of this element is pinned to
+            // whatever region contains it, exactly as a pinned sibling of this element would be.
+            None => (applied, outside),
+        };
         accumulated.insert(leaf, carried);
+        unpinned.insert(leaf, escaped);
     }
+}
+
+/// A region's offset, held to what it can actually reach.
+///
+/// An axis that was not declared does not scroll, so nothing can have moved along it -- and a
+/// region whose extent shrank under it is brought back into range here rather than left somewhere
+/// it can no longer get to.
+fn clamp(grove: &mut Grove, leaf: Leaf, scroll: Scroll, placed: Section) -> Position {
+    let offset = grove.tree.offset(leaf);
+    let extent = grove.tree.extent(leaf);
+    let mut clamped = Position::default();
+    for axis in Axis::BOTH {
+        if scroll.covers(axis) {
+            clamped = clamped.set(
+                axis,
+                offset
+                    .along(axis)
+                    .clamp(0.0, range(extent, placed.area, axis)),
+            );
+        }
+    }
+    if clamped != offset {
+        grove.tree.set_offset(leaf, clamped);
+    }
+    clamped
 }
 
 /// R5. What a scrolling ancestor leaves visible of each element.
@@ -455,19 +527,77 @@ fn scroll(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
 fn clip(grove: &mut Grove, order: &[Leaf]) {
     let _pass = trace_span!("clip").entered();
     let mut passed: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
+    // What a *floating* child of each element is clipped to, which is the intersection with its
+    // nearest scrolling ancestor's own rect left out of it. The same second accumulation R4 carries
+    // for a pinned child, and for the same reason: both say "not part of this region", and both
+    // have to say it about the region the element is actually in rather than about all of them.
+    let mut escaped: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
     for &leaf in order {
-        let inherited = grove
-            .tree
-            .trunk(leaf)
+        let trunk = grove.tree.trunk(leaf);
+        let inherited = trunk
             .and_then(|trunk| passed.get(&trunk).copied())
             .unwrap_or(Clipped::unbounded().0);
-        grove.tree.set_clip(leaf, inherited);
-        let carried = match grove.tree.scrolls(leaf).is_some() {
-            true => inherited.intersect(grove.tree.drawn(leaf)),
-            false => inherited,
+        let outside = trunk
+            .and_then(|trunk| escaped.get(&trunk).copied())
+            .unwrap_or(Clipped::unbounded().0);
+        // A floating element is positioned outside the region on purpose, so cutting it off at the
+        // region's edge would undo the placement that put it there. How far out it reaches is the
+        // element's own statement, because no one answer is right everywhere.
+        let applied = match grove.tree.floats(leaf) {
+            // Held by whatever holds the region it left.
+            Some(Escape::Region) => outside,
+            // Held by nothing, which extraction reads as the surface: a clip is never wider than
+            // what is being drawn on.
+            Some(Escape::Surface) => Clipped::unbounded().0,
+            // Held by the element named, which is what that element passes down to what it holds.
+            Some(Escape::Within(named)) => match within(grove, &passed, leaf, named) {
+                Some(clip) => clip,
+                // Named something that is not above it, so it holds nothing. Falling back to the
+                // near answer rather than the far one: an element escapes no further than it was
+                // told to, and a mis-named ancestor is not permission to leave everything.
+                None => outside,
+            },
+            None => inherited,
         };
-        passed.insert(leaf, carried);
+        grove.tree.set_clip(leaf, applied);
+        let scrolls = grove.tree.scrolls(leaf).is_some();
+        passed.insert(
+            leaf,
+            match scrolls {
+                true => applied.intersect(grove.tree.drawn(leaf)),
+                false => applied,
+            },
+        );
+        escaped.insert(
+            leaf,
+            match scrolls {
+                true => applied,
+                false => outside,
+            },
+        );
     }
+}
+
+/// What `named` leaves visible of what it holds, if it is above `leaf` at all.
+///
+/// The walk is up the trunks from `leaf`, so an element that names something beside it rather than
+/// above it gets `None` and is answered as though it had named the region it is in. Naming the
+/// element rather than counting regions is what makes this survive a wrapper being added between
+/// the two, which a count would not.
+fn within(
+    grove: &Grove,
+    passed: &HashMap<Leaf, Section>,
+    leaf: Leaf,
+    named: Leaf,
+) -> Option<Section> {
+    let mut step = grove.tree.trunk(leaf);
+    while let Some(above) = step {
+        if above == named {
+            return passed.get(&named).copied();
+        }
+        step = grove.tree.trunk(above);
+    }
+    None
 }
 
 /// R7. The three off-states, resolved over each element's whole ancestry.

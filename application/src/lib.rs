@@ -7,7 +7,9 @@
 mod shell;
 mod site;
 
-use foliage::{Area, Claim, Foliage};
+use core::time::Duration;
+
+use foliage::{Area, Claim, Foliage, Momentum};
 
 /// Shared by every platform's entry point.
 ///
@@ -26,6 +28,14 @@ pub fn run(mut foliage: Foliage) {
     foliage.tune(Claim {
         horizontal: 20.0,
         vertical: 8.0,
+    });
+    // How a released drag carries on: half its speed gone every three hundred milliseconds, a
+    // little sharper than the default, because the reading column is short and a fling that
+    // crossed the whole of it would be over before it read as motion. Feel is one value for the
+    // whole app for the same reason the claim is.
+    foliage.tune(Momentum {
+        half_life: Duration::from_millis(300),
+        minimum: 40.0,
     });
     foliage.root::<site::Site>();
     foliage.photosynthesize();

@@ -21,6 +21,10 @@
 //! - [`Motion`] is what can be animated and [`Timing`] how long it takes; [`Ease`] is the shape it
 //!   moves in, [`Tween`] names a value the engine only reports, and [`Sequence`] names a group of
 //!   them arriving.
+//! - An element scrolls because it said so: [`scrolls`](Place::scrolls) declares which axes and
+//!   whether each [`Scroll`]s outward or contains, [`pinned`](Place::pinned) keeps a child out of
+//!   the movement, [`ScrollTo`] is how a region is moved by name, and [`Momentum`] is how a release
+//!   coasts.
 
 mod ash;
 mod aspen;
@@ -90,3 +94,4 @@ pub use stem::Stem;
 pub use text::{Font, FontSize, Text};
 pub use vein::{Sap, Vein};
 pub use verbs::Grow;
+pub use view::{Escape, Momentum, Scroll, ScrollTo};

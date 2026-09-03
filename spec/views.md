@@ -149,6 +149,58 @@ This replaces the current workaround — parent it outside the view and anchor b
 the element its correct place in the tree, and with it clipping, opacity inheritance and the
 disable cascade.
 
+### Floating children
+
+The other half of the same question, and the one `lifecycle.md` defers here: a child grown inside a
+region but *positioned outside it* — a menu opening below the row that owns it, a tooltip beside a
+list item.
+
+The trunk decides what takes an element down, what it stacks among, and what clips it; `anchored`
+decides where it sits. That split is what lets an element be placed against one element while living
+under another. What it leaves is an element positioned outside its trunk and then **cut off at the
+trunk's edge**, which is the whole point of having put it out there — and feeding the trunk's extent
+a stretch of scroll range leading to content that is drawn over the region rather than in it.
+
+Those are one question, so they get one answer:
+
+```
+.floats(Escape::Region)
+```
+
+A floating element is **not clipped** by the region it is grown in, and **contributes nothing** to
+that region's extent. What it keeps is the region's offset: it travels with the content it is
+anchored to, which is what holds a menu against the row that opened it. That is the whole difference
+from `pinned`, which escapes the movement and keeps the clip.
+
+> **`pinned` escapes the movement. `floats` escapes the clip. Both leave the extent, because
+> neither is content.**
+
+An element that says nothing is content: it is clipped by its region and it counts. That is the
+right default and it is what an inline expander wants — options that push into the flow and are
+scrolled down to.
+
+#### How far out
+
+Stated, not defaulted, because no one answer is right everywhere. A menu on a row of a table with
+its own scrollbar, inside a settings panel with another, wants out of both. A tooltip on a file in a
+list inside a sidebar wants out of the list and *not* out of the sidebar, or it paints across the
+page beside it. Nothing distinguishes the two pictures to the engine.
+
+| | Held by |
+|---|---|
+| `Escape::Region` | whatever holds the region it left |
+| `Escape::Surface` | nothing; a clip is never wider than what is drawn on |
+| `Escape::Within(leaf)` | the element named, which still clips it |
+
+`Within` names an element rather than counting regions, because a count is a fact about the tree's
+current shape and would quietly mean something else the moment a wrapper was added between the two.
+Naming something that is not above it holds nothing, and falls back to `Escape::Region` — an element
+escapes no further than it was told to, and a mistake is not permission to leave everything.
+
+Escape depth is about **clipping alone**. Extent needs no such argument: a region contributes its own
+box and never its content to whatever contains it, so once an overlay is out of the region it is
+grown in there is no second region left to be excluded from.
+
 ### Explicit extent
 
 ```
@@ -167,8 +219,14 @@ available because sometimes they are not.
 `ScrollAxes`, `OverscrollPropagation`, `DirectionalLock`, `holds_drag`, `ScrollRefused` as a
 distinct channel, `#[require(View)]` on `Grid`, and fraction-only writes.
 
-What remains: `.scrolls(Axis)`, per-axis `contain`, `.extent(..)`, and `ScrollTo` with its unit
-named.
+What remains: `.scrolls(Axis)`, per-axis `contain`, `.pinned()`, `.floats(Escape)`, `.extent(..)`,
+and `ScrollTo` with its unit named.
+
+`ClipToViewport` is gone with them, and `floats` is what replaced it. The old flag did three things
+at once — escaped the clip cascade, reset the elevation prefix, and dropped the subtree from its
+parent's extent. The third and the first are one statement about content and are kept together here;
+the second is `lifecycle.md`'s, and is answered by growing an element that must clear a stack
+somewhere else rather than by a flag.
 
 ## 7. Proof obligations
 
@@ -177,6 +235,9 @@ Headless:
 - an element with a `Grid` and no scroll declaration does not scroll, by drag, wheel, or `scroll`
 - a `Y` view ignores horizontal drag and computes no horizontal extent
 - a `visible(false)` child contributes nothing to extent, and nor does its subtree
+- an element positioned outside its region is cut off at the region's edge, and `floats` is what
+  stops it — at each of the three depths, including the one neither of the other two reaches
+- a floating child contributes nothing to extent, and still travels with the content
 - a child scrolled fully out of view still contributes, and can be scrolled back to
 - a child at a negative offset creates no backward range
 - an empty view has zero range

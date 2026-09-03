@@ -1,4 +1,4 @@
-use crate::coordinate::Section;
+use crate::coordinate::{Area, Position, Section};
 use crate::elevation::Elevation;
 use crate::leaf::Leaf;
 use crate::palette::Fill;
@@ -62,6 +62,23 @@ pub enum Vein {
     /// Whether the element was disabled in its own right, on the same terms as
     /// [`Visible`](Vein::Visible).
     Disabled,
+    /// How far a scrolling region has been moved from its content's origin, in logical pixels.
+    ///
+    /// The same unit it is written in, so reading it back after a
+    /// [`scroll`](crate::Grow::scroll) returns the pixels it settled at. `None` on anything that
+    /// does not scroll: an element with no scrolling axis has no offset, rather than an offset of
+    /// zero it can never leave.
+    Offset,
+    /// How far a scrolling region's content reaches, from its own near edges.
+    ///
+    /// What a scrollbar's thumb is a fraction of. An axis the region does not scroll reads the
+    /// region's own box, which is the same statement as having no extent on it.
+    Extent,
+    /// How far through its range a scrolling region sits, per axis, in `0.0..=1.0`.
+    ///
+    /// Derived from the two above rather than held, and read-only for that reason: pixels are the
+    /// one unit an offset is written in. A region with nowhere to go reads zero on that axis.
+    Progress,
 }
 
 /// What a [`Vein`] draws out.
@@ -71,6 +88,12 @@ pub enum Sap {
     Leaves(Vec<Leaf>),
     Leaf(Option<Leaf>),
     Section(Section),
+    /// Logical pixels, like every other coordinate.
+    Position(Position),
+    Area(Area),
+    /// A fraction on each axis, in `0.0..=1.0`. Held apart from a [`Position`](Sap::Position) even
+    /// though it is the same pair of numbers, so a read cannot quietly take a fraction for pixels.
+    Progress(Position),
     Elevation(Elevation),
     Color(Fill),
     Rounding(Corners),

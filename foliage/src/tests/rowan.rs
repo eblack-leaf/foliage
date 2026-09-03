@@ -4,12 +4,21 @@
 //! proven in `placement`; what is proven here is that the passes reach it with the right context
 //! and in the right order.
 
-use crate::coordinate::{Area, Section};
+use crate::coordinate::{Area, Axes, Section};
 use crate::tests::{grove, resize, section, tick};
 use crate::{
-    Divide, Grid, Grove, Grow, Layout, Location, Place, Sap, Source, Stem, Vein, anchor, bottom,
-    center_x, center_y, left, right, top,
+    Divide, Grid, Grove, Grow, Layout, Location, Panel, Place, Sap, ScrollTo, Source, Stem, Vein,
+    anchor, bottom, center_x, center_y, left, right, top,
 };
+
+/// A box at a stated place, for the passes that are about where boxes end up rather than about the
+/// grammar that put them there.
+fn box_at(x: f32, y: f32, width: f32, height: f32) -> Location {
+    Location::new().xs(
+        left(x.px()).width(width.px()),
+        top(y.px()).height(height.px()),
+    )
+}
 
 #[test]
 fn a_top_level_element_resolves_against_the_viewport() {
@@ -371,6 +380,71 @@ fn an_unscrolled_element_is_on_screen_where_the_layout_put_it() {
             ));
     tick(&mut grove);
     assert_eq!(grove.tree.drawn(leaf), grove.tree.placed(leaf));
+}
+
+/// R4 accumulates down the tree, so an element inside two moved regions is drawn where the layout
+/// put it less both of them -- while `Placed`, which is what its own children resolve against, is
+/// untouched. That the two are separate values is the whole reason a scroll does not re-run a
+/// layout.
+#[test]
+fn nested_regions_accumulate_offsets() {
+    let mut grove = grove();
+    let outer = grove.plant(Stem::new().at(box_at(0.0, 0.0, 200.0, 200.0)).scrolls(Axes::Vertical));
+    grove.branch(outer, Panel::new().at(box_at(0.0, 0.0, 200.0, 600.0)));
+    let inner = grove.branch(
+        outer,
+        Stem::new()
+            .at(box_at(0.0, 20.0, 200.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    let deep = grove.branch(inner, Panel::new().at(box_at(0.0, 0.0, 200.0, 300.0)));
+    tick(&mut grove);
+
+    grove.scroll(outer, ScrollTo::px(40.0));
+    grove.scroll(inner, ScrollTo::px(30.0));
+    tick(&mut grove);
+
+    // The inner region carries only what is outside it; what is in it carries both.
+    assert_eq!(section(&grove, inner).top(), -20.0);
+    assert_eq!(section(&grove, deep).top(), -50.0);
+    // And the layout is where it always was, which is what the inner region's children resolved
+    // against.
+    assert_eq!(grove.tree.placed(deep).top(), 20.0);
+}
+
+/// R5 intersects each element's clip with its ancestors', so an element several regions deep sees
+/// what all of them agree on. A rect, and only a rect: whether it is culled is extraction's
+/// decision from this and is recorded nowhere.
+#[test]
+fn clip_rects_intersect_through_several_levels() {
+    let mut grove = grove();
+    let outer = grove.plant(Stem::new().at(box_at(0.0, 0.0, 200.0, 200.0)).scrolls(Axes::Vertical));
+    let middle = grove.branch(
+        outer,
+        Stem::new()
+            .at(box_at(20.0, 40.0, 160.0, 300.0))
+            .scrolls(Axes::Vertical),
+    );
+    let inner = grove.branch(
+        middle,
+        Stem::new()
+            .at(box_at(0.0, 0.0, 400.0, 80.0))
+            .scrolls(Axes::Vertical),
+    );
+    let deep = grove.branch(inner, Panel::new().at(box_at(0.0, 0.0, 400.0, 400.0)));
+    tick(&mut grove);
+
+    // Each level narrows what the one below it may show: the middle one is cut off at the outer
+    // one's bottom, and the inner one is cut off at the middle one's right.
+    assert_eq!(
+        grove.tree.clip(deep),
+        Section::from_edges(20.0, 40.0, 180.0, 120.0)
+    );
+    // A region does not clip itself, only what is grown inside it.
+    assert_eq!(
+        grove.tree.clip(middle),
+        Section::from_edges(0.0, 0.0, 200.0, 200.0)
+    );
 }
 
 #[test]
