@@ -7,8 +7,10 @@
 //! exactly four spellings and no illegal pairing can be written at all. `left(..).center_x(..)` and
 //! `width(..).width(..)` are not rejected -- the method is not there.
 
+use crate::coordinate::Axis;
 use crate::placement::source::{
-    Coord, Expr, HorizontalCoordinate, Length, VerticalCoordinate, VerticalLength,
+    Against, Coord, Expr, HorizontalCoordinate, Kind, Length, Origin, VerticalCoordinate,
+    VerticalLength,
 };
 
 /// How one axis is pinned down: two of its coordinates, and any clamp on the extent between them.
@@ -26,6 +28,49 @@ impl Config {
             least: None,
             most: None,
         }
+    }
+
+    /// Whether this vertical axis can be resolved without any vertical box being known yet, and so
+    /// whether it counts toward the measure of the element it is grown under (R2m).
+    ///
+    /// An element sized by its contents is being asked how tall what is inside it turned out. A
+    /// child that answers *by reading a vertical box* -- a percentage of its trunk, a row of its
+    /// trunk's grid, an edge of an anchor -- is not describing how tall it is, it is asking someone
+    /// else. It cannot be what decides the answer without deciding it circularly, so it is left out
+    /// of the measure and given its real height by R2b like anything else.
+    ///
+    /// Everything that describes an extent in its own terms counts: pixels, letters, its own
+    /// content, and any horizontal reading, because the horizontal axis has already resolved.
+    pub(crate) fn measurable(&self) -> bool {
+        let terms = |expr: &Expr| expr.terms.iter().all(|term| known(term.kind));
+        let coordinate = |coordinate: &Coord| {
+            // An anchor's near edge is a vertical position, which is exactly what is not known.
+            coordinate.origin != Origin::Anchor && terms(&coordinate.expr)
+        };
+        let form = match &self.form {
+            Form::NearExtent { near, extent } => coordinate(near) && terms(extent),
+            Form::NearFar { near, far } => coordinate(near) && coordinate(far),
+            Form::FarExtent { far, extent } => coordinate(far) && terms(extent),
+            Form::CenterExtent { center, extent } => coordinate(center) && terms(extent),
+        };
+        form && self.least.as_ref().is_none_or(terms) && self.most.as_ref().is_none_or(terms)
+    }
+}
+
+/// Whether one term of a vertical placement reads something already settled.
+fn known(kind: Kind) -> bool {
+    match kind {
+        // Reads no geometry at all, or reads the element's own -- which R1 and the bottom-up sweep
+        // have both already answered.
+        Kind::Px(_) => true,
+        Kind::Letters { .. } => true,
+        Kind::Content { against } => against == Against::Own,
+        // The horizontal axis resolved before any of this, so a height stated in one is known.
+        Kind::Extent { axis, .. } | Kind::Cell { axis, .. } => axis == Axis::Horizontal,
+        // A fraction of the resolving axis, which here is the vertical one.
+        Kind::Pct { .. } => false,
+        // Already a position on a surface no vertical box has been laid out on yet.
+        Kind::Edge { .. } => false,
     }
 }
 

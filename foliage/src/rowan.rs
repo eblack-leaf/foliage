@@ -286,6 +286,11 @@ fn wrapped(grove: &mut Grove, leaf: Leaf, width: f32) -> f32 {
 }
 
 /// How far the elements grown under `leaf` reach below its top edge.
+///
+/// Only the children that describe their own extent are counted. One that reads a vertical box --
+/// a percentage of this element, a row of its grid, an anchor's edge -- is asking how tall
+/// something else is, so it cannot be what decides how tall this is. See
+/// [`Config::measurable`](crate::placement::role::Config::measurable).
 fn reach(
     grove: &Grove,
     boxes: &HashMap<Leaf, Section>,
@@ -294,6 +299,10 @@ fn reach(
 ) -> f32 {
     let mut reach: f32 = 0.0;
     for child in grove.tree.branches(leaf) {
+        let location = grove.tree.location(child).unwrap_or(fallback);
+        if !pinned(location, grove, Axis::Vertical).measurable() {
+            continue;
+        }
         let context = raised(grove, boxes, leaf, child);
         reach = reach.max(span(grove, child, fallback, &context, Axis::Vertical).far);
     }

@@ -651,3 +651,59 @@ fn a_measured_box_may_be_pinned_by_either_edge() {
         Section::from_edges(0.0, 56.0, 50.0, 100.0)
     );
 }
+
+/// A child positioned against an anchor is asking where something else ended up, and no vertical box
+/// has been laid out when the measure is taken. So it does not decide the measure -- and it is
+/// placed correctly by the vertical pass regardless, which is where an anchor is answerable.
+#[test]
+fn an_anchored_child_does_not_size_its_trunk() {
+    let mut grove = grove();
+    let above = grove.plant(Stem::new().at(Location::new().xs(
+        left(0.px()).width(10.px()),
+        top(0.px()).height(200.px()),
+    )));
+    let container = grove.plant(Stem::new().at(Location::new().xs(
+        left(0.px()).width(200.px()),
+        top(0.px()).height(content()),
+    )));
+    let hanging = grove.branch(
+        container,
+        Stem::new().anchored(above).at(Location::new().xs(
+            left(0.px()).width(10.px()),
+            top(anchor().bottom()).height(30.px()),
+        )),
+    );
+    grove.branch(
+        container,
+        Stem::new().at(Location::new().xs(
+            left(0.px()).width(10.px()),
+            top(0.px()).height(40.px()),
+        )),
+    );
+    tick(&mut grove);
+    // Only the child that describes its own extent decided the measure.
+    assert_eq!(section(&grove, container).height(), 40.0);
+    // And the anchored one still lands where its anchor put it.
+    assert_eq!(section(&grove, hanging).top(), 200.0);
+}
+
+/// A height stated in a horizontal reading counts, because the horizontal axis resolved first. That
+/// is the same asymmetry the grammar already states as types, showing up in the measure.
+#[test]
+fn a_child_sized_from_the_horizontal_axis_counts() {
+    let mut grove = grove();
+    let container = grove.plant(Stem::new().at(Location::new().xs(
+        left(0.px()).width(200.px()),
+        top(0.px()).height(content()),
+    )));
+    grove.branch(
+        container,
+        Stem::new().at(Location::new().xs(
+            left(0.px()).width(60.px()),
+            // As tall as it is wide, which the down-pass already answered.
+            top(0.px()).height(trunk().width() * 0.25),
+        )),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).height(), 50.0);
+}
