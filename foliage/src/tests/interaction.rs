@@ -5,7 +5,7 @@
 //! geometry and two declarations, so a test that had to describe a walk would be testing something
 //! else.
 
-use crate::coordinate::{Area, Axes, Position};
+use crate::coordinate::{Area, Axes, Position, Section};
 use crate::tests::{
     Observer, cancel, drag, grove, press, release, section, tick, tick_with, wheel,
 };
@@ -24,6 +24,18 @@ fn at(x: f32, y: f32, width: f32, height: f32) -> Location {
 /// How far a region has been scrolled.
 fn offset(grove: &Grove, leaf: Leaf) -> Position {
     grove.tree.offset(leaf)
+}
+
+/// What the last extraction told the backend to clip an element to.
+fn clip(grove: &Grove, leaf: Leaf) -> Section {
+    grove
+        .elm
+        .panels
+        .written
+        .iter()
+        .find(|written| written.leaf == leaf)
+        .expect("the element was written this frame")
+        .clip
 }
 
 /// One frame, with an app in it to read this frame's emissions.
@@ -627,4 +639,43 @@ fn a_disabled_region_neither_scrolls_nor_hands_outward() {
 
     assert_eq!(offset(&grove, inner).y, 0.0);
     assert_eq!(offset(&grove, outer).y, 0.0);
+}
+
+/// What extraction hands the backend to scissor with. An element inside a region is clipped to it;
+/// one with no scrolling ancestor is clipped to the surface, which scissors to the whole of it.
+#[test]
+fn an_element_in_a_region_is_extracted_with_that_region_s_clip() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    let inside = grove.branch(region, Panel::new().at(at(0.0, 0.0, 200.0, 60.0)));
+    let outside = grove.plant(Panel::new().at(at(0.0, 0.0, 40.0, 40.0)));
+    tick(&mut grove);
+
+    assert_eq!(clip(&grove, inside), Section::from_edges(0.0, 0.0, 200.0, 100.0));
+    assert_eq!(clip(&grove, outside), Section::new(Position::default(), grove.viewport()));
+}
+
+/// A clip that changed is a change like any other: the element is written again, so the backend
+/// never goes on scissoring to a region that has moved.
+#[test]
+fn a_moved_region_rewrites_what_its_children_are_clipped_to() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    let inside = grove.branch(region, Panel::new().at(at(0.0, 0.0, 200.0, 60.0)));
+    tick(&mut grove);
+
+    grove.at(region, at(0.0, 40.0, 200.0, 100.0));
+    tick(&mut grove);
+    assert_eq!(
+        clip(&grove, inside),
+        Section::from_edges(0.0, 40.0, 200.0, 140.0)
+    );
 }

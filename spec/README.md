@@ -233,12 +233,71 @@ source, a subsystem would have something to fall out of step against. The cap is
 `again()` for as long as it is walking the rail, and stops asking when it is done — after which the
 engine idles until the window is touched.
 
-Still owed by C1: the ordering is the panel buffer's own, because there is one renderer. A second
-one makes the stack shared across renderers and the draw a series of spans over it. That is `B6`'s
-to build, not `B8`'s — `Text` is the second renderer, and the three slices before it add none.
+C1 owed one thing: the draw order was the panel buffer's own, because there was one renderer. `B4`
+paid it, because clipping needed the same walk — the stack is shared across renderers now, and a
+second one is a variant rather than a reordering.
 
-Next: B4 — interaction. Hit-testing runs against what was drawn, and there is now something drawn to
-run it against.
+B4 has landed. The box stack, gesture claiming, scrolling handoff, and focus. A hundred and
+eighty-four headless tests and thirteen compile-fail doctests.
+
+The hit test is one read: the front-most element at the point that is not `pass_through`, and stop.
+It is enforced in a single function, and the suite is written against the failure it prevents — with
+that read changed to skip elements that do not receive, ten tests fail, including every one that
+proves a drag scrolls the region it started in. That is the second half of the law under test, not
+only the first.
+
+`interactive()` and `pass_through()` are the whole of what is declared about targeting. `drags(..)`
+is the one thing about a gesture the engine cannot derive; everything else is claimed at the time,
+per axis, against thresholds tuned once at boot with `Foliage::tune(Claim { .. })`. The claim is
+settled once and only ever travels outward, so a drag that turns is still the drag it was claimed
+as, and a region that can no longer consume hands it to the next one out mid-gesture.
+
+Focus is a verb. `focus`, `unfocus`, `focus_next` and `focus_previous`, answered at settle against
+the geometry and products of the frame they are asked in — which is what lets an app open a drawer
+and focus into it in one turn. Order is reading order over what declared `interactive()`, with
+`focus_order(..)` to pull one element out of it and `focus_scope()` to trap the cycle inside a
+drawer. A press moves focus nowhere: the app writes that from `clicked` where it wants it.
+
+The slice needed three things it did not own, and each landed at the size the box stack's own
+definition requires rather than at its slice's full size:
+
+- **The three ways to be off**, as R7's one inherited product. `visible(false)` and a zero opacity
+  leave the stack; `disable` stays in it and swallows, which is what makes `disable(page)` enough on
+  its own when a drawer opens and why no scrim is arranged anywhere.
+- **Scrolling regions**, structurally: `scrolls(Axes::..)`, extent derived bottom-up in R3, the
+  offset clamped and accumulated in R4, and clip rects in R5. What `views.md` still owns is
+  untouched by this — `contain`, `pinned`, `.extent(..)`, `ScrollTo`, and momentum.
+- **Clipping through to the pixels.** A clip reaches `Ash` beside the instance and is applied to the
+  pass as a scissor, never carried in an instance and tested per fragment, so it costs nothing per
+  element and every renderer has it without a line of shader.
+
+That last one closed C1's open item. The stack is now shared across renderers: `Ash` merges every
+renderer's slots by rank, gives each instance its depth from its position in that one walk, and cuts
+the walk into spans — maximal runs sharing a renderer and a clip, each one draw under one scissor. A
+renderer draws the slots it is asked for and decides nothing about when it is asked, so the second
+renderer adds a variant rather than a reordering. The walk runs only when the stack actually moved.
+
+Still owed by B4:
+
+- `focus(leaf)` on a text input placing a caret is `B9`'s: there is no `TextInput` to focus. What is
+  proven now is the half that exists — focus moves by verb with no gesture anywhere near it, and is
+  reported through `Pollen`.
+- Release velocity. Interaction is to hand a coast its initial velocity and stop; nothing consumes
+  one until `views.md`'s momentum, so nothing measures one yet.
+- Keys. `focus_next` is the verb a Tab key will call, and there is no key intake until `B10`.
+
+`application/` is pressable. The rail's entries take taps and the tour gives way to the first one;
+the marker is `pass_through`, which is the mark earning itself on the page — it is drawn over
+whichever entry is current, and without it that entry would stop being tappable the moment it became
+the selected one. The reading column scrolls, and the cards in it are tappable without either of
+them being told about the other: a drag from a card scrolls the column, a tap on one lights it. The
+slider's knob takes drags across and nothing else, so a drag down it scrolls the column instead. The
+round badge has a round hit area. The drawer is grown outside the page, declares itself a focus
+scope, and opens by disabling the page — one write, no scrim — while stepping focus inside it is a
+button standing in for the Tab key that `B10` will bring.
+
+Next: B5 — `Aspen`. Tweens, sequences and timers, against a resolver that was made pure for exactly
+this and a frame that already has one clock.
 
 ## B4 §3, resolved
 

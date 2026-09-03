@@ -1,5 +1,7 @@
 //! The panel renderer: a filled, rounded rectangle per instance.
 
+use core::ops::Range;
+
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     Buffer, BufferUsages, PipelineLayoutDescriptor, RenderPass, RenderPipeline,
@@ -87,16 +89,17 @@ impl Panels {
         }
     }
 
-    pub(crate) fn draw(&self, pass: &mut RenderPass<'_>) {
-        let count = self.instances.count();
-        if count == 0 {
-            return;
-        }
+    /// Draws one run of what is held.
+    ///
+    /// The range is a span of the stack, and which spans there are and what order they go in is
+    /// [`Ash`](crate::ash::Ash)'s: a renderer draws the slots it is asked for and decides nothing
+    /// about when it is asked.
+    pub(crate) fn draw(&self, pass: &mut RenderPass<'_>, span: Range<u32>) {
         pass.set_pipeline(&self.pipeline);
         pass.set_vertex_buffer(0, self.corners.slice(..));
         pass.set_vertex_buffer(1, self.instances.data());
         pass.set_vertex_buffer(2, self.instances.depths());
-        pass.draw(0..CORNERS.len() as u32, 0..count);
+        pass.draw(0..CORNERS.len() as u32, span);
     }
 }
 

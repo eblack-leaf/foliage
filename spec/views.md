@@ -22,9 +22,9 @@ Following the `overflow-x` / `overflow-y` split, which is right for the same rea
 axes almost never want the same answer, and a single flag forces one.
 
 ```
-.scrolls(Y)          // vertical only
-.scrolls(X)
-.scrolls(Both)
+.scrolls(Axes::Vertical)     // down only
+.scrolls(Axes::Horizontal)
+.scrolls(Axes::Both)
 ```
 
 An axis that was not declared does not scroll, has no extent computed, and cannot be moved by drag,

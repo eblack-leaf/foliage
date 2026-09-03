@@ -95,7 +95,7 @@ In order. Each writes exactly one thing, and nothing writes what another pass ow
 | R5 | `clip` | top-down | each element's clip rect: the intersection of its ancestors'. A rect only — whether something is *culled* is Elm's decision at extract, never a state on the element |
 | R6 | `rank` | — | `ResolvedElevation`, with a stable tie-break |
 | R7 | `inherit` | top-down | visibility, opacity and disabled products (`lifecycle.md`) |
-| R8 | `regions` | — | hit regions: section, shape, enabled, and opacity |
+| R8 | `regions` | rank order | the box stack: each element's box, clip, shape, and what it declared |
 
 ### Why R3 goes the other way
 

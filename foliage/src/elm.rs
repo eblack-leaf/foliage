@@ -19,6 +19,7 @@ use bevy_ecs::component::Component;
 use tracing::field::Empty;
 use tracing::trace_span;
 
+use crate::coordinate::{Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
 use crate::leaf::Leaf;
@@ -85,11 +86,16 @@ pub(crate) struct Instances<I> {
     pass: u64,
 }
 
-/// One instance, and where in the one stack it is to be drawn.
+/// One instance, where in the one stack it is to be drawn, and what it is clipped to.
+///
+/// The clip is beside the instance rather than inside it for the same reason the rank is: it is not
+/// the renderer's data. It says where the backend is allowed to paint, which is a property of the
+/// region the element sits in, and the backend applies it to the pass rather than to the panel.
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Stacked<I> {
     pub(crate) leaf: Leaf,
     pub(crate) rank: ResolvedElevation,
+    pub(crate) clip: Section,
     pub(crate) instance: I,
 }
 
@@ -97,6 +103,7 @@ pub(crate) struct Stacked<I> {
 struct Held<I> {
     instance: I,
     rank: ResolvedElevation,
+    clip: Section,
     seen: u64,
 }
 
@@ -113,11 +120,13 @@ impl<I> Default for Instances<I> {
 }
 
 impl<I: Copy + PartialEq> Instances<I> {
-    /// Adds one instance to what should be drawn this frame, at the rank it resolved to.
-    fn want(&mut self, leaf: Leaf, rank: ResolvedElevation, instance: I) {
+    /// Adds one instance to what should be drawn this frame, at the rank it resolved to and inside
+    /// the clip it resolved under.
+    fn want(&mut self, leaf: Leaf, rank: ResolvedElevation, clip: Section, instance: I) {
         self.wanted.push(Stacked {
             leaf,
             rank,
+            clip,
             instance,
         });
     }
@@ -138,9 +147,13 @@ impl<I: Copy + PartialEq> Instances<I> {
             match self.held.entry(wanted.leaf) {
                 Entry::Occupied(mut held) => {
                     let held = held.get_mut();
-                    if held.instance != wanted.instance || held.rank != wanted.rank {
+                    if held.instance != wanted.instance
+                        || held.rank != wanted.rank
+                        || held.clip != wanted.clip
+                    {
                         held.instance = wanted.instance;
                         held.rank = wanted.rank;
+                        held.clip = wanted.clip;
                         self.written.push(wanted);
                     }
                     held.seen = pass;
@@ -149,6 +162,7 @@ impl<I: Copy + PartialEq> Instances<I> {
                     slot.insert(Held {
                         instance: wanted.instance,
                         rank: wanted.rank,
+                        clip: wanted.clip,
                         seen: pass,
                     });
                     self.written.push(wanted);
@@ -194,11 +208,18 @@ pub(crate) fn run(grove: &mut Grove) {
                 };
                 let inherited = grove.tree.inherited(leaf);
                 let section = grove.tree.drawn(leaf);
+                // What a scrolling ancestor leaves visible, never wider than the surface: a clip is
+                // what the backend scissors the pass to, and nothing outside the surface is painted
+                // whatever the rect says.
+                let clip = grove
+                    .tree
+                    .clip(leaf)
+                    .intersect(Section::new(Position::default(), grove.viewport));
                 // Hidden is the app's intent and culled is this pass's decision, taken here from
                 // the clip rect and recorded nowhere: an element scrolled out of its region is
                 // absent from the batch and unchanged in every other respect, so scrolling back to
                 // it needs nothing to be undone.
-                if !inherited.visible || section.intersect(grove.tree.clip(leaf)).is_empty() {
+                if !inherited.visible || section.intersect(clip).is_empty() {
                     continue;
                 }
                 let instance = PanelInstance::new(
@@ -206,7 +227,10 @@ pub(crate) fn run(grove: &mut Grove) {
                     grove.scheme.color(pigment.color).faded(inherited.opacity),
                     pigment.rounding,
                 );
-                grove.elm.panels.want(leaf, grove.tree.rank(leaf), instance);
+                grove
+                    .elm
+                    .panels
+                    .want(leaf, grove.tree.rank(leaf), clip, instance);
             }
         }
     }

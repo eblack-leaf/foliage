@@ -9,9 +9,9 @@ The ordering contract. Everything else in foliage is written against this.
 2  dispatch  hit-test against what was drawn last frame → Pollen
 3  frame()   the app reads settled state and Pollen, and queues ops
 4  drain     the single apply — every queued op, FIFO by arrival, whatever its origin
-5  animate   tweens advance                      ┐
-6  resolve   grid → location → section → clip → elevation rank   │ Rowan
-7  settle    visibility, opacity, view extents   ┘
+5  animate   tweens advance                                              ┐
+6  resolve   grid → location → section → extent → scroll → clip → rank   │ Rowan
+7  settle    the inherited products, the box stack, focus                ┘
 8  extract   changed state → render instances (Elm)
 9  draw      (Ash)
 ```
@@ -94,9 +94,13 @@ than the app's world. See `pollen.md`.
 
 ### F8 — One writer per property, per phase
 
-Every derived value has exactly one writer, in exactly one phase. `resolve` owns sections; `settle`
-owns inherited visibility and opacity; `extract` reads and writes nothing but its own instance
-buffers.
+Every derived value has exactly one writer, in exactly one phase. `resolve` owns sections, extents,
+offsets and clips; `settle` owns the inherited products, the box stack and focus; `extract` reads
+and writes nothing but its own instance buffers.
+
+A view's extent is written in `resolve` rather than in `settle` because the offset clamped to it is
+what the drawn boxes are then computed from: the order is `rowan.md`'s R3 → R4, and it is not a free
+choice.
 
 Declared values — the ones an app writes — have two potential writers, the drain and `animate`.
 The drain runs first, and **a direct write cancels any in-flight tween on that property**. So by

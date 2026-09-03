@@ -28,7 +28,7 @@ use wgpu::{
 use winit::window::Window;
 
 use crate::color::Color;
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Section};
 use crate::ginkgo::depth::Depth;
 use crate::ginkgo::viewport::Viewport;
 
@@ -46,6 +46,9 @@ pub(crate) struct Ginkgo {
     /// What every renderer binds at group 0, so a pipeline's own layout starts at one.
     layout: BindGroupLayout,
     binding: BindGroup,
+    /// How many device pixels one logical pixel is. Read only where the two have to be converted,
+    /// which is the surface configuration and the scissor.
+    scale: f32,
 }
 
 impl Ginkgo {
@@ -130,6 +133,7 @@ impl Ginkgo {
             viewport,
             layout,
             binding,
+            scale,
         }
     }
 
@@ -138,6 +142,7 @@ impl Ginkgo {
     /// The projection is rebuilt from the logical area and the attachments from the physical one,
     /// which is the whole of what the scale factor is for.
     pub(crate) fn resize(&mut self, area: Area, scale: f32) {
+        self.scale = scale;
         self.configuration = configuration(self.configuration.format, area, scale);
         self.surface.configure(&self.device, &self.configuration);
         self.depth = Depth::new(&self.device, &self.configuration);
@@ -148,6 +153,27 @@ impl Ginkgo {
             scale,
             "surface configured"
         );
+    }
+
+    /// The scissor rect a logical clip becomes, in the surface's own pixels.
+    ///
+    /// Expanded outward to whole pixels rather than truncated: a fractional scale factor makes these
+    /// rects fractional, and taking the floor of both edges would shave the far side off every
+    /// clipped region. Clamped to the surface, because a scissor outside the attachment is not a
+    /// smaller region -- it is invalid.
+    pub(crate) fn scissor(&self, clip: Section) -> (u32, u32, u32, u32) {
+        let width = self.configuration.width as f32;
+        let height = self.configuration.height as f32;
+        let left = (clip.left() * self.scale).floor().clamp(0.0, width);
+        let top = (clip.top() * self.scale).floor().clamp(0.0, height);
+        let right = (clip.right() * self.scale).ceil().clamp(left, width);
+        let bottom = (clip.bottom() * self.scale).ceil().clamp(top, height);
+        (
+            left as u32,
+            top as u32,
+            (right - left) as u32,
+            (bottom - top) as u32,
+        )
     }
 
     pub(crate) fn device(&self) -> &Device {

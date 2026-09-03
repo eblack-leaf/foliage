@@ -13,9 +13,8 @@
 //! | [`Offset`] | R4, top-down | how far the region has been moved, clamped to what it can reach |
 //! | [`Clipped`] | R5, top-down | the box a scrolling ancestor leaves visible |
 //!
-//! What is here is what a gesture needs to find a region, ask whether it can still move, and move
-//! it. Boundary policy, pinned children, declared extents, `ScrollTo` and momentum are the view
-//! slice's, and each is an addition to this rather than a change to it.
+//! What is here is what a gesture needs of a region: where it can still move, and what moving it
+//! does to everything inside it.
 
 use bevy_ecs::component::Component;
 

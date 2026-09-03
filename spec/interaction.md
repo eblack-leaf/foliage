@@ -84,6 +84,13 @@ slider and to the column if it moves down. Nothing at spawn time knows which it 
 > to a drag the target does not take, the target yields and it passes to the nearest scrollable
 > ancestor.
 
+**A claim is settled once.** The axis a gesture resolved on, and who took it, hold for the life of
+that gesture — a drag that turns is still the drag it was claimed as. Re-deciding per move would
+hand the gesture back and forth through the middle of a diagonal, which is worse than either answer,
+and it would do it at the moment a hand is least steady. The one thing that moves afterwards is the
+claim travelling *outward* when its holder can no longer consume (§7), which is one direction and
+never back.
+
 **Contention runs up the tree, never sideways.** A target contends only with its own ancestors —
 the slider with the column that contains it. Two unrelated elements never contend, because
 targeting already picked one of them. Claiming does not widen who is eligible; it decides, among an
@@ -99,7 +106,7 @@ The engine can derive most of this, but not which drags an element wants. A slid
 along-axis drags is information only the app has.
 
 ```
-.drags(Axis::Horizontal)   // or Vertical, or Both
+.drags(Axes::Horizontal)   // or Vertical, or Both
 ```
 
 Default: **takes no drags.** So a target holds a gesture only until it becomes a drag, then yields
@@ -135,8 +142,10 @@ point at which the kind becomes known.
 A region scrolled to its end hands the gesture outward mid-drag, which is what the flag was
 approximating. One rule, nothing to configure, nothing to set wrong.
 
-A region that holds a gesture on an axis it does not scroll reports it rather than moving —
-replacing `ScrollRefused` as a special channel with a consequence of the same rule.
+A region is never handed a gesture on an axis it does not scroll: the claim passes over it to the
+next one out, and if nothing in the chain scrolls that axis the gesture is held by nothing and moves
+nothing for the rest of its life. So `ScrollRefused` has no special channel to be — refusal is the
+absence of a claimant, which is the same rule read from the other side.
 
 ## 8. Focus
 
@@ -146,6 +155,18 @@ Focus is a first-class surface, not a byproduct of clicking.
 `TextInput`'s caret responds to the click path rather than to focus. That is an implementation
 limitation dictating the public API — the inversion this rewrite exists to undo. The caret responds
 to focus; focus becomes a verb.
+
+**A press moves focus nowhere.** The element a person pressed and the element they want to type into
+are different questions, and only the app knows when they coincide — so it says so, in the one line
+that says it. Nothing is inferred from a gesture here for the same reason nothing is inferred in §3.
+It also deletes the flag the previous engine needed for controls that must be pressable without
+taking focus, and the judgement about which press counts as pressing *away* from a field: an app
+that wants a popover to close when something else is pressed asks about the element it put behind
+its content, which `pollen.md` already requires of anything asking "what was pressed".
+
+**What can hold focus is what declared `interactive()`.** The set that asked to receive input is the
+set a keyboard should be able to reach, so there is no second declaration to keep in step with the
+first, and no way for the two to disagree.
 
 **Focus order is reading order** — top to bottom, left to right — within the current scope, derived
 rather than declared, and overridable where a layout's meaning differs from its geometry.
@@ -163,7 +184,8 @@ draw that would be right.
 `holds_drag`, `directional_lock`, `overscroll`, `InteractionPropagation`, `ScrollRefused` as a
 distinct channel, and the drag-cancels-click retraction.
 
-What remains: `interactive()`, `pass_through()`, `drags(..)`, `round_hit_area()`, `disable()`.
+What remains: `interactive()`, `pass_through()`, `drags(..)`, `round_hit_area()`, `disable()`, and
+focus's own two, `focus_scope()` and `focus_order(..)`.
 
 ## Proof obligations
 
@@ -196,6 +218,9 @@ The two axes compete at different scales. On touch, vertical scrolling is the do
 wants an eager claim; a horizontal claim contends with it and wants a larger threshold, or every
 attempt to scroll steals into a carousel. One number is too eager for one and too reluctant for the
 other.
+
+A gesture that has travelled far enough on both is a drag **down**: down is the gesture a hand makes
+without meaning anything by it, and across is the one it means.
 
 It is a **global tuning value, not a per-element flag** — this is input feel, and input feel that
 varies element to element is what makes an app feel unpredictable. It joins the existing startup

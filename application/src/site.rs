@@ -153,6 +153,10 @@ impl Site {
         self.open = true;
         grove.visible(self.shell.drawer.sheet, true);
         grove.disable(self.shell.page);
+        // Held back rather than hidden, so it reads as out of play. Opacity is a product down the
+        // tree, so this is one write for the whole page -- and it is well above zero, which is what
+        // keeps the page in the stack to be swallowed by rather than absent from.
+        grove.opacity(self.shell.page, 0.35);
         grove.focus(self.shell.drawer.fields[0]);
     }
 
@@ -160,6 +164,7 @@ impl Site {
         self.open = false;
         grove.visible(self.shell.drawer.sheet, false);
         grove.enable(self.shell.page);
+        grove.opacity(self.shell.page, 1.0);
         grove.unfocus();
     }
 
