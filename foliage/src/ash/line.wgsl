@@ -7,8 +7,8 @@ struct Vertex {
     // Per instance: the two ends, the fill, and how thick and how capped.
     @location(1) segment: vec4<f32>,
     @location(2) color: vec4<f32>,
-    // Half the weight, then whether the ends are round.
-    @location(3) stroke: vec2<f32>,
+    // Half the weight, whether the ends are round, then half the coverage ramp.
+    @location(3) stroke: vec3<f32>,
     // Per instance, and the backend's own: where the element's rank placed it in the stack.
     @location(4) depth: f32,
 };
@@ -20,7 +20,7 @@ struct Fragment {
     // is in device pixels: the segment is logical, and the two have to be compared in one unit.
     @location(1) at: vec2<f32>,
     @location(2) @interpolate(flat) segment: vec4<f32>,
-    @location(3) @interpolate(flat) stroke: vec2<f32>,
+    @location(3) @interpolate(flat) stroke: vec3<f32>,
 };
 
 // How far past the stroke's own edge the drawn quad reaches, in logical pixels.
@@ -87,12 +87,12 @@ fn fragment_entry(frag: Fragment) -> @location(0) vec4<f32> {
             d = max(length(offset - along * at) - half, beyond);
         }
     }
-    // One device pixel wide, taken from the field's own screen-space derivative like every other
-    // shape here, and centred on the true edge rather than lying wholly inside it -- so a stroke's
-    // drawn width is the width it was asked for rather than that less a fading pixel. Capped at
-    // half the weight, so a stroke thinner than its own feather still reaches full coverage along
-    // its centreline at any angle.
-    let feather = min(max(fwidth(d), 1e-5) * 0.5, half);
+    // Half the coverage ramp, stated by the backend rather than taken from a screen-space
+    // derivative: the density is the whole of the answer and only the backend knows it, while
+    // `fwidth` over this field reports a width that varies with the angle the stroke runs at. The
+    // ramp is one device pixel wide, centred on the true edge rather than lying wholly inside it --
+    // so a stroke's drawn width is the width it was asked for rather than that less a fading pixel.
+    let feather = frag.stroke.z;
     // Linear, where every other shape here uses `smoothstep`. A thin stroke lands across two pixel
     // rows, and what has to stay constant as its centreline drifts between their centres is the
     // *sum* of what those rows paint -- the stroke's apparent weight. A linear ramp sums to exactly

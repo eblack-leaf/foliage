@@ -531,8 +531,7 @@ const SERIES: [f32; 6] = [0.15, 0.42, 0.30, 0.68, 0.55, 0.92];
 /// Every one of the renderers this slice adds, on one card, and each of them doing the thing it
 /// exists for rather than standing in for a panel. It is also where the claim that a path needs
 /// nothing of its own is tested: the series below is a chain of [`Line`]s between neighbouring
-/// points with a round [`Polygon`] on each turn, written here in a loop, and the engine has no
-/// concept of it.
+/// points, written here in a loop, and the engine has no concept of it.
 fn figure(grove: &mut Grove, column: Leaf, above: Leaf) -> Figure {
     let card = grove.branch(
         column,
@@ -581,15 +580,18 @@ fn figure(grove: &mut Grove, column: Leaf, above: Leaf) -> Figure {
             (100.pct() - AXIS.px()) - (100.pct() - (AXIS + HEAD).px()) * SERIES[n],
         )
     };
-    // A chain of strokes with round ends. Each end is a half-disc of half the weight centred on the
-    // point, so where two segments meet the two halves cover the wedge between them and there is
-    // nothing to place at the turn. foliage has no `Polyline`, so the chain is written here.
+    // A chain of strokes meeting end to end, with square ends rather than round ones. Two strokes
+    // are two elements and therefore two blends, so a pixel both of them only partly cover is
+    // painted twice and reads heavier than the shape they make between them. Round ends are that
+    // case at its worst, because they put the same half-disc in the same place twice; square ends
+    // abut, and what they leave open on the outside of a turn is a fraction of a pixel at the angles
+    // a reading turns through. foliage has no `Polyline`, so the chain is written here.
     for n in 0..SERIES.len() - 1 {
         grove.branch(
             card,
             Line::new()
                 .weight(2.0)
-                .cap(Cap::Round)
+                .cap(Cap::Butt)
                 .color(Palette::Accent)
                 .elevate(Elevation::up(1))
                 .between(plot(n), plot(n + 1)),

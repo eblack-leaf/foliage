@@ -487,7 +487,7 @@ const PANEL: [wgpu::VertexAttribute; 3] =
 const POLYGON: [wgpu::VertexAttribute; 3] =
     wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x3];
 const LINE: [wgpu::VertexAttribute; 3] =
-    wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x2];
+    wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x3];
 const ICON: [wgpu::VertexAttribute; 4] =
     wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x4, 4 => Float32];
 const IMAGE: [wgpu::VertexAttribute; 4] =

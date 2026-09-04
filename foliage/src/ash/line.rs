@@ -9,8 +9,9 @@ use crate::line::{Cap, LineInstance};
 ///
 /// The **segment** rather than four corners, because the vertex stage places the quad and the
 /// fragment stage measures distance to the segment -- so corners worked out on the CPU would be
-/// carried only to be turned back into the segment they came from. What is derived here is the one
-/// thing the density decides: an axis-aligned stroke put on whole device pixels.
+/// carried only to be turned back into the segment they came from. What is derived here is what the
+/// density decides: an axis-aligned stroke put on whole device pixels, and how wide the edge's
+/// coverage ramp is.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Pod, Zeroable)]
 pub(crate) struct LineQuad {
@@ -21,6 +22,8 @@ pub(crate) struct LineQuad {
     pub(crate) half: f32,
     /// Whether the ends are round, as a number the shader can branch on.
     pub(crate) round: f32,
+    /// Half the coverage ramp -- see [`feather`].
+    pub(crate) feather: f32,
 }
 
 impl LineQuad {
@@ -41,8 +44,30 @@ impl LineQuad {
             color: instance.color,
             half,
             round,
+            feather: feather(half, scale),
         }
     }
+}
+
+/// Half the stroke's coverage ramp, in the logical pixels its field is measured in.
+///
+/// The ramp spans exactly one device pixel, centred on the true edge. That width is the one at which
+/// a linear ramp sampled at pixel centres sums to the coverage the shape actually has: wider, and
+/// what a column of pixels sums to depends on where the centreline falls between them, which draws
+/// as a stroke thinning and thickening along its own length as it drifts; narrower, and the edge
+/// steps.
+///
+/// Stated here rather than derived in the shader because the density is the whole of the answer and
+/// the density is known here. A screen-space derivative cannot state it. `fwidth` is `|dpdx| +
+/// |dpdy|`, which over a distance field is `|cos| + |sin|` of the gradient's direction and so
+/// reports between one and one and a half device pixels depending on the angle the stroke runs at;
+/// it is taken per 2x2 quad, so whatever it reports is quantised across pairs of pixels; and it is
+/// discontinuous along a butt cap, where the field's `max` changes which term is nearest.
+///
+/// Capped at half the weight, so a stroke thinner than its own ramp still reaches full coverage
+/// along its centreline at any angle.
+fn feather(half: f32, scale: f32) -> f32 {
+    (0.5 / scale).min(half)
 }
 
 /// An axis-aligned stroke, with its edges on whole device pixels.
