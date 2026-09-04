@@ -65,10 +65,14 @@ pub(crate) enum Op {
         leaf: Leaf,
         value: String,
     },
-    /// One keystroke, against the field holding focus. Which field is dispatch's answer; what the
-    /// key does to the value is the drain's.
-    Type {
-        leaf: Leaf,
+    /// One keystroke, against whatever holds focus. Which element that is is dispatch's answer;
+    /// what the key does is the drain's.
+    ///
+    /// `target` is `None` where focus rests nowhere. The key is still carried, still ordered against
+    /// everything else in the queue, and still reported -- to the app itself rather than to an
+    /// element, which is what lets a chord reach a page nobody has pressed.
+    Keyed {
+        target: Option<Leaf>,
         stroke: Keystroke,
     },
     /// Selects a span of a field's value outright.

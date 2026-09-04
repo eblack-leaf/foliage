@@ -224,11 +224,21 @@ fn drain(grove: &mut Grove) {
                     None => dropped("text", leaf, "says nothing to rewrite"),
                 }
             }
-            Op::Type { leaf, stroke } => {
+            Op::Keyed { target, stroke } => {
+                let Some(leaf) = target else {
+                    grove.drift.root_keys.push(stroke);
+                    debug!(key = ?stroke.key, "keyed with no focus");
+                    continue;
+                };
                 if !grove.tree.is_live(leaf) {
-                    dropped("type", leaf, "not live");
+                    dropped("key", leaf, "not live");
                     continue;
                 }
+                // Reported to whoever holds focus whatever that element is, and then given to the
+                // element for whatever it makes of it. An app hears the key it was sent either way:
+                // what a seed does with one is not a claim on it.
+                grove.drift.keys.entry(leaf).or_default().push(stroke);
+                debug!(leaf = leaf.id(), key = ?stroke.key, "keyed");
                 text_input::typed(grove, leaf, stroke);
             }
             Op::Select { leaf, range } => {

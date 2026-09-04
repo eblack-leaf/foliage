@@ -1,23 +1,22 @@
 # What is left
 
-The working checklist for foliage 1.0. `spec/` states the design and `spec/README.md` records how
-each slice arrived; neither is a list of what is still owed. This is that list.
+The working checklist for foliage 1.0, and the one document meant to outlive the planning ones.
 
 ## Where it stands
 
 | Gate | State |
 |---|---|
-| `cargo test --workspace` | 417 headless tests, 22 doctests, 14 compile-fail doctests — passing |
+| `cargo test --workspace` | 425 headless tests, 23 doctests, 14 compile-fail doctests — passing |
 | `cargo check -p application` | passing (one dead-code warning: `Instances::len`, `Instances::holding`) |
 | `cargo check -p foliage --target wasm32-unknown-unknown` | passing |
 
-Landed: A7, B1–B9 and C1, plus the long-press primitive and drag auto-scroll. Not started: B10
-(platform edges) and B11 (`Sprig`).
+Landed: A7, B1–B9 and C1, plus the long-press primitive, drag auto-scroll, and the public key
+surface. Not started: B10 (platform edges) and B11 (`Sprig`).
 
-The engine is complete as a *model*. Every law in `spec/frame.md` is implemented and proven, the
-tree resolves, six renderers draw through one stack, and one composite is built out of the same
-parts an app has. What is missing is not model — it is reach: the app cannot hear a keyboard, cannot
-load anything from disk or network, and cannot be built for anything but the desktop.
+The engine is complete as a *model*. The frame law is implemented and proven end to end, the tree
+resolves, six renderers draw through one stack, and one composite is built out of the same parts an
+app has. What is missing is not model — it is reach: an app cannot load anything from disk or
+network, and cannot be built for anything but the desktop.
 
 ## Against the previous engine
 
@@ -49,20 +48,7 @@ integration, tooling, and four features that were deliberately dropped.
 baker.** Everything else in it is either ported or replaced by something this engine states
 differently on purpose, so the new shape should be judged on its own consistency.
 
-## 1. Keys are not reachable from an app
-
-The largest hole in the public surface, and it is not on any slice's list.
-
-`Key`, `Modifiers` and `Keystroke` are `pub(crate)`. Dispatch sends `Tab` and `Escape` to focus and
-everything else to the element holding focus — where only `TextInput` consumes one. There is no
-`Pollen` for a keystroke, so an app cannot answer `Enter` on a focused button, arrow keys on a list,
-or any shortcut it defines. Every app that is not a form needs this.
-
-What it needs decided: which of `Key` becomes public, what a key that reaches an element with no use
-for it does, and whether a report is keyed on the focused `Leaf` or stands on its own the way
-`tween` does.
-
-## 2. B10 — the platform edges
+## 1. B10 — the platform edges
 
 | | Unblocks |
 |---|---|
@@ -71,13 +57,13 @@ for it does, and whether a report is keyed on the focused `Leaf` or stands on it
 | Virtual keyboard | `TextInput` on a phone — a field that cannot raise a keyboard is not usable there |
 | Web ext | a link that navigates, and a download |
 
-## 3. B11 — `Sprig`
+## 2. B11 — `Sprig`
 
 Off-thread ops, proven indistinguishable from in-frame ops. The names are already allocated from an
 atomic counter for exactly this, so what is left is the channel, the drain-side receipt, and the
 watched reads the previous engine's `Conditions` covered.
 
-## 4. Owed inside slices that landed
+## 3. Owed inside slices that landed
 
 - **`Polyline`** (B8). A path as one element, one coverage evaluation, a dash pattern and
   `Motion::DrawProgress`. `application/` draws its series as a chain of square-capped `Line`s.
@@ -98,7 +84,7 @@ watched reads the previous engine's `Conditions` covered.
 - **Recolouring a field after it is grown** (B9). `color` reaches none of a field's four fills, and
   which part it would mean is unanswered.
 
-## 5. What the crate needs before anyone else can use it
+## 4. What the crate needs before anyone else can use it
 
 None of this is engine work, and all of it is between here and "a library".
 
@@ -111,20 +97,28 @@ None of this is engine work, and all of it is between here and "a library".
   `Foliage::image` takes decoded RGBA; nothing in the repo produces either, and `application/`
   generates both procedurally. Port the baker as its own tool, or document the field format and name
   a decoder an app is expected to bring.
-- **No CI.** No golden images (`spec/harness.md` names them as the second tier), no native matrix,
-  no wasm build, no `.github` at all.
+- **No CI.** No golden images — the second tier the headless suite explicitly cannot reach — no
+  native matrix, no wasm build, no `.github` at all.
 - **No web or Android build path.** No `Trunk.toml`, no Android crate, no `xtask`. The wasm target
   compiles; nothing packages it.
-- **No book.** `spec/README.md` says each slice lands with a chapter; none exist.
+- **No book.** The slice plan named a chapter per slice; none exist.
 
-## 6. Settled — not open questions
+## 5. Settled — not open questions
 
 Listed so they are not reopened by a reader who did not see them decided: absolute elevation, a
 hit test that walks the stack, `ClipToViewport` (replaced by `floats`/`Escape`), a keybinding table,
 a second cache beyond text shaping, per-element tracing events, and a `Polyline` built as a single
 stack entry rather than a single coverage evaluation.
 
-## 7. For the optimisation pass
+Keys settled the same way, and the shape is worth stating once: a key goes to whatever holds focus,
+focus rests only on what declared `interactive()`, so **`interactive()` is the whole declaration** —
+there is no second flag saying an element listens. `Pollen::keys(leaf)` is ordered, which nothing
+else in `Pollen` is, because two keys in a frame mean different things in each order. `Tab` and
+`Escape` are focus's own and never reach an element. A key that arrived with focus nowhere is the
+app's, through `Pollen::root_keys()`. Nothing consumes a key on another's behalf: a field is sent
+what it edited with and the app is told the same keys.
+
+## 6. For the optimisation pass
 
 Candidates, not measured, and all deliberate as built:
 
@@ -138,8 +132,8 @@ Candidates, not measured, and all deliberate as built:
 
 ## Two finish lines
 
-**Useful to someone else** — §1 keys, §2 assets and clipboard, and §5's packaging, examples and an
-answer for icon fields. Virtual keyboard as well, if a phone is in scope.
+**Useful to someone else** — §1's assets and clipboard, and §4's packaging, examples and an answer
+for icon fields. Virtual keyboard as well, if a phone is in scope.
 
 **Feature-complete against the plan** — the above, plus B11, `Polyline`, the B9 field items, CI with
 golden images, and the book.

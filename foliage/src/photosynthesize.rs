@@ -59,6 +59,8 @@ fn keys(event: &KeyEvent) -> Vec<Key> {
         Named::Named(NamedKey::Delete) => named(Key::Delete),
         Named::Named(NamedKey::ArrowLeft) => named(Key::Left),
         Named::Named(NamedKey::ArrowRight) => named(Key::Right),
+        Named::Named(NamedKey::ArrowUp) => named(Key::Up),
+        Named::Named(NamedKey::ArrowDown) => named(Key::Down),
         Named::Named(NamedKey::Home) => named(Key::Home),
         Named::Named(NamedKey::End) => named(Key::End),
         Named::Named(NamedKey::Enter) => named(Key::Enter),

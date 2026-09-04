@@ -1,6 +1,7 @@
 use crate::aspen::{Sequence, Tween};
 use crate::coordinate::{Area, Position};
 use crate::interaction::Drag;
+use crate::interaction::input::Keystroke;
 use crate::leaf::Leaf;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -169,6 +170,48 @@ impl Pollen {
         self.0.unfocused.contains(&leaf)
     }
 
+    /// What was typed at `leaf` this frame, in the order it arrived.
+    ///
+    /// A key goes to whatever holds focus, and focus rests only on what declared
+    /// [`interactive`](crate::Place::interactive) -- so an element that can be focused hears keys
+    /// with nothing further declared, and one that cannot never does. What an element makes of a
+    /// key is the app's: an activation on [`Key::Enter`], a step through a list on
+    /// [`Key::Up`]/[`Key::Down`], anything else it wants to answer.
+    ///
+    /// ```
+    /// # use foliage::{Grove, Grow, Key, Leaf, Pollen};
+    /// # fn f(grove: &mut Grove, pollen: &Pollen, button: Leaf, menu: Leaf) {
+    /// for stroke in pollen.keys(button) {
+    ///     match stroke.key {
+    ///         Key::Enter => grove.prune(menu),
+    ///         Key::Down => grove.focus_next(),
+    ///         _ => {}
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// **Ordered, which nothing else here is.** [`Pollen`] is a set to interrogate rather than a
+    /// list to walk, and keystrokes are the one exception, because two keys in a frame mean
+    /// different things in each order.
+    ///
+    /// A [`TextInput`](crate::TextInput) is told what it was sent as well, so a field's own keys are
+    /// readable beside the [`edited`](Pollen::edited) they produced.
+    pub fn keys(&self, leaf: Leaf) -> &[Keystroke] {
+        self.0.keys.get(&leaf).map_or(&[], Vec::as_slice)
+    }
+
+    /// What was typed this frame while focus rested nowhere, in the order it arrived.
+    ///
+    /// Keys reach an element by holding focus, and a page that has never been pressed holds none --
+    /// so a chord that is about the whole app rather than about anything in it would have nowhere
+    /// to land. It lands here instead.
+    ///
+    /// A key is never reported both here and to an element: focus rests somewhere or it does not.
+    pub fn root_keys(&self) -> &[Keystroke] {
+        &self.0.root_keys
+    }
+
     pub(crate) fn seal(drift: Drift) -> Self {
         Self(Arc::new(drift))
     }
@@ -195,6 +238,11 @@ pub(crate) struct Drift {
     pub(crate) held: HashMap<Leaf, Position>,
     pub(crate) drag_started: HashSet<Leaf>,
     pub(crate) dragged: HashMap<Leaf, Drag>,
+    /// What each focused element was sent, in arrival order -- the one ordered thing here, because
+    /// two keys in a frame mean different things in each order.
+    pub(crate) keys: HashMap<Leaf, Vec<Keystroke>>,
+    /// The same for keys that arrived while focus rested nowhere, which are the app's own.
+    pub(crate) root_keys: Vec<Keystroke>,
     pub(crate) edited: HashSet<Leaf>,
     pub(crate) submitted: HashSet<Leaf>,
     pub(crate) focused: HashSet<Leaf>,

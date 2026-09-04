@@ -392,6 +392,10 @@ fn holding(grove: &mut Grove) {
 /// else goes to whatever holds focus, and what an element makes of a key is that element's: this
 /// pass knows which keys steer focus and nothing else about any of them.
 ///
+/// A key arriving with focus nowhere is carried with no target rather than dropped. It reaches no
+/// element -- there is none to reach -- and is reported to the app itself, which is where a chord
+/// that is about the whole page belongs.
+///
 /// Queued rather than applied, so a keystroke is drained in arrival order beside every other change
 /// and what it produces is reported on F7's own terms.
 fn keyed(grove: &mut Grove, key: Key) {
@@ -412,10 +416,10 @@ fn keyed(grove: &mut Grove, key: Key) {
         debug!("escaped");
         return;
     }
-    let Some(leaf) = grove.focus.held() else {
-        return;
-    };
-    grove.queue.push(Op::Type { leaf, stroke });
+    grove.queue.push(Op::Keyed {
+        target: grove.focus.held(),
+        stroke,
+    });
 }
 
 /// The one read of the stack, and everything that follows from it.

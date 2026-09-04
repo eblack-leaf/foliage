@@ -17,6 +17,9 @@
 //!   receives one, [`pass_through`](Place::pass_through) says who is never the top, and
 //!   [`Drag`] is what one reports while it is held. A press that stayed still for [`Hold`]'s
 //!   duration is [`held`](Pollen::held) rather than a tap that might still be coming.
+//! - A [`Keystroke`] goes to whatever holds focus, which is only ever something that declared
+//!   [`interactive`](Place::interactive): [`keys`](Pollen::keys) is what an element was sent, and
+//!   [`root_keys`](Pollen::root_keys) is what arrived with focus nowhere.
 //! - [`Text`] is a run of monospaced glyphs, [`Font`] names one an app registered and [`FontSize`]
 //!   says how large it is; [`content()`] is a box measured rather than declared.
 //! - [`TextInput`] is an editable one: one [`Leaf`] to hold, [`select`](Grow::select) to move its
@@ -82,6 +85,7 @@ pub use foliage::Foliage;
 pub use grove::Grove;
 pub use icon::{Field, Icon};
 pub use image::{Fit, Image, Plate};
+pub use interaction::input::{Key, Keystroke, Modifiers};
 pub use interaction::{Claim, Drag, Hold};
 pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};

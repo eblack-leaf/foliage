@@ -9,6 +9,7 @@ mod elm;
 mod focus;
 mod frame;
 mod interaction;
+mod keys;
 mod lifecycle;
 mod placement;
 mod renderers;

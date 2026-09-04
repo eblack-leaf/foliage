@@ -363,6 +363,9 @@ pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Appli
         // Both answered before a field is ever asked, because both move focus wherever focus is:
         // `Tab` steps it and `Escape` takes it away. A field never sees either.
         Key::Tab | Key::Escape => Applied::Nothing,
+        // A field is one line, so there is no line above or below to move to. An app reading its
+        // own keys is what steps a list of them.
+        Key::Up | Key::Down => Applied::Nothing,
     }
 }
 
@@ -585,10 +588,12 @@ pub(crate) fn refresh(grove: &mut Grove, field: Leaf) {
     grove.sought.push((field, ScrollTo::show(parts.caret)));
 }
 
-/// One keystroke, delivered to the field holding focus.
+/// One keystroke, delivered to the element holding focus.
+///
+/// Anything but a field makes nothing of one, which is ordinary rather than a drop: the key was
+/// delivered and reported, and having no use for it is what most elements do.
 pub(crate) fn typed(grove: &mut Grove, field: Leaf, stroke: Keystroke) {
     let Some(parts) = grove.tree.parts(field) else {
-        debug!(leaf = field.id(), "type dropped: not a field");
         return;
     };
     let value = grove

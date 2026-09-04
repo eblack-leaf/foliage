@@ -38,12 +38,17 @@ pub(crate) enum Input {
 
 /// One keystroke: which key, and what was held with it.
 ///
+/// What [`Pollen::keys`](crate::Pollen::keys) hands an element, and what
+/// [`Pollen::root_keys`](crate::Pollen::root_keys) hands an app with nothing focused.
+///
 /// Assembled at dispatch from the key and whatever [`Modifiers`] the stream had reached by then,
 /// which is what makes it a single value the drain can carry.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Keystroke {
-    pub(crate) key: Key,
-    pub(crate) modifiers: Modifiers,
+pub struct Keystroke {
+    /// Which key it was.
+    pub key: Key,
+    /// What was held down with it.
+    pub modifiers: Modifiers,
 }
 
 /// A key, as the platform's own layout resolved it.
@@ -51,11 +56,18 @@ pub(crate) struct Keystroke {
 /// [`Typed`](Key::Typed) is a character to insert and nothing more: which key produced it, whether
 /// it took a dead key or two, and what the layout is are all the platform's, answered before this.
 /// Everything else here is a key that means something rather than says something.
+///
+/// Non-exhaustive, because a key set grows: an app matches the keys it acts on and lets the rest
+/// fall through.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Key {
+#[non_exhaustive]
+pub enum Key {
+    /// A character the layout produced, to be taken as itself.
     Typed(char),
     Left,
     Right,
+    Up,
+    Down,
     Home,
     End,
     Backspace,
@@ -72,9 +84,11 @@ pub(crate) enum Key {
 /// selection where a bare arrow moves a caret; `control` is what makes a key a command rather than
 /// a character.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Modifiers {
-    pub(crate) shift: bool,
-    pub(crate) control: bool,
+pub struct Modifiers {
+    /// Whether shift was down.
+    pub shift: bool,
+    /// Whether control was down.
+    pub control: bool,
 }
 
 /// Everything input has arrived with and everything it has built up: what is waiting for the next
