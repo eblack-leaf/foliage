@@ -581,10 +581,9 @@ fn figure(grove: &mut Grove, column: Leaf, above: Leaf) -> Figure {
             (100.pct() - AXIS.px()) - (100.pct() - (AXIS + HEAD).px()) * SERIES[n],
         )
     };
-    // Round ends, which is the whole of what makes this a path rather than a row of strokes. Each
-    // end is a half-disc of half the weight centred on the point, so where two segments meet the
-    // two halves are one disc of exactly the radius the wedge between them needs. There is nothing
-    // to place at a turn, and a path is its segments and no more.
+    // A chain of strokes with round ends. Each end is a half-disc of half the weight centred on the
+    // point, so where two segments meet the two halves cover the wedge between them and there is
+    // nothing to place at the turn. foliage has no `Polyline`, so the chain is written here.
     for n in 0..SERIES.len() - 1 {
         grove.branch(
             card,

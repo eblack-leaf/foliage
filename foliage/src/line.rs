@@ -87,13 +87,10 @@ impl Line {
 
 /// How a stroke's ends are finished.
 ///
-/// # A round cap is what makes a chain of strokes a path
-///
 /// A stroke is a rectangle, so two of them meeting at an angle leave a wedge open on the outside of
-/// the turn. [`Round`](Cap::Round) closes it with nothing added: each stroke's cap is a half-disc of
-/// half the weight centred on the shared point, so the two halves meeting there are one disc of
-/// exactly the radius the gap needs. A path is then its segments and nothing else -- no joint to
-/// place, nothing to keep in step with the strokes it joins, and no element count that grows twice.
+/// the turn. [`Round`](Cap::Round) covers it: each end is a half-disc of half the weight centred on
+/// the point, so two strokes sharing an end put one disc of exactly that radius over the wedge
+/// between them.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum Cap {
     /// Square, ending exactly on the point. What a rule and a division want: an end that reached

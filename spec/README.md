@@ -654,8 +654,10 @@ into the column behind it.
 
 `Icon`, `Image`, `Polygon`, `Line`, per-character tints, and the glyph pipeline B6 left. Three
 hundred and sixty headless tests and fourteen compile-fail doctests. Six renderers now, one stack
-over all of them — and one fewer element than the slice set out with, because `Polyline` turned out
-to be a cap on `Line`.
+over all of them.
+
+`Polyline` is **not built**. `Line` also carries a regression that needs undoing before anything
+else here is trusted — both are under *Still owed* below.
 
 What they arrived together for is the **sheet**, which `Icon` wants as much as a run does, and the
 spans the one walk cuts. The per-renderer numbering behind the `u64` key is not shared by all of
@@ -805,37 +807,33 @@ than decoration: a rule's ends share a coordinate, and a box of no height is cul
 ever drawn. The ends are settled beside the box rather than recovered from it, because a rectangle
 has two diagonals and which one the stroke runs along is a fact about where the ends resolved.
 
-### A round cap is what a path is made of
+### `Cap`, and the shader that was rewritten under it
 
-`Cap::Round` is the whole of `Polyline`, and it is why there is not one.
+`Line` takes a `Cap`: `Butt` by default, because a rule that reached half a weight past where it was
+told to stop would not line up with anything, and `Round` for a stroke that is a mark or part of a
+path. Placement is unaffected — a box already grows by half the weight on every side, which contains
+a round end.
 
-A stroke is a rectangle, so two of them meeting at an angle leave a wedge open on the outside of the
-turn. The previous engine closed it by placing a circle of the stroke's own width on each shared
-vertex — which is a second element per turn, a second renderer involved in drawing a line, and two
-placements that have to agree about a point. A round cap closes it with **nothing added**: each end
-is a half-disc of half the weight centred on the point, so where two segments meet, the two halves
-*are* one disc of exactly the radius the gap needs. Coincident by construction rather than by
-arithmetic done twice.
+**The line shader was rewritten to add it, and that was a mistake.** The previous engine's
+`line.wgsl` had been tuned against real defects and was working; this replaced it with something
+shorter and untested. Being shorter is not a reason. Three things changed, and each should be taken
+back:
 
-So a path is its segments and no more, and an app writes one in a loop — which `application/` does.
-What a named `Polyline` would still add over that is a handle, a dash pattern and a draw progress,
-none of which is a renderer and all of which sit above the primitives rather than beside them. That
-is `lichen`'s to offer, or an app's.
+| | before | here |
+|---|---|---|
+| coverage | `min` of signed distances to the quad's four edges | distance to a segment, closed form |
+| feather | **a constant** `min(0.5, half_weight)` — half a device pixel | derived per fragment from `fwidth(d)` |
+| space | physical pixels, the section already `to_physical().rounded()` | logical throughout, the snap converting |
 
-The cap also **simplified** the shader rather than complicating it. Distance to a segment is exact
-and closed form, so the four-edge minimum went, and with it the winding inference that had to find
-which side faced the interior and the guard against a collapsed side returning `NaN` from
-`normalize`. A butt cap is the same field cut at each end by the plane through it, which is exactly
-an oriented box. Everything the previous shader was careful about is kept and is about the coverage
-ramp rather than the distance: the quad still grows past the true edge so the rasteriser is asked
-about the pixels the feather covers, the ramp is still linear rather than smoothstepped so a thin
-stroke's apparent weight stays constant as its centreline drifts between two pixel rows, the feather
-is still capped at half the weight so a sub-pixel stroke reaches full coverage on its centreline,
-and an axis-aligned stroke is still put on whole device pixels — thickness snapped first and the
-centreline placed from it, so a one-pixel rule is one lit row rather than two half-lit ones.
+The feather is the one to look at first. A constant half-pixel ramp is uniform along the whole
+stroke; an `fwidth` of this field is not — it varies along the length and again near the caps, which
+is the same thinning and thickening the previous engine's comments say the constant was chosen to
+stop. `AA_MARGIN` went from one device pixel to one logical pixel with it.
 
-`Butt` is the default, because a rule that reached half a weight past where it was told to stop
-would not line up with anything.
+What was kept: the quad grows past the true edge so the rasteriser is asked about the pixels the
+feather covers, the ramp is linear rather than smoothstepped, and an axis-aligned stroke is put on
+whole device pixels — thickness snapped first and the centreline placed from it, so a one-pixel rule
+is one lit row rather than two half-lit ones.
 
 ### The two sheets, and the one texture each
 
@@ -917,19 +915,21 @@ surface than a second verb.
 
 ### Still owed by B8
 
-- **`Polyline`** — **cut, not deferred.** `Cap::Round` is what it was for, and a chain of strokes
-  now joins itself. `application/` draws its series that way: a `Line` between each pair of
-  neighbouring points, capped round, written in a loop against the public surface with the engine
-  having no concept of a path. A named one would add a handle, a dash pattern and a draw progress,
-  and none of those is a renderer — they belong to `lichen` or to an app.
+- **Restore `line.wgsl`** — first, before anything else here is trusted. Take the previous engine's
+  four-edge coverage and its constant feather back, in physical space, and put `Cap` on top of that
+  rather than on top of the rewrite. See the table above for exactly what changed.
 
-  Making it an *element* was also the thing B8 had no business settling. A seed that expands into
-  several elements needs those elements to be opaque, and `Vein::Branches` handing an app back a
-  path's own strokes is a public-surface question rather than a rendering one. `B9` is where the
-  composite question is answered, and nothing here should have invented half an answer to it first.
+  Seams were visible at the turns of the path `application/` draws. They are **not diagnosed**, and
+  the cause is not z-ordering across the parts — the previous engine gave each part its own level
+  and drew paths cleanly.
+- **`Polyline`** — not built. `application/` draws its series as a chain of round-capped `Line`s,
+  which is enough to exercise the renderer but is not the same thing as a path the engine knows
+  about. What a real one owes is a handle, a dash pattern, and `Motion::DrawProgress` — and, before
+  any of those, an answer on whether the segments of one path have to be a single entry in the stack
+  for their joins to composite cleanly. That question is open.
 - **`Motion::DrawProgress`** — goes with whatever owns a path. Revealing a prefix by arc length
-  needs the resolved positions of every point, which is a pass, and there is no longer an element
-  here for that pass to belong to.
+  needs the resolved positions of every point, which is a pass, and there is no element here yet for
+  that pass to belong to.
 - **Eviction** — still not built, and now with a reason rather than a deferral: the two things that
   could have filled a shared sheet do not share one. Marks are a bounded set packed once; pictures
   have a texture each. Should a sheet ever fill, the packer already implies the shape — shelves are

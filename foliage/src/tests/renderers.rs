@@ -141,15 +141,14 @@ fn between_moves_both_ends_at_once() {
     assert_eq!(stroke(&grove, leaf).from, Position::new(20.0, 30.0));
 }
 
-/// The claim a path rests on: two strokes sharing an end, each capped round, cover the wedge
-/// between them with nothing placed there.
+/// Two strokes sharing an end resolve that end to the same point, and each reaches half a weight
+/// past it.
 ///
-/// A round cap is a half-disc of half the weight centred on the end, so the two halves meeting at a
-/// shared point are one disc of exactly the radius the gap needs. What is checkable headlessly is
-/// that the two ends are the *same point* and that both strokes say they are round -- the coverage
-/// itself is the rasteriser's, which is the layer the suite cannot reach.
+/// What a chain of strokes needs to cover the wedge at a turn, and the whole of what is checkable
+/// headlessly: whether the coverage there actually reads cleanly is the rasteriser's, which is the
+/// layer the suite cannot reach.
 #[test]
-fn two_round_ends_meeting_at_a_point_are_the_joint() {
+fn two_strokes_sharing_an_end_resolve_it_to_one_point() {
     let mut grove = grove();
     let turn = (60.0, 20.0);
     let first = grove.plant(line((10.0, 40.0), turn, 6.0).cap(Cap::Round));
