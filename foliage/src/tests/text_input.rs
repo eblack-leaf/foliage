@@ -619,6 +619,78 @@ fn a_drag_out_of_a_hold_selects() {
     assert_eq!(offset(&grove, leaf), 0.0);
 }
 
+/// A drag that runs past the edge keeps the end it started from. The anchor is a character and the
+/// hold put it there; a point on the screen is not one, because the value scrolls under it as the
+/// field follows the caret -- which is what used to walk the start of the selection along with it.
+#[test]
+fn a_drag_past_the_edge_keeps_the_end_it_started_from() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove);
+    typing(&mut grove, "abcdefghijklmnopqrstuvwxyz0123");
+    tick(&mut grove);
+    grove.select(leaf, 0..0);
+    tick(&mut grove);
+
+    press(&mut grove, 3.0 * CELL, 16.0);
+    tick(&mut grove);
+    past_the_hold(&mut grove);
+    tick(&mut grove);
+    assert_eq!(selection(&grove, leaf), 3..3);
+
+    // Out past the right edge of the box, which carries the value along under the pointer.
+    drag(&mut grove, 24.0 * CELL, 16.0);
+    tick(&mut grove);
+    assert!(offset(&grove, leaf) > 0.0, "the field followed the caret");
+    let reached = selection(&grove, leaf);
+    assert_eq!(reached.start, 3);
+
+    drag(&mut grove, 25.0 * CELL, 16.0);
+    tick(&mut grove);
+    let further = selection(&grove, leaf);
+    assert_eq!(further.start, 3, "the anchor stayed the character it was");
+    assert!(further.end > reached.end);
+}
+
+/// A drag that reached the edge and stopped moving keeps going. A pointer held still produces no
+/// event of any kind, so a field that worked only when one arrived would stop at its own edge and
+/// wait to be jiggled -- and the frames it takes to get there are its own to ask for.
+#[test]
+fn a_drag_held_past_the_edge_keeps_scrolling() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove);
+    typing(&mut grove, "abcdefghijklmnopqrstuvwxyz0123");
+    tick(&mut grove);
+    grove.select(leaf, 0..0);
+    tick(&mut grove);
+
+    press(&mut grove, 3.0 * CELL, 16.0);
+    tick(&mut grove);
+    past_the_hold(&mut grove);
+    tick(&mut grove);
+
+    // Out past the right edge, once.
+    drag(&mut grove, 22.0 * CELL, 16.0);
+    tick(&mut grove);
+    let (moved, selected) = (offset(&grove, leaf), selection(&grove, leaf));
+    assert!(moved > 0.0);
+    assert!(grove.again, "the field is asking for the frames");
+
+    // Nothing arrives at all. The pointer is where it was, and the frame runs because the field
+    // asked for it.
+    tick(&mut grove);
+    assert!(offset(&grove, leaf) > moved, "it kept going");
+    assert!(selection(&grove, leaf).end > selected.end);
+    assert_eq!(selection(&grove, leaf).start, 3);
+
+    // Back inside, and it stops asking.
+    drag(&mut grove, 10.0 * CELL, 16.0);
+    tick(&mut grove);
+    let settled = offset(&grove, leaf);
+    assert!(!grove.again);
+    tick(&mut grove);
+    assert_eq!(offset(&grove, leaf), settled);
+}
+
 /// A hold takes focus with the caret, and the field writes that itself: a press that was held is not
 /// a tap, and a tap is the only gesture the engine moves focus on.
 #[test]

@@ -684,6 +684,17 @@ fn wheeled(grove: &mut Grove, at: Position, delta: Position) {
     }
 }
 
+/// Where the pointer is, while `leaf` is the one holding the open drag.
+///
+/// The gesture itself rather than the moves it reported. A pointer held still produces no event at
+/// all, so an element with something to do for as long as a drag is *somewhere* -- selecting toward
+/// a point past its own edge -- has nothing to read in a frame that reported nothing. This is what
+/// it reads instead, and it is the same answer in a frame that moved.
+pub(crate) fn dragging(grove: &Grove, leaf: Leaf) -> Option<Position> {
+    let gesture = grove.incoming.gesture.as_ref()?;
+    (gesture.target == Some(leaf) && matches!(gesture.stage, Stage::Target)).then_some(gesture.to)
+}
+
 /// The scrolling ancestors of `from`, itself included, innermost first.
 ///
 /// Targethood is not consulted. A drag anywhere inside a region must scroll it -- on touch that is

@@ -1130,19 +1130,6 @@ away from.
 
 ### Still owed by B9
 
-The first of these is the next work. Both it and the long press below came out of using the thing
-rather than reading it, and the long press is the reason this one is worth having.
-
-- **A drag that reaches the edge should keep scrolling.** It does not, and the bug is exact:
-  `refresh` asks the field to `show` the caret, but a field only refreshes when a drag *reports
-  movement*, and movement is only reported from `Input::Moved`. A pointer held still past the edge
-  produces no event, so nothing scrolls and the reader has to jiggle to make progress.
-
-  The fix reads the **open gesture** each frame rather than only the moves: while a field holds a
-  drag whose pointer is outside its box, scroll toward it every frame whatever the pointer did.
-  `Fronds::gestured` already runs every frame and can see `incoming.gesture`, so there is nowhere
-  new to put it.
-
 - **A blinking caret.** Deliberate rather than forgotten: a blink is a frame owed for as long as a
   field holds focus, and F9's idling is worth more than the blink until something says otherwise. The
   caret is solid while focused.
@@ -1176,8 +1163,8 @@ button says `save` once the form has anything in it and `close` while it does no
 
 ## The long press
 
-`interaction.md` §6's owed item, and the first work after B9. Four hundred and fifteen headless tests
-and fourteen compile-fail doctests.
+`interaction.md` §6's owed item, and the first work after B9. Four hundred and seventeen headless
+tests and fourteen compile-fail doctests.
 
 A gesture had one threshold and it was a distance, so a press that was sitting still and a press that
 had not moved yet were the same state. `resolving` has a second way out now — held past `Hold::after`
@@ -1222,6 +1209,28 @@ One pointer answers for all three devices (`input.rs`), so this is the mouse's b
 click-drag across a field scrolls it rather than selecting. That is `interaction.md` §6's answer taken
 literally — the two motions are identical until a hold separates them, and there is nothing else in a
 gesture to separate them by.
+
+### What using it found
+
+Two defects in selection, both of them B9's and neither reachable before there was a selection long
+enough to drag off the end of.
+
+**A selection is anchored to a character, not to a point.** The drag was re-deriving its anchor from
+`drag.start` every move, and `index_at` measures from where the run is drawn — so the moment the field
+scrolled to follow the caret, the same screen point named a later character and the start of the
+selection walked along behind it. The anchor is read from the field's own `Editing` now, where the
+hold already put it, and the caret alone comes from the pointer. Under test: reverting the line moves
+the start from 3 to 7 while the value scrolls.
+
+**A drag that stopped moving is still a drag.** The field was working off reported movement, and a
+pointer held still past the edge reports none at all — so selection stopped at the edge until the
+reader jiggled to make progress. It reads the **open gesture** now (`interaction::dragging`), which is
+the same answer in a frame that moved and the only answer in a frame that did not, and the release's
+last move still comes from what was reported, because by then the gesture has closed. The frames that
+auto-scroll takes are asked for with `Grove::again` — the app-facing verb, from a frond that is
+allowed nothing an app could not do — and only while the pointer is past the field *across*, which is
+the one axis it can move on. It stops asking the moment the pointer comes back inside, which is under
+test beside the scrolling itself.
 
 **A hold needs a holder.** Where the press landed on nothing that receives, there is nobody for it to
 be a fact about, so the gesture stays resolving and ends as the tap it would always have been — which

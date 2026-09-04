@@ -43,8 +43,8 @@ use crate::coordinate::{Axes, Position};
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, PanelPigment, Pigment};
 use crate::grove::Grove;
-use crate::interaction::Gestures;
 use crate::interaction::focus::Intent;
+use crate::interaction::{self, Gestures};
 use crate::interaction::input::{Key, Keystroke};
 use crate::leaf::Leaf;
 use crate::lifecycle::Visible;
@@ -662,13 +662,34 @@ fn gestured(grove: &mut Grove) {
         // A drag selects from where it began to where it has reached. Stated as one span rather
         // than as two moves, because that is what it is -- and low end last where the drag went
         // leftwards, which is how the anchor stays the end that was pressed.
-        if let Some(drag) = grove.drift.dragged.get(&field).copied() {
-            let anchor = index_at(grove, parts, drag.start);
-            let caret = index_at(grove, parts, drag.current);
+        //
+        // The anchor is read from the field and not from where the drag began. It is a character,
+        // and the hold that started the selection already put it there; a *point* is not, because
+        // the value scrolls under it the moment the drag reaches the edge -- so re-reading one
+        // would move the end the selection was measured from as the field followed the caret.
+        //
+        // Where it has reached is the **open gesture** where there is one, and the move where the
+        // gesture has already closed -- which is the release, and is the last of the movement. A
+        // pointer held still reports nothing, and a drag that stopped moving is still a drag.
+        let reached = grove
+            .drift
+            .dragged
+            .get(&field)
+            .map(|drag| drag.current)
+            .or_else(|| interaction::dragging(grove, field));
+        if let Some(to) = reached {
+            let anchor = grove.tree.editing(field).anchor;
+            let caret = index_at(grove, parts, to);
             grove.queue.push(Op::Select {
                 leaf: field,
                 range: anchor..caret,
             });
+            // A pointer past the edge is a reader still asking for more of the value, and the
+            // caret it is being taken to is further out every frame. So the field owes itself the
+            // frames that get there, the way anything driving its own motion does.
+            if beyond(grove, field, to) {
+                grove.again();
+            }
         }
     }
 }
@@ -733,6 +754,15 @@ pub(crate) fn lettered(grove: &mut Grove, field: Leaf, parts: Parts, value: Stri
 ///
 /// Rounded rather than floored, so pressing past the middle of a character puts the caret after it
 /// -- which is where a hand aiming between two characters means.
+/// Whether a point has left the field across, which is the axis it scrolls.
+///
+/// Across and not the whole box: a pointer below a one-line field is at a character like any other,
+/// and the field has nowhere to go for it.
+fn beyond(grove: &Grove, field: Leaf, at: Position) -> bool {
+    let box_of = grove.tree.drawn(field);
+    at.x < box_of.left() || at.x > box_of.right()
+}
+
 fn index_at(grove: &Grove, parts: Parts, at: Position) -> usize {
     let cell = grove.tree.cell(parts.run);
     if cell.width <= 0.0 {
