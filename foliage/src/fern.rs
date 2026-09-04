@@ -12,7 +12,8 @@ use crate::interaction;
 use crate::interaction::focus;
 use crate::layout::Layout;
 use crate::leaf::Leaf;
-use crate::op::{Bud, Op, Sprouts};
+use crate::frond::{self, Sprouts};
+use crate::op::{Bud, Op};
 use crate::place::Caller;
 use crate::pollen::Pollen;
 use crate::root::Rooted;
@@ -39,10 +40,10 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     grove.again = false;
     intake(grove);
     interaction::dispatch(grove);
-    // What this frame's gestures meant to whatever reads them. After dispatch, because that is
-    // where they are reported; before the app, because what it queues is written afterwards and
+    // What this frame's gestures meant to the leaves that are divided. After dispatch, because that
+    // is where they are reported; before the app, because what it queues is written afterwards and
     // has the last word.
-    text_input::gestured(grove);
+    frond::gestured(grove);
     root(grove, app);
     drain(grove);
     aspen::run(grove);
@@ -99,8 +100,8 @@ fn drain(grove: &mut Grove) {
                 mut bud,
             } => {
                 refuse_sown_cycle(grove, leaf, &bud);
-                // Taken before the bud is spent, because a composite's parts are grown under the
-                // element this is about to grow and so cannot be grown until it exists.
+                // Taken before the bud is spent, because a frond's leaflets are grown under the leaf
+                // this is about to grow and so cannot be grown until it exists.
                 let sprout = bud.sprout.take();
                 if grove.tree.grow(leaf, growth, None, bud) {
                     sprouted(grove, leaf, sprout);
@@ -229,13 +230,6 @@ fn drain(grove: &mut Grove) {
                     continue;
                 }
                 text_input::typed(grove, leaf, stroke);
-            }
-            Op::Point { leaf, at, extend } => {
-                if !grove.tree.is_live(leaf) {
-                    dropped("point", leaf, "not live");
-                    continue;
-                }
-                text_input::pointed(grove, leaf, at, extend);
             }
             Op::Select { leaf, range } => {
                 if !grove.tree.is_live(leaf) {
@@ -385,14 +379,14 @@ fn drain(grove: &mut Grove) {
     // Anything the drain hid, disabled or pruned may have been holding focus, and none of those
     // writes is obliged to think about it.
     focus::sweep(grove);
-    // Focus is final, so what follows it can be written as ordinary state and resolved by the
-    // ordinary passes.
-    text_input::settled(grove);
+    // Focus and every queued write are final, so a divided leaf puts its leaflets in step with
+    // state that cannot change again this frame -- as ordinary writes, resolved by ordinary passes.
+    frond::settled(grove);
 }
 
-/// Grows a composite's parts, for an element that is made of more than one.
+/// Grows a [`Frond`](crate::frond)'s leaflets, for a leaf that is divided.
 ///
-/// Here rather than in [`Tree::grow`](crate::tree::Tree::grow) because the parts are elements in
+/// Here rather than in [`Tree::grow`](crate::tree::Tree::grow) because the leaflets are elements in
 /// their own right: they are grown by the same call, in the same drain, with names from the same
 /// allocator, and nothing downstream can tell them from anything else grown this frame.
 ///

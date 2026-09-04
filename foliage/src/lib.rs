@@ -38,6 +38,7 @@ mod elevation;
 mod elm;
 mod fern;
 mod foliage;
+mod frond;
 mod ginkgo;
 mod grove;
 mod icon;

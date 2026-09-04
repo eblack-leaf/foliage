@@ -131,6 +131,32 @@ A **tap** is what a gesture that ended without ever resolving to a drag emits. N
 cancelled, because nothing was issued early. The threshold is not a retraction rule; it is the
 point at which the kind becomes known.
 
+### Owed: a press that was held
+
+The lifecycle above has one threshold, and it is a distance. There is no time in it, so a gesture
+that sits still is indistinguishable from one that has not moved yet — `resolving` covers both.
+
+That is a gap rather than a simplification, and touch is where it shows. Dragging to scroll and
+dragging to select are the same motion, and nothing in a gesture separates them; both platforms
+answer it the same way, with a plain drag scrolling and selection beginning from a press that was
+**held**. Without the notion, an element that wants both has to take one and give up the other —
+which is what a `TextInput` does today, and why a drag across one can never scroll it.
+
+So `resolving` gains a second way out: held past a duration, reported as its own gesture fact.
+
+```
+opened ──▶ resolving ──▶ claimed ──▶ ended
+               └──────▶ held ──▶ claimed ──▶ ended
+```
+
+One duration, tuned once beside `Claim` (§9), because it is input feel and input feel that varies
+element to element is what makes an app feel unpredictable. It is general — context menus, reorder
+handles and press-and-hold affordances all want it — so it does not arrive as anything one seed
+asked for, and nothing about it mentions text.
+
+Double-tap belongs to the same missing dimension and is not part of this: what it is *for* on touch
+is selecting a word, and that waits on word boundaries rather than on gesture timing.
+
 ## 7. Overscroll is a handoff
 
 `overscroll(bool)` predicted at spawn whether unconsumed scroll should escape. Whether a region
@@ -217,6 +243,8 @@ Headless, with synthetic pointer input:
 - a drag starting on plain decoration inside a region scrolls that region
 - a drag starting on a *button* inside a region scrolls the region, and the button gets no tap
 - a press and release on that button with no movement gets a tap
+- a press held past the duration is reported as held, and a drag out of it is claimed by whoever took the hold
+- a press held past the duration and released without moving is not also a tap
 - a tap focuses what it landed on, and reports it in the frame the tap was in
 - a tap that reached nothing which receives takes focus away
 - a drag moves focus nowhere, and leaves the element it began on untouched

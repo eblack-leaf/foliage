@@ -1,4 +1,4 @@
-//! TextInput -- an editable run, and the one element that is more than one element.
+//! TextInput -- an editable run, and the first [`Frond`](crate::frond): a leaf that is divided.
 //!
 //! # What a field is made of
 //!
@@ -47,7 +47,8 @@ use crate::interaction::Gestures;
 use crate::interaction::input::{Key, Keystroke};
 use crate::leaf::Leaf;
 use crate::lifecycle::Visible;
-use crate::op::{Bud, Op, Sprouts};
+use crate::frond::{Fronds, Sprouts};
+use crate::op::{Bud, Op};
 use crate::palette::{Fill, Palette};
 use crate::place::{Anchored, Boxed, Caller, Manner, Placement, Places};
 use crate::placement::basis::anchor;
@@ -608,40 +609,47 @@ pub(crate) fn typed(grove: &mut Grove, field: Leaf, stroke: Keystroke) {
     }
 }
 
+/// The kind, for the two questions [`Fronds`] asks of every field at once.
+pub(crate) struct Field;
+
+impl Fronds for Field {
+    fn gestured(&self, grove: &mut Grove) {
+        gestured(grove)
+    }
+
+    fn settled(&self, grove: &mut Grove) {
+        settled(grove)
+    }
+}
+
 /// What a field makes of the gestures dispatch reported this frame.
 ///
 /// **A field reads interaction; interaction knows nothing about fields.** A tap is a statement
 /// about where the caret goes and a drag is one about what is selected, but that is a field's
 /// reading of an ordinary gesture, not something a gesture carries. So this asks the two questions
 /// a field has of what was reported -- was I tapped, and where; am I being dragged, and to where --
-/// and queues the answer as an op like every other change.
-///
-/// Run after dispatch and before the app's frame, which is where reported gestures are still
-/// standing. Queued rather than applied, so the drain stays the one place anything is written.
-pub(crate) fn gestured(grove: &mut Grove) {
-    for (field, _) in grove.tree.fields() {
+/// and queues the same [`select`](crate::Grow::select) an app would write.
+fn gestured(grove: &mut Grove) {
+    for (field, parts) in grove.tree.fields() {
         // A tap says where the caret goes and collapses whatever was selected. A gesture that
         // became a drag was never a tap, so a drag out of a field to scroll the page behind it
         // leaves the field exactly as it found it.
         if let Some(at) = grove.drift.clicked.get(&field).copied() {
-            grove.queue.push(Op::Point {
+            let index = index_at(grove, parts, at);
+            grove.queue.push(Op::Select {
                 leaf: field,
-                at,
-                extend: false,
+                range: index..index,
             });
         }
-        // A drag carries the selection out from where it began. Both ends are stated, in order, so
-        // the anchor is the press whatever the caret was before it.
+        // A drag selects from where it began to where it has reached. Stated as one span rather
+        // than as two moves, because that is what it is -- and low end last where the drag went
+        // leftwards, which is how the anchor stays the end that was pressed.
         if let Some(drag) = grove.drift.dragged.get(&field).copied() {
-            grove.queue.push(Op::Point {
+            let anchor = index_at(grove, parts, drag.start);
+            let caret = index_at(grove, parts, drag.current);
+            grove.queue.push(Op::Select {
                 leaf: field,
-                at: drag.start,
-                extend: false,
-            });
-            grove.queue.push(Op::Point {
-                leaf: field,
-                at: drag.current,
-                extend: true,
+                range: anchor..caret,
             });
         }
     }
@@ -657,7 +665,7 @@ pub(crate) fn gestured(grove: &mut Grove) {
 /// What is selected is not cleared with focus. A selection is state and focus is not, so a field
 /// stepped away from and back into is as it was left -- while a *tap* back into it collapses the
 /// selection, because a tap says where the caret goes.
-pub(crate) fn settled(grove: &mut Grove) {
+fn settled(grove: &mut Grove) {
     let focused = grove.focus.held();
     for (field, parts) in grove.tree.fields() {
         let showing = Some(field) == focused;
@@ -669,30 +677,11 @@ pub(crate) fn settled(grove: &mut Grove) {
     }
 }
 
-/// Puts the caret where the field was tapped, or drags the selection out to there.
-///
-/// The index is taken from the run's box as the last frame settled it, which is the same geometry
-/// the gesture was hit-tested against.
-pub(crate) fn pointed(grove: &mut Grove, field: Leaf, at: Position, extend: bool) {
-    let Some(parts) = grove.tree.parts(field) else {
-        return;
-    };
-    let index = index_at(grove, parts, at);
-    let editing = grove.tree.editing(field);
-    grove.tree.set_editing(
-        field,
-        match extend {
-            true => Editing {
-                caret: index,
-                anchor: editing.anchor,
-            },
-            false => Editing::at(index),
-        },
-    );
-    refresh(grove, field);
-}
-
 /// Selects a span of the value outright.
+///
+/// `range` is read as anchor-then-caret rather than low-then-high, so a span whose end precedes its
+/// start is a selection reaching backwards -- which is what a drag leftwards is, and what a shifted
+/// arrow continues from.
 pub(crate) fn select(grove: &mut Grove, field: Leaf, range: Range<usize>) {
     if grove.tree.parts(field).is_none() {
         debug!(leaf = field.id(), "select dropped: not a field");

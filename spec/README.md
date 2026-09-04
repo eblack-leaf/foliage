@@ -1130,6 +1130,36 @@ away from.
 
 ### Still owed by B9
 
+The first two are the next work, in this order. Both came out of using the thing rather than reading
+it, and the first is the reason the second is worth having.
+
+- **A long press, as an interaction primitive.** Dragging in a field and dragging to scroll one are
+  the same motion, and today selection always wins: the field declares `drags(Horizontal)`, so a
+  drag across it can never scroll it. There is no reading of that gesture that separates them,
+  because there is nothing to read — they are identical until something says otherwise.
+
+  Touch already answered this and both platforms answer it the same way: a plain drag scrolls, and
+  selection begins from a **press that was held**. So the field would declare no drag at all and
+  scroll like any other region, and claim the drag only once a press has been held past a threshold.
+
+  What is missing is the primitive, not the field's use of it: a gesture sitting in `Held::Resolving`
+  has no timer. One duration beside `Claim` in the tuning values, reported like any other gesture
+  fact. It is general — context menus, reorder handles and press-and-hold affordances all want it —
+  so it does not arrive as anything a field asked for. `interaction.md` §4 is where it lands.
+
+  Double-tap-to-select-a-word is the other half of the same story on touch, and it waits on word
+  boundaries below rather than on this.
+
+- **A drag that reaches the edge should keep scrolling.** It does not, and the bug is exact:
+  `refresh` asks the field to `show` the caret, but a field only refreshes when a drag *reports
+  movement*, and movement is only reported from `Input::Moved`. A pointer held still past the edge
+  produces no event, so nothing scrolls and the reader has to jiggle to make progress.
+
+  The fix reads the **open gesture** each frame rather than only the moves: while a field holds a
+  drag whose pointer is outside its box, scroll toward it every frame whatever the pointer did.
+  `Fronds::gestured` already runs every frame and can see `incoming.gesture`, so there is nowhere
+  new to put it.
+
 - **A blinking caret.** Deliberate rather than forgotten: a blink is a frame owed for as long as a
   field holds focus, and F9's idling is worth more than the blink until something says otherwise. The
   caret is solid while focused.
@@ -1154,9 +1184,10 @@ away from.
 `application/` has a form in it. The drawer's two stand-in panels are real fields now: the ground and
 the field are two elements because they are two things — the ground is a box the app chose the colour
 and rounding of, and the field is what can be typed into, since a field draws no chrome of its own.
-Focusing one selects what is already in it, which is `select` and `Vein::Text` in two lines. Nothing
-in the app focuses a field: a tap does, because the field says so. `Tab` moves between them and
-`Escape` leaves, so the button standing in for a keyboard is standing in for nothing any more.
+Nothing in the app focuses a field and nothing in it places a caret: a tap does both, because that is
+what a tap does. What the app writes is the one thing that is genuinely its own — the ground it
+painted, which is where a focus mark goes when the engine draws none. `Tab` moves between the fields
+and `Escape` leaves, so the button standing in for a keyboard is standing in for nothing any more.
 Enter closes the drawer, and what either field holds is read back rather than kept — the second
 button says `save` once the form has anything in it and `close` while it does not.
 

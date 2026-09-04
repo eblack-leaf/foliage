@@ -1,8 +1,8 @@
 use crate::aspen::{Motion, Timing, Tween};
-use crate::coordinate::{Area, Position};
+use crate::coordinate::Area;
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, Pigment};
-use crate::grove::Grove;
+use crate::frond::Sprouts;
 use crate::image::Plate;
 use crate::interaction::focus::Intent;
 use crate::interaction::input::Keystroke;
@@ -71,17 +71,12 @@ pub(crate) enum Op {
         leaf: Leaf,
         stroke: Keystroke,
     },
-    /// Where a gesture landed on an element. `extend` is a drag carrying a selection out to here,
-    /// as against a tap beginning a new one.
-    ///
-    /// Reported for every target and answered only by an element that has somewhere to put it,
-    /// which is what keeps dispatch from having to know what any of them are.
-    Point {
-        leaf: Leaf,
-        at: Position,
-        extend: bool,
-    },
     /// Selects a span of a field's value outright.
+    ///
+    /// Anchor-then-caret rather than low-then-high, so a span whose end precedes its start is a
+    /// selection reaching backwards -- which is what a drag leftwards is. The one op a gesture in a
+    /// field produces, because where a gesture landed is a position and what a field makes of one is
+    /// a span: the field converts, and nothing needs an op that speaks in pixels.
     Select {
         leaf: Leaf,
         range: core::ops::Range<usize>,
@@ -163,25 +158,11 @@ pub(crate) struct Bud {
     pub(crate) lettering: Option<Lettering>,
     /// Present only where part of a run is filled differently from the rest of it.
     pub(crate) tints: Option<Tints>,
-    /// Present only on a composite -- an element that is made of more than one. The drain takes
-    /// this and grows the parts underneath what it just grew.
+    /// Present only on a [`Frond`](crate::frond) -- a leaf that is divided. The drain takes this and
+    /// grows the leaflets underneath what it just grew.
     pub(crate) sprout: Option<Box<dyn Sprouts>>,
     pub(crate) placement: Placement,
     pub(crate) at: Caller,
-}
-
-/// What an element that is made of more than one grows underneath itself.
-///
-/// The whole of the drain's knowledge of composites: it grows the element the app named, hands the
-/// rest to this, and knows nothing about what any of them are. A [`TextInput`](crate::TextInput) is
-/// the one implementor today, and the next composite is a seed and this, with no third place to
-/// edit.
-///
-/// Called in the same drain step that grew the element rather than as more queued ops, because the
-/// parts are not the app's to order against anything: a composite is one thing to plant, and the
-/// frame that planted it is the frame the whole of it is live in.
-pub(crate) trait Sprouts: Send + Sync + 'static {
-    fn sprout(self: Box<Self>, grove: &mut Grove, leaf: Leaf);
 }
 
 impl Bud {
