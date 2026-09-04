@@ -80,6 +80,12 @@ pub enum Vein {
     /// What was written, not how it wrapped: where the lines fell is a function of the box the
     /// layout gave it, and the box is [`Drawn`](Vein::Drawn).
     Text,
+    /// What a [`TextInput`](crate::TextInput) has selected, in characters of its value.
+    ///
+    /// Empty where nothing is selected, and its one end is then where the caret is -- so a caret
+    /// and a selection are one read rather than two that could disagree.
+    /// `None` on anything that is not a field.
+    Selection,
     /// Whether the app has hidden the element.
     ///
     /// What was declared of this element, not the product over its ancestry: an element inside a
@@ -139,6 +145,8 @@ pub enum Sap {
     Picture(Plate),
     Fit(Fit),
     Text(String),
+    /// A span of a value, in characters. Empty means a caret at its own position.
+    Selection(core::ops::Range<usize>),
     Visible(bool),
     Opacity(f32),
     Disabled(bool),

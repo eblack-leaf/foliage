@@ -50,7 +50,6 @@ use crate::aspen::Departed;
 use crate::coordinate::{Area, Axis, Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
-use crate::interaction::focus;
 use crate::interaction::stack::Region;
 use crate::leaf::Leaf;
 use crate::lifecycle::Inherited;
@@ -115,7 +114,6 @@ pub(crate) fn run(grove: &mut Grove) {
     let _step = trace_span!("settle").entered();
     inherit(grove, &order);
     regions(grove, &order);
-    focus::settle(grove);
 }
 
 /// R1. What an element's own font makes of it: its character cell, and the widest its content would

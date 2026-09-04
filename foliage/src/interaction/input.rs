@@ -24,21 +24,79 @@ pub(crate) enum Input {
     Cancelled,
     /// A wheel notch at a point, as the movement a drag of the same distance would have been.
     Wheeled { at: Position, delta: Position },
+    /// A key went down. Ordered against everything else here, because keystrokes are the one thing
+    /// in the engine whose order is part of what they mean.
+    ///
+    /// It names the key alone. What was held with it is [`Modifiers`], which arrives as its own
+    /// event in this same stream -- so what a key was pressed with is read from the order the two
+    /// arrived in rather than carried alongside.
+    Keyed(Key),
+    /// What is now held down. Ordered here with everything else for the reason above: a modifier is
+    /// only ever a statement about the keys pressed after it.
+    Modifiers(Modifiers),
 }
 
-/// The one pointer: what has arrived since the last frame, and the gesture in progress.
+/// One keystroke: which key, and what was held with it.
 ///
-/// One of these for the whole engine, because there is one pointer. Multi-touch resolves to a
-/// primary pointer at the platform edge; a second finger is not a second gesture here.
+/// Assembled at dispatch from the key and whatever [`Modifiers`] the stream had reached by then,
+/// which is what makes it a single value the drain can carry.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Keystroke {
+    pub(crate) key: Key,
+    pub(crate) modifiers: Modifiers,
+}
+
+/// A key, as the platform's own layout resolved it.
+///
+/// [`Typed`](Key::Typed) is a character to insert and nothing more: which key produced it, whether
+/// it took a dead key or two, and what the layout is are all the platform's, answered before this.
+/// Everything else here is a key that means something rather than says something.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Key {
+    Typed(char),
+    Left,
+    Right,
+    Home,
+    End,
+    Backspace,
+    Delete,
+    Enter,
+    Tab,
+    Escape,
+}
+
+/// What was held down with a key.
+///
+/// One flag per modifier that changes what a key means rather than which character it produced --
+/// a layout has already answered the second before anything arrives here. `shift` extends a
+/// selection where a bare arrow moves a caret; `control` is what makes a key a command rather than
+/// a character.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Modifiers {
+    pub(crate) shift: bool,
+    pub(crate) control: bool,
+}
+
+/// Everything input has arrived with and everything it has built up: what is waiting for the next
+/// frame, the gesture in progress, and what the keyboard is holding.
+///
+/// One of these for the whole engine. There is one pointer -- multi-touch resolves to a primary one
+/// at the platform edge, and a second finger is not a second gesture here -- and one keyboard, so
+/// what a key was pressed with and where a hand is are the same object's business.
 #[derive(Default)]
-pub(crate) struct Pointer {
+pub(crate) struct Incoming {
     /// Events waiting for the next frame's dispatch, in arrival order.
     pub(crate) pending: Vec<Input>,
     /// The gesture that is open, from the press that opened it until it ends.
     pub(crate) gesture: Option<super::Gesture>,
+    /// What is held down as of the last [`Input::Modifiers`] dispatch reached.
+    ///
+    /// Engine state rather than the platform's, so the headless suite reaches it by writing the
+    /// same event a window does and there is no second path for a test to miss.
+    pub(crate) modifiers: Modifiers,
 }
 
-impl Pointer {
+impl Incoming {
     /// Takes an event from the platform. Nothing is resolved here: dispatch is a frame phase, and
     /// input that arrived between frames is handled in the frame it arrived in.
     pub(crate) fn take(&mut self, input: Input) {

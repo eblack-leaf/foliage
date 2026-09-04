@@ -15,6 +15,7 @@ mod renderers;
 mod root;
 mod rowan;
 mod text;
+mod text_input;
 mod tracing;
 mod views;
 
@@ -23,7 +24,7 @@ use core::time::Duration;
 use crate::coordinate::{Area, Position, Section};
 use crate::fern;
 use crate::grove::Grove;
-use crate::interaction::input::Input;
+use crate::interaction::input::{Input, Key, Keystroke, Modifiers};
 use crate::leaf::Leaf;
 use crate::pollen::Pollen;
 use crate::root::Rooted;
@@ -76,29 +77,104 @@ fn resize(grove: &mut Grove, viewport: Area) {
 /// point enters the pipeline exactly where a translated event would -- and everything past that is
 /// one path, shared with a real press.
 fn press(grove: &mut Grove, x: f32, y: f32) {
-    grove.pointer.take(Input::Pressed(Position::new(x, y)));
+    grove.incoming.take(Input::Pressed(Position::new(x, y)));
 }
 
 /// Moves the pointer while it is down.
 fn drag(grove: &mut Grove, x: f32, y: f32) {
-    grove.pointer.take(Input::Moved(Position::new(x, y)));
+    grove.incoming.take(Input::Moved(Position::new(x, y)));
 }
 
 fn release(grove: &mut Grove, x: f32, y: f32) {
-    grove.pointer.take(Input::Released(Position::new(x, y)));
+    grove.incoming.take(Input::Released(Position::new(x, y)));
 }
 
 /// Takes the gesture away rather than finishing it.
 fn cancel(grove: &mut Grove) {
-    grove.pointer.take(Input::Cancelled);
+    grove.incoming.take(Input::Cancelled);
 }
 
 /// A wheel notch at a point, stated as the movement a drag of the same distance would have been.
 fn wheel(grove: &mut Grove, at: (f32, f32), delta: (f32, f32)) {
-    grove.pointer.take(Input::Wheeled {
+    grove.incoming.take(Input::Wheeled {
         at: Position::new(at.0, at.1),
         delta: Position::new(delta.0, delta.1),
     });
+}
+
+/// A key pressed on its own.
+fn stroke(key: Key) -> Keystroke {
+    Keystroke {
+        key,
+        modifiers: Modifiers::default(),
+    }
+}
+
+/// The same key with shift held.
+fn with_shift(key: Key) -> Keystroke {
+    Keystroke {
+        key,
+        modifiers: Modifiers {
+            shift: true,
+            ..Modifiers::default()
+        },
+    }
+}
+
+/// The same with control held.
+fn with_control(key: Key) -> Keystroke {
+    Keystroke {
+        key,
+        modifiers: Modifiers {
+            control: true,
+            ..Modifiers::default()
+        },
+    }
+}
+
+/// One key press, entering the pipeline where a translated one would.
+fn key(grove: &mut Grove, key: Key) {
+    grove.incoming.take(Input::Keyed(key));
+}
+
+/// One key press with modifiers held, which is two events: what is held, and then the key.
+///
+/// The same pair a window sends, so a test and a platform reach the engine the same way.
+fn held(grove: &mut Grove, modifiers: Modifiers, key: Key) {
+    grove.incoming.take(Input::Modifiers(modifiers));
+    grove.incoming.take(Input::Keyed(key));
+    grove.incoming.take(Input::Modifiers(Modifiers::default()));
+}
+
+/// The same, with shift held.
+fn shifted(grove: &mut Grove, key: Key) {
+    held(
+        grove,
+        Modifiers {
+            shift: true,
+            ..Modifiers::default()
+        },
+        key,
+    );
+}
+
+/// The same, with control held.
+fn controlled(grove: &mut Grove, key: Key) {
+    held(
+        grove,
+        Modifiers {
+            control: true,
+            ..Modifiers::default()
+        },
+        key,
+    );
+}
+
+/// A run of characters, one keystroke each, in the order they were written.
+fn typing(grove: &mut Grove, value: &str) {
+    for character in value.chars() {
+        key(grove, Key::Typed(character));
+    }
 }
 
 /// Stands in for an app, keeping the [`Pollen`] each frame hands it.

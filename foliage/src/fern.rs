@@ -9,13 +9,15 @@ use crate::aspen::{self, Motion, Property};
 use crate::elm;
 use crate::grove::Grove;
 use crate::interaction;
+use crate::interaction::focus;
 use crate::layout::Layout;
 use crate::leaf::Leaf;
-use crate::op::{Bud, Op};
+use crate::op::{Bud, Op, Sprouts};
 use crate::place::Caller;
 use crate::pollen::Pollen;
 use crate::root::Rooted;
 use crate::rowan;
+use crate::text_input;
 use crate::view::ScrollTo;
 
 /// One frame, steps 1 through 8. Drawing belongs to the caller.
@@ -37,6 +39,10 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     grove.again = false;
     intake(grove);
     interaction::dispatch(grove);
+    // What this frame's gestures meant to whatever reads them. After dispatch, because that is
+    // where they are reported; before the app, because what it queues is written afterwards and
+    // has the last word.
+    text_input::gestured(grove);
     root(grove, app);
     drain(grove);
     aspen::run(grove);
@@ -87,9 +93,17 @@ fn drain(grove: &mut Grove) {
     let _step = trace_span!("drain", ops = ops.len()).entered();
     for op in ops {
         match op {
-            Op::Plant { leaf, growth, bud } => {
+            Op::Plant {
+                leaf,
+                growth,
+                mut bud,
+            } => {
                 refuse_sown_cycle(grove, leaf, &bud);
+                // Taken before the bud is spent, because a composite's parts are grown under the
+                // element this is about to grow and so cannot be grown until it exists.
+                let sprout = bud.sprout.take();
                 if grove.tree.grow(leaf, growth, None, bud) {
+                    sprouted(grove, leaf, sprout);
                     debug!(leaf = leaf.id(), "planted");
                 } else {
                     dropped("plant", leaf, "name is already grown");
@@ -99,12 +113,14 @@ fn drain(grove: &mut Grove) {
                 leaf,
                 growth,
                 under,
-                bud,
+                mut bud,
             } => {
                 refuse_sown_cycle(grove, leaf, &bud);
+                let sprout = bud.sprout.take();
                 if !grove.tree.is_live(under) {
                     dropped("branch", leaf, "trunk is not live");
                 } else if grove.tree.grow(leaf, growth, Some(under), bud) {
+                    sprouted(grove, leaf, sprout);
                     debug!(leaf = leaf.id(), under = under.id(), "branched");
                 } else {
                     dropped("branch", leaf, "name is already grown");
@@ -193,11 +209,40 @@ fn drain(grove: &mut Grove) {
                     dropped("text", leaf, "not live");
                     continue;
                 }
-                if grove.tree.set_lettering(leaf, value) {
-                    debug!(leaf = leaf.id(), "lettered");
-                } else {
-                    dropped("text", leaf, "says nothing to rewrite");
+                // A field is addressed as one element and made of four, so a write reaching one
+                // goes to the run that holds its value and takes the caret to the end of what it
+                // wrote. Anything else is the run itself.
+                match grove.tree.parts(leaf) {
+                    Some(parts) => {
+                        text_input::lettered(grove, leaf, parts, value);
+                        debug!(leaf = leaf.id(), "lettered");
+                    }
+                    None if grove.tree.set_lettering(leaf, value) => {
+                        debug!(leaf = leaf.id(), "lettered");
+                    }
+                    None => dropped("text", leaf, "says nothing to rewrite"),
                 }
+            }
+            Op::Type { leaf, stroke } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("type", leaf, "not live");
+                    continue;
+                }
+                text_input::typed(grove, leaf, stroke);
+            }
+            Op::Point { leaf, at, extend } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("point", leaf, "not live");
+                    continue;
+                }
+                text_input::pointed(grove, leaf, at, extend);
+            }
+            Op::Select { leaf, range } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("select", leaf, "not live");
+                    continue;
+                }
+                text_input::select(grove, leaf, range);
             }
             Op::Tint { leaf, tints } => {
                 if !grove.tree.is_live(leaf) {
@@ -326,15 +371,35 @@ fn drain(grove: &mut Grove) {
                     debug!("tween stopped");
                 }
             }
-            // Not answered here. Where focus can go depends on geometry and on the inherited state
-            // this frame has yet to resolve, so the ask is recorded and settled at step 7 -- which
-            // is what lets an app open a drawer and focus into it in one frame.
-            Op::Focus(intent) => grove.focus.ask(intent),
+            // Answered here, in arrival order like every other write. Whether a target can take
+            // focus is a walk of what has been declared, which this drain has already applied --
+            // so an app can show a drawer and focus into it in the same frame, and focus is final
+            // before anything downstream of it resolves.
+            Op::Focus(intent) => focus::moved(grove, intent),
             Op::Repaint(scheme) => {
                 grove.scheme = scheme;
                 debug!("repainted");
             }
         }
+    }
+    // Anything the drain hid, disabled or pruned may have been holding focus, and none of those
+    // writes is obliged to think about it.
+    focus::sweep(grove);
+    // Focus is final, so what follows it can be written as ordinary state and resolved by the
+    // ordinary passes.
+    text_input::settled(grove);
+}
+
+/// Grows a composite's parts, for an element that is made of more than one.
+///
+/// Here rather than in [`Tree::grow`](crate::tree::Tree::grow) because the parts are elements in
+/// their own right: they are grown by the same call, in the same drain, with names from the same
+/// allocator, and nothing downstream can tell them from anything else grown this frame.
+///
+/// What they are is [`Sprouts`]'s, not this pass's.
+fn sprouted(grove: &mut Grove, leaf: Leaf, sprout: Option<Box<dyn Sprouts>>) {
+    if let Some(sprout) = sprout {
+        sprout.sprout(grove, leaf);
     }
 }
 

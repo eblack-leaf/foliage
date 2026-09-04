@@ -1,9 +1,11 @@
 use crate::aspen::{Motion, Timing, Tween};
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Position};
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, Pigment};
+use crate::grove::Grove;
 use crate::image::Plate;
 use crate::interaction::focus::Intent;
+use crate::interaction::input::Keystroke;
 use crate::leaf::{Growth, Leaf};
 use crate::palette::{Fill, Scheme};
 use crate::place::{Caller, Placement};
@@ -62,6 +64,27 @@ pub(crate) enum Op {
     Letter {
         leaf: Leaf,
         value: String,
+    },
+    /// One keystroke, against the field holding focus. Which field is dispatch's answer; what the
+    /// key does to the value is the drain's.
+    Type {
+        leaf: Leaf,
+        stroke: Keystroke,
+    },
+    /// Where a gesture landed on an element. `extend` is a drag carrying a selection out to here,
+    /// as against a tap beginning a new one.
+    ///
+    /// Reported for every target and answered only by an element that has somewhere to put it,
+    /// which is what keeps dispatch from having to know what any of them are.
+    Point {
+        leaf: Leaf,
+        at: Position,
+        extend: bool,
+    },
+    /// Selects a span of a field's value outright.
+    Select {
+        leaf: Leaf,
+        range: core::ops::Range<usize>,
     },
     /// Refills part of a run, over a range of its own index space.
     Tint {
@@ -140,8 +163,25 @@ pub(crate) struct Bud {
     pub(crate) lettering: Option<Lettering>,
     /// Present only where part of a run is filled differently from the rest of it.
     pub(crate) tints: Option<Tints>,
+    /// Present only on a composite -- an element that is made of more than one. The drain takes
+    /// this and grows the parts underneath what it just grew.
+    pub(crate) sprout: Option<Box<dyn Sprouts>>,
     pub(crate) placement: Placement,
     pub(crate) at: Caller,
+}
+
+/// What an element that is made of more than one grows underneath itself.
+///
+/// The whole of the drain's knowledge of composites: it grows the element the app named, hands the
+/// rest to this, and knows nothing about what any of them are. A [`TextInput`](crate::TextInput) is
+/// the one implementor today, and the next composite is a seed and this, with no third place to
+/// edit.
+///
+/// Called in the same drain step that grew the element rather than as more queued ops, because the
+/// parts are not the app's to order against anything: a composite is one thing to plant, and the
+/// frame that planted it is the frame the whole of it is live in.
+pub(crate) trait Sprouts: Send + Sync + 'static {
+    fn sprout(self: Box<Self>, grove: &mut Grove, leaf: Leaf);
 }
 
 impl Bud {
@@ -155,6 +195,7 @@ impl Bud {
             pigment: None,
             lettering: None,
             tints: None,
+            sprout: None,
             placement: Placement::default(),
             // Overwritten by every real callsite, which takes the caller's own.
             at: core::panic::Location::caller(),

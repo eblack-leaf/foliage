@@ -7,8 +7,11 @@
 use core::time::Duration;
 
 use winit::application::ApplicationHandler;
-use winit::event::{ElementState, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent};
+use winit::event::{
+    ElementState, KeyEvent, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent,
+};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::keyboard::{Key as Named, NamedKey};
 use winit::window::WindowId;
 
 use crate::ash::Ash;
@@ -16,7 +19,7 @@ use crate::coordinate::Position;
 use crate::fern;
 use crate::foliage::Foliage;
 use crate::ginkgo::Ginkgo;
-use crate::interaction::input::Input;
+use crate::interaction::input::{Input, Key, Modifiers};
 use crate::palette::Palette;
 
 /// The most time one frame is allowed to be told has passed.
@@ -36,6 +39,42 @@ use crate::palette::Palette;
 /// This is the platform's ceiling and not the [`Clock`](crate::clock::Clock)'s. The headless suite
 /// advances by hand and has to be exact: a tween told to advance five seconds advances five.
 const HITCH: Duration = Duration::from_millis(100);
+
+/// What one key press becomes, in the engine's own vocabulary.
+///
+/// The platform has already answered everything about layout, dead keys and composition, so a key
+/// that produced text is taken as the text it produced and nothing here asks which key that was.
+/// A key that produced none is one of the few that mean something instead, and anything that is
+/// neither is not a keystroke this engine has a use for.
+///
+/// Several characters at once is a real case -- a composed sequence commits as a word -- so this
+/// answers with as many keys as the press produced rather than with one.
+///
+/// What was held with them is not read here. Modifiers travel as their own event in the same
+/// stream, so what a key was pressed with is the order the two arrived in.
+fn keys(event: &KeyEvent) -> Vec<Key> {
+    let named = |key: Key| vec![key];
+    match &event.logical_key {
+        Named::Named(NamedKey::Backspace) => named(Key::Backspace),
+        Named::Named(NamedKey::Delete) => named(Key::Delete),
+        Named::Named(NamedKey::ArrowLeft) => named(Key::Left),
+        Named::Named(NamedKey::ArrowRight) => named(Key::Right),
+        Named::Named(NamedKey::Home) => named(Key::Home),
+        Named::Named(NamedKey::End) => named(Key::End),
+        Named::Named(NamedKey::Enter) => named(Key::Enter),
+        Named::Named(NamedKey::Tab) => named(Key::Tab),
+        Named::Named(NamedKey::Escape) => named(Key::Escape),
+        _ => event
+            .text
+            .iter()
+            .flat_map(|text| text.chars())
+            // A control character is what a key that means something produces where the platform
+            // gives it text as well, and inserting one would put it in the value.
+            .filter(|character| !character.is_control())
+            .map(Key::Typed)
+            .collect(),
+    }
+}
 
 /// How far one wheel notch scrolls, where the platform reports notches rather than pixels.
 ///
@@ -80,7 +119,7 @@ impl Foliage {
             || self.grove.again
             || self.grove.pending_resize.is_some()
             || !self.grove.queue.is_empty()
-            || !self.grove.pointer.pending.is_empty()
+            || !self.grove.incoming.pending.is_empty()
             || !self.grove.aspen.idle()
             // A coasting region is pending work in its own right: it is not a tween, and there is
             // nothing on the app's side asking for the frames it needs. So frames keep running
@@ -97,7 +136,7 @@ impl Foliage {
     /// The whole of the translation layer, and the whole of what the headless suite cannot reach:
     /// past this call there is one path, and a scripted press and a real one are the same event.
     fn input(&mut self, input: Input) {
-        self.grove.pointer.take(input);
+        self.grove.incoming.take(input);
     }
 
     /// Where the platform's physical coordinates land in logical ones.
@@ -284,6 +323,19 @@ impl ApplicationHandler for Foliage {
                     TouchPhase::Ended => Input::Released(at),
                     TouchPhase::Cancelled => Input::Cancelled,
                 });
+            }
+            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
+                for key in keys(&event) {
+                    self.input(Input::Keyed(key));
+                }
+            }
+            // Into the same queue as everything else, so what a key was held with is settled by
+            // arrival order rather than by a flag read from the side.
+            WindowEvent::ModifiersChanged(modifiers) => {
+                self.input(Input::Modifiers(Modifiers {
+                    shift: modifiers.state().shift_key(),
+                    control: modifiers.state().control_key(),
+                }));
             }
             // The gesture was taken away rather than finished, so it never becomes a tap.
             WindowEvent::CursorLeft { .. } | WindowEvent::Focused(false) => {

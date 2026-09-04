@@ -288,6 +288,7 @@ pub trait Place: Places + Sized {
         self
     }
 
+
     /// Whether the element is drawn at all.
     ///
     /// The real hide: skipped by drawing, out of the box stack, and contributing nothing to a

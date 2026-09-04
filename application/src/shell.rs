@@ -10,9 +10,9 @@
 
 use foliage::{
     Area, Axes, Boxed, Cap, Color, Corners, Divide, Elevation, Escape, Fit, FontSize, Grid, Grove,
-    Grow, Icon, Image, Leaf, Line, Location, Palette, Panel, Place, Point, Polygon, Rounding, Scheme,
-    Scroll, Shape, Side, Source, Stem, Text, anchor, bottom, center_x, center_y, content, left,
-    right, top,
+    Grow, Icon, Image, Leaf, Line, Location, Palette, Panel, Place, Point, Polygon, Rounding,
+    Scheme, Scroll, Shape, Side, Source, Stem, Text, TextInput, anchor, bottom, center_x, center_y,
+    content, left, right, top,
 };
 
 /// The space between tracks, and the rhythm every other measurement is stated in.
@@ -114,10 +114,16 @@ pub(crate) struct Figure {
 /// The drawer, which is grown outside the page so that disabling the page leaves it alone.
 pub(crate) struct Drawer {
     pub(crate) sheet: Leaf,
+    /// The grounds the fields are set into. A field draws no chrome of its own, so what a reader
+    /// sees as the box is the app's, and it is what the focus mark is painted on.
+    pub(crate) grounds: Vec<Leaf>,
+    /// The fields themselves.
     pub(crate) fields: Vec<Leaf>,
-    /// Steps focus to the next field, which is what a keyboard will do when there is one.
+    /// Steps focus to the next field, which is what `Tab` does now that there is a keyboard.
     pub(crate) advance: Leaf,
     pub(crate) close: Leaf,
+    /// What the close button says, which follows whether the form has anything in it.
+    pub(crate) verb: Leaf,
 }
 
 /// Plants the page.
@@ -576,7 +582,8 @@ fn figure(grove: &mut Grove, column: Leaf, above: Leaf) -> Figure {
     let plot = |n: usize| {
         let across = AXIS + 8.0;
         Point::new(
-            across.px() + (100.pct() - (across + GUTTER).px()) * (n as f32 / (SERIES.len() - 1) as f32),
+            across.px()
+                + (100.pct() - (across + GUTTER).px()) * (n as f32 / (SERIES.len() - 1) as f32),
             (100.pct() - AXIS.px()) - (100.pct() - (AXIS + HEAD).px()) * SERIES[n],
         )
     };
@@ -791,17 +798,43 @@ fn drawer(grove: &mut Grove) -> Drawer {
             .at(sheet_at(false)),
     );
 
-    let fields = (1..=2)
+    // The ground and the field are two elements because they are two things: the ground is a box
+    // an app chose the colour and the rounding of, and the field is what can be typed into. A field
+    // draws no chrome, which is what leaves the first of those entirely to the app.
+    let grounds = (1..=2)
         .map(|n| {
             grove.branch(
                 sheet,
                 Panel::new()
                     .color(Palette::Muted)
                     .rounding(Rounding::Sm)
-                    .interactive()
                     .at(Location::new().xs(
                         left(GUTTER.px()).right(100.pct() - GUTTER.px()),
                         top(n.row()).bottom(n.row()),
+                    )),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    let fields = grounds
+        .iter()
+        .zip(["name", "where you are"])
+        .map(|(&ground, placeholder)| {
+            grove.branch(
+                ground,
+                TextInput::new()
+                    .placeholder(placeholder)
+                    .color(Palette::Ink)
+                    .hint(Palette::Surface)
+                    // Read against the ground, which the focus mark paints `Accent` -- and a caret
+                    // is only ever drawn while the field is focused, so an accent one would be
+                    // invisible for the whole of its life.
+                    .caret(Palette::Ink)
+                    .selection(Palette::Surface)
+                    .font_size(FontSize::new().xs(14))
+                    .at(Location::new().xs(
+                        left(FIELD.px()).right(100.pct() - FIELD.px()),
+                        top(0.px()).bottom(100.pct()),
                     )),
             )
         })
@@ -833,10 +866,10 @@ fn drawer(grove: &mut Grove) -> Drawer {
             )),
     );
 
-    for (button, word) in [(advance, "next"), (close, "close")] {
+    let labels = [advance, close].map(|button| {
         grove.branch(
             button,
-            Text::new(word)
+            Text::new("")
                 .color(Palette::Ink)
                 .font_size(FontSize::new().xs(14))
                 .pass_through()
@@ -844,16 +877,27 @@ fn drawer(grove: &mut Grove) -> Drawer {
                     center_x(50.pct()).width(content()),
                     center_y(50.pct()).height(content()),
                 )),
-        );
-    }
+        )
+    });
+    grove.text(labels[0], "next");
+    grove.text(labels[1], CLOSE);
 
     Drawer {
         sheet,
+        grounds,
         fields,
         advance,
         close,
+        verb: labels[1],
     }
 }
+
+/// How far a field is set into its ground, in logical pixels.
+const FIELD: f32 = 10.0;
+
+/// What the drawer's second button says while the form is empty, and once it is not.
+pub(crate) const CLOSE: &str = "close";
+pub(crate) const SAVE: &str = "save";
 
 /// Where the drawer sits: over the lower half of the page, or below the surface entirely.
 ///

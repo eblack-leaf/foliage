@@ -25,6 +25,7 @@ use crate::rounding::Corners;
 use crate::rowan::{Cell, Drawn, Intrinsic, Placed};
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
+use crate::text_input::{Editing, Parts};
 use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrolls};
 
 /// The tree itself, seen from the inside.
@@ -300,6 +301,40 @@ impl Tree {
         };
         lettering.0 = value;
         true
+    }
+
+    /// The four parts of `leaf`, if it is a [`TextInput`](crate::TextInput).
+    ///
+    /// The one question that tells a field from anything else, so every verb addressed to a field
+    /// asks it first.
+    pub(crate) fn parts(&self, leaf: Leaf) -> Option<Parts> {
+        self.read::<Parts>(leaf)
+    }
+
+    pub(crate) fn set_parts(&mut self, leaf: Leaf, parts: Parts) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(parts);
+        }
+    }
+
+    /// Every field, with what each is made of.
+    pub(crate) fn fields(&mut self) -> Vec<(Leaf, Parts)> {
+        self.world
+            .query::<(bevy_ecs::entity::Entity, &Parts)>()
+            .iter(&self.world)
+            .map(|(entity, parts)| (Leaf(entity), *parts))
+            .collect()
+    }
+
+    /// Where `leaf`'s caret is and what it has selected.
+    pub(crate) fn editing(&self, leaf: Leaf) -> Editing {
+        self.read::<Editing>(leaf).unwrap_or_default()
+    }
+
+    pub(crate) fn set_editing(&mut self, leaf: Leaf, editing: Editing) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(editing);
+        }
     }
 
     /// The element `leaf`'s placement may read, if it has been given one.
@@ -635,6 +670,7 @@ impl Tree {
     pub(crate) fn focus_scope(&self, leaf: Leaf) -> bool {
         self.read::<Focusing>(leaf).unwrap_or_default().scope
     }
+
 
     /// How far `leaf` has been scrolled.
     pub(crate) fn offset(&self, leaf: Leaf) -> Position {

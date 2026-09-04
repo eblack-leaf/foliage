@@ -3,7 +3,7 @@
 //! Nothing here presses anything. That is the point of the slice: focus moves because it was told
 //! to, and where it can go is derived from the same geometry everything else is.
 
-use crate::tests::{Observer, grove, press, release, tick, tick_with};
+use crate::tests::{Observer, drag, grove, press, release, tick, tick_with};
 use crate::{Boxed, Grove, Grow, Leaf, Location, Panel, Place, Source, Stem, left, top};
 
 /// A box at a stated place, so reading order has something to read.
@@ -44,10 +44,11 @@ fn focus_moves_by_the_verb_alone() {
     assert!(app.last().focused(field));
 }
 
-/// A press moves focus nowhere. The element a person pressed and the element they want to type into
-/// are different questions, and an app that wants them to coincide says so itself.
+/// Focus goes to what was tapped. There is no second declaration deciding it: `interactive` is
+/// already the statement that an element takes input, and focus already rests only on what said
+/// that -- so the target of a tap is by definition somewhere focus can be.
 #[test]
-fn a_press_does_not_move_focus() {
+fn a_tap_moves_focus_to_what_it_landed_on() {
     let mut grove = grove();
     let first = field(&mut grove, 0.0, 0.0);
     let second = field(&mut grove, 0.0, 100.0);
@@ -60,10 +61,53 @@ fn a_press_does_not_move_focus() {
     tick_with(&mut grove, &mut app);
 
     assert!(app.last().clicked(second));
-    assert_eq!(grove.focused(), Some(first));
+    assert_eq!(grove.focused(), Some(second));
+    // And it is reported in the frame the tap was, not the one after it.
+    assert!(app.last().focused(second));
+    assert!(app.last().unfocused(first));
 }
 
-/// Which is one line to opt into, and reads as what it is.
+/// A gesture that became a drag was never a tap, so it moves focus nowhere -- the same rule that
+/// denies it a click, applied to focus.
+#[test]
+fn a_drag_moves_focus_nowhere() {
+    let mut grove = grove();
+    let first = field(&mut grove, 0.0, 0.0);
+    let second = field(&mut grove, 0.0, 100.0);
+    grove.focus(first);
+    tick(&mut grove);
+
+    press(&mut grove, 40.0, 110.0);
+    tick(&mut grove);
+    drag(&mut grove, 40.0, 260.0);
+    release(&mut grove, 40.0, 260.0);
+    tick(&mut grove);
+
+    assert_eq!(grove.focused(), Some(first));
+    let _ = second;
+}
+
+/// A tap that reached nothing which receives takes focus off whatever held it. Not a rule about
+/// dismissing: what was tapped cannot hold focus, so nothing does.
+#[test]
+fn a_tap_on_nothing_takes_focus_away() {
+    let mut grove = grove();
+    let field = field(&mut grove, 0.0, 0.0);
+    grove.focus(field);
+    tick(&mut grove);
+    assert_eq!(grove.focused(), Some(field));
+
+    press(&mut grove, 40.0, 400.0);
+    release(&mut grove, 40.0, 400.0);
+    let mut app = Observer::default();
+    tick_with(&mut grove, &mut app);
+
+    assert_eq!(grove.focused(), None);
+    assert!(app.last().unfocused(field));
+}
+
+/// And an app that wants focus somewhere else writes it from `clicked` and wins, because the tap
+/// settled focus before the frame the app reads it in.
 #[test]
 fn an_app_moves_focus_from_a_tap_itself() {
     let mut grove = grove();

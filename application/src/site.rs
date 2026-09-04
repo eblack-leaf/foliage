@@ -138,12 +138,19 @@ impl Site {
         if pollen.clicked(self.shell.drawer.advance) {
             grove.focus_next();
         }
-        for field in 0..self.shell.drawer.fields.len() {
-            let field = self.shell.drawer.fields[field];
-            // A press moves focus nowhere on its own. An app that wants a tap to focus something
-            // says so, in the one line that says it.
-            if pollen.clicked(field) {
-                grove.focus(field);
+        for field in self.shell.drawer.fields.clone() {
+            // Nothing here focuses a field. A tap puts the caret where it landed and takes focus,
+            // because a field declares that it does -- and an app that wanted focus somewhere else
+            // would write it here and win.
+            // Enter commits the form. What it means is the app's: foliage says the key was pressed
+            // in that field and holds no opinion about it.
+            if pollen.submitted(field) {
+                self.close(grove);
+            }
+            // Typing is reported, and what was typed is read back rather than kept: a value you can
+            // set and cannot read back is a value an app has to hold a copy of.
+            if pollen.edited(field) {
+                self.mark_form(grove);
             }
         }
         // A card in the scrolling column. Tapping one lights it; dragging from one scrolls the
@@ -221,14 +228,38 @@ impl Site {
     /// foliage reports focus and paints no mark of its own: a focused element may have no visible
     /// part at all, so there is no mark it could draw that would be right.
     fn mark_focus(&mut self, grove: &mut Grove, pollen: &Pollen) {
-        for field in self.shell.drawer.fields.iter().copied() {
+        for (ground, field) in self
+            .shell
+            .drawer
+            .grounds
+            .iter()
+            .copied()
+            .zip(self.shell.drawer.fields.clone())
+        {
             if pollen.focused(field) {
-                grove.color(field, Palette::Accent);
+                grove.color(ground, Palette::Accent);
             }
             if pollen.unfocused(field) {
-                grove.color(field, Palette::Muted);
+                grove.color(ground, Palette::Muted);
             }
         }
+    }
+
+    /// What the drawer's second button says, from what the form currently holds.
+    ///
+    /// Read back rather than kept: the value is the field's, and an app holding a second copy of it
+    /// is an app with two answers to one question.
+    fn mark_form(&mut self, grove: &mut Grove) {
+        let filled = self.shell.drawer.fields.iter().any(|field| {
+            matches!(grove.tap(*field, Vein::Text), Some(Sap::Text(value)) if !value.is_empty())
+        });
+        grove.text(
+            self.shell.drawer.verb,
+            match filled {
+                true => shell::SAVE,
+                false => shell::CLOSE,
+            },
+        );
     }
 
     /// Opens the drawer over the page.

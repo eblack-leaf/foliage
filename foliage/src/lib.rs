@@ -18,6 +18,9 @@
 //!   [`Drag`] is what one reports while it is held.
 //! - [`Text`] is a run of monospaced glyphs, [`Font`] names one an app registered and [`FontSize`]
 //!   says how large it is; [`content()`] is a box measured rather than declared.
+//! - [`TextInput`] is an editable one: one [`Leaf`] to hold, [`select`](Grow::select) to move its
+//!   caret, and [`edited`](Pollen::edited) and [`submitted`](Pollen::submitted) to hear what was
+//!   typed into it.
 //! - [`Motion`] is what can be animated and [`Timing`] how long it takes; [`Ease`] is the shape it
 //!   moves in, [`Tween`] names a value the engine only reports, and [`Sequence`] names a group of
 //!   them arriving.
@@ -59,6 +62,7 @@ mod rowan;
 mod seed;
 mod stem;
 mod text;
+mod text_input;
 mod tree;
 mod vein;
 mod verbs;
@@ -87,7 +91,6 @@ pub use placement::basis::{Anchor, Trunk, anchor, trunk};
 pub use placement::grid::{Columns, Divide, Grid, Rows};
 pub use placement::location::Location;
 pub use placement::point::Point;
-pub use polygon::{Polygon, Shape};
 pub use placement::role::{
     Bottom, CenterX, CenterY, Horizontal, Left, Right, Top, Vertical, bottom, center_x, center_y,
     left, right, top,
@@ -96,11 +99,13 @@ pub use placement::source::{
     HorizontalCoordinate, Length, Source, VerticalCoordinate, VerticalLength, content,
 };
 pub use pollen::Pollen;
+pub use polygon::{Polygon, Shape};
 pub use root::Root;
 pub use rounding::{Corner, Corners, Rounding, Side};
 pub use seed::Seed;
 pub use stem::Stem;
 pub use text::{Font, FontSize, Text};
+pub use text_input::TextInput;
 pub use vein::{Sap, Vein};
 pub use verbs::Grow;
 pub use view::{Escape, Momentum, Scroll, ScrollTo};

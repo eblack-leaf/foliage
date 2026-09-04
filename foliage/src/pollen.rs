@@ -49,7 +49,16 @@ impl Pollen {
     /// Not a click that was issued and then taken back. Nothing is emitted while a gesture is
     /// resolving, so there is nothing to retract when it turns out to be a drag.
     pub fn clicked(&self, leaf: Leaf) -> bool {
-        self.0.clicked.contains(&leaf)
+        self.0.clicked.contains_key(&leaf)
+    }
+
+    /// Where `leaf` was tapped, if it was.
+    ///
+    /// The point the gesture *began* at, which is the point it was hit-tested against and therefore
+    /// the only one that is certainly on the element. A gesture that wandered and came back is
+    /// still a tap, and it is a tap where it started.
+    pub fn clicked_at(&self, leaf: Leaf) -> Option<Position> {
+        self.0.clicked.get(&leaf).copied()
     }
 
     /// Whether the gesture `leaf` is holding has become a drag.
@@ -104,6 +113,23 @@ impl Pollen {
         self.0.sequences.contains(&sequence)
     }
 
+    /// Whether the person at the keyboard changed what `leaf` says.
+    ///
+    /// A [`TextInput`](crate::TextInput) only, and only what was typed into it: a value the app
+    /// wrote with [`text`](crate::Grow::text) is not reported back, because an app that wrote one
+    /// already knows what it wrote. What it now says is [`Vein::Text`](crate::Vein::Text).
+    pub fn edited(&self, leaf: Leaf) -> bool {
+        self.0.edited.contains(&leaf)
+    }
+
+    /// Whether `Enter` was pressed in `leaf`.
+    ///
+    /// What that means is the app's: a field says the key was pressed and holds no opinion about
+    /// whether anything is to be submitted.
+    pub fn submitted(&self, leaf: Leaf) -> bool {
+        self.0.submitted.contains(&leaf)
+    }
+
     /// Whether `leaf` took focus.
     pub fn focused(&self, leaf: Leaf) -> bool {
         self.0.focused.contains(&leaf)
@@ -135,9 +161,13 @@ pub(crate) struct Drift {
     pub(crate) resized: Option<Area>,
     pub(crate) engaged: HashSet<Leaf>,
     pub(crate) disengaged: HashSet<Leaf>,
-    pub(crate) clicked: HashSet<Leaf>,
+    /// Where each tap landed, which is where its gesture began. Carried rather than counted,
+    /// because an element that has somewhere to put a point needs the point.
+    pub(crate) clicked: HashMap<Leaf, Position>,
     pub(crate) drag_started: HashSet<Leaf>,
     pub(crate) dragged: HashMap<Leaf, Drag>,
+    pub(crate) edited: HashSet<Leaf>,
+    pub(crate) submitted: HashSet<Leaf>,
     pub(crate) focused: HashSet<Leaf>,
     pub(crate) unfocused: HashSet<Leaf>,
     pub(crate) landed: HashSet<Leaf>,

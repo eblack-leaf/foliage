@@ -156,13 +156,28 @@ Focus is a first-class surface, not a byproduct of clicking.
 limitation dictating the public API — the inversion this rewrite exists to undo. The caret responds
 to focus; focus becomes a verb.
 
-**A press moves focus nowhere.** The element a person pressed and the element they want to type into
-are different questions, and only the app knows when they coincide — so it says so, in the one line
-that says it. Nothing is inferred from a gesture here for the same reason nothing is inferred in §3.
-It also deletes the flag the previous engine needed for controls that must be pressable without
-taking focus, and the judgement about which press counts as pressing *away* from a field: an app
-that wants a popover to close when something else is pressed asks about the element it put behind
-its content, which `pollen.md` already requires of anything asking "what was pressed".
+**A gesture moves focus nowhere on its own.** The element a person pressed and the element they want
+to type into are different questions, and only the app knows when they coincide. Nothing is inferred
+from a gesture here for the same reason nothing is inferred in §3. It also deletes the judgement
+about which press counts as pressing *away* from a field: an app that wants a popover to close when
+something else is pressed asks about the element it put behind its content, which `pollen.md`
+already requires of anything asking "what was pressed".
+
+**Focus goes to what was tapped, and no declaration decides it.** `interactive()` is already the
+statement that an element takes input, and focus already rests only on what said that — so the
+target of a tap is by definition somewhere focus can be. A second flag would have been the same
+question asked twice, with the two free to disagree.
+
+A tap that reached nothing which receives takes focus away. That is not a rule about dismissing: it
+is this rule, reading that what was tapped cannot hold focus, so nothing does.
+
+The verb keeps the last word. A tap settles focus at dispatch, which is the frame *before* an app is
+handed the `clicked` it produced — so an app writing `focus` elsewhere is simply the later write.
+
+**A gesture that became a drag was never a statement about what it began on.** It earns no tap, and
+so it moves no caret and takes no focus: the same rule, applied to all three. That is why a caret
+lands on the tap rather than on the press — a drag out of a field to scroll the page behind it
+leaves the field exactly as it found it.
 
 **What can hold focus is what declared `interactive()`.** The set that asked to receive input is the
 set a keyboard should be able to reach, so there is no second declaration to keep in step with the
@@ -202,6 +217,11 @@ Headless, with synthetic pointer input:
 - a drag starting on plain decoration inside a region scrolls that region
 - a drag starting on a *button* inside a region scrolls the region, and the button gets no tap
 - a press and release on that button with no movement gets a tap
+- a tap focuses what it landed on, and reports it in the frame the tap was in
+- a tap that reached nothing which receives takes focus away
+- a drag moves focus nowhere, and leaves the element it began on untouched
+- an app writing `focus` from `clicked` beats the tap
+- `focus(leaf)` reaches an element shown in the same frame it was written
 - a drag along a `drags(Horizontal)` slider moves the slider, not the column
 - a drag down the same slider moves the column, not the slider
 - a region at its extent hands a continuing drag outward mid-gesture
@@ -226,6 +246,49 @@ It is a **global tuning value, not a per-element flag** — this is input feel, 
 varies element to element is what makes an app feel unpredictable. It joins the existing startup
 tunables (`Foliage::tune`) alongside scroll momentum and key bindings, and callers wanting the two
 axes the same simply set them the same.
+
+## 10. Keys
+
+A keystroke is input, and it arrives where a press arrives: at intake, in order, and is dispatched
+against what the last frame settled. It is the one thing in the engine whose **order is part of what
+it means** — `frame.md` says so of emissions, and this is what that clause was reserving.
+
+**A key goes to whatever it is about, and nothing searches for that.** `Tab` is focus's own and is
+answered wherever focus is, including nowhere, so a keyboard reaches a page that has never been
+pressed. Everything else goes to the element holding focus, and to nothing at all if that element
+has no use for it. There is no bubbling and no chain: the same law §3 states about a point, stated
+about a key.
+
+**What a key produced is the platform's answer, not the engine's.** A layout, a dead key and a
+composed sequence are all resolved before a keystroke reaches intake, so a key that produced text is
+taken as the text it produced. A key that produced none is one of the few that mean something
+instead. Nothing here maps a scancode, and nothing here holds a binding table.
+
+**What is held arrives as its own event, in the same stream.** A modifier is only ever a statement
+about the keys pressed after it, so what a key was held with is read from the order the two arrived
+in rather than from a flag kept beside the queue. It is engine state, which is what lets the
+headless suite hold a modifier by writing the event a window writes — the alternative is a second
+path only the platform can reach, and a whole modifier the suite cannot test.
+
+`shift` extends a selection where a bare arrow moves a caret, and steps `Tab` backwards. `control`
+makes a key a command rather than a character: `Ctrl+A` selects a field's whole value, and a chord
+nothing answers is nothing rather than a character inserted. Word-wise motion and the clipboard are
+the rest of that story and are not here — the first is a decision about word boundaries and the
+second needs a platform clipboard, and neither is a modifier problem.
+
+**A keystroke is queued, not applied.** Dispatch decides which element a key is about; the drain
+decides what it does. That keeps one queue and one drain (F1), and it is what puts what a key
+changed on F7's ordinary footing rather than on a second, faster path.
+
+### Proof obligations
+
+- several keystrokes arriving in one frame are applied in the order they arrived
+- `Tab` steps focus with no field focused, and with one
+- `Tab` is never typed into the field holding focus
+- `Escape` takes focus away, and is never typed into the field it was pressed in
+- a keystroke with nothing focused reaches nothing, and one with a non-field focused reaches nothing
+- a modifier held across a keystroke reaches it, and is released with it
+- `Ctrl+A` selects a field's whole value and inserts nothing
 
 ## What handing off looks like
 

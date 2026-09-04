@@ -8,7 +8,7 @@ use crate::icon::{Field, Fields};
 use crate::image::{Plate, Plates};
 use crate::interaction::Claim;
 use crate::interaction::focus::Focus;
-use crate::interaction::input::Pointer;
+use crate::interaction::input::Incoming;
 use crate::interaction::stack::Stack;
 use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf, Presence};
@@ -46,7 +46,7 @@ pub struct Grove {
     pub(crate) short: Short,
     pub(crate) scheme: Scheme,
     /// What arrived from the platform, and the gesture it is making.
-    pub(crate) pointer: Pointer,
+    pub(crate) incoming: Incoming,
     /// What the last frame drew, which is what a gesture is resolved against.
     pub(crate) stack: Stack,
     pub(crate) focus: Focus,
@@ -80,7 +80,7 @@ impl Grove {
             layout: Layout::of(viewport),
             short: Short::No.next(viewport),
             scheme: Scheme::default(),
-            pointer: Pointer::default(),
+            incoming: Incoming::default(),
             stack: Stack::default(),
             focus: Focus::default(),
             coasting: Coasting::default(),
@@ -122,7 +122,16 @@ impl Grove {
             Vein::Mark => Sap::Mark(self.tree.icon_pigment(leaf)?.field),
             Vein::Picture => Sap::Picture(self.tree.image_pigment(leaf)?.plate),
             Vein::Fit => Sap::Fit(self.tree.image_pigment(leaf)?.fit),
-            Vein::Text => Sap::Text(self.tree.lettering(leaf)?.to_string()),
+            // A field says what its run says. Every verb and every read is addressed to the field,
+            // so what it is made of is never a name an app has to hold.
+            Vein::Text => Sap::Text(match self.tree.parts(leaf) {
+                Some(parts) => self.tree.lettering(parts.run)?.to_string(),
+                None => self.tree.lettering(leaf)?.to_string(),
+            }),
+            Vein::Selection => {
+                self.tree.parts(leaf)?;
+                Sap::Selection(self.tree.editing(leaf).span())
+            }
             Vein::Visible => Sap::Visible(self.tree.visible(leaf).0),
             Vein::Opacity => Sap::Opacity(self.tree.opacity(leaf).0),
             Vein::Disabled => Sap::Disabled(self.tree.disabled(leaf).0),

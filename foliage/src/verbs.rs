@@ -205,6 +205,19 @@ pub trait Grow: Queues {
     /// rectangle -- a [`Panel`](crate::Panel) or an [`Image`](crate::Image). A
     /// [`Polygon`](crate::Polygon)'s corners are its own, and are moved with
     /// [`reshape`](Grow::reshape).
+    /// Selects a span of a [`TextInput`](crate::TextInput)'s value, in characters.
+    ///
+    /// The caret goes to the range's end and the selection is anchored at its start, so an empty
+    /// range places a caret and nothing else -- which is what makes this one verb rather than two
+    /// that could disagree about where the caret is.
+    ///
+    /// Both ends are held inside the value, so a range past it selects to the end.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is not a field.
+    fn select(&mut self, leaf: Leaf, range: Range<usize>) {
+        self.queue(Op::Select { leaf, range });
+    }
+
     fn round(&mut self, leaf: Leaf, rounding: impl Into<Corners>) {
         self.queue(Op::Round {
             leaf,

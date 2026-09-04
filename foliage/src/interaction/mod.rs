@@ -41,8 +41,10 @@ use tracing::{debug, trace_span};
 use crate::aspen::Property;
 use crate::coordinate::{Axes, Axis, Position};
 use crate::grove::Grove;
-use crate::interaction::input::Input;
+use crate::interaction::focus::Intent;
+use crate::interaction::input::{Input, Key, Keystroke};
 use crate::leaf::Leaf;
+use crate::op::Op;
 use crate::view::{self, consumable, range};
 
 /// What an element declared about gestures.
@@ -257,13 +259,13 @@ enum Held {
 pub(crate) fn dispatch(grove: &mut Grove) {
     let step = trace_span!("dispatch", inputs = Empty, stack = grove.stack.len());
     let _entered = step.enter();
-    let pending = core::mem::take(&mut grove.pointer.pending);
+    let pending = core::mem::take(&mut grove.incoming.pending);
     step.record("inputs", pending.len());
     // Every frame an open gesture lives through is one the window is measured across, so a frame
     // opens a sample whether or not anything arrives in it: a frame nothing happened in is a hand
     // that held still, and it counts against the mean exactly as much as one that moved.
     let span = grove.clock.delta();
-    if let Some(gesture) = grove.pointer.gesture.as_mut() {
+    if let Some(gesture) = grove.incoming.gesture.as_mut() {
         gesture.open(span);
     }
     for input in pending {
@@ -273,8 +275,43 @@ pub(crate) fn dispatch(grove: &mut Grove) {
             Input::Released(at) => released(grove, at),
             Input::Cancelled => close(grove, false),
             Input::Wheeled { at, delta } => wheeled(grove, at, delta),
+            Input::Keyed(key) => keyed(grove, key),
+            Input::Modifiers(modifiers) => grove.incoming.modifiers = modifiers,
         }
     }
+}
+
+/// A keystroke, delivered to whatever it is about.
+///
+/// `Tab` and `Escape` are focus's own and are answered wherever focus is, including nowhere --
+/// which is what makes keyboard navigation work on a page with no field on it at all. Everything
+/// else goes to whatever holds focus, and what an element makes of a key is that element's: this
+/// pass knows which keys steer focus and nothing else about any of them.
+///
+/// Queued rather than applied, so a keystroke is drained in arrival order beside every other change
+/// and what it produces is reported on F7's own terms.
+fn keyed(grove: &mut Grove, key: Key) {
+    let stroke = Keystroke {
+        key,
+        modifiers: grove.incoming.modifiers,
+    };
+    if key == Key::Tab {
+        grove.queue.push(Op::Focus(match stroke.modifiers.shift {
+            true => Intent::Previous,
+            false => Intent::Next,
+        }));
+        debug!(shift = stroke.modifiers.shift, "tabbed");
+        return;
+    }
+    if key == Key::Escape {
+        grove.queue.push(Op::Focus(Intent::Away));
+        debug!("escaped");
+        return;
+    }
+    let Some(leaf) = grove.focus.held() else {
+        return;
+    };
+    grove.queue.push(Op::Type { leaf, stroke });
 }
 
 /// The one read of the stack, and everything that follows from it.
@@ -302,10 +339,9 @@ fn pressed(grove: &mut Grove, at: Position) {
             gesture.chain = chain(grove, region.leaf);
             // Taking hold of something still coasting stops it where the hand met it. A coast is
             // the reader's own last gesture carrying on, so catching it is how it is meant to end.
-            let caught = gesture
-                .chain
-                .iter()
-                .fold(false, |caught, &region| grove.coasting.stop(region) || caught);
+            let caught = gesture.chain.iter().fold(false, |caught, &region| {
+                grove.coasting.stop(region) || caught
+            });
             if caught {
                 // And the press is spent on the catch. What is under the hand hears nothing of it,
                 // or stopping a moving list would also be a press on whatever it happened to stop
@@ -319,11 +355,11 @@ fn pressed(grove: &mut Grove, at: Position) {
             }
         }
     }
-    grove.pointer.gesture = Some(gesture);
+    grove.incoming.gesture = Some(gesture);
 }
 
 fn moved(grove: &mut Grove, to: Position) {
-    let Some(mut gesture) = grove.pointer.gesture.take() else {
+    let Some(mut gesture) = grove.incoming.gesture.take() else {
         return;
     };
     let delta = gesture.to.to(to);
@@ -333,14 +369,14 @@ fn moved(grove: &mut Grove, to: Position) {
             Some(axis) => claim(grove, &mut gesture, axis),
             // Still short of both thresholds, so this is still a gesture that could end as a tap.
             None => {
-                grove.pointer.gesture = Some(gesture);
+                grove.incoming.gesture = Some(gesture);
                 return;
             }
         }
     }
     gesture.record(delta);
     apply(grove, &mut gesture, delta);
-    grove.pointer.gesture = Some(gesture);
+    grove.incoming.gesture = Some(gesture);
 }
 
 fn released(grove: &mut Grove, at: Position) {
@@ -434,19 +470,33 @@ fn apply(grove: &mut Grove, gesture: &mut Gesture, delta: Position) {
 /// Ends the open gesture, taking the tap it earned if it earned one and handing on the speed it
 /// ended with.
 fn close(grove: &mut Grove, released: bool) {
-    let Some(gesture) = grove.pointer.gesture.take() else {
+    let Some(gesture) = grove.incoming.gesture.take() else {
         return;
     };
     if released {
         launch(grove, &gesture);
     }
     let Some(target) = gesture.target else {
+        // A tap that reached nothing that receives takes focus off whatever held it. That is not a
+        // rule about dismissing: it is the same rule as below, reading that what was tapped cannot
+        // hold focus -- so nothing does.
+        if released && matches!(gesture.held, Held::Resolving) {
+            focus::moved(grove, Intent::Away);
+        }
         return;
     };
     // A tap is what a gesture that ended without ever resolving to a drag emits. A gesture that
     // became a drag is not a tap that was taken back; it was never a tap.
     if released && matches!(gesture.held, Held::Resolving) {
-        grove.drift.clicked.insert(target);
+        grove.drift.clicked.insert(target, gesture.at);
+        // Focus goes to what was tapped. There is no second declaration deciding it: `interactive`
+        // is already the statement that an element takes input, and focus already rests only on
+        // what said that -- so a target of a tap is by definition somewhere focus can be.
+        //
+        // Applied rather than queued, because it is decided here. That leaves focus final before
+        // the drain, so anything following it is an ordinary write on the ordinary path, and an app
+        // moving focus elsewhere from `clicked` is drained afterwards and still wins.
+        focus::moved(grove, Intent::To(target));
         debug!(leaf = target.id(), "tapped");
     }
     grove.drift.disengaged.insert(target);
@@ -576,6 +626,8 @@ fn scroll(grove: &mut Grove, leaf: Leaf, axis: Axis, wanted: f32) -> f32 {
     if grove.aspen.cancel(leaf, Property::Scroll) {
         debug!(leaf = leaf.id(), "tween cancelled");
     }
-    grove.tree.set_offset(leaf, offset.set(axis, offset.along(axis) + taken));
+    grove
+        .tree
+        .set_offset(leaf, offset.set(axis, offset.along(axis) + taken));
     taken
 }

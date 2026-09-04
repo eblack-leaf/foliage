@@ -6,6 +6,7 @@ use tracing_subscriber::registry::{LookupSpan, Registry};
 
 use super::{grove, tick};
 use crate::stem::Stem;
+use crate::text_input::TextInput;
 use crate::verbs::Grow;
 
 /// Collects the level of every event emitted while it is installed.
@@ -46,6 +47,30 @@ fn a_frame_that_changes_nothing_emits_nothing_above_trace() {
         for _ in 0..512 {
             grove.branch(trunk, Stem::new());
         }
+        tick(&mut grove);
+
+        levels.clear();
+        for _ in 0..8 {
+            tick(&mut grove);
+        }
+
+        assert_eq!(levels.above_trace(), 0);
+    });
+}
+
+/// A field costs nothing while nothing is happening to it. It is four elements, a caret that is
+/// re-placed on every edit and a region that is asked to keep showing one -- none of which is a
+/// reason for a frame that took no keystroke to say anything.
+#[test]
+fn a_field_at_rest_emits_nothing_above_trace() {
+    let levels = Levels::default();
+    let subscriber = Registry::default().with(levels.clone());
+
+    ::tracing::subscriber::with_default(subscriber, || {
+        let mut grove = grove();
+        let field = grove.plant(TextInput::new());
+        grove.focus(field);
+        tick(&mut grove);
         tick(&mut grove);
 
         levels.clear();

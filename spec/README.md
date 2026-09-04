@@ -252,11 +252,13 @@ per axis, against thresholds tuned once at boot with `Foliage::tune(Claim { .. }
 settled once and only ever travels outward, so a drag that turns is still the drag it was claimed
 as, and a region that can no longer consume hands it to the next one out mid-gesture.
 
-Focus is a verb. `focus`, `unfocus`, `focus_next` and `focus_previous`, answered at settle against
-the geometry and products of the frame they are asked in — which is what lets an app open a drawer
-and focus into it in one turn. Order is reading order over what declared `interactive()`, with
-`focus_order(..)` to pull one element out of it and `focus_scope()` to trap the cycle inside a
-drawer. A press moves focus nowhere: the app writes that from `clicked` where it wants it.
+Focus is a verb. `focus`, `unfocus`, `focus_next` and `focus_previous`, applied where they are
+decided rather than deferred to a pass — whether a target can take focus is a walk of what has been
+declared, so it is current as of the drain and an app can open a drawer and focus into it in one
+turn. Order is reading order over what declared `interactive()`, with `focus_order(..)` to pull one
+element out of it and `focus_scope()` to trap the cycle inside a drawer. A tap moves focus to what it
+landed on, and a tap on nothing that receives takes it away; an app that wants otherwise writes
+`focus` from `clicked`, which is the later write and wins.
 
 The slice needed three things it did not own, and each landed at the size the box stack's own
 definition requires rather than at its slice's full size:
@@ -807,33 +809,71 @@ than decoration: a rule's ends share a coordinate, and a box of no height is cul
 ever drawn. The ends are settled beside the box rather than recovered from it, because a rectangle
 has two diagonals and which one the stroke runs along is a fact about where the ends resolved.
 
-### `Cap`, and the shader that was rewritten under it
+### `Cap`, and the feather the backend states
 
 `Line` takes a `Cap`: `Butt` by default, because a rule that reached half a weight past where it was
 told to stop would not line up with anything, and `Round` for a stroke that is a mark or part of a
 path. Placement is unaffected — a box already grows by half the weight on every side, which contains
 a round end.
 
-**The line shader was rewritten to add it, and that was a mistake.** The previous engine's
-`line.wgsl` had been tuned against real defects and was working; this replaced it with something
-shorter and untested. Being shorter is not a reason. Three things changed, and each should be taken
-back:
+**The coverage ramp is exactly one device pixel wide, and the backend says so.** That width is not a
+preference: a linear ramp sampled at pixel centres sums to the shape's true area only at one sample
+spacing. Wider, and what a column of pixels sums to depends on where the centreline falls between
+them — which draws as a stroke thinning and thickening along its own length as it drifts. Measured
+off the screen before it was fixed, a stroke asked for 2.0 logical pixels drew between 1.96 and 2.25.
 
-| | before | here |
-|---|---|---|
-| coverage | `min` of signed distances to the quad's four edges | distance to a segment, closed form |
-| feather | **a constant** `min(0.5, half_weight)` — half a device pixel | derived per fragment from `fwidth(d)` |
-| space | physical pixels, the section already `to_physical().rounded()` | logical throughout, the snap converting |
+A screen-space derivative cannot state that width, which is why deriving it was the mistake. `fwidth`
+is `|dpdx| + |dpdy|`, the **Manhattan** norm, which over a distance field is `|cos| + |sin|` of the
+gradient's direction: one only where the edge is axis-aligned and one and a half at forty-five
+degrees, so the ramp widened with whatever angle the stroke happened to run at. It is also taken per
+2×2 quad, so whatever it reports is quantised across pairs of pixels, and it is discontinuous along a
+butt cap where the field's `max` changes which term is nearest.
 
-The feather is the one to look at first. A constant half-pixel ramp is uniform along the whole
-stroke; an `fwidth` of this field is not — it varies along the length and again near the caps, which
-is the same thinning and thickening the previous engine's comments say the constant was chosen to
-stop. `AA_MARGIN` went from one device pixel to one logical pixel with it.
+The density is the whole of the answer, and `LineQuad` is already built where the density is known —
+so the feather is one more `f32` on the instance, `0.5 / scale` clamped to half the weight, and the
+shader takes no derivatives at all. That is the previous engine's `edge_precision = min(0.5,
+half_weight)`, which only looked as though it depended on working in physical pixels; what it
+actually was is half a device pixel, and moving to logical pixels lost it by reaching for a
+derivative to get it back.
 
-What was kept: the quad grows past the true edge so the rasteriser is asked about the pixels the
-feather covers, the ramp is linear rather than smoothstepped, and an axis-aligned stroke is put on
-whole device pixels — thickness snapped first and the centreline placed from it, so a one-pixel rule
-is one lit row rather than two half-lit ones.
+The closed-form segment distance **stays**. It is the better field of the two and it is what makes
+`Cap` expressible at all — four-edge coverage is an oriented box and cannot be round. What is kept
+beside it: the quad grows past the true edge so the rasteriser is asked about the pixels the feather
+covers, the ramp is linear rather than smoothstepped, and an axis-aligned stroke is put on whole
+device pixels — thickness snapped first and the centreline placed from it, so a one-pixel rule is one
+lit row rather than two half-lit ones.
+
+### The bead at a turn, and why no cap choice removes it
+
+Two elements are two draws and two blends, so a pixel both of them only partly cover is composited
+twice: `2α − α²` where the shape they make between them has `α`. That is the whole of the seam at a
+chain's turns, and it is not z-ordering — the stack sorts back to front, depths are strictly
+decreasing and `LessEqual` rejects nothing, which is exactly why nothing prevents the second blend
+either.
+
+`Cap::Round` on both sides of a shared vertex is that case at its worst, because it puts the *same*
+half-disc in the same place twice: near the shared point both segments' fields reduce to the identical
+radial field, so the two coverages are equal at every pixel of the join and the outer arc is painted
+at one and a half times what it should be. Simulated at the page's own geometry, against a nominal
+2.00:
+
+| construction | apparent weight at the vertex |
+|---|---|
+| round caps both sides | 2.37 |
+| square caps, segments meeting | 2.15 |
+| square caps and a `Polygon` disc over the joint | 2.47 |
+| one union field, evaluated once | 2.04 |
+
+Square ends are therefore what a chain wants — the wedge they leave open at a shallow turn is a few
+hundredths of a pixel — and the previous engine's butt-plus-disc joint is *worse* than either, so
+there was nothing to take back from it. Only evaluating the path's union once removes the bead, and
+that is a property of a shader and a tessellation rather than of the stack: **a single entry in the
+stack would not fix it**, since a run is already one entry holding many quads and those quads blend
+against each other too. That is the answer to the question `Polyline` was holding open, and the
+reason a path would want a renderer rather than a reason to build one now.
+
+It generalises past lines: any two elements whose antialiased edges coincide conflate, two panels
+sharing an edge included. It is structural to one element, one instance, composited in rank order.
 
 ### The two sheets, and the one texture each
 
@@ -915,18 +955,16 @@ surface than a second verb.
 
 ### Still owed by B8
 
-- **Restore `line.wgsl`** — first, before anything else here is trusted. Take the previous engine's
-  four-edge coverage and its constant feather back, in physical space, and put `Cap` on top of that
-  rather than on top of the rewrite. See the table above for exactly what changed.
-
-  Seams were visible at the turns of the path `application/` draws. They are **not diagnosed**, and
-  the cause is not z-ordering across the parts — the previous engine gave each part its own level
-  and drew paths cleanly.
-- **`Polyline`** — not built. `application/` draws its series as a chain of round-capped `Line`s,
+- **`Polyline`** — not built. `application/` draws its series as a chain of square-capped `Line`s,
   which is enough to exercise the renderer but is not the same thing as a path the engine knows
-  about. What a real one owes is a handle, a dash pattern, and `Motion::DrawProgress` — and, before
-  any of those, an answer on whether the segments of one path have to be a single entry in the stack
-  for their joins to composite cleanly. That question is open.
+  about. What a real one owes is a handle, a dash pattern, and `Motion::DrawProgress`. The question
+  that was open — whether the segments of one path have to be a single entry in the stack for their
+  joins to composite cleanly — is answered above, and the answer is that one entry is not enough:
+  what a path needs is one *coverage evaluation*, which is what a renderer of its own would buy.
+- **A hazard, not yet a defect.** `LineQuad::new` snaps a stroke whose ends share a coordinate, and
+  it moves both ends and the weight. In a chain, one axis-aligned segment would therefore stop
+  meeting its neighbours and be a different thickness from them. Nothing on the page reaches it, and
+  whatever owns a path has to answer it.
 - **`Motion::DrawProgress`** — goes with whatever owns a path. Revealing a prefix by arc length
   needs the resolved positions of every point, which is a pass, and there is no element here yet for
   that pass to belong to.
@@ -938,14 +976,189 @@ surface than a second verb.
 `application/` has a figure at the foot of the column, and every renderer on it is doing the thing it
 exists for rather than standing in for a panel. The axes are rules — two ends sharing a coordinate,
 which is a box of no height until the weight says otherwise. The series is a path drawn as strokes
-with round ends and nothing at the turns, its readings stated as points in the grammar, so the whole
-figure stretches with the column rather than being redrawn when it moves. The legend's dot is a
+meeting end to end, its readings stated as points in the grammar, so the whole
+figure stretches with the column rather than being redrawn when it moves; the ends are square,
+because two round ones at a shared point are the same disc drawn twice. The legend's dot is a
 shape the tour animates through every side count between a hexagon and a circle. The mark is a
 distance field the element fills, so it repaints with the scheme like the label beside it. The
 thumbnail is registered inside `take_root` rather than at boot, which is what found the last gap in
 the surface — `Foliage::icon` was boot-only, and an app that takes root inside the first frame had
 no way to reach it. The caption is one run with a range of it filled differently, and which range
 follows the section being read.
+
+## B9 — the one composite
+
+`TextInput`. Three hundred and ninety-six headless tests and fourteen compile-fail doctests.
+
+### One name, four elements
+
+Everything else foliage grows is one element. A field is four — a run, a placeholder, a caret and a
+selection — because each is already something the engine draws and they move independently of one
+another. The app holds **one** `Leaf`: every verb and every read is addressed to the field, and
+`text`, `select`, `Vein::Text`, `Vein::Selection`, `edited` and `submitted` all reach the part they
+are actually about. What a field is made of is not a surface to keep in step with.
+
+The parts are grown **in the drain that grew the field**, from a `Sprout` the bud carries, with names
+from the same allocator. They are not four more queued ops because they are not the app's to order
+against anything: a field is one thing to plant, and the frame that planted it is the frame the whole
+of it is live in. Downstream nothing can tell them from anything else grown that frame — which is
+what keeps the composite from being a second kind of element.
+
+### The caret is placed in the ordinary grammar
+
+A caret at character `n` is `anchor().left() + anchor().letters(n)` against the run, and a selection
+is the span between two of those. That is the whole of the geometry. No pass measures a caret,
+because `letters()` already resolves a character count against the font the run composes in — on
+either axis, so the caret's height is `anchor().letters(1.0)` and is one line of that same font.
+
+It is the first real consumer of `letters()`, which B2 introduced against fed-in values and B6 gave a
+font to. A caret was the reading it was for: `Shaped::place` already said its index space is "the
+space a tint and a caret are both addressed in", and this is what that sentence was reserving.
+
+### A field is a scrolling region, and that is not a convenience
+
+One line, as wide as its own value, inside a box that clips it — which *is* a region, so it is
+declared as one rather than given a clip of its own. `views.md` already owns everything that follows
+from that: the clip comes from R5, the offset from R4, and keeping the caret in view is
+`ScrollTo::show(caret)` pushed at every edit and answered in R4 against the extent the same frame
+measured. Typing past the right edge scrolls the field in the frame it was typed in, and `Home`
+brings it back, with nothing written for either.
+
+Clipping only ever came from `scrolls(..)`, and a field wanting a clip and wanting to follow its
+caret are the same want. Giving it a second mechanism would have been two answers to one question.
+
+### One element that is more than one, stated once
+
+A field is four elements and the drain knows none of that. A `Bud` may carry a `Sprouts`, the drain
+grows the element the app named and hands the rest to it, and what those parts are is the seed's own
+business — so the next composite is a seed and a trait impl, with no third place to edit. The parts
+are grown in the same drain step rather than as more queued ops, because a composite is one thing to
+plant and the frame that planted it is the frame the whole of it is live in.
+
+### Focus settles where it is decided
+
+Focus used to be answered at step 7, after resolution. That one fact generated every wart around it:
+anything downstream of focus had already missed its pass, so a caret needed patching up afterwards,
+and each attempt at that patch was an engine-wide mechanism serving one element — a text-shaped pass
+inside resolution, then a component the inherited product had to consult, then an op only one seed
+emitted. Three shapes for one problem, and the problem was the timing.
+
+It was at step 7 because it read two things resolution produces: the inherited product, to know
+whether a target can take focus, and where elements were drawn, to know what order to step in. But
+**dispatch already resolves against what the last frame settled** — that is the law for hit-testing,
+and reading order for a keyboard event is the same kind of question about the same kind of event.
+And focusability is not really the product: it is *hidden or disabled anywhere in the ancestry*,
+which is a walk of what has been declared, and that walk is current as of the drain rather than one
+frame stale. It is strictly better than what R7 offered, since it sees a drawer shown this frame.
+
+So focus applies where it is decided — a tap and `Tab` at dispatch, `focus(..)` in the drain — and is
+final before resolution runs. Nothing follows it with a pass to miss. A caret's visibility is an
+ordinary `visible` write inherited by R7 like anything else, R7 is exactly what it was, and
+resolution knows nothing about fields.
+
+What is selected is not cleared with it. A selection is state and focus is not, so leaving a field
+and coming back finds it as it was.
+
+The run is drawn **in front of** both marks. A caret sits on the boundary between two character cells
+and is as wide as it needs to be seen; drawn over the run it took a bite out of the glyph it stood
+before — at 14px, about a quarter of it.
+
+### Keys
+
+`interaction.md` gained §10, and F1's clause about keystrokes being genuinely ordered is finally
+about something. A keystroke arrives at intake beside a press, in one queue, and is dispatched
+against what the last frame settled.
+
+A key goes to whatever it is about and nothing searches for that — the same law §3 states about a
+point, stated about a key. `Tab` and `Escape` are focus's own and are answered wherever focus is,
+**including nowhere**, so a keyboard reaches a page that has never been pressed; that discharges
+B4's third owed item. Everything else goes to the element holding focus and to nothing at all if
+that element has no use for it — dispatch knows which keys steer focus and nothing else about any of
+them.
+
+What is *held* travels as its own event in the same stream, so what a key was pressed with is the
+order the two arrived in rather than a flag kept beside the queue. That is what makes it engine
+state: the headless suite holds a modifier by writing the event a window writes, and there is no
+second path for a test to miss. `control` arrived with that move, and `Ctrl+A` with it.
+
+Dispatch decides *which* element a key is about; the drain decides *what* it does. So a keystroke is
+queued like every other change, F1 keeps one queue and one drain, and what a key changed is reported
+on F7's ordinary footing rather than by a second, faster path.
+
+What a key *produced* is the platform's answer and not the engine's. A layout, a dead key and a
+composed sequence are resolved before intake, so a key that produced text is taken as the text it
+produced and nothing here maps a scancode or holds a binding table.
+
+### Focus goes to what was tapped
+
+B4 held that a press moves focus nowhere, so an app wrote the line itself. That is not tenable for an
+element the engine ships: making an app hand-wire "tapping a field focuses it" is asking it to
+assemble a part that came assembled.
+
+**Focus goes to what was tapped**, and nothing declares it. `interactive()` is already the statement
+that an element takes input and focus already rests only on what said that, so the target of a tap is
+by definition somewhere focus can be — a second flag would have been the same question asked twice,
+free to disagree with itself. A tap that reached nothing which receives takes focus away, which is
+the same rule rather than a dismissal rule beside it.
+
+The verb keeps the last word without needing to be protected: a tap settles focus at dispatch, the
+frame *before* an app is handed the `clicked` it produced, so an app writing `focus` elsewhere is
+simply the later write.
+
+**A caret lands on the tap**, under the rule that already denies a drag its click — a gesture that
+became a drag was never a statement about what it began on, so it moves no caret and takes no focus
+either. And the field reads that gesture rather than being handed it: interaction reports where a tap
+landed, `TextInput` asks whether it was tapped and where, and interaction has no idea fields exist.
+
+`interaction.md`'s outstanding obligation — "`focus(leaf)` on a text input places a usable caret with
+no click involved" — is discharged, and it is discharged literally: the caret is drawn from focus and
+from nothing else, and every editing test in the suite reaches the value without a pointer anywhere
+near it.
+
+### What editing is
+
+A pure function: a value, a caret and a keystroke in, a value and a caret out. Every off-by-one in a
+text field lives in character arithmetic and none of it needs a tree, so none of it is tested through
+one. Indices are **characters** throughout — the space `Shaped` lays a run out in and the space a
+`tint` is written in — so a caret, a highlight and a range all mean the same thing by the same number.
+
+Two rules are worth stating because they are the ones a reader notices when they are wrong. Backspace
+and delete remove *the span*, with an empty span reaching one character first, so a selection and a
+caret are one rule rather than two. And an unshifted arrow against a selection **collapses to the edge
+it points at** rather than stepping from the caret, because the selection is the thing being moved
+away from.
+
+### Still owed by B9
+
+- **A blinking caret.** Deliberate rather than forgotten: a blink is a frame owed for as long as a
+  field holds focus, and F9's idling is worth more than the blink until something says otherwise. The
+  caret is solid while focused.
+- **Clipboard, and the virtual keyboard.** Both are `B10`'s, and both are platform edges rather than
+  anything about what a field is. `Ctrl+C`/`Ctrl+V` wait on the first of those and not on the
+  modifier, which is here.
+- **Composition.** A key that produced text is taken as the text it produced, which covers a dead key
+  and a committed sequence and does not cover an inline preedit. That needs a run drawn in a state it
+  does not have yet.
+- **More than one line.** A field is one line and a text *area* is not the same element: wrapping puts
+  the caret back into the walk, and the walk answers a cell for every character rather than a column
+  for one. It is a second element when there is something that wants it.
+- **Word-wise motion.** `Left`/`Right`, `Home`/`End`, shift over both, and `Ctrl+A` are what is
+  here. Stepping by word is a decision about where a word ends, which is a different question from
+  which modifier was held.
+- **Recolouring a field after it is grown.** Its four fills are stated when it is planted and
+  `color` reaches none of them, because which part a fill written to a field means is a real
+  question and picking the run silently would be an answer nobody asked for. What an app usually
+  wants — an error state, a focused border — is the ground it put the field in, which is its own
+  panel and already writable.
+
+`application/` has a form in it. The drawer's two stand-in panels are real fields now: the ground and
+the field are two elements because they are two things — the ground is a box the app chose the colour
+and rounding of, and the field is what can be typed into, since a field draws no chrome of its own.
+Focusing one selects what is already in it, which is `select` and `Vein::Text` in two lines. Nothing
+in the app focuses a field: a tap does, because the field says so. `Tab` moves between them and
+`Escape` leaves, so the button standing in for a keyboard is standing in for nothing any more.
+Enter closes the drawer, and what either field holds is read back rather than kept — the second
+button says `save` once the form has anything in it and `close` while it does not.
 
 ## B4 §3, resolved
 
