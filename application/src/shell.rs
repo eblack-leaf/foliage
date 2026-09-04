@@ -9,9 +9,10 @@
 //! nearest smaller one that was, and a chain that runs out fills the trunk.
 
 use foliage::{
-    Axes, Color, Corners, Divide, Elevation, Escape, FontSize, Grid, Grove, Grow, Leaf, Location,
-    Palette, Panel, Place, Rounding, Scheme, Scroll, Side, Source, Stem, Text, anchor, bottom,
-    center_x, center_y, content, left, right, top,
+    Area, Axes, Boxed, Cap, Color, Corners, Divide, Elevation, Escape, Fit, FontSize, Grid, Grove,
+    Grow, Icon, Image, Leaf, Line, Location, Palette, Panel, Place, Point, Polygon, Rounding, Scheme,
+    Scroll, Shape, Side, Source, Stem, Text, anchor, bottom, center_x, center_y, content, left,
+    right, top,
 };
 
 /// The space between tracks, and the rhythm every other measurement is stated in.
@@ -97,7 +98,17 @@ pub(crate) struct Shell {
     /// The slider: a track, and the knob that takes drags along it.
     pub(crate) track: Leaf,
     pub(crate) knob: Leaf,
+    /// The figure at the foot of the column.
+    pub(crate) figure: Figure,
     pub(crate) drawer: Drawer,
+}
+
+/// The parts of the figure the app writes to again.
+pub(crate) struct Figure {
+    /// The legend's dot, reshaped as the tour moves.
+    pub(crate) legend: Leaf,
+    /// The caption, whose tinted range follows the section being read.
+    pub(crate) caption: Leaf,
 }
 
 /// The drawer, which is grown outside the page so that disabling the page leaves it alone.
@@ -461,6 +472,8 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
             )),
     );
 
+    let figure = figure(grove, column, pane);
+
     let notice = grove.branch(
         page,
         Panel::new()
@@ -489,8 +502,250 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
         cards,
         track,
         knob,
+        figure,
         drawer: drawer(grove),
     }
+}
+
+/// How tall the figure is, and how much room its axes leave for the plot inside them.
+const FIGURE: f32 = 200.0;
+const AXIS: f32 = 28.0;
+
+/// How much of the figure the header takes before the plot begins.
+///
+/// The plot is measured from here down rather than from the top of the card, so the series cannot
+/// reach up into the legend -- a reading of 1.0 lands on the header's underside and no higher.
+const HEAD: f32 = 52.0;
+
+/// How large the legend's dot, the figure's mark and its thumbnail are.
+const DOT: f32 = 12.0;
+const MARK: f32 = 20.0;
+const THUMBNAIL: f32 = 28.0;
+
+/// The readings the series is drawn from, as fractions of the plot's height.
+const SERIES: [f32; 6] = [0.15, 0.42, 0.30, 0.68, 0.55, 0.92];
+
+/// A figure at the foot of the column: two rules for axes, a series drawn as strokes, a legend, a
+/// mark and a thumbnail.
+///
+/// Every one of the renderers this slice adds, on one card, and each of them doing the thing it
+/// exists for rather than standing in for a panel. It is also where the claim that a path needs
+/// nothing of its own is tested: the series below is a chain of [`Line`]s between neighbouring
+/// points with a round [`Polygon`] on each turn, written here in a loop, and the engine has no
+/// concept of it.
+fn figure(grove: &mut Grove, column: Leaf, above: Leaf) -> Figure {
+    let card = grove.branch(
+        column,
+        Panel::new()
+            .color(Palette::Raised)
+            .rounding(Rounding::Md)
+            .anchored(above)
+            .at(Location::new().xs(
+                left(anchor().left()).width(anchor().width()),
+                top(anchor().bottom() + GUTTER.px()).height(FIGURE.px()),
+            )),
+    );
+
+    // The two axes. A rule is two ends that share a coordinate, which is a box of no height until
+    // the weight says otherwise -- so this is the case a stroke exists for rather than a thin panel.
+    for (from, to) in [
+        // Along the bottom.
+        (
+            (AXIS.px(), 100.pct() - AXIS.px()),
+            (100.pct() - GUTTER.px(), 100.pct() - AXIS.px()),
+        ),
+        // Up the left, from under the header rather than from the top of the card.
+        (
+            (AXIS.px(), HEAD.px()),
+            (AXIS.px(), 100.pct() - AXIS.px()),
+        ),
+    ] {
+        grove.branch(
+            card,
+            Line::new()
+                .weight(1.0)
+                .color(Palette::Muted)
+                .between(
+                    Point::new(from.0.clone(), from.1.clone()),
+                    Point::new(to.0.clone(), to.1.clone()),
+                ),
+        );
+    }
+
+    // The series. Each reading is a point in the grammar, so the whole figure stretches with the
+    // column rather than being redrawn when it moves -- and the strokes between them follow.
+    let plot = |n: usize| {
+        let across = AXIS + 8.0;
+        Point::new(
+            across.px() + (100.pct() - (across + GUTTER).px()) * (n as f32 / (SERIES.len() - 1) as f32),
+            (100.pct() - AXIS.px()) - (100.pct() - (AXIS + HEAD).px()) * SERIES[n],
+        )
+    };
+    // Round ends, which is the whole of what makes this a path rather than a row of strokes. Each
+    // end is a half-disc of half the weight centred on the point, so where two segments meet the
+    // two halves are one disc of exactly the radius the wedge between them needs. There is nothing
+    // to place at a turn, and a path is its segments and no more.
+    for n in 0..SERIES.len() - 1 {
+        grove.branch(
+            card,
+            Line::new()
+                .weight(2.0)
+                .cap(Cap::Round)
+                .color(Palette::Accent)
+                .elevate(Elevation::up(1))
+                .between(plot(n), plot(n + 1)),
+        );
+    }
+
+    // The legend's dot, which the tour reshapes as it moves: sides and rounding are numbers, so a
+    // hexagon becomes a circle by passing through the shapes between them.
+    let legend = grove.branch(
+        card,
+        Polygon::new()
+            .sides(6.0)
+            .color(Palette::Accent)
+            .elevate(Elevation::up(1))
+            .at(Location::new().xs(
+                left(GUTTER.px()).width(DOT.px()),
+                center_y(GUTTER.px() + (THUMBNAIL / 2.0).px()).height(DOT.px()),
+            )),
+    );
+
+    // A mark, filled by the element rather than by the artwork -- so it repaints with the scheme
+    // exactly as the label beside it does.
+    let field = grove.icon(&mark_field(), MARK_FIELD, MARK_RANGE);
+    grove.branch(
+        card,
+        Icon::new(field)
+            .color(Palette::Ink)
+            .elevate(Elevation::up(1))
+            .at(Location::new().xs(
+                left(GUTTER.px() + DOT.px() + 8.px()).width(MARK.px()),
+                center_y(GUTTER.px() + (THUMBNAIL / 2.0).px()).height(MARK.px()),
+            )),
+    );
+
+    // A thumbnail. Registered here rather than at boot, because a picture that has to be fetched or
+    // decoded is the ordinary case and is the same registration said later.
+    let plate = grove.image(thumbnail(), Area::new(PLATE as f32, PLATE as f32));
+    grove.branch(
+        card,
+        Image::new(plate)
+            .fit(Fit::Crop)
+            .rounding(Rounding::Sm)
+            .elevate(Elevation::up(1))
+            .at(Location::new().xs(
+                right(100.pct() - GUTTER.px()).width(THUMBNAIL.px()),
+                top(GUTTER.px()).height(THUMBNAIL.px()),
+            )),
+    );
+
+    // The caption. Part of it is filled differently from the rest, over the run's own index space,
+    // which is what a tint is -- and the tinted part follows the scheme like everything else.
+    let caption = grove.branch(
+        card,
+        Text::new(CAPTION)
+            .color(Palette::Muted)
+            .font_size(FontSize::new().xs(11).md(12))
+            .tint(0..7, Palette::Ink)
+            .pass_through()
+            .at(Location::new().xs(
+                left((AXIS + 8.0).px()).right(100.pct() - GUTTER.px()),
+                bottom(100.pct() - 6.px()).height(16.px()),
+            )),
+    );
+
+    Figure { legend, caption }
+}
+
+/// What the figure's caption says. Part of it is tinted, so the run carries two fills.
+const CAPTION: &str = "reading, over the last six intervals";
+
+/// The shape the legend's dot takes for section `n`: fewer sides and rounder as the tour moves on,
+/// ending on a true circle.
+///
+/// Three numbers, which is the whole reason a polygon is animatable without any of the machinery a
+/// placement needs -- there is nothing to re-resolve, so there is nothing to keep consistent.
+pub(crate) fn legend(n: usize) -> Shape {
+    let steps = SECTIONS as f32 - 1.0;
+    let at = (n as f32 / steps).clamp(0.0, 1.0);
+    Shape {
+        sides: 6.0 - 3.0 * at,
+        rounding: at,
+        rotation: at * core::f32::consts::FRAC_PI_4,
+    }
+}
+
+/// Which part of the caption is picked out for section `n`, in characters of the value.
+///
+/// Indices into `CAPTION` rather than into what is drawn: a space leaves no glyph, so counting
+/// glyphs would put every range after one somewhere other than the word it names.
+pub(crate) fn emphasis(n: usize) -> (core::ops::Range<usize>, Palette) {
+    let range = match n {
+        // "reading"
+        0 => 0..7,
+        // "the last six"
+        1 => 19..31,
+        // "intervals"
+        2 => 32..41,
+        // the whole of it
+        _ => 0..CAPTION.len(),
+    };
+    (range, Palette::Ink)
+}
+
+/// How wide the mark's distance field is, and how many texels its distance range spans.
+const MARK_FIELD: u32 = 32;
+const MARK_RANGE: f32 = 4.0;
+
+/// A distance field for the mark: a ring, baked here rather than loaded.
+///
+/// A real one comes out of a tool that traces an outline. This is the same thing computed in closed
+/// form, because a ring's distance is one subtraction -- which is enough to prove the pipeline draws
+/// a field rather than a bitmap: it is 32 texels across and stays sharp at any size the layout gives
+/// it.
+///
+/// The three colour channels are equal, which is a degenerate multi-channel field: the median of
+/// three equal values is that value, so it reconstructs exactly and only gives up the corner
+/// sharpness a true bake would keep. A ring has no corners.
+fn mark_field() -> Vec<u8> {
+    let side = MARK_FIELD as f32;
+    let mut field = Vec::with_capacity((MARK_FIELD * MARK_FIELD * 4) as usize);
+    for y in 0..MARK_FIELD {
+        for x in 0..MARK_FIELD {
+            let to = |v: u32| (v as f32 + 0.5) / side - 0.5;
+            let (dx, dy) = (to(x), to(y));
+            // Distance to the ring's own edge: outside the outer radius or inside the inner one is
+            // out, and between them is in.
+            let radius = (dx * dx + dy * dy).sqrt();
+            let inside = (0.38 - radius).min(radius - 0.22);
+            // Zero distance sits at half, and the baked range is what one texel of distance is
+            // worth -- which is what the shader converts into a screen-space edge.
+            let encoded = (inside * side / MARK_RANGE + 0.5).clamp(0.0, 1.0);
+            let byte = (encoded * 255.0) as u8;
+            field.extend_from_slice(&[byte, byte, byte, 255]);
+        }
+    }
+    field
+}
+
+/// How wide the thumbnail is.
+const PLATE: u32 = 24;
+
+/// A picture, generated rather than decoded.
+///
+/// foliage decodes nothing -- what a PNG turns into is an app's business and an app's crate -- so
+/// what the engine takes is pixels, and these are as good a set as any for proving the pipeline.
+fn thumbnail() -> Vec<u8> {
+    let mut pixels = Vec::with_capacity((PLATE * PLATE * 4) as usize);
+    for y in 0..PLATE {
+        for x in 0..PLATE {
+            let across = (x * 255 / (PLATE - 1)) as u8;
+            let down = (y * 255 / (PLATE - 1)) as u8;
+            pixels.extend_from_slice(&[across, 90, down, 255]);
+        }
+    }
+    pixels
 }
 
 /// Where the scrollbar's thumb sits along its track, and how much of it there is.

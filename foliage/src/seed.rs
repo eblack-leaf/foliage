@@ -1,7 +1,7 @@
 use crate::elm::{Chlorophyll, PanelPigment, Pigment};
 use crate::op::Bud;
 use crate::panel::Panel;
-use crate::place::{Caller, Places};
+use crate::place::{Boxed, Caller, Places};
 use crate::stem::Stem;
 
 /// An element described before it exists, and what [`plant`](crate::Grow::plant) and
@@ -24,14 +24,14 @@ impl Buds for Stem {
         Bud {
             // A stem carries no renderer, which is the whole of what makes it one, and so nothing
             // for a renderer to have been told.
-            chlorophyll: Chlorophyll::None,
-            pigment: None,
-            lettering: None,
             placement: self.placement,
             at,
+            ..Bud::bare()
         }
     }
 }
+
+impl Boxed for Stem {}
 
 impl Buds for Panel {
     fn bud(self, at: Caller) -> Bud {
@@ -41,9 +41,11 @@ impl Buds for Panel {
                 fill: self.fill,
                 rounding: self.rounding,
             })),
-            lettering: None,
             placement: self.placement,
             at,
+            ..Bud::bare()
         }
     }
 }
+
+impl Boxed for Panel {}

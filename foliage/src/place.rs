@@ -7,6 +7,7 @@ use crate::elevation::Elevation;
 use crate::interaction::{Gestures, Shape};
 use crate::leaf::Leaf;
 use crate::lifecycle::{Opacity, Visible};
+use crate::line::{Stroke, Traced};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::text::font::{Font, FontSize, Typeface};
@@ -18,9 +19,20 @@ use crate::view::{Escape, Scroll, Scrolls};
 pub(crate) type Caller = &'static core::panic::Location<'static>;
 
 /// What a seed carries about where it will sit. Anything left unsaid takes its default.
+///
+/// [`location`](Placement::location) and [`traced`](Placement::traced) are the two ways to say it,
+/// and an element states one of them: a box is a rectangle the grammar resolves, and a trace is the
+/// same grammar read as vertices. Which of the two a seed offers is a type -- [`Boxed`] against
+/// [`Line::between`](crate::Line::between) -- so nothing can state both and no pass has to decide
+/// which was meant.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Placement {
     pub(crate) location: Option<Location>,
+    /// The two ends of a stroked element, in place of a box.
+    pub(crate) traced: Option<Traced>,
+    /// How thick a stroked element is drawn. Placement input rather than decoration: it is what a
+    /// trace's box is inflated by, so a rule with two ends on one line still has a box.
+    pub(crate) stroke: Option<Stroke>,
     pub(crate) grid: Option<Grid>,
     pub(crate) anchor: Option<Anchored>,
     pub(crate) elevation: Option<Elevation>,
@@ -77,14 +89,6 @@ pub(crate) trait Places {
 /// Sealed: it can be called, never implemented.
 #[allow(private_bounds)]
 pub trait Place: Places + Sized {
-    /// Where the element sits.
-    ///
-    /// An element that says nothing fills its parent.
-    fn at(mut self, location: Location) -> Self {
-        self.placement().location = Some(location);
-        self
-    }
-
     /// How this element's box is divided for the elements grown under it.
     ///
     /// Undeclared, it is a single column and a single row.
@@ -306,3 +310,26 @@ pub trait Place: Places + Sized {
 }
 
 impl<T: Places> Place for T {}
+
+/// A seed placed by a box.
+///
+/// Everything the engine draws as a rectangle -- a [`Stem`](crate::Stem), a
+/// [`Panel`](crate::Panel), a [`Text`](crate::Text), an [`Icon`](crate::Icon), an
+/// [`Image`](crate::Image), a [`Polygon`](crate::Polygon) -- and nothing else.
+///
+/// It is a separate trait from [`Place`] rather than a method on it because a
+/// [`Line`](crate::Line) has no box to state: it is two ends, said with
+/// [`between`](crate::Line::between). An `at` it could be handed and would ignore is the kind of
+/// surface that has to be remembered rather than read, so it is not there to hand it.
+///
+/// Sealed: it can be called, never implemented.
+#[allow(private_bounds)]
+pub trait Boxed: Places + Sized {
+    /// Where the element sits.
+    ///
+    /// An element that says nothing fills its parent.
+    fn at(mut self, location: Location) -> Self {
+        self.placement().location = Some(location);
+        self
+    }
+}

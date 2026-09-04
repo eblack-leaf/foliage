@@ -22,12 +22,14 @@
 pub(crate) mod font;
 pub(crate) mod shape;
 
+use core::ops::Range;
+
 use bevy_ecs::component::Component;
 
 use crate::elm::{Chlorophyll, Pigment};
 use crate::op::Bud;
 use crate::palette::{Fill, Palette};
-use crate::place::{Caller, Placement, Places};
+use crate::place::{Boxed, Caller, Placement, Places};
 use crate::seed::Buds;
 
 pub use font::{Font, FontSize};
@@ -43,7 +45,7 @@ pub use font::{Font, FontSize};
 /// tall the run turned out at the width the layout gave it:
 ///
 /// ```no_run
-/// # use foliage::{FontSize, Location, Palette, Source, Text, Place, content, left, top};
+/// # use foliage::{Boxed, FontSize, Location, Palette, Place, Source, Text, content, left, top};
 /// Text::new("as tall as it wraps to")
 ///     .color(Palette::Ink)
 ///     .font_size(FontSize::new().xs(14).lg(18))
@@ -61,6 +63,7 @@ pub struct Text {
     pub(crate) placement: Placement,
     pub(crate) value: String,
     pub(crate) fill: Fill,
+    pub(crate) tints: Tints,
 }
 
 impl Text {
@@ -71,6 +74,7 @@ impl Text {
             placement: Placement::default(),
             value: value.into(),
             fill: Fill::Role(Palette::Ink),
+            tints: Tints::default(),
         }
     }
 
@@ -82,6 +86,29 @@ impl Text {
     /// already is rather than in a second one beside it.
     pub fn color(mut self, fill: impl Into<Fill>) -> Self {
         self.fill = fill.into();
+        self
+    }
+
+    /// Fills part of the run differently from the rest of it.
+    ///
+    /// The range is in **characters of the value**, spaces included -- the same index space a caret
+    /// and a selection are addressed in, and the space the string itself is written in. Anything
+    /// untinted stays the run's own [`color`](Text::color), so a run with no tints is exactly the
+    /// run it would otherwise be.
+    ///
+    /// ```no_run
+    /// # use foliage::{Color, Palette, Text};
+    /// Text::new("ok  warn  error")
+    ///     .color(Palette::Ink)
+    ///     .tint(4..8, Palette::Accent)
+    ///     .tint(10..15, Color::rgb(0.9, 0.35, 0.3));
+    /// ```
+    ///
+    /// A tint is a [`Fill`] like any other, so a role follows a
+    /// [`repaint`](crate::Grow::repaint) and a literal does not. Where two overlap the later one
+    /// wins, which is the rule a reader can predict without knowing what else was written.
+    pub fn tint(mut self, range: Range<usize>, fill: impl Into<Fill>) -> Self {
+        self.tints.0.push((range, fill.into()));
         self
     }
 }
@@ -101,11 +128,17 @@ impl Buds for Text {
             chlorophyll: Chlorophyll::Text,
             pigment: Some(Pigment::Text(TextPigment { fill: self.fill })),
             lettering: Some(Lettering(self.value)),
+            // Absent unless part of the run is filled differently, so a plain run carries nothing
+            // for the tint lookup to walk.
+            tints: (!self.tints.0.is_empty()).then_some(self.tints),
             placement: self.placement,
             at,
+            ..Bud::bare()
         }
     }
 }
+
+impl Boxed for Text {}
 
 /// What a run says.
 ///
@@ -120,4 +153,30 @@ pub(crate) struct Lettering(pub(crate) String);
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct TextPigment {
     pub(crate) fill: Fill,
+}
+
+/// Fills over parts of a run's own index space.
+///
+/// Under the run's own fill rather than beside it: a run declares one fill, and a tint says that
+/// some of its characters are not drawn in it. Everything untinted is the run's, so a run with no
+/// tints is exactly the run it was before tints existed.
+///
+/// Content rather than renderer state, like [`Lettering`] and for the same reason: a range is stated
+/// against the value, so the two have to be written and read in the same terms.
+#[derive(Component, Clone, Debug, Default, PartialEq)]
+pub(crate) struct Tints(pub(crate) Vec<(Range<usize>, Fill)>);
+
+impl Tints {
+    /// What covers character `index`, if anything does.
+    ///
+    /// The last written wins where two overlap. That is the rule a reader can predict without
+    /// knowing what else was written -- the alternative is a precedence order between ranges that
+    /// have no natural one.
+    pub(crate) fn over(&self, index: usize) -> Option<Fill> {
+        self.0
+            .iter()
+            .rev()
+            .find(|(range, _)| range.contains(&index))
+            .map(|(_, fill)| *fill)
+    }
 }

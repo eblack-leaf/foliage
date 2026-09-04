@@ -38,6 +38,10 @@ pub(crate) struct Instances<I: Pod> {
     ranks: Vec<ResolvedElevation>,
     /// One clip per slot. CPU-side only: it is what the draw is cut on, and is never uploaded.
     clips: Vec<Section>,
+    /// What each slot binds, for the one renderer whose instances do not all bind the same thing.
+    /// CPU-side only, and zero everywhere except pictures -- a binding is not per-instance state,
+    /// it is what a span is cut on.
+    groups: Vec<u32>,
     buffer: Buffer,
     depth: Buffer,
     capacity: u32,
@@ -56,6 +60,7 @@ struct Held<I> {
     instance: I,
     rank: ResolvedElevation,
     clip: Section,
+    group: u32,
     slot: u32,
 }
 
@@ -69,6 +74,7 @@ impl<I: Pod> Instances<I> {
             depths: Vec::new(),
             ranks: Vec::new(),
             clips: Vec::new(),
+            groups: Vec::new(),
             buffer: buffer(device, label, size_of::<I>() as u32 * capacity),
             depth: buffer(device, label, size_of::<f32>() as u32 * capacity),
             capacity,
@@ -90,19 +96,24 @@ impl<I: Pod> Instances<I> {
         key: Key,
         rank: ResolvedElevation,
         clip: Section,
+        group: u32,
         instance: I,
     ) {
         match self.held.get_mut(&key) {
             Some(held) => {
                 held.instance = instance;
-                let recut = held.clip != clip;
+                // Both are what the stack is cut on rather than what is uploaded, so either one
+                // changing costs the walk again and no upload of its own.
+                let recut = held.clip != clip || held.group != group;
                 held.clip = clip;
+                held.group = group;
                 if held.rank == rank {
                     let slot = held.slot as usize;
                     self.data[slot] = instance;
                     self.touched.push(slot as u32);
                     if recut {
                         self.clips[slot] = clip;
+                        self.groups[slot] = group;
                         self.disturbed = true;
                     }
                 } else {
@@ -117,6 +128,7 @@ impl<I: Pod> Instances<I> {
                         instance,
                         rank,
                         clip,
+                        group,
                         slot: 0,
                     },
                 );
@@ -173,6 +185,7 @@ impl<I: Pod> Instances<I> {
         self.data.clear();
         self.ranks.clear();
         self.clips.clear();
+        self.groups.clear();
         self.depths.clear();
         self.depths.resize(total, 0.0);
         for (slot, (rank, key)) in order.into_iter().enumerate() {
@@ -181,6 +194,7 @@ impl<I: Pod> Instances<I> {
             self.data.push(held.instance);
             self.ranks.push(rank);
             self.clips.push(held.clip);
+            self.groups.push(held.group);
         }
         if total as u32 > self.capacity {
             self.capacity = (total as u32).next_power_of_two();
@@ -207,6 +221,11 @@ impl<I: Pod> Instances<I> {
     /// What slot `slot` is clipped to.
     pub(crate) fn clip(&self, slot: u32) -> Section {
         self.clips[slot as usize]
+    }
+
+    /// What slot `slot` binds. Zero for every renderer that binds one thing or nothing.
+    pub(crate) fn group(&self, slot: u32) -> u32 {
+        self.groups[slot as usize]
     }
 
     /// Where in the whole stack slot `slot` sits, as a depth.

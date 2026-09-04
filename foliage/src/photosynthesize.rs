@@ -118,10 +118,20 @@ impl Foliage {
 
     /// The window's size and density as the engine reads them, taken after the platform has
     /// changed either.
+    ///
+    /// A changed **density** drops what the backend is held to. Extraction compares logical values
+    /// and the backend holds instances derived from them in device pixels -- a cut glyph, a snapped
+    /// stroke, a mark's screen-space range -- so a display that changed density leaves those correct
+    /// against a density that is gone, while the logical values they came from are untouched and
+    /// would compare equal forever. Moving a window between two displays is exactly that case: the
+    /// logical size can be identical on both.
     fn reconfigure(&mut self) {
         let area = self.willow.area();
         let scale = self.willow.scale();
         if let Some(ginkgo) = &mut self.ginkgo {
+            if ginkgo.scale() != scale {
+                self.grove.elm.recut();
+            }
             ginkgo.resize(area, scale);
         }
         self.grove.pending_resize = Some(area);
@@ -156,7 +166,13 @@ impl Foliage {
             fern::run(&mut self.grove, self.root.as_deref_mut());
             let ginkgo = self.ginkgo.as_ref().expect("device");
             let ash = self.ash.as_mut().expect("backend");
-            ash.absorb(&self.grove.elm, &self.grove.fonts, ginkgo);
+            ash.absorb(
+                &self.grove.elm,
+                &self.grove.fonts,
+                &self.grove.fields,
+                &self.grove.plates,
+                ginkgo,
+            );
         }
         // Nothing of the engine's own sits behind the tree, so the ground is the app's: whatever
         // the scheme currently resolves the ordinary fill to.

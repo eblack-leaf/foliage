@@ -11,6 +11,7 @@ use crate::tests::{
     Observer, advance, cancel, drag, grove, press, release, section, tick, tick_with, wheel,
 };
 use crate::{
+    Boxed,
     Elevation, Grove, Grow, Leaf, Location, Panel, Place, Pollen, Source, Stem, left, top,
 };
 

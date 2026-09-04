@@ -11,7 +11,7 @@ use crate::root::Rooted;
 use crate::stem::Stem;
 use crate::vein::{Sap, Vein};
 use crate::verbs::Grow;
-use crate::{Divide, Place, Source, anchor, left, top};
+use crate::{Boxed, Divide, Place, Source, anchor, left, top};
 
 /// How many elements are branched off `leaf`, or `None` if it is not there to ask.
 fn branches(grove: &Grove, leaf: Leaf) -> Option<usize> {

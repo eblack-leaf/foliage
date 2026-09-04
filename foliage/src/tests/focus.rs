@@ -4,7 +4,7 @@
 //! to, and where it can go is derived from the same geometry everything else is.
 
 use crate::tests::{Observer, grove, press, release, tick, tick_with};
-use crate::{Grove, Grow, Leaf, Location, Panel, Place, Source, Stem, left, top};
+use crate::{Boxed, Grove, Grow, Leaf, Location, Panel, Place, Source, Stem, left, top};
 
 /// A box at a stated place, so reading order has something to read.
 fn at(x: f32, y: f32, width: f32, height: f32) -> Location {

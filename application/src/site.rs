@@ -378,6 +378,17 @@ impl Site {
         // own placement is written once and never again -- what moves it is which element it is
         // reading, not what it says about itself.
         grove.anchor(self.shell.marker, self.shell.entries[entry]);
+        // The legend's dot is a shape, and a shape is three numbers -- so this is an ordinary
+        // motion with no machinery behind it, passing through every side count between the two.
+        grove.animate(
+            self.shell.figure.legend,
+            Motion::Polygon(shell::legend(entry)),
+            shift,
+        );
+        // Which word of the caption is picked out, over the run's own index space. A range rather
+        // than a second element over the top of the first: the run stays one run, one entry in the
+        // stack, and one thing to lay out.
+        grove.tint(self.shell.figure.caption, [shell::emphasis(entry)]);
     }
 
     /// Runs the column to the card that goes with a section of the rail.

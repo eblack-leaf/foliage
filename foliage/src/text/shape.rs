@@ -57,11 +57,17 @@ impl Shaped {
     ///
     /// The same walk that measures, so what is drawn is what was measured. A character that leaves
     /// no ink is not handed over: a space advances the walk and is nothing to draw.
-    pub(crate) fn place(&self, width: f32, mut at: impl FnMut(char, Position)) {
+    ///
+    /// The index is the character's place in the **value**, spaces and newlines included, which is
+    /// the space a [`tint`](crate::Grow::tint) and a caret are both addressed in. Counting drawn
+    /// glyphs instead would make every index after a space mean something different from what was
+    /// written.
+    pub(crate) fn place(&self, width: f32, mut at: impl FnMut(char, usize, Position)) {
         let cell = self.cell;
-        self.walk(self.columns(width), |character, column, line| {
+        self.walk(self.columns(width), |character, index, column, line| {
             at(
                 character,
+                index,
                 Position::new(column as f32 * cell.width, line as f32 * cell.height),
             );
         });
@@ -80,7 +86,7 @@ impl Shaped {
 
     /// How many lines the run takes in `columns` cells.
     pub(crate) fn lines(&self, columns: usize) -> usize {
-        self.walk(columns, |_, _, _| {})
+        self.walk(columns, |_, _, _, _| {})
     }
 
     /// Wraps the run into `columns` cells, handing every character the cell it lands in, and reports
@@ -104,7 +110,7 @@ impl Shaped {
     /// Only characters that leave ink are handed over. A space is an advance and a newline is a
     /// break; neither is a glyph, and a walk that reported them would have the renderer deciding
     /// what is worth drawing.
-    fn walk(&self, columns: usize, mut place: impl FnMut(char, usize, usize)) -> usize {
+    fn walk(&self, columns: usize, mut place: impl FnMut(char, usize, usize, usize)) -> usize {
         if self.characters.is_empty() {
             return 0;
         }
@@ -138,13 +144,18 @@ impl Shaped {
                 index += 1;
             }
             let word = index - start;
-            let laid = |place: &mut dyn FnMut(char, usize, usize),
+            let laid = |place: &mut dyn FnMut(char, usize, usize, usize),
                             from: usize,
                             count: usize,
                             column: usize,
                             line: usize| {
                 for offset in 0..count {
-                    place(self.characters[from + offset], column + offset, line);
+                    place(
+                        self.characters[from + offset],
+                        from + offset,
+                        column + offset,
+                        line,
+                    );
                 }
             };
             if word > columns {

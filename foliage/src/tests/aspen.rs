@@ -8,6 +8,7 @@ use crate::coordinate::{Area, Section};
 use crate::panel::PanelInstance;
 use crate::tests::{Observer, advance, grove, opacity, resize, section, tick, tick_with};
 use crate::{
+    Boxed,
     Color, Fill, Grove, Grow, Leaf, Location, Motion, Palette, Panel, Place, Sap, Scheme, Source,
     Stem, Text, Timing, Vein, anchor, content, left, top,
 };

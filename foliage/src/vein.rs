@@ -1,7 +1,11 @@
 use crate::coordinate::{Area, Position, Section};
 use crate::elevation::Elevation;
+use crate::icon::Field;
+use crate::image::{Fit, Plate};
 use crate::leaf::Leaf;
+use crate::line::Cap;
 use crate::palette::Fill;
+use crate::polygon::Shape;
 use crate::rounding::Corners;
 
 /// Exactly what a frame may read of an element.
@@ -40,6 +44,35 @@ pub enum Vein {
     /// [`Scheme`](crate::Scheme)'s answer and is resolved at extraction, so there is no resolved
     /// color held anywhere for this to report.
     Color,
+    /// Where a stroke's two ends landed, which is what [`Drawn`](Vein::Drawn) cannot say.
+    ///
+    /// A box is the rectangle around them grown by half the weight, and a rectangle has two
+    /// diagonals -- so the box says how much room the stroke takes and this says where it runs.
+    /// `None` on anything placed by a box.
+    ///
+    /// Resolved rather than declared, on the same terms as `Drawn`: the two ends as the layout
+    /// answered them and scrolling moved them, not the grammar they were written in.
+    Ends,
+    /// How thick a stroke is drawn, in logical pixels. `None` on anything that is not a stroke.
+    Weight,
+    /// How a stroke's ends are finished.
+    Cap,
+    /// What a regular polygon looks like: its sides, its rounding and its rotation.
+    ///
+    /// While a [`Motion::Polygon`](crate::Motion::Polygon) is running this is where it has reached,
+    /// because a blend of two shapes is a shape and is written back over the declaration -- the same
+    /// standing [`Opacity`](Vein::Opacity) has.
+    Shape,
+    /// Which registered mark an icon draws.
+    Mark,
+    /// Which registered picture an image draws.
+    ///
+    /// The name only. Whether its pixels have arrived is not readable and is deliberately not a
+    /// question an app has to ask: an element drawing a picture that has not loaded occupies its box
+    /// and draws nothing, and appears when the pixels do.
+    Picture,
+    /// How an image's pixels are fitted into its box.
+    Fit,
     /// How the element's corners are rounded, if it is something with corners.
     Rounding,
     /// What the element says, if it is a run of glyphs.
@@ -97,6 +130,14 @@ pub enum Sap {
     Elevation(Elevation),
     Color(Fill),
     Rounding(Corners),
+    /// A stroke's two ends, in the order they were written.
+    Ends(Position, Position),
+    Weight(f32),
+    Cap(Cap),
+    Shape(Shape),
+    Mark(Field),
+    Picture(Plate),
+    Fit(Fit),
     Text(String),
     Visible(bool),
     Opacity(f32),

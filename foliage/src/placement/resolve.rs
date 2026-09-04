@@ -15,6 +15,7 @@
 use crate::aspen::blend;
 use crate::coordinate::{Area, Axis, Section};
 use crate::placement::grid::Tracks;
+use crate::placement::point::Point;
 use crate::placement::role::{Config, Form};
 use crate::placement::source::{Against, Coord, Edge, Expr, Kind, Origin};
 
@@ -117,6 +118,19 @@ enum Role {
     Center,
     /// The width or height.
     Extent,
+}
+
+/// Resolves one axis of a point.
+///
+/// The same [`coordinate`] a box's near edge goes through, with no second reading: a vertex is a
+/// position, and a position is what a near role already is. That is the whole of the point mode --
+/// it adds a caller to the resolver rather than a path through it.
+pub(crate) fn locate(point: &Point, context: &Context) -> f32 {
+    let coord = match context.axis {
+        Axis::Horizontal => &point.x,
+        Axis::Vertical => &point.y,
+    };
+    coordinate(coord, Role::Near, context)
 }
 
 /// Resolves one axis.

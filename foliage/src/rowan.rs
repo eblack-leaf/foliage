@@ -54,9 +54,10 @@ use crate::interaction::focus;
 use crate::interaction::stack::Region;
 use crate::leaf::Leaf;
 use crate::lifecycle::Inherited;
+use crate::line::Stretched;
 use crate::placement::grid::Tracks;
 use crate::placement::location::Location;
-use crate::placement::resolve::{Basis, Context, Span, resolve};
+use crate::placement::resolve::{Basis, Context, Span, locate, resolve};
 use crate::placement::role::Config;
 use crate::tree::Tree;
 use crate::view::{self, Clipped, Escape, Scroll, range};
@@ -103,11 +104,11 @@ pub(crate) fn run(grove: &mut Grove) {
     {
         let _step = trace_span!("resolve", elements = order.len()).entered();
         measure(grove, &order);
-        let boxes = axes(grove, &order);
+        let (boxes, ends) = axes(grove, &order);
         // Both of the passes that shape have run, so what is not held now is a run nothing states.
         grove.shaping.sweep();
         extent(grove, &order, &boxes);
-        scroll(grove, &order, &boxes);
+        scroll(grove, &order, &boxes, &ends);
         clip(grove, &order);
         rank(grove, &order);
     }
@@ -158,22 +159,32 @@ fn measure(grove: &mut Grove, order: &[Leaf]) {
 /// buys: the endpoints are consistent with each other because they were asked at the same position
 /// in the same dependency order, against the same settled ancestors, and neither is remembered
 /// afterwards.
-fn axes(grove: &mut Grove, order: &[Leaf]) -> HashMap<Leaf, Section> {
+fn axes(grove: &mut Grove, order: &[Leaf]) -> (HashMap<Leaf, Section>, HashMap<Leaf, Stretched>) {
     let mut boxes: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
-    axis(grove, order, Axis::Horizontal, &mut boxes);
+    let mut ends: HashMap<Leaf, Stretched> = HashMap::new();
+    axis(grove, order, Axis::Horizontal, &mut boxes, &mut ends);
     wrap(grove, order, &boxes);
-    axis(grove, order, Axis::Vertical, &mut boxes);
-    boxes
+    axis(grove, order, Axis::Vertical, &mut boxes, &mut ends);
+    (boxes, ends)
 }
 
 /// One axis of the whole tree, in dependency order, through the one pure resolver.
-fn axis(grove: &Grove, order: &[Leaf], axis: Axis, boxes: &mut HashMap<Leaf, Section>) {
+fn axis(
+    grove: &Grove,
+    order: &[Leaf],
+    axis: Axis,
+    boxes: &mut HashMap<Leaf, Section>,
+    ends: &mut HashMap<Leaf, Stretched>,
+) {
     let _pass = trace_span!("axis", vertical = (axis == Axis::Vertical)).entered();
     let viewport = Section::new(Position::default(), grove.viewport);
     let fallback = Location::default();
     for &leaf in order {
         let context = context(grove, boxes, viewport, leaf, axis);
-        let span = span(grove, leaf, &fallback, &context, axis);
+        let (span, stretched) = geometry(grove, leaf, &fallback, &context, axis);
+        if let Some((from, to)) = stretched {
+            ends.entry(leaf).or_default().set(axis, from, to);
+        }
         let section = boxes.entry(leaf).or_default();
         match axis {
             Axis::Horizontal => {
@@ -186,6 +197,33 @@ fn axis(grove: &Grove, order: &[Leaf], axis: Axis, boxes: &mut HashMap<Leaf, Sec
             }
         }
     }
+}
+
+/// One axis of `leaf`, whichever of the two ways its placement is stated.
+///
+/// A box resolves to a span directly. A **trace** resolves to two positions, and the span is the
+/// distance between them grown by half the stroke's weight on each side -- which is what gives a
+/// rule, whose ends share a coordinate on one axis, a box on that axis at all. Both ends come back
+/// too, because the span cannot say which of its diagonals they are.
+fn geometry(
+    grove: &Grove,
+    leaf: Leaf,
+    fallback: &Location,
+    context: &Context,
+    axis: Axis,
+) -> (Span, Option<(f32, f32)>) {
+    let Some(traced) = grove.tree.traced(leaf) else {
+        return (span(grove, leaf, fallback, context, axis), None);
+    };
+    let half = grove.tree.stroke(leaf).unwrap_or_default().half();
+    let (from, to) = (locate(&traced.from, context), locate(&traced.to, context));
+    (
+        Span {
+            near: from.min(to) - half,
+            far: from.max(to) + half,
+        },
+        Some((from, to)),
+    )
 }
 
 /// One axis of where `leaf` currently is: what it declares, blended with the endpoint a motion left.
@@ -299,14 +337,27 @@ fn reach(
 ) -> f32 {
     let mut reach: f32 = 0.0;
     for child in grove.tree.branches(leaf) {
-        let location = grove.tree.location(child).unwrap_or(fallback);
-        if !pinned(location, grove, Axis::Vertical).measurable() {
+        if !measurable(grove, child, fallback) {
             continue;
         }
         let context = raised(grove, boxes, leaf, child);
-        reach = reach.max(span(grove, child, fallback, &context, Axis::Vertical).far);
+        reach = reach.max(geometry(grove, child, fallback, &context, Axis::Vertical).0.far);
     }
     reach
+}
+
+/// Whether `leaf`'s vertical placement describes its own extent, and so counts toward the measure
+/// of what it is grown under.
+///
+/// One question with two spellings, because a placement has two. A box asks it of its vertical
+/// configuration; a trace asks it of both of its ends, since either one reading a vertical box is
+/// enough to make the answer circular.
+fn measurable(grove: &Grove, leaf: Leaf, fallback: &Location) -> bool {
+    match grove.tree.traced(leaf) {
+        Some(traced) => traced.from.measurable() && traced.to.measurable(),
+        None => pinned(grove.tree.location(leaf).unwrap_or(fallback), grove, Axis::Vertical)
+            .measurable(),
+    }
 }
 
 /// What one child resolves its vertical axis against while its trunk is being measured.
@@ -446,7 +497,12 @@ fn reached(scroll: Scroll, section: Section, far: Position) -> Area {
 /// [`scroll`](crate::Grow::scroll) written this frame, and a
 /// [`Motion::Scroll`](crate::Motion::Scroll) part way through -- are answered first, here rather
 /// than where they were written, because all three need the extent and the extent is one pass old.
-fn scroll(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
+fn scroll(
+    grove: &mut Grove,
+    order: &[Leaf],
+    boxes: &HashMap<Leaf, Section>,
+    ends: &HashMap<Leaf, Stretched>,
+) {
     let _pass = trace_span!("scroll", coasting = grove.coasting.len()).entered();
     view::asked(grove, boxes);
     let mut accumulated: HashMap<Leaf, Position> = HashMap::with_capacity(order.len());
@@ -474,6 +530,11 @@ fn scroll(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
             placed.area,
         );
         grove.tree.settle(leaf, placed, drawn);
+        // A stroke's ends travel with its box, by the same offset, because they are the same
+        // geometry said two ways.
+        if let Some(stretched) = ends.get(&leaf) {
+            grove.tree.set_stretched(leaf, stretched.less(applied));
+        }
         let (carried, escaped) = match grove.tree.scrolls(leaf) {
             Some(scroll) => {
                 let clamped = clamp(grove, leaf, scroll, placed);

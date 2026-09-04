@@ -58,7 +58,7 @@ obligation that section states, a section of `application/` that exercises it, a
 | B5 | `Aspen`: tweens, sequences, timers | Timing, easing, one writer per property |
 | B6 | `Text` and fonts | The character cell, wrapping, `content()` |
 | B7 | Views and scrolling | Extent, pinning, chain vs contain |
-| B8 | `Icon`, `Image`, `Polygon`, `Line`, `Polyline` | The remaining renderers |
+| B8 | `Icon`, `Image`, `Polygon`, `Line` | The remaining renderers |
 | B9 | `TextInput` | The one composite |
 | B10 | Assets, clipboard, web ext, virtual keyboard | Platform edges |
 | B11 | `Sprig` | That off-thread ops are genuinely identical to in-frame ops |
@@ -650,14 +650,18 @@ what is below rather than cut off at the edge, and adding no scroll range leadin
 sits at the foot of the column and `contain`s both axes, so panning it to an edge does not carry on
 into the column behind it.
 
-## B8 — the remaining renderers, in progress
+## B8 — the remaining renderers
 
-`Icon`, `Image`, `Polygon`, `Line`, `Polyline`, and the glyph pipeline B6 left. What they arrive
-together for is the **sheet**, which `Icon` and `Image` want as much as a run does, and the spans the
-one walk cuts. The per-renderer numbering behind the `u64` key is not shared by all of them: it is
-what a *run* needs, and among what is left only the glyph pipeline needed it.
+`Icon`, `Image`, `Polygon`, `Line`, per-character tints, and the glyph pipeline B6 left. Three
+hundred and sixty headless tests and fourteen compile-fail doctests. Six renderers now, one stack
+over all of them — and one fewer element than the slice set out with, because `Polyline` turned out
+to be a cap on `Line`.
 
-**The glyph pipeline has landed.** Three hundred and thirty-one headless tests. Text draws.
+What they arrived together for is the **sheet**, which `Icon` wants as much as a run does, and the
+spans the one walk cuts. The per-renderer numbering behind the `u64` key is not shared by all of
+them: it is what a *run* needs, and among what is left only the glyph pipeline needed it.
+
+**The glyph pipeline landed first.** Text draws.
 
 ### A run is one entry in the stack and many quads under it
 
@@ -752,19 +756,196 @@ runs it orphaned and rebuild them without crossing back into extraction.
 Until then it degrades rather than corrupts: a failed pack is held as nothing, that character draws
 blank, and the trace says so once with the count it managed.
 
+### What extraction states and what the backend derives
+
+The question the four new renderers all turned on, and it was already answered — by text, which had
+been the only one that needed it.
+
+A `Panel` and a `Polygon` are described entirely in logical pixels, so one value is both what `Elm`
+compares and what the vertex buffer holds. The other four are not, and each for the same reason:
+turning what the element declares into what the GPU draws needs the display's density, and the
+density stops at `Ginkgo`.
+
+| | declares | the backend derives |
+|---|---|---|
+| `Text` | cells and characters | the cut ink, snapped to device pixels |
+| `Line` | two ends and a weight | four corners, axis-aligned ones snapped |
+| `Icon` | a box and a field | the sheet rect, and the field's screen-space range |
+| `Image` | a box and a plate | which texture to bind |
+
+So `Instances<I>` gained the split `Runs` already had, and extraction stays written in one unit
+throughout. **A cut is the sheet's word, not a glyph's** — the atlas is asked for ink and the sheet
+for a field, and neither vocabulary reached back into the pass that states boxes.
+
+That closed a hole text had carried since B6. Extraction compares logical values and the backend
+holds instances derived from them in device pixels, so a display whose *density* changed leaves
+every derived instance correct against a density that is gone — while the logical values they came
+from are untouched and compare equal forever. Moving a window between two displays is exactly that
+case, since the logical size can be identical on both. `Elm::recut` drops what the backend is held
+to, so the next frame writes the tree entire; it is total rather than per renderer, because the
+density is not any renderer's.
+
+### A line is placed by its ends
+
+`Line` is the one element with no box to state, so it does not get to be handed one. **`at` moved
+off `Place` and onto `Boxed`**, which every rectangle implements and a stroke does not — an `at` it
+could be handed and would ignore is the kind of surface that has to be remembered rather than read.
+`between` is the other half, and the two verbs refuse each other's elements.
+
+A point is the **ordinary grammar**, not a second one: one `HorizontalCoordinate` and one
+`VerticalCoordinate`, resolved through the same pure resolver by the same call a near edge already
+made. So an end can sit on a grid track, half way across its trunk, or at an anchor's edge, and the
+stroke follows when any of those move. `Point` is constructed rather than opened, because the free
+functions in the grammar are all *roles* — each names what a value describes and returns something
+the grammar has yet to complete — and a point describes nothing and is already finished.
+
+A stroke still needs a box, for clipping, ranking, the stack and hit-testing. It is the rectangle
+around its two ends **grown by half its weight**, which is what makes the weight placement rather
+than decoration: a rule's ends share a coordinate, and a box of no height is culled before it is
+ever drawn. The ends are settled beside the box rather than recovered from it, because a rectangle
+has two diagonals and which one the stroke runs along is a fact about where the ends resolved.
+
+### A round cap is what a path is made of
+
+`Cap::Round` is the whole of `Polyline`, and it is why there is not one.
+
+A stroke is a rectangle, so two of them meeting at an angle leave a wedge open on the outside of the
+turn. The previous engine closed it by placing a circle of the stroke's own width on each shared
+vertex — which is a second element per turn, a second renderer involved in drawing a line, and two
+placements that have to agree about a point. A round cap closes it with **nothing added**: each end
+is a half-disc of half the weight centred on the point, so where two segments meet, the two halves
+*are* one disc of exactly the radius the gap needs. Coincident by construction rather than by
+arithmetic done twice.
+
+So a path is its segments and no more, and an app writes one in a loop — which `application/` does.
+What a named `Polyline` would still add over that is a handle, a dash pattern and a draw progress,
+none of which is a renderer and all of which sit above the primitives rather than beside them. That
+is `lichen`'s to offer, or an app's.
+
+The cap also **simplified** the shader rather than complicating it. Distance to a segment is exact
+and closed form, so the four-edge minimum went, and with it the winding inference that had to find
+which side faced the interior and the guard against a collapsed side returning `NaN` from
+`normalize`. A butt cap is the same field cut at each end by the plane through it, which is exactly
+an oriented box. Everything the previous shader was careful about is kept and is about the coverage
+ramp rather than the distance: the quad still grows past the true edge so the rasteriser is asked
+about the pixels the feather covers, the ramp is still linear rather than smoothstepped so a thin
+stroke's apparent weight stays constant as its centreline drifts between two pixel rows, the feather
+is still capped at half the weight so a sub-pixel stroke reaches full coverage on its centreline,
+and an axis-aligned stroke is still put on whole device pixels — thickness snapped first and the
+centreline placed from it, so a one-pixel rule is one lit row rather than two half-lit ones.
+
+`Butt` is the default, because a rule that reached half a weight past where it was told to stop
+would not line up with anything.
+
+### The two sheets, and the one texture each
+
+Three things sample now, and they do not share:
+
+- **Glyphs** are coverage in one channel, keyed on a character of a face at a size *for a display*.
+- **Marks** are a multi-channel distance field, packed once per registered icon and read at any size
+  — which is the whole reason an icon is not a glyph. A glyph is cut at a size because text is
+  composed at a handful of them; a mark is stretched to whatever box a layout hands it, and a
+  distance is what stays sharp at both ends of that. The three channels are not decoration: the
+  median of them reconstructs the true distance while keeping the corners a single channel rounds
+  off.
+- **Pictures** get a texture each, and that is the decision rather than an omission. A picture is
+  arbitrarily large, arrives whenever a decode finishes, and there may be any number of them — so
+  packing them onto a shared sheet needs eviction, and evicting one orphans every instance already
+  pointing at it. **`Image` was what eviction was waiting for, and this is the answer that means it
+  is not needed.**
+
+A texture each costs a binding change, so **a span now cuts on renderer, clip and binding**. Only
+pictures ever put anything but zero there; everything else binds one thing or nothing and so never
+cuts on it.
+
+### Pixels are the app's, and so is decoding
+
+`Foliage::image` and `Grove::image` take **decoded RGBA**. foliage decodes nothing: what a PNG or a
+JPEG turns into is an app's own business and an app's own crate, and the engine's business starts at
+the pixels. That keeps a decoder out of the dependency list for something `B10` already owns.
+
+A picture is **not boot-only**, and the surface says so in two verbs rather than one flag. `plate`
+names a picture whose pixels have not arrived and `load` fills it; `image` is the two together.
+A name is valid the moment it is handed out, so elements can be grown against it now and filled when
+a fetch finishes — an element drawing a plate with nothing behind it occupies its box, draws nothing,
+and appears on the frame its pixels do. It is absent from the batch rather than held as blank, so
+there is nothing to undo. There is deliberately **no readback for whether it has loaded**: the
+answer only ever changes what is on screen, and the engine already changes that.
+
+`Fit` is three answers because two ratios disagreeing has three readings and no default that is
+right for all of them. One of the two moves, never both: fitting inside the box changes the box and
+shows the whole picture, filling it keeps the box and shows part of the picture. An image takes no
+`color` — it carries its own, and a fill would be a second opinion about it — but it rounds through
+the same field a panel does, so a full-bleed picture sits flush inside a rounded card.
+
+`application/` registering its picture inside `take_root` is what found the last gap in the surface:
+`Foliage::icon` was boot-only, and an app that takes root inside the first frame had no way to reach
+it. `Grove::icon` is the same registration at any frame. It is **not** an op, where loading a picture
+is one: a field is written once and never changes, so there is nothing for it to be ordered against,
+while a picture's pixels are replaced over the life of the program and when they land relative to
+everything else is a real question.
+
+### A shape is three numbers
+
+`Polygon` is the expressive shape beside `Panel`'s rectangle and deliberately not a generalisation
+of it: a regular polygon's corners only stay circular while its own bounds are square, so the two do
+not collapse into one primitive. It is inscribed in the largest circle its box holds, which is what
+lets a composite size one loosely without reasoning about the aspect it lands at.
+
+`Motion::Polygon` needed none of the machinery a placement's endpoints do, and that is the point of
+it: sides, rounding and rotation are numbers, so a shape blends to a shape and is **written back
+over its own declaration** — the same standing opacity has, and the reason reading one back reports
+where the motion has reached. A fractional side count is a distance-field blend rather than a
+vertex-matched morph, so a hexagon becomes a triangle by passing through the shapes between them.
+
+### Per-character tints
+
+`Fill`s over a range of the run's own index space, **under** the fill the run already declares rather
+than beside it: everything untinted is the run's, so a run with no tints is exactly the run it was
+before tints existed. A tint is a `Fill` like any other, so a role follows a `repaint` and a literal
+does not.
+
+Ranges are in **characters of the value**, spaces included — the space a caret and a selection are
+addressed in, and the space the string was written in. Counting drawn glyphs instead would put every
+range after a space somewhere other than the word it names. `Glyph` carries a colour for it, which
+costs the comparison it would have cost anyway.
+
+`tint` replaces every tint rather than adding one, for the reason a placement is one value. `untint`
+is how they come off rather than handing `tint` an empty set: the fill type of a set with nothing in
+it cannot be inferred, and a verb that has to be told the type of what it is not writing is a worse
+surface than a second verb.
+
 ### Still owed by B8
 
-- **`Icon`** — the sheet again, and the first thing that says whether a cut is a glyph's word or the
-  sheet's. One quad per element.
-- **`Image`** — the sheet, and the decision above about whether it is *this* sheet. One quad per
-  element.
-- **`Line`** and **`Polygon`** — one instance per element each, on the panel's shape rather than the
-  run's.
-- **`Polyline`** — not a renderer. It is an arrangement of lines with circles at the joins, so what
-  it needs is the two renderers under it and nothing of its own.
-- **Per-character tints** — `Fill`s over a range of a run's own index space, under the fill the run
-  already declares rather than beside it, and which now have something drawing them to be proven
-  against.
+- **`Polyline`** — **cut, not deferred.** `Cap::Round` is what it was for, and a chain of strokes
+  now joins itself. `application/` draws its series that way: a `Line` between each pair of
+  neighbouring points, capped round, written in a loop against the public surface with the engine
+  having no concept of a path. A named one would add a handle, a dash pattern and a draw progress,
+  and none of those is a renderer — they belong to `lichen` or to an app.
+
+  Making it an *element* was also the thing B8 had no business settling. A seed that expands into
+  several elements needs those elements to be opaque, and `Vein::Branches` handing an app back a
+  path's own strokes is a public-surface question rather than a rendering one. `B9` is where the
+  composite question is answered, and nothing here should have invented half an answer to it first.
+- **`Motion::DrawProgress`** — goes with whatever owns a path. Revealing a prefix by arc length
+  needs the resolved positions of every point, which is a pass, and there is no longer an element
+  here for that pass to belong to.
+- **Eviction** — still not built, and now with a reason rather than a deferral: the two things that
+  could have filled a shared sheet do not share one. Marks are a bounded set packed once; pictures
+  have a texture each. Should a sheet ever fill, the packer already implies the shape — shelves are
+  the reclaim unit, and the note above on orphaning the runs still pointing at those texels stands.
+
+`application/` has a figure at the foot of the column, and every renderer on it is doing the thing it
+exists for rather than standing in for a panel. The axes are rules — two ends sharing a coordinate,
+which is a box of no height until the weight says otherwise. The series is a path drawn as strokes
+with round ends and nothing at the turns, its readings stated as points in the grammar, so the whole
+figure stretches with the column rather than being redrawn when it moves. The legend's dot is a
+shape the tour animates through every side count between a hexagon and a circle. The mark is a
+distance field the element fills, so it repaints with the scheme like the label beside it. The
+thumbnail is registered inside `take_root` rather than at boot, which is what found the last gap in
+the surface — `Foliage::icon` was boot-only, and an app that takes root inside the first frame had
+no way to reach it. The caption is one run with a range of it filled differently, and which range
+follows the section being read.
 
 ## B4 §3, resolved
 

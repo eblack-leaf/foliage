@@ -5,9 +5,12 @@ use crate::ash::Ash;
 use crate::coordinate::{Area, Position};
 use crate::ginkgo::Ginkgo;
 use crate::grove::Grove;
+use crate::icon::Field;
+use crate::image::Plate;
 use crate::interaction::Claim;
 use crate::root::{Registered, Root, Rooted};
 use crate::text::Font;
+use crate::verbs::Grow;
 use crate::view::Momentum;
 use crate::willow::Willow;
 
@@ -104,6 +107,42 @@ impl Foliage {
     /// somewhere it does not belong. Refusing it here names the problem where it can still be fixed.
     pub fn font(&mut self, bytes: &[u8]) -> Font {
         self.grove.fonts.register(bytes)
+    }
+
+    /// Registers a mark and hands back the name elements draw it by.
+    ///
+    /// `field` is a multi-channel signed distance field: `side` by `side` texels of RGBA, row-major,
+    /// as `foliage_icons` bakes one. `range` is how many texels the baked distance spread covers,
+    /// which is what turns a sampled distance into an edge one screen pixel wide at whatever size
+    /// the mark is drawn.
+    ///
+    /// A field rather than a bitmap because a mark has no size of its own: the same artwork is a
+    /// 16px affordance and a 96px empty state, and a distance is what stays sharp at both. The
+    /// median of the three colour channels reconstructs it while keeping the corners a single
+    /// channel would round off.
+    ///
+    /// # Panics
+    ///
+    /// If `field` is smaller than `side` by `side` texels of RGBA.
+    pub fn icon(&mut self, field: &[u8], side: u32, range: f32) -> Field {
+        self.grove.icon(field, side, range)
+    }
+
+    /// Registers a picture and hands back the name elements draw it by.
+    ///
+    /// The boot-time spelling of [`Grove::image`](crate::Grove::image), which is the same
+    /// registration at any frame -- so a picture that has to be fetched or decoded first is not a
+    /// different kind of picture, it is the same one named later.
+    ///
+    /// `pixels` is RGBA, one byte per channel, row-major. foliage decodes nothing: what a PNG or a
+    /// JPEG turns into is an app's own business and an app's own crate, and the engine's business
+    /// starts at the pixels.
+    ///
+    /// # Panics
+    ///
+    /// If `pixels` is smaller than `size` texels of RGBA.
+    pub fn image(&mut self, pixels: impl Into<Vec<u8>>, size: Area) -> Plate {
+        self.grove.image(pixels, size)
     }
 
     /// Sets one of the engine's tuning values.

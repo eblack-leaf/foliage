@@ -4,6 +4,8 @@ use crate::aspen::{Aspen, Sequence, Tween};
 use crate::clock::Clock;
 use crate::coordinate::{Area, Axis, Position};
 use crate::elm::Elm;
+use crate::icon::{Field, Fields};
+use crate::image::{Plate, Plates};
 use crate::interaction::Claim;
 use crate::interaction::focus::Focus;
 use crate::interaction::input::Pointer;
@@ -31,6 +33,10 @@ pub struct Grove {
     pub(crate) aspen: Aspen,
     /// Every registered font. Read by R1 alone, which is the only pass that asks a font anything.
     pub(crate) fonts: Fonts,
+    /// Every registered mark's distance field. Read by the backend, which packs them onto its sheet.
+    pub(crate) fields: Fields,
+    /// Every registered picture's pixels, and the names elements draw them by.
+    pub(crate) plates: Plates,
     /// The one thing kept between frames: every run that has been shaped.
     pub(crate) shaping: Shaping,
     pub(crate) drift: Drift,
@@ -65,6 +71,8 @@ impl Grove {
             clock: Clock::new(),
             aspen: Aspen::default(),
             fonts: Fonts::new(),
+            fields: Fields::default(),
+            plates: Plates::default(),
             shaping: Shaping::default(),
             drift: Drift::default(),
             viewport,
@@ -103,7 +111,17 @@ impl Grove {
             Vein::Anchor => Sap::Leaf(self.tree.anchor(leaf)),
             Vein::Elevation => Sap::Elevation(self.tree.elevation(leaf)),
             Vein::Color => Sap::Color(self.tree.fill(leaf)?),
-            Vein::Rounding => Sap::Rounding(self.tree.panel_pigment(leaf)?.rounding),
+            Vein::Rounding => Sap::Rounding(self.tree.rounding(leaf)?),
+            Vein::Ends => {
+                let stretched = self.tree.stretched(leaf)?;
+                Sap::Ends(stretched.from, stretched.to)
+            }
+            Vein::Weight => Sap::Weight(self.tree.stroke(leaf)?.weight),
+            Vein::Cap => Sap::Cap(self.tree.line_pigment(leaf)?.cap),
+            Vein::Shape => Sap::Shape(self.tree.shape(leaf)?),
+            Vein::Mark => Sap::Mark(self.tree.icon_pigment(leaf)?.field),
+            Vein::Picture => Sap::Picture(self.tree.image_pigment(leaf)?.plate),
+            Vein::Fit => Sap::Fit(self.tree.image_pigment(leaf)?.fit),
             Vein::Text => Sap::Text(self.tree.lettering(leaf)?.to_string()),
             Vein::Visible => Sap::Visible(self.tree.visible(leaf).0),
             Vein::Opacity => Sap::Opacity(self.tree.opacity(leaf).0),
@@ -129,6 +147,24 @@ impl Grove {
                 ))
             }
         })
+    }
+
+    /// Registers a mark and hands back the name elements draw it by.
+    ///
+    /// The same registration [`Foliage::icon`](crate::Foliage::icon) is at boot, available at any
+    /// frame -- which is what lets an app that takes root inside the first frame register its marks
+    /// there rather than having to thread handles in from outside.
+    ///
+    /// Not an op, where loading a picture is one. A field is written once and never changes, so
+    /// there is nothing for it to be ordered against; a picture's pixels are replaced over the life
+    /// of the program, so when they land relative to everything else is a real question and the
+    /// queue is what answers it.
+    ///
+    /// # Panics
+    ///
+    /// If `field` is smaller than `side` by `side` texels of RGBA.
+    pub fn icon(&mut self, field: &[u8], side: u32, range: f32) -> Field {
+        self.fields.register(field, side, range)
     }
 
     /// What holds focus, if anything does.
@@ -198,5 +234,9 @@ impl Queues for Grove {
 
     fn group(&self) -> Sequence {
         self.aspen.group()
+    }
+
+    fn picture(&mut self) -> Plate {
+        self.plates.name()
     }
 }

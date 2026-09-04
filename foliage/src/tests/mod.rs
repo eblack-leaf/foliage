@@ -11,6 +11,7 @@ mod frame;
 mod interaction;
 mod lifecycle;
 mod placement;
+mod renderers;
 mod root;
 mod rowan;
 mod text;

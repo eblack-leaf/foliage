@@ -10,6 +10,7 @@ use crate::coordinate::{Area, Axes, Position, Section};
 use crate::tests::{advance, drag, grove, press, release, section, tick, wheel};
 use crate::view::coasted;
 use crate::{
+    Boxed,
     Divide, Elevation, Escape, Grid, Grove, Grow, Leaf, Location, Motion, Panel, Place, Sap, Scroll,
     ScrollTo, Source, Stem, Text, Timing, Vein, anchor, content, left, top,
 };

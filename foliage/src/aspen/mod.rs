@@ -41,6 +41,7 @@
 //! | [`Motion::Opacity`] | a number, like its declaration | `animate` -- written back |
 //! | [`Motion::Location`] | a box, where the declaration is a placement | `resolve` |
 //! | [`Motion::Color`], [`Motion::Palette`] | a color, where the declaration is a [`Fill`] | `extract` |
+//! | [`Motion::Polygon`] | a shape, like its declaration | `animate` -- written back |
 //! | [`Motion::Scroll`] | an offset, where the target is a [`ScrollTo`] | `resolve`, at R4 |
 //!
 //! The fill case is the one that needs saying. A [`Fill`] is a role *or* a color, and a blend of two
@@ -72,6 +73,7 @@ use crate::grove::Grove;
 use crate::leaf::Leaf;
 use crate::palette::{Fill, Palette, Scheme};
 use crate::placement::location::Location;
+use crate::polygon::Shape;
 use crate::tree::Tree;
 use crate::view::ScrollTo;
 
@@ -141,6 +143,14 @@ pub enum Motion {
     /// Dropped, like any op naming something it does not apply to, if the element does not scroll
     /// or the destination leaves no axis to move.
     Scroll(ScrollTo),
+    /// What a regular polygon looks like: how many sides, how round its corners, how far it is
+    /// turned. Three numbers, so it interpolates plainly and needs none of the machinery a
+    /// placement's endpoints do -- a fractional side count is a shape between two whole ones, which
+    /// is what makes a hexagon become a triangle by passing through the shapes between them.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is not a
+    /// [`Polygon`](crate::Polygon).
+    Polygon(Shape),
 }
 
 /// Which declared property a motion is moving.
@@ -155,16 +165,18 @@ pub(crate) enum Property {
     Opacity,
     Fill,
     Scroll,
+    Shape,
 }
 
 impl Property {
     /// Every property a motion can be running on, which is what an element being taken down has to
     /// be cleared from.
-    const ALL: [Property; 4] = [
+    const ALL: [Property; 5] = [
         Property::Location,
         Property::Opacity,
         Property::Fill,
         Property::Scroll,
+        Property::Shape,
     ];
 }
 
@@ -201,6 +213,10 @@ enum Moving {
     /// for a departure to be re-resolved from. What it left is a number of pixels and is carried as
     /// one; where it is going is a statement about the region and re-resolves every frame.
     Scroll { from: Position, to: ScrollTo },
+    /// Both ends, for the reason opacity carries both: a shape blends to a shape, so the blend is
+    /// written back over the declaration every frame and the element holds where the motion has
+    /// reached rather than where it began or where it is going.
+    Shape { from: Shape, to: Shape },
 }
 
 /// How far a tween has come, against the one clock.
@@ -504,6 +520,15 @@ pub(crate) fn animate(grove: &mut Grove, leaf: Leaf, motion: Motion, timing: Tim
             Some(moving) => (Property::Fill, moving),
             None => return false,
         },
+        Motion::Polygon(to) => {
+            // The blend is written back over the declaration every frame, so what the element
+            // declares *is* the shape it currently is -- a retarget needs nothing else, exactly as
+            // an opacity does not.
+            let Some(from) = tree.shape(leaf) else {
+                return false;
+            };
+            (Property::Shape, Moving::Shape { from, to })
+        }
         Motion::Scroll(to) => {
             // Where the region is now, which is what the last frame's R4 settled it at. A retarget
             // needs nothing else: an offset is already a number, so there is no departed
@@ -604,6 +629,9 @@ fn motions(grove: &mut Grove, delta: Duration) {
         let at = motioning.progress.advance(delta);
         if let Moving::Opacity { from, to } = motioning.moving {
             tree.set_opacity(*leaf, blend(from, to, at));
+        }
+        if let Moving::Shape { from, to } = motioning.moving {
+            tree.set_shape(*leaf, from.blend(to, at));
         }
         if !motioning.progress.done() {
             return true;

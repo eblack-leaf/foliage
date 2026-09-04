@@ -1,14 +1,17 @@
 use crate::aspen::{Motion, Timing, Tween};
+use crate::coordinate::Area;
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, Pigment};
+use crate::image::Plate;
 use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
 use crate::palette::{Fill, Scheme};
 use crate::place::{Caller, Placement};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
+use crate::placement::point::Point;
 use crate::rounding::Corners;
-use crate::text::Lettering;
+use crate::text::{Lettering, Tints};
 use crate::view::ScrollTo;
 
 /// One queued change.
@@ -28,6 +31,14 @@ pub(crate) enum Op {
     Place {
         leaf: Leaf,
         location: Location,
+    },
+    /// Moves the two ends of a stroke. The point-mode counterpart to [`Place`](Op::Place), and
+    /// separate for the same reason the declarations are: an element states a box or two ends, and
+    /// an op that could write either would be able to write the one the element does not have.
+    Trace {
+        leaf: Leaf,
+        from: Point,
+        to: Point,
     },
     Divide {
         leaf: Leaf,
@@ -52,9 +63,29 @@ pub(crate) enum Op {
         leaf: Leaf,
         value: String,
     },
+    /// Refills part of a run, over a range of its own index space.
+    Tint {
+        leaf: Leaf,
+        tints: Tints,
+    },
     Round {
         leaf: Leaf,
         rounding: Corners,
+    },
+    /// Reshapes a regular polygon: how many sides, how round, how far turned.
+    Reshape {
+        leaf: Leaf,
+        shape: crate::polygon::Shape,
+    },
+    /// Fills a registered picture's name with pixels.
+    ///
+    /// An op like any other, rather than a call on the engine, because a picture may arrive at any
+    /// frame -- from a fetch, a decode on another thread, a re-render at a higher resolution -- and
+    /// arriving is a change to the tree's contents in exactly the way a rewritten run is.
+    Load {
+        plate: Plate,
+        pixels: Vec<u8>,
+        size: Area,
     },
     /// Moves a region. Recorded here and answered in R4, which is the one place that has both this
     /// frame's extent and the offset it clamps.
@@ -107,6 +138,26 @@ pub(crate) struct Bud {
     pub(crate) chlorophyll: Chlorophyll,
     pub(crate) pigment: Option<Pigment>,
     pub(crate) lettering: Option<Lettering>,
+    /// Present only where part of a run is filled differently from the rest of it.
+    pub(crate) tints: Option<Tints>,
     pub(crate) placement: Placement,
     pub(crate) at: Caller,
+}
+
+impl Bud {
+    /// An element carrying nothing but a placement: no renderer and nothing to read.
+    ///
+    /// What every seed fills in from, so a seed states what it *is* rather than restating what it
+    /// is not.
+    pub(crate) fn bare() -> Self {
+        Self {
+            chlorophyll: Chlorophyll::None,
+            pigment: None,
+            lettering: None,
+            tints: None,
+            placement: Placement::default(),
+            // Overwritten by every real callsite, which takes the caller's own.
+            at: core::panic::Location::caller(),
+        }
+    }
 }

@@ -7,7 +7,7 @@ use crate::placement::location::Location;
 use crate::stem::Stem;
 use crate::vein::{Sap, Vein};
 use crate::verbs::Grow;
-use crate::{Divide, Panel, Place, Source, left, top};
+use crate::{Boxed, Divide, Panel, Place, Source, left, top};
 
 #[test]
 fn a_name_is_planted_until_its_op_drains() {

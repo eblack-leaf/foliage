@@ -58,7 +58,7 @@ impl Config {
 }
 
 /// Whether one term of a vertical placement reads something already settled.
-fn known(kind: Kind) -> bool {
+pub(crate) fn known(kind: Kind) -> bool {
     match kind {
         // Reads no geometry at all, or reads the element's own -- which R1 and the bottom-up sweep
         // have both already answered.

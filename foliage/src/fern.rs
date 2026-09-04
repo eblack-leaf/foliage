@@ -127,8 +127,25 @@ fn drain(grove: &mut Grove) {
                     continue;
                 }
                 cancel(grove, "at", leaf, Property::Location);
-                grove.tree.set_location(leaf, location);
-                debug!(leaf = leaf.id(), "placed");
+                if grove.tree.set_location(leaf, location) {
+                    debug!(leaf = leaf.id(), "placed");
+                } else {
+                    dropped("at", leaf, "is placed by its ends; use `between`");
+                }
+            }
+            Op::Trace { leaf, from, to } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("between", leaf, "not live");
+                    continue;
+                }
+                // The same property `at` writes: a stroke's ends and a box are two ways of saying
+                // where an element is, so a motion moving one is cancelled by a write to the other.
+                cancel(grove, "between", leaf, Property::Location);
+                if grove.tree.set_traced(leaf, from, to) {
+                    debug!(leaf = leaf.id(), "traced");
+                } else {
+                    dropped("between", leaf, "is placed by a box; use `at`");
+                }
             }
             Op::Divide { leaf, grid } => {
                 if !grove.tree.is_live(leaf) {
@@ -180,6 +197,40 @@ fn drain(grove: &mut Grove) {
                     debug!(leaf = leaf.id(), "lettered");
                 } else {
                     dropped("text", leaf, "says nothing to rewrite");
+                }
+            }
+            Op::Tint { leaf, tints } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("tint", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_tints(leaf, tints) {
+                    debug!(leaf = leaf.id(), "tinted");
+                } else {
+                    dropped("tint", leaf, "says nothing to tint");
+                }
+            }
+            Op::Reshape { leaf, shape } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("reshape", leaf, "not live");
+                    continue;
+                }
+                cancel(grove, "reshape", leaf, Property::Shape);
+                if grove.tree.set_shape(leaf, shape) {
+                    debug!(leaf = leaf.id(), "reshaped");
+                } else {
+                    dropped("reshape", leaf, "has no shape to reshape");
+                }
+            }
+            // Names no element, like a repaint: a picture belongs to the program rather than to any
+            // of the elements drawing it, and every one of them follows when it arrives.
+            Op::Load {
+                plate,
+                pixels,
+                size,
+            } => {
+                if grove.plates.load(plate, &pixels, size) {
+                    debug!(plate = plate.0, "loaded");
                 }
             }
             Op::Round { leaf, rounding } => {

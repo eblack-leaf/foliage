@@ -8,18 +8,23 @@ use bevy_ecs::world::World;
 use crate::coordinate::{Area, Position, Section};
 use crate::elevation::{Elevation, ResolvedElevation};
 use crate::elm::{Chlorophyll, PanelPigment, Pigment};
+use crate::icon::IconPigment;
+use crate::image::ImagePigment;
 use crate::interaction::Gestures;
 use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
 use crate::lifecycle::{Disabled, Inherited, Opacity, Visible};
+use crate::line::{LinePigment, Stretched, Stroke, Traced};
 use crate::op::Bud;
 use crate::palette::Fill;
 use crate::place::{Anchored, Caller, Focusing};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
+use crate::placement::point::Point;
+use crate::polygon::{PolygonPigment, Shape};
 use crate::rounding::Corners;
 use crate::rowan::{Cell, Drawn, Intrinsic, Placed};
 use crate::text::font::Typeface;
-use crate::text::{Lettering, TextPigment};
+use crate::text::{Lettering, TextPigment, Tints};
 use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrolls};
 
 /// The tree itself, seen from the inside.
@@ -129,10 +134,34 @@ impl Tree {
             Some(Pigment::Text(pigment)) => {
                 entity.insert(pigment);
             }
+            Some(Pigment::Polygon(pigment)) => {
+                entity.insert(pigment);
+            }
+            Some(Pigment::Line(pigment)) => {
+                entity.insert(pigment);
+            }
+            Some(Pigment::Icon(pigment)) => {
+                entity.insert(pigment);
+            }
+            Some(Pigment::Image(pigment)) => {
+                entity.insert(pigment);
+            }
             None => {}
         }
         if let Some(lettering) = bud.lettering {
             entity.insert(lettering);
+        }
+        if let Some(tints) = bud.tints {
+            entity.insert(tints);
+        }
+        // The point-mode placement, and the resolved geometry the passes write back into. Both are
+        // absent on everything placed by a box, which is what makes "has a trace" the one question
+        // the resolver asks to tell the two apart.
+        if let Some(traced) = bud.placement.traced {
+            entity.insert((traced, Stretched::default()));
+        }
+        if let Some(stroke) = bud.placement.stroke {
+            entity.insert(stroke);
         }
         if let Some(typeface) = bud.placement.typeface {
             entity.insert(typeface);
@@ -313,10 +342,20 @@ impl Tree {
         false
     }
 
-    pub(crate) fn set_location(&mut self, leaf: Leaf, location: Location) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(location);
+    /// Moves `leaf`, reporting whether it is something with a box to place.
+    ///
+    /// An element placed by its ends has none, and refuses the write rather than taking a
+    /// declaration nothing would read: the resolver asks for a trace first, so a `Location` written
+    /// onto a stroke would sit there being ignored.
+    pub(crate) fn set_location(&mut self, leaf: Leaf, location: Location) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        if entity.contains::<Traced>() {
+            return false;
         }
+        entity.insert(location);
+        true
     }
 
     pub(crate) fn set_grid(&mut self, leaf: Leaf, grid: Grid) {
@@ -392,15 +431,120 @@ impl Tree {
         self.read::<TextPigment>(leaf)
     }
 
+    /// What the polygon renderer on `leaf` was told, or `None` if `leaf` is not a polygon.
+    pub(crate) fn polygon_pigment(&self, leaf: Leaf) -> Option<PolygonPigment> {
+        self.read::<PolygonPigment>(leaf)
+    }
+
+    /// What the line renderer on `leaf` was told, or `None` if `leaf` is not a stroke.
+    pub(crate) fn line_pigment(&self, leaf: Leaf) -> Option<LinePigment> {
+        self.read::<LinePigment>(leaf)
+    }
+
+    /// What the icon renderer on `leaf` was told, or `None` if `leaf` is not a mark.
+    pub(crate) fn icon_pigment(&self, leaf: Leaf) -> Option<IconPigment> {
+        self.read::<IconPigment>(leaf)
+    }
+
+    /// What the image renderer on `leaf` was told, or `None` if `leaf` is not a picture.
+    pub(crate) fn image_pigment(&self, leaf: Leaf) -> Option<ImagePigment> {
+        self.read::<ImagePigment>(leaf)
+    }
+
+    /// Where `leaf`'s two ends are declared to be, or `None` if it is placed by a box.
+    ///
+    /// The one question that says which of the two placements an element states, which is why every
+    /// pass that resolves geometry asks it first.
+    pub(crate) fn traced(&self, leaf: Leaf) -> Option<&Traced> {
+        self.world.get_entity(leaf.0).ok()?.get::<Traced>()
+    }
+
+    /// Moves `leaf`'s two ends, reporting whether it is something placed by ends at all.
+    pub(crate) fn set_traced(&mut self, leaf: Leaf, from: Point, to: Point) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut traced) = entity.get_mut::<Traced>() else {
+            return false;
+        };
+        traced.from = from;
+        traced.to = to;
+        true
+    }
+
+    /// How thick `leaf` is stroked, or `None` if it is not a stroke.
+    pub(crate) fn stroke(&self, leaf: Leaf) -> Option<Stroke> {
+        self.read::<Stroke>(leaf)
+    }
+
+    /// Where `leaf`'s two ends landed, as R2b resolved them and R4 moved them.
+    pub(crate) fn stretched(&self, leaf: Leaf) -> Option<Stretched> {
+        self.read::<Stretched>(leaf)
+    }
+
+    pub(crate) fn set_stretched(&mut self, leaf: Leaf, stretched: Stretched) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(stretched);
+        }
+    }
+
+    /// How parts of `leaf`'s run are filled differently from the rest of it.
+    pub(crate) fn tints(&self, leaf: Leaf) -> Option<&Tints> {
+        self.world.get_entity(leaf.0).ok()?.get::<Tints>()
+    }
+
+    /// Refills parts of `leaf`'s run, reporting whether it is something with a run to tint.
+    ///
+    /// Replaces every tint rather than adding one, for the reason a placement is one value: there is
+    /// no half-written state between two of these and no question of which range a later write meant.
+    pub(crate) fn set_tints(&mut self, leaf: Leaf, tints: Tints) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        if !entity.contains::<Lettering>() {
+            return false;
+        }
+        entity.insert(tints);
+        true
+    }
+
+    /// Reshapes `leaf`, reporting whether it is something with a shape to reshape.
+    pub(crate) fn set_shape(&mut self, leaf: Leaf, shape: Shape) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut pigment) = entity.get_mut::<PolygonPigment>() else {
+            return false;
+        };
+        pigment.shape = shape;
+        true
+    }
+
+    /// What `leaf` is shaped as, or `None` if it is not a polygon.
+    pub(crate) fn shape(&self, leaf: Leaf) -> Option<Shape> {
+        Some(self.read::<PolygonPigment>(leaf)?.shape)
+    }
+
     /// What `leaf` is filled with, whichever renderer holds the fill, or `None` if it has none.
     ///
     /// One question across the renderers, because a fill is one property: the same
-    /// [`color`](crate::Grow::color) refills a panel and a run, and the same motion moves either.
+    /// [`color`](crate::Grow::color) refills a panel, a run, a shape, a stroke and a mark, and the
+    /// same motion moves any of them. An [`Image`](crate::Image) is the one element with nothing to
+    /// answer -- it carries its own colour, and a fill would be a second opinion about it.
     pub(crate) fn fill(&self, leaf: Leaf) -> Option<Fill> {
         if let Some(pigment) = self.read::<PanelPigment>(leaf) {
             return Some(pigment.fill);
         }
-        Some(self.read::<TextPigment>(leaf)?.fill)
+        if let Some(pigment) = self.read::<TextPigment>(leaf) {
+            return Some(pigment.fill);
+        }
+        if let Some(pigment) = self.read::<PolygonPigment>(leaf) {
+            return Some(pigment.fill);
+        }
+        if let Some(pigment) = self.read::<LinePigment>(leaf) {
+            return Some(pigment.fill);
+        }
+        Some(self.read::<IconPigment>(leaf)?.fill)
     }
 
     /// Refills `leaf`, reporting whether it is something with a fill to write.
@@ -416,22 +560,49 @@ impl Tree {
             pigment.fill = fill;
             return true;
         }
+        if let Some(mut pigment) = entity.get_mut::<PolygonPigment>() {
+            pigment.fill = fill;
+            return true;
+        }
+        if let Some(mut pigment) = entity.get_mut::<LinePigment>() {
+            pigment.fill = fill;
+            return true;
+        }
+        if let Some(mut pigment) = entity.get_mut::<IconPigment>() {
+            pigment.fill = fill;
+            return true;
+        }
         false
+    }
+
+    /// How `leaf`'s corners are rounded, or `None` if it has no box to round.
+    pub(crate) fn rounding(&self, leaf: Leaf) -> Option<Corners> {
+        if let Some(pigment) = self.read::<PanelPigment>(leaf) {
+            return Some(pigment.rounding);
+        }
+        Some(self.read::<ImagePigment>(leaf)?.rounding)
     }
 
     /// Rounds `leaf`'s corners, reporting whether it is something with corners to round.
     ///
-    /// Panels only: a run of glyphs has no box of its own to round, and an op naming one is dropped
-    /// like any other that named something it does not apply to.
+    /// The two elements that are a rectangle: a panel and a picture, which round through the same
+    /// field so a full-bleed picture sits flush inside a rounded card. A run of glyphs, a stroke and
+    /// a regular polygon have no rectangle of their own -- a polygon's corners are its own, and are
+    /// [`Shape::rounding`](crate::Shape::rounding) -- so an op naming one is dropped like any other
+    /// that named something it does not apply to.
     pub(crate) fn set_rounding(&mut self, leaf: Leaf, rounding: Corners) -> bool {
         let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
             return false;
         };
-        let Some(mut pigment) = entity.get_mut::<PanelPigment>() else {
-            return false;
-        };
-        pigment.rounding = rounding;
-        true
+        if let Some(mut pigment) = entity.get_mut::<PanelPigment>() {
+            pigment.rounding = rounding;
+            return true;
+        }
+        if let Some(mut pigment) = entity.get_mut::<ImagePigment>() {
+            pigment.rounding = rounding;
+            return true;
+        }
+        false
     }
 
     /// What `leaf` declared about gestures.

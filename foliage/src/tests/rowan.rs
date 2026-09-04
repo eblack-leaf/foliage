@@ -7,6 +7,7 @@
 use crate::coordinate::{Area, Axes, Section};
 use crate::tests::{grove, resize, section, tick};
 use crate::{
+    Boxed,
     Divide, Grid, Grove, Grow, Layout, Location, Panel, Place, Sap, ScrollTo, Source, Stem, Vein,
     anchor, bottom, center_x, center_y, left, right, top,
 };

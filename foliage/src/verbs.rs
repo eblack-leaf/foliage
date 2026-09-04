@@ -1,13 +1,20 @@
+use core::ops::Range;
+
 use crate::aspen::{Motion, Sequence, Timing, Tween};
+use crate::coordinate::Area;
 use crate::elevation::Elevation;
+use crate::image::Plate;
 use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
 use crate::op::Op;
 use crate::palette::{Fill, Scheme};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
+use crate::placement::point::Point;
+use crate::polygon::Shape;
 use crate::rounding::Corners;
 use crate::seed::Seed;
+use crate::text::Tints;
 use crate::view::ScrollTo;
 
 /// What an op sink has to be able to do: take an op, and hand out the names an op may need.
@@ -19,6 +26,9 @@ pub(crate) trait Queues {
     fn allocate(&self) -> (Leaf, Growth);
     fn name(&self) -> Tween;
     fn group(&self) -> Sequence;
+    /// A name for a picture whose pixels are on their way. Taken here rather than at the drain so
+    /// that an element can be grown against it in the frame it was asked for.
+    fn picture(&mut self) -> Plate;
 }
 
 /// Everything an app can ask the engine to do.
@@ -62,8 +72,25 @@ pub trait Grow: Queues {
     ///
     /// A placement is one value rather than a set of edges, so there is no half-written state
     /// between two of these and no question of which edge a later write meant.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is placed by its
+    /// ends rather than by a box -- which is [`between`](Grow::between).
     fn at(&mut self, leaf: Leaf, location: Location) {
         self.queue(Op::Place { leaf, location });
+    }
+
+    /// Moves both ends of a stroke.
+    ///
+    /// The point-mode counterpart to [`at`](Grow::at), and separate for the same reason the two
+    /// declarations are: an element has a box or it has ends, and a verb that wrote either would be
+    /// able to write the one the element does not have.
+    ///
+    /// Both ends together, because a stroke is one thing: a verb per end would leave a frame in
+    /// which the line is half moved.
+    ///
+    /// Dropped if the element is placed by a box.
+    fn between(&mut self, leaf: Leaf, from: Point, to: Point) {
+        self.queue(Op::Trace { leaf, from, to });
     }
 
     /// Redivides an element's box for the elements grown under it.
@@ -125,11 +152,120 @@ pub trait Grow: Queues {
         });
     }
 
+    /// Fills parts of a run differently from the rest of it, over its own index space.
+    ///
+    /// Replaces every tint on the run rather than adding one, for the reason a placement is one
+    /// value: there is no half-written state between two of these, and no question of which range a
+    /// later write meant. Handing it nothing clears them.
+    ///
+    /// ```no_run
+    /// # use foliage::{Grow, Grove, Leaf, Palette};
+    /// # fn f(grove: &mut Grove, run: Leaf) {
+    /// grove.tint(run, [(0..2, Palette::Accent), (7..12, Palette::Muted)]);
+    /// # }
+    /// ```
+    ///
+    /// [`untint`](Grow::untint) is how they come off, rather than handing this an empty set: the
+    /// fill type of a set with nothing in it cannot be inferred, and a verb that has to be told the
+    /// type of what it is not writing is a worse surface than a second verb.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is not a
+    /// [`Text`](crate::Text).
+    fn tint<F: Into<Fill>>(
+        &mut self,
+        leaf: Leaf,
+        tints: impl IntoIterator<Item = (Range<usize>, F)>,
+    ) {
+        self.queue(Op::Tint {
+            leaf,
+            tints: Tints(
+                tints
+                    .into_iter()
+                    .map(|(range, fill)| (range, fill.into()))
+                    .collect(),
+            ),
+        });
+    }
+
+    /// Takes every tint off a run, leaving the whole of it in the run's own
+    /// [`color`](Grow::color).
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is not a
+    /// [`Text`](crate::Text).
+    fn untint(&mut self, leaf: Leaf) {
+        self.queue(Op::Tint {
+            leaf,
+            tints: Tints::default(),
+        });
+    }
+
     /// Rounds an element's corners, per corner or all at once.
+    ///
+    /// Dropped, like any op naming something it does not apply to, unless the element is a
+    /// rectangle -- a [`Panel`](crate::Panel) or an [`Image`](crate::Image). A
+    /// [`Polygon`](crate::Polygon)'s corners are its own, and are moved with
+    /// [`reshape`](Grow::reshape).
     fn round(&mut self, leaf: Leaf, rounding: impl Into<Corners>) {
         self.queue(Op::Round {
             leaf,
             rounding: rounding.into(),
+        });
+    }
+
+    /// Reshapes a regular polygon: how many sides, how round its corners, how far it is turned.
+    ///
+    /// One value rather than three verbs, because it is one thought and because
+    /// [`Motion::Polygon`](crate::Motion::Polygon) moves it as one.
+    ///
+    /// Dropped if the element is not a [`Polygon`](crate::Polygon).
+    fn reshape(&mut self, leaf: Leaf, shape: Shape) {
+        self.queue(Op::Reshape { leaf, shape });
+    }
+
+    /// Registers a picture and hands back the name elements draw it by.
+    ///
+    /// `pixels` is RGBA, one byte per channel, row-major, `size` texels across. foliage decodes
+    /// nothing: what a PNG or a JPEG turns into is an app's own business and an app's own crate,
+    /// and the engine's business starts at the pixels.
+    ///
+    /// Usable at any frame, not only at boot, which is what [`Foliage::image`](crate::Foliage::image)
+    /// is the boot-time spelling of. A name taken here is valid immediately -- elements can be grown
+    /// against it in the same frame -- and writing the same name again replaces what it holds, so a
+    /// picture fetched at a higher resolution reaches every element drawing it with one write.
+    fn image(&mut self, pixels: impl Into<Vec<u8>>, size: Area) -> Plate {
+        let plate = self.plate();
+        self.load(plate, pixels, size);
+        plate
+    }
+
+    /// Names a picture whose pixels have not arrived.
+    ///
+    /// The two halves of [`image`](Grow::image), for when they happen at different times. A name is
+    /// valid the moment it is handed out, so elements can be grown against it now and
+    /// [`load`](Grow::load)ed when a fetch or a decode finishes -- an element drawing a plate with
+    /// nothing behind it occupies its box, draws nothing, and appears on the frame its pixels do.
+    ///
+    /// That is what keeps "is it loaded yet" out of an app's state. There is no readback for it and
+    /// deliberately so: the answer only ever changes what is on screen, and the engine already
+    /// changes that.
+    fn plate(&mut self) -> Plate {
+        self.picture()
+    }
+
+    /// Fills a picture's name with pixels.
+    ///
+    /// `pixels` is RGBA, one byte per channel, row-major, `size` texels across. Writing a name that
+    /// already holds a picture replaces it, so a re-fetch at a higher resolution reaches every
+    /// element drawing it without any of them being named.
+    ///
+    /// # Panics
+    ///
+    /// If `pixels` is smaller than `size` texels of RGBA.
+    fn load(&mut self, plate: Plate, pixels: impl Into<Vec<u8>>, size: Area) {
+        self.queue(Op::Load {
+            plate,
+            pixels: pixels.into(),
+            size,
         });
     }
 

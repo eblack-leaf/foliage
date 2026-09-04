@@ -189,7 +189,9 @@ impl Texts {
                     snapped(glyph.cell.position.moved(placed.offset), ginkgo.scale()),
                     placed.area,
                 ),
-                color: run.color,
+                // The glyph's own, because a tint fills part of a run: what the run declares is
+                // what an untinted character resolved to, and extraction has already answered both.
+                color: glyph.color,
                 sheet: placed.uv,
             });
         }

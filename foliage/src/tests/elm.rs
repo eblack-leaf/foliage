@@ -8,6 +8,7 @@ use crate::elm::Key;
 use crate::panel::PanelInstance;
 use crate::tests::{grove, tick};
 use crate::{
+    Boxed,
     Color, Corner, Corners, Fill, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding,
     Sap, Scheme, Side, Source, Stem, Vein, left, top,
 };

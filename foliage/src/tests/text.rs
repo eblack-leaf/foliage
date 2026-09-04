@@ -11,6 +11,7 @@ use crate::text::font::{Fonts, monospaced};
 use crate::text::shape::shape;
 use crate::tests::{grove, resize, section, tick};
 use crate::{
+    Boxed,
     Columns, Divide, Font, FontSize, Grid, Grove, Grow, Leaf, Location, Palette, Place, Sap,
     Source, Stem, Text, Vein, anchor, bottom, content, left, top, trunk,
 };
@@ -715,7 +716,7 @@ fn a_child_sized_from_the_horizontal_axis_counts() {
 fn placed(value: &str, columns: usize) -> Vec<(char, usize, usize)> {
     let cell = cell(10.0, 20.0);
     let mut placed = Vec::new();
-    shape(value, cell).place(columns as f32 * cell.width, |character, at| {
+    shape(value, cell).place(columns as f32 * cell.width, |character, _, at| {
         placed.push((
             character,
             (at.x / cell.width) as usize,
