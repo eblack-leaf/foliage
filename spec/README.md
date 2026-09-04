@@ -474,7 +474,7 @@ whole column reflows in that frame. The drawer's opening and closing are each on
 placement on the sheet, an opacity on the page, and a channel driving a value foliage has no concept
 of, counted together and waited on as one.
 
-Still owed by B6:
+Still owed by B6. The first is delivered by B8 below; the second is still owed there:
 
 - **The glyph pipeline.** Everything about a run resolves and is readable — its box, its fill, its
   rank, its clip — and nothing turns them into pixels yet. `Instances` is keyed on a `u64` rather
@@ -486,7 +486,18 @@ Still owed by B6:
   headlessly until there is something drawing them.
 
 B7 has landed. `contain`, `pinned`, `floats`, `ScrollTo` and momentum, over the structure B4 put
-under them. Three hundred and twenty headless tests and thirteen compile-fail doctests.
+under them. Three hundred and twenty-three headless tests and thirteen compile-fail doctests.
+
+Two of those tests are corrections the page found once it could be flung by hand, and both were the
+same shape — a law that was right about one frame and wrong about a gesture:
+
+- **Release velocity is measured over a trailing window**, not over the frame the release landed in.
+  A release carries almost no movement in its own frame — a pointer reports none at all in the frame
+  its button came up — so a fling read as a stop and `minimum` threw the whole coast away. See the
+  coast section above for what replaced it.
+- **A press that catches a running coast is spent on catching it.** Stopping a moving list is a
+  thing the gesture did; the element it happened to stop over does not engage and the release is not
+  a tap. Invisible while flings barely coasted, and unmissable once they did.
 
 **The glyph pipeline waits for B8, and that is a decision rather than a deferral.** B7 is a
 resolution slice: extent, offsets, clips and a coast, every one of which is proven headlessly and
@@ -639,8 +650,121 @@ what is below rather than cut off at the edge, and adding no scroll range leadin
 sits at the foot of the column and `contain`s both axes, so panning it to an edge does not carry on
 into the column behind it.
 
-Next: B8 — the remaining renderers. `Icon`, `Image`, `Polygon`, `Line`, `Polyline`, and the glyph
-pipeline B6 left, which is why they arrive together.
+## B8 — the remaining renderers, in progress
+
+`Icon`, `Image`, `Polygon`, `Line`, `Polyline`, and the glyph pipeline B6 left. What they arrive
+together for is the **sheet**, which `Icon` and `Image` want as much as a run does, and the spans the
+one walk cuts. The per-renderer numbering behind the `u64` key is not shared by all of them: it is
+what a *run* needs, and among what is left only the glyph pipeline needed it.
+
+**The glyph pipeline has landed.** Three hundred and thirty-one headless tests. Text draws.
+
+### A run is one entry in the stack and many quads under it
+
+The decision the other five inherit. Every other renderer draws one instance per element, so its
+slots and its instances are one list. A run is not: it is one entry — at one rank, under one clip,
+at one depth — holding as many quads as it has characters. So `ash::text` keeps **two numberings**.
+Slots are runs, sorted by rank, and are what the shared walk meets and cuts spans on; glyphs are the
+renderer's own, laid out in slot order with each run's contiguous, so a span of runs is a range of
+glyphs and one draw covers it.
+
+That is what keeps the shared stack the size of the tree rather than the size of the text on it, and
+what keeps R6's total order over elements from having to say anything about characters. Every glyph
+of a run carries that run's one depth, because they are all at that one place in the stack.
+
+**A run is the exception and not the pattern.** `Line` is one thing and `Polygon` is one thing, so
+each is one instance per element exactly as a panel is, and neither wants two numberings. Reaching
+for this shape because an element sounds composite is how a renderer ends up with bookkeeping it has
+no use for.
+
+### What is diffed is the run entire
+
+`Elm` gained `Runs` beside its `Instances`, because a run's instance is not a fixed-size value: what
+is compared is its glyphs, its fill, its face, its size, its rank and its clip, all at once. A run's
+glyphs move, refill and restack together, so finding which of them changed would cost more than
+rewriting the run. Extraction gathers into a scratch kept between frames; an unchanged frame
+allocates nothing and writes nothing.
+
+A run that kept its glyph count and its rank is rewritten where it already sits — a run that moved,
+scrolled or was refilled has as many characters as it had — and only a length change rebuilds the
+order.
+
+### One walk
+
+`Shaped::lines` and `Shaped::place` are the same `walk`. How tall a run is and where its glyphs go
+are one question asked for two reasons, and asking it twice is how a run comes to be measured at one
+height and drawn at another. A test asserts across ten wrap cases that no glyph lands on a line the
+measure did not count.
+
+### The sheet
+
+A **cut** is a character of a face at a size *for a display*: the density is in the key, because the
+bitmap is device pixels and the same glyph on another screen is a different cut. Coverage only —
+what a glyph is filled with is the element's, and is carried on the instance.
+
+Two things about how a glyph is made, both carried over from the previous engine and both worth
+keeping:
+
+- **Three samples, one channel.** Taken through the rasteriser's subpixel path and averaged back
+  into one coverage byte. That is horizontal supersampling and *not* subpixel antialiasing: keeping
+  the three as R/G/B needs per-channel alpha to composite — dual-source blending, which WebGL2 does
+  not have — and assumes a stripe order that is wrong on a rotated or pentile display. What it buys
+  is the case single-sample coverage estimates worst: a vertical stem narrower than a pixel, which
+  is small type and is round letters.
+- **The ink is snapped to the device pixel grid.** A cut is an exact number of device pixels and its
+  quad is that many wide, so landed on a whole pixel the two are one to one and the glyph is the
+  bitmap. A baseline is a fractional metric — `ascent` is 14.4 at size 16 — so it never landed on
+  one, every sample fell between texels, and each glyph was filtered against the clearance packed
+  around it. It read as trimmed along the bottom rather than as half a pixel low, which is what it
+  was. The whole ink snaps, not the baseline alone, because the run's own box is fractional too and
+  it is their sum that has to fall on the grid.
+
+### The sheet has no eviction, and that is deliberate
+
+2048² of coverage, shelf-packed with a pixel of clearance. Measured against the bundled font, where
+an *alphabet* is one `(font, size, density)` set of printable ASCII:
+
+| size | scale | cell | per shelf | shelves | cuts | alphabets |
+|---|---|---|---|---|---|---|
+| 13 | 1× | 8×18 | 227 | 107 | 24,289 | 107 |
+| 16 | 1× | 10×22 | 186 | 89 | 16,554 | 89 |
+| 16 | 2× | 10×22 | 97 | 45 | 4,365 | 45 |
+| 24 | 2× | 15×32 | 66 | 31 | 2,046 | 15 |
+| 40 | 2× | 24×53 | 41 | 19 | 779 | 6 |
+
+Body text cannot reach it: an app has a handful of sizes across breakpoints and one or two
+densities, against a budget of forty-five to eighty-nine. Large display type is where it tightens.
+
+**Eviction waits for `Image`**, on the same argument that made the glyph pipeline wait for B8:
+`Image` is what actually fills a sheet — arbitrary bitmaps, unbounded, one of them possibly a whole
+shelf, and quite possibly wanting a sheet of its own rather than sharing this one. Building
+reclamation against glyphs alone is building it twice.
+
+When it lands, the packer already implies the shape: **shelves are the reclaim unit**, since
+everything on one is a similar height and dropping one leaves no holes among the others. Track the
+pass each shelf was last read in, and a failed pack takes the coldest.
+
+The part that is not free: evicting orphans the runs still pointing at those texels, and
+`ash::text::Held` keeps only GPU instances — section, colour, sheet rect — so the backend cannot
+re-cut them. It needs the character kept per glyph, four bytes each, and then eviction can mark the
+runs it orphaned and rebuild them without crossing back into extraction.
+
+Until then it degrades rather than corrupts: a failed pack is held as nothing, that character draws
+blank, and the trace says so once with the count it managed.
+
+### Still owed by B8
+
+- **`Icon`** — the sheet again, and the first thing that says whether a cut is a glyph's word or the
+  sheet's. One quad per element.
+- **`Image`** — the sheet, and the decision above about whether it is *this* sheet. One quad per
+  element.
+- **`Line`** and **`Polygon`** — one instance per element each, on the panel's shape rather than the
+  run's.
+- **`Polyline`** — not a renderer. It is an arrangement of lines with circles at the joins, so what
+  it needs is the two renderers under it and nothing of its own.
+- **Per-character tints** — `Fill`s over a range of a run's own index space, under the fill the run
+  already declares rather than beside it, and which now have something drawing them to be proven
+  against.
 
 ## B4 §3, resolved
 
