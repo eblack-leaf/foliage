@@ -5,7 +5,7 @@
 //! size. The second half runs the whole frame, and is where the cell comes from a real font and the
 //! measure reaches a real box.
 
-use crate::coordinate::{Area, Section};
+use crate::coordinate::{Area, Position, Section};
 use crate::layout::Layout;
 use crate::text::font::{Fonts, monospaced};
 use crate::text::shape::shape;
@@ -706,4 +706,200 @@ fn a_child_sized_from_the_horizontal_axis_counts() {
     );
     tick(&mut grove);
     assert_eq!(section(&grove, container).height(), 50.0);
+}
+
+// -- Where the glyphs land -----------------------------------------------------------------------
+
+/// Where each of `value`'s characters lands in a box `columns` cells wide, in cells rather than in
+/// pixels, so a case says which cell it means rather than restating the cell size.
+fn placed(value: &str, columns: usize) -> Vec<(char, usize, usize)> {
+    let cell = cell(10.0, 20.0);
+    let mut placed = Vec::new();
+    shape(value, cell).place(columns as f32 * cell.width, |character, at| {
+        placed.push((
+            character,
+            (at.x / cell.width) as usize,
+            (at.y / cell.height) as usize,
+        ));
+    });
+    placed
+}
+
+/// Every character that leaves ink is placed, at its own cell, and nothing else is. A space is an
+/// advance and a newline is a break; handing either to a renderer would leave it deciding what is
+/// worth drawing.
+#[test]
+fn every_inked_character_is_placed_at_its_cell_and_no_other_is() {
+    assert_eq!(
+        placed("hi there", 20),
+        vec![
+            ('h', 0, 0),
+            ('i', 1, 0),
+            ('t', 3, 0),
+            ('h', 4, 0),
+            ('e', 5, 0),
+            ('r', 6, 0),
+            ('e', 7, 0),
+        ]
+    );
+}
+
+/// A word carried to the next line starts at that line's first cell, and the spaces it broke on go
+/// with the break rather than indenting it.
+#[test]
+fn a_wrapped_word_starts_the_next_line_at_its_first_cell() {
+    assert_eq!(
+        placed("aaaa   bbbb", 4),
+        vec![
+            ('a', 0, 0),
+            ('a', 1, 0),
+            ('a', 2, 0),
+            ('a', 3, 0),
+            ('b', 0, 1),
+            ('b', 1, 1),
+            ('b', 2, 1),
+            ('b', 3, 1),
+        ]
+    );
+}
+
+/// A word too long for any line fills what is left and breaks inside itself, and the break is in the
+/// same place the measure counted it.
+#[test]
+fn a_word_longer_than_a_line_breaks_inside_itself() {
+    assert_eq!(
+        placed("ab cdefghij", 4),
+        vec![
+            ('a', 0, 0),
+            ('b', 1, 0),
+            ('c', 3, 0),
+            ('d', 0, 1),
+            ('e', 1, 1),
+            ('f', 2, 1),
+            ('g', 3, 1),
+            ('h', 0, 2),
+            ('i', 1, 2),
+            ('j', 2, 2),
+        ]
+    );
+}
+
+/// The one walk. A glyph placed on a line the measure never counted is a run drawn taller than the
+/// box it was measured into, which is the bug having two walks would produce and could not be seen
+/// in either of them alone.
+#[test]
+fn no_glyph_lands_past_the_height_the_run_measured() {
+    for (value, columns) in [
+        ("hello world", 10),
+        ("hello world", 11),
+        ("aaaa   bbbb", 4),
+        ("ab cdefghij", 4),
+        ("abcdefghij", 4),
+        ("a\nb\nc", 40),
+        ("aaaa bbbb\ncc", 4),
+        ("hello   ", 5),
+        ("a\n", 40),
+        ("", 8),
+    ] {
+        let counted = lines(value, columns);
+        let reached = placed(value, columns)
+            .iter()
+            .map(|(_, _, line)| line + 1)
+            .max()
+            .unwrap_or(0);
+        assert!(
+            reached <= counted,
+            "{value:?} at {columns}: drawn on {reached} lines, measured at {counted}"
+        );
+    }
+}
+
+// -- What extraction hands the backend -----------------------------------------------------------
+
+/// A run's glyphs, as the backend is handed them: the cell each one occupies, in logical pixels on
+/// the surface.
+fn extracted(grove: &Grove, leaf: Leaf) -> Vec<(char, Section)> {
+    grove
+        .elm
+        .texts
+        .run(leaf.into())
+        .expect("a run the backend is holding")
+        .glyphs
+        .iter()
+        .map(|glyph| (glyph.character, glyph.cell))
+        .collect()
+}
+
+/// One entry per character that leaves ink, each at the cell wrapping put it in, offset by the run's
+/// own box. The default font's cell is ten by twenty-two at the default size.
+#[test]
+fn a_run_extracts_one_glyph_per_inked_character() {
+    let mut grove = grove();
+    let leaf = grove.plant(Text::new("hi there").at(measured(200.0)));
+    tick(&mut grove);
+
+    let glyphs = extracted(&grove, leaf);
+    assert_eq!(glyphs.len(), 7, "the space is an advance and not a glyph");
+    assert_eq!(glyphs[0], ('h', Section::new(Position::default(), Area::new(10.0, 22.0))));
+    // Three cells along, because the space between the words advanced one.
+    assert_eq!(glyphs[2].0, 't');
+    assert_eq!(glyphs[2].1.position.x, 30.0);
+}
+
+/// A wrapped run puts its second line one cell-height down, and every glyph of it is inside the box
+/// the run measured to.
+#[test]
+fn a_wrapped_run_extracts_its_second_line_below_the_first() {
+    let mut grove = grove();
+    let leaf = grove.plant(Text::new("hello world").at(measured(50.0)));
+    tick(&mut grove);
+
+    let glyphs = extracted(&grove, leaf);
+    assert_eq!(glyphs.len(), 10);
+    assert_eq!(glyphs[0].1.position.y, 0.0);
+    assert_eq!(glyphs[5].0, 'w');
+    assert_eq!(glyphs[5].1.position, Position::new(0.0, 22.0));
+    let box_of = section(&grove, leaf);
+    for (character, cell) in glyphs {
+        assert!(
+            cell.bottom() <= box_of.bottom() && cell.right() <= box_of.right(),
+            "{character:?} at {cell:?} is outside {box_of:?}"
+        );
+    }
+}
+
+/// The whole run is the unit of change. A frame that moved nothing writes nothing, and one that
+/// rewrote the string writes the run once however many of its glyphs differ.
+#[test]
+fn a_run_is_written_whole_or_not_at_all() {
+    let mut grove = grove();
+    let leaf = grove.plant(Text::new("hello").at(measured(200.0)));
+    tick(&mut grove);
+    assert_eq!(grove.elm.texts.written, vec![leaf.into()]);
+
+    tick(&mut grove);
+    assert!(grove.elm.texts.written.is_empty(), "an unchanged frame wrote");
+
+    grove.text(leaf, "goodbye");
+    tick(&mut grove);
+    assert_eq!(grove.elm.texts.written, vec![leaf.into()]);
+    assert_eq!(extracted(&grove, leaf).len(), 7);
+}
+
+/// A run that is no longer painted is withdrawn, and holding nothing for it is what makes coming
+/// back cost nothing to undo.
+#[test]
+fn a_run_that_stops_being_painted_is_withdrawn() {
+    let mut grove = grove();
+    let leaf = grove.plant(Text::new("hello").at(measured(200.0)));
+    tick(&mut grove);
+
+    grove.visible(leaf, false);
+    tick(&mut grove);
+    assert_eq!(grove.elm.texts.withdrawn, vec![leaf.into()]);
+    assert!(grove.elm.texts.run(leaf.into()).is_none());
+
+    grove.visible(leaf, true);
+    tick(&mut grove);
+    assert_eq!(extracted(&grove, leaf).len(), 5);
 }

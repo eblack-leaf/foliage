@@ -2,7 +2,7 @@
 
 use tracing::info;
 
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Position};
 use crate::layout::{Layout, Short};
 use crate::placement::breakpoints::{Breakpoints, Override};
 
@@ -179,6 +179,73 @@ impl Fonts {
         Area::new(advance.ceil(), line.ceil())
     }
 
+    /// Rasterises one character into coverage, and says where inside its cell the ink belongs.
+    ///
+    /// `scale` is the display's device pixels per logical one. The bitmap is made at that density --
+    /// a glyph cut at logical size and magnified is a blurred glyph -- while everything said about
+    /// where it goes stays in logical pixels, because that is the one unit the engine is written in.
+    ///
+    /// The offset is the whole of the typesetting: a cell is a box on a grid, and the ink sits
+    /// inside it at the face's own left bearing, on the face's own baseline. Nothing above this
+    /// line knows a glyph has a bearing at all.
+    ///
+    /// # Three samples, one channel
+    ///
+    /// Taken through the rasteriser's subpixel path and averaged back into a single coverage byte.
+    /// That is **horizontal supersampling and not subpixel antialiasing**: keeping the three samples
+    /// as red, green and blue would need per-channel alpha to composite -- dual-source blending,
+    /// which WebGL2 does not have -- and would assume a physical stripe order that is wrong on a
+    /// rotated or pentile display. Averaged, they are three samples per pixel instead of one, which
+    /// costs no format, no shader and no feature test.
+    ///
+    /// What it buys is the case single-sample coverage estimates worst: a vertical stem narrower
+    /// than a pixel, or one straddling two. That is small type, and it is round letters, whose bowls
+    /// are two thin vertical stems.
+    pub(crate) fn rasterize(&self, font: Font, size: u32, scale: f32, character: char) -> Ink {
+        let face = self.face(font);
+        let px = size as f32 * scale;
+        let (metrics, coverage) = face.rasterize_subpixel(character, px);
+        // The metrics are the same ones the single-sample path reports, so no glyph moves for
+        // having been sampled three times.
+        let coverage = match metrics.width == 0 || metrics.height == 0 {
+            true => coverage,
+            false => coverage
+                .chunks_exact(3)
+                .map(|pixel| {
+                    ((pixel[0] as u16 + pixel[1] as u16 + pixel[2] as u16 + 1) / 3) as u8
+                })
+                .collect(),
+        };
+        // Where the baseline sits below the top of the cell, in logical pixels. The cell is the
+        // face's own line height, so its baseline is the face's own ascent.
+        let baseline = face
+            .horizontal_line_metrics(size as f32)
+            .map(|metrics| metrics.ascent)
+            .unwrap_or(size as f32);
+        // `ymin` is the bitmap's bottom edge measured up from the baseline, so its top edge is that
+        // plus its height -- and the offset down from the top of the cell is what is left.
+        let above = (metrics.ymin + metrics.height as i32) as f32 / scale;
+        Ink {
+            coverage,
+            width: metrics.width as u32,
+            height: metrics.height as u32,
+            offset: Position::new(metrics.xmin as f32 / scale, baseline - above),
+        }
+    }
+}
+
+/// The ink of one character, as the rasteriser made it.
+///
+/// Two units, and they are not interchangeable: the bitmap is device pixels, because that is what a
+/// texture holds, and everything about where it goes is logical, because that is what a box is
+/// measured in.
+pub(crate) struct Ink {
+    /// Coverage, one byte per device pixel, row-major and `width` wide.
+    pub(crate) coverage: Vec<u8>,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    /// Where the ink's top-left corner sits inside its character cell, in logical pixels.
+    pub(crate) offset: Position,
 }
 
 /// The character every cell is measured from. Any of them would do in a monospaced font, which is

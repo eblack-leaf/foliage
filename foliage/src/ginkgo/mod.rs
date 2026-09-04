@@ -180,6 +180,12 @@ impl Ginkgo {
         &self.device
     }
 
+    /// How many device pixels one logical pixel is. Read where the two have to be converted, which
+    /// is the surface, the scissor, and the density a glyph is cut at.
+    pub(crate) fn scale(&self) -> f32 {
+        self.scale
+    }
+
     pub(crate) fn queue(&self) -> &Queue {
         &self.queue
     }

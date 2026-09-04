@@ -29,6 +29,7 @@ use crate::palette::Fill;
 use crate::panel::PanelInstance;
 use crate::rounding::Corners;
 use crate::text::TextPigment;
+use crate::text::font::Font;
 
 /// Which renderer an element carries, and so which instances it is gathered into.
 ///
@@ -76,6 +77,137 @@ pub(crate) struct PanelPigment {
 #[derive(Default)]
 pub(crate) struct Elm {
     pub(crate) panels: Instances<PanelInstance>,
+    pub(crate) texts: Runs,
+    /// Where one run's glyphs are gathered before they are compared against what is held. Kept
+    /// between frames for its capacity, and reused by every run in turn: a frame that changes
+    /// nothing must not allocate.
+    glyphs: Vec<Glyph>,
+}
+
+/// One glyph of a run: the cell it occupies, and which character occupies it.
+///
+/// The cell is in logical pixels and already offset by the run's own box, because where a character
+/// lands is what wrapping decided and wrapping is the engine's. Where the *ink* sits inside that
+/// cell is not here: that is the rasteriser's, which is the only thing that knows what shape it made
+/// and at what density it made it.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) struct Glyph {
+    pub(crate) cell: Section,
+    pub(crate) character: char,
+}
+
+/// The runs, and every glyph of each.
+///
+/// Deliberately not an [`Instances`]: a run is **one** entry in the one stack whose renderer holds
+/// many things under it, and that is the whole difference. What is diffed here is the run entire --
+/// its glyphs, its fill, its rank and its clip -- because a run's glyphs move, refill and restack
+/// together, and finding which of them changed would cost more than rewriting the run.
+#[derive(Default)]
+pub(crate) struct Runs {
+    held: HashMap<Key, Run>,
+    /// Runs the backend holds at something other than what is now wanted, or does not hold at all.
+    /// Keys rather than values: what the backend is to apply is what is held for them, which it
+    /// reads back at [`run`](Runs::run).
+    pub(crate) written: Vec<Key>,
+    /// Runs the backend holds and should not, in a stable order.
+    pub(crate) withdrawn: Vec<Key>,
+    /// Which extraction is running. An entry left at an older one is no longer wanted.
+    pass: u64,
+}
+
+/// One run, as the backend is to hold it.
+pub(crate) struct Run {
+    /// Every glyph that leaves ink, in reading order. A space advances the wrap and is not one.
+    pub(crate) glyphs: Vec<Glyph>,
+    pub(crate) color: Color,
+    /// Which face the glyphs are cut from, and at what size. The backend rasterises against these,
+    /// so they are part of what the run is rather than of how it was measured.
+    pub(crate) font: Font,
+    pub(crate) size: u32,
+    pub(crate) rank: ResolvedElevation,
+    pub(crate) clip: Section,
+    seen: u64,
+}
+
+impl Runs {
+    /// Opens an extraction, dropping what the last one reported.
+    fn open(&mut self) {
+        self.written.clear();
+        self.withdrawn.clear();
+    }
+
+    /// Takes one run as it now stands, and reports it written if the backend is holding it
+    /// otherwise.
+    #[allow(clippy::too_many_arguments)]
+    fn want(
+        &mut self,
+        key: Key,
+        rank: ResolvedElevation,
+        clip: Section,
+        color: Color,
+        font: Font,
+        size: u32,
+        glyphs: &[Glyph],
+    ) {
+        let pass = self.pass;
+        match self.held.entry(key) {
+            Entry::Occupied(mut held) => {
+                let held = held.get_mut();
+                held.seen = pass;
+                if held.color == color
+                    && held.font == font
+                    && held.size == size
+                    && held.rank == rank
+                    && held.clip == clip
+                    && held.glyphs == glyphs
+                {
+                    return;
+                }
+                held.color = color;
+                held.font = font;
+                held.size = size;
+                held.rank = rank;
+                held.clip = clip;
+                // Rewritten in place, so a run that changed costs its own glyphs and no allocation.
+                held.glyphs.clear();
+                held.glyphs.extend_from_slice(glyphs);
+            }
+            Entry::Vacant(slot) => {
+                slot.insert(Run {
+                    glyphs: glyphs.to_vec(),
+                    color,
+                    font,
+                    size,
+                    rank,
+                    clip,
+                    seen: pass,
+                });
+            }
+        }
+        self.written.push(key);
+    }
+
+    /// Closes the extraction: what nothing wanted this frame is withdrawn.
+    fn extract(&mut self) {
+        let pass = self.pass;
+        let withdrawn = &mut self.withdrawn;
+        self.held.retain(|key, held| {
+            if held.seen == pass {
+                return true;
+            }
+            withdrawn.push(*key);
+            false
+        });
+        // Nothing may depend on the order a map iterates, and two identical runs have to extract
+        // identically.
+        withdrawn.sort();
+        self.pass += 1;
+    }
+
+    /// What is held for one run, which is what the backend is to be holding for it.
+    pub(crate) fn run(&self, key: Key) -> Option<&Run> {
+        self.held.get(&key)
+    }
 }
 
 /// What one instance is held under.
@@ -226,8 +358,14 @@ impl<I: Copy + PartialEq> Instances<I> {
 
 /// Step 8. Resolved state becomes instances, and only where it differs from what is already drawn.
 pub(crate) fn run(grove: &mut Grove) {
-    let step = trace_span!("extract", written = Empty, withdrawn = Empty);
+    let step = trace_span!("extract", written = Empty, withdrawn = Empty, glyphs = Empty);
     let _entered = step.enter();
+    grove.elm.texts.open();
+    // Detached for the walk so that gathering a run's glyphs -- which reads the shaping cache -- and
+    // handing them over -- which writes what is held -- are not the same borrow. It goes back below,
+    // with whatever capacity the widest run this frame gave it.
+    let mut glyphs = core::mem::take(&mut grove.elm.glyphs);
+    let mut total = 0;
     for leaf in grove.tree.leaves() {
         let chlorophyll = grove.tree.chlorophyll(leaf);
         if chlorophyll == Chlorophyll::None {
@@ -254,17 +392,62 @@ pub(crate) fn run(grove: &mut Grove) {
                     .panels
                     .want(leaf, grove.tree.rank(leaf), painted.clip, instance);
             }
-            // A run's box, fill, rank and clip resolve exactly as a panel's do, and are settled by
-            // the time this runs. What is not here is the glyph pipeline that turns them into
-            // instances: a run is *one* entry in the one stack, whose renderer holds its glyphs
-            // under its own numbering -- which is what a [`Key`] is a number rather than a [`Leaf`]
-            // for.
-            Chlorophyll::Text => {}
+            // A run's box, fill, rank and clip resolve exactly as a panel's do. What is different is
+            // that it draws *many* things at one rank: it is one entry in the one stack, and its
+            // renderer holds its glyphs under its own numbering -- which is what a [`Key`] is a
+            // number rather than a [`Leaf`] for.
+            Chlorophyll::Text => {
+                // Grown together and by nothing else, so a run always has both.
+                let (Some(pigment), Some(typeface)) =
+                    (grove.tree.text_pigment(leaf), grove.tree.typeface(leaf))
+                else {
+                    continue;
+                };
+                let color = tint(grove, leaf, pigment.fill).faded(painted.opacity);
+                let size = typeface.size.at(grove.layout, grove.short);
+                let Some(value) = grove.tree.lettering(leaf) else {
+                    continue;
+                };
+                // R1 shapes every run that is measured at all, so one that is not held is one
+                // nothing is laying out. Extraction reads that cache and never adds to it.
+                let Some(shaped) = grove.shaping.shaped(typeface.font, size, value) else {
+                    continue;
+                };
+                let origin = painted.section.position;
+                let cell = shaped.cell();
+                glyphs.clear();
+                // Wrapped at the width the run resolved to, which is the width it was measured at.
+                shaped.place(painted.section.width(), |character, at| {
+                    glyphs.push(Glyph {
+                        cell: Section::new(origin.moved(at), cell),
+                        character,
+                    });
+                });
+                total += glyphs.len();
+                grove.elm.texts.want(
+                    leaf.into(),
+                    grove.tree.rank(leaf),
+                    painted.clip,
+                    color,
+                    typeface.font,
+                    size,
+                    &glyphs,
+                );
+            }
         }
     }
+    grove.elm.glyphs = glyphs;
     grove.elm.panels.extract();
-    step.record("written", grove.elm.panels.written.len());
-    step.record("withdrawn", grove.elm.panels.withdrawn.len());
+    grove.elm.texts.extract();
+    step.record(
+        "written",
+        grove.elm.panels.written.len() + grove.elm.texts.written.len(),
+    );
+    step.record(
+        "withdrawn",
+        grove.elm.panels.withdrawn.len() + grove.elm.texts.withdrawn.len(),
+    );
+    step.record("glyphs", total);
 }
 
 /// Where an element is painted, and inside what.

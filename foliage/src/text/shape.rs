@@ -15,7 +15,7 @@
 
 use std::collections::HashMap;
 
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Position};
 use crate::text::font::{Font, Fonts};
 
 /// One run, shaped: what the string turned out to be, before anything knows how wide it may be.
@@ -46,6 +46,27 @@ impl Shaped {
         self.lines(self.columns(width)) as f32 * self.cell.height
     }
 
+    /// One character cell of this run: the advance every glyph shares, and the distance between two
+    /// baselines.
+    pub(crate) fn cell(&self) -> Area {
+        self.cell
+    }
+
+    /// Where each of the run's characters lands at `width`, offset from the run's own top-left
+    /// corner in logical pixels.
+    ///
+    /// The same walk that measures, so what is drawn is what was measured. A character that leaves
+    /// no ink is not handed over: a space advances the walk and is nothing to draw.
+    pub(crate) fn place(&self, width: f32, mut at: impl FnMut(char, Position)) {
+        let cell = self.cell;
+        self.walk(self.columns(width), |character, column, line| {
+            at(
+                character,
+                Position::new(column as f32 * cell.width, line as f32 * cell.height),
+            );
+        });
+    }
+
     /// How many whole cells fit across `width`.
     ///
     /// Whole cells, because a monospaced line is an integral number of them: half a cell of room at
@@ -58,6 +79,16 @@ impl Shaped {
     }
 
     /// How many lines the run takes in `columns` cells.
+    pub(crate) fn lines(&self, columns: usize) -> usize {
+        self.walk(columns, |_, _, _| {})
+    }
+
+    /// Wraps the run into `columns` cells, handing every character the cell it lands in, and reports
+    /// how many lines that took.
+    ///
+    /// The one walk. How tall a run is and where its glyphs go are the same question asked for two
+    /// reasons, and asking it twice is how a run comes to be measured at one height and drawn at
+    /// another.
     ///
     /// Greedy, on word boundaries, with three rules and no fourth:
     ///
@@ -69,7 +100,11 @@ impl Shaped {
     ///
     /// A run with nothing in it takes no lines at all, which is what makes an empty element measure
     /// to zero rather than to one line of nothing.
-    pub(crate) fn lines(&self, columns: usize) -> usize {
+    ///
+    /// Only characters that leave ink are handed over. A space is an advance and a newline is a
+    /// break; neither is a glyph, and a walk that reported them would have the renderer deciding
+    /// what is worth drawing.
+    fn walk(&self, columns: usize, mut place: impl FnMut(char, usize, usize)) -> usize {
         if self.characters.is_empty() {
             return 0;
         }
@@ -103,8 +138,18 @@ impl Shaped {
                 index += 1;
             }
             let word = index - start;
+            let laid = |place: &mut dyn FnMut(char, usize, usize),
+                            from: usize,
+                            count: usize,
+                            column: usize,
+                            line: usize| {
+                for offset in 0..count {
+                    place(self.characters[from + offset], column + offset, line);
+                }
+            };
             if word > columns {
                 let mut left = word;
+                let mut at = start;
                 let mut room = columns.saturating_sub(used + pending);
                 if room == 0 {
                     lines += 1;
@@ -112,17 +157,23 @@ impl Shaped {
                     room = columns;
                 }
                 let taken = room.min(left);
+                laid(&mut place, at, taken, used + pending, lines - 1);
+                at += taken;
                 used += pending + taken;
                 left -= taken;
                 while left > 0 {
                     lines += 1;
                     used = columns.min(left);
+                    laid(&mut place, at, used, 0, lines - 1);
+                    at += used;
                     left -= used;
                 }
             } else if used + pending + word > columns {
                 lines += 1;
                 used = word;
+                laid(&mut place, start, word, 0, lines - 1);
             } else {
+                laid(&mut place, start, word, used + pending, lines - 1);
                 used += pending + word;
             }
             pending = 0;
@@ -174,6 +225,16 @@ impl Shaping {
         let held = runs.get_mut(value).expect("a run just shaped");
         held.seen = pass;
         &held.shaped
+    }
+
+    /// The shaped form of `value`, if a pass this frame has already shaped it.
+    ///
+    /// The read-only half, for the passes that come after the ones that measure. Extraction is one:
+    /// every run it draws was shaped by R1 to be measured at all, so a run that is not here is a run
+    /// nothing is laying out -- and a phase that shaped one of its own would be inserting entries
+    /// after the sweep that decides what is still stated.
+    pub(crate) fn shaped(&self, font: Font, size: u32, value: &str) -> Option<&Shaped> {
+        Some(&self.runs.get(&(font, size))?.get(value)?.shaped)
     }
 
     /// Drops every run nothing asked for this frame, and opens the next sweep.

@@ -156,7 +156,7 @@ impl Foliage {
             fern::run(&mut self.grove, self.root.as_deref_mut());
             let ginkgo = self.ginkgo.as_ref().expect("device");
             let ash = self.ash.as_mut().expect("backend");
-            ash.absorb(&self.grove.elm, ginkgo);
+            ash.absorb(&self.grove.elm, &self.grove.fonts, ginkgo);
         }
         // Nothing of the engine's own sits behind the tree, so the ground is the app's: whatever
         // the scheme currently resolves the ordinary fill to.

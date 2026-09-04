@@ -387,6 +387,11 @@ impl Tree {
         self.read::<PanelPigment>(leaf)
     }
 
+    /// What the text renderer on `leaf` was told, or `None` if `leaf` is not a run.
+    pub(crate) fn text_pigment(&self, leaf: Leaf) -> Option<TextPigment> {
+        self.read::<TextPigment>(leaf)
+    }
+
     /// What `leaf` is filled with, whichever renderer holds the fill, or `None` if it has none.
     ///
     /// One question across the renderers, because a fill is one property: the same

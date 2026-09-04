@@ -31,19 +31,39 @@ use tracing::field::Empty;
 use tracing::trace_span;
 
 use crate::ash::panel::Panels;
+use crate::ash::text::Texts;
 use crate::color::Color;
 use crate::coordinate::Section;
 use crate::elevation::ResolvedElevation;
 use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::ginkgo::depth::Depth;
+use crate::text::font::Fonts;
 
+mod atlas;
 mod instances;
 mod panel;
+mod text;
+
+/// The unit quad, as two triangles.
+///
+/// The whole of the geometry every renderer here draws over: a rounded corner is a distance field
+/// and a glyph is a sample of a sheet, so neither has anything to carve into a mesh. One constant
+/// rather than one per renderer, because two quads that disagreed would be two renderers whose
+/// instances mean subtly different things.
+pub(crate) const CORNERS: [[f32; 2]; 6] = [
+    [0.0, 0.0],
+    [1.0, 0.0],
+    [0.0, 1.0],
+    [1.0, 0.0],
+    [1.0, 1.0],
+    [0.0, 1.0],
+];
 
 /// The renderers, what each is holding, and the one stack over all of them.
 pub(crate) struct Ash {
     panels: Panels,
+    texts: Texts,
     /// The draws, in order. One per run of the stack sharing a renderer and a clip.
     spans: Vec<Span>,
     /// The stack itself, kept between walks for its capacity.
@@ -74,12 +94,14 @@ struct Slot {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Renderer {
     Panel,
+    Text,
 }
 
 impl Ash {
     pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         Self {
             panels: Panels::new(ginkgo),
+            texts: Texts::new(ginkgo),
             spans: Vec::new(),
             stack: Vec::new(),
         }
@@ -90,11 +112,20 @@ impl Ash {
     /// Runs once for every extraction, and reads what extraction produced without consuming it: a
     /// batch is a statement of what the backend should be holding, so applying one twice reaches
     /// the same holding as applying it once. What must not happen is applying one zero times.
-    pub(crate) fn absorb(&mut self, elm: &Elm, ginkgo: &Ginkgo) {
-        let span = trace_span!("absorb", written = Empty, withdrawn = Empty);
+    /// `fonts` is here and not in the batch because cutting a glyph is the backend's: what
+    /// extraction states is the cell and the character, and what a face makes of that -- at this
+    /// display's density -- is the only part that has to be re-answered when the display changes.
+    pub(crate) fn absorb(&mut self, elm: &Elm, fonts: &Fonts, ginkgo: &Ginkgo) {
+        let span = trace_span!("absorb", written = Empty, withdrawn = Empty, glyphs = Empty);
         let _entered = span.enter();
-        span.record("written", elm.panels.written.len());
-        span.record("withdrawn", elm.panels.withdrawn.len());
+        span.record(
+            "written",
+            elm.panels.written.len() + elm.texts.written.len(),
+        );
+        span.record(
+            "withdrawn",
+            elm.panels.withdrawn.len() + elm.texts.withdrawn.len(),
+        );
         for wanted in &elm.panels.written {
             self.panels
                 .instances
@@ -103,8 +134,25 @@ impl Ash {
         for key in &elm.panels.withdrawn {
             self.panels.instances.withdraw(*key);
         }
+        for key in &elm.texts.written {
+            // Written means the backend is not holding it as it now stands, so what is held for it
+            // is what it should hold. A key with nothing behind it cannot happen and is not covered
+            // for: the batch and the holding are produced by the one extraction.
+            if let Some(run) = elm.texts.run(*key) {
+                self.texts.write(*key, run, fonts, ginkgo);
+            }
+        }
+        for key in &elm.texts.withdrawn {
+            self.texts.withdraw(*key);
+        }
         self.panels.instances.flush(ginkgo.device(), ginkgo.queue());
-        if self.panels.instances.disturbed() {
+        self.texts.flush(ginkgo.device(), ginkgo.queue());
+        span.record("glyphs", self.texts.len());
+        // Both, and not the first that says so: a walk skipped because the other renderer answered
+        // first would leave that one's new slots without a depth.
+        let panels = self.panels.instances.disturbed();
+        let texts = self.texts.disturbed();
+        if panels || texts {
             self.restack(ginkgo);
         }
     }
@@ -129,6 +177,16 @@ impl Ash {
                     slot: slot as u32,
                 }),
         );
+        // A run contributes one entry however many characters it has, which is what keeps this the
+        // size of the tree rather than the size of the text on it.
+        self.stack
+            .extend(self.texts.ranks().iter().enumerate().map(|(slot, rank)| {
+                Slot {
+                    rank: *rank,
+                    renderer: Renderer::Text,
+                    slot: slot as u32,
+                }
+            }));
         self.stack.sort_unstable();
         let total = self.stack.len();
         self.spans.clear();
@@ -138,6 +196,10 @@ impl Ash {
                 Renderer::Panel => {
                     self.panels.instances.set_depth(entry.slot, depth);
                     self.panels.instances.clip(entry.slot)
+                }
+                Renderer::Text => {
+                    self.texts.set_depth(entry.slot, depth);
+                    self.texts.clip(entry.slot)
                 }
             };
             match self.spans.last_mut() {
@@ -157,6 +219,7 @@ impl Ash {
             }
         }
         self.panels.instances.flush_depths(ginkgo.queue());
+        self.texts.flush_depths(ginkgo.queue());
     }
 
     /// Step 9. Paints what is held.
@@ -182,6 +245,7 @@ impl Ash {
                 pass.set_scissor_rect(left, top, width, height);
                 match span.renderer {
                     Renderer::Panel => self.panels.draw(pass, span.from..span.to),
+                    Renderer::Text => self.texts.draw(pass, span.from..span.to),
                 }
             }
         });

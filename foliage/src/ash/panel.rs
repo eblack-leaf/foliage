@@ -9,6 +9,7 @@ use wgpu::{
     VertexState, VertexStepMode,
 };
 
+use crate::ash::CORNERS;
 use crate::ash::instances::Instances;
 use crate::ginkgo::Ginkgo;
 use crate::panel::PanelInstance;
@@ -102,16 +103,3 @@ impl Panels {
         pass.draw(0..CORNERS.len() as u32, span);
     }
 }
-
-/// The unit quad, as two triangles.
-///
-/// The whole of the geometry: rounding is a distance field in the fragment shader, so there are no
-/// corners to carve into the mesh.
-const CORNERS: [[f32; 2]; 6] = [
-    [0.0, 0.0],
-    [1.0, 0.0],
-    [0.0, 1.0],
-    [1.0, 0.0],
-    [1.0, 1.0],
-    [0.0, 1.0],
-];
