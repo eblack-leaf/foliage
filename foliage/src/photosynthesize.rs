@@ -121,6 +121,10 @@ impl Foliage {
             || !self.grove.queue.is_empty()
             || !self.grove.incoming.pending.is_empty()
             || !self.grove.aspen.idle()
+            // A press that is not moving becomes a hold on its own, with nothing arriving to say
+            // so. Idling under a finger is how that duration would pass unremarked, so the frames
+            // that would notice it are owed until the gesture is past being able to become one.
+            || self.grove.incoming.awaiting_hold()
             // A coasting region is pending work in its own right: it is not a tween, and there is
             // nothing on the app's side asking for the frames it needs. So frames keep running
             // until it settles, and stop afterwards.

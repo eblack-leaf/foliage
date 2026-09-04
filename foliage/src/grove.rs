@@ -6,10 +6,10 @@ use crate::coordinate::{Area, Axis, Position};
 use crate::elm::Elm;
 use crate::icon::{Field, Fields};
 use crate::image::{Plate, Plates};
-use crate::interaction::Claim;
 use crate::interaction::focus::Focus;
 use crate::interaction::input::Incoming;
 use crate::interaction::stack::Stack;
+use crate::interaction::{Claim, Hold};
 use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf, Presence};
 use crate::op::Op;
@@ -56,6 +56,8 @@ pub struct Grove {
     pub(crate) sought: Vec<(Leaf, ScrollTo)>,
     /// How far a gesture travels before it is claimed as a drag. Tuned at boot.
     pub(crate) claim: Claim,
+    /// How long a press is down before it is a hold. Tuned at boot.
+    pub(crate) hold: Hold,
     /// How a released drag coasts. Tuned at boot.
     pub(crate) momentum: Momentum,
     pub(crate) again: bool,
@@ -86,6 +88,7 @@ impl Grove {
             coasting: Coasting::default(),
             sought: Vec::new(),
             claim: Claim::default(),
+            hold: Hold::default(),
             momentum: Momentum::default(),
             again: false,
             frames: 0,

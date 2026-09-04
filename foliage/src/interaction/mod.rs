@@ -26,6 +26,21 @@
 //! A **tap** is what a gesture that ended without ever resolving to a drag emits. Nothing is
 //! cancelled and nothing is retracted, because nothing was issued early: the threshold is not a
 //! rule about taking a click back, it is the point at which the kind of the gesture becomes known.
+//!
+//! # A press that was held
+//!
+//! That threshold is a distance, and a distance alone cannot tell a gesture that is sitting still
+//! from one that has not moved yet. So resolving has a second way out: held past [`Hold::after`],
+//! reported as a gesture fact of its own.
+//!
+//! ```text
+//! opened ──▶ resolving ──▶ claimed ──▶ ended
+//!                └──────▶ held ──▶ claimed ──▶ ended
+//! ```
+//!
+//! It is general -- context menus, reorder handles and press-and-hold affordances all want it -- and
+//! it is what lets an element scroll like any other and still take a drag, by declaring no drag at
+//! all and claiming one only out of a hold.
 
 pub(crate) mod focus;
 pub(crate) mod input;
@@ -128,6 +143,42 @@ impl Claim {
     }
 }
 
+/// How long a press is held before it is a hold rather than a gesture still deciding.
+///
+/// The lifecycle's other threshold is a distance, so on its own it leaves a gesture that is sitting
+/// still indistinguishable from one that has not moved yet. Touch is where that shows: dragging to
+/// scroll and dragging to select are the same motion, and what separates them on both platforms is
+/// that a plain drag scrolls and selection begins from a press that was **held**.
+///
+/// A **global tuning value, not a per-element flag**, for the reason [`Claim`] is one. Set it once,
+/// before the engine runs:
+///
+/// ```no_run
+/// # use core::time::Duration;
+/// # use foliage::{Foliage, Hold};
+/// let mut foliage = Foliage::new();
+/// foliage.tune(Hold {
+///     after: Duration::from_millis(400),
+/// });
+/// ```
+///
+/// Not something an element opts into. A hold is part of what a gesture can turn out to be, so it is
+/// reported to whatever the press landed on and that element decides whether it means anything --
+/// which is the same footing a tap is on.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Hold {
+    /// How long the press is down, without having become a drag, before it is reported as held.
+    pub after: Duration,
+}
+
+impl Default for Hold {
+    fn default() -> Self {
+        Self {
+            after: Duration::from_millis(500),
+        }
+    }
+}
+
 /// What a drag has done, as the element holding it reads it.
 ///
 /// `delta` is this frame's movement and nothing else, so an element following a pointer adds it and
@@ -172,7 +223,13 @@ pub(crate) struct Gesture {
     /// The scrolling ancestors of wherever it landed, innermost first. Fixed at the press: where a
     /// gesture lands is where it looks for a region, whatever it passes over afterwards.
     chain: Vec<Leaf>,
-    held: Held,
+    stage: Stage,
+    /// When the press landed, on the engine's own clock.
+    ///
+    /// What a hold is measured from, so what it measures is time the gesture has been open rather
+    /// than time anything moved -- a hand that drifted a few pixels and stopped is still resolving,
+    /// and is still on its way to a hold.
+    since: Duration,
     /// What the gesture did over the last [`WINDOW`], oldest first, which is what a release velocity
     /// is measured from.
     ///
@@ -241,13 +298,30 @@ impl Gesture {
             .fold(Position::default(), |sum, sample| sum.moved(sample.travel));
         Some(Position::new(travel.x / covered, travel.y / covered))
     }
+
+    /// Whether this gesture could still become a hold.
+    ///
+    /// F9's question about a press that is not moving. A hold is the one thing that happens to a
+    /// gesture with nothing arriving to make it happen, so the frames that would notice it are owed
+    /// while this is true.
+    ///
+    /// A gesture that landed on nothing which receives is not one of them. A hold is a fact reported
+    /// to whoever is holding the gesture, and where nobody is, there is nothing for it to be a fact
+    /// about -- so such a press stays resolving and ends as the tap it would always have been.
+    fn awaiting_hold(&self) -> bool {
+        matches!(self.stage, Stage::Resolving) && self.target.is_some()
+    }
 }
 
-/// Who is holding the gesture.
-enum Held {
+/// Where the gesture has reached, and with it who is holding it.
+enum Stage {
     /// Opened and not yet a drag. The target holds it, and a release now is a tap.
     Resolving,
-    /// A drag the target took, because it declared [`drags`](crate::Place::drags) on this axis.
+    /// Down past [`Hold::after`] without having become a drag. The target still holds it, and a
+    /// release now is not a tap -- the press has already turned into something else.
+    Held,
+    /// A drag the target took, because it declared [`drags`](crate::Place::drags) on this axis or
+    /// because it took the hold this drag came out of.
     Target,
     /// A drag a scrolling region took. The index only ever moves outward.
     Region { index: usize, axis: Axis },
@@ -268,6 +342,9 @@ pub(crate) fn dispatch(grove: &mut Grove) {
     if let Some(gesture) = grove.incoming.gesture.as_mut() {
         gesture.open(span);
     }
+    // Read before this frame's input, because by the time any of that arrived the press had already
+    // been down this long. A hold is the transition nothing arrives to make.
+    holding(grove);
     for input in pending {
         match input {
             Input::Pressed(at) => pressed(grove, at),
@@ -279,6 +356,33 @@ pub(crate) fn dispatch(grove: &mut Grove) {
             Input::Modifiers(modifiers) => grove.incoming.modifiers = modifiers,
         }
     }
+}
+
+/// The second way out of resolving: a press that has been down long enough to be a statement of its
+/// own.
+///
+/// Read at the top of every frame an open gesture lives through, against the one clock the frame
+/// shares. Every other transition is an event -- a move that crossed a threshold, a release, a
+/// cancel -- and this is the one that is a duration, so there is nothing to answer it but the frame
+/// itself.
+///
+/// Reported and then done with: the gesture leaves resolving, so it is reported once however long
+/// the press goes on.
+fn holding(grove: &mut Grove) {
+    let (elapsed, after) = (grove.clock.elapsed(), grove.hold.after);
+    let Some(gesture) = grove.incoming.gesture.as_mut() else {
+        return;
+    };
+    if !gesture.awaiting_hold() || elapsed.saturating_sub(gesture.since) < after {
+        return;
+    }
+    let Some(target) = gesture.target else {
+        return;
+    };
+    let at = gesture.at;
+    gesture.stage = Stage::Held;
+    grove.drift.held.insert(target, at);
+    debug!(leaf = target.id(), "held");
 }
 
 /// A keystroke, delivered to whatever it is about.
@@ -324,7 +428,8 @@ fn pressed(grove: &mut Grove, at: Position) {
         to: at,
         target: None,
         chain: Vec::new(),
-        held: Held::Resolving,
+        stage: Stage::Resolving,
+        since: grove.clock.elapsed(),
         recent: VecDeque::new(),
     };
     // Opened here rather than at the top of the next dispatch, because a flick can press, move and
@@ -364,15 +469,17 @@ fn moved(grove: &mut Grove, to: Position) {
     };
     let delta = gesture.to.to(to);
     gesture.to = to;
-    if matches!(gesture.held, Held::Resolving) {
-        match grove.claim.claimed(gesture.at.to(to)) {
+    match gesture.stage {
+        Stage::Resolving => match grove.claim.claimed(gesture.at.to(to)) {
             Some(axis) => claim(grove, &mut gesture, axis),
             // Still short of both thresholds, so this is still a gesture that could end as a tap.
             None => {
                 grove.incoming.gesture = Some(gesture);
                 return;
             }
-        }
+        },
+        Stage::Held => claim_hold(grove, &mut gesture),
+        Stage::Target | Stage::Region { .. } | Stage::Nobody => {}
     }
     gesture.record(delta);
     apply(grove, &mut gesture, delta);
@@ -386,6 +493,22 @@ fn released(grove: &mut Grove, at: Position) {
     close(grove, true);
 }
 
+/// The drag out of a hold, which belongs to whoever took the hold.
+///
+/// Not a second claim, and not one the thresholds have anything left to decide: the hold already
+/// settled that this gesture is not a tap and that this element is the one holding it, so the first
+/// movement out of it is the drag, however far it went and whichever way. An element that takes no
+/// drags at all still takes this one -- which is what lets it scroll like anything else and select
+/// from a press that was held.
+fn claim_hold(grove: &mut Grove, gesture: &mut Gesture) {
+    let Some(target) = gesture.target else {
+        return;
+    };
+    gesture.stage = Stage::Target;
+    grove.drift.drag_started.insert(target);
+    debug!(leaf = target.id(), "drag claimed");
+}
+
 /// The gesture has become a drag. Who takes it is settled here, once.
 fn claim(grove: &mut Grove, gesture: &mut Gesture, axis: Axis) {
     if let Some(target) = gesture.target {
@@ -395,7 +518,7 @@ fn claim(grove: &mut Grove, gesture: &mut Gesture, axis: Axis) {
             .drags
             .is_some_and(|axes| axes.covers(axis))
         {
-            gesture.held = Held::Target;
+            gesture.stage = Stage::Target;
             grove.drift.drag_started.insert(target);
             debug!(leaf = target.id(), ?axis, "drag claimed");
             return;
@@ -407,17 +530,17 @@ fn claim(grove: &mut Grove, gesture: &mut Gesture, axis: Axis) {
         debug!(leaf = target.id(), ?axis, "target yielded");
         gesture.target = None;
     }
-    gesture.held = match scrolling(grove, &gesture.chain, 0, axis) {
-        Some(index) => Held::Region { index, axis },
-        None => Held::Nobody,
+    gesture.stage = match scrolling(grove, &gesture.chain, 0, axis) {
+        Some(index) => Stage::Region { index, axis },
+        None => Stage::Nobody,
     };
 }
 
 /// This frame's movement, delivered to whoever is holding the gesture.
 fn apply(grove: &mut Grove, gesture: &mut Gesture, delta: Position) {
-    match gesture.held {
-        Held::Resolving | Held::Nobody => {}
-        Held::Target => {
+    match gesture.stage {
+        Stage::Resolving | Stage::Held | Stage::Nobody => {}
+        Stage::Target => {
             let Some(target) = gesture.target else {
                 return;
             };
@@ -430,7 +553,7 @@ fn apply(grove: &mut Grove, gesture: &mut Gesture, delta: Position) {
                 },
             );
         }
-        Held::Region { index, axis } => {
+        Stage::Region { index, axis } => {
             // Content moves against the pointer: dragging toward the near edge carries the content
             // that way, which is the region moving further into its own extent.
             let wanted = -delta.along(axis);
@@ -462,7 +585,7 @@ fn apply(grove: &mut Grove, gesture: &mut Gesture, delta: Position) {
                     None => break,
                 }
             }
-            gesture.held = Held::Region { index, axis };
+            gesture.stage = Stage::Region { index, axis };
         }
     }
 }
@@ -480,14 +603,16 @@ fn close(grove: &mut Grove, released: bool) {
         // A tap that reached nothing that receives takes focus off whatever held it. That is not a
         // rule about dismissing: it is the same rule as below, reading that what was tapped cannot
         // hold focus -- so nothing does.
-        if released && matches!(gesture.held, Held::Resolving) {
+        if released && matches!(gesture.stage, Stage::Resolving) {
             focus::moved(grove, Intent::Away);
         }
         return;
     };
     // A tap is what a gesture that ended without ever resolving to a drag emits. A gesture that
-    // became a drag is not a tap that was taken back; it was never a tap.
-    if released && matches!(gesture.held, Held::Resolving) {
+    // became a drag is not a tap that was taken back; it was never a tap. Neither is one that was
+    // held: a press reported as a hold has already stopped being a gesture that could end as a tap,
+    // so it moves no caret and takes no focus either.
+    if released && matches!(gesture.stage, Stage::Resolving) {
         grove.drift.clicked.insert(target, gesture.at);
         // Focus goes to what was tapped. There is no second declaration deciding it: `interactive`
         // is already the statement that an element takes input, and focus already rests only on
@@ -513,7 +638,7 @@ fn close(grove: &mut Grove, released: bool) {
 /// the frames it rested for are in the [`WINDOW`] and are what bring the mean down, which is what
 /// makes holding still before lifting stop the list rather than fling it.
 fn launch(grove: &mut Grove, gesture: &Gesture) {
-    let Held::Region { index, axis } = gesture.held else {
+    let Stage::Region { index, axis } = gesture.stage else {
         return;
     };
     let Some(velocity) = gesture.velocity() else {

@@ -102,4 +102,14 @@ impl Incoming {
     pub(crate) fn take(&mut self, input: Input) {
         self.pending.push(input);
     }
+
+    /// Whether the open gesture could still become a hold, which is a frame the loop owes (F9).
+    ///
+    /// A press that is not moving is the one gesture that changes with nothing arriving to change
+    /// it, so it is the one that has to be waited on rather than woken for.
+    pub(crate) fn awaiting_hold(&self) -> bool {
+        self.gesture
+            .as_ref()
+            .is_some_and(super::Gesture::awaiting_hold)
+    }
 }

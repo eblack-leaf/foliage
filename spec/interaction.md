@@ -131,7 +131,7 @@ A **tap** is what a gesture that ended without ever resolving to a drag emits. N
 cancelled, because nothing was issued early. The threshold is not a retraction rule; it is the
 point at which the kind becomes known.
 
-### Owed: a press that was held
+### A press that was held
 
 The lifecycle above has one threshold, and it is a distance. There is no time in it, so a gesture
 that sits still is indistinguishable from one that has not moved yet — `resolving` covers both.

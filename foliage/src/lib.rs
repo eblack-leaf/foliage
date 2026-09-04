@@ -15,7 +15,8 @@
 //!   stated outright -- and [`Corners`] is how it is rounded.
 //! - A gesture goes to the top of the box stack: [`interactive`](Place::interactive) says who
 //!   receives one, [`pass_through`](Place::pass_through) says who is never the top, and
-//!   [`Drag`] is what one reports while it is held.
+//!   [`Drag`] is what one reports while it is held. A press that stayed still for [`Hold`]'s
+//!   duration is [`held`](Pollen::held) rather than a tap that might still be coming.
 //! - [`Text`] is a run of monospaced glyphs, [`Font`] names one an app registered and [`FontSize`]
 //!   says how large it is; [`content()`] is a box measured rather than declared.
 //! - [`TextInput`] is an editable one: one [`Leaf`] to hold, [`select`](Grow::select) to move its
@@ -81,7 +82,7 @@ pub use foliage::Foliage;
 pub use grove::Grove;
 pub use icon::{Field, Icon};
 pub use image::{Fit, Image, Plate};
-pub use interaction::{Claim, Drag};
+pub use interaction::{Claim, Drag, Hold};
 pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};
 pub use line::{Cap, HAIRLINE, Line};

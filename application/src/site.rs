@@ -161,17 +161,26 @@ impl Site {
         // coasting -- so both leave it exactly as they found it, and neither is written here.
         for card in 0..self.shell.cards.len() {
             let leaf = self.shell.cards[card];
+            // A press on the last card that was held opens a menu under it, which is what a hold is
+            // for: the press said something of its own rather than turning out to be a tap, so the
+            // card is not lit by it and there is nothing to undo when the menu arrives. The menu
+            // hangs past the bottom of the column and is drawn over what is below rather than being
+            // cut off there, and the column gains no scroll range leading down to it -- both from
+            // the one mark on the menu.
+            if card == self.shell.cards.len() - 1 && pollen.held(leaf) {
+                self.menu = true;
+                grove.visible(self.shell.menu, true);
+            }
             if !pollen.clicked(leaf) {
                 continue;
             }
             self.lit[card] = !self.lit[card];
             grove.animate(leaf, Motion::Palette(self.fill(card)), Timing::ms(160));
-            // The last one opens a menu under itself. It hangs past the bottom of the column and
-            // is drawn over what is below rather than being cut off there, and the column gains no
-            // scroll range leading down to it -- both from the one mark on the menu.
-            if card == self.shell.cards.len() - 1 {
-                self.menu = self.lit[card];
-                grove.visible(self.shell.menu, self.menu);
+            // A tap puts the menu away again, and the two never arrive together: a press that was
+            // held is not also a tap.
+            if self.menu {
+                self.menu = false;
+                grove.visible(self.shell.menu, false);
             }
         }
     }

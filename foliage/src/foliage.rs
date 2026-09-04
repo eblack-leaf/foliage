@@ -7,7 +7,7 @@ use crate::ginkgo::Ginkgo;
 use crate::grove::Grove;
 use crate::icon::Field;
 use crate::image::Plate;
-use crate::interaction::Claim;
+use crate::interaction::{Claim, Hold};
 use crate::root::{Registered, Root, Rooted};
 use crate::text::Font;
 use crate::verbs::Grow;
@@ -148,18 +148,21 @@ impl Foliage {
     /// Sets one of the engine's tuning values.
     ///
     /// These are the numbers behind how the engine feels rather than what it does -- how far a
-    /// gesture travels before it is a drag, how a coast decays, and later what a key is bound to.
-    /// Each is a value for the whole app, because feel that varies from element to element is what
-    /// makes an app feel unpredictable, and each is set here rather than per element for that
-    /// reason.
+    /// gesture travels before it is a drag, how long a press is down before it is a hold, how a
+    /// coast decays, and later what a key is bound to. Each is a value for the whole app, because
+    /// feel that varies from element to element is what makes an app feel unpredictable, and each is
+    /// set here rather than per element for that reason.
     ///
     /// ```no_run
     /// # use core::time::Duration;
-    /// # use foliage::{Claim, Foliage, Momentum};
+    /// # use foliage::{Claim, Foliage, Hold, Momentum};
     /// # let mut foliage = Foliage::new();
     /// foliage.tune(Claim {
     ///     horizontal: 18.0,
     ///     vertical: 8.0,
+    /// });
+    /// foliage.tune(Hold {
+    ///     after: Duration::from_millis(400),
     /// });
     /// foliage.tune(Momentum {
     ///     half_life: Duration::from_millis(350),
@@ -183,6 +186,12 @@ pub(crate) trait Tuning {
 impl Tuning for Claim {
     fn tune(self, grove: &mut Grove) {
         grove.claim = self;
+    }
+}
+
+impl Tuning for Hold {
+    fn tune(self, grove: &mut Grove) {
+        grove.hold = self;
     }
 }
 

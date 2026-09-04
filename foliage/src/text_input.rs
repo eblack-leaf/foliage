@@ -44,6 +44,7 @@ use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, PanelPigment, Pigment};
 use crate::grove::Grove;
 use crate::interaction::Gestures;
+use crate::interaction::focus::Intent;
 use crate::interaction::input::{Key, Keystroke};
 use crate::leaf::Leaf;
 use crate::lifecycle::Visible;
@@ -91,6 +92,11 @@ const CARET: f32 = 2.0;
 /// whatever a tap lands on, which a field is by virtue of receiving at all. An app that wants focus
 /// somewhere else writes [`focus`](crate::Grow::focus) from [`clicked`](crate::Pollen::clicked) and
 /// wins, because the tap settled focus a frame before the app is handed it.
+///
+/// A drag across a field **scrolls its value**, because a field declares no drags and so is left
+/// to the region it is. Selecting is a press that was [`held`](crate::Pollen::held) and then
+/// dragged: the two motions are identical until the hold separates them, which is the only thing
+/// that can.
 ///
 /// What it types is reported as [`edited`](crate::Pollen::edited), and an `Enter` as
 /// [`submitted`](crate::Pollen::submitted).
@@ -179,15 +185,16 @@ impl Buds for TextInput {
         // A field is measured in characters throughout -- its caret, its selection and its own
         // value -- so it carries a typeface whether or not one was named, exactly as a run does.
         self.placement.typeface.get_or_insert_default();
-        // Declared here rather than left to the app, because each of the three is what makes a
-        // field a field rather than a preference about one. It receives, so a gesture can reach it
-        // and focus can rest on it -- which is also the whole of what makes a tap focus it, since
-        // that is where focus goes for anything that receives; it takes drags across, so a drag
-        // over the value selects while a drag down still scrolls whatever the field is sitting in;
-        // and it is a region on the same axis, which is what clips a value longer than the box and
-        // what the caret is kept in view by.
+        // Declared here rather than left to the app, because both are what make a field a field
+        // rather than a preference about one. It receives, so a gesture can reach it and focus can
+        // rest on it -- which is what makes a tap focus it, since that is where focus goes for
+        // anything that receives; and it is a region across, which is what clips a value longer
+        // than its box and what the caret is kept in view by.
+        //
+        // It declares no drags. A drag across a field is then the region's, and the region is the
+        // field, so the value moves under its box; selection comes out of a hold, which claims a
+        // drag whatever an element declared.
         self.placement.manner.gestures.receives = true;
-        self.placement.manner.gestures.drags = Some(Axes::Horizontal);
         self.placement.manner.scrolls = Some(Scrolls(
             Scroll::new(Axes::Horizontal).contain(Axes::Horizontal),
         ));
@@ -625,10 +632,10 @@ impl Fronds for Field {
 /// What a field makes of the gestures dispatch reported this frame.
 ///
 /// **A field reads interaction; interaction knows nothing about fields.** A tap is a statement
-/// about where the caret goes and a drag is one about what is selected, but that is a field's
-/// reading of an ordinary gesture, not something a gesture carries. So this asks the two questions
-/// a field has of what was reported -- was I tapped, and where; am I being dragged, and to where --
-/// and queues the same [`select`](crate::Grow::select) an app would write.
+/// about where the caret goes, a hold is one about where a selection begins, and a drag is one
+/// about how far it reaches -- but each is a field's reading of an ordinary gesture, not something
+/// a gesture carries. So this asks what was reported about the leaves it owns and queues the same
+/// [`select`](crate::Grow::select) an app would write.
 fn gestured(grove: &mut Grove) {
     for (field, parts) in grove.tree.fields() {
         // A tap says where the caret goes and collapses whatever was selected. A gesture that
@@ -636,6 +643,17 @@ fn gestured(grove: &mut Grove) {
         // leaves the field exactly as it found it.
         if let Some(at) = grove.drift.clicked.get(&field).copied() {
             let index = index_at(grove, parts, at);
+            grove.queue.push(Op::Select {
+                leaf: field,
+                range: index..index,
+            });
+        }
+        // A hold says the same thing a tap does about where the caret goes, and takes focus with
+        // it: a held press is not a tap, so nothing has moved either. It is what begins a
+        // selection, since the drag out of a hold is the field's whatever it declared.
+        if let Some(at) = grove.drift.held.get(&field).copied() {
+            let index = index_at(grove, parts, at);
+            grove.queue.push(Op::Focus(Intent::To(field)));
             grove.queue.push(Op::Select {
                 leaf: field,
                 range: index..index,

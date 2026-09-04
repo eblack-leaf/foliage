@@ -9,7 +9,7 @@ mod site;
 
 use core::time::Duration;
 
-use foliage::{Area, Claim, Foliage, Momentum};
+use foliage::{Area, Claim, Foliage, Hold, Momentum};
 
 /// Shared by every platform's entry point.
 ///
@@ -28,6 +28,12 @@ pub fn run(mut foliage: Foliage) {
     foliage.tune(Claim {
         horizontal: 20.0,
         vertical: 8.0,
+    });
+    // How long a press sits still before it is a hold rather than a tap that has not finished
+    // happening. A little under the default: the one thing on the page that opens on a hold is a
+    // menu, and half a second of a finger down with nothing shown reads as the page ignoring it.
+    foliage.tune(Hold {
+        after: Duration::from_millis(400),
     });
     // How a released drag carries on: half its speed gone every three hundred milliseconds, a
     // little sharper than the default, because the reading column is short and a fling that

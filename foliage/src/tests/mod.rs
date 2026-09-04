@@ -66,6 +66,13 @@ fn advance(grove: &mut Grove, millis: u64) {
     grove.clock.advance(Duration::from_millis(millis));
 }
 
+/// Moves the clock past the duration a press has to be down to be held, at whatever the engine is
+/// tuned to.
+fn past_the_hold(grove: &mut Grove) {
+    let after = grove.hold.after.as_millis() as u64;
+    advance(grove, after);
+}
+
 /// Resizes the surface, taking effect at the next frame.
 fn resize(grove: &mut Grove, viewport: Area) {
     grove.pending_resize = Some(viewport);

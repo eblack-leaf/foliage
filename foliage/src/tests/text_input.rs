@@ -8,8 +8,8 @@
 use crate::elevation::ResolvedElevation;
 use crate::interaction::input::{Key, Keystroke};
 use crate::tests::{
-    Observer, controlled, drag, grove, key, press, release, section, shifted, stroke, tick,
-    tick_with, typing, with_control, with_shift,
+    Observer, controlled, drag, grove, key, past_the_hold, press, release, section, shifted, stroke,
+    tick, tick_with, typing, with_control, with_shift,
 };
 use crate::text_input::{Applied, Editing, applied};
 use crate::{
@@ -194,6 +194,14 @@ fn value(grove: &Grove, leaf: Leaf) -> String {
     match grove.tap(leaf, Vein::Text) {
         Some(Sap::Text(value)) => value,
         other => panic!("expected a value, got {other:?}"),
+    }
+}
+
+/// How far the field has been scrolled across.
+fn offset(grove: &Grove, leaf: Leaf) -> f32 {
+    match grove.tap(leaf, Vein::Offset) {
+        Some(Sap::Position(offset)) => offset.x,
+        other => panic!("expected an offset, got {other:?}"),
     }
 }
 
@@ -561,10 +569,36 @@ fn a_press_puts_the_caret_where_it_landed() {
     assert_eq!(selection(&grove, leaf), 4..4);
 }
 
-/// A drag across a field selects. The field takes the drag itself, so the press it began with is
-/// the anchor and the pointer is the caret.
+/// A drag across a field scrolls its value and selects nothing. The field declares no drags, so the
+/// gesture is the region's -- and the region is the field.
 #[test]
-fn a_drag_across_a_field_selects() {
+fn a_drag_across_a_field_scrolls_its_value() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove);
+    // Thirty characters through a box twenty wide, so there is a hundred pixels to scroll.
+    typing(&mut grove, "abcdefghijklmnopqrstuvwxyz0123");
+    tick(&mut grove);
+    // Back to the start, where typing to the end had carried the field away from.
+    grove.select(leaf, 0..0);
+    tick(&mut grove);
+    assert_eq!(offset(&grove, leaf), 0.0);
+
+    press(&mut grove, 15.0 * CELL, 16.0);
+    tick(&mut grove);
+    drag(&mut grove, 5.0 * CELL, 16.0);
+    tick(&mut grove);
+    release(&mut grove, 5.0 * CELL, 16.0);
+    tick(&mut grove);
+
+    assert_eq!(offset(&grove, leaf), 100.0);
+    assert_eq!(selection(&grove, leaf), 0..0);
+}
+
+/// The same motion out of a press that was held selects instead. The hold settled that the field is
+/// holding the gesture, so the drag is the field's whatever it declared about drags -- which is the
+/// only thing separating these two, because nothing in the motions themselves does.
+#[test]
+fn a_drag_out_of_a_hold_selects() {
     let mut grove = grove();
     let leaf = focused(&mut grove);
     typing(&mut grove, "abcdefgh");
@@ -572,11 +606,38 @@ fn a_drag_across_a_field_selects() {
 
     press(&mut grove, 1.0 * CELL, 16.0);
     tick(&mut grove);
+    past_the_hold(&mut grove);
+    tick(&mut grove);
+    // The hold puts the caret where it landed, which a tap would have done and a drag never does.
+    assert_eq!(selection(&grove, leaf), 1..1);
+
     drag(&mut grove, 6.0 * CELL, 16.0);
     tick(&mut grove);
     release(&mut grove, 6.0 * CELL, 16.0);
     tick(&mut grove);
     assert_eq!(selection(&grove, leaf), 1..6);
+    assert_eq!(offset(&grove, leaf), 0.0);
+}
+
+/// A hold takes focus with the caret, and the field writes that itself: a press that was held is not
+/// a tap, and a tap is the only gesture the engine moves focus on.
+#[test]
+fn a_hold_focuses_the_field_it_landed_in() {
+    let mut grove = grove();
+    let leaf = field(&mut grove);
+    tick(&mut grove);
+    grove.text(leaf, "abcdef");
+    tick(&mut grove);
+    assert_eq!(grove.focused(), None);
+
+    press(&mut grove, 2.0 * CELL, 16.0);
+    tick(&mut grove);
+    past_the_hold(&mut grove);
+    tick(&mut grove);
+
+    assert_eq!(grove.focused(), Some(leaf));
+    assert_eq!(selection(&grove, leaf), 2..2);
+    assert!(shown(&grove, caret(&grove, leaf)));
 }
 
 /// The field is what a press reaches, never one of the parts drawn on it. Every part is out of the

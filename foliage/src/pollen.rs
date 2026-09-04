@@ -27,9 +27,9 @@ impl Pollen {
     /// Whether a gesture went down on `leaf`.
     ///
     /// The hook for a pressed visual. It says a gesture is being held, not what it will turn out to
-    /// be -- [`clicked`](Pollen::clicked) and [`drag_started`](Pollen::drag_started) are the two
-    /// things it can become, and [`disengaged`](Pollen::disengaged) is where a pressed visual is
-    /// put back however it ended.
+    /// be -- [`clicked`](Pollen::clicked), [`held`](Pollen::held) and
+    /// [`drag_started`](Pollen::drag_started) are what it can become, and
+    /// [`disengaged`](Pollen::disengaged) is where a pressed visual is put back however it ended.
     pub fn engaged(&self, leaf: Leaf) -> bool {
         self.0.engaged.contains(&leaf)
     }
@@ -61,11 +61,37 @@ impl Pollen {
         self.0.clicked.get(&leaf).copied()
     }
 
+    /// Whether the press `leaf` is holding has been held past [`Hold::after`](crate::Hold) without
+    /// becoming a drag.
+    ///
+    /// A gesture fact of its own, and the second way a press stops being one that might still be a
+    /// tap -- so a hold is never also a [`clicked`](Pollen::clicked), and a press released after one
+    /// moves no focus. Reported once, in the frame the duration passed in.
+    ///
+    /// What follows is the holder's. The drag out of a hold belongs to whoever took it, whatever
+    /// that element declared with [`drags`](crate::Place::drags) and whichever way it goes, so a
+    /// press-and-hold that turns into a drag reports [`drag_started`](Pollen::drag_started) and then
+    /// [`dragged`](Pollen::dragged) like any other.
+    pub fn held(&self, leaf: Leaf) -> bool {
+        self.0.held.contains_key(&leaf)
+    }
+
+    /// Where `leaf` was held, if it was.
+    ///
+    /// The point the press landed at, which is the point it was hit-tested against. A hold is where
+    /// a menu opens and where a selection begins, and neither has anywhere else to take its place
+    /// from -- the pointer has not moved since, by definition of the gesture still resolving.
+    pub fn held_at(&self, leaf: Leaf) -> Option<Position> {
+        self.0.held.get(&leaf).copied()
+    }
+
     /// Whether the gesture `leaf` is holding has become a drag.
     ///
     /// Reported once per gesture, and only to an element that declared
-    /// [`drags`](crate::Place::drags) on the axis the gesture went. An element that takes no drags
-    /// hears [`disengaged`](Pollen::disengaged) instead, because it has let the gesture go.
+    /// [`drags`](crate::Place::drags) on the axis the gesture went, or that took the hold this drag
+    /// came out of -- a hold has already settled who is holding the gesture, so there is nothing
+    /// left for an axis to decide. An element that takes no drags hears
+    /// [`disengaged`](Pollen::disengaged) instead, because it has let the gesture go.
     pub fn drag_started(&self, leaf: Leaf) -> bool {
         self.0.drag_started.contains(&leaf)
     }
@@ -164,6 +190,9 @@ pub(crate) struct Drift {
     /// Where each tap landed, which is where its gesture began. Carried rather than counted,
     /// because an element that has somewhere to put a point needs the point.
     pub(crate) clicked: HashMap<Leaf, Position>,
+    /// Where each hold landed, which is where its press did. Carried for the reason a tap's point
+    /// is: a menu and a selection both begin at a point, and neither has another to use.
+    pub(crate) held: HashMap<Leaf, Position>,
     pub(crate) drag_started: HashSet<Leaf>,
     pub(crate) dragged: HashMap<Leaf, Drag>,
     pub(crate) edited: HashSet<Leaf>,

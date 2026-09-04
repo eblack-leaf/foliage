@@ -8,7 +8,8 @@
 use crate::coordinate::{Area, Axes, Position, Section};
 use crate::elm::Key;
 use crate::tests::{
-    Observer, advance, cancel, drag, grove, press, release, section, tick, tick_with, wheel,
+    Observer, advance, cancel, drag, grove, past_the_hold, press, release, section, tick, tick_with,
+    wheel,
 };
 use crate::{
     Boxed,
@@ -594,6 +595,124 @@ fn an_element_scrolled_out_of_its_region_is_not_in_the_stack() {
     tick(&mut grove);
     assert_eq!(grove.elm.panels.len(), 1);
     assert!(tap(&mut grove, 50.0, 50.0).clicked(far));
+}
+
+// -- A press that was held -----------------------------------------------------------------------
+
+/// The lifecycle's other threshold is a distance, and a distance cannot tell a gesture that is
+/// sitting still from one that has not moved yet. This is the one that is a duration.
+#[test]
+fn a_press_held_past_the_duration_is_reported_as_held() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    tick(&mut grove);
+
+    press(&mut grove, 50.0, 25.0);
+    let pressed = frame(&mut grove);
+    assert!(pressed.engaged(button));
+    assert!(!pressed.held(button));
+
+    past_the_hold(&mut grove);
+    let held = frame(&mut grove);
+    assert!(held.held(button));
+    // Where the press landed, which is where a menu opens and where a selection begins.
+    assert_eq!(held.held_at(button), Some(Position::new(50.0, 25.0)));
+    // Once. The gesture has left resolving, so however much longer the press goes on there is
+    // nothing further for it to become.
+    past_the_hold(&mut grove);
+    assert!(!frame(&mut grove).held(button));
+}
+
+/// The drag out of a hold is claimed by whoever took the hold. The button declares no drags at all
+/// -- a drag on it without the hold scrolls the column and it gets nothing -- and it still takes
+/// this one, down the very axis the column scrolls.
+#[test]
+fn a_drag_out_of_a_hold_is_claimed_by_whoever_took_it() {
+    let mut grove = grove();
+    let (region, _) = column(&mut grove);
+    let button = grove.branch(
+        region,
+        Panel::new().at(at(0.0, 0.0, 200.0, 50.0)).interactive(),
+    );
+    tick(&mut grove);
+
+    press(&mut grove, 50.0, 25.0);
+    frame(&mut grove);
+    past_the_hold(&mut grove);
+    assert!(frame(&mut grove).held(button));
+
+    drag(&mut grove, 50.0, -35.0);
+    let dragged = frame(&mut grove);
+    assert!(dragged.drag_started(button));
+    let held = dragged.dragged(button).expect("the hold took the drag");
+    assert_eq!(held.start, Position::new(50.0, 25.0));
+    assert_eq!(held.current, Position::new(50.0, -35.0));
+    assert_eq!(offset(&grove, region).y, 0.0);
+}
+
+/// A press reported as held has already stopped being a gesture that could end as a tap, so nothing
+/// is issued when it ends -- and, a tap being the only thing that moves focus, nothing is focused
+/// either.
+#[test]
+fn a_press_held_past_the_duration_and_released_is_not_a_tap() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    tick(&mut grove);
+
+    press(&mut grove, 50.0, 25.0);
+    frame(&mut grove);
+    past_the_hold(&mut grove);
+    assert!(frame(&mut grove).held(button));
+
+    release(&mut grove, 50.0, 25.0);
+    let lifted = frame(&mut grove);
+    assert!(!lifted.clicked(button));
+    assert!(lifted.disengaged(button));
+    assert_eq!(grove.focused(), None);
+}
+
+/// A press that is not moving is the one gesture that changes with nothing arriving to change it,
+/// so the frames that would notice it are owed (F9). Idling under a finger is how the duration
+/// would pass unremarked, and nothing else in the engine would be any the wiser.
+#[test]
+fn a_press_that_could_still_be_held_owes_a_frame() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    tick(&mut grove);
+
+    press(&mut grove, 50.0, 25.0);
+    frame(&mut grove);
+    assert!(grove.incoming.awaiting_hold(), "the press is on its way");
+
+    past_the_hold(&mut grove);
+    assert!(frame(&mut grove).held(button));
+    assert!(
+        !grove.incoming.awaiting_hold(),
+        "it arrived, and there is nothing left to wait for"
+    );
+}
+
+/// A press on nothing that receives has nobody to be a hold's fact about, so it stays what it was.
+/// Holding still on a backdrop and lifting is the slow version of tapping one, and it dismisses.
+#[test]
+fn a_press_on_nothing_that_receives_is_never_held() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    let backdrop = grove.plant(Panel::new().elevate(Elevation::up(1)));
+    grove.focus(button);
+    tick(&mut grove);
+    assert_eq!(grove.focused(), Some(button));
+
+    press(&mut grove, 300.0, 200.0);
+    frame(&mut grove);
+    assert!(!grove.incoming.awaiting_hold());
+    past_the_hold(&mut grove);
+    let waited = frame(&mut grove);
+    assert!(!waited.held(backdrop));
+
+    release(&mut grove, 300.0, 200.0);
+    frame(&mut grove);
+    assert_eq!(grove.focused(), None);
 }
 
 // -- Disabled ------------------------------------------------------------------------------------

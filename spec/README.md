@@ -1130,25 +1130,8 @@ away from.
 
 ### Still owed by B9
 
-The first two are the next work, in this order. Both came out of using the thing rather than reading
-it, and the first is the reason the second is worth having.
-
-- **A long press, as an interaction primitive.** Dragging in a field and dragging to scroll one are
-  the same motion, and today selection always wins: the field declares `drags(Horizontal)`, so a
-  drag across it can never scroll it. There is no reading of that gesture that separates them,
-  because there is nothing to read — they are identical until something says otherwise.
-
-  Touch already answered this and both platforms answer it the same way: a plain drag scrolls, and
-  selection begins from a **press that was held**. So the field would declare no drag at all and
-  scroll like any other region, and claim the drag only once a press has been held past a threshold.
-
-  What is missing is the primitive, not the field's use of it: a gesture sitting in `Held::Resolving`
-  has no timer. One duration beside `Claim` in the tuning values, reported like any other gesture
-  fact. It is general — context menus, reorder handles and press-and-hold affordances all want it —
-  so it does not arrive as anything a field asked for. `interaction.md` §4 is where it lands.
-
-  Double-tap-to-select-a-word is the other half of the same story on touch, and it waits on word
-  boundaries below rather than on this.
+The first of these is the next work. Both it and the long press below came out of using the thing
+rather than reading it, and the long press is the reason this one is worth having.
 
 - **A drag that reaches the edge should keep scrolling.** It does not, and the bug is exact:
   `refresh` asks the field to `show` the caret, but a field only refreshes when a drag *reports
@@ -1190,6 +1173,69 @@ painted, which is where a focus mark goes when the engine draws none. `Tab` move
 and `Escape` leaves, so the button standing in for a keyboard is standing in for nothing any more.
 Enter closes the drawer, and what either field holds is read back rather than kept — the second
 button says `save` once the form has anything in it and `close` while it does not.
+
+## The long press
+
+`interaction.md` §6's owed item, and the first work after B9. Four hundred and fifteen headless tests
+and fourteen compile-fail doctests.
+
+A gesture had one threshold and it was a distance, so a press that was sitting still and a press that
+had not moved yet were the same state. `resolving` has a second way out now — held past `Hold::after`
+and reported as `Pollen::held`, which is a gesture fact of its own and not a text feature, and which
+nothing declares to receive.
+
+```
+opened ──▶ resolving ──▶ claimed ──▶ ended
+               └──────▶ held ──▶ claimed ──▶ ended
+```
+
+**A hold is measured against the frame's own clock.** It is the one transition nothing arrives to
+make — every other one is a move that crossed a threshold, a release or a cancel — so it is read at
+the top of every dispatch, before that frame's input, because by the time any of that input arrived
+the press had already been down that long. It is also the only thing the primitive needed from
+outside interaction: an open gesture that could still become a hold is **pending work under F9**, or
+the loop idles under a finger and the duration passes unremarked. That clause is under test, because
+the headless suite advances the clock by hand and so is the one place it cannot be missed.
+
+**A press that was held is not a tap.** The clause that already denied a drag its click, read against
+the other way out of resolving: it earns no tap, moves no caret and takes no focus. It does not ask
+whether anything was listening, because an app wanting a slow press to be a tap anyway is asking for
+the two to stay indistinguishable, which is the whole of what the hold ends.
+
+**A drag out of a hold belongs to whoever took the hold** — whatever that element declared with
+`drags(..)`, and whichever way it goes. The hold has already settled that the gesture is not a tap and
+which element is holding it, so there is nothing left for an axis to decide and no second distance to
+cross: the first movement out of a hold is the drag. `drags(..)` is untouched and is still the one
+thing about a gesture the engine cannot derive; what a hold adds is a second way to claim one, and it
+is the way an element declaring no drags at all takes one.
+
+**`TextInput` declares no drags now**, which is the whole of what this was built for and one line off
+its seed. A field was declaring both `drags(Horizontal)` and `scrolls(Horizontal)`, and a target's
+claim beats the region's — so the field's own region could never be reached by a drag, only by the
+caret-follow and a wheel. That is exactly "a drag across a field can never scroll it". With the
+declaration gone, a drag across a field is the region's, the region is the field, and the value moves
+under its box; selection is a press that was held and then dragged, and the field reads `held` for
+where the caret goes and writes its own `focus` there, because a hold is not a tap and the engine
+moves focus on nothing else.
+
+One pointer answers for all three devices (`input.rs`), so this is the mouse's behaviour too: a
+click-drag across a field scrolls it rather than selecting. That is `interaction.md` §6's answer taken
+literally — the two motions are identical until a hold separates them, and there is nothing else in a
+gesture to separate them by.
+
+**A hold needs a holder.** Where the press landed on nothing that receives, there is nobody for it to
+be a fact about, so the gesture stays resolving and ends as the tap it would always have been — which
+is what keeps holding still on a backdrop and lifting a dismissal rather than nothing at all.
+
+`Hold` is a tuning value beside `Claim` and `Momentum` rather than a field of `Claim`. Distances that
+compete per axis and a duration are two statements, and `Claim`'s entire argument is about the two
+axes competing at different scales, which a duration has no part in. Half a second by default, and
+one value for the whole app for the reason every other tuning value is one.
+
+`application/` opens the last card's menu on a hold rather than on a tap of that card, which is the
+affordance the primitive exists for: the card is not lit by it, nothing has to be undone when the menu
+arrives, and a tap puts it away — the two never arriving together being the law rather than the page's
+own care.
 
 ## B4 §3, resolved
 
