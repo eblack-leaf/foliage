@@ -17,6 +17,7 @@ mod platform;
 mod renderers;
 mod root;
 mod rowan;
+mod sprig;
 mod text;
 mod text_input;
 mod tracing;

@@ -6,19 +6,21 @@ The working checklist for foliage 1.0, and the one document meant to outlive the
 
 | Gate | State |
 |---|---|
-| `cargo test --workspace` | 450 headless tests, 24 doctests, 14 compile-fail doctests — passing |
+| `cargo test --workspace` | 475 headless tests, 25 doctests, 14 compile-fail doctests — passing |
 | `cargo check -p application` | passing (one dead-code warning: `Instances::len`, `Instances::holding`) |
 | `cargo check -p foliage --target wasm32-unknown-unknown` | passing |
 
-Landed: A7, B1–B10 and C1, plus the long-press primitive, drag auto-scroll, and the public key
-surface. Not started: B11 (`Sprig`).
+Landed: A7, B1–B11 and C1, plus the long-press primitive, drag auto-scroll, and the public key
+surface. **Every slice of the plan is implemented.**
 
-The engine is complete as a *model*, and it now reaches the host. The frame law is implemented and
-proven end to end, the tree resolves, six renderers draw through one stack, one composite is built
-out of the same parts an app has, a font, a mark or a picture can be read from a path or a URL, and
-the clipboard, a soft keyboard and a URL handed over are all reached through the same queue every
-other change goes through. What is missing is not model and no longer reach — it is **packaging**:
-no build for anything but the desktop, no CI, and nothing that turns artwork into an icon field.
+The engine is complete as a *model*, it reaches the host, and it can be reached from off the frame.
+The frame law is implemented and proven end to end, the tree resolves, six renderers draw through one
+stack, one composite is built out of the same parts an app has, a font, a mark or a picture can be
+read from a path or a URL, the clipboard, a soft keyboard and a URL handed over are all reached
+through the same queue every other change goes through, and a thread holding a `Sprig` writes through
+that same queue and is answered by what the frame publishes. What is missing is not model and no
+longer reach — it is **packaging**: no build for anything but the desktop, no CI, and nothing that
+turns artwork into an icon field.
 
 ## Against the previous engine
 
@@ -34,7 +36,7 @@ features that were deliberately dropped.
 | `web_ext` — `HrefLink`, download | ported as `navigate` and `download` |
 | `web_ext` — video and document embeds | not ported. A DOM overlay above the canvas is the browser's own player in front of the engine rather than an edge of it, and nothing has asked for one |
 | `platform`, `foliage_android`, `application_android` | not ported; no target builds for Android, which is why a keypad is raised on the web and nowhere else |
-| `boundary::sprig` — `Sprig`, `Conditions`, watched `Moss` | B11 |
+| `boundary::sprig` — `Sprig`, `Conditions`, watched `Moss` | ported, and wider: it registers a face, a field and a picture as well as writing. One handle rather than many, and a watched read is *current* rather than a stream — `tap`, the word the frame's own read uses. Emissions come back as the `Pollen` the app is handed, not a second vocabulary |
 | `polyline` — `DashPattern`, `PolylineDrawProgress` | B8 owed; needs a renderer of its own |
 | `panel::Outline` | not ported, and nothing replaces it — a bordered box has no expression |
 | `anim::Repeat` | not ported, and nothing replaces it — a looping motion has no expression |
@@ -52,13 +54,7 @@ features that were deliberately dropped.
 Everything else in it is either ported or replaced by something this engine states differently on
 purpose, so the new shape should be judged on its own consistency.
 
-## 1. B11 — `Sprig`
-
-Off-thread ops, proven indistinguishable from in-frame ops. The names are already allocated from an
-atomic counter for exactly this, so what is left is the channel, the drain-side receipt, and the
-watched reads the previous engine's `Conditions` covered.
-
-## 2. Owed inside slices that landed
+## 1. Owed inside slices that landed
 
 - **A native http client** (B10). `Origin::url` is nameable everywhere and fetched only on the web;
   off it a URL is accepted and answered as `missing`, because a client and a TLS stack are a large
@@ -95,7 +91,7 @@ watched reads the previous engine's `Conditions` covered.
 - **Recolouring a field after it is grown** (B9). `color` reaches none of a field's four fills, and
   which part it would mean is unanswered.
 
-## 3. What the crate needs before anyone else can use it
+## 2. What the crate needs before anyone else can use it
 
 None of this is engine work, and all of it is between here and "a library".
 
@@ -113,7 +109,7 @@ None of this is engine work, and all of it is between here and "a library".
   compiles; nothing packages it.
 - **No book.** The slice plan named a chapter per slice; none exist.
 
-## 4. Settled — not open questions
+## 3. Settled — not open questions
 
 Listed so they are not reopened by a reader who did not see them decided: absolute elevation, a
 hit test that walks the stack, `ClipToViewport` (replaced by `floats`/`Escape`), a keybinding table,
@@ -150,6 +146,33 @@ the asset road, and taking it twice is what makes a paste mean the same thing on
 round trip instead of landing in this frame on one target and the next on the other. There is no
 call on the engine that reaches the platform and returns.
 
+**Every name comes from one allocator, and every registry grows to meet one.** A face, a mark, a
+picture, an element, a channel and a group are all named from `naming.rs`, and `Fonts`, `Fields` and
+`Plates` hold only what has been filled — so a name can be taken where the registry is out of reach,
+which is the whole of what let registration cross to a `Sprig`. It is also why `Font::DEFAULT` is
+reserved: the bundled face holds name zero for the life of the run, so an unfilled name is measured
+in it rather than in nothing.
+
+**A registration from a `Sprig` refuses where the frame's panics, and that is the provenance rule
+rather than a concession.** `Grove::font(include_bytes!(..))` panics on a proportional face because
+bytes written at a callsite are a statement the program made and the mistake is worth stopping for;
+`Sprig::font` reports `missing` because a worker holds bytes it built or was sent, and a panic on a
+thread ends the thread instead of naming a callsite. The two are the same rule the fetched and the
+bundled cases already answered to, applied to a side that has no callsite to point at.
+
+**A `Sprig` is one handle, and it does not sample.** Every `Grove::sprig()` and every clone is the
+same handle: one queue, one stream of reports, one set of watches — so two workers share what the
+frame publishes rather than each being sent a copy, which is what keeps the reports finite when
+nothing is listening and the watches finite when everything is. Reads come *to* it: `Conditions` is
+exactly what `Grove` answers frame-wide and is published every frame, because it is a fixed handful
+of `Copy` values with nothing to gate; a `watch` is how one property of one element joins them, read
+back with `tap` — the same word the frame's own read uses, answering from what the last frame
+published rather than from the tree. A reading is **current rather than a stream**, so a worker that
+has not asked in a while is behind by no more than a frame instead of by everything that happened;
+emissions are the other way round, because a report is about a moment and nothing else will say it
+happened. `watch` and `unwatch` are the `Sprig`'s own and are deliberately not on `Grow`: watching is
+not a write to the tree, and the side that can already read anything at will has no use for one.
+
 **Every platform edge is opened by `photosynthesize` and shut under the headless suite** — the seam
 `Wake` already sat on. The clipboard then answers from the engine's own mirror, the keyboard records
 what it was asked to raise and raises nothing, and a URL goes nowhere: which is what proves the rules
@@ -161,7 +184,7 @@ closing it — the same reasoning that made `interactive()` the whole declaratio
 is the one thing a field says about it, and it is a hint about which keys are easy rather than a
 rule about what the value may be.
 
-## 5. For the optimisation pass
+## 4. For the optimisation pass
 
 Candidates, not measured, and all deliberate as built:
 
@@ -175,8 +198,8 @@ Candidates, not measured, and all deliberate as built:
 
 ## Two finish lines
 
-**Useful to someone else** — §3 entire: a `README`, licence files, examples, packaging, and an
-answer for icon fields. Nothing in §1 or §2 stands between the engine and someone else using it.
+**Useful to someone else** — §2 entire: a `README`, licence files, examples, packaging, and an
+answer for icon fields. Nothing in §1 stands between the engine and someone else using it.
 
-**Feature-complete against the plan** — the above, plus B11, `Polyline`, the B9 field items, the B10
-items in §2, CI with golden images, and the book.
+**Feature-complete against the plan** — the above, plus `Polyline`, the B9 field items, and the B10
+and B11 items in §1, CI with golden images, and the book.

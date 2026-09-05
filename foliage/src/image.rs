@@ -163,17 +163,16 @@ pub(crate) struct Picture {
 }
 
 impl Plates {
-    /// Takes a name for a picture whose pixels have not arrived, so an element can name it now.
-    pub(crate) fn name(&mut self) -> Plate {
-        self.pictures.push(None);
-        Plate(self.pictures.len() as u32 - 1)
-    }
-
-    /// Fills a name with pixels, reporting whether it is one this registry handed out.
+    /// Fills a name with pixels.
     ///
     /// Replaces whatever was there, which is what makes a picture swappable: an app that re-fetches
     /// at a higher resolution writes the same name again and every element drawing it follows.
-    pub(crate) fn load(&mut self, plate: Plate, pixels: &[u8], size: Area) -> bool {
+    ///
+    /// # Panics
+    ///
+    /// If `pixels` is smaller than `size` texels of RGBA, which is a statement the program made
+    /// about pixels it holds.
+    pub(crate) fn load(&mut self, plate: Plate, pixels: &[u8], size: Area) {
         let texels = (size.width.max(0.0) as usize) * (size.height.max(0.0) as usize) * 4;
         assert!(
             texels > 0 && pixels.len() >= texels,
@@ -182,15 +181,11 @@ impl Plates {
             size.height,
             pixels.len(),
         );
-        let Some(slot) = self.pictures.get_mut(plate.0 as usize) else {
-            return false;
-        };
-        *slot = Some(Picture {
+        *self.slot(plate) = Some(Picture {
             pixels: pixels.to_vec(),
             size,
         });
         info!(plate = plate.0, width = size.width, height = size.height, "image loaded");
-        true
     }
 
     /// Fills a name from encoded bytes, reporting why it could not be where it could not.
@@ -199,12 +194,23 @@ impl Plates {
     /// URL rather than from something the program stated.
     pub(crate) fn decoded(&mut self, plate: Plate, bytes: &[u8]) -> Result<(), String> {
         let (pixels, size) = decode(bytes)?;
-        let Some(slot) = self.pictures.get_mut(plate.0 as usize) else {
-            return Err("no such plate".to_string());
-        };
-        *slot = Some(Picture { pixels, size });
+        *self.slot(plate) = Some(Picture { pixels, size });
         info!(plate = plate.0, width = size.width, height = size.height, "image loaded");
         Ok(())
+    }
+
+    /// Where `plate`'s pixels go, growing to reach it.
+    ///
+    /// Names come from [`Naming`](crate::naming::Naming) rather than from this registry, so that one
+    /// can be taken where the registry is out of reach -- a decode finishing on another thread. The
+    /// slots between are empty and read as a picture that has yet to arrive, which is what any
+    /// unfilled name reads as.
+    fn slot(&mut self, plate: Plate) -> &mut Option<Picture> {
+        let index = plate.0 as usize;
+        if index >= self.pictures.len() {
+            self.pictures.resize_with(index + 1, || None);
+        }
+        &mut self.pictures[index]
     }
 
     /// The picture `plate` names, or `None` while its pixels have yet to arrive.

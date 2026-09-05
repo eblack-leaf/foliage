@@ -497,10 +497,10 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
         .unwrap_or(core::panic::Location::caller());
     let typeface = grove.tree.typeface(field);
     // Every name first, so the parts can be placed against each other as they are grown.
-    let (run, run_growth) = grove.tree.allocate();
-    let (hint, hint_growth) = grove.tree.allocate();
-    let (caret, caret_growth) = grove.tree.allocate();
-    let (selection, selection_growth) = grove.tree.allocate();
+    let (run, run_growth) = grove.naming.leaf();
+    let (hint, hint_growth) = grove.naming.leaf();
+    let (caret, caret_growth) = grove.naming.leaf();
+    let (selection, selection_growth) = grove.naming.leaf();
     let parts = Parts {
         run,
         hint,

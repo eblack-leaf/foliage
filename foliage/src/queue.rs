@@ -1,5 +1,5 @@
 use crate::op::Op;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 /// The one op queue.
 ///
@@ -37,8 +37,12 @@ impl Queue {
 ///
 /// Installed by `photosynthesize` and absent everywhere else -- the headless suite runs frames by
 /// hand, and a frame it did not ask for is not a frame it could observe.
+///
+/// **Shared rather than copied.** A handle taken before the loop is running is one that would
+/// otherwise hold an empty wake for the rest of the run, and a [`Sprig`](crate::Sprig) handed out at
+/// boot is exactly that: the whole reason it can push an op is that the frame it needs will be run.
 #[derive(Clone, Default)]
-pub(crate) struct Wake(Option<Arc<Rouse>>);
+pub(crate) struct Wake(Arc<OnceLock<Arc<Rouse>>>);
 
 /// A wake is called from wherever the arrival happened, which on every target with threads means
 /// from another one. On the web there are none, and requiring `Send` there would only be a bound
@@ -49,19 +53,20 @@ type Rouse = dyn Fn() + Send + Sync + 'static;
 type Rouse = dyn Fn() + 'static;
 
 impl Wake {
+    /// Installs the one wake, which is the loop's. A second is dropped: there is one loop.
     #[cfg(not(target_family = "wasm"))]
-    pub(crate) fn install(&mut self, rouse: impl Fn() + Send + Sync + 'static) {
-        self.0 = Some(Arc::new(rouse));
+    pub(crate) fn install(&self, rouse: impl Fn() + Send + Sync + 'static) {
+        let _ = self.0.set(Arc::new(rouse));
     }
 
     #[cfg(target_family = "wasm")]
-    pub(crate) fn install(&mut self, rouse: impl Fn() + 'static) {
-        self.0 = Some(Arc::new(rouse));
+    pub(crate) fn install(&self, rouse: impl Fn() + 'static) {
+        let _ = self.0.set(Arc::new(rouse));
     }
 
     /// Asks for the frame that will drain what was just queued. Nothing, where no loop is running.
     pub(crate) fn rouse(&self) {
-        if let Some(rouse) = &self.0 {
+        if let Some(rouse) = self.0.get() {
             rouse();
         }
     }

@@ -144,42 +144,42 @@ impl Fonts {
         }
     }
 
-    /// Registers a font and hands back the name elements choose it by.
+    /// Fills a name with bytes the program stated.
     ///
     /// # Panics
     ///
     /// If the font is not monospaced. See [`monospaced`].
-    pub(crate) fn register(&mut self, bytes: &[u8]) -> Font {
-        self.faces.push(Some(parse(bytes)));
-        let font = Font(self.faces.len() as u32 - 1);
+    pub(crate) fn register(&mut self, font: Font, bytes: &[u8]) {
+        *self.slot(font) = Some(parse(bytes));
         info!(font = font.0, "font registered");
-        font
     }
 
-    /// A name for a face that has not been read yet, so elements can be composed in it now.
-    ///
-    /// Until it arrives the name reads as the bundled face rather than as nothing: a run has a cell
-    /// either way, so a page laid out in `letters()` is laid out sensibly from the first frame and
-    /// reflows when the real face lands. Measuring zero until then would have every column address
-    /// on the page collapse and spring back.
-    pub(crate) fn pending(&mut self) -> Font {
-        self.faces.push(None);
-        Font(self.faces.len() as u32 - 1)
-    }
-
-    /// Fills a name handed out by [`pending`](Fonts::pending).
+    /// Fills a name with bytes that were read.
     ///
     /// Refuses rather than panics: bytes that arrived from a path or a URL are not a statement the
     /// program made, so a face that turns out to be proportional is a report an app reads, where the
     /// same font written into the binary is a mistake worth stopping for.
     pub(crate) fn fill(&mut self, font: Font, bytes: &[u8]) -> Result<(), String> {
         let face = try_parse(bytes)?;
-        let Some(slot) = self.faces.get_mut(font.0 as usize) else {
-            return Err("no such font".to_string());
-        };
-        *slot = Some(face);
+        *self.slot(font) = Some(face);
         info!(font = font.0, "font registered");
         Ok(())
+    }
+
+    /// Where `font`'s face goes, growing to reach it.
+    ///
+    /// Names come from [`Naming`](crate::naming::Naming) rather than from this registry, so that one
+    /// can be taken where the registry is out of reach. A name that has not been filled reads as the
+    /// bundled face rather than as nothing: a run has a cell either way, so a page laid out in
+    /// `letters()` is laid out sensibly from the first frame and reflows when the real face lands.
+    /// Measuring zero until then would have every column address on the page collapse and spring
+    /// back.
+    fn slot(&mut self, font: Font) -> &mut Option<fontdue::Font> {
+        let index = font.0 as usize;
+        if index >= self.faces.len() {
+            self.faces.resize_with(index + 1, || None);
+        }
+        &mut self.faces[index]
     }
 
     /// The face `font` names, or the bundled one where it named nothing or has yet to arrive.

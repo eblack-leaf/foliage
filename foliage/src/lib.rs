@@ -9,6 +9,8 @@
 //! - [`Leaf`] names an element and [`Seed`] describes one before it exists. [`Grow`] carries every
 //!   write, [`Pollen`] is what comes back out.
 //! - [`Vein`] asks a read for one property; [`Sap`] is what the tap draws out.
+//! - [`Sprig`] is the engine reached from off the frame -- every write, every registration, and the
+//!   reads a thread that cannot sample needs: [`Conditions`] and a [`watch`](Sprig::watch).
 //! - [`Place`] states where an element sits and how it behaves, and [`Location`] carries the
 //!   grammar the first of those is said in.
 //! - [`Panel`] is a filled rectangle; [`Fill`] is what fills it -- a [`Palette`] role or a [`Color`]
@@ -62,6 +64,7 @@ mod leaf;
 mod lifecycle;
 mod line;
 mod link;
+mod naming;
 mod op;
 mod palette;
 mod panel;
@@ -75,6 +78,7 @@ mod root;
 mod rounding;
 mod rowan;
 mod seed;
+mod sprig;
 mod stem;
 mod text;
 mod text_input;
@@ -121,6 +125,7 @@ pub use polygon::{Polygon, Shape};
 pub use root::Root;
 pub use rounding::{Corner, Corners, Rounding, Side};
 pub use seed::Seed;
+pub use sprig::{Conditions, Sprig};
 pub use stem::Stem;
 pub use text::{Font, FontSize, Text};
 pub use text_input::TextInput;

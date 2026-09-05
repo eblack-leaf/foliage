@@ -1,5 +1,3 @@
-use std::sync::atomic::{AtomicU64, Ordering};
-
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::RemoteAllocator;
 use bevy_ecs::hierarchy::{ChildOf, Children};
@@ -31,34 +29,24 @@ use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrol
 
 /// The tree itself, seen from the inside.
 ///
-/// Owns the world, and the one allocator every name comes from whichever side of the boundary
-/// asked for it. The only place raw `bevy_ecs` is touched.
+/// Owns the world. The only place raw `bevy_ecs` is touched.
 pub(crate) struct Tree {
     world: World,
-    allocator: RemoteAllocator,
-    growth: AtomicU64,
 }
 
 impl Tree {
     pub(crate) fn new() -> Self {
-        let world = World::new();
-        let allocator = world.entity_allocator().build_remote_allocator();
         Self {
-            world,
-            allocator,
-            growth: AtomicU64::new(0),
+            world: World::new(),
         }
     }
 
-    /// A name, and its place in allocation order.
+    /// The world's entity allocator, in the form that can be carried away from it.
     ///
-    /// Both are taken here rather than at the drain, so the order is the order `plant` and `branch`
-    /// were called in. The counter is atomic because allocation takes `&self` on either side of the
-    /// boundary, and an op issued off-thread is ordered against the frame's own by nothing but when
-    /// it arrived.
-    pub(crate) fn allocate(&self) -> (Leaf, Growth) {
-        let leaf = Leaf(self.allocator.alloc());
-        (leaf, Growth(self.growth.fetch_add(1, Ordering::Relaxed)))
+    /// What [`Naming`](crate::naming::Naming) is built from, so a name minted off the frame is one
+    /// this world can still grow.
+    pub(crate) fn remote(&self) -> RemoteAllocator {
+        self.world.entity_allocator().build_remote_allocator()
     }
 
     /// What `leaf` names right now.

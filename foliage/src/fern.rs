@@ -19,6 +19,7 @@ use crate::place::Caller;
 use crate::pollen::Pollen;
 use crate::root::Rooted;
 use crate::rowan;
+use crate::sprig;
 use crate::text_input;
 use crate::view::ScrollTo;
 
@@ -49,6 +50,9 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     drain(grove);
     aspen::run(grove);
     rowan::run(grove);
+    // What settled, for the side of the boundary that cannot ask. After resolution and before
+    // extraction: what is published is what the frame ended at.
+    sprig::publish(grove);
     elm::run(grove);
 }
 
@@ -85,9 +89,16 @@ fn breakpoints(grove: &mut Grove) {
 }
 
 /// Step 3. The app reads settled state and this frame's [`Pollen`], and queues ops.
+///
+/// A [`Sprig`](crate::Sprig) listening is handed the same value at the same point, so what a worker
+/// hears and what the app hears are one report rather than two that could differ.
 fn root(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     let _step = trace_span!("root").entered();
+    let reported = grove.drift.pending();
     let pollen = Pollen::seal(core::mem::take(&mut grove.drift));
+    if reported {
+        grove.sprig.deliver(&pollen);
+    }
     if let Some(app) = app {
         app.frame(grove, pollen);
     }
@@ -307,9 +318,8 @@ fn drain(grove: &mut Grove) {
                 pixels,
                 size,
             } => {
-                if grove.plates.load(plate, &pixels, size) {
-                    debug!(plate = plate.0, "loaded");
-                }
+                grove.plates.load(plate, &pixels, size);
+                debug!(plate = plate.0, "loaded");
             }
             Op::Round { leaf, rounding } => {
                 if !grove.tree.is_live(leaf) {
@@ -435,6 +445,24 @@ fn drain(grove: &mut Grove) {
             }
             Op::Navigate(url) => grove.links.navigate(&url),
             Op::Download(url) => grove.links.download(&url),
+            // A standing read, answered at the end of this frame and of every frame after it.
+            Op::Watch { leaf, vein } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("watch", leaf, "not live");
+                    continue;
+                }
+                if grove.watched.watch(leaf, vein) {
+                    debug!(leaf = leaf.id(), vein = ?vein, "watched");
+                }
+            }
+            Op::Unwatch { leaf, vein } => {
+                if grove.watched.unwatch(leaf, vein) {
+                    // The reading goes with the watch, so what is read is never a value nothing is
+                    // keeping current.
+                    grove.sprig.forget(leaf, vein);
+                    debug!(leaf = leaf.id(), vein = ?vein, "unwatched");
+                }
+            }
         }
     }
     // Anything the drain hid, disabled or pruned may have been holding focus, and none of those

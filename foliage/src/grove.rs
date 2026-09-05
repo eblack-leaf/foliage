@@ -16,10 +16,12 @@ use crate::keyboard::Keyboard;
 use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf, Presence};
 use crate::link::Links;
+use crate::naming::Naming;
 use crate::op::Op;
 use crate::palette::Scheme;
 use crate::pollen::Drift;
 use crate::queue::{Queue, Wake};
+use crate::sprig::{Sprig, Watches};
 use crate::text::Font;
 use crate::text::font::Fonts;
 use crate::text::shape::Shaping;
@@ -33,9 +35,15 @@ pub struct Grove {
     pub(crate) tree: Tree,
     pub(crate) elm: Elm,
     pub(crate) queue: Queue,
-    /// How the platform's loop is roused when a retrieval finishes outside a frame. Installed by
+    /// How the platform's loop is roused when work outside a frame queues an op. Installed by
     /// `photosynthesize`; absent under the headless suite, which runs its own frames.
     pub(crate) wake: Wake,
+    /// The one source of names, drawn from here and from every [`Sprig`].
+    pub(crate) naming: Naming,
+    /// The handle the frame is reached by from off it, and what it publishes for one.
+    pub(crate) sprig: Sprig,
+    /// Every standing read a [`Sprig`] asked for.
+    pub(crate) watched: Watches,
     pub(crate) clock: Clock,
     /// Every tween that is running, and the names the channels are drawn from.
     pub(crate) aspen: Aspen,
@@ -80,11 +88,18 @@ pub struct Grove {
 
 impl Grove {
     pub(crate) fn new(viewport: Area) -> Self {
+        let tree = Tree::new();
+        let naming = Naming::new(tree.remote());
+        let queue = Queue::default();
+        let wake = Wake::default();
         Self {
-            tree: Tree::new(),
+            sprig: Sprig::new(queue.clone(), wake.clone(), naming.clone()),
+            watched: Watches::default(),
+            tree,
             elm: Elm::default(),
-            queue: Queue::default(),
-            wake: Wake::default(),
+            queue,
+            wake,
+            naming,
             clock: Clock::new(),
             aspen: Aspen::default(),
             fonts: Fonts::new(),
@@ -208,14 +223,12 @@ impl Grove {
     /// [`missing`](crate::Pollen::missing): what a path or a URL turned out to hold is not something
     /// the program stated.
     pub fn font(&mut self, bytes: impl Into<Bytes>) -> Font {
+        let font = self.naming.face();
         match bytes.into().0 {
-            Supply::Held(bytes) => self.fonts.register(&bytes),
-            Supply::At(origin) => {
-                let font = self.fonts.pending();
-                self.retrieve(Destination::Face(font), origin);
-                font
-            }
+            Supply::Held(bytes) => self.fonts.register(font, &bytes),
+            Supply::At(origin) => self.retrieve(Destination::Face(font), origin),
         }
+        font
     }
 
     /// Registers a mark and hands back the name elements draw it by.
@@ -237,14 +250,12 @@ impl Grove {
     /// that were read are refused rather than panicked on, and reported as
     /// [`missing`](crate::Pollen::missing).
     pub fn icon(&mut self, field: impl Into<Bytes>, side: u32, range: f32) -> Field {
+        let name = self.naming.mark();
         match field.into().0 {
-            Supply::Held(bytes) => self.fields.register(&bytes, side, range),
-            Supply::At(origin) => {
-                let field = self.fields.pending();
-                self.retrieve(Destination::Mark(field, side, range), origin);
-                field
-            }
+            Supply::Held(bytes) => self.fields.register(name, &bytes, side, range),
+            Supply::At(origin) => self.retrieve(Destination::Mark(name, side, range), origin),
         }
+        name
     }
 
     /// Registers a picture and hands back the name elements draw it by.
@@ -257,7 +268,7 @@ impl Grove {
     /// there is nothing to read one from. An element drawing a picture that has yet to arrive
     /// occupies its box and draws nothing, and appears in the frame it lands.
     pub fn image(&mut self, bytes: impl Into<Bytes>) -> Plate {
-        let plate = self.plates.name();
+        let plate = self.naming.plate();
         match bytes.into().0 {
             Supply::Held(bytes) => {
                 if let Err(refused) = self.plates.decoded(plate, &bytes) {
@@ -286,6 +297,18 @@ impl Grove {
         self.clipboard.attach();
         self.keyboard.attach(&self.wake);
         self.links.attach();
+    }
+
+    /// A handle on the engine that can be carried off the frame.
+    ///
+    /// Everything an app writes here it can write from a thread, a promise or a callback through
+    /// one of these, and it reads identically: a [`Sprig`] carries [`Grow`](crate::Grow) entire and
+    /// pushes onto the one queue this does.
+    ///
+    /// Every call hands back the same handle rather than a new one, so the reports and the watches
+    /// are one stream however many workers are holding it.
+    pub fn sprig(&self) -> Sprig {
+        self.sprig.clone()
     }
 
     /// What holds focus, if anything does.
@@ -346,18 +369,18 @@ impl Queues for Grove {
     }
 
     fn allocate(&self) -> (Leaf, Growth) {
-        self.tree.allocate()
+        self.naming.leaf()
     }
 
     fn name(&self) -> Tween {
-        self.aspen.name()
+        self.naming.tween()
     }
 
     fn group(&self) -> Sequence {
-        self.aspen.group()
+        self.naming.sequence()
     }
 
     fn picture(&mut self) -> Plate {
-        self.plates.name()
+        self.naming.plate()
     }
 }

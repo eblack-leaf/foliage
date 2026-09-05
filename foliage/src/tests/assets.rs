@@ -27,7 +27,7 @@ fn at(width: f32, height: f32) -> Location {
 
 /// A PNG of a stated size, encoded here rather than kept as a fixture: what matters is that the
 /// bytes are a real picture the decoder answers, not what is in it.
-fn png(width: u32, height: u32) -> Vec<u8> {
+pub(super) fn png(width: u32, height: u32) -> Vec<u8> {
     let mut bytes = Vec::new();
     image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
         width,
@@ -45,7 +45,7 @@ fn arrives(grove: &mut Grove, destination: Destination, bytes: Retrieved) {
 }
 
 /// Runs one frame with an app in it and hands back what that frame told it.
-fn frame(grove: &mut Grove) -> Pollen {
+pub(super) fn frame(grove: &mut Grove) -> Pollen {
     let mut app = Observer::default();
     tick_with(grove, &mut app);
     app.last().clone()
@@ -75,7 +75,7 @@ fn bundled_bytes_are_passed_as_they_come() {
 #[test]
 fn a_name_is_valid_before_its_bytes_are() {
     let mut grove = grove();
-    let plate = grove.plates.name();
+    let plate = grove.naming.plate();
     let leaf = grove.plant(Image::new(plate).fit(Fit::Crop).at(at(40.0, 40.0)));
     tick(&mut grove);
     assert_eq!(grove.elm.images.len(), 0);
@@ -93,9 +93,9 @@ fn a_name_is_valid_before_its_bytes_are() {
 fn a_font_a_mark_and_a_picture_are_asked_the_same_way() {
     let mut grove = grove();
     let (font, field, plate) = (
-        grove.fonts.pending(),
-        grove.fields.pending(),
-        grove.plates.name(),
+        grove.naming.face(),
+        grove.naming.mark(),
+        grove.naming.plate(),
     );
     arrives(
         &mut grove,
@@ -122,9 +122,9 @@ fn a_font_a_mark_and_a_picture_are_asked_the_same_way() {
 fn what_could_not_be_read_or_used_is_missing() {
     let mut grove = grove();
     let (unread, unparsable, undecodable) = (
-        grove.plates.name(),
-        grove.fonts.pending(),
-        grove.plates.name(),
+        grove.naming.plate(),
+        grove.naming.face(),
+        grove.naming.plate(),
     );
     arrives(
         &mut grove,
@@ -168,7 +168,7 @@ fn a_url_is_missing_where_it_cannot_be_fetched() {
 #[test]
 fn a_face_that_has_not_arrived_is_measured_as_the_bundled_one() {
     let mut grove = grove();
-    let pending = grove.fonts.pending();
+    let pending = grove.naming.face();
     let measured = |grove: &mut Grove, font: Font| {
         let run = grove.plant(
             Text::new("hello")
@@ -190,7 +190,7 @@ fn a_face_that_has_not_arrived_is_measured_as_the_bundled_one() {
 #[test]
 fn a_mark_that_has_not_arrived_draws_nothing_until_it_does() {
     let mut grove = grove();
-    let field: Field = grove.fields.pending();
+    let field: Field = grove.naming.mark();
     let leaf = grove.plant(Icon::new(field).at(at(24.0, 24.0)));
     tick(&mut grove);
     assert_eq!(grove.elm.icons.len(), 0);
@@ -211,7 +211,7 @@ fn a_mark_that_has_not_arrived_draws_nothing_until_it_does() {
 #[test]
 fn a_field_smaller_than_it_was_said_to_be_is_missing() {
     let mut grove = grove();
-    let field = grove.fields.pending();
+    let field = grove.naming.mark();
     arrives(&mut grove, Destination::Mark(field, 8, 2.0), Ok(vec![255; 16]));
     tick(&mut grove);
     assert!(frame(&mut grove).missing(field));
@@ -226,7 +226,7 @@ fn a_field_smaller_than_it_was_said_to_be_is_missing() {
 #[test]
 fn a_picture_that_arrives_twice_keeps_its_name() {
     let mut grove = grove();
-    let plate: Plate = grove.plates.name();
+    let plate: Plate = grove.naming.plate();
     grove.plant(Image::new(plate).at(at(40.0, 40.0)));
     arrives(&mut grove, Destination::Picture(plate), Ok(png(2, 2)));
     tick(&mut grove);

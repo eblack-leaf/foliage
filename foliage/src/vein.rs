@@ -13,7 +13,7 @@ use crate::rounding::Corners;
 /// Exhaustive by construction: if it is not here, an app cannot see it. Everything an app can
 /// declare is here, because a value you can set and cannot read back is a value you have to keep a
 /// copy of.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 #[non_exhaustive]
 pub enum Vein {
     /// The elements branched directly off this one.

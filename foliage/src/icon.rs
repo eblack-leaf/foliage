@@ -139,31 +139,27 @@ pub(crate) struct Mark {
 }
 
 impl Fields {
-    /// Registers a mark and hands back the name elements choose it by.
-    pub(crate) fn register(&mut self, field: &[u8], side: u32, range: f32) -> Field {
+    /// Fills a name with a field the program stated.
+    ///
+    /// # Panics
+    ///
+    /// If the field is smaller than `side` by `side` texels of RGBA.
+    pub(crate) fn register(&mut self, name: Field, field: &[u8], side: u32, range: f32) {
         assert!(
             side > 0 && field.len() as u32 >= side * side * 4,
             "an icon field is {side}x{side} texels of RGBA, which is {} bytes, and {} were given",
             side * side * 4,
             field.len(),
         );
-        self.marks.push(Some(Mark {
+        *self.slot(name) = Some(Mark {
             field: field.to_vec(),
             side,
             range: range.max(1.0),
-        }));
-        let name = Field(self.marks.len() as u32 - 1);
+        });
         info!(field = name.0, side, range, "icon registered");
-        name
     }
 
-    /// A name for a field that has not been read yet, so elements can name it now.
-    pub(crate) fn pending(&mut self) -> Field {
-        self.marks.push(None);
-        Field(self.marks.len() as u32 - 1)
-    }
-
-    /// Fills a name handed out by [`pending`](Fields::pending).
+    /// Fills a name with a field that was read.
     ///
     /// Refuses rather than asserts, for the reason a fetched font is refused rather than panicked
     /// on: what arrived from a path or a URL is not something the program stated.
@@ -181,16 +177,26 @@ impl Fields {
                 bytes.len()
             ));
         }
-        let Some(slot) = self.marks.get_mut(field.0 as usize) else {
-            return Err("no such field".to_string());
-        };
-        *slot = Some(Mark {
+        *self.slot(field) = Some(Mark {
             field: bytes.to_vec(),
             side,
             range: range.max(1.0),
         });
         info!(field = field.0, side, range, "icon registered");
         Ok(())
+    }
+
+    /// Where `field`'s mark goes, growing to reach it.
+    ///
+    /// Names come from [`Naming`](crate::naming::Naming) rather than from this registry, so that one
+    /// can be taken where the registry is out of reach. A name that has not been filled draws
+    /// nothing, which is what any unfilled name does.
+    fn slot(&mut self, field: Field) -> &mut Option<Mark> {
+        let index = field.0 as usize;
+        if index >= self.marks.len() {
+            self.marks.resize_with(index + 1, || None);
+        }
+        &mut self.marks[index]
     }
 
     /// The mark `field` names, or `None` where it named nothing or has yet to arrive.

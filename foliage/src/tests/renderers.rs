@@ -299,7 +299,7 @@ fn rounding_a_shape_or_a_stroke_is_dropped() {
 /// A field small enough to state inline. What is on it does not matter here: nothing below the
 /// batch is reachable from the suite, so what is proven is the instance rather than the pixels.
 fn field(grove: &mut Grove) -> crate::Field {
-    grove.fields.register(&[255; 4 * 4 * 4], 4, 2.0)
+    grove.icon(&[255u8; 4 * 4 * 4], 4, 2.0)
 }
 
 fn mark(grove: &Grove, leaf: Leaf) -> IconInstance {

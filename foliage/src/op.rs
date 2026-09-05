@@ -15,6 +15,7 @@ use crate::placement::location::Location;
 use crate::placement::point::Point;
 use crate::rounding::Corners;
 use crate::text::{Lettering, Tints};
+use crate::vein::Vein;
 use crate::view::ScrollTo;
 
 /// One queued change.
@@ -176,6 +177,15 @@ pub(crate) enum Op {
     Navigate(String),
     /// A URL to hand the host to save.
     Download(String),
+    /// One property of one element, to be read at the end of every frame from here on and published
+    /// for a [`Sprig`](crate::Sprig) to read.
+    ///
+    /// An op rather than a call, because a standing read has a place in the order like anything
+    /// else: watching an element in the same breath as growing it is one sequence, and it works for
+    /// the reason a write to a leaf planted a line earlier works.
+    Watch { leaf: Leaf, vein: Vein },
+    /// Ends a [`Watch`](Op::Watch).
+    Unwatch { leaf: Leaf, vein: Vein },
 }
 
 /// An element formed and not yet open: what the queue carries between the call that described it

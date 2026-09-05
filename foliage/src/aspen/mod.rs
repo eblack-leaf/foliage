@@ -62,7 +62,6 @@
 pub(crate) mod ease;
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use core::time::Duration;
 use tracing::{debug, trace_span};
@@ -85,7 +84,7 @@ pub use ease::{Ease, Timing};
 /// [`Pollen`](crate::Pollen) is asked about. Opaque: there is nothing to be done with one but read
 /// its channel and stop it.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
-pub struct Tween(u64);
+pub struct Tween(pub(crate) u64);
 
 /// A group of running tweens, reported when the last of them ends.
 ///
@@ -98,7 +97,7 @@ pub struct Tween(u64);
 /// cancelled by a direct write, or taken down with its element. There is no second report for the
 /// ways a group can stop being busy, because a group being over is one fact.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
-pub struct Sequence(u64);
+pub struct Sequence(pub(crate) u64);
 
 /// What can be animated.
 ///
@@ -321,24 +320,9 @@ pub(crate) struct Aspen {
     /// Groups whose last member ended, waiting to be reported. Drained once a frame, so a group
     /// emptied at the drain and one emptied by a tween finishing read the same way.
     finished: Vec<Sequence>,
-    /// Where a channel's name comes from. Atomic because naming one takes `&self` on either side of
-    /// the boundary, like every other name the engine hands out.
-    names: AtomicU64,
-    /// Where a group's name comes from, on the same terms.
-    groups: AtomicU64,
 }
 
 impl Aspen {
-    /// A name for one channel. Never reused, so a stale one is inert.
-    pub(crate) fn name(&self) -> Tween {
-        Tween(self.names.fetch_add(1, Ordering::Relaxed))
-    }
-
-    /// A name for one group.
-    pub(crate) fn group(&self) -> Sequence {
-        Sequence(self.groups.fetch_add(1, Ordering::Relaxed))
-    }
-
     /// Counts one more tween into a group.
     fn enroll(&mut self, within: Option<Sequence>) {
         if let Some(sequence) = within {
