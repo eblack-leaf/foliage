@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, viewport-fit=cover, initial-scale=1.0" name="viewport"/>
+    <title>foliage</title>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            border: 0;
+            padding: 0;
+            height: 100%;
+            background: #000000;
+        }
+    </style>
+    
+<script type="module">
+import init, * as bindings from '/foliage/application-93d2273131196ef2.js';
+const wasm = await init({ module_or_path: '/foliage/application-93d2273131196ef2_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+<link rel="modulepreload" href="/foliage/application-93d2273131196ef2.js" crossorigin="anonymous" integrity="sha384-RGP030Al0a4XP9pX6+Y62wF2W2vSPzWhCTm7y+fq9+Tk86//wym1CIuHOgEdDTUd"><link rel="preload" href="/foliage/application-93d2273131196ef2_bg.wasm" crossorigin="anonymous" integrity="sha384-8n8bm3K19yQGZ+zYfxoov/YerloG7C+0rXIEUOuJa7Y2UOkMOV5hZwySV0Vaha1+" as="fetch" type="application/wasm"></head>
+<body>
+</body>
+</html>

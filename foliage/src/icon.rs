@@ -5,6 +5,7 @@ use tracing::info;
 
 use crate::color::Color;
 use crate::coordinate::Section;
+use crate::grove::Grove;
 use crate::elm::{Chlorophyll, Pigment};
 use crate::op::Bud;
 use crate::palette::{Fill, Palette};
@@ -23,6 +24,42 @@ use crate::seed::Buds;
 /// reconstructed at any size, sharp at every one of them.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Field(pub(crate) u32);
+
+/// Every mark an app draws, registered together and named by the app that declared it.
+///
+/// The inversion [`Root`](crate::Root) takes, for the same reason: an app states the type and the
+/// engine calls into it, so a set of marks is registered by naming it at
+/// [`marks`](crate::Grove::marks) rather than by handing an engine to a constructor. What comes
+/// back is the app's own value, so a mark is reached by the name it was given rather than by an
+/// index into an order that could change.
+///
+/// The two numbers a field is registered with describe the bake rather than any one mark, so this
+/// is where they are stated once.
+///
+/// ```no_run
+/// # use foliage::{Field, Grove, Marks};
+/// # // Each is what `include_bytes!("check.icon")` produced.
+/// # const CHECK: &[u8] = &[];
+/// # const ARROW_UP: &[u8] = &[];
+/// /// Every mark the app draws.
+/// struct Icons {
+///     check: Field,
+///     arrow_up: Field,
+/// }
+///
+/// impl Marks for Icons {
+///     fn register(grove: &mut Grove) -> Self {
+///         Self {
+///             check: grove.icon(CHECK, 48, 3.0),
+///             arrow_up: grove.icon(ARROW_UP, 48, 3.0),
+///         }
+///     }
+/// }
+/// ```
+pub trait Marks: Sized {
+    /// Registers every mark in the set and returns it under the names the app gave them.
+    fn register(grove: &mut Grove) -> Self;
+}
 
 /// A vector mark, filled like text and scaled like a shape.
 ///

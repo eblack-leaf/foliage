@@ -1,5 +1,7 @@
 .idea
 target
 
-# mdbook's own output. `cargo xtask book` copies it to docs/book, which is what is committed.
+# mdbook's and trunk's own output. `cargo xtask` copies both into docs/, which is what is
+# committed, because docs/ is the only directory GitHub Pages will serve from.
 /book/dist/
+/application/dist/

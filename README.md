@@ -114,7 +114,7 @@ input; a button or a card is yours to assemble.
 | Path | What it is |
 |---|---|
 | [`foliage/`](foliage) | The library. The only thing published. |
-| [`application/`](application) | A page written against nothing but foliage's public surface. `cargo check -p application` is a gate on the API rather than on this crate: an API that cannot build a page is an incomplete API. |
+| [`application/`](application) | A page written against nothing but foliage's public surface, and what `cargo xtask site` builds. `cargo check -p application` is a gate on the API rather than on this crate: an API that cannot build a page is an incomplete API. |
 | [`book/`](book) | The book. |
 | [`xtask/`](xtask) | Repo tasks. Not part of the library and never published. |
 
@@ -124,11 +124,16 @@ input; a button or a card is yours to assemble.
 
 | Command | What it does | Needs |
 |---|---|---|
+| `site` | Builds the site into `docs/`. | [`trunk`](https://trunkrs.dev) |
+| `serve` | Serves the site locally with auto-reload. | `trunk` |
 | `book` | Builds the book into `docs/book`. | [`mdbook`](https://crates.io/crates/mdbook) |
 | `api` | Builds the API reference into `docs/api`. | — |
-| `docs` | Both of the above. | as above |
+| `docs` | The book and the API reference. | `mdbook` |
+| `web` | Everything: the site, then the book, then the API reference. | `trunk`, `mdbook` |
 
-`docs/` is what GitHub Pages serves, so its contents are committed.
+`docs/` is what GitHub Pages serves, so its contents are committed. `site` clears it — every build
+emits differently-named bundles, which would otherwise pile up forever — so `web` is what rebuilds
+all three in the order that survives it.
 
 ## License
 

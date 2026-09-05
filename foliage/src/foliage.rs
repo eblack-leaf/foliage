@@ -6,7 +6,7 @@ use crate::asset::Bytes;
 use crate::coordinate::{Area, Position};
 use crate::ginkgo::Ginkgo;
 use crate::grove::Grove;
-use crate::icon::Field;
+use crate::icon::{Field, Marks};
 use crate::image::Plate;
 use crate::interaction::{Claim, Hold};
 use crate::root::{Registered, Root, Rooted};
@@ -131,6 +131,15 @@ impl Foliage {
     /// If `field` is smaller than `side` by `side` texels of RGBA.
     pub fn icon(&mut self, field: impl Into<Bytes>, side: u32, range: f32) -> Field {
         self.grove.icon(field, side, range)
+    }
+
+    /// Registers every mark an app draws, and hands back the set it declared them in.
+    ///
+    /// The boot-time spelling of [`Grove::marks`](crate::Grove::marks). An app that grows its tree
+    /// from a set is the ordinary case and reaches it there, where the set can be kept beside
+    /// everything else the root holds; this is for one wanted before the first frame.
+    pub fn marks<M: Marks>(&mut self) -> M {
+        self.grove.marks()
     }
 
     /// Registers a picture and hands back the name elements draw it by.

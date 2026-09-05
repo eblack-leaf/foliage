@@ -6,7 +6,7 @@ use crate::clipboard::Clipboard;
 use crate::clock::Clock;
 use crate::coordinate::{Area, Axis, Position};
 use crate::elm::Elm;
-use crate::icon::{Field, Fields};
+use crate::icon::{Field, Fields, Marks};
 use crate::image::{Plate, Plates};
 use crate::interaction::focus::Focus;
 use crate::interaction::input::Incoming;
@@ -256,6 +256,23 @@ impl Grove {
             Supply::At(origin) => self.retrieve(Destination::Mark(name, side, range), origin),
         }
         name
+    }
+
+    /// Registers every mark an app draws, and hands back the set it declared them in.
+    ///
+    /// [`icon`](Grove::icon) for more than one, and the shape
+    /// [`root`](crate::Foliage::root) already takes: the type is named here and the engine calls
+    /// into [`Marks::register`], so what comes back is the app's own value with a [`Field`] under
+    /// each name it gave. A set is registered once and held for as long as the app is.
+    ///
+    /// ```no_run
+    /// # use foliage::{Grove, Marks};
+    /// # fn f<Icons: Marks>(grove: &mut Grove) {
+    /// let icons = grove.marks::<Icons>();
+    /// # }
+    /// ```
+    pub fn marks<M: Marks>(&mut self) -> M {
+        M::register(self)
     }
 
     /// Registers a picture and hands back the name elements draw it by.

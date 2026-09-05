@@ -13,8 +13,8 @@ use crate::image::Plate;
 use crate::op::Op;
 use crate::tests::{Observer, grove, section, tick, tick_with};
 use crate::{
-    Boxed, Fit, Font, FontSize, Grove, Grow, Icon, Image, Location, Origin, Place, Pollen, Section,
-    Source, Text, content, left, top,
+    Boxed, Fit, Font, FontSize, Grove, Grow, Icon, Image, Location, Marks, Origin, Place, Pollen,
+    Section, Source, Text, content, left, top,
 };
 
 /// A box at a stated place.
@@ -233,6 +233,35 @@ fn a_field_smaller_than_it_was_said_to_be_is_missing() {
         section(&grove, leaf),
         Section::from_edges(0.0, 0.0, 24.0, 24.0)
     );
+}
+
+/// A set of marks is registered by naming the type, the way a root is. What comes back is the
+/// app's own value, so a mark is reached by the name it was given rather than by where it fell in
+/// an order -- which is what lets a generated set be regenerated without moving any callsite.
+#[test]
+fn a_set_of_marks_is_registered_by_naming_it() {
+    struct Icons {
+        check: Field,
+        arrow: Field,
+    }
+
+    impl Marks for Icons {
+        fn register(grove: &mut Grove) -> Self {
+            Self {
+                check: grove.icon(&[255; 4 * 4 * 4], 4, 2.0),
+                arrow: grove.icon(&[255; 4 * 4 * 4], 4, 2.0),
+            }
+        }
+    }
+
+    let mut grove = grove();
+    let icons = grove.marks::<Icons>();
+    assert_ne!(icons.check, icons.arrow);
+
+    grove.plant(Icon::new(icons.check).at(at(24.0, 24.0)));
+    grove.plant(Icon::new(icons.arrow).at(at(24.0, 24.0)));
+    tick(&mut grove);
+    assert_eq!(grove.elm.icons.len(), 2);
 }
 
 /// A plate whose pixels are replaced reaches every element drawing it without any of them being

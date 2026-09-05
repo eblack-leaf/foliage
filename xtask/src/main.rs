@@ -4,11 +4,7 @@
 //! Run as `cargo xtask <command>`, via the alias in `.cargo/config.toml`.
 //!
 //! Everything published lands in `docs/`, because that is the only directory GitHub Pages will
-//! serve a site from, and it is committed for the same reason. A task that writes there clears
-//! only its own subdirectory, so the three artifacts never have to be rebuilt together.
-//!
-//! There is no `site` task yet: packaging the wasm build is the web arm of the platform work, and
-//! nothing here can run before it lands.
+//! serve a site from, and it is committed for the same reason.
 
 use clap::Parser;
 use std::fs;
@@ -19,23 +15,65 @@ use std::process::Command;
 #[derive(Parser)]
 #[command(name = "xtask")]
 enum Cli {
+    /// Build the site into `docs/`. Needs `trunk`.
+    ///
+    /// Clears `docs/` first: `filehash` means every build emits differently-named bundles, which
+    /// would otherwise pile up forever. That takes `docs/book` and `docs/api` with it, so use
+    /// `web` to rebuild all three.
+    Site,
+    /// Serve the site locally with auto-reload. Needs `trunk`.
+    Serve,
     /// Build the book into `docs/book`. Needs `mdbook`.
     Book,
     /// Build the API reference into `docs/api`.
     Api,
-    /// Build everything `docs/` holds: the book, then the API reference.
+    /// Build the book and the API reference, leaving the rest of `docs/` alone.
     Docs,
+    /// Build everything `docs/` holds: the site, then the book, then the API reference.
+    ///
+    /// The order is not a preference. `site` clears `docs/`, so the other two have to repopulate
+    /// it afterwards.
+    Web,
 }
 
 fn main() -> Result<(), String> {
     match Cli::parse() {
+        Cli::Site => site(),
+        Cli::Serve => serve(),
         Cli::Book => book(),
         Cli::Api => api(),
-        Cli::Docs => {
-            book()?;
-            api()
+        Cli::Docs => docs(),
+        Cli::Web => {
+            site()?;
+            docs()
         }
     }
+}
+
+fn site() -> Result<(), String> {
+    let root = root();
+    let app = root.join("application");
+    let dist = app.join("dist");
+    let docs = root.join("docs");
+
+    // Everything destructive happens after this succeeds, so a failed build cannot leave `docs/`
+    // wiped and unrepopulated.
+    run("trunk", &["build", "--release"], &app)?;
+
+    clear_dir(&docs)?;
+    copy_dir(&dist, &docs)?;
+    rm_rf(&dist)?;
+    println!("built site -> {}", docs.display());
+    Ok(())
+}
+
+fn serve() -> Result<(), String> {
+    run("trunk", &["serve"], &root().join("application"))
+}
+
+fn docs() -> Result<(), String> {
+    book()?;
+    api()
 }
 
 fn book() -> Result<(), String> {

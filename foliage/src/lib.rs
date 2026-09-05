@@ -20,7 +20,8 @@
 //!   [`Drag`] is what one reports while it is held. A press that stayed still for [`Hold`]'s
 //!   duration is [`held`](Pollen::held) rather than a tap that might still be coming.
 //! - [`Font`], [`Field`] and [`Plate`] are registered from bytes an app holds or from an [`Origin`]
-//!   to read them at, and [`loaded`](Pollen::loaded) says when one arrived.
+//!   to read them at, and [`loaded`](Pollen::loaded) says when one arrived. [`Marks`] is every
+//!   field an app draws, registered at once and named by the app.
 //! - A [`Keystroke`] goes to whatever holds focus, which is only ever something that declared
 //!   [`interactive`](Place::interactive): [`keys`](Pollen::keys) is what an element was sent, and
 //!   [`root_keys`](Pollen::root_keys) is what arrived with focus nowhere.
@@ -100,7 +101,7 @@ pub use coordinate::{Area, Axes, Position, Section};
 pub use elevation::Elevation;
 pub use foliage::Foliage;
 pub use grove::Grove;
-pub use icon::{Field, Icon};
+pub use icon::{Field, Icon, Marks};
 pub use image::{Fit, Image, Plate};
 pub use interaction::input::{Key, Keystroke, Modifiers};
 pub use interaction::{Claim, Drag, Hold};

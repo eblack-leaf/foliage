@@ -1,0 +1,24 @@
+[build]
+target = "index.html"
+release = false
+dist = "dist"
+# The site is served from a project page rather than a domain root, so every emitted asset has to
+# be addressed under the repo's name.
+public_url = "/foliage"
+# Every build emits differently-named bundles, which is what lets the site be cached hard and
+# what makes clearing `docs/` part of publishing it.
+filehash = true
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 8080
+open = false
+
+[clean]
+cargo = false
+
+# Pinned: wasm-bindgen's CLI and its crate have to be the same version, and the crate's is
+# resolved in `Cargo.lock`.
+[tools]
+wasm_bindgen = "0.2.127"
+wasm_opt = "version_123"
