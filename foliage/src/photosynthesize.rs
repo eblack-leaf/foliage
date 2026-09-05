@@ -97,14 +97,22 @@ impl Foliage {
         // something to say. F9's remaining clause -- an app that asked for another frame -- is
         // answered by requesting a paint at the end of the frame that asked.
         event_loop.set_control_flow(ControlFlow::Wait);
+        let mut foliage = self;
+        // What rouses a sleeping loop when something arrives from outside a frame. A retrieval
+        // finishes on a thread or in a promise and pushes its op onto the shared queue, which no
+        // frame would ever run to drain -- the loop is asleep and the platform has nothing to say.
+        // Waking it is enough: `about_to_wait` asks what is owed, and a queued op is owed.
+        let proxy = event_loop.create_proxy();
+        foliage.grove.wake.install(move || {
+            proxy.send_event(()).ok();
+        });
         #[cfg(target_family = "wasm")]
         {
             use winit::platform::web::EventLoopExtWebSys;
-            event_loop.spawn_app(self);
+            event_loop.spawn_app(foliage);
         }
         #[cfg(not(target_family = "wasm"))]
         {
-            let mut foliage = self;
             event_loop.run_app(&mut foliage).expect("event loop");
         }
     }

@@ -193,6 +193,20 @@ impl Plates {
         true
     }
 
+    /// Fills a name from encoded bytes, reporting why it could not be where it could not.
+    ///
+    /// The refusing counterpart to [`load`](Plates::load), for pixels that arrived from a path or a
+    /// URL rather than from something the program stated.
+    pub(crate) fn decoded(&mut self, plate: Plate, bytes: &[u8]) -> Result<(), String> {
+        let (pixels, size) = decode(bytes)?;
+        let Some(slot) = self.pictures.get_mut(plate.0 as usize) else {
+            return Err("no such plate".to_string());
+        };
+        *slot = Some(Picture { pixels, size });
+        info!(plate = plate.0, width = size.width, height = size.height, "image loaded");
+        Ok(())
+    }
+
     /// The picture `plate` names, or `None` while its pixels have yet to arrive.
     pub(crate) fn picture(&self, plate: Plate) -> Option<&Picture> {
         self.pictures.get(plate.0 as usize)?.as_ref()
@@ -202,4 +216,18 @@ impl Plates {
     pub(crate) fn size(&self, plate: Plate) -> Option<Area> {
         Some(self.picture(plate)?.size)
     }
+}
+
+/// PNG or JPEG bytes as RGBA and the size they turned out to be.
+///
+/// The format is read from the bytes rather than declared, because a name and a path are both things
+/// that can be wrong about what a file holds, and the file cannot be. A picture states no size
+/// coming this way for the same reason: it has one, and asking an app to repeat it is asking for a
+/// second answer that can disagree.
+pub(crate) fn decode(bytes: &[u8]) -> Result<(Vec<u8>, Area), String> {
+    let decoded = image::load_from_memory(bytes)
+        .map_err(|failed| format!("the picture could not be decoded: {failed}"))?
+        .to_rgba8();
+    let size = Area::new(decoded.width() as f32, decoded.height() as f32);
+    Ok((decoded.into_raw(), size))
 }

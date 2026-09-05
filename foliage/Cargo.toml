@@ -12,6 +12,9 @@ documentation = "https://eblack-leaf.github.io/foliage/book/"
 bevy_ecs = "0.19.0"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 fontdue = "0.9.4"
+# PNG and JPEG only. A picture is given to the engine encoded and comes back as RGBA, so what
+# `Fit` and the sheet work in is one thing however it arrived.
+image = { version = "0.25.8", default-features = false, features = ["png", "jpeg"] }
 tracing = "0.1.41"
 # `std::time::Instant` panics on wasm. This is std's own on every other target, so the frame
 # reads one clock everywhere.
@@ -23,6 +26,8 @@ winit = "0.30.13"
 pollster = "1.0.1"
 
 [target.'cfg(target_family = "wasm")'.dependencies]
+js-sys = "0.3.103"
+wasm-bindgen = "0.2.103"
 wasm-bindgen-futures = "0.4.76"
 web-sys = { version = "0.3.103", features = [
     "CssStyleDeclaration",
@@ -30,6 +35,7 @@ web-sys = { version = "0.3.103", features = [
     "Element",
     "HtmlElement",
     "Node",
+    "Response",
     "Window",
 ] }
 

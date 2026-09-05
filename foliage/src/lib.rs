@@ -17,6 +17,8 @@
 //!   receives one, [`pass_through`](Place::pass_through) says who is never the top, and
 //!   [`Drag`] is what one reports while it is held. A press that stayed still for [`Hold`]'s
 //!   duration is [`held`](Pollen::held) rather than a tap that might still be coming.
+//! - [`Font`], [`Field`] and [`Plate`] are registered from bytes an app holds or from an [`Origin`]
+//!   to read them at, and [`loaded`](Pollen::loaded) says when one arrived.
 //! - A [`Keystroke`] goes to whatever holds focus, which is only ever something that declared
 //!   [`interactive`](Place::interactive): [`keys`](Pollen::keys) is what an element was sent, and
 //!   [`root_keys`](Pollen::root_keys) is what arrived with focus nowhere.
@@ -35,6 +37,7 @@
 
 mod ash;
 mod aspen;
+mod asset;
 mod clock;
 mod color;
 mod coordinate;
@@ -78,6 +81,7 @@ mod willow;
 mod tests;
 
 pub use aspen::{Ease, Motion, Sequence, Timing, Tween};
+pub use asset::{Arrival, Bytes, Origin};
 pub use color::Color;
 pub use coordinate::{Area, Axes, Position, Section};
 pub use elevation::Elevation;

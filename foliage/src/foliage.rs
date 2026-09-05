@@ -2,6 +2,7 @@ use tracing::info;
 use web_time::Instant;
 
 use crate::ash::Ash;
+use crate::asset::Bytes;
 use crate::coordinate::{Area, Position};
 use crate::ginkgo::Ginkgo;
 use crate::grove::Grove;
@@ -105,8 +106,8 @@ impl Foliage {
     /// cells -- [`letters`](crate::Source::letters), a letter-pitched track, max-content width,
     /// wrapping -- so a proportional font does not degrade, it silently puts every column address
     /// somewhere it does not belong. Refusing it here names the problem where it can still be fixed.
-    pub fn font(&mut self, bytes: &[u8]) -> Font {
-        self.grove.fonts.register(bytes)
+    pub fn font(&mut self, bytes: impl Into<Bytes>) -> Font {
+        self.grove.font(bytes)
     }
 
     /// Registers a mark and hands back the name elements draw it by.
@@ -124,7 +125,7 @@ impl Foliage {
     /// # Panics
     ///
     /// If `field` is smaller than `side` by `side` texels of RGBA.
-    pub fn icon(&mut self, field: &[u8], side: u32, range: f32) -> Field {
+    pub fn icon(&mut self, field: impl Into<Bytes>, side: u32, range: f32) -> Field {
         self.grove.icon(field, side, range)
     }
 
@@ -134,15 +135,22 @@ impl Foliage {
     /// registration at any frame -- so a picture that has to be fetched or decoded first is not a
     /// different kind of picture, it is the same one named later.
     ///
-    /// `pixels` is RGBA, one byte per channel, row-major. foliage decodes nothing: what a PNG or a
-    /// JPEG turns into is an app's own business and an app's own crate, and the engine's business
-    /// starts at the pixels.
+    /// PNG or JPEG, decoded here, at whatever size the decode says it is. Pixels an app made itself
+    /// are [`pixels`](Foliage::pixels).
+    pub fn image(&mut self, bytes: impl Into<Bytes>) -> Plate {
+        self.grove.image(bytes)
+    }
+
+    /// Registers a picture from pixels the app made, and hands back the name elements draw it by.
+    ///
+    /// `pixels` is RGBA, one byte per channel, row-major, `size` texels across. The boot-time
+    /// spelling of [`Grow::pixels`](crate::Grow::pixels).
     ///
     /// # Panics
     ///
     /// If `pixels` is smaller than `size` texels of RGBA.
-    pub fn image(&mut self, pixels: impl Into<Vec<u8>>, size: Area) -> Plate {
-        self.grove.image(pixels, size)
+    pub fn pixels(&mut self, pixels: impl Into<Vec<u8>>, size: Area) -> Plate {
+        self.grove.pixels(pixels, size)
     }
 
     /// Sets one of the engine's tuning values.

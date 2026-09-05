@@ -515,6 +515,13 @@ pub(crate) fn run(grove: &mut Grove) {
                 let Some(pigment) = grove.tree.icon_pigment(leaf) else {
                     continue;
                 };
+                // A field that has not arrived draws nothing and occupies its box, exactly as a
+                // picture with no pixels does. Absent from the batch rather than held as blank: the
+                // sheet cuts a mark when the batch names one, so an instance written before the
+                // field landed would be a mark nothing ever asked the sheet for again.
+                if grove.fields.mark(pigment.field).is_none() {
+                    continue;
+                }
                 let instance = IconInstance {
                     // Square, because a distance field is: the mark sits in the largest square its
                     // box holds rather than stretching to the box's own ratio.

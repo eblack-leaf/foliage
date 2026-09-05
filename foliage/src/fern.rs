@@ -3,9 +3,10 @@
 //! The one sequence every other subsystem is ordered by. There is a single [`run`], called by the
 //! platform's loop and by the headless suite, so both answer with the same code.
 
-use tracing::{debug, trace_span};
+use tracing::{debug, trace_span, warn};
 
 use crate::aspen::{self, Motion, Property};
+use crate::asset::{Arrival, Destination};
 use crate::elm;
 use crate::grove::Grove;
 use crate::interaction;
@@ -222,6 +223,28 @@ fn drain(grove: &mut Grove) {
                         debug!(leaf = leaf.id(), "lettered");
                     }
                     None => dropped("text", leaf, "says nothing to rewrite"),
+                }
+            }
+            Op::Arrived { destination, bytes } => {
+                let arrival = Arrival::from(destination);
+                // One shape for three destinations: what was read is put where the name that was
+                // handed out points, and whether it could be is the whole of what is reported.
+                let filled = bytes.and_then(|bytes| match destination {
+                    Destination::Face(font) => grove.fonts.fill(font, &bytes),
+                    Destination::Mark(field, side, range) => {
+                        grove.fields.fill(field, &bytes, side, range)
+                    }
+                    Destination::Picture(plate) => grove.plates.decoded(plate, &bytes),
+                });
+                match filled {
+                    Ok(()) => {
+                        grove.drift.loaded.insert(arrival);
+                        debug!(arrival = ?arrival, "loaded");
+                    }
+                    Err(reason) => {
+                        grove.drift.missing.insert(arrival);
+                        warn!(arrival = ?arrival, reason, "asset missing");
+                    }
                 }
             }
             Op::Keyed { target, stroke } => {

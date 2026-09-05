@@ -1,5 +1,6 @@
 use core::time::Duration;
 
+use crate::asset::{Bytes, Destination, Origin, Supply, retrieve};
 use crate::aspen::{Aspen, Sequence, Tween};
 use crate::clock::Clock;
 use crate::coordinate::{Area, Axis, Position};
@@ -15,7 +16,8 @@ use crate::leaf::{Growth, Leaf, Presence};
 use crate::op::Op;
 use crate::palette::Scheme;
 use crate::pollen::Drift;
-use crate::queue::Queue;
+use crate::queue::{Queue, Wake};
+use crate::text::Font;
 use crate::text::font::Fonts;
 use crate::text::shape::Shaping;
 use crate::tree::Tree;
@@ -28,6 +30,9 @@ pub struct Grove {
     pub(crate) tree: Tree,
     pub(crate) elm: Elm,
     pub(crate) queue: Queue,
+    /// How the platform's loop is roused when a retrieval finishes outside a frame. Installed by
+    /// `photosynthesize`; absent under the headless suite, which runs its own frames.
+    pub(crate) wake: Wake,
     pub(crate) clock: Clock,
     /// Every tween that is running, and the names the channels are drawn from.
     pub(crate) aspen: Aspen,
@@ -70,6 +75,7 @@ impl Grove {
             tree: Tree::new(),
             elm: Elm::default(),
             queue: Queue::default(),
+            wake: Wake::default(),
             clock: Clock::new(),
             aspen: Aspen::default(),
             fonts: Fonts::new(),
@@ -161,22 +167,100 @@ impl Grove {
         })
     }
 
+    /// Registers a font and hands back the name elements compose in.
+    ///
+    /// Takes the bytes, or an [`Origin`] to read them from -- and hands back the name either way, at
+    /// once. A face that has yet to arrive is composed in the bundled one until it does, so a page
+    /// laid out in [`letters`](crate::Source::letters) is laid out sensibly from the first frame and
+    /// reflows when the real face lands. [`loaded`](crate::Pollen::loaded) is how an app waits for
+    /// that instead.
+    ///
+    /// ```no_run
+    /// # use foliage::{Grove, Origin};
+    /// # fn f(grove: &mut Grove, bundled: &[u8]) {
+    /// // `bundled` is what `include_bytes!("assets/mono.ttf")` produced.
+    /// let here = grove.font(bundled);
+    /// # #[cfg(not(target_family = "wasm"))]
+    /// let read = grove.font(Origin::path("assets/mono.ttf"));
+    /// # }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// If bytes that were given outright are not a monospaced font. Every measurement foliage makes
+    /// is a count of character cells -- [`letters`](crate::Source::letters), a letter-pitched track,
+    /// max-content width, wrapping -- so a proportional font does not degrade, it silently puts
+    /// every column address somewhere it does not belong.
+    ///
+    /// Bytes that were *read* are refused rather than panicked on, and reported as
+    /// [`missing`](crate::Pollen::missing): what a path or a URL turned out to hold is not something
+    /// the program stated.
+    pub fn font(&mut self, bytes: impl Into<Bytes>) -> Font {
+        match bytes.into().0 {
+            Supply::Held(bytes) => self.fonts.register(&bytes),
+            Supply::At(origin) => {
+                let font = self.fonts.pending();
+                self.retrieve(Destination::Face(font), origin);
+                font
+            }
+        }
+    }
+
     /// Registers a mark and hands back the name elements draw it by.
     ///
     /// The same registration [`Foliage::icon`](crate::Foliage::icon) is at boot, available at any
     /// frame -- which is what lets an app that takes root inside the first frame register its marks
     /// there rather than having to thread handles in from outside.
     ///
-    /// Not an op, where loading a picture is one. A field is written once and never changes, so
-    /// there is nothing for it to be ordered against; a picture's pixels are replaced over the life
-    /// of the program, so when they land relative to everything else is a real question and the
-    /// queue is what answers it.
+    /// `field` is a multi-channel signed distance field: `side` by `side` texels of RGBA, row-major.
+    /// `range` is how many texels the baked distance spread covers. Both are stated by the app
+    /// because they are facts about how the field was baked, and a fetched one cannot be asked.
+    ///
+    /// An element drawing a mark that has yet to arrive occupies its box and draws nothing, and
+    /// appears in the frame it lands.
     ///
     /// # Panics
     ///
-    /// If `field` is smaller than `side` by `side` texels of RGBA.
-    pub fn icon(&mut self, field: &[u8], side: u32, range: f32) -> Field {
-        self.fields.register(field, side, range)
+    /// If bytes that were given outright are smaller than `side` by `side` texels of RGBA. Bytes
+    /// that were read are refused rather than panicked on, and reported as
+    /// [`missing`](crate::Pollen::missing).
+    pub fn icon(&mut self, field: impl Into<Bytes>, side: u32, range: f32) -> Field {
+        match field.into().0 {
+            Supply::Held(bytes) => self.fields.register(&bytes, side, range),
+            Supply::At(origin) => {
+                let field = self.fields.pending();
+                self.retrieve(Destination::Mark(field, side, range), origin);
+                field
+            }
+        }
+    }
+
+    /// Registers a picture and hands back the name elements draw it by.
+    ///
+    /// PNG or JPEG, decoded here. The format is read from the bytes and the size is what the decode
+    /// says, so neither is stated: a name and a path can both be wrong about what a file holds, and
+    /// the file cannot be.
+    ///
+    /// Pixels an app made itself are [`pixels`](crate::Grow::pixels), which states a size because
+    /// there is nothing to read one from. An element drawing a picture that has yet to arrive
+    /// occupies its box and draws nothing, and appears in the frame it lands.
+    pub fn image(&mut self, bytes: impl Into<Bytes>) -> Plate {
+        let plate = self.plates.name();
+        match bytes.into().0 {
+            Supply::Held(bytes) => {
+                if let Err(refused) = self.plates.decoded(plate, &bytes) {
+                    tracing::warn!(plate = plate.0, reason = refused, "asset missing");
+                    self.drift.missing.insert(plate.into());
+                }
+            }
+            Supply::At(origin) => self.retrieve(Destination::Picture(plate), origin),
+        }
+        plate
+    }
+
+    /// Starts a read, against the queue and the wake it will come back through.
+    fn retrieve(&mut self, destination: Destination, origin: Origin) {
+        retrieve(&self.queue, &self.wake, destination, origin);
     }
 
     /// What holds focus, if anything does.

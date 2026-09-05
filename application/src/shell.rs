@@ -633,9 +633,9 @@ fn figure(grove: &mut Grove, column: Leaf, above: Leaf) -> Figure {
             )),
     );
 
-    // A thumbnail. Registered here rather than at boot, because a picture that has to be fetched or
-    // decoded is the ordinary case and is the same registration said later.
-    let plate = grove.image(thumbnail(), Area::new(PLATE as f32, PLATE as f32));
+    // A thumbnail, in pixels the page makes for itself -- which is why it states its own size. A
+    // picture read from a path or a URL is `image`, and states none: the decode answers that.
+    let plate = grove.pixels(thumbnail(), Area::new(PLATE as f32, PLATE as f32));
     grove.branch(
         card,
         Image::new(plate)

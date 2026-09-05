@@ -1,5 +1,6 @@
 use crate::aspen::{Sequence, Tween};
 use crate::coordinate::{Area, Position};
+use crate::asset::Arrival;
 use crate::interaction::Drag;
 use crate::interaction::input::Keystroke;
 use crate::leaf::Leaf;
@@ -170,6 +171,32 @@ impl Pollen {
         self.0.unfocused.contains(&leaf)
     }
 
+    /// Whether what `of` names has arrived and been registered.
+    ///
+    /// One question over a [`Font`](crate::Font), a [`Field`](crate::Field) and a
+    /// [`Plate`](crate::Plate) alike, because one road fills all three. Reported once, in the frame
+    /// the bytes landed in.
+    ///
+    /// Mostly nothing has to wait on it: an element drawing a picture or a mark that has not arrived
+    /// occupies its box and draws nothing, and appears the frame it does. A **font** is the one worth
+    /// waiting for, because a run composed in one that has yet to land is measured in the bundled
+    /// face and reflows when the real one arrives.
+    pub fn loaded(&self, of: impl Into<Arrival>) -> bool {
+        self.0.loaded.contains(&of.into())
+    }
+
+    /// Whether what `of` names could not be read, or could not be used once it was.
+    ///
+    /// A path that is not there, a fetch that answered with a status, a picture in a format foliage
+    /// does not decode, a font that turned out to be proportional. One report, because there is one
+    /// thing an app can do about any of them.
+    ///
+    /// The name stays valid and unfilled: what drew nothing goes on drawing nothing, and a second
+    /// attempt is a second call.
+    pub fn missing(&self, of: impl Into<Arrival>) -> bool {
+        self.0.missing.contains(&of.into())
+    }
+
     /// What was typed at `leaf` this frame, in the order it arrived.
     ///
     /// A key goes to whatever holds focus, and focus rests only on what declared
@@ -243,6 +270,9 @@ pub(crate) struct Drift {
     pub(crate) keys: HashMap<Leaf, Vec<Keystroke>>,
     /// The same for keys that arrived while focus rested nowhere, which are the app's own.
     pub(crate) root_keys: Vec<Keystroke>,
+    /// What arrived from a path or a URL this frame, and what could not.
+    pub(crate) loaded: HashSet<Arrival>,
+    pub(crate) missing: HashSet<Arrival>,
     pub(crate) edited: HashSet<Leaf>,
     pub(crate) submitted: HashSet<Leaf>,
     pub(crate) focused: HashSet<Leaf>,

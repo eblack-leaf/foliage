@@ -363,7 +363,7 @@ fn picture(grove: &Grove, leaf: Leaf) -> ImageInstance {
 #[test]
 fn a_plate_is_usable_in_the_frame_it_is_named() {
     let mut grove = grove();
-    let plate = grove.image(pixels(), Area::new(2.0, 2.0));
+    let plate = grove.pixels(pixels(), Area::new(2.0, 2.0));
     let leaf = grove.plant(Image::new(plate).at(square(40.0)));
     tick(&mut grove);
     assert_eq!(picture(&grove, leaf).section, Section::from_edges(0.0, 0.0, 40.0, 40.0));
@@ -389,7 +389,7 @@ fn a_picture_with_no_pixels_yet_is_absent_from_the_batch() {
 #[test]
 fn a_fit_moves_the_box_or_the_crop_and_never_both() {
     let mut grove = grove();
-    let wide = grove.image(vec![255; 4 * 1 * 4], Area::new(4.0, 1.0));
+    let wide = grove.pixels(vec![255; 4 * 1 * 4], Area::new(4.0, 1.0));
     let across = Location::new().xs(left(0.px()).width(40.px()), top(0.px()).height(40.px()));
     let fitted = grove.plant(Image::new(wide).fit(Fit::Aspect).at(across.clone()));
     let cropped = grove.plant(Image::new(wide).fit(Fit::Crop).at(across.clone()));
@@ -419,7 +419,7 @@ fn a_fit_moves_the_box_or_the_crop_and_never_both() {
 #[test]
 fn a_pictures_corners_round_against_the_box_its_pixels_fill() {
     let mut grove = grove();
-    let wide = grove.image(vec![255; 4 * 1 * 4], Area::new(4.0, 1.0));
+    let wide = grove.pixels(vec![255; 4 * 1 * 4], Area::new(4.0, 1.0));
     let leaf = grove.plant(
         Image::new(wide)
             .fit(Fit::Aspect)
@@ -436,7 +436,7 @@ fn a_pictures_corners_round_against_the_box_its_pixels_fill() {
 #[test]
 fn loading_a_plate_again_reaches_every_element_drawing_it() {
     let mut grove = grove();
-    let plate = grove.image(vec![255; 4 * 4], Area::new(2.0, 2.0));
+    let plate = grove.pixels(vec![255; 4 * 4], Area::new(2.0, 2.0));
     let leaf = grove.plant(Image::new(plate).fit(Fit::Aspect).at(square(40.0)));
     tick(&mut grove);
     assert_eq!(picture(&grove, leaf).section.height(), 40.0);
@@ -579,7 +579,7 @@ fn tinting_something_that_is_not_a_run_is_dropped() {
 fn an_unchanged_frame_writes_nothing_for_any_renderer() {
     let mut grove = grove();
     let art = field(&mut grove);
-    let plate = grove.image(pixels(), Area::new(2.0, 2.0));
+    let plate = grove.pixels(pixels(), Area::new(2.0, 2.0));
     grove.plant(Polygon::new().sides(5.0).at(square(20.0)));
     grove.plant(line((0.0, 0.0), (30.0, 30.0), 2.0));
     grove.plant(crate::Icon::new(art).at(square(20.0)));

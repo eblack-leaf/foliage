@@ -28,3 +28,41 @@ impl Queue {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 }
+
+/// What is called to rouse the platform's loop when an op arrives from outside a frame.
+///
+/// The queue is shared and an op may be pushed into it from anywhere, but a loop that sleeps until
+/// the platform speaks will never run the frame that drains one: a retrieval finishing on a thread
+/// arrives with nothing to wake it. So an arrival pushes its op and then calls this.
+///
+/// Installed by `photosynthesize` and absent everywhere else -- the headless suite runs frames by
+/// hand, and a frame it did not ask for is not a frame it could observe.
+#[derive(Clone, Default)]
+pub(crate) struct Wake(Option<Arc<Rouse>>);
+
+/// A wake is called from wherever the arrival happened, which on every target with threads means
+/// from another one. On the web there are none, and requiring `Send` there would only be a bound
+/// no caller could satisfy.
+#[cfg(not(target_family = "wasm"))]
+type Rouse = dyn Fn() + Send + Sync + 'static;
+#[cfg(target_family = "wasm")]
+type Rouse = dyn Fn() + 'static;
+
+impl Wake {
+    #[cfg(not(target_family = "wasm"))]
+    pub(crate) fn install(&mut self, rouse: impl Fn() + Send + Sync + 'static) {
+        self.0 = Some(Arc::new(rouse));
+    }
+
+    #[cfg(target_family = "wasm")]
+    pub(crate) fn install(&mut self, rouse: impl Fn() + 'static) {
+        self.0 = Some(Arc::new(rouse));
+    }
+
+    /// Asks for the frame that will drain what was just queued. Nothing, where no loop is running.
+    pub(crate) fn rouse(&self) {
+        if let Some(rouse) = &self.0 {
+            rouse();
+        }
+    }
+}

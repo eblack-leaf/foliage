@@ -122,7 +122,10 @@ pub(crate) struct IconInstance {
 /// resumes. The backend packs what is here onto its sheet the first time it draws one.
 #[derive(Default)]
 pub(crate) struct Fields {
-    marks: Vec<Mark>,
+    /// A slot per name. Empty where a name was handed out for a field that has not arrived yet: an
+    /// element drawing one occupies its box and draws nothing until it does, exactly as a picture
+    /// whose pixels are still coming does.
+    marks: Vec<Option<Mark>>,
 }
 
 /// One registered mark: the field itself, and what the shader needs to read it.
@@ -144,18 +147,54 @@ impl Fields {
             side * side * 4,
             field.len(),
         );
-        self.marks.push(Mark {
+        self.marks.push(Some(Mark {
             field: field.to_vec(),
             side,
             range: range.max(1.0),
-        });
+        }));
         let name = Field(self.marks.len() as u32 - 1);
         info!(field = name.0, side, range, "icon registered");
         name
     }
 
-    /// The mark `field` names, or `None` if it was never registered.
+    /// A name for a field that has not been read yet, so elements can name it now.
+    pub(crate) fn pending(&mut self) -> Field {
+        self.marks.push(None);
+        Field(self.marks.len() as u32 - 1)
+    }
+
+    /// Fills a name handed out by [`pending`](Fields::pending).
+    ///
+    /// Refuses rather than asserts, for the reason a fetched font is refused rather than panicked
+    /// on: what arrived from a path or a URL is not something the program stated.
+    pub(crate) fn fill(
+        &mut self,
+        field: Field,
+        bytes: &[u8],
+        side: u32,
+        range: f32,
+    ) -> Result<(), String> {
+        if side == 0 || (bytes.len() as u32) < side * side * 4 {
+            return Err(format!(
+                "a {side}x{side} field is {} bytes of RGBA, and {} arrived",
+                side * side * 4,
+                bytes.len()
+            ));
+        }
+        let Some(slot) = self.marks.get_mut(field.0 as usize) else {
+            return Err("no such field".to_string());
+        };
+        *slot = Some(Mark {
+            field: bytes.to_vec(),
+            side,
+            range: range.max(1.0),
+        });
+        info!(field = field.0, side, range, "icon registered");
+        Ok(())
+    }
+
+    /// The mark `field` names, or `None` where it named nothing or has yet to arrive.
     pub(crate) fn mark(&self, field: Field) -> Option<&Mark> {
-        self.marks.get(field.0 as usize)
+        self.marks.get(field.0 as usize)?.as_ref()
     }
 }

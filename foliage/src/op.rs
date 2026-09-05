@@ -1,3 +1,4 @@
+use crate::asset::{Destination, Retrieved};
 use crate::aspen::{Motion, Timing, Tween};
 use crate::coordinate::Area;
 use crate::elevation::Elevation;
@@ -148,6 +149,15 @@ pub(crate) enum Op {
     Focus(Intent),
     /// The one op that names no element: what every role resolves to, for the whole tree.
     Repaint(Scheme),
+    /// Bytes that were read from somewhere outside the frame, and the name they were read for.
+    ///
+    /// Pushed by whatever finished the retrieval rather than by an app, which is the whole reason it
+    /// is an op: it arrives at a moment nothing chose, and the queue is what gives it a place in the
+    /// order anyway.
+    Arrived {
+        destination: Destination,
+        bytes: Retrieved,
+    },
 }
 
 /// An element formed and not yet open: what the queue carries between the call that described it

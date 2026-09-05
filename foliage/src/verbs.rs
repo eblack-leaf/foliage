@@ -237,15 +237,14 @@ pub trait Grow: Queues {
 
     /// Registers a picture and hands back the name elements draw it by.
     ///
-    /// `pixels` is RGBA, one byte per channel, row-major, `size` texels across. foliage decodes
-    /// nothing: what a PNG or a JPEG turns into is an app's own business and an app's own crate,
-    /// and the engine's business starts at the pixels.
+    /// `pixels` is RGBA, one byte per channel, row-major, `size` texels across -- pixels the app
+    /// made rather than a file it has. An encoded picture, and one read from a path or a URL, is
+    /// [`Grove::image`](crate::Grove::image), which decodes and takes its size from what it decoded.
     ///
-    /// Usable at any frame, not only at boot, which is what [`Foliage::image`](crate::Foliage::image)
-    /// is the boot-time spelling of. A name taken here is valid immediately -- elements can be grown
-    /// against it in the same frame -- and writing the same name again replaces what it holds, so a
-    /// picture fetched at a higher resolution reaches every element drawing it with one write.
-    fn image(&mut self, pixels: impl Into<Vec<u8>>, size: Area) -> Plate {
+    /// Usable at any frame. A name taken here is valid immediately -- elements can be grown against
+    /// it in the same frame -- and writing the same name again replaces what it holds, so a picture
+    /// re-rendered at a higher resolution reaches every element drawing it with one write.
+    fn pixels(&mut self, pixels: impl Into<Vec<u8>>, size: Area) -> Plate {
         let plate = self.plate();
         self.load(plate, pixels, size);
         plate
@@ -253,7 +252,7 @@ pub trait Grow: Queues {
 
     /// Names a picture whose pixels have not arrived.
     ///
-    /// The two halves of [`image`](Grow::image), for when they happen at different times. A name is
+    /// The two halves of [`pixels`](Grow::pixels), for when they happen at different times. A name is
     /// valid the moment it is handed out, so elements can be grown against it now and
     /// [`load`](Grow::load)ed when a fetch or a decode finishes -- an element drawing a plate with
     /// nothing behind it occupies its box, draws nothing, and appears on the frame its pixels do.

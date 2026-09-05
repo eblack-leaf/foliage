@@ -4,6 +4,7 @@
 //! drawing. The clock is moved by hand rather than sampled from the platform.
 
 mod aspen;
+mod assets;
 mod elevation;
 mod elm;
 mod focus;

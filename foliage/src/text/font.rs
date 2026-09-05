@@ -132,13 +132,15 @@ pub(crate) struct Typeface {
 
 /// Every registered font. Entry zero is the bundled one, so there is always a font to compose in.
 pub(crate) struct Fonts {
-    faces: Vec<fontdue::Font>,
+    /// A slot per name. Empty where a name was handed out for a face that has not arrived yet,
+    /// which is what lets a fetched font be chosen by elements before it has been read.
+    faces: Vec<Option<fontdue::Font>>,
 }
 
 impl Fonts {
     pub(crate) fn new() -> Self {
         Self {
-            faces: vec![parse(BUNDLED)],
+            faces: vec![Some(parse(BUNDLED))],
         }
     }
 
@@ -148,17 +150,44 @@ impl Fonts {
     ///
     /// If the font is not monospaced. See [`monospaced`].
     pub(crate) fn register(&mut self, bytes: &[u8]) -> Font {
-        self.faces.push(parse(bytes));
+        self.faces.push(Some(parse(bytes)));
         let font = Font(self.faces.len() as u32 - 1);
         info!(font = font.0, "font registered");
         font
     }
 
-    /// The face `font` names, or the bundled one if it was never registered.
+    /// A name for a face that has not been read yet, so elements can be composed in it now.
+    ///
+    /// Until it arrives the name reads as the bundled face rather than as nothing: a run has a cell
+    /// either way, so a page laid out in `letters()` is laid out sensibly from the first frame and
+    /// reflows when the real face lands. Measuring zero until then would have every column address
+    /// on the page collapse and spring back.
+    pub(crate) fn pending(&mut self) -> Font {
+        self.faces.push(None);
+        Font(self.faces.len() as u32 - 1)
+    }
+
+    /// Fills a name handed out by [`pending`](Fonts::pending).
+    ///
+    /// Refuses rather than panics: bytes that arrived from a path or a URL are not a statement the
+    /// program made, so a face that turns out to be proportional is a report an app reads, where the
+    /// same font written into the binary is a mistake worth stopping for.
+    pub(crate) fn fill(&mut self, font: Font, bytes: &[u8]) -> Result<(), String> {
+        let face = try_parse(bytes)?;
+        let Some(slot) = self.faces.get_mut(font.0 as usize) else {
+            return Err("no such font".to_string());
+        };
+        *slot = Some(face);
+        info!(font = font.0, "font registered");
+        Ok(())
+    }
+
+    /// The face `font` names, or the bundled one where it named nothing or has yet to arrive.
     fn face(&self, font: Font) -> &fontdue::Font {
         self.faces
             .get(font.0 as usize)
-            .unwrap_or(&self.faces[Font::DEFAULT.0 as usize])
+            .and_then(Option::as_ref)
+            .unwrap_or_else(|| self.faces[Font::DEFAULT.0 as usize].as_ref().expect("bundled"))
     }
 
     /// One character cell of `font` at `size`: the advance every glyph shares, and the distance
@@ -260,6 +289,17 @@ const PROBE: [char; 6] = ['i', 'W', 'm', '.', '1', 'g'];
 const TOLERANCE: f32 = 0.01;
 
 fn parse(bytes: &[u8]) -> fontdue::Font {
+    match try_parse(bytes) {
+        Ok(font) => font,
+        Err(refused) => panic!("{refused}"),
+    }
+}
+
+/// The same reading, for bytes the program did not write into itself.
+///
+/// One function so the two roads cannot come to disagree about what a usable font is: what a fetched
+/// face is held to is exactly what a bundled one is, and only what happens to a refusal differs.
+fn try_parse(bytes: &[u8]) -> Result<fontdue::Font, String> {
     let font = fontdue::Font::from_bytes(
         bytes,
         fontdue::FontSettings {
@@ -267,7 +307,7 @@ fn parse(bytes: &[u8]) -> fontdue::Font {
             ..fontdue::FontSettings::default()
         },
     )
-    .expect("a parsable font");
+    .map_err(|failed| format!("the font could not be parsed: {failed}"))?;
     let px = OPTIMISED_FOR;
     let advances = PROBE.into_iter().filter_map(|character| {
         // A glyph index of zero is `.notdef`: the font has no such character, and measuring the
@@ -278,14 +318,14 @@ fn parse(bytes: &[u8]) -> fontdue::Font {
         }
     });
     if let Err((first, one, second, other)) = monospaced(advances) {
-        panic!(
+        return Err(format!(
             "font is not monospaced: '{first}' advances {one}px but '{second}' advances {other}px \
              at {px}px. foliage sizes, divides and wraps by a fixed character cell -- `letters()`, \
              a letter-pitched track, and every measured extent -- so a proportional font \
              mispositions rather than merely looking different."
-        );
+        ));
     }
-    font
+    Ok(font)
 }
 
 /// Whether every advance given is the same one, and which pair disagreed if not.

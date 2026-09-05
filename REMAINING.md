@@ -6,17 +6,17 @@ The working checklist for foliage 1.0, and the one document meant to outlive the
 
 | Gate | State |
 |---|---|
-| `cargo test --workspace` | 425 headless tests, 23 doctests, 14 compile-fail doctests — passing |
+| `cargo test --workspace` | 435 headless tests, 24 doctests, 14 compile-fail doctests — passing |
 | `cargo check -p application` | passing (one dead-code warning: `Instances::len`, `Instances::holding`) |
 | `cargo check -p foliage --target wasm32-unknown-unknown` | passing |
 
-Landed: A7, B1–B9 and C1, plus the long-press primitive, drag auto-scroll, and the public key
-surface. Not started: B10 (platform edges) and B11 (`Sprig`).
+Landed: A7, B1–B9 and C1, plus the long-press primitive, drag auto-scroll, the public key surface,
+and the asset road. Not started: B11 (`Sprig`); B10 has its assets half and not its platform half.
 
 The engine is complete as a *model*. The frame law is implemented and proven end to end, the tree
-resolves, six renderers draw through one stack, and one composite is built out of the same parts an
-app has. What is missing is not model — it is reach: an app cannot load anything from disk or
-network, and cannot be built for anything but the desktop.
+resolves, six renderers draw through one stack, one composite is built out of the same parts an app
+has, and a font, a mark or a picture can be read from a path or a URL. What is missing is not model
+— it is reach: no clipboard, no keyboard on a phone, and no build for anything but the desktop.
 
 ## Against the previous engine
 
@@ -25,7 +25,7 @@ integration, tooling, and four features that were deliberately dropped.
 
 | Only in the previous engine | Disposition |
 |---|---|
-| `asset` — `AssetSource`, `AssetLoader`, `OnRetrieval` | B10 |
+| `asset` — `AssetSource`, `AssetLoader` | ported as `Origin` and an arrival op. `OnRetrieval` (a callback) and `bundled_asset!` (a macro over a `cfg`) were rejected |
 | `clipboard` | B10 |
 | `virtual_keyboard` | B10 |
 | `web_ext` — `HrefLink`, download, video and document embeds | B10 |
@@ -50,12 +50,19 @@ differently on purpose, so the new shape should be judged on its own consistency
 
 ## 1. B10 — the platform edges
 
+Assets landed; three edges are left.
+
 | | Unblocks |
 |---|---|
-| Assets | a font, an icon field or a picture that is not `include_bytes!` — including the web, where the fetch is asynchronous and the element has to exist before its pixels do (`plate`/`load` already have the shape for this) |
 | Clipboard | `Ctrl+C`/`Ctrl+V`, which B9 left owed on the clipboard rather than on the modifier |
 | Virtual keyboard | `TextInput` on a phone — a field that cannot raise a keyboard is not usable there |
 | Web ext | a link that navigates, and a download |
+
+Beside them, one gap the asset road left on purpose: **`Origin::url` is nameable everywhere and
+fetched only on the web.** Off it a URL is accepted and answered as `missing`, because an http client
+and a TLS stack are a large addition nothing has asked for yet. The surface is settled and the
+arrival is the only thing that changes when it lands, behind a feature that brings the client with
+it — the `TODO` sits at that arm in `asset.rs`.
 
 ## 2. B11 — `Sprig`
 
@@ -93,10 +100,9 @@ None of this is engine work, and all of it is between here and "a library".
 - **No `#![deny(missing_docs)]`.** The surface is documented today; nothing keeps it that way.
 - **No examples.** `application/` is an API gate, not a teaching artifact — it is one page that uses
   everything at once, which is the opposite of what a first read wants.
-- **No way to make an icon field or image pixels.** `Foliage::icon` takes a baked MSDF and
-  `Foliage::image` takes decoded RGBA; nothing in the repo produces either, and `application/`
-  generates both procedurally. Port the baker as its own tool, or document the field format and name
-  a decoder an app is expected to bring.
+- **No way to bake an icon field.** A picture is answered now — PNG or JPEG in, decoded here — but
+  `icon` still takes a baked MSDF, and nothing in the repo produces one. Port the baker as its own
+  tool, or document the field format so another can.
 - **No CI.** No golden images — the second tier the headless suite explicitly cannot reach — no
   native matrix, no wasm build, no `.github` at all.
 - **No web or Android build path.** No `Trunk.toml`, no Android crate, no `xtask`. The wasm target
@@ -109,6 +115,20 @@ Listed so they are not reopened by a reader who did not see them decided: absolu
 hit test that walks the stack, `ClipToViewport` (replaced by `floats`/`Escape`), a keybinding table,
 a second cache beyond text shaping, per-element tracing events, and a `Polyline` built as a single
 stack entry rather than a single coverage evaluation.
+
+**B8's "pixels and decoding are the app's" is reversed, deliberately.** foliage decodes PNG and JPEG
+now, and that is what makes one road serve three destinations: `font`, `icon` and `image` each take
+bytes an app holds or an [`Origin`] to read them at, and each hands back its ordinary handle at once.
+Without the decoder a retrieval could only yield bytes, which meant a second handle for "bytes I am
+waiting for" and a decode at every callsite. A picture states no size coming that way, because the
+decode answers it and two answers can disagree. Pixels an app makes itself are `pixels`, which states
+one because nothing can be read from them.
+
+What follows from a name being valid before its bytes: a mark or a picture that has not arrived
+occupies its box and draws nothing, and is absent from the batch rather than held as blank — so the
+frame it lands is the frame it appears, with nothing to undo. A **font** that has not arrived is
+measured in the bundled face instead, because a run has a cell either way and measuring zero would
+collapse every column address on the page and spring it back.
 
 Keys settled the same way, and the shape is worth stating once: a key goes to whatever holds focus,
 focus rests only on what declared `interactive()`, so **`interactive()` is the whole declaration** —
