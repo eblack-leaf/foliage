@@ -684,8 +684,8 @@ fn inherit(grove: &mut Grove, order: &[Leaf]) {
 ///
 /// Membership is universal: an element is here because it is there. What is left out is only what
 /// is not there at all -- hidden, fully transparent, or clipped away by a region it sits inside.
-/// `pass_through` is not a way out of the stack; it is carried on the region and decides what may
-/// be the top of it.
+/// `intangible` is not a way out of the stack; it is carried on the region and decides what may be
+/// the top of it.
 fn regions(grove: &mut Grove, order: &[Leaf]) {
     let _pass = trace_span!("regions").entered();
     let mut ranked = Vec::with_capacity(order.len());
@@ -707,7 +707,7 @@ fn regions(grove: &mut Grove, order: &[Leaf]) {
                 section,
                 clip,
                 shape: gestures.shape,
-                transparent: gestures.transparent,
+                tangible: !gestures.intangible,
                 receives: gestures.receives,
                 disabled: inherited.disabled,
             },

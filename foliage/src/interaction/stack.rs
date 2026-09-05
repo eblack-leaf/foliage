@@ -14,10 +14,10 @@
 //! # The read does not search
 //!
 //! A gesture goes to the top of the stack -- the element nearest the viewer at that point, whatever
-//! it draws and whether or not it receives. [`pass_through`](crate::Place::pass_through) is what
-//! takes an element out of the stack for this purpose, so the element beneath it is the top. An
-//! element that is at the top without receiving eats the gesture, and a backdrop, a sheet backing
-//! and a menu's padding are all that without declaring anything to be it.
+//! it draws and whether or not it receives. [`intangible`](crate::Place::intangible) is what a
+//! gesture passes through rather than landing on, so the element beneath it is the top. An element
+//! that is at the top without receiving eats the gesture, and a backdrop, a sheet backing and a
+//! menu's padding are all that without declaring anything to be it.
 //!
 //! Reading the top is the whole of it. The engine never continues downward looking for an element
 //! willing to take the gesture, and never passes over one because it is undeclared or draws
@@ -42,8 +42,9 @@ pub(crate) struct Region {
     /// far its own box extends.
     pub(crate) clip: Section,
     pub(crate) shape: Shape,
-    /// Marked [`pass_through`](crate::Place::pass_through): in the stack, and never the top of it.
-    pub(crate) transparent: bool,
+    /// Whether a gesture lands here. False for an element declared
+    /// [`intangible`](crate::Place::intangible), which is in the stack but never the top of it.
+    pub(crate) tangible: bool,
     /// Declared [`interactive`](crate::Place::interactive).
     pub(crate) receives: bool,
     /// Disabled, in its own right or by an ancestor. Blocks, and gives nothing back.
@@ -95,14 +96,13 @@ impl Stack {
             .extend(ranked.into_iter().map(|(_, region)| region));
     }
 
-    /// The top of the stack at `point`: the front-most element there that is not
-    /// [`pass_through`](crate::Place::pass_through).
+    /// The top of the stack at `point`: the front-most tangible element there.
     ///
     /// One read, and the whole of the hit test.
     pub(crate) fn top(&self, point: Position) -> Option<Region> {
         self.regions
             .iter()
-            .find(|region| !region.transparent && region.holds(point))
+            .find(|region| region.tangible && region.holds(point))
             .copied()
     }
 

@@ -164,17 +164,21 @@ pub trait Place: Places + Sized {
         self
     }
 
-    /// The element is not the top of the box stack: a gesture over it goes to whatever is beneath.
+    /// A gesture over the element goes to whatever is beneath it.
     ///
     /// What a composite marks its own decoration with. A label drawn over a button, a highlight, a
     /// gradient across a card -- each of them is above its target at those pixels, and each would
     /// otherwise be what a press lands on.
     ///
-    /// It does not take the element out of the stack itself, only off the top of it: the drag that
-    /// follows a press still finds the region containing it, so scrolling works over decoration
-    /// exactly as it does over anything else.
-    fn pass_through(mut self) -> Self {
-        self.placement().manner.gestures.transparent = true;
+    /// It does not take the element out of the box stack, only out of what may be the top of it:
+    /// the drag that follows a press still finds the region containing it, so scrolling works over
+    /// decoration exactly as it does over anything else.
+    ///
+    /// Not what a backdrop, a sheet backing or a menu's padding is. Those are solid and eat the
+    /// gesture, which is what an element at the top that did not declare
+    /// [`interactive`](Place::interactive) already does.
+    fn intangible(mut self) -> Self {
+        self.placement().manner.gestures.intangible = true;
         self
     }
 

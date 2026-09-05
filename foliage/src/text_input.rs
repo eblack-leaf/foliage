@@ -520,9 +520,9 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
         typeface,
         manner: Manner {
             // The hit test reads the top of the stack and stops, so every part of a field has to be
-            // out of that stack or the field itself would never be the top of it.
+            // intangible or the field itself would never be the top of it.
             gestures: Gestures {
-                transparent: true,
+                intangible: true,
                 ..Gestures::default()
             },
             ..Manner::default()
@@ -537,7 +537,7 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
         elevation: Some(Elevation::up(elevation)),
         manner: Manner {
             gestures: Gestures {
-                transparent: true,
+                intangible: true,
                 ..Gestures::default()
             },
             visible: Visible(visible),

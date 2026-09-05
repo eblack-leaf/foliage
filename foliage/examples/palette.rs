@@ -132,7 +132,7 @@ impl Button {
             Text::new(text)
                 .color(Palette::Ink)
                 .font_size(FontSize::new().xs(13))
-                .pass_through()
+                .intangible()
                 .at(Location::new().xs(
                     left((x + 12.0).px()).width(content()),
                     top((y + 9.0).px()).height(content()),
@@ -184,7 +184,7 @@ impl Root for Palettes {
                 page,
                 Polygon::circle()
                     .color(Color::rgb(red, green, blue))
-                    .pass_through()
+                    .intangible()
                     .at(Location::new().xs(
                         left((x + (SWATCH_W - 18.0) / 2.0).px()).width(18.0.px()),
                         top((y + (BUTTON_H - 18.0) / 2.0).px()).height(18.0.px()),
@@ -281,7 +281,7 @@ fn grid(grove: &mut Grove, page: Leaf, top_y: f32) -> f32 {
         Panel::new()
             .color(Palette::Raised)
             .rounding(Rounding::Md)
-            .pass_through()
+            .intangible()
             .at(Location::new().xs(
                 left((MARGIN - CARD_PAD).px()).width((PAGE_W - 2.0 * (MARGIN - CARD_PAD)).px()),
                 top((top_y - CARD_PAD).px()).height(height.px()),

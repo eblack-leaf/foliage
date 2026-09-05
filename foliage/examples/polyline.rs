@@ -1,36 +1,25 @@
-//! Whether a path needs an element of its own.
+//! A path, written as a chain of [`Line`]s.
 //!
-//! foliage has no `Polyline`. A path is written as a chain of [`Line`]s meeting end to end, each
-//! one its own element, its own instance and its own blend, and nothing joins them: at what weight
-//! and at what angle does that start to show.
-//!
-//! Three readings of it, an argument apart:
-//!
-//! - [`Cap::Butt`], the default. A stroke ends exactly on the point, so two of them meeting at an
-//!   angle leave a wedge open on the outside of the turn and nothing covers it.
-//! - [`Cap::Round`], with `-- round`. Each end is a half-disc of half the weight centred on the
-//!   point, so the disc one stroke puts at the vertex is exactly that wedge -- at the cost of both
-//!   ends of the whole chain reaching half a weight past where they were told to stop.
-//! - Half opacity, with `-- dim`, and it is the one that cannot be answered by looking at an opaque
-//!   page. Two strokes are two elements and therefore two blends, so wherever they overlap the
-//!   ground is painted twice and reads heavier than the shape they make between them. A round cap
-//!   at a vertex is that overlap at its largest, and a translucent path is where it shows.
+//! foliage has no `Polyline`. A path is a chain of [`Line`]s meeting end to end, each one its own
+//! element with its own instance and its own blend, and nothing joins them. [`Cap::Round`] is what
+//! closes the chain: each end is a half-disc of half the weight centred on the point, so the disc
+//! one stroke puts at a shared end is exactly the wedge two rectangles leave open on the outside of
+//! the turn. What it costs is that both ends of the whole chain reach half a weight past where they
+//! were told to stop, which is why it is the cap a path asks for and not the default.
 //!
 //! Three sections in one scrolling page:
 //!
-//! 1. **One join**, at six weights and five turn angles. The wedge is a function of both, so the
-//!    matrix is where it is isolated -- a cell is two strokes sharing an end and nothing else.
+//! 1. **One join**, at six weights and five turn angles. A cell is two strokes sharing an end and
+//!    nothing else, which is the join on its own at every angle it is drawn at.
 //! 2. **Axis-aligned segments in a chain.** An axis-aligned stroke is put on whole device pixels so
 //!    that a one-pixel rule is one lit row rather than two half-lit ones, which moves both of its
 //!    ends and its weight. Alone that is correct; between two diagonals it is a segment that can
 //!    stop meeting its neighbours and read at a different thickness.
-//! 3. **A series**, at the size and the angles a page would actually draw one, which is the reading
-//!    that decides whether any of the above matters.
+//! 3. **A series**, at the size and the angles a page would actually draw one, and stated in the
+//!    placement grammar so the whole chain follows the row it is in.
 //!
 //! ```sh
 //! cargo run -p foliage --example polyline
-//! cargo run -p foliage --example polyline -- round
-//! cargo run -p foliage --example polyline -- round dim
 //! ```
 
 use foliage::{
@@ -90,7 +79,7 @@ const SERIES: [f32; 9] = [0.30, 0.62, 0.18, 0.74, 0.44, 0.90, 0.22, 0.55, 0.38];
 fn main() {
     tracing_subscriber::fmt().init();
     let mut foliage = Foliage::new();
-    foliage.title(format!("foliage -- paths, {}", Ink::read().named()));
+    foliage.title("foliage -- paths");
     foliage.app_id("foliage");
     foliage.desktop_size(Area::new(
         MARGIN * 2.0 + LABELS + ROW_W,
@@ -98,42 +87,6 @@ fn main() {
     ));
     foliage.root::<Paths>();
     foliage.photosynthesize();
-}
-
-/// How every stroke on the page is drawn, taken from the command line.
-#[derive(Copy, Clone)]
-struct Ink {
-    cap: Cap,
-    opacity: f32,
-}
-
-impl Ink {
-    /// `round` for half-discs on the ends, `dim` for a path drawn at half opacity.
-    fn read() -> Self {
-        let asked = |word: &str| std::env::args().any(|argument| argument == word);
-        Self {
-            cap: match asked("round") {
-                true => Cap::Round,
-                false => Cap::Butt,
-            },
-            opacity: match asked("dim") {
-                true => 0.5,
-                false => 1.0,
-            },
-        }
-    }
-
-    /// What to call it in a heading.
-    fn named(self) -> String {
-        let cap = match self.cap {
-            Cap::Round => "round caps",
-            Cap::Butt => "butt caps",
-        };
-        match self.opacity < 1.0 {
-            true => format!("{cap} at half opacity"),
-            false => cap.to_string(),
-        }
-    }
 }
 
 /// A page that is drawn once and never written to again: every element is planted in
@@ -145,30 +98,14 @@ impl Root for Paths {
         // The ground, and what scrolls. The page is longer than any window it is opened in, and a
         // region scrolls because it said so rather than because its children overflowed.
         let page = grove.plant(Panel::new().scrolls(Axes::Vertical));
-        let ink = Ink::read();
 
         let mut y = MARGIN;
-        y = heading(
-            grove,
-            page,
-            y,
-            format!("one join, {} -- weight down, turn across", ink.named()),
-        );
-        y = matrix(grove, page, y, ink) + SECTION;
-        y = heading(
-            grove,
-            page,
-            y,
-            format!("axis-aligned segments between diagonals, {}", ink.named()),
-        );
-        y = chains(grove, page, y, ink) + SECTION;
-        heading(
-            grove,
-            page,
-            y,
-            format!("a series, at the size a page draws one, {}", ink.named()),
-        );
-        series(grove, page, y + HEADING, ink);
+        y = heading(grove, page, y, "one join -- weight down, turn across");
+        y = matrix(grove, page, y) + SECTION;
+        y = heading(grove, page, y, "axis-aligned segments between diagonals");
+        y = chains(grove, page, y) + SECTION;
+        heading(grove, page, y, "a series, at the size a page draws one");
+        series(grove, page, y + HEADING);
 
         Self
     }
@@ -179,8 +116,8 @@ impl Root for Paths {
 /// One cell per weight and turn: two strokes sharing an end, and nothing over the join.
 ///
 /// The vertex sits at the foot of the cell and the arms run up from it, so the turn opens toward
-/// the reader at every angle and the wedge is always on the near side of the stroke.
-fn matrix(grove: &mut Grove, page: Leaf, top_y: f32, ink: Ink) -> f32 {
+/// the reader at every angle and the join is always on the near side of the stroke.
+fn matrix(grove: &mut Grove, page: Leaf, top_y: f32) -> f32 {
     for (column, turn) in TURNS.iter().enumerate() {
         label(
             grove,
@@ -209,14 +146,14 @@ fn matrix(grove: &mut Grove, page: Leaf, top_y: f32, ink: Ink) -> f32 {
                     top(row_y.px()).height(CELL_H.px()),
                 )),
             );
-            join(grove, cell, *turn, *weight, ink);
+            join(grove, cell, *turn, *weight);
         }
     }
     first + WEIGHTS.len() as f32 * CELL_H
 }
 
 /// Two strokes meeting at one point, `turn` degrees apart, drawn in the cell's own pixels.
-fn join(grove: &mut Grove, cell: Leaf, turn: f32, weight: f32, ink: Ink) {
+fn join(grove: &mut Grove, cell: Leaf, turn: f32, weight: f32) {
     let half = turn.to_radians() / 2.0;
     let (vertex_x, vertex_y) = (CELL_W / 2.0, CELL_H - PAD);
     let (across, up) = (ARM * half.sin(), ARM * half.cos());
@@ -225,7 +162,6 @@ fn join(grove: &mut Grove, cell: Leaf, turn: f32, weight: f32, ink: Ink) {
             grove,
             cell,
             weight,
-            ink,
             (vertex_x, vertex_y),
             (vertex_x + arm * across, vertex_y - up),
         );
@@ -233,7 +169,7 @@ fn join(grove: &mut Grove, cell: Leaf, turn: f32, weight: f32, ink: Ink) {
 }
 
 /// The axial chain, at three weights: one row each, and the same seven segments in every row.
-fn chains(grove: &mut Grove, page: Leaf, top_y: f32, ink: Ink) -> f32 {
+fn chains(grove: &mut Grove, page: Leaf, top_y: f32) -> f32 {
     for (row, weight) in [4.0, 12.0, 24.0].iter().enumerate() {
         let row_y = top_y + row as f32 * CHAIN_H;
         label(
@@ -251,7 +187,7 @@ fn chains(grove: &mut Grove, page: Leaf, top_y: f32, ink: Ink) -> f32 {
             )),
         );
         for pair in AXIAL.windows(2) {
-            stroke(grove, strip, *weight, ink, pair[0], pair[1]);
+            stroke(grove, strip, *weight, pair[0], pair[1]);
         }
     }
     top_y + 3.0 * CHAIN_H
@@ -262,7 +198,7 @@ fn chains(grove: &mut Grove, page: Leaf, top_y: f32, ink: Ink) -> f32 {
 /// Each reading is a point in the placement grammar rather than a number worked out here, so the
 /// whole chain follows the row it is in: `x` is a fraction of the row's width and the strokes
 /// between the readings stretch with it.
-fn series(grove: &mut Grove, page: Leaf, top_y: f32, ink: Ink) -> f32 {
+fn series(grove: &mut Grove, page: Leaf, top_y: f32) -> f32 {
     for (row, weight) in WEIGHTS.iter().enumerate() {
         let row_y = top_y + row as f32 * SERIES_H;
         label(
@@ -292,8 +228,7 @@ fn series(grove: &mut Grove, page: Leaf, top_y: f32, ink: Ink) -> f32 {
                 strip,
                 Line::new()
                     .weight(*weight)
-                    .cap(ink.cap)
-                    .opacity(ink.opacity)
+                    .cap(Cap::Round)
                     .color(Palette::Accent)
                     .between(reading(n), reading(n + 1)),
             );
@@ -303,13 +238,12 @@ fn series(grove: &mut Grove, page: Leaf, top_y: f32, ink: Ink) -> f32 {
 }
 
 /// One segment of a chain, in its trunk's own pixels.
-fn stroke(grove: &mut Grove, trunk: Leaf, weight: f32, ink: Ink, from: (f32, f32), to: (f32, f32)) {
+fn stroke(grove: &mut Grove, trunk: Leaf, weight: f32, from: (f32, f32), to: (f32, f32)) {
     grove.branch(
         trunk,
         Line::new()
             .weight(weight)
-            .cap(ink.cap)
-            .opacity(ink.opacity)
+            .cap(Cap::Round)
             .color(Palette::Accent)
             .between(
                 Point::new(from.0.px(), from.1.px()),
@@ -319,7 +253,7 @@ fn stroke(grove: &mut Grove, trunk: Leaf, weight: f32, ink: Ink, from: (f32, f32
 }
 
 /// A section's title, and how far down the page it leaves the next thing.
-fn heading(grove: &mut Grove, page: Leaf, y: f32, title: String) -> f32 {
+fn heading(grove: &mut Grove, page: Leaf, y: f32, title: &str) -> f32 {
     grove.branch(
         page,
         Text::new(title)

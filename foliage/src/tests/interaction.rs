@@ -58,7 +58,7 @@ fn tap(grove: &mut Grove, x: f32, y: f32) -> Pollen {
 
 /// The mark a composite states on its own decoration, and the whole reason it exists.
 #[test]
-fn a_pass_through_child_never_wins_a_tap() {
+fn an_intangible_child_never_wins_a_tap() {
     let mut grove = grove();
     let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
     let label = grove.branch(
@@ -66,7 +66,7 @@ fn a_pass_through_child_never_wins_a_tap() {
         Panel::new()
             .at(at(10.0, 10.0, 80.0, 30.0))
             .interactive()
-            .pass_through(),
+            .intangible(),
     );
     tick(&mut grove);
 
@@ -123,10 +123,10 @@ fn a_partly_covered_target_is_pressable_where_it_is_not_covered() {
 /// The same covering panel, marked. It is still in the stack -- a drag over it still finds what
 /// contains it -- but it is never the top of one.
 #[test]
-fn a_target_covered_by_a_pass_through_element_is_pressable_through_it() {
+fn a_target_covered_by_an_intangible_element_is_pressable_through_it() {
     let mut grove = grove();
     let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
-    grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).pass_through());
+    grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).intangible());
     tick(&mut grove);
 
     assert!(tap(&mut grove, 50.0, 25.0).clicked(button));

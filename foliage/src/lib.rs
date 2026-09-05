@@ -16,7 +16,7 @@
 //! - [`Panel`] is a filled rectangle; [`Fill`] is what fills it -- a [`Palette`] role or a [`Color`]
 //!   stated outright -- and [`Corners`] is how it is rounded.
 //! - A gesture goes to the top of the box stack: [`interactive`](Place::interactive) says who
-//!   receives one, [`pass_through`](Place::pass_through) says who is never the top, and
+//!   receives one, [`intangible`](Place::intangible) says who it passes through, and
 //!   [`Drag`] is what one reports while it is held. A press that stayed still for [`Hold`]'s
 //!   duration is [`held`](Pollen::held) rather than a tap that might still be coming.
 //! - [`Font`], [`Field`] and [`Plate`] are registered from bytes an app holds or from an [`Origin`]

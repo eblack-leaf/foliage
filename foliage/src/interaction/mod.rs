@@ -71,8 +71,9 @@ use crate::view::{self, consumable, range};
 pub(crate) struct Gestures {
     /// Declared [`interactive`](crate::Place::interactive): this element receives.
     pub(crate) receives: bool,
-    /// Declared [`pass_through`](crate::Place::pass_through): never the top of the stack.
-    pub(crate) transparent: bool,
+    /// Declared [`intangible`](crate::Place::intangible): a gesture over it reaches what is
+    /// beneath.
+    pub(crate) intangible: bool,
     /// Which drags the element takes. Absent, it takes none -- so it holds a gesture only until
     /// that gesture becomes a drag, and then yields.
     pub(crate) drags: Option<Axes>,
