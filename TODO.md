@@ -4,7 +4,7 @@ What is left. Every slice of the plan is implemented; what follows is either owe
 that landed, waiting on a platform that has no build, or the distance between a working engine and a
 crate someone else can use.
 
-Gates today: `cargo test --workspace` — 486 headless tests, 25 doctests, 14 compile-fail doctests.
+Gates today: `cargo test --workspace` — 493 headless tests, 27 doctests, 14 compile-fail doctests.
 `cargo check -p application` and `cargo check -p foliage --target wasm32-unknown-unknown` both pass.
 
 ## Decide

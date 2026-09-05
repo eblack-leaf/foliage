@@ -368,14 +368,42 @@ pub trait Grow: Queues {
     /// # }
     /// ```
     ///
-    /// Dropped, like any op naming something it does not apply to, if the element cannot carry the
-    /// motion -- a fill on something that draws nothing.
-    fn animate(&mut self, leaf: Leaf, motion: Motion, timing: Timing) {
+    /// # The name it hands back
+    ///
+    /// This motion's own, for the app that has to tell one of an element's motions from another:
+    /// [`Pollen::tween`] is how far it has come and [`Pollen::finished`] is the frame it arrived,
+    /// against [`Pollen::landed`], which is the element settling and says nothing about which of its
+    /// properties did. [`stop`](Grow::stop) ends it, and [`Timing::within`](crate::Timing::within)
+    /// counts it into a group as ever.
+    ///
+    /// ```no_run
+    /// # use foliage::{Grow, Grove, Motion, Pollen, Timing};
+    /// # fn f(grove: &mut Grove, pollen: &Pollen, card: foliage::Leaf) {
+    /// let fade = grove.animate(card, Motion::Opacity(0.0), Timing::ms(240));
+    /// if pollen.finished(fade) {
+    ///     grove.prune(card);
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// A name reports for as long as the motion it named is the one running, and goes quiet
+    /// otherwise: a motion replaced by a second `animate` on the same property, cancelled by a
+    /// direct write, stopped, or taken down with its element reports nothing further. So does one
+    /// that never ran -- dropped, like any op naming something it does not apply to, because the
+    /// element cannot carry the motion, as a fill cannot be moved on something that draws nothing.
+    ///
+    /// [`Pollen::tween`]: crate::Pollen::tween
+    /// [`Pollen::finished`]: crate::Pollen::finished
+    /// [`Pollen::landed`]: crate::Pollen::landed
+    fn animate(&mut self, leaf: Leaf, motion: Motion, timing: Timing) -> Tween {
+        let tween = self.name();
         self.queue(Op::Animate {
             leaf,
             motion,
             timing,
+            tween,
         });
+        tween
     }
 
     /// Runs a number from `from` to `to`, reported each frame as [`Pollen::tween`] and written
@@ -439,13 +467,62 @@ pub trait Grow: Queues {
         self.group()
     }
 
-    /// Ends a channel or a timer before it has run out.
+    /// Ends a tween before it has run out. **Nothing is reported**, so a chain waiting on it does
+    /// not run.
     ///
-    /// A channel writes nothing, so it has no declaration for a direct write to cancel it through
-    /// the way one cancels an [`animate`](Grow::animate). Dropped silently if it has already
-    /// finished.
+    /// A motion is left on its target: that is what the element was told to be from the moment the
+    /// motion started, and the duration was only how long it was to take getting there, so giving up
+    /// the duration leaves it where it was meant to end. To end it somewhere *else* is to write that
+    /// property, which cancels the motion and puts the element at what was written -- the engine
+    /// never writes back a value from part way along, because a blend part way along is a
+    /// synthesized intermediate the app never declared.
+    ///
+    /// Nothing is reported because what stopped it already knows: this is the app's own act, and an
+    /// app's own writes are never reported back to it. Stopping the rest of a chain is calling this
+    /// on their names at the same callsite.
+    ///
+    /// A group counting it is told, because a group is over when nothing is running under it however
+    /// each member ended -- so stopping the last member ends the group. It has no reach beyond the
+    /// tween named: a [`Sequence`] is a name for when a set is quiet, not something that owns what
+    /// joined it, and stopping one member is nothing to the others.
+    ///
+    /// Dropped silently if it has already ended.
     fn stop(&mut self, tween: Tween) {
-        self.queue(Op::Stop(tween));
+        self.queue(Op::Stop {
+            tween,
+            reported: false,
+        });
+    }
+
+    /// Ends a tween before it has run out, **as an arrival**: a chain waiting on it runs this frame.
+    ///
+    /// [`stop`](Grow::stop) and nothing else, except that the ending is reported. A motion reports
+    /// [`landed`](crate::Pollen::landed) and [`finished`](crate::Pollen::finished) as though it had
+    /// run its course; a channel reports its end value and its finish together, as it would have on
+    /// its own last frame; a [`timer`](Grow::timer) fires.
+    ///
+    /// What an interruption wants whenever the thing waiting on the motion is the point of it.
+    /// Dismissing a card mid-fade should still take the card down, and it should do so through the
+    /// one path that takes it down:
+    ///
+    /// ```no_run
+    /// # use foliage::{Grow, Grove, Motion, Pollen, Timing};
+    /// # fn f(grove: &mut Grove, pollen: &Pollen, card: foliage::Leaf, fade: foliage::Tween) {
+    /// if pollen.root_keys().is_empty() {
+    ///     grove.finish(fade);
+    /// }
+    /// if pollen.finished(fade) {
+    ///     grove.prune(card);
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// Dropped silently if it has already ended.
+    fn finish(&mut self, tween: Tween) {
+        self.queue(Op::Stop {
+            tween,
+            reported: true,
+        });
     }
 
     /// Moves focus to an element.

@@ -382,6 +382,7 @@ fn drain(grove: &mut Grove) {
                 leaf,
                 motion,
                 timing,
+                tween,
             } => {
                 if !grove.tree.is_live(leaf) {
                     dropped("animate", leaf, "not live");
@@ -394,8 +395,8 @@ fn drain(grove: &mut Grove) {
                         continue;
                     }
                 }
-                if aspen::animate(grove, leaf, motion, timing) {
-                    debug!(leaf = leaf.id(), "animating");
+                if aspen::animate(grove, leaf, motion, timing, tween) {
+                    debug!(leaf = leaf.id(), tween = tween.0, "animating");
                 } else {
                     dropped("animate", leaf, "draws nothing to fill");
                 }
@@ -409,9 +410,14 @@ fn drain(grove: &mut Grove) {
                 grove.aspen.channel(tween, from, to, timing);
                 debug!("tweening");
             }
-            Op::Stop(tween) => {
-                if grove.aspen.stop(tween) {
-                    debug!("tween stopped");
+            Op::Stop { tween, reported } => {
+                if !aspen::stop(grove, tween, reported) {
+                    debug!(
+                        verb = if reported { "finish" } else { "stop" },
+                        tween = tween.0,
+                        reason = "nothing running",
+                        "op dropped"
+                    );
                 }
             }
             // Answered here, in arrival order like every other write. Whether a target can take

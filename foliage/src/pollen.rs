@@ -103,20 +103,27 @@ impl Pollen {
         self.0.dragged.get(&leaf).copied()
     }
 
-    /// Whether a tween on `leaf` reached its end.
+    /// Whether a motion on `leaf` reached its end.
     ///
-    /// The hook for whatever happens next -- pruning what has faded out, hiding what has slid away.
-    /// There is nothing to settle: what the element declares was already the target from the moment
-    /// the motion started, so this reports an arrival rather than asking for one.
+    /// The element settling, and the cheap hook for whatever happens next -- pruning what has faded
+    /// out, hiding what has slid away. There is nothing to settle: what the element declares was
+    /// already the target from the moment the motion started, so this reports an arrival rather than
+    /// asking for one.
     ///
-    /// One report for the element rather than one per property. Two motions ending together are one
-    /// arrival to an app, and an app that needs a single value's own end runs it as a
-    /// [`tween`](crate::Grow::tween) instead.
+    /// One report for the element rather than one per property, so it says an element arrived and
+    /// not which of its properties did. Two motions ending together are one arrival to an app, and
+    /// telling one of an element's motions from another is what the name
+    /// [`animate`](crate::Grow::animate) hands back is for.
     pub fn landed(&self, leaf: Leaf) -> bool {
         self.0.landed.contains(&leaf)
     }
 
-    /// This frame's value of a scalar channel, for as long as it is running.
+    /// How far a tween has come this frame, for as long as it is running.
+    ///
+    /// A channel's value between the two ends it was given, and a motion's eased progress from `0.0`
+    /// to `1.0` -- the eased progress and not the fraction of the duration elapsed, because what a
+    /// motion is part way through is what it looks like, and the two differ under every
+    /// [`Ease`](crate::Ease) but [`Linear`](crate::Ease::Linear).
     ///
     /// The frame it ends reports its end value and [`finished`](Pollen::finished) together, so
     /// there is never an end value to infer from an absence. After that there is nothing to read.
@@ -124,7 +131,15 @@ impl Pollen {
         self.0.tweens.get(&tween).copied()
     }
 
-    /// Whether a channel or a [`timer`](crate::Grow::timer) reached its end this frame.
+    /// Whether the motion, channel or [`timer`](crate::Grow::timer) `tween` names ended this frame
+    /// **on the end it was going to**.
+    ///
+    /// An arrival, and the hook a chain hangs off: it reports a tween that ran its course, and one
+    /// [`finish`](crate::Grow::finish) ended early, which is the app declaring the same arrival. It
+    /// does not report a name that stopped being the one running -- [`stop`](crate::Grow::stop)ped,
+    /// cancelled by a direct write, replaced by a second motion on the property, or taken down with
+    /// its element. A chain waiting on any of those never runs, which is what makes stopping a
+    /// motion the way to break one.
     pub fn finished(&self, tween: Tween) -> bool {
         self.0.finished.contains(&tween)
     }
@@ -135,8 +150,10 @@ impl Pollen {
     /// [`Leaf`], because a group is not about an element -- its whole purpose is to time things
     /// together that have nothing else in common.
     ///
-    /// However the members ended: landed, cancelled by a direct write, or taken down with their
-    /// element. A group being over is one fact and gets one report.
+    /// However the members ended: landed, stopped, cancelled by a direct write, or taken down with
+    /// their element. A group being over is one fact and gets one report -- whether a *particular*
+    /// motion arrived is [`finished`](Pollen::finished), which is a different question and is
+    /// answered separately, so neither report has to carry the other's meaning.
     pub fn sequence_finished(&self, sequence: Sequence) -> bool {
         self.0.sequences.contains(&sequence)
     }

@@ -795,6 +795,195 @@ fn a_motion_reports_where_it_landed() {
     assert!(!app.last().landed(leaf));
 }
 
+/// `landed` is the element settling and says nothing about which of its properties did. The name a
+/// motion is asked for is what tells one of an element's motions from another.
+#[test]
+fn a_motion_reports_its_own_end_by_name() {
+    let mut grove = grove();
+    let mut app = Observer::default();
+    let leaf = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick_with(&mut grove, &mut app);
+
+    let fade = grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100));
+    let slide = grove.animate(leaf, Motion::Location(across(100.0, 10.0)), Timing::ms(200));
+    tick_with(&mut grove, &mut app);
+
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().landed(leaf), "one of its properties arrived");
+    assert!(app.last().finished(fade));
+    assert!(!app.last().finished(slide), "the placement is still moving");
+
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().landed(leaf));
+    assert!(app.last().finished(slide));
+    assert!(!app.last().finished(fade), "reported once, when it arrived");
+}
+
+/// How far it has come, for as long as it is running: the eased progress, and its end value in the
+/// frame it finishes, so there is never one to infer from an absence.
+#[test]
+fn a_motions_progress_is_read_by_its_name() {
+    let mut grove = grove();
+    let mut app = Observer::default();
+    let leaf = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick_with(&mut grove, &mut app);
+
+    let slide = grove.animate(leaf, Motion::Location(across(100.0, 10.0)), Timing::ms(200));
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert_eq!(app.last().tween(slide), Some(0.0), "the frame it started");
+
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert_eq!(app.last().tween(slide), Some(0.5));
+
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert_eq!(app.last().tween(slide), Some(1.0));
+    assert!(app.last().finished(slide), "its end value and its finish together");
+
+    tick_with(&mut grove, &mut app);
+    assert_eq!(app.last().tween(slide), None, "nothing left to read");
+}
+
+/// A name reports for as long as the motion it named is the one running. A second motion on the
+/// property replaces the first, and a name is never handed out twice -- so the first's name cannot
+/// come to mean the motion that replaced it.
+#[test]
+fn a_replaced_motions_name_goes_quiet() {
+    let mut grove = grove();
+    let mut app = Observer::default();
+    let leaf = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick_with(&mut grove, &mut app);
+
+    let first = grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(200));
+    tick_with(&mut grove, &mut app);
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+
+    let second = grove.animate(leaf, Motion::Opacity(1.0), Timing::ms(100));
+    tick_with(&mut grove, &mut app);
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().finished(second));
+    assert!(!app.last().finished(first), "it never arrived");
+    assert_eq!(app.last().tween(first), None);
+}
+
+// Ending one early.
+
+/// Stopping gives up the duration, not the destination: the target is what the element was told to
+/// be from the moment the motion started, so it is left there. Nothing is reported, so a chain
+/// waiting on the name never runs -- which is what makes stopping the way to break one.
+#[test]
+fn a_stopped_motion_is_left_on_its_target_and_says_nothing() {
+    let mut grove = grove();
+    let mut app = Observer::default();
+    let leaf = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick_with(&mut grove, &mut app);
+
+    let fade = grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(200));
+    tick_with(&mut grove, &mut app);
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    assert_eq!(opacity(&grove, leaf), 0.5, "part way");
+
+    grove.stop(fade);
+    tick_with(&mut grove, &mut app);
+    assert_eq!(opacity(&grove, leaf), 0.0, "where it was told to end");
+    assert!(grove.aspen.idle());
+
+    for _ in 0..3 {
+        advance(&mut grove, 200);
+        tick_with(&mut grove, &mut app);
+        assert!(!app.last().finished(fade));
+        assert!(!app.last().landed(leaf));
+    }
+}
+
+/// Stopping it as an arrival, which is the app declaring the ending the motion would have reported
+/// itself. The same landing, and the same two reports, in the frame it was asked for.
+#[test]
+fn a_finished_motion_arrives_at_once_and_is_reported() {
+    let mut grove = grove();
+    let mut app = Observer::default();
+    let leaf = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick_with(&mut grove, &mut app);
+
+    let fade = grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(200));
+    tick_with(&mut grove, &mut app);
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+
+    grove.finish(fade);
+    tick_with(&mut grove, &mut app);
+    assert_eq!(opacity(&grove, leaf), 0.0);
+    assert!(grove.aspen.idle());
+
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().landed(leaf));
+    assert!(app.last().finished(fade));
+    assert_eq!(app.last().tween(fade), Some(1.0));
+}
+
+/// A channel has no target to arrive at, so finishing one is its end value and its finish together
+/// -- exactly what its own last frame would have reported.
+#[test]
+fn a_finished_channel_reports_its_end_value_and_its_finish() {
+    let mut grove = grove();
+    let mut app = Observer::default();
+    let channel = grove.tween(0.0, 10.0, Timing::ms(1000));
+    tick_with(&mut grove, &mut app);
+
+    grove.finish(channel);
+    tick_with(&mut grove, &mut app);
+    assert!(grove.aspen.idle());
+
+    tick_with(&mut grove, &mut app);
+    assert_eq!(app.last().tween(channel), Some(10.0));
+    assert!(app.last().finished(channel));
+}
+
+/// A group is a name and a count, with no reach over what joined it: stopping one member is nothing
+/// to the others, and takes it out of the count like any other ending -- so a group can be left over
+/// by a member that stopped, and is never left waiting on one.
+#[test]
+fn a_stopped_member_leaves_the_group_and_not_its_siblings() {
+    let mut grove = grove();
+    let stopped = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    let running = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick(&mut grove);
+
+    let group = grove.sequence();
+    let gone = grove.animate(stopped, Motion::Opacity(0.0), Timing::ms(500).within(group));
+    grove.animate(running, Motion::Opacity(0.0), Timing::ms(100).within(group));
+    let mut app = Observer::default();
+    tick_with(&mut grove, &mut app);
+
+    grove.stop(gone);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(!app.last().finished(gone));
+    assert!(
+        !app.last().sequence_finished(group),
+        "its sibling is still running"
+    );
+
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().landed(running), "untouched by the stop");
+    assert!(app.last().sequence_finished(group));
+    assert!(grove.aspen.idle());
+}
+
 /// A channel is the engine's clock and easing handed to a value it has no concept of. It writes
 /// nothing; the value is only ever reported.
 #[test]

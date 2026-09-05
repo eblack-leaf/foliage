@@ -135,6 +135,9 @@ pub(crate) enum Op {
         leaf: Leaf,
         motion: Motion,
         timing: Timing,
+        /// What its progress is reported under and its ending is reported by. Named at the callsite
+        /// like a channel's, so the name is in hand before the frame that starts the motion.
+        tween: Tween,
     },
     /// A scalar channel, reported outward every frame and written nowhere.
     Channel {
@@ -143,8 +146,14 @@ pub(crate) enum Op {
         to: f32,
         timing: Timing,
     },
-    /// Ends a channel before it has run out.
-    Stop(Tween),
+    /// Ends a tween before it has run out, on the end it was going to.
+    ///
+    /// `reported` is the whole difference between the two verbs that push this: `finish` ends it as
+    /// an arrival and a chain waiting on it runs, `stop` ends it in silence and the chain does not.
+    Stop {
+        tween: Tween,
+        reported: bool,
+    },
     /// Where focus is to go. Applied here and answered at settle, against the geometry and the
     /// inherited state this frame resolves.
     Focus(Intent),

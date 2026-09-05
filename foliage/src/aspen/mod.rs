@@ -26,6 +26,13 @@
 //!   is no settling step that could land a pixel off.
 //! - **Cancelling is a removal.** A direct write replaces the declaration and drops the motion
 //!   (F8); the element is at what was written, and there is no stale state to reconcile.
+//! - **Ending early is the same ending.** [`stop`](crate::Grow::stop) and
+//!   [`finish`](crate::Grow::finish) give up the duration and not the destination, so an interrupted
+//!   motion leaves the element exactly where running it out would have. Nothing writes back a blend
+//!   from part way along: an intermediate is a synthesized value the app never declared, and a
+//!   declaration made of one would be deaf to everything both endpoints re-resolve against. An
+//!   element that is to stop somewhere else stops there by being written there, which is the case
+//!   above.
 //!
 //! # Progress and application are separate
 //!
@@ -78,11 +85,11 @@ use crate::view::ScrollTo;
 
 pub use ease::{Ease, Timing};
 
-/// A running scalar channel, as the app names it.
+/// One running tween, as the app names it: a motion, a scalar channel, or a timer.
 ///
-/// Handed out by [`tween`](crate::Grow::tween) and [`timer`](crate::Grow::timer), and what
-/// [`Pollen`](crate::Pollen) is asked about. Opaque: there is nothing to be done with one but read
-/// its channel and stop it.
+/// Handed out by [`animate`](crate::Grow::animate), [`tween`](crate::Grow::tween) and
+/// [`timer`](crate::Grow::timer), and what [`Pollen`](crate::Pollen) is asked about. Opaque: there is
+/// nothing to be done with one but read how far it has come, hear that it ended, and stop it.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Tween(pub(crate) u64);
 
@@ -94,8 +101,12 @@ pub struct Tween(pub(crate) u64);
 /// written together, so nothing about it requires the members to be stated in one place.
 ///
 /// It is over when nothing is running under it any more, however each member ended -- landed,
-/// cancelled by a direct write, or taken down with its element. There is no second report for the
-/// ways a group can stop being busy, because a group being over is one fact.
+/// stopped, cancelled by a direct write, or taken down with its element. There is no second report
+/// for the ways a group can stop being busy, because a group being over is one fact.
+///
+/// A name and a count, with no reach over what joined it: stopping one member is nothing to the
+/// others, and there is no list of them for it to be anything to. Members join from any callsite at
+/// any frame, so a group never owned them -- it only ever knew how many were running.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Sequence(pub(crate) u64);
 
@@ -273,6 +284,10 @@ impl Progress {
 struct Motioning {
     moving: Moving,
     progress: Progress,
+    /// What it is reported under, and what stops it. Its own rather than the property's: a name is
+    /// never handed out twice, so a motion replaced on a property it shares reports nothing further
+    /// and the name in the app's hand cannot come to mean the motion that replaced it.
+    tween: Tween,
     /// The group its ending is counted into, if it was counted into one.
     within: Option<Sequence>,
 }
@@ -424,18 +439,6 @@ impl Aspen {
         }
     }
 
-    /// Ends a channel before it has run out, reporting whether one was running.
-    ///
-    /// A channel has no declaration to write, so there is no direct write for it to be cancelled by
-    /// the way a motion is. This is that.
-    pub(crate) fn stop(&mut self, tween: Tween) -> bool {
-        let Some(channel) = self.channels.remove(&tween) else {
-            return false;
-        };
-        self.release(channel.within);
-        true
-    }
-
     pub(crate) fn channel(&mut self, tween: Tween, from: f32, to: f32, timing: Timing) {
         let within = timing.sequence();
         self.enroll(within);
@@ -461,7 +464,13 @@ impl Aspen {
 /// declares is already where it is going. What the motion carries is what the element no longer
 /// holds: the placement or the role it left, or -- for a value written back over its own
 /// declaration -- both of its ends.
-pub(crate) fn animate(grove: &mut Grove, leaf: Leaf, motion: Motion, timing: Timing) -> bool {
+pub(crate) fn animate(
+    grove: &mut Grove,
+    leaf: Leaf,
+    motion: Motion,
+    timing: Timing,
+    tween: Tween,
+) -> bool {
     let scheme = grove.scheme;
     let Grove {
         tree,
@@ -528,6 +537,7 @@ pub(crate) fn animate(grove: &mut Grove, leaf: Leaf, motion: Motion, timing: Tim
         Motioning {
             moving,
             progress: Progress::new(timing),
+            tween,
             within,
         },
     ) {
@@ -536,6 +546,82 @@ pub(crate) fn animate(grove: &mut Grove, leaf: Leaf, motion: Motion, timing: Tim
         aspen.release(replaced.within);
     }
     true
+}
+
+/// Ends whatever `tween` names before it has run out, on the end it was going to, and reports
+/// whether anything was running.
+///
+/// A motion is left on its target: that is what the element was told to be when the motion started,
+/// and the duration was only how long it was to take getting there. Ending it anywhere else is a
+/// write to that property, which is already how a motion is cancelled (F8) -- nothing here
+/// synthesizes a declaration out of a blend part way along, which is the same reason a retarget
+/// carries a snapshot rather than writing one back.
+///
+/// `reported` is the difference between the two verbs. Reported, this is an arrival and reads
+/// exactly as the tween's own last frame would have; silent, a chain waiting on the name never runs.
+/// Either way the group counting it hears the only thing a group is about -- that one fewer thing is
+/// running under it.
+pub(crate) fn stop(grove: &mut Grove, tween: Tween, reported: bool) -> bool {
+    let Grove {
+        aspen,
+        tree,
+        sought,
+        drift,
+        ..
+    } = grove;
+    if let Some(channel) = aspen.channels.remove(&tween) {
+        aspen.release(channel.within);
+        if reported {
+            // Its end value and its finish together, which is what its own last frame would have
+            // reported -- so there is no end value to infer from an absence either way it ended.
+            drift.tweens.insert(tween, channel.to);
+            drift.finished.insert(tween);
+        }
+        debug!(tween = tween.0, reported, "channel stopped");
+        return true;
+    }
+    // A name is never handed out twice, so at most one motion answers to it. Walked rather than
+    // indexed, because what is moving is a handful and a second map would have to be kept in step
+    // with this one through every way a motion ends.
+    let mut stopped = None;
+    aspen.motions.retain(|(leaf, _), motioning| {
+        if motioning.tween != tween {
+            return true;
+        }
+        stopped = Some((*leaf, motioning.moving.clone(), motioning.within));
+        false
+    });
+    let Some((leaf, moving, within)) = stopped else {
+        return false;
+    };
+    aspen.release(within);
+    land(tree, sought, leaf, &moving);
+    if reported {
+        drift.tweens.insert(tween, 1.0);
+        drift.finished.insert(tween);
+        drift.landed.insert(leaf);
+    }
+    debug!(leaf = leaf.id(), tween = tween.0, reported, "tween stopped");
+    true
+}
+
+/// Puts an element where its motion was taking it, for both ways a motion ends on its target:
+/// running out, and being stopped.
+///
+/// Nothing to state where the element's own declaration is the target -- a placement and a fill are
+/// written when the motion starts, so arriving is a removal. What is blended back over its
+/// declaration holds where the motion reached rather than where it was going, and an offset is not a
+/// declaration at all, so those are written out here. A region's is written as though it had been
+/// written directly, which is what makes the frame after a landing identical to the one it landed in.
+fn land(tree: &mut Tree, sought: &mut Vec<(Leaf, ScrollTo)>, leaf: Leaf, moving: &Moving) {
+    match moving {
+        Moving::Location(_) | Moving::Fill(_) => {}
+        Moving::Opacity { to, .. } => tree.set_opacity(leaf, *to),
+        Moving::Shape { to, .. } => {
+            tree.set_shape(leaf, *to);
+        }
+        Moving::Scroll { to, .. } => sought.push((leaf, *to)),
+    }
 }
 
 /// Writes a fill target to the element and hands back what it left, or `None` if there is no fill
@@ -609,6 +695,10 @@ fn motions(grove: &mut Grove, delta: Duration) {
     let mut ended = Vec::new();
     aspen.motions.retain(|(leaf, _), motioning| {
         let at = motioning.progress.advance(delta);
+        // How far it has come, for the app holding its name. The eased progress and not the fraction
+        // of the duration, because what a motion is a fraction of the way through is what it looks
+        // like, and the two differ under every shape but `Linear`.
+        drift.tweens.insert(motioning.tween, at);
         if let Moving::Opacity { from, to } = motioning.moving {
             tree.set_opacity(*leaf, blend(from, to, at));
         }
@@ -618,16 +708,15 @@ fn motions(grove: &mut Grove, delta: Duration) {
         if !motioning.progress.done() {
             return true;
         }
-        // A region holds no declaration for its ending to already read as, so the destination is
-        // written out as though it had been written directly -- which is what makes the last frame
-        // of a `Motion::Scroll` land exactly on it, and the frame after identical.
-        if let Moving::Scroll { to, .. } = &motioning.moving {
-            sought.push((*leaf, *to));
-        }
         // What the element declares is already the target, so ending is a removal: the blend at the
-        // end equals the plain reading of the declaration, and the frame after is identical.
+        // end equals the plain reading of the declaration. What is not declared on the element is
+        // written out here, so the frame after a landing is identical to the one it landed in.
+        land(tree, sought, *leaf, &motioning.moving);
+        // Two reports for one arrival, and they answer different questions: the element settled,
+        // and this motion is the one that ended.
         drift.landed.insert(*leaf);
-        debug!(leaf = leaf.id(), "tween landed");
+        drift.finished.insert(motioning.tween);
+        debug!(leaf = leaf.id(), tween = motioning.tween.0, "tween landed");
         ended.push(motioning.within);
         false
     });
