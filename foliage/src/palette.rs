@@ -77,28 +77,28 @@ impl Palette {
         }
     }
 
-    /// The same role one step back toward the ground, and itself at [`Step::RecedeMore`].
+    /// The same role one step farther into the ground, and itself at [`Step::Farthest`].
     ///
     /// What something quieted -- disabled, placeholding, resting under something else -- is drawn
     /// in.
     pub const fn recede(self) -> Self {
         self.at(match self.step {
-            Step::RecedeMore | Step::Recede => Step::RecedeMore,
-            Step::Base => Step::Recede,
-            Step::Advance => Step::Base,
-            Step::AdvanceMore => Step::Advance,
+            Step::Farthest | Step::Far => Step::Farthest,
+            Step::Base => Step::Far,
+            Step::Near => Step::Base,
+            Step::Nearest => Step::Near,
         })
     }
 
-    /// The same role one step out from the ground, and itself at [`Step::AdvanceMore`].
+    /// The same role one step nearer out of the ground, and itself at [`Step::Nearest`].
     ///
     /// What something brought forward -- hovered, held, carrying focus -- is drawn in.
     pub const fn advance(self) -> Self {
         self.at(match self.step {
-            Step::RecedeMore => Step::Recede,
-            Step::Recede => Step::Base,
-            Step::Base => Step::Advance,
-            Step::Advance | Step::AdvanceMore => Step::AdvanceMore,
+            Step::Farthest => Step::Far,
+            Step::Far => Step::Base,
+            Step::Base => Step::Near,
+            Step::Near | Step::Nearest => Step::Nearest,
         })
     }
 
@@ -137,45 +137,45 @@ impl Role {
     }
 }
 
-/// How far a tone stands out from the ground its scheme is read against.
+/// How far a tone stands from the ground its scheme is read against.
 ///
-/// Named by what a step does rather than by which way it moves, because the two readings a scheme
-/// has move opposite ways: standing out means lighter against a dark ground and darker against a
-/// light one. A state written once as [`advance`](Palette::advance) is therefore correct in both,
-/// which is what makes a light and a dark scheme the same app rather than two.
+/// Named for where a step stands rather than for which way it moves in lightness, because the two
+/// readings a scheme has move opposite ways: standing nearer means lighter against a dark ground and
+/// darker against a light one. A state written once as [`advance`](Palette::advance) is therefore
+/// correct in both, which is what makes a light and a dark scheme the same app rather than two.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Step {
-    /// Two steps back toward the ground.
-    RecedeMore,
-    /// One step back toward the ground.
-    Recede,
+    /// Two steps back into the ground.
+    Farthest,
+    /// One step back into the ground.
+    Far,
     /// What the role resolves to undeclared, and the color a [`Scheme`] states the role in.
     #[default]
     Base,
-    /// One step out from the ground.
-    Advance,
-    /// Two steps out from the ground.
-    AdvanceMore,
+    /// One step out of the ground.
+    Near,
+    /// Two steps out of the ground.
+    Nearest,
 }
 
 impl Step {
     /// Every step, deepest into the ground first, which is the order a ramp is held in.
     const ALL: [Step; STEPS] = [
-        Step::RecedeMore,
-        Step::Recede,
+        Step::Farthest,
+        Step::Far,
         Step::Base,
-        Step::Advance,
-        Step::AdvanceMore,
+        Step::Near,
+        Step::Nearest,
     ];
 
     /// Where in a role's ramp this step sits.
     fn index(self) -> usize {
         match self {
-            Step::RecedeMore => 0,
-            Step::Recede => 1,
+            Step::Farthest => 0,
+            Step::Far => 1,
             Step::Base => 2,
-            Step::Advance => 3,
-            Step::AdvanceMore => 4,
+            Step::Near => 3,
+            Step::Nearest => 4,
         }
     }
 
@@ -361,8 +361,8 @@ impl Default for Scheme {
 ///
 /// The two halves of a ramp are sized independently. A role seeded near black or near white has two
 /// notches of room on one side and less than that on the other, and the short half is compressed to
-/// what is left rather than run off the end, so a ramp is ordered from its deepest step to its
-/// furthest out whatever it was seeded with. What that costs is a smaller step on the short side,
+/// what is left rather than run off the end, so a ramp is ordered from its farthest step to its
+/// nearest whatever it was seeded with. What that costs is a smaller step on the short side,
 /// which is the most a seed at an extreme can be given: an ink already at white has no brighter
 /// reading to offer. A seed sitting exactly on black or white has no room at all on that side, and
 /// every step of that half answers the seed.

@@ -19,11 +19,11 @@ const ROLES: [Palette; 6] = [
 
 /// Every step, deepest into the ground first.
 const STEPS: [Step; 5] = [
-    Step::RecedeMore,
-    Step::Recede,
+    Step::Farthest,
+    Step::Far,
     Step::Base,
-    Step::Advance,
-    Step::AdvanceMore,
+    Step::Near,
+    Step::Nearest,
 ];
 
 fn lightness(color: Color) -> f32 {
@@ -73,7 +73,7 @@ fn an_advancing_step_stands_out_from_the_ground_in_either_reading() {
 /// True of every seed, including one with no room on one side: compressing the short half is what
 /// keeps a ramp from folding back on itself.
 #[test]
-fn a_ramp_is_ordered_from_its_deepest_step_to_its_furthest_out() {
+fn a_ramp_is_ordered_from_its_farthest_step_to_its_nearest() {
     for scheme in [Scheme::new(), Scheme::light()] {
         let advancing = advancing(&scheme);
         for role in ROLES {
@@ -140,15 +140,15 @@ fn a_ramp_holds_the_hue_it_was_seeded_with() {
 fn stepping_saturates_at_the_ends_of_a_ramp() {
     assert_eq!(
         Palette::Accent.advance().advance(),
-        Palette::Accent.at(Step::AdvanceMore)
+        Palette::Accent.at(Step::Nearest)
     );
     assert_eq!(
         Palette::Accent.advance().advance().advance(),
-        Palette::Accent.at(Step::AdvanceMore)
+        Palette::Accent.at(Step::Nearest)
     );
     assert_eq!(
         Palette::Accent.recede().recede().recede(),
-        Palette::Accent.at(Step::RecedeMore)
+        Palette::Accent.at(Step::Farthest)
     );
 }
 
@@ -174,7 +174,7 @@ fn setting_a_step_that_is_not_the_base_leaves_the_ramp_it_sits_in() {
     let before = Scheme::new();
     let after = before.set(Palette::Accent.advance(), stated);
     assert_eq!(after.color(Palette::Accent.advance()), stated);
-    for step in STEPS.into_iter().filter(|step| *step != Step::Advance) {
+    for step in STEPS.into_iter().filter(|step| *step != Step::Near) {
         let tone = Palette::Accent.at(step);
         assert_eq!(before.color(tone), after.color(tone), "{step:?} moved");
     }
