@@ -64,16 +64,27 @@ pub struct Keystroke {
 pub enum Key {
     /// A character the layout produced, to be taken as itself.
     Typed(char),
+    /// The left arrow.
     Left,
+    /// The right arrow.
     Right,
+    /// The up arrow.
     Up,
+    /// The down arrow.
     Down,
+    /// Home.
     Home,
+    /// End.
     End,
+    /// Backspace, which deletes behind the caret.
     Backspace,
+    /// Delete, which deletes ahead of it.
     Delete,
+    /// Enter, which submits a [`TextInput`](crate::TextInput).
     Enter,
+    /// Tab.
     Tab,
+    /// Escape, which drops focus.
     Escape,
 }
 

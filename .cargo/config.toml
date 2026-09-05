@@ -1,0 +1,3 @@
+[alias]
+# `cargo xtask <command>` -- repo tasks. See xtask/.
+xtask = "run --package xtask --"

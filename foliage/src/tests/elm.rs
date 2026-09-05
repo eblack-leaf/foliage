@@ -8,8 +8,8 @@ use crate::elm::Key;
 use crate::panel::PanelInstance;
 use crate::tests::{grove, tick};
 use crate::{
-    Boxed, Color, Corner, Corners, Fill, Grove, Grow, Leaf, Location, Palette, Panel, Place,
-    Rounding, Sap, Scheme, Side, Source, Stem, Vein, left, top,
+    Boxed, Color, Corner, Corners, Fill, Grove, Grow, Leaf, Location, Palette, Panel, Rounding,
+    Sap, Scheme, Side, Source, Stem, Vein, left, top,
 };
 
 /// A panel filling a box of a stated size, so its radii have something to resolve against.

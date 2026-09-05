@@ -4,7 +4,7 @@
 use crate::color::Color;
 use crate::tests::{grove, tick};
 use crate::{
-    Boxed, Grove, Grow, Leaf, Location, Palette, Panel, Place, Scheme, Source, Step, left, top,
+    Boxed, Grove, Grow, Leaf, Location, Palette, Panel, Scheme, Source, Step, left, top,
 };
 
 /// Every role, at its base step, in the order a scheme holds them.

@@ -17,9 +17,13 @@ use crate::aspen::blend;
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, Pod, Zeroable)]
 pub struct Color {
+    /// The red channel, in `0.0..=1.0`.
     pub red: f32,
+    /// The green channel, in `0.0..=1.0`.
     pub green: f32,
+    /// The blue channel, in `0.0..=1.0`.
     pub blue: f32,
+    /// Coverage, in `0.0..=1.0`: `0.0` paints nothing and `1.0` paints over what is behind it.
     pub alpha: f32,
 }
 

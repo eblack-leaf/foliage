@@ -14,11 +14,14 @@ use bytemuck::{Pod, Zeroable};
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct Position {
+    /// The distance from the left edge.
     pub x: f32,
+    /// The distance from the top edge.
     pub y: f32,
 }
 
 impl Position {
+    /// A point at `x` from the left and `y` from the top.
     pub fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
@@ -54,11 +57,14 @@ impl Position {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct Area {
+    /// The extent across.
     pub width: f32,
+    /// The extent down.
     pub height: f32,
 }
 
 impl Area {
+    /// An area `width` across and `height` down.
     pub fn new(width: f32, height: f32) -> Self {
         Self { width, height }
     }
@@ -76,11 +82,14 @@ impl Area {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, PartialEq, Pod, Zeroable)]
 pub struct Section {
+    /// The top-left corner.
     pub position: Position,
+    /// The extent from that corner.
     pub area: Area,
 }
 
 impl Section {
+    /// A box of `area`, with its top-left corner at `position`.
     pub fn new(position: Position, area: Area) -> Self {
         Self { position, area }
     }
@@ -94,26 +103,32 @@ impl Section {
         }
     }
 
+    /// The left edge.
     pub fn left(&self) -> f32 {
         self.position.x
     }
 
+    /// The top edge.
     pub fn top(&self) -> f32 {
         self.position.y
     }
 
+    /// The right edge.
     pub fn right(&self) -> f32 {
         self.position.x + self.area.width
     }
 
+    /// The bottom edge.
     pub fn bottom(&self) -> f32 {
         self.position.y + self.area.height
     }
 
+    /// The extent across.
     pub fn width(&self) -> f32 {
         self.area.width
     }
 
+    /// The extent down.
     pub fn height(&self) -> f32 {
         self.area.height
     }
@@ -172,8 +187,11 @@ impl Axis {
 /// what keeps the pair from being two independent flags that can disagree.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Axes {
+    /// Across only.
     Horizontal,
+    /// Down only.
     Vertical,
+    /// Both of them.
     Both,
 }
 

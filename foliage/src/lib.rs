@@ -41,6 +41,8 @@
 //!   the movement, [`ScrollTo`] is how a region is moved by name, and [`Momentum`] is how a release
 //!   coasts.
 
+#![deny(missing_docs)]
+
 mod ash;
 mod aspen;
 mod asset;

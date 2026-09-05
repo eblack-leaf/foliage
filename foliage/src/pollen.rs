@@ -232,8 +232,9 @@ impl Pollen {
     /// A key goes to whatever holds focus, and focus rests only on what declared
     /// [`interactive`](crate::Place::interactive) -- so an element that can be focused hears keys
     /// with nothing further declared, and one that cannot never does. What an element makes of a
-    /// key is the app's: an activation on [`Key::Enter`], a step through a list on
-    /// [`Key::Up`]/[`Key::Down`], anything else it wants to answer.
+    /// key is the app's: an activation on [`Key::Enter`](crate::Key::Enter), a step through a list
+    /// on [`Key::Up`](crate::Key::Up)/[`Key::Down`](crate::Key::Down), anything else it wants to
+    /// answer.
     ///
     /// ```
     /// # use foliage::{Grove, Grow, Key, Leaf, Pollen};

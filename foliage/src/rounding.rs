@@ -16,12 +16,18 @@ use crate::coordinate::Section;
 /// than its own bracket cannot ask for more curve than it has room for.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum Rounding {
+    /// Square corners.
     #[default]
     None,
+    /// 4 logical pixels.
     Xs,
+    /// 8 logical pixels.
     Sm,
+    /// 12 logical pixels.
     Md,
+    /// 16 logical pixels.
     Lg,
+    /// Half the box's shorter side, which is a pill.
     Full,
 }
 
@@ -45,9 +51,13 @@ impl Rounding {
 /// One corner of a box.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Corner {
+    /// The top-left corner.
     TopLeft,
+    /// The top-right corner.
     TopRight,
+    /// The bottom-right corner.
     BottomRight,
+    /// The bottom-left corner.
     BottomLeft,
 }
 
@@ -76,9 +86,13 @@ impl Corner {
 /// everything between stays square, so the row reads as one shape rather than as a line of pills.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Side {
+    /// The left edge: the top-left and bottom-left corners.
     Left,
+    /// The right edge: the top-right and bottom-right corners.
     Right,
+    /// The top edge: the top-left and top-right corners.
     Top,
+    /// The bottom edge: the bottom-left and bottom-right corners.
     Bottom,
 }
 

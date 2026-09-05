@@ -1,0 +1,9 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Repo tasks. Not part of the library and never published."
+
+[dependencies]
+clap = { version = "4.6.1", features = ["derive"] }

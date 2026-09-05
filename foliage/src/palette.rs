@@ -197,7 +197,9 @@ impl Step {
 /// motion writes the target to the element, and a target has to be something the element can hold.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Fill {
+    /// A tone, resolved against whatever [`Scheme`] is in force when it is drawn.
     Role(Palette),
+    /// A color stated outright, which no repaint moves.
     Literal(Color),
 }
 

@@ -13,10 +13,15 @@ use crate::coordinate::Area;
 /// required.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Layout {
+    /// Narrower than [`SM`](Layout::SM). The only breakpoint every placement must state.
     Xs,
+    /// At least [`SM`](Layout::SM) wide.
     Sm,
+    /// At least [`MD`](Layout::MD) wide.
     Md,
+    /// At least [`LG`](Layout::LG) wide.
     Lg,
+    /// At least [`XL`](Layout::XL) wide.
     Xl,
 }
 
@@ -57,7 +62,9 @@ impl Layout {
 /// configuration is affected, so this changes no layout until a placement opts in.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Short {
+    /// The viewport is cramped, and a configuration keyed to it wins over the width-derived one.
     Yes,
+    /// It is not, and only [`Layout`] decides.
     No,
 }
 

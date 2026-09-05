@@ -1,0 +1,11 @@
+[book]
+authors = ["eblack-leaf"]
+language = "en"
+src = "src"
+title = "foliage"
+
+[build]
+build-dir = "dist"
+
+[output.html]
+git-repository-url = "https://github.com/eblack-leaf/foliage"

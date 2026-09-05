@@ -10,6 +10,7 @@ pub struct Stem {
 }
 
 impl Stem {
+    /// An element that draws nothing, to be placed and branched off like any other.
     pub fn new() -> Self {
         Self::default()
     }

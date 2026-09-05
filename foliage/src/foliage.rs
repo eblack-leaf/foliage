@@ -41,6 +41,10 @@ pub struct Foliage {
 }
 
 impl Foliage {
+    /// The engine, before a platform has been reached or a [`Root`] registered.
+    ///
+    /// Nothing here touches a window or a device: every platform resource is acquired when the
+    /// platform hands one over, which is what makes this constructible in a test.
     pub fn new() -> Self {
         info!("boot");
         Self {

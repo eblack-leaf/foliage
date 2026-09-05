@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # winit and wgpu link against the platform windowing stack at compile time on Linux;
+      # the macOS and Windows runners already ship what is needed.
+      - name: Install Linux windowing dev libs
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+            libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # The headless suite, the doctests, and the compile-fail doctests that hold the shape of
+      # the public surface.
+      - name: cargo test --workspace
+        run: cargo test --workspace
+
+      - name: cargo build --examples -p foliage
+        run: cargo build --examples -p foliage
+
+      # The API gate: a page written against nothing but foliage's public surface.
+      - name: cargo check -p application
+        run: cargo check -p application
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+
+      # Build-only: there is no browser here to execute a wasm test binary in, and the suite is
+      # headless-native anyway -- `Foliage::new()` touches neither wgpu nor winit.
+      - name: cargo check --target wasm32-unknown-unknown
+        run: cargo check -p foliage -p application --target wasm32-unknown-unknown
+
+# Android: the arms are built and there is no Android build to run them from -- adding a job
+# means provisioning an SDK on the runner, which is worth doing once there is something to build
+# against. iOS: no toolchain available here, and no iOS-specific branch behind the shared source
+# that the macOS job does not already compile.

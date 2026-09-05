@@ -2,7 +2,7 @@
 
 use crate::elevation::ResolvedElevation;
 use crate::tests::{grove, tick};
-use crate::{Boxed, Elevation, Grow, Place, Sap, Stem, Vein};
+use crate::{Elevation, Grow, Place, Sap, Stem, Vein};
 
 fn rank(grove: &crate::Grove, leaf: crate::Leaf) -> ResolvedElevation {
     grove.tree.rank(leaf)

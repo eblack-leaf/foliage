@@ -1,2 +1,5 @@
 .idea
 target
+
+# mdbook's own output. `cargo xtask book` copies it to docs/book, which is what is committed.
+/book/dist/

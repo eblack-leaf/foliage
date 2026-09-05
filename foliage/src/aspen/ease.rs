@@ -38,7 +38,16 @@ pub enum Ease {
     /// The endpoints are fixed at `(0, 0)` and `(1, 1)` and are not stated. `x` is clamped to
     /// `0.0..=1.0`, because a control point outside the duration describes no ordering of the
     /// motion; `y` is not, so a curve may overshoot and come back.
-    Curve { x1: f32, y1: f32, x2: f32, y2: f32 },
+    Curve {
+        /// The first control point's position along the duration.
+        x1: f32,
+        /// The first control point's position along the progress.
+        y1: f32,
+        /// The second control point's position along the duration.
+        x2: f32,
+        /// The second control point's position along the progress.
+        y2: f32,
+    },
 }
 
 impl Ease {

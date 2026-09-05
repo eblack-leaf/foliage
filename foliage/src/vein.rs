@@ -124,30 +124,49 @@ pub enum Vein {
 #[derive(Clone, PartialEq, Debug)]
 #[non_exhaustive]
 pub enum Sap {
+    /// A set of elements, in the order the tree holds them. What [`Branches`](Vein::Branches)
+    /// answers.
     Leaves(Vec<Leaf>),
+    /// One element, or none where there is nothing to name. What [`Trunk`](Vein::Trunk) and
+    /// [`Anchor`](Vein::Anchor) answer.
     Leaf(Option<Leaf>),
+    /// A box. What [`Placed`](Vein::Placed) and [`Drawn`](Vein::Drawn) answer.
     Section(Section),
     /// Logical pixels, like every other coordinate.
     Position(Position),
+    /// An extent, in logical pixels.
     Area(Area),
     /// A fraction on each axis, in `0.0..=1.0`. Held apart from a [`Position`](Sap::Position) even
     /// though it is the same pair of numbers, so a read cannot quietly take a fraction for pixels.
     Progress(Position),
+    /// How far in front of its trunk an element was told to sit.
     Elevation(Elevation),
+    /// What an element is filled with: the role it declared, or the color it named outright.
     Color(Fill),
+    /// The radius bracket on each of the four corners.
     Rounding(Corners),
     /// A stroke's two ends, in the order they were written.
     Ends(Position, Position),
+    /// A stroke's thickness, in logical pixels.
     Weight(f32),
+    /// How a stroke's ends are finished.
     Cap(Cap),
+    /// A regular polygon's sides, rounding and rotation.
     Shape(Shape),
+    /// Which registered mark an icon draws.
     Mark(Field),
+    /// Which registered picture an image draws.
     Picture(Plate),
+    /// How an image's pixels are fitted into its box.
     Fit(Fit),
+    /// What a run of glyphs says.
     Text(String),
     /// A span of a value, in characters. Empty means a caret at its own position.
     Selection(core::ops::Range<usize>),
+    /// Whether the app has hidden the element.
     Visible(bool),
+    /// How opaque the element was told to be, in `0.0..=1.0`.
     Opacity(f32),
+    /// Whether the element was disabled in its own right.
     Disabled(bool),
 }
