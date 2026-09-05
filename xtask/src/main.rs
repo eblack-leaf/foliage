@@ -94,7 +94,11 @@ fn api() -> Result<(), String> {
     // rustdoc merges into `target/doc` rather than replacing it, so items deleted since the last
     // build would otherwise linger in the copied output.
     rm_rf(&target)?;
-    run("cargo", &["doc", "--no-deps", "-p", "foliage"], &root)?;
+    run(
+        "cargo",
+        &["doc", "--no-deps", "-p", "foliage", "-p", "foliage-icons"],
+        &root,
+    )?;
     clear_dir(&out)?;
     copy_dir(&target, &out)?;
 

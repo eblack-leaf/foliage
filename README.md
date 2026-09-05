@@ -90,6 +90,45 @@ cargo run -p foliage --example animate
 cargo run -p foliage --example polyline
 ```
 
+## Icons
+
+A mark has no size of its own — the same artwork is a 16px affordance and a 96px empty state — so
+an icon is not a bitmap but a distance field, reconstructed sharp at whatever box a layout hands
+it. [`foliage-icons`](foliage-icons) bakes one from an SVG:
+
+```sh
+cargo install --git https://github.com/eblack-leaf/foliage foliage-icons
+foliage-icons bake --svg assets/svg --out src/icons --marks Icons
+```
+
+That writes one `.icon` per source file and a module beside them that registers the set. Both are
+committed. The module is generated, so nothing in it is written by hand:
+
+```rust
+pub struct Icons {
+    /// The `arrow-up` mark.
+    pub arrow_up: Field,
+    /// The `check` mark.
+    pub check: Field,
+}
+
+impl Marks for Icons {
+    fn register(grove: &mut Grove) -> Self { /* ... */ }
+}
+```
+
+An app registers the set by naming it, the same way it names its [`Root`], and then reaches a mark
+by the name it was given:
+
+```rust
+let icons = grove.marks::<Icons>();
+grove.branch(bar, Icon::new(icons.check).color(Palette::Accent).at(/* ... */));
+```
+
+Adding or removing a mark and regenerating moves no callsite, because nothing addresses a mark by
+its position. `foliage-icons preview` renders a baked field to a PNG, sampling exactly as the
+shader does, to judge one without running an application.
+
 ## What draws, and what is assembled
 
 Six elements own a render pipeline and an instance buffer: `Panel`, `Text`, `Icon`, `Image`,
@@ -113,7 +152,8 @@ input; a button or a card is yours to assemble.
 
 | Path | What it is |
 |---|---|
-| [`foliage/`](foliage) | The library. The only thing published. |
+| [`foliage/`](foliage) | The library. |
+| [`foliage-icons/`](foliage-icons) | The icon baker: SVG in, the field a mark is drawn from out. |
 | [`application/`](application) | A page written against nothing but foliage's public surface, and what `cargo xtask site` builds. `cargo check -p application` is a gate on the API rather than on this crate: an API that cannot build a page is an incomplete API. |
 | [`book/`](book) | The book. |
 | [`xtask/`](xtask) | Repo tasks. Not part of the library and never published. |
@@ -127,7 +167,7 @@ input; a button or a card is yours to assemble.
 | `site` | Builds the site into `docs/`. | [`trunk`](https://trunkrs.dev) |
 | `serve` | Serves the site locally with auto-reload. | `trunk` |
 | `book` | Builds the book into `docs/book`. | [`mdbook`](https://crates.io/crates/mdbook) |
-| `api` | Builds the API reference into `docs/api`. | — |
+| `api` | Builds the API reference for `foliage` and `foliage-icons` into `docs/api`. | — |
 | `docs` | The book and the API reference. | `mdbook` |
 | `web` | Everything: the site, then the book, then the API reference. | `trunk`, `mdbook` |
 

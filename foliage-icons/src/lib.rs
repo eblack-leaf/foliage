@@ -39,7 +39,7 @@ use std::path::Path;
 
 /// Bakes every `.svg` in a directory and writes the set that registers them.
 ///
-/// One `.icon` per source file, named by its stem, plus a Rust module named after `set` in
+/// One `.icon` per source file, named by its stem, plus a Rust module named after `marks` in
 /// snake case. Sources are taken in sorted order so that regenerating an unchanged directory
 /// produces an unchanged module.
 ///
@@ -49,7 +49,7 @@ use std::path::Path;
 ///
 /// If the directory cannot be read, holds no `.svg`, or any one of them has no geometry to bake.
 /// Nothing is written unless every field bakes, so a failed run leaves the output as it was.
-pub fn bake_dir(svgs: &Path, out: &Path, spec: Bake, set: &str) -> Result<Vec<String>, String> {
+pub fn bake_dir(svgs: &Path, out: &Path, spec: Bake, marks: &str) -> Result<Vec<String>, String> {
     let mut sources: Vec<_> = fs::read_dir(svgs)
         .map_err(|e| format!("reading {}: {e}", svgs.display()))?
         .filter_map(|entry| entry.ok())
@@ -84,8 +84,8 @@ pub fn bake_dir(svgs: &Path, out: &Path, spec: Bake, set: &str) -> Result<Vec<St
         stems.push(stem.clone());
     }
 
-    let module = out.join(format!("{}.rs", naming::snake_case(set)));
-    let generated = generate(&stems, spec, set)?;
+    let module = out.join(format!("{}.rs", naming::snake_case(marks)));
+    let generated = generate(&stems, spec, marks)?;
     fs::write(&module, generated).map_err(|e| format!("writing {}: {e}", module.display()))?;
     Ok(stems)
 }
