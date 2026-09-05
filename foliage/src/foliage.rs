@@ -14,6 +14,8 @@ use crate::text::Font;
 use crate::verbs::Grow;
 use crate::view::Momentum;
 use crate::willow::Willow;
+#[cfg(target_os = "android")]
+use winit::platform::android::activity::AndroidApp;
 
 /// The engine.
 ///
@@ -38,6 +40,10 @@ pub struct Foliage {
     /// The device on its way over, on the one platform that cannot wait for one.
     #[cfg(target_family = "wasm")]
     pub(crate) acquiring: Option<std::sync::mpsc::Receiver<Ginkgo>>,
+    /// The activity the process was started for, on the one platform that does not own its own
+    /// entry point. Absent under the headless suite, which builds for Android without being one.
+    #[cfg(target_os = "android")]
+    pub(crate) activity: Option<AndroidApp>,
 }
 
 impl Foliage {
@@ -58,7 +64,32 @@ impl Foliage {
             held: false,
             #[cfg(target_family = "wasm")]
             acquiring: None,
+            #[cfg(target_os = "android")]
+            activity: None,
         }
+    }
+
+    /// The engine, for the activity Android started the process for.
+    ///
+    /// Android is the one platform that does not own its own entry point: the process belongs to an
+    /// activity, and the handle to it is the single thing the loop cannot obtain for itself. So it
+    /// is taken here, at construction, and everything after this is what every other platform does.
+    ///
+    /// The handle arrives at `android_main`, which is the symbol the activity loads this app's
+    /// library to call. `foliage-android init` writes the crate that defines it.
+    ///
+    /// ```no_run
+    /// # mod app { pub fn run(_: foliage::Foliage) {} }
+    /// #[unsafe(no_mangle)]
+    /// fn android_main(activity: foliage::AndroidApp) {
+    ///     app::run(foliage::Foliage::android(activity));
+    /// }
+    /// ```
+    #[cfg(target_os = "android")]
+    pub fn android(activity: AndroidApp) -> Self {
+        let mut foliage = Self::new();
+        foliage.activity = Some(activity);
+        foliage
     }
 
     /// Registers the app. [`Root::take_root`] runs inside the first frame.

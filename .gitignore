@@ -5,3 +5,8 @@ target
 # committed, because docs/ is the only directory GitHub Pages will serve from.
 /book/dist/
 /application/dist/
+
+# The Gradle project, written in full by `foliage-android init`.
+/application/android/
+# An Android SDK kept beside the repo, installed by `foliage-android setup`.
+/.android-sdk/

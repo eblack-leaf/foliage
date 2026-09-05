@@ -46,10 +46,11 @@ changes when it lands.
 - **A paste from another program, on the web.** `navigator.clipboard.readText()` is permission-gated
   and refused outside a user gesture, and a frame is not one; refused, the engine's own mirror
   answers. The road out is a `paste` event on the hidden input the keyboard already owns.
-- **A soft keyboard anywhere but the web.** Android is the other platform with one and there is no
-  Android build to raise it from, so `Keypad` is carried, reported and ignored there.
 - **A download off the web.** A browser is what turns a URL into a file; off it the verb is traced
   and does nothing, since a program that wants a file on disk has `std::fs`.
+- **A system clipboard on Android.** `arboard` compiles no backend for it and its `ClipboardManager`
+  is reached through the JVM, which nothing else in the engine does. Nothing is attached, so the
+  engine's own mirror answers: a copy round-trips inside the app and no further.
 
 ## Crate
 
@@ -61,11 +62,9 @@ None of this is engine work, and all of it is between here and a library.
 - **Examples.** Small ones, each doing one thing: a placement, a gesture, a field, a series.
 - **A way to bake an icon field.** A picture is decoded here now, but `icon` still takes a baked MSDF
   and nothing in the repo produces one. Port the baker as its own tool, or document the field format
-  so another can. This and the Android modules are the only reasons to keep `../working-foliage`.
+  so another can.
 - **CI.** A build matrix — native targets and wasm — and the test suite. Rasterisation is checked by
   eye rather than by test, deliberately, so no golden images.
-- **A web and Android build path.** The wasm target compiles and nothing packages it: no
-  `Trunk.toml`, no Android crate, no `xtask`.
 - **A book.** The slice plan named a chapter each; none exist.
 
 ## Not ported, and not owed

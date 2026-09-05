@@ -96,7 +96,16 @@ fn api() -> Result<(), String> {
     rm_rf(&target)?;
     run(
         "cargo",
-        &["doc", "--no-deps", "-p", "foliage", "-p", "foliage-icons"],
+        &[
+            "doc",
+            "--no-deps",
+            "-p",
+            "foliage",
+            "-p",
+            "foliage-icons",
+            "-p",
+            "foliage-android",
+        ],
         &root,
     )?;
     clear_dir(&out)?;

@@ -113,6 +113,16 @@ impl Willow {
             .expect("canvas attached");
     }
 
+    /// Lets go of the window.
+    ///
+    /// Called when the platform takes it back, which only Android does while the program is still
+    /// running. What is dropped is the handle and not the description: the title, the app id and the
+    /// size were written at boot and are what the *next* window is opened as, so a suspend leaves
+    /// the engine holding exactly what [`connect`](Willow::connect) needs to run again.
+    pub(crate) fn disconnect(&mut self) {
+        self.handle = None;
+    }
+
     /// Whether a window has been opened.
     pub(crate) fn connected(&self) -> bool {
         self.handle.is_some()

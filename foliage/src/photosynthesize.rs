@@ -6,6 +6,7 @@
 
 use core::time::Duration;
 
+use tracing::info;
 use winit::application::ApplicationHandler;
 use winit::event::{
     ElementState, KeyEvent, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent,
@@ -92,12 +93,31 @@ impl Foliage {
     /// the [`Root`](crate::Root)'s, called once per frame with the [`Grove`](crate::Grove) it is
     /// lent.
     pub fn photosynthesize(self) {
+        let mut foliage = self;
+        // Android builds its loop rather than taking the default one: the activity is what the
+        // platform's events arrive through, and a loop built without it has nothing to listen to.
+        #[cfg(target_os = "android")]
+        let event_loop = {
+            use winit::platform::android::EventLoopBuilderExtAndroid;
+
+            let activity = foliage
+                .activity
+                .take()
+                .expect("android activity -- build with `Foliage::android`, not `Foliage::new`");
+            // The same handle serves twice, because it is the only road to either: the loop listens
+            // to the activity, and the soft keyboard is raised through it.
+            foliage.grove.keyboard.activity(activity.clone());
+            EventLoop::builder()
+                .with_android_app(activity)
+                .build()
+                .expect("event loop")
+        };
+        #[cfg(not(target_os = "android"))]
         let event_loop = EventLoop::new().expect("event loop");
         // The engine idles when nothing is owed, so the loop sleeps until the platform has
         // something to say. F9's remaining clause -- an app that asked for another frame -- is
         // answered by requesting a paint at the end of the frame that asked.
         event_loop.set_control_flow(ControlFlow::Wait);
-        let mut foliage = self;
         // What rouses a sleeping loop when something arrives from outside a frame. A retrieval
         // finishes on a thread or in a promise and pushes its op onto the shared queue, which no
         // frame would ever run to drain -- the loop is asleep and the platform has nothing to say.
@@ -290,6 +310,39 @@ impl ApplicationHandler for Foliage {
                 window.request_redraw();
             });
         }
+    }
+
+    /// The platform is taking the surface back.
+    ///
+    /// Android only in practice: an activity that leaves the foreground has its native window
+    /// destroyed, and everything derived from it -- the surface, the device's swapchain, every
+    /// renderer holding buffers against it -- stops being valid at that moment rather than when the
+    /// process ends. So all of it is dropped here, innermost first, and [`resumed`] builds it again
+    /// against whatever window comes back.
+    ///
+    /// The tree is untouched. Nothing above [`Ash`] knows a surface exists, which is what makes a
+    /// suspend cost a rebuild rather than a reload -- an app comes back to the frame it left.
+    ///
+    /// What the rebuild does cost is the comparison: [`Elm`](crate::elm) caches what the *backend*
+    /// holds, and a backend built fresh holds nothing, so the cache is dropped with it or the next
+    /// extraction would upload nothing and paint an empty surface.
+    ///
+    /// [`resumed`]: ApplicationHandler::resumed
+    /// [`Ash`]: crate::ash::Ash
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        if !self.willow.connected() {
+            return;
+        }
+        info!("suspended");
+        self.ash = None;
+        self.ginkgo = None;
+        self.willow.disconnect();
+        self.grove.elm.recut();
+        // [`HITCH`] would cap the background gap rather than let it through, so what this avoids is
+        // not a jump but a hitch: the first frame back would still spend 100ms of animation on time
+        // the app was not running. Forgetting when the last frame was makes that frame's delta zero,
+        // which is the truth -- no frame ran while the app was away.
+        self.sampled = None;
     }
 
     fn window_event(

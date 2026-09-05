@@ -1,0 +1,34 @@
+# Written by `foliage-android init` and read by every other command. Edit it and rerun `init` to
+# regenerate the Gradle project against the change.
+
+# The identity a device installs under. Permanent: an update has to keep the id it shipped.
+app-id = "io.github.eblackleaf.foliage"
+# The label under the launcher icon.
+app-name = "foliage"
+
+# The crate holding the entry function, and the generated cdylib the activity loads.
+app-crate = "application"
+entry-crate = "application-android"
+# Where the generated Gradle project lives, relative to this file.
+project = "application/android"
+
+# Which ABIs `build` compiles. Each needs its rustup target -- `doctor` says which are missing.
+abis = ["arm64-v8a", "x86_64"]
+
+# The device gate, what the compiler sees, and what the app opts into. Only compile-sdk needs a
+# matching `platforms/android-<n>` installed.
+min-sdk = 26
+compile-sdk = 35
+target-sdk = 35
+
+# The Java half of the backend winit talks to. Has to match the GameActivity compiled into the app,
+# which comes from the `android-activity` winit resolved -- `doctor` checks the two agree.
+games-activity = "4.4.0"
+agp = "9.1.0"
+gradle = "9.3.1"
+
+# What `setup` installs. Known-good rather than required -- cargo-ndk works against any reasonably
+# recent NDK -- but `android sdk install` takes exact versions, so they are named here. `android sdk
+# list --all` shows what is current.
+ndk = "27.3.13750724"
+build-tools = "35.0.0"

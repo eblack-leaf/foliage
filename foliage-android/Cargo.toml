@@ -1,0 +1,23 @@
+[package]
+name = "foliage-android"
+version = "1.0.0"
+edition = "2024"
+description = "Scaffolds, builds and runs the Android side of a foliage app."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/eblack-leaf/foliage"
+homepage = "https://eblack-leaf.github.io/foliage/"
+documentation = "https://eblack-leaf.github.io/foliage/api/foliage_android/"
+
+[[bin]]
+name = "foliage-android"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.6.1", features = ["derive"] }
+# The Gradle wrapper, fetched once by `init`. A wrapper jar is a binary and not something to
+# hand-transcribe, and `gradle wrapper` cannot write one without a Gradle already installed --
+# which is the thing the wrapper exists to avoid needing.
+reqwest = { version = "0.13.4", default-features = false, features = [
+    "rustls",
+    "blocking",
+] }

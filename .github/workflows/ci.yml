@@ -56,7 +56,29 @@ jobs:
       - name: cargo check --target wasm32-unknown-unknown
         run: cargo check -p foliage -p application --target wasm32-unknown-unknown
 
-# Android: the arms are built and there is no Android build to run them from -- adding a job
-# means provisioning an SDK on the runner, which is worth doing once there is something to build
-# against. iOS: no toolchain available here, and no iOS-specific branch behind the shared source
-# that the macOS job does not already compile.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - uses: Swatinem/rust-cache@v2
+
+      # `android-activity` compiles GameActivity's C++, so this needs the NDK's clang rather than
+      # the host's. cargo-ndk is what puts it in front of cc-rs, and is what `foliage-android
+      # build` drives too -- so what runs here is what a person runs.
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      # Build-only, like wasm: the headless suite is native and reaches neither wgpu nor winit.
+      # `application-android` is the entry point, so this compiles the whole road from
+      # `android_main` through the engine's Android arms.
+      #
+      # The runner image already exports ANDROID_HOME and ANDROID_NDK_HOME, which is everything
+      # cargo-ndk reads -- the same two variables `foliage-android build` resolves and sets itself.
+      - name: cargo ndk check
+        run: cargo ndk -t arm64-v8a check -p foliage -p application-android
+
+# iOS: no toolchain available here, and no iOS-specific branch behind the shared source that the
+# macOS job does not already compile.

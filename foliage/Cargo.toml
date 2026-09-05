@@ -23,14 +23,29 @@ wgpu = { version = "30.0.0", features = ["metal", "webgl", "wgsl"] }
 winit = "0.30.13"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
+# A URL handed to the host, which is what `navigate` means where there is no page to replace. On
+# Android this is an `ACTION_VIEW` intent rather than a desktop's opener, which is the same request.
+open = "5.4.3"
+pollster = "1.0.1"
+
+[target.'cfg(all(not(target_family = "wasm"), not(target_os = "android")))'.dependencies]
 # The system clipboard. `image-data` is off because a clipboard holds text here and nothing else,
 # and `wayland-data-control` is on because a window on Wayland has no X11 selection to read.
+#
+# Android is excluded because arboard compiles no backend for it. What answers a paste there is the
+# engine's own mirror, which is what `clipboard` already falls back to wherever a host will not
+# serve one.
 arboard = { version = "3.6.1", default-features = false, features = [
     "wayland-data-control",
 ] }
-# A URL handed to the desktop, which is what `navigate` means where there is no page to replace.
-open = "5.4.3"
-pollster = "1.0.1"
+
+[target.'cfg(target_os = "android")'.dependencies]
+# Only the feature differs from the dependency above. `android-game-activity` selects the backend
+# that `androidx.games:games-activity` is the Java half of, and pulling the glue in through winit --
+# rather than depending on `android-activity` directly -- is what keeps the two at one version: a
+# mismatch between the glue winit calls and the glue the entry point defines is a link error at
+# launch rather than a build failure here.
+winit = { version = "0.30.13", features = ["android-game-activity"] }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
 js-sys = "0.3.103"

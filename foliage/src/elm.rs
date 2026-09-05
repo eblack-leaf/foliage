@@ -143,13 +143,20 @@ impl Elm {
 
     /// Drops everything the backend is held to, so the next extraction writes the tree entire.
     ///
-    /// The one thing that invalidates a comparison against what the backend holds: the backend's
-    /// copy is in device pixels and this one is not, so a display whose density changed leaves every
-    /// derived instance -- a cut glyph, a snapped stroke, a field's screen-space range -- correct
-    /// against a density that is gone, while the logical values they came from are unchanged and
-    /// compare equal forever.
+    /// Two things invalidate a comparison against what the backend holds, and both are facts about
+    /// the backend rather than about any element:
     ///
-    /// Total rather than per renderer, because the density is not any renderer's.
+    /// - **The density changed.** The backend's copy is in device pixels and this one is not, so a
+    ///   display whose density changed leaves every derived instance -- a cut glyph, a snapped
+    ///   stroke, a field's screen-space range -- correct against a density that is gone, while the
+    ///   logical values they came from are unchanged and compare equal forever.
+    /// - **The backend was rebuilt.** A platform that took its surface back and gave another one --
+    ///   an Android activity leaving the foreground and returning -- leaves a cache describing
+    ///   buffers that no longer exist. Every value would compare equal and nothing would be
+    ///   uploaded, against renderers holding nothing.
+    ///
+    /// Total rather than per renderer, because neither the density nor the device is any
+    /// renderer's.
     pub(crate) fn recut(&mut self) {
         self.panels.forget();
         self.polygons.forget();

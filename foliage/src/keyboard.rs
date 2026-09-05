@@ -19,8 +19,14 @@
 //! entering [`Incoming`](crate::interaction::input::Incoming) exactly where a translated winit
 //! event enters it.
 //!
-//! Off the web nothing is raised. Android would be the other platform with a keyboard to raise and
-//! there is no Android build to raise it from, so what is here is the seam rather than a stub.
+//! # Android raises one and keeps the keys
+//!
+//! The other platform with a keyboard of its own, and the easier half: the activity raises and
+//! lowers it directly, and what is typed arrives as ordinary key events on the same road a physical
+//! keyboard's would. So there is nothing to hand back and no hidden element to hold -- only the
+//! activity handle, which is the one thing the engine cannot reach for itself.
+//!
+//! Nothing is raised anywhere else, because nothing else has one.
 
 use tracing::debug;
 
@@ -52,6 +58,22 @@ impl Keypad {
             Self::Telephone => "tel",
         }
     }
+
+    /// What Android is told to offer, as `EditorInfo.inputType` names it.
+    ///
+    /// The class only. A variation would say what *kind* of text -- an address, a password, a URI --
+    /// which is a distinction this engine does not make and one the field itself would have to
+    /// declare.
+    #[cfg(target_os = "android")]
+    fn class(self) -> winit::platform::android::activity::input::InputType {
+        use winit::platform::android::activity::input::InputType;
+
+        match self {
+            Self::Text => InputType::TYPE_CLASS_TEXT,
+            Self::Number => InputType::TYPE_CLASS_NUMBER,
+            Self::Telephone => InputType::TYPE_CLASS_PHONE,
+        }
+    }
 }
 
 /// The soft keyboard, and what it is currently showing.
@@ -67,6 +89,10 @@ pub(crate) struct Keyboard {
     /// [`attach`](Keyboard::attach), and absent for good under the headless suite.
     #[cfg(target_family = "wasm")]
     trigger: Option<web::Trigger>,
+    /// The activity Android raises its keyboard through. Absent until
+    /// [`activity`](Keyboard::activity), and absent for good under the headless suite.
+    #[cfg(target_os = "android")]
+    activity: Option<winit::platform::android::activity::AndroidApp>,
 }
 
 impl Keyboard {
@@ -90,6 +116,17 @@ impl Keyboard {
         {
             self.trigger = web::Trigger::build(wake.clone());
         }
+    }
+
+    /// Takes the activity Android raises its keyboard through, once, at boot.
+    ///
+    /// Separate from [`attach`](Keyboard::attach) because it is not the engine's to find: the
+    /// handle enters the program at `android_main` and reaches here only because
+    /// [`photosynthesize`](crate::Foliage::photosynthesize) is handed it. Nothing takes it under the
+    /// headless suite, so nothing is raised there.
+    #[cfg(target_os = "android")]
+    pub(crate) fn activity(&mut self, activity: winit::platform::android::activity::AndroidApp) {
+        self.activity = Some(activity);
     }
 
     /// Raises the keyboard `wanted` asks for, or lowers whatever is up.
@@ -119,6 +156,33 @@ impl Keyboard {
                 }
                 None if moved => trigger.blur(),
                 None => {}
+            }
+        }
+        // Only where it moved, unlike the web: there is no element here whose focus the platform can
+        // take away behind the engine's back, so what was raised stays raised until this lowers it.
+        #[cfg(target_os = "android")]
+        if moved && let Some(activity) = &self.activity {
+            use winit::platform::android::activity::input::{ImeOptions, TextInputAction};
+
+            match wanted {
+                Some(keypad) => {
+                    // Written before the keyboard is raised. An input type given to one already up
+                    // changes nothing a person can see until it has been dismissed and raised again.
+                    activity.set_ime_editor_info(
+                        keypad.class(),
+                        // What the enter key does is the app's business and this engine has no way
+                        // to say -- `submitted` is reported for the key whatever it is labelled.
+                        TextInputAction::Unspecified,
+                        ImeOptions::empty(),
+                    );
+                    // Implicit: focus asked for this keyboard, not a person reaching for one. The
+                    // distinction is the platform's to act on -- an implicit keyboard is the one a
+                    // back gesture is allowed to dismiss.
+                    activity.show_soft_input(true);
+                }
+                // Everything, not only what was raised implicitly. Focus has left the field, so
+                // there is nothing left for a keyboard to type into either way.
+                None => activity.hide_soft_input(false),
             }
         }
     }

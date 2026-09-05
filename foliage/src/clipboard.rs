@@ -28,6 +28,11 @@ pub(crate) struct Clipboard {
     mirror: String,
     /// The platform's own. Absent until [`attach`](Clipboard::attach), and absent for good under the
     /// headless suite.
+    ///
+    /// Absent as a *field* on Android, which is the difference between a host that might have one
+    /// and a host that cannot: reaching its `ClipboardManager` means calling into the JVM, which
+    /// nothing else in the engine does. There is nothing to hold, so there is no slot to hold it.
+    #[cfg(not(target_os = "android"))]
     system: Option<System>,
 }
 
@@ -36,7 +41,7 @@ pub(crate) struct Clipboard {
 /// Native holds its context for the life of the program because on X11 the program that wrote the
 /// selection is the one that serves it -- a context dropped after a write takes what it wrote with
 /// it. The web holds nothing: `navigator.clipboard` is reached by name each time.
-#[cfg(not(target_family = "wasm"))]
+#[cfg(all(not(target_family = "wasm"), not(target_os = "android")))]
 struct System(arboard::Clipboard);
 
 #[cfg(target_family = "wasm")]
@@ -46,9 +51,9 @@ impl Clipboard {
     /// Opens the platform's own clipboard, once, at boot.
     ///
     /// A desktop with nothing to open one against is not an error: the mirror answers, and the
-    /// reason is traced once rather than at every copy.
+    /// reason is traced once rather than at every copy. Neither is Android, which never has one.
     pub(crate) fn attach(&mut self) {
-        #[cfg(not(target_family = "wasm"))]
+        #[cfg(all(not(target_family = "wasm"), not(target_os = "android")))]
         match arboard::Clipboard::new() {
             Ok(clipboard) => self.system = Some(System(clipboard)),
             Err(reason) => tracing::warn!(%reason, "no system clipboard"),
@@ -64,8 +69,9 @@ impl Clipboard {
     /// The mirror is written whether or not the platform took it, because what an app copied is
     /// what it can paste back even where the host says no.
     pub(crate) fn write(&mut self, text: String) {
+        #[cfg(not(target_os = "android"))]
         match &mut self.system {
-            #[cfg(not(target_family = "wasm"))]
+            #[cfg(all(not(target_family = "wasm"), not(target_os = "android")))]
             Some(System(clipboard)) => {
                 if let Err(reason) = clipboard.set_text(&text) {
                     tracing::warn!(%reason, "clipboard write refused");
@@ -94,8 +100,13 @@ impl Clipboard {
     /// outcome and the reason is traced rather than reported.
     pub(crate) fn read(&mut self, queue: &Queue, wake: &Wake, into: Option<Leaf>) {
         debug!(into = into.map(|leaf| leaf.id()), "pasting");
+        // Android has no system half to ask, so the mirror answers on the same frame the headless
+        // suite's does.
+        #[cfg(target_os = "android")]
+        answered(queue, wake, into, self.mirror.clone());
+        #[cfg(not(target_os = "android"))]
         match &mut self.system {
-            #[cfg(not(target_family = "wasm"))]
+            #[cfg(all(not(target_family = "wasm"), not(target_os = "android")))]
             Some(System(clipboard)) => {
                 // On the frame's own thread, unlike a file, because the context that serves what
                 // this program wrote has to outlive the write and so cannot be moved onto a thread
@@ -118,9 +129,9 @@ impl Clipboard {
                     answered(&queue, &wake, into, text);
                 });
             }
-            // Nothing was ever attached, which is the headless suite. The mirror is the whole
-            // clipboard there, and it answers at once so a test reads a paste in the next frame the
-            // way a platform's would.
+            // Nothing was ever attached: the headless suite, or a desktop that had no clipboard to
+            // open. The mirror is the whole clipboard there, and it answers at once so a paste is
+            // read in the next frame the way a platform's would be.
             None => answered(queue, wake, into, self.mirror.clone()),
         }
     }
