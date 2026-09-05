@@ -1,15 +1,15 @@
-//! The site foliage is proven against.
+//! The API gate.
 //!
-//! `cargo check -p application` is a gate on the engine rather than on the site. An API that
+//! `cargo check -p application` is a gate on the engine rather than on this crate. An API that
 //! cannot build a page is an incomplete API, and this is where that is found out: everything here
 //! is written against `foliage`'s public surface and reaches nothing else.
+//!
+//! It is deliberately bare. What goes in [`site`] is written by hand, and what it costs to write is
+//! the reading.
 
-mod shell;
 mod site;
 
-use core::time::Duration;
-
-use foliage::{Area, Claim, Foliage, Hold, Momentum};
+use foliage::{Area, Foliage};
 
 /// Shared by every platform's entry point.
 ///
@@ -22,27 +22,6 @@ pub fn run(mut foliage: Foliage) {
     foliage.title("foliage");
     foliage.app_id("foliage");
     foliage.desktop_size(Area::new(390.0, 844.0));
-    // How far a gesture travels before it stops being a tap, per axis. The page scrolls down and
-    // has one control that takes a drag across, so a claim across is held off until it is clearly
-    // meant -- otherwise every attempt to scroll would steal into the slider it passed over.
-    foliage.tune(Claim {
-        horizontal: 20.0,
-        vertical: 8.0,
-    });
-    // How long a press sits still before it is a hold rather than a tap that has not finished
-    // happening. A little under the default: the one thing on the page that opens on a hold is a
-    // menu, and half a second of a finger down with nothing shown reads as the page ignoring it.
-    foliage.tune(Hold {
-        after: Duration::from_millis(400),
-    });
-    // How a released drag carries on: half its speed gone every three hundred milliseconds, a
-    // little sharper than the default, because the reading column is short and a fling that
-    // crossed the whole of it would be over before it read as motion. Feel is one value for the
-    // whole app for the same reason the claim is.
-    foliage.tune(Momentum {
-        half_life: Duration::from_millis(300),
-        minimum: 40.0,
-    });
     foliage.root::<site::Site>();
     foliage.photosynthesize();
 }

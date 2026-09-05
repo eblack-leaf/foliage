@@ -65,8 +65,7 @@ None of this is engine work, and all of it is between here and a library.
 - **A `README.md` and licence files.** `Cargo.toml` claims `MIT OR Apache-2.0` and points
   `repository`, `homepage` and `documentation` at pages that do not exist.
 - **`#![deny(missing_docs)]`.** The surface is documented today and nothing keeps it that way.
-- **Examples.** `application/` is an API gate rather than a teaching artifact: one page using
-  everything at once, which is the opposite of what a first read wants.
+- **Examples.** Small ones, each doing one thing: a placement, a gesture, a field, a series.
 - **A way to bake an icon field.** A picture is decoded here now, but `icon` still takes a baked MSDF
   and nothing in the repo produces one. Port the baker as its own tool, or document the field format
   so another can. This and the Android modules are the only reasons to keep `../working-foliage`.
