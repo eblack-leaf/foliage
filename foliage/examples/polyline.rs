@@ -340,9 +340,6 @@ fn label(grove: &mut Grove, page: Leaf, x: f32, y: f32, text: String) {
         Text::new(text)
             .color(Palette::Muted)
             .font_size(FontSize::new().xs(12))
-            .at(Location::new().xs(
-                left(x.px()).width(content()),
-                top(y.px()).height(content()),
-            )),
+            .at(Location::new().xs(left(x.px()).width(content()), top(y.px()).height(content()))),
     );
 }

@@ -4,24 +4,19 @@ What is left. Every slice of the plan is implemented; what follows is either owe
 that landed, waiting on a platform that has no build, or the distance between a working engine and a
 crate someone else can use.
 
-Gates today: `cargo test --workspace` — 475 headless tests, 25 doctests, 14 compile-fail doctests.
+Gates today: `cargo test --workspace` — 486 headless tests, 25 doctests, 14 compile-fail doctests.
 `cargo check -p application` and `cargo check -p foliage --target wasm32-unknown-unknown` both pass.
 
-## Verify
+## Decide
 
-- **A path drawn as a chain of `Line`s.** `application/` draws its series this way and it reads
-  correctly at the weight and angles on that page. Check it across several weights and several
-  angles before calling it solved — particularly where two segments meet, and where one segment is
-  axis-aligned: `LineQuad::new` snaps a stroke whose ends share a coordinate and moves both ends and
-  the weight with it, so in a chain that segment can stop meeting its neighbours and read at a
-  different thickness. If a chain holds, `Polyline` is closed and a dedicated element buys only a
-  dash pattern and `Motion::DrawProgress`.
+- **Whether a path gets an element of its own.** A chain of `Line`s is correct opaque at every
+  weight and angle with `Cap::Round`, and wrong at every vertex under partial alpha, where two
+  overlapping strokes paint the ground twice. Dashes and `Motion::DrawProgress` have no expression
+  in a chain either way. `POLYLINE.md` is the design and what it costs; the call is whether a path
+  in foliage can ever be translucent or fade.
 
 ## Engine
 
-- **The ramp behind the palette.** Each of the five roles resolves to one flat color. Owed is a tint
-  scale per role and a light and dark reading of it. It changes what a role resolves to and never
-  what an element declares, so no callsite moves when it lands.
 - **A blinking caret.** The caret is solid while focused. A blink is a frame owed for as long as a
   field holds focus, which is what F9's idling is weighed against.
 - **Composition.** A key that produced text is taken as the text it produced, which covers a dead key
@@ -36,8 +31,6 @@ Gates today: `cargo test --workspace` — 475 headless tests, 25 doctests, 14 co
   reaches none of them, because which part of a field a fill means is unanswered. What an app usually
   wants — an error state, a focus mark — is the ground it put the field in, which is its own panel
   and already writable.
-- **`.extent(..)`.** The one value that can contradict where the children actually are. It comes back
-  with the virtualised list that wants it, and with the verb that undoes it.
 - **Sheet eviction.** Nothing fills the shared sheet today: marks are a bounded set packed once and
   pictures have a texture each. Shelves are the reclaim unit if it is ever needed, and it needs the
   character kept per glyph to re-cut what it orphans.

@@ -376,9 +376,7 @@ impl Aspen {
         self.motions
             .iter()
             .filter_map(|((leaf, _), motioning)| match &motioning.moving {
-                Moving::Scroll { from, to } => {
-                    Some((*leaf, *from, *to, motioning.progress.at()))
-                }
+                Moving::Scroll { from, to } => Some((*leaf, *from, *to, motioning.progress.at())),
                 _ => None,
             })
             .collect()

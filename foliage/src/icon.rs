@@ -3,8 +3,8 @@
 use bevy_ecs::component::Component;
 use tracing::info;
 
-use crate::coordinate::Section;
 use crate::color::Color;
+use crate::coordinate::Section;
 use crate::elm::{Chlorophyll, Pigment};
 use crate::op::Bud;
 use crate::palette::{Fill, Palette};

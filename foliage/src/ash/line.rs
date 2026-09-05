@@ -33,12 +33,11 @@ impl LineQuad {
             Cap::Round => 1.0,
             Cap::Butt => 0.0,
         };
-        let (from, to, half) = match instance.from.x == instance.to.x
-            || instance.from.y == instance.to.y
-        {
-            true => snapped(instance, scale),
-            false => (instance.from, instance.to, instance.weight / 2.0),
-        };
+        let (from, to, half) =
+            match instance.from.x == instance.to.x || instance.from.y == instance.to.y {
+                true => snapped(instance, scale),
+                false => (instance.from, instance.to, instance.weight / 2.0),
+            };
         Self {
             segment: [from.x, from.y, to.x, to.y],
             color: instance.color,
@@ -87,7 +86,11 @@ fn feather(half: f32, scale: f32) -> f32 {
 fn snapped(
     instance: LineInstance,
     scale: f32,
-) -> (crate::coordinate::Position, crate::coordinate::Position, f32) {
+) -> (
+    crate::coordinate::Position,
+    crate::coordinate::Position,
+    f32,
+) {
     let whole = |value: f32| (value * scale).round() / scale;
     // At least one device pixel of ink, whatever was asked for.
     let thickness = ((instance.weight * scale).round().max(1.0)) / scale;

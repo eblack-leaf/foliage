@@ -106,7 +106,7 @@ pub use keyboard::Keypad;
 pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};
 pub use line::{Cap, HAIRLINE, Line};
-pub use palette::{Fill, Palette, Scheme};
+pub use palette::{Fill, Palette, Scheme, Step};
 pub use panel::Panel;
 pub use place::{Boxed, Place};
 pub use placement::basis::{Anchor, Trunk, anchor, trunk};

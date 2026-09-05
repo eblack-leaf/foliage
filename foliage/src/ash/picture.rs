@@ -56,7 +56,13 @@ impl Pictures {
     /// Called for every plate the drain loaded, whether or not it was held before, which is what
     /// makes writing the same name again -- a re-fetch at a higher resolution -- reach every element
     /// drawing it.
-    pub(crate) fn upload(&mut self, ginkgo: &Ginkgo, plate: Plate, pixels: &[u8], size: (u32, u32)) {
+    pub(crate) fn upload(
+        &mut self,
+        ginkgo: &Ginkgo,
+        plate: Plate,
+        pixels: &[u8],
+        size: (u32, u32),
+    ) {
         let device = ginkgo.device();
         let (width, height) = size;
         if width == 0 || height == 0 {
@@ -98,7 +104,13 @@ impl Pictures {
         let view = texture.create_view(&TextureViewDescriptor::default());
         self.held.insert(
             plate,
-            bind(device, &self.layout, &view, &self.sampler, "picture-binding"),
+            bind(
+                device,
+                &self.layout,
+                &view,
+                &self.sampler,
+                "picture-binding",
+            ),
         );
         debug!(plate = plate.0, width, height, "picture uploaded");
     }

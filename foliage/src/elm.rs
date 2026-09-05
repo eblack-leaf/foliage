@@ -50,8 +50,8 @@ use crate::palette::Fill;
 use crate::panel::PanelInstance;
 use crate::polygon::{PolygonInstance, PolygonPigment};
 use crate::rounding::Corners;
-use crate::text::font::Font;
 use crate::text::TextPigment;
+use crate::text::font::Font;
 
 /// Which renderer an element carries, and so which instances it is gathered into.
 ///
@@ -444,7 +444,12 @@ impl<I: Copy + PartialEq> Instances<I> {
 
 /// Step 8. Resolved state becomes instances, and only where it differs from what is already drawn.
 pub(crate) fn run(grove: &mut Grove) {
-    let step = trace_span!("extract", written = Empty, withdrawn = Empty, glyphs = Empty);
+    let step = trace_span!(
+        "extract",
+        written = Empty,
+        withdrawn = Empty,
+        glyphs = Empty
+    );
     let _entered = step.enter();
     grove.elm.texts.open();
     // Detached for the walk so that gathering a run's glyphs -- which reads the shaping cache -- and
@@ -710,4 +715,3 @@ fn tint(grove: &Grove, leaf: Leaf, fill: Fill) -> Color {
         None => target,
     }
 }
-

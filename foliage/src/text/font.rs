@@ -187,7 +187,11 @@ impl Fonts {
         self.faces
             .get(font.0 as usize)
             .and_then(Option::as_ref)
-            .unwrap_or_else(|| self.faces[Font::DEFAULT.0 as usize].as_ref().expect("bundled"))
+            .unwrap_or_else(|| {
+                self.faces[Font::DEFAULT.0 as usize]
+                    .as_ref()
+                    .expect("bundled")
+            })
     }
 
     /// One character cell of `font` at `size`: the advance every glyph shares, and the distance
@@ -240,9 +244,7 @@ impl Fonts {
             true => coverage,
             false => coverage
                 .chunks_exact(3)
-                .map(|pixel| {
-                    ((pixel[0] as u16 + pixel[1] as u16 + pixel[2] as u16 + 1) / 3) as u8
-                })
+                .map(|pixel| ((pixel[0] as u16 + pixel[1] as u16 + pixel[2] as u16 + 1) / 3) as u8)
                 .collect(),
         };
         // Where the baseline sits below the top of the cell, in logical pixels. The cell is the

@@ -41,7 +41,10 @@ fn a_strokes_box_is_its_ends_grown_by_half_its_weight() {
     let mut grove = grove();
     let leaf = grove.plant(line((10.0, 20.0), (50.0, 60.0), 4.0));
     tick(&mut grove);
-    assert_eq!(section(&grove, leaf), Section::from_edges(8.0, 18.0, 52.0, 62.0));
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(8.0, 18.0, 52.0, 62.0)
+    );
 }
 
 /// The case the weight exists for. Two ends on one line describe a rectangle of no height, and an
@@ -52,7 +55,10 @@ fn a_rule_whose_ends_share_a_row_still_has_a_box() {
     let mut grove = grove();
     let leaf = grove.plant(line((0.0, 40.0), (100.0, 40.0), 2.0));
     tick(&mut grove);
-    assert_eq!(section(&grove, leaf), Section::from_edges(-1.0, 39.0, 101.0, 41.0));
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(-1.0, 39.0, 101.0, 41.0)
+    );
     assert_eq!(stroke(&grove, leaf).weight, 2.0);
 }
 
@@ -68,11 +74,17 @@ fn the_ends_are_settled_and_say_which_diagonal_the_stroke_runs_along() {
     assert_eq!(section(&grove, falling), section(&grove, rising));
     assert_eq!(
         grove.tap(falling, Vein::Ends),
-        Some(Sap::Ends(Position::new(10.0, 10.0), Position::new(50.0, 50.0)))
+        Some(Sap::Ends(
+            Position::new(10.0, 10.0),
+            Position::new(50.0, 50.0)
+        ))
     );
     assert_eq!(
         grove.tap(rising, Vein::Ends),
-        Some(Sap::Ends(Position::new(10.0, 50.0), Position::new(50.0, 10.0)))
+        Some(Sap::Ends(
+            Position::new(10.0, 50.0),
+            Position::new(50.0, 10.0)
+        ))
     );
 }
 
@@ -81,23 +93,21 @@ fn the_ends_are_settled_and_say_which_diagonal_the_stroke_runs_along() {
 #[test]
 fn a_strokes_ends_read_the_whole_grammar() {
     let mut grove = grove();
-    let target = grove.plant(Panel::new().at(Location::new().xs(
-        left(100.px()).width(40.px()),
-        top(200.px()).height(20.px()),
-    )));
-    let leaf = grove.plant(
-        Line::new()
-            .weight(2.0)
-            .anchored(target)
-            .between(
-                Point::new(0.px(), 0.px()),
-                Point::new(anchor().left(), anchor().bottom()),
-            ),
+    let target = grove.plant(
+        Panel::new()
+            .at(Location::new().xs(left(100.px()).width(40.px()), top(200.px()).height(20.px()))),
     );
+    let leaf = grove.plant(Line::new().weight(2.0).anchored(target).between(
+        Point::new(0.px(), 0.px()),
+        Point::new(anchor().left(), anchor().bottom()),
+    ));
     tick(&mut grove);
     assert_eq!(
         grove.tap(leaf, Vein::Ends),
-        Some(Sap::Ends(Position::new(0.0, 0.0), Position::new(100.0, 220.0)))
+        Some(Sap::Ends(
+            Position::new(0.0, 0.0),
+            Position::new(100.0, 220.0)
+        ))
     );
 }
 
@@ -136,7 +146,10 @@ fn between_moves_both_ends_at_once() {
     tick(&mut grove);
     assert_eq!(
         grove.tap(leaf, Vein::Ends),
-        Some(Sap::Ends(Position::new(20.0, 30.0), Position::new(60.0, 70.0)))
+        Some(Sap::Ends(
+            Position::new(20.0, 30.0),
+            Position::new(60.0, 70.0)
+        ))
     );
     assert_eq!(stroke(&grove, leaf).from, Position::new(20.0, 30.0));
 }
@@ -268,11 +281,26 @@ fn reshaping_cancels_a_shape_in_motion() {
     let mut grove = grove();
     let leaf = grove.plant(Polygon::new().sides(3.0).at(square(20.0)));
     tick(&mut grove);
-    grove.animate(leaf, Motion::Polygon(Shape { sides: 9.0, rounding: 0.0, rotation: 0.0 }), Timing::ms(100));
+    grove.animate(
+        leaf,
+        Motion::Polygon(Shape {
+            sides: 9.0,
+            rounding: 0.0,
+            rotation: 0.0,
+        }),
+        Timing::ms(100),
+    );
     tick(&mut grove);
     crate::tests::advance(&mut grove, 50);
     tick(&mut grove);
-    grove.reshape(leaf, Shape { sides: 4.0, rounding: 0.0, rotation: 0.0 });
+    grove.reshape(
+        leaf,
+        Shape {
+            sides: 4.0,
+            rounding: 0.0,
+            rotation: 0.0,
+        },
+    );
     tick(&mut grove);
     crate::tests::advance(&mut grove, 200);
     tick(&mut grove);
@@ -316,10 +344,10 @@ fn mark(grove: &Grove, leaf: Leaf) -> IconInstance {
 fn a_mark_is_squared_inside_its_box() {
     let mut grove = grove();
     let art = field(&mut grove);
-    let leaf = grove.plant(crate::Icon::new(art).at(Location::new().xs(
-        left(0.px()).width(80.px()),
-        top(0.px()).height(20.px()),
-    )));
+    let leaf = grove.plant(
+        crate::Icon::new(art)
+            .at(Location::new().xs(left(0.px()).width(80.px()), top(0.px()).height(20.px()))),
+    );
     tick(&mut grove);
     assert_eq!(
         mark(&grove, leaf).section,
@@ -333,10 +361,20 @@ fn a_mark_is_squared_inside_its_box() {
 fn a_mark_is_filled_like_anything_else() {
     let mut grove = grove();
     let art = field(&mut grove);
-    let leaf = grove.plant(crate::Icon::new(art).color(Palette::Accent).at(square(24.0)));
+    let leaf = grove.plant(
+        crate::Icon::new(art)
+            .color(Palette::Accent)
+            .at(square(24.0)),
+    );
     tick(&mut grove);
-    assert_eq!(mark(&grove, leaf).color, Scheme::default().color(Palette::Accent));
-    assert_eq!(grove.tap(leaf, Vein::Color), Some(Sap::Color(Fill::Role(Palette::Accent))));
+    assert_eq!(
+        mark(&grove, leaf).color,
+        Scheme::default().color(Palette::Accent)
+    );
+    assert_eq!(
+        grove.tap(leaf, Vein::Color),
+        Some(Sap::Color(Fill::Role(Palette::Accent)))
+    );
     grove.color(leaf, Color::rgb(1.0, 0.0, 0.0));
     tick(&mut grove);
     assert_eq!(mark(&grove, leaf).color, Color::rgb(1.0, 0.0, 0.0));
@@ -366,7 +404,10 @@ fn a_plate_is_usable_in_the_frame_it_is_named() {
     let plate = grove.pixels(pixels(), Area::new(2.0, 2.0));
     let leaf = grove.plant(Image::new(plate).at(square(40.0)));
     tick(&mut grove);
-    assert_eq!(picture(&grove, leaf).section, Section::from_edges(0.0, 0.0, 40.0, 40.0));
+    assert_eq!(
+        picture(&grove, leaf).section,
+        Section::from_edges(0.0, 0.0, 40.0, 40.0)
+    );
     assert_eq!(grove.tap(leaf, Vein::Picture), Some(Sap::Picture(plate)));
 }
 
@@ -381,7 +422,10 @@ fn a_picture_with_no_pixels_yet_is_absent_from_the_batch() {
     tick(&mut grove);
     assert_eq!(grove.elm.images.len(), 0);
     // The element is still there, still placed, still in the stack.
-    assert_eq!(section(&grove, leaf), Section::from_edges(0.0, 0.0, 40.0, 40.0));
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(0.0, 0.0, 40.0, 40.0)
+    );
 }
 
 /// Fitting inside the box changes the box and shows the whole picture; filling it keeps the box and
@@ -461,10 +505,8 @@ fn colors(grove: &Grove, leaf: Leaf) -> Vec<Color> {
 }
 
 fn wide(value: &str) -> Text {
-    Text::new(value).at(Location::new().xs(
-        left(0.px()).width(400.px()),
-        top(0.px()).height(40.px()),
-    ))
+    Text::new(value)
+        .at(Location::new().xs(left(0.px()).width(400.px()), top(0.px()).height(40.px())))
 }
 
 /// A tint fills part of a run, and everything untinted stays the run's own -- so a run with tints
@@ -493,7 +535,11 @@ fn a_range_is_in_characters_of_the_value_and_not_in_glyphs() {
     let mut grove = grove();
     // "ab cd": the space is character two, so character three is "c". Counting the four drawn
     // glyphs instead would put "d" at three, which is what this range would then have hit.
-    let leaf = grove.plant(wide("ab cd").color(Palette::Ink).tint(3..4, Palette::Accent));
+    let leaf = grove.plant(
+        wide("ab cd")
+            .color(Palette::Ink)
+            .tint(3..4, Palette::Accent),
+    );
     tick(&mut grove);
     let scheme = Scheme::default();
     assert_eq!(
@@ -534,11 +580,7 @@ fn the_later_tint_wins_where_two_overlap() {
 fn a_tinted_role_follows_a_repaint_and_a_literal_does_not() {
     let mut grove = grove();
     let literal = Color::rgb(1.0, 0.0, 0.0);
-    let leaf = grove.plant(
-        wide("abcd")
-            .tint(0..2, Palette::Accent)
-            .tint(2..4, literal),
-    );
+    let leaf = grove.plant(wide("abcd").tint(0..2, Palette::Accent).tint(2..4, literal));
     tick(&mut grove);
     let moved = Color::rgb(0.0, 1.0, 0.0);
     grove.repaint(Scheme::default().set(Palette::Accent, moved));

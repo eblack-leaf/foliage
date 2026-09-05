@@ -10,9 +10,8 @@ use crate::coordinate::{Area, Axes, Position, Section};
 use crate::tests::{advance, drag, grove, press, release, section, tick, wheel};
 use crate::view::coasted;
 use crate::{
-    Boxed,
-    Divide, Elevation, Escape, Grid, Grove, Grow, Leaf, Location, Motion, Panel, Place, Sap, Scroll,
-    ScrollTo, Source, Stem, Text, Timing, Vein, anchor, content, left, top,
+    Boxed, Divide, Elevation, Escape, Grid, Grove, Grow, Leaf, Location, Motion, Panel, Place, Sap,
+    Scroll, ScrollTo, Source, Stem, Text, Timing, Vein, anchor, content, left, top,
 };
 
 /// A box at a stated place, so a point can be aimed at it and a reach can be counted.
@@ -263,10 +262,8 @@ fn extent_tracks_a_child_that_grew_by_wrapping() {
     grove.branch(
         region,
         // Five cells to a line, and a cell is twenty-two tall.
-        Text::new("hello").at(Location::new().xs(
-            left(0.px()).width(50.px()),
-            top(0.px()).height(content()),
-        )),
+        Text::new("hello")
+            .at(Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(content()))),
     );
     tick(&mut grove);
     assert_eq!(extent(&grove, region).height, 100.0);
@@ -280,8 +277,6 @@ fn extent_tracks_a_child_that_grew_by_wrapping() {
     // Thirty characters at five cells a line, twenty-two tall each.
     assert_eq!(extent(&grove, region).height, 132.0);
 }
-
-
 
 // -- Pinned --------------------------------------------------------------------------------------
 
@@ -1059,8 +1054,6 @@ fn a_frame_that_took_no_time_neither_moves_a_coast_nor_settles_it() {
     assert!(offset(&grove, region).y > 30.0);
 }
 
-
-
 // -- Floating over a region ----------------------------------------------------------------------
 
 /// A region, a row inside it, and a menu the row opens. The menu is grown under the region and
@@ -1175,7 +1168,9 @@ fn a_floating_element_is_still_held_by_the_region_outside_its_own() {
     );
     let options = grove.branch(
         pane,
-        Panel::new().floats(Escape::Region).at(at(0.0, 0.0, 100.0, 400.0)),
+        Panel::new()
+            .floats(Escape::Region)
+            .at(at(0.0, 0.0, 100.0, 400.0)),
     );
     tick(&mut grove);
 
@@ -1216,9 +1211,7 @@ fn nested_regions(grove: &mut Grove, escape: Escape) -> (Leaf, Leaf, Leaf, Leaf)
     );
     let menu = grove.branch(
         pane,
-        Panel::new()
-            .floats(escape)
-            .at(at(0.0, 0.0, 100.0, 400.0)),
+        Panel::new().floats(escape).at(at(0.0, 0.0, 100.0, 400.0)),
     );
     (sidebar, list, pane, menu)
 }
@@ -1342,4 +1335,3 @@ fn a_release_leaves_the_claim_with_the_region_that_had_it() {
     assert!(offset(&grove, inner).y > 20.0);
     assert_eq!(offset(&grove, outer).y, 0.0);
 }
-

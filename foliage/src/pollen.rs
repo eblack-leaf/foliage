@@ -1,6 +1,6 @@
 use crate::aspen::{Sequence, Tween};
-use crate::coordinate::{Area, Position};
 use crate::asset::Arrival;
+use crate::coordinate::{Area, Position};
 use crate::interaction::Drag;
 use crate::interaction::input::Keystroke;
 use crate::leaf::Leaf;

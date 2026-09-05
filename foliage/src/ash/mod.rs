@@ -361,14 +361,26 @@ impl Ash {
                 slot: slot as u32,
             }));
         };
-        gather(self.panels.instances.ranks(), Renderer::Panel, &mut self.stack);
+        gather(
+            self.panels.instances.ranks(),
+            Renderer::Panel,
+            &mut self.stack,
+        );
         gather(
             self.polygons.instances.ranks(),
             Renderer::Polygon,
             &mut self.stack,
         );
-        gather(self.lines.instances.ranks(), Renderer::Line, &mut self.stack);
-        gather(self.icons.instances.ranks(), Renderer::Icon, &mut self.stack);
+        gather(
+            self.lines.instances.ranks(),
+            Renderer::Line,
+            &mut self.stack,
+        );
+        gather(
+            self.icons.instances.ranks(),
+            Renderer::Icon,
+            &mut self.stack,
+        );
         gather(
             self.images.instances.ranks(),
             Renderer::Image,
@@ -468,7 +480,8 @@ impl Ash {
                     // A picture whose texture is not held yet is skipped rather than drawn against
                     // someone else's: it appears on the frame its pixels arrive.
                     Renderer::Image => {
-                        if let Some(binding) = self.pictures.binding(crate::image::Plate(span.group))
+                        if let Some(binding) =
+                            self.pictures.binding(crate::image::Plate(span.group))
                         {
                             self.images.draw(pass, range, Some(binding));
                         }

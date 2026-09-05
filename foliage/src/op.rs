@@ -1,5 +1,5 @@
-use crate::asset::{Destination, Retrieved};
 use crate::aspen::{Motion, Timing, Tween};
+use crate::asset::{Destination, Retrieved};
 use crate::coordinate::Area;
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, Pigment};
@@ -166,13 +166,18 @@ pub(crate) enum Op {
     ///
     /// Separate from the answer because reading a clipboard is not instant on either target -- a
     /// promise on the web, a round trip to whoever owns the selection off it.
-    Paste { into: Option<Leaf> },
+    Paste {
+        into: Option<Leaf>,
+    },
     /// What the clipboard turned out to hold, and who asked for it.
     ///
     /// Pushed by whatever finished the read rather than by an app, which is what makes it an op for
     /// the reason [`Arrived`](Op::Arrived) is one: it lands at a moment nothing chose, and the queue
     /// is what gives it a place in the order anyway.
-    Pasted { into: Option<Leaf>, text: String },
+    Pasted {
+        into: Option<Leaf>,
+        text: String,
+    },
     /// A URL to go to.
     Navigate(String),
     /// A URL to hand the host to save.
@@ -183,9 +188,15 @@ pub(crate) enum Op {
     /// An op rather than a call, because a standing read has a place in the order like anything
     /// else: watching an element in the same breath as growing it is one sequence, and it works for
     /// the reason a write to a leaf planted a line earlier works.
-    Watch { leaf: Leaf, vein: Vein },
+    Watch {
+        leaf: Leaf,
+        vein: Vein,
+    },
     /// Ends a [`Watch`](Op::Watch).
-    Unwatch { leaf: Leaf, vein: Vein },
+    Unwatch {
+        leaf: Leaf,
+        vein: Vein,
+    },
 }
 
 /// An element formed and not yet open: what the queue carries between the call that described it

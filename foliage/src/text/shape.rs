@@ -138,17 +138,15 @@ impl Shaped {
                 _ => {}
             }
             let start = index;
-            while index < self.characters.len()
-                && !matches!(self.characters[index], ' ' | '\n')
-            {
+            while index < self.characters.len() && !matches!(self.characters[index], ' ' | '\n') {
                 index += 1;
             }
             let word = index - start;
             let laid = |place: &mut dyn FnMut(char, usize, usize, usize),
-                            from: usize,
-                            count: usize,
-                            column: usize,
-                            line: usize| {
+                        from: usize,
+                        count: usize,
+                        column: usize,
+                        line: usize| {
                 for offset in 0..count {
                     place(
                         self.characters[from + offset],
@@ -214,13 +212,7 @@ struct Held {
 
 impl Shaping {
     /// The shaped form of `value`, shaping it if this is the first frame that has asked.
-    pub(crate) fn shape(
-        &mut self,
-        fonts: &Fonts,
-        font: Font,
-        size: u32,
-        value: &str,
-    ) -> &Shaped {
+    pub(crate) fn shape(&mut self, fonts: &Fonts, font: Font, size: u32, value: &str) -> &Shaped {
         let pass = self.pass;
         let cell = fonts.cell(font, size);
         let runs = self.runs.entry((font, size)).or_default();
@@ -228,10 +220,13 @@ impl Shaping {
         // allocates nothing. Only a run that is genuinely new pays for a key, and it is already
         // paying to walk the whole string.
         if !runs.contains_key(value) {
-            runs.insert(value.to_string(), Held {
-                shaped: shape(value, cell),
-                seen: pass,
-            });
+            runs.insert(
+                value.to_string(),
+                Held {
+                    shaped: shape(value, cell),
+                    seen: pass,
+                },
+            );
         }
         let held = runs.get_mut(value).expect("a run just shaped");
         held.seen = pass;

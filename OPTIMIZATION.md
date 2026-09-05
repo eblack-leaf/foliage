@@ -38,5 +38,9 @@ size.
 
 ## The sheet never reclaims
 
-A failed pack draws blank and traces once. Nothing fills the sheet today — see the eviction note in
-`TODO.md` — so this is a candidate only once something does.
+A failed pack draws blank and traces once, and nothing is ever evicted. Nothing fills the shared
+sheet either: marks are a bounded set packed once, and pictures have a texture each.
+
+Should one ever fill, the packer already implies the shape — **shelves are the reclaim unit**, and
+reclaiming one orphans the runs still pointing at its texels, so it needs the character kept per
+glyph to re-cut them.

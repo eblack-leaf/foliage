@@ -590,8 +590,7 @@ fn coast(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
         let section = boxes.get(&leaf).copied().unwrap_or_default();
         let span = range(grove.tree.extent(leaf), section.area, axis);
         let offset = grove.tree.offset(leaf);
-        let (travelled, speed) =
-            coasted(coast.velocity, momentum.half_life.as_secs_f32(), elapsed);
+        let (travelled, speed) = coasted(coast.velocity, momentum.half_life.as_secs_f32(), elapsed);
         let at = offset.along(axis);
         let wanted = at + travelled;
         let landed = wanted.clamp(0.0, span);
@@ -668,10 +667,7 @@ fn animated(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
         };
         grove.tree.set_offset(
             leaf,
-            Position::new(
-                blend(from.x, target.x, at),
-                blend(from.y, target.y, at),
-            ),
+            Position::new(blend(from.x, target.x, at), blend(from.y, target.y, at)),
         );
     }
 }

@@ -141,7 +141,9 @@ fn measure(grove: &mut Grove, order: &[Leaf]) {
         let size = typeface.size.at(*layout, *short);
         let cell = fonts.cell(typeface.font, size);
         let width = match tree.lettering(leaf) {
-            Some(value) => shaping.shape(fonts, typeface.font, size, value).max_content(),
+            Some(value) => shaping
+                .shape(fonts, typeface.font, size, value)
+                .max_content(),
             None => 0.0,
         };
         tree.set_cell(leaf, cell);
@@ -228,13 +230,7 @@ fn geometry(
 ///
 /// The one place a placement becomes a span, so a measure and a layout are answering the same
 /// question -- an element in motion is measured where it *is* rather than where it is going.
-fn span(
-    grove: &Grove,
-    leaf: Leaf,
-    fallback: &Location,
-    context: &Context,
-    axis: Axis,
-) -> Span {
+fn span(grove: &Grove, leaf: Leaf, fallback: &Location, context: &Context, axis: Axis) -> Span {
     let location = grove.tree.location(leaf).unwrap_or(fallback);
     let target = resolve(pinned(location, grove, axis), context);
     match grove.aspen.location(leaf) {
@@ -327,19 +323,18 @@ fn wrapped(grove: &mut Grove, leaf: Leaf, width: f32) -> f32 {
 /// a percentage of this element, a row of its grid, an anchor's edge -- is asking how tall
 /// something else is, so it cannot be what decides how tall this is. See
 /// [`Config::measurable`](crate::placement::role::Config::measurable).
-fn reach(
-    grove: &Grove,
-    boxes: &HashMap<Leaf, Section>,
-    fallback: &Location,
-    leaf: Leaf,
-) -> f32 {
+fn reach(grove: &Grove, boxes: &HashMap<Leaf, Section>, fallback: &Location, leaf: Leaf) -> f32 {
     let mut reach: f32 = 0.0;
     for child in grove.tree.branches(leaf) {
         if !measurable(grove, child, fallback) {
             continue;
         }
         let context = raised(grove, boxes, leaf, child);
-        reach = reach.max(geometry(grove, child, fallback, &context, Axis::Vertical).0.far);
+        reach = reach.max(
+            geometry(grove, child, fallback, &context, Axis::Vertical)
+                .0
+                .far,
+        );
     }
     reach
 }
@@ -353,8 +348,12 @@ fn reach(
 fn measurable(grove: &Grove, leaf: Leaf, fallback: &Location) -> bool {
     match grove.tree.traced(leaf) {
         Some(traced) => traced.from.measurable() && traced.to.measurable(),
-        None => pinned(grove.tree.location(leaf).unwrap_or(fallback), grove, Axis::Vertical)
-            .measurable(),
+        None => pinned(
+            grove.tree.location(leaf).unwrap_or(fallback),
+            grove,
+            Axis::Vertical,
+        )
+        .measurable(),
     }
 }
 
@@ -363,12 +362,7 @@ fn measurable(grove: &Grove, leaf: Leaf, fallback: &Location) -> bool {
 /// The same [`Context`] R2b will build, with every vertical reading taken as zero: no box on this
 /// axis has resolved yet, which is the point of measuring. Every horizontal reading is real, so a
 /// height stated in columns or read off a width still answers.
-fn raised(
-    grove: &Grove,
-    boxes: &HashMap<Leaf, Section>,
-    trunk: Leaf,
-    child: Leaf,
-) -> Context {
+fn raised(grove: &Grove, boxes: &HashMap<Leaf, Section>, trunk: Leaf, child: Leaf) -> Context {
     let flattened = |leaf: Leaf| {
         let section = boxes.get(&leaf).copied().unwrap_or_default();
         Basis {

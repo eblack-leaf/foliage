@@ -79,7 +79,10 @@ fn a_name_is_valid_before_its_bytes_are() {
     let leaf = grove.plant(Image::new(plate).fit(Fit::Crop).at(at(40.0, 40.0)));
     tick(&mut grove);
     assert_eq!(grove.elm.images.len(), 0);
-    assert_eq!(section(&grove, leaf), Section::from_edges(0.0, 0.0, 40.0, 40.0));
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(0.0, 0.0, 40.0, 40.0)
+    );
 
     arrives(&mut grove, Destination::Picture(plate), Ok(png(8, 8)));
     tick(&mut grove);
@@ -174,15 +177,16 @@ fn a_face_that_has_not_arrived_is_measured_as_the_bundled_one() {
             Text::new("hello")
                 .font(font)
                 .font_size(FontSize::new().xs(16))
-                .at(Location::new().xs(
-                    left(0.px()).width(content()),
-                    top(0.px()).height(content()),
-                )),
+                .at(Location::new()
+                    .xs(left(0.px()).width(content()), top(0.px()).height(content()))),
         );
         tick(grove);
         section(grove, run)
     };
-    assert_eq!(measured(&mut grove, pending), measured(&mut grove, Font::DEFAULT));
+    assert_eq!(
+        measured(&mut grove, pending),
+        measured(&mut grove, Font::DEFAULT)
+    );
 }
 
 /// A mark that has not arrived is the picture's case, and answers the same way: the element is
@@ -194,7 +198,10 @@ fn a_mark_that_has_not_arrived_draws_nothing_until_it_does() {
     let leaf = grove.plant(Icon::new(field).at(at(24.0, 24.0)));
     tick(&mut grove);
     assert_eq!(grove.elm.icons.len(), 0);
-    assert_eq!(section(&grove, leaf), Section::from_edges(0.0, 0.0, 24.0, 24.0));
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(0.0, 0.0, 24.0, 24.0)
+    );
 
     arrives(
         &mut grove,
@@ -212,13 +219,20 @@ fn a_mark_that_has_not_arrived_draws_nothing_until_it_does() {
 fn a_field_smaller_than_it_was_said_to_be_is_missing() {
     let mut grove = grove();
     let field = grove.naming.mark();
-    arrives(&mut grove, Destination::Mark(field, 8, 2.0), Ok(vec![255; 16]));
+    arrives(
+        &mut grove,
+        Destination::Mark(field, 8, 2.0),
+        Ok(vec![255; 16]),
+    );
     tick(&mut grove);
     assert!(frame(&mut grove).missing(field));
     let leaf = grove.plant(Icon::new(field).at(at(24.0, 24.0)));
     tick(&mut grove);
     assert_eq!(grove.elm.icons.len(), 0);
-    assert_eq!(section(&grove, leaf), Section::from_edges(0.0, 0.0, 24.0, 24.0));
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(0.0, 0.0, 24.0, 24.0)
+    );
 }
 
 /// A plate whose pixels are replaced reaches every element drawing it without any of them being

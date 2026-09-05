@@ -8,12 +8,12 @@ use tracing::{debug, trace_span, warn};
 use crate::aspen::{self, Motion, Property};
 use crate::asset::{Arrival, Destination};
 use crate::elm;
+use crate::frond::{self, Sprouts};
 use crate::grove::Grove;
 use crate::interaction;
 use crate::interaction::focus;
 use crate::layout::Layout;
 use crate::leaf::Leaf;
-use crate::frond::{self, Sprouts};
 use crate::op::{Bud, Op};
 use crate::place::Caller;
 use crate::pollen::Pollen;
@@ -420,8 +420,9 @@ fn drain(grove: &mut Grove) {
             // before anything downstream of it resolves.
             Op::Focus(intent) => focus::moved(grove, intent),
             Op::Repaint(scheme) => {
+                let moved = grove.scheme.moved(&scheme);
                 grove.scheme = scheme;
-                debug!("repainted");
+                debug!(tones = moved, "repainted");
             }
             Op::Copy(text) => grove.clipboard.write(text),
             Op::Paste { into } => {

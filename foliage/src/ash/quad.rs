@@ -18,9 +18,10 @@ use wgpu::{
     AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer,
     BufferUsages, Device, FilterMode, PipelineLayoutDescriptor, RenderPass, RenderPipeline,
-    RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderModuleDescriptor,
-    ShaderSource, ShaderStages, TextureSampleType, TextureView, TextureViewDimension,
-    VertexAttribute, VertexBufferLayout, VertexFormat, VertexState, VertexStepMode,
+    RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor,
+    ShaderModuleDescriptor, ShaderSource, ShaderStages, TextureSampleType, TextureView,
+    TextureViewDimension, VertexAttribute, VertexBufferLayout, VertexFormat, VertexState,
+    VertexStepMode,
 };
 
 use crate::ash::CORNERS;
@@ -63,7 +64,9 @@ impl<I: Pod> Quads<I> {
         });
         let mut layouts = vec![Some(ginkgo.viewport_layout())];
         if recipe.sampled {
-            layouts.push(Some(sampling.expect("a sampled renderer declares a layout")));
+            layouts.push(Some(
+                sampling.expect("a sampled renderer declares a layout"),
+            ));
         }
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some(recipe.label),

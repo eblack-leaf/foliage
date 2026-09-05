@@ -9,6 +9,7 @@ use crate::elm::{Chlorophyll, PanelPigment, Pigment};
 use crate::icon::IconPigment;
 use crate::image::ImagePigment;
 use crate::interaction::Gestures;
+use crate::keyboard::Keypad;
 use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
 use crate::lifecycle::{Disabled, Inherited, Opacity, Visible};
 use crate::line::{LinePigment, Stretched, Stroke, Traced};
@@ -23,7 +24,6 @@ use crate::rounding::Corners;
 use crate::rowan::{Cell, Drawn, Intrinsic, Placed};
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
-use crate::keyboard::Keypad;
 use crate::text_input::{Editing, Parts};
 use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrolls};
 
@@ -673,7 +673,6 @@ impl Tree {
     pub(crate) fn focus_scope(&self, leaf: Leaf) -> bool {
         self.read::<Focusing>(leaf).unwrap_or_default().scope
     }
-
 
     /// How far `leaf` has been scrolled.
     pub(crate) fn offset(&self, leaf: Leaf) -> Position {

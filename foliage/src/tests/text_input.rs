@@ -8,8 +8,8 @@
 use crate::elevation::ResolvedElevation;
 use crate::interaction::input::{Key, Keystroke};
 use crate::tests::{
-    Observer, controlled, drag, grove, key, past_the_hold, press, release, section, shifted, stroke,
-    tick, tick_with, typing, with_control, with_shift,
+    Observer, controlled, drag, grove, key, past_the_hold, press, release, section, shifted,
+    stroke, tick, tick_with, typing, with_control, with_shift,
 };
 use crate::text_input::{Applied, Editing, applied};
 use crate::{
@@ -814,7 +814,10 @@ fn control_and_a_selects_the_whole_value() {
         selecting(0, 5)
     );
     // The character itself is never written, whichever case the layout reported.
-    assert_eq!(edit("hello", at(2), with_control(Key::Typed('A'))).0, "hello");
+    assert_eq!(
+        edit("hello", at(2), with_control(Key::Typed('A'))).0,
+        "hello"
+    );
     // And a control chord a field has no answer for is nothing a field does, rather than a
     // character it inserts.
     assert!(matches!(

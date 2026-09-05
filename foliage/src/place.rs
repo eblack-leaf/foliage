@@ -13,7 +13,6 @@ use crate::placement::location::Location;
 use crate::text::font::{Font, FontSize, Typeface};
 use crate::view::{Escape, Scroll, Scrolls};
 
-
 /// Where the caller was standing. Carried from the call that wrote a placement to the drain that
 /// applies it, so a refusal names the write rather than the pass that noticed it.
 pub(crate) type Caller = &'static core::panic::Location<'static>;
@@ -287,7 +286,6 @@ pub trait Place: Places + Sized {
         self.placement().manner.focusing.scope = true;
         self
     }
-
 
     /// Whether the element is drawn at all.
     ///

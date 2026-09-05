@@ -7,12 +7,11 @@
 
 use crate::coordinate::{Area, Position, Section};
 use crate::layout::Layout;
+use crate::tests::{grove, resize, section, tick};
 use crate::text::font::{Fonts, monospaced};
 use crate::text::shape::shape;
-use crate::tests::{grove, resize, section, tick};
 use crate::{
-    Boxed,
-    Columns, Divide, Font, FontSize, Grid, Grove, Grow, Leaf, Location, Palette, Place, Sap,
+    Boxed, Columns, Divide, Font, FontSize, Grid, Grove, Grow, Leaf, Location, Palette, Place, Sap,
     Source, Stem, Text, Vein, anchor, bottom, content, left, top, trunk,
 };
 
@@ -43,7 +42,10 @@ fn max_content_is_the_longest_line_times_the_cell() {
 /// Hard lines are what max-content is the widest of, not the whole string.
 #[test]
 fn max_content_takes_the_widest_hard_line() {
-    assert_eq!(shape("hi\nthere\nyou", cell(10.0, 20.0)).max_content(), 50.0);
+    assert_eq!(
+        shape("hi\nthere\nyou", cell(10.0, 20.0)).max_content(),
+        50.0
+    );
 }
 
 /// An element with nothing in it measures to zero rather than to one line of nothing.
@@ -174,7 +176,10 @@ fn a_run_sized_to_its_content_is_right_on_the_frame_it_is_planted() {
     // Fifty logical pixels is five cells of the default font, so "hello world" takes two lines.
     let leaf = grove.plant(Text::new("hello world").at(measured(50.0)));
     tick(&mut grove);
-    assert_eq!(section(&grove, leaf), Section::from_edges(0.0, 0.0, 50.0, 44.0));
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(0.0, 0.0, 50.0, 44.0)
+    );
 }
 
 /// One word, two questions. The axis decides which is being asked, and both are answered in the same
@@ -182,10 +187,10 @@ fn a_run_sized_to_its_content_is_right_on_the_frame_it_is_planted() {
 #[test]
 fn content_asks_a_different_question_per_axis() {
     let mut grove = grove();
-    let leaf = grove.plant(Text::new("hello world").at(Location::new().xs(
-        left(0.px()).width(content()),
-        top(0.px()).height(content()),
-    )));
+    let leaf = grove.plant(
+        Text::new("hello world")
+            .at(Location::new().xs(left(0.px()).width(content()), top(0.px()).height(content()))),
+    );
     tick(&mut grove);
     // Across: max-content, eleven cells unwrapped. Down: one line at that width.
     assert_eq!(
@@ -313,18 +318,12 @@ fn letters_read_the_element_s_own_cell() {
     let small = grove.plant(
         Stem::new()
             .font_size(FontSize::new().xs(16))
-            .at(Location::new().xs(
-                left(0.px()).width(8.letters()),
-                top(0.px()).height(10.px()),
-            )),
+            .at(Location::new().xs(left(0.px()).width(8.letters()), top(0.px()).height(10.px()))),
     );
     let large = grove.plant(
         Stem::new()
             .font_size(FontSize::new().xs(24))
-            .at(Location::new().xs(
-                left(0.px()).width(8.letters()),
-                top(0.px()).height(10.px()),
-            )),
+            .at(Location::new().xs(left(0.px()).width(8.letters()), top(0.px()).height(10.px()))),
     );
     tick(&mut grove);
     assert_eq!(section(&grove, small).width(), 80.0);
@@ -336,10 +335,10 @@ fn letters_read_the_element_s_own_cell() {
 #[test]
 fn an_element_with_no_typeface_has_no_cell() {
     let mut grove = grove();
-    let leaf = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(8.letters()),
-        top(0.px()).height(10.px()),
-    )));
+    let leaf = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(8.letters()), top(0.px()).height(10.px()))),
+    );
     tick(&mut grove);
     assert_eq!(section(&grove, leaf).width(), 0.0);
 }
@@ -351,10 +350,7 @@ fn a_named_basis_counts_its_own_letters() {
     let holder = grove.plant(
         Stem::new()
             .font_size(FontSize::new().xs(24))
-            .at(Location::new().xs(
-                left(0.px()).width(300.px()),
-                top(0.px()).height(100.px()),
-            )),
+            .at(Location::new().xs(left(0.px()).width(300.px()), top(0.px()).height(100.px()))),
     );
     let branch = grove.branch(
         holder,
@@ -391,19 +387,13 @@ fn a_letter_pitched_track_is_in_the_font_of_the_grid_s_own_element() {
         Stem::new()
             .font_size(FontSize::new().xs(24))
             .grid(Grid::new().xs(Columns::letters(4.0), 1.rows()))
-            .at(Location::new().xs(
-                left(0.px()).width(400.px()),
-                top(0.px()).height(100.px()),
-            )),
+            .at(Location::new().xs(left(0.px()).width(400.px()), top(0.px()).height(100.px()))),
     );
     let branch = grove.branch(
         trunk,
         Stem::new()
             .font_size(FontSize::new().xs(16))
-            .at(Location::new().xs(
-                left(1.col()).right(1.col()),
-                top(0.px()).height(10.px()),
-            )),
+            .at(Location::new().xs(left(1.col()).right(1.col()), top(0.px()).height(10.px()))),
     );
     tick(&mut grove);
     // Four cells of the trunk's twenty-four-pixel font, not of the child's sixteen.
@@ -417,23 +407,19 @@ fn a_letter_pitched_track_is_in_the_font_of_the_grid_s_own_element() {
 #[test]
 fn a_container_grows_to_fit_what_is_grown_under_it() {
     let mut grove = grove();
-    let container = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(200.px()),
-        top(0.px()).height(content()),
-    )));
-    grove.branch(
-        container,
-        Stem::new().at(Location::new().xs(
-            left(0.px()).width(10.px()),
-            top(0.px()).height(20.px()),
-        )),
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
     );
     grove.branch(
         container,
-        Stem::new().at(Location::new().xs(
-            left(0.px()).width(10.px()),
-            top(40.px()).height(30.px()),
-        )),
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(10.px()), top(0.px()).height(20.px()))),
+    );
+    grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(10.px()), top(40.px()).height(30.px()))),
     );
     tick(&mut grove);
     assert_eq!(section(&grove, container).height(), 70.0);
@@ -444,17 +430,16 @@ fn a_container_grows_to_fit_what_is_grown_under_it() {
 #[test]
 fn a_container_fits_children_of_differing_wrapped_heights() {
     let mut grove = grove();
-    let container = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(50.px()),
-        top(0.px()).height(content()),
-    )));
+    let container =
+        grove
+            .plant(Stem::new().at(
+                Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(content())),
+            ));
     // One line.
     grove.branch(
         container,
-        Text::new("hello").at(Location::new().xs(
-            left(0.px()).width(100.pct()),
-            top(0.px()).height(content()),
-        )),
+        Text::new("hello")
+            .at(Location::new().xs(left(0.px()).width(100.pct()), top(0.px()).height(content()))),
     );
     // Three lines, starting below the first.
     grove.branch(
@@ -475,23 +460,19 @@ fn a_container_fits_children_of_differing_wrapped_heights() {
 #[test]
 fn a_child_sized_to_a_measured_trunk_does_not_size_it() {
     let mut grove = grove();
-    let container = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(200.px()),
-        top(0.px()).height(content()),
-    )));
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
     let filling = grove.branch(
         container,
-        Stem::new().at(Location::new().xs(
-            left(0.px()).width(10.px()),
-            top(0.px()).bottom(100.pct()),
-        )),
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(10.px()), top(0.px()).bottom(100.pct()))),
     );
     grove.branch(
         container,
-        Stem::new().at(Location::new().xs(
-            left(0.px()).width(10.px()),
-            top(0.px()).height(60.px()),
-        )),
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(10.px()), top(0.px()).height(60.px()))),
     );
     tick(&mut grove);
     assert_eq!(section(&grove, container).height(), 60.0);
@@ -502,10 +483,10 @@ fn a_child_sized_to_a_measured_trunk_does_not_size_it() {
 #[test]
 fn an_empty_container_measures_to_nothing() {
     let mut grove = grove();
-    let container = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(200.px()),
-        top(0.px()).height(content()),
-    )));
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
     tick(&mut grove);
     assert_eq!(section(&grove, container).height(), 0.0);
 }
@@ -561,7 +542,11 @@ fn measuring_is_idempotent() {
 #[test]
 fn a_run_is_filled_the_way_a_panel_is() {
     let mut grove = grove();
-    let leaf = grove.plant(Text::new("hello").color(Palette::Accent).at(measured(200.0)));
+    let leaf = grove.plant(
+        Text::new("hello")
+            .color(Palette::Accent)
+            .at(measured(200.0)),
+    );
     tick(&mut grove);
     assert_eq!(
         grove.tap(leaf, Vein::Color),
@@ -615,16 +600,15 @@ fn rewriting_something_that_says_nothing_is_dropped() {
 #[test]
 fn an_element_anchored_into_its_own_subtree_still_resolves() {
     let mut grove = grove();
-    let container = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(200.px()),
-        top(0.px()).height(100.px()),
-    )));
+    let container =
+        grove
+            .plant(Stem::new().at(
+                Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(100.px())),
+            ));
     let inside = grove.branch(
         container,
-        Stem::new().at(Location::new().xs(
-            left(10.px()).width(20.px()),
-            top(10.px()).height(20.px()),
-        )),
+        Stem::new()
+            .at(Location::new().xs(left(10.px()).width(20.px()), top(10.px()).height(20.px()))),
     );
     tick(&mut grove);
     grove.anchor(container, inside);
@@ -659,14 +643,14 @@ fn a_measured_box_may_be_pinned_by_either_edge() {
 #[test]
 fn an_anchored_child_does_not_size_its_trunk() {
     let mut grove = grove();
-    let above = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(10.px()),
-        top(0.px()).height(200.px()),
-    )));
-    let container = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(200.px()),
-        top(0.px()).height(content()),
-    )));
+    let above = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(10.px()), top(0.px()).height(200.px()))),
+    );
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
     let hanging = grove.branch(
         container,
         Stem::new().anchored(above).at(Location::new().xs(
@@ -676,10 +660,8 @@ fn an_anchored_child_does_not_size_its_trunk() {
     );
     grove.branch(
         container,
-        Stem::new().at(Location::new().xs(
-            left(0.px()).width(10.px()),
-            top(0.px()).height(40.px()),
-        )),
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(10.px()), top(0.px()).height(40.px()))),
     );
     tick(&mut grove);
     // Only the child that describes its own extent decided the measure.
@@ -693,10 +675,10 @@ fn an_anchored_child_does_not_size_its_trunk() {
 #[test]
 fn a_child_sized_from_the_horizontal_axis_counts() {
     let mut grove = grove();
-    let container = grove.plant(Stem::new().at(Location::new().xs(
-        left(0.px()).width(200.px()),
-        top(0.px()).height(content()),
-    )));
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
     grove.branch(
         container,
         Stem::new().at(Location::new().xs(
@@ -841,7 +823,13 @@ fn a_run_extracts_one_glyph_per_inked_character() {
 
     let glyphs = extracted(&grove, leaf);
     assert_eq!(glyphs.len(), 7, "the space is an advance and not a glyph");
-    assert_eq!(glyphs[0], ('h', Section::new(Position::default(), Area::new(10.0, 22.0))));
+    assert_eq!(
+        glyphs[0],
+        (
+            'h',
+            Section::new(Position::default(), Area::new(10.0, 22.0))
+        )
+    );
     // Three cells along, because the space between the words advanced one.
     assert_eq!(glyphs[2].0, 't');
     assert_eq!(glyphs[2].1.position.x, 30.0);
@@ -879,7 +867,10 @@ fn a_run_is_written_whole_or_not_at_all() {
     assert_eq!(grove.elm.texts.written, vec![leaf.into()]);
 
     tick(&mut grove);
-    assert!(grove.elm.texts.written.is_empty(), "an unchanged frame wrote");
+    assert!(
+        grove.elm.texts.written.is_empty(),
+        "an unchanged frame wrote"
+    );
 
     grove.text(leaf, "goodbye");
     tick(&mut grove);

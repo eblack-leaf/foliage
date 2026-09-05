@@ -523,10 +523,10 @@ pub trait Grow: Queues {
         self.queue(Op::Download(url.into()));
     }
 
-    /// States what every [`Palette`] role resolves to, for the whole tree.
+    /// States what every [`Palette`](crate::Palette) tone resolves to, for the whole tree.
     ///
-    /// The one write that names no element, because a role belongs to the scheme and not to any of
-    /// the elements declaring it. Everything painted in a role whose color changed is re-extracted
+    /// The one write that names no element, because a tone belongs to the scheme and not to any of
+    /// the elements declaring it. Everything painted in a tone whose color changed is re-extracted
     /// and nothing else is, which is what makes a theme one op rather than a walk.
     fn repaint(&mut self, scheme: Scheme) {
         self.queue(Op::Repaint(scheme));

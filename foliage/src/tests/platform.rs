@@ -12,8 +12,8 @@
 //! this side of the seam to observe: they are a line of the host's, like the winit translation, and
 //! they are answered for by the app running rather than by the suite.
 
-use crate::keyboard::Keypad;
 use crate::interaction::input::Key;
+use crate::keyboard::Keypad;
 use crate::leaf::Leaf;
 use crate::op::Op;
 use crate::tests::{Observer, controlled, grove, tick, tick_with, typing};

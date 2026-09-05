@@ -185,7 +185,12 @@ impl Plates {
             pixels: pixels.to_vec(),
             size,
         });
-        info!(plate = plate.0, width = size.width, height = size.height, "image loaded");
+        info!(
+            plate = plate.0,
+            width = size.width,
+            height = size.height,
+            "image loaded"
+        );
     }
 
     /// Fills a name from encoded bytes, reporting why it could not be where it could not.
@@ -195,7 +200,12 @@ impl Plates {
     pub(crate) fn decoded(&mut self, plate: Plate, bytes: &[u8]) -> Result<(), String> {
         let (pixels, size) = decode(bytes)?;
         *self.slot(plate) = Some(Picture { pixels, size });
-        info!(plate = plate.0, width = size.width, height = size.height, "image loaded");
+        info!(
+            plate = plate.0,
+            width = size.width,
+            height = size.height,
+            "image loaded"
+        );
         Ok(())
     }
 

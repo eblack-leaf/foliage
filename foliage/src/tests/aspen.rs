@@ -8,9 +8,8 @@ use crate::coordinate::{Area, Section};
 use crate::panel::PanelInstance;
 use crate::tests::{Observer, advance, grove, opacity, resize, section, tick, tick_with};
 use crate::{
-    Boxed,
-    Color, Fill, Grove, Grow, Leaf, Location, Motion, Palette, Panel, Place, Sap, Scheme, Source,
-    Stem, Text, Timing, Vein, anchor, content, left, top,
+    Boxed, Color, Fill, Grove, Grow, Leaf, Location, Motion, Palette, Panel, Place, Sap, Scheme,
+    Source, Stem, Text, Timing, Vein, anchor, content, left, top,
 };
 
 /// A box of a stated width on one line, so a placement reads as one number.
@@ -893,19 +892,18 @@ fn two_properties_of_one_element_move_independently() {
 fn a_measured_endpoint_rewritten_mid_motion_re_measures_and_lands() {
     let mut grove = grove();
     // Fifty logical pixels is five cells of the default font, so "hello" is one line of twenty-two.
-    let run = grove.plant(Text::new("hello").at(Location::new().xs(
-        left(0.px()).width(50.px()),
-        top(0.px()).height(20.px()),
-    )));
+    let run = grove.plant(
+        Text::new("hello")
+            .at(Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(20.px()))),
+    );
     tick(&mut grove);
     assert_eq!(section(&grove, run).height(), 20.0);
 
     grove.animate(
         run,
-        Motion::Location(Location::new().xs(
-            left(0.px()).width(50.px()),
-            top(0.px()).height(content()),
-        )),
+        Motion::Location(
+            Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(content())),
+        ),
         Timing::ms(200),
     );
     tick(&mut grove);
@@ -1060,5 +1058,8 @@ fn a_finished_sequence_owes_a_frame() {
     advance(&mut grove, 100);
     tick(&mut grove);
     assert!(grove.aspen.idle(), "nothing is running");
-    assert!(grove.drift.pending(), "but the report has not been handed over");
+    assert!(
+        grove.drift.pending(),
+        "but the report has not been handed over"
+    );
 }

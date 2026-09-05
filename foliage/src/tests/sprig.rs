@@ -8,11 +8,11 @@ use crate::leaf::{Leaf, Presence};
 use crate::sprig::Sprig;
 use crate::tests::assets::{frame, png};
 use crate::tests::{Observer, grove, resize, section, tick, tick_with};
+use crate::text::Font;
 use crate::{
     Boxed, FontSize, Grow, Location, Palette, Panel, Place, Sap, Source, Stem, Text, Timing, Vein,
     content, left, top,
 };
-use crate::text::Font;
 
 /// A ten-pixel box at `x`, which is enough to tell two placements apart.
 fn box_at(x: f32) -> Location {
@@ -204,7 +204,10 @@ fn names_are_one_sequence() {
     let mut sprig = grove.sprig();
 
     assert_ne!(sprig.plate(), grove.plate());
-    assert_ne!(sprig.tween(0.0, 1.0, Timing::ms(1)), grove.timer(Timing::ms(1)));
+    assert_ne!(
+        sprig.tween(0.0, 1.0, Timing::ms(1)),
+        grove.timer(Timing::ms(1))
+    );
     assert_ne!(sprig.sequence(), grove.sequence());
 }
 
@@ -245,10 +248,7 @@ fn a_face_registered_off_the_frame_is_filled() {
         Text::new("hello")
             .font(outside)
             .font_size(FontSize::new().xs(16))
-            .at(Location::new().xs(
-                left(0.px()).width(content()),
-                top(0.px()).height(content()),
-            )),
+            .at(Location::new().xs(left(0.px()).width(content()), top(0.px()).height(content()))),
     );
     tick(&mut grove);
     assert!(frame(&mut grove).loaded(outside));
@@ -273,7 +273,11 @@ fn bytes_a_worker_holds_are_refused_rather_than_panicked_on() {
 
     assert!(frame(&mut grove).missing(font));
     // The name stays valid and unfilled, so what composes in it composes in the bundled face.
-    let run = grove.plant(Text::new("hello").font(font).font_size(FontSize::new().xs(16)));
+    let run = grove.plant(
+        Text::new("hello")
+            .font(font)
+            .font_size(FontSize::new().xs(16)),
+    );
     tick(&mut grove);
     assert_eq!(grove.presence(run), Presence::Live);
 }

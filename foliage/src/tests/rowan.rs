@@ -7,9 +7,8 @@
 use crate::coordinate::{Area, Axes, Section};
 use crate::tests::{grove, resize, section, tick};
 use crate::{
-    Boxed,
-    Divide, Grid, Grove, Grow, Layout, Location, Panel, Place, Sap, ScrollTo, Source, Stem, Vein,
-    anchor, bottom, center_x, center_y, left, right, top,
+    Boxed, Divide, Grid, Grove, Grow, Layout, Location, Panel, Place, Sap, ScrollTo, Source, Stem,
+    Vein, anchor, bottom, center_x, center_y, left, right, top,
 };
 
 /// A box at a stated place, for the passes that are about where boxes end up rather than about the
@@ -390,7 +389,11 @@ fn an_unscrolled_element_is_on_screen_where_the_layout_put_it() {
 #[test]
 fn nested_regions_accumulate_offsets() {
     let mut grove = grove();
-    let outer = grove.plant(Stem::new().at(box_at(0.0, 0.0, 200.0, 200.0)).scrolls(Axes::Vertical));
+    let outer = grove.plant(
+        Stem::new()
+            .at(box_at(0.0, 0.0, 200.0, 200.0))
+            .scrolls(Axes::Vertical),
+    );
     grove.branch(outer, Panel::new().at(box_at(0.0, 0.0, 200.0, 600.0)));
     let inner = grove.branch(
         outer,
@@ -419,7 +422,11 @@ fn nested_regions_accumulate_offsets() {
 #[test]
 fn clip_rects_intersect_through_several_levels() {
     let mut grove = grove();
-    let outer = grove.plant(Stem::new().at(box_at(0.0, 0.0, 200.0, 200.0)).scrolls(Axes::Vertical));
+    let outer = grove.plant(
+        Stem::new()
+            .at(box_at(0.0, 0.0, 200.0, 200.0))
+            .scrolls(Axes::Vertical),
+    );
     let middle = grove.branch(
         outer,
         Stem::new()

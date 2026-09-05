@@ -12,6 +12,7 @@ mod frame;
 mod interaction;
 mod keys;
 mod lifecycle;
+mod palette;
 mod placement;
 mod platform;
 mod renderers;
