@@ -25,6 +25,7 @@ use crate::rounding::Corners;
 use crate::rowan::{Cell, Drawn, Intrinsic, Placed};
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
+use crate::keyboard::Keypad;
 use crate::text_input::{Editing, Parts};
 use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrolls};
 
@@ -324,6 +325,20 @@ impl Tree {
             .iter(&self.world)
             .map(|(entity, parts)| (Leaf(entity), *parts))
             .collect()
+    }
+
+    /// Which soft keyboard `leaf` asks for, if it is something that is typed into at all.
+    ///
+    /// `None` for everything but a field, which is what makes focus alone decide the keyboard: a
+    /// button can hold focus and has no keypad, so nothing is raised for it.
+    pub(crate) fn keypad(&self, leaf: Leaf) -> Option<Keypad> {
+        self.read::<Keypad>(leaf)
+    }
+
+    pub(crate) fn set_keypad(&mut self, leaf: Leaf, keypad: Keypad) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(keypad);
+        }
     }
 
     /// Where `leaf`'s caret is and what it has selected.

@@ -56,6 +56,12 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
 fn intake(grove: &mut Grove) {
     let _step = trace_span!("intake").entered();
     grove.clock.sample();
+    // Keys the soft keyboard took while it held the page's own focus. They enter the stream exactly
+    // where a translated window event enters it, because that is what they are -- the platform's,
+    // reaching the engine by the one road it has for keys.
+    for captured in grove.keyboard.captured() {
+        grove.incoming.take(captured);
+    }
     if let Some(viewport) = grove.pending_resize.take() {
         grove.viewport = viewport;
         grove.drift.resized = Some(viewport);
@@ -407,6 +413,28 @@ fn drain(grove: &mut Grove) {
                 grove.scheme = scheme;
                 debug!("repainted");
             }
+            Op::Copy(text) => grove.clipboard.write(text),
+            Op::Paste { into } => {
+                let (queue, wake) = (grove.queue.clone(), grove.wake.clone());
+                grove.clipboard.read(&queue, &wake, into);
+            }
+            // Whoever asked is whoever is told. A field is written into and reported as `edited`,
+            // because a paste is what the person at the keyboard did to the value; anything else
+            // was the app asking for itself.
+            Op::Pasted { into, text } => {
+                debug!(characters = text.chars().count(), "pasted");
+                let Some(leaf) = into else {
+                    grove.drift.pasted = Some(text);
+                    continue;
+                };
+                if !grove.tree.is_live(leaf) {
+                    dropped("paste", leaf, "not live");
+                    continue;
+                }
+                text_input::pasted(grove, leaf, &text);
+            }
+            Op::Navigate(url) => grove.links.navigate(&url),
+            Op::Download(url) => grove.links.download(&url),
         }
     }
     // Anything the drain hid, disabled or pruned may have been holding focus, and none of those

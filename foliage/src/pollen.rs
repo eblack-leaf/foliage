@@ -197,6 +197,19 @@ impl Pollen {
         self.0.missing.contains(&of.into())
     }
 
+    /// What the clipboard held, if a [`paste`](crate::Grow::paste) this app asked for was answered
+    /// this frame.
+    ///
+    /// Never in the frame that asked for it. Empty text is the answer for an empty clipboard and
+    /// for one the host would not let the engine read, because there is one thing an app does about
+    /// either -- the reason it could not be read is traced rather than reported.
+    ///
+    /// A [`TextInput`](crate::TextInput) answers `Ctrl+V` for itself, and what it wrote is
+    /// [`edited`](Pollen::edited) like anything else typed into it. Nothing arrives here for that.
+    pub fn pasted(&self) -> Option<&str> {
+        self.0.pasted.as_deref()
+    }
+
     /// What was typed at `leaf` this frame, in the order it arrived.
     ///
     /// A key goes to whatever holds focus, and focus rests only on what declared
@@ -270,6 +283,9 @@ pub(crate) struct Drift {
     pub(crate) keys: HashMap<Leaf, Vec<Keystroke>>,
     /// The same for keys that arrived while focus rested nowhere, which are the app's own.
     pub(crate) root_keys: Vec<Keystroke>,
+    /// What a `paste` the app asked for came back with. A field's own paste is an `edited` instead,
+    /// because what the person at the keyboard did to a value is one report however they did it.
+    pub(crate) pasted: Option<String>,
     /// What arrived from a path or a URL this frame, and what could not.
     pub(crate) loaded: HashSet<Arrival>,
     pub(crate) missing: HashSet<Arrival>,

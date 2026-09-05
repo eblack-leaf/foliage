@@ -199,12 +199,6 @@ pub trait Grow: Queues {
         });
     }
 
-    /// Rounds an element's corners, per corner or all at once.
-    ///
-    /// Dropped, like any op naming something it does not apply to, unless the element is a
-    /// rectangle -- a [`Panel`](crate::Panel) or an [`Image`](crate::Image). A
-    /// [`Polygon`](crate::Polygon)'s corners are its own, and are moved with
-    /// [`reshape`](Grow::reshape).
     /// Selects a span of a [`TextInput`](crate::TextInput)'s value, in characters.
     ///
     /// The caret goes to the range's end and the selection is anchored at its start, so an empty
@@ -218,6 +212,12 @@ pub trait Grow: Queues {
         self.queue(Op::Select { leaf, range });
     }
 
+    /// Rounds an element's corners, per corner or all at once.
+    ///
+    /// Dropped, like any op naming something it does not apply to, unless the element is a
+    /// rectangle -- a [`Panel`](crate::Panel) or an [`Image`](crate::Image). A
+    /// [`Polygon`](crate::Polygon)'s corners are its own, and are moved with
+    /// [`reshape`](Grow::reshape).
     fn round(&mut self, leaf: Leaf, rounding: impl Into<Corners>) {
         self.queue(Op::Round {
             leaf,
@@ -478,6 +478,49 @@ pub trait Grow: Queues {
     /// With nothing focused, this takes the last.
     fn focus_previous(&mut self) {
         self.queue(Op::Focus(Intent::Previous));
+    }
+
+    /// Puts text on the system clipboard.
+    ///
+    /// The app's own copy. A [`TextInput`](crate::TextInput) already answers `Ctrl+C` and `Ctrl+X`
+    /// for itself, so this is for everything that is not a field -- a code block, a share link, a
+    /// row of a table.
+    fn copy(&mut self, text: impl Into<String>) {
+        self.queue(Op::Copy(text.into()));
+    }
+
+    /// Asks what the system clipboard holds, reported as [`pasted`](crate::Pollen::pasted).
+    ///
+    /// Never in the frame that asked: a clipboard is a promise in a browser and a round trip to
+    /// whichever program owns the selection on a desktop, so what it holds arrives the way bytes
+    /// from a path do and is drained in the frame it arrives in.
+    ///
+    /// A field answers `Ctrl+V` for itself and does not go through this. What comes back here is
+    /// the app's, whatever holds focus.
+    ///
+    /// An empty answer is what an app gets for an empty clipboard and for one the host would not
+    /// let it read -- a browser outside a user gesture, a desktop with no display server. There is
+    /// one thing to do about either, so they are one outcome and the reason is traced.
+    fn paste(&mut self) {
+        self.queue(Op::Paste { into: None });
+    }
+
+    /// Goes to `url`.
+    ///
+    /// On the web this **replaces the page**, and deliberately: a new tab is blocked outside a user
+    /// gesture, and a frame is not one. Off the web the desktop is asked to open the URL, which is
+    /// what going somewhere means where there is no page to replace.
+    fn navigate(&mut self, url: impl Into<String>) {
+        self.queue(Op::Navigate(url.into()));
+    }
+
+    /// Asks the host to save what is at `url`.
+    ///
+    /// The web's, and only the web's -- a browser is what turns a URL into a file in someone's
+    /// downloads. Off the web it is traced and nothing else, so an app naming what it offers names
+    /// it once.
+    fn download(&mut self, url: impl Into<String>) {
+        self.queue(Op::Download(url.into()));
     }
 
     /// States what every [`Palette`] role resolves to, for the whole tree.

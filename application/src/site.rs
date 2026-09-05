@@ -106,6 +106,7 @@ impl Root for Site {
         self.dim(grove, &pollen);
         self.retire_notice(grove, &pollen);
         self.take_taps(grove, &pollen);
+        self.take_paste(grove, &pollen);
         self.slide(grove, &pollen);
         self.mark_scroll(grove);
         self.mark_focus(grove, &pollen);
@@ -182,6 +183,50 @@ impl Site {
                 self.menu = false;
                 grove.visible(self.shell.menu, false);
             }
+        }
+        self.take_menu(grove, pollen);
+    }
+
+    /// The menu's options, which are the whole of what this page asks of the host.
+    ///
+    /// Each is an ordinary tap on an ordinary panel. What follows is not ordinary -- the clipboard
+    /// and the browser are not the tree -- but it is written the same way everything else here is,
+    /// because a verb that reaches outside the engine is still a verb.
+    fn take_menu(&mut self, grove: &mut Grove, pollen: &Pollen) {
+        for option in 0..self.shell.options.len() {
+            if !pollen.clicked(self.shell.options[option]) {
+                continue;
+            }
+            match shell::OPTIONS[option] {
+                // What the article currently says, read back off the run rather than kept: the
+                // value is the element's, and this app holds no second copy of it.
+                "copy" => {
+                    if let Some(Sap::Text(prose)) = grove.tap(self.shell.prose, Vein::Text) {
+                        grove.copy(prose);
+                    }
+                }
+                // Answered in a later frame, because what the clipboard holds is the host's to say.
+                // Where it lands is `pasted`, below.
+                "paste" => grove.paste(),
+                // The page is replaced on the web and the desktop's browser is asked off it, which
+                // is the same statement about where the reader is going.
+                "open" => grove.navigate(shell::REPOSITORY),
+                "save" => grove.download(shell::ARCHIVE),
+                _ => {}
+            }
+            self.menu = false;
+            grove.visible(self.shell.menu, false);
+        }
+    }
+
+    /// What the clipboard came back with, put where a form would have it.
+    ///
+    /// A field answers `Ctrl+V` for itself and nothing arrives here for that: this is only ever the
+    /// `paste` this app asked for, whatever holds focus at the time.
+    fn take_paste(&mut self, grove: &mut Grove, pollen: &Pollen) {
+        if let Some(pasted) = pollen.pasted() {
+            grove.text(self.shell.drawer.fields[0], pasted);
+            self.mark_form(grove);
         }
     }
 

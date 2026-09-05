@@ -10,9 +10,9 @@
 
 use foliage::{
     Area, Axes, Boxed, Cap, Color, Corners, Divide, Elevation, Escape, Fit, FontSize, Grid, Grove,
-    Grow, Icon, Image, Leaf, Line, Location, Palette, Panel, Place, Point, Polygon, Rounding,
-    Scheme, Scroll, Shape, Side, Source, Stem, Text, TextInput, anchor, bottom, center_x, center_y,
-    content, left, right, top,
+    Grow, Icon, Image, Keypad, Leaf, Line, Location, Palette, Panel, Place, Point, Polygon,
+    Rounding, Scheme, Scroll, Shape, Side, Source, Stem, Text, TextInput, anchor, bottom, center_x,
+    center_y, content, left, right, top,
 };
 
 /// The space between tracks, and the rhythm every other measurement is stated in.
@@ -26,6 +26,14 @@ const RAIL: f32 = 56.0;
 
 /// How many sections the rail carries.
 const SECTIONS: i32 = 4;
+
+/// What the last card's menu offers, in the order it is drawn and read back.
+pub(crate) const OPTIONS: [&str; 4] = ["copy", "paste", "open", "save"];
+
+/// Where `open` goes, and what `save` asks the host for.
+pub(crate) const REPOSITORY: &str = "https://github.com/eblack-leaf/foliage";
+pub(crate) const ARCHIVE: &str =
+    "https://github.com/eblack-leaf/foliage/archive/refs/heads/main.zip";
 
 /// How many cards sit under the article, which is what makes the column worth scrolling.
 const CARDS: i32 = 6;
@@ -93,6 +101,8 @@ pub(crate) struct Shell {
     pub(crate) thumb: Leaf,
     /// The menu the last card opens, which floats out of the column rather than sitting in it.
     pub(crate) menu: Leaf,
+    /// Its options, in [`OPTIONS`] order.
+    pub(crate) options: Vec<Leaf>,
     /// The cards in the scrolling column.
     pub(crate) cards: Vec<Leaf>,
     /// The slider: a track, and the knob that takes drags along it.
@@ -413,11 +423,44 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
             // away -- two different reasons for the same absence, and neither relies on the other.
             .visible(false)
             .anchored(above)
+            .grid(Grid::new().xs(1.columns(), (OPTIONS.len() as i32).rows()))
             .at(Location::new().xs(
                 left(anchor().left()).width(anchor().width()),
                 top(anchor().bottom() + 4.px()).height(96.px()),
             )),
     );
+
+    // What the menu offers, and the whole of what the page does with the host: the first two reach
+    // the clipboard and the last two hand a URL over. Each is a row of the menu's own grid, so the
+    // menu is as tall as it was declared and the options divide it.
+    let options = OPTIONS
+        .iter()
+        .enumerate()
+        .map(|(row, name)| {
+            let option = grove.branch(
+                menu,
+                Panel::new()
+                    .color(Palette::Muted)
+                    .interactive()
+                    .at(Location::new().xs(
+                        left(0.pct()).right(100.pct()),
+                        top((row as i32 + 1).row()).bottom((row as i32 + 1).row()),
+                    )),
+            );
+            grove.branch(
+                option,
+                Text::new(*name)
+                    .color(Palette::Ink)
+                    .font_size(FontSize::new().xs(12))
+                    .pass_through()
+                    .at(Location::new().xs(
+                        left(GUTTER.px()).width(content()),
+                        center_y(50.pct()).height(content()),
+                    )),
+            );
+            option
+        })
+        .collect::<Vec<_>>();
 
     // A map. It **contains** both axes: a drag that runs it to an edge stops there rather than
     // carrying on into the column behind it, which is the difference between panning a map and
@@ -505,6 +548,7 @@ pub(crate) fn grow(grove: &mut Grove) -> Shell {
         column,
         thumb,
         menu,
+        options,
         cards,
         track,
         knob,
@@ -816,14 +860,18 @@ fn drawer(grove: &mut Grove) -> Drawer {
         })
         .collect::<Vec<_>>();
 
+    // A keypad is the one thing a field says about a keyboard, and it is only ever a hint about
+    // what is easy to type: the second field still takes whatever is pasted into it, and what a
+    // number is allowed to be is this app's to check either way.
     let fields = grounds
         .iter()
-        .zip(["name", "where you are"])
-        .map(|(&ground, placeholder)| {
+        .zip([("name", Keypad::Text), ("phone", Keypad::Telephone)])
+        .map(|(&ground, (placeholder, keypad))| {
             grove.branch(
                 ground,
                 TextInput::new()
                     .placeholder(placeholder)
+                    .keypad(keypad)
                     .color(Palette::Ink)
                     .hint(Palette::Surface)
                     // Read against the ground, which the focus mark paints `Accent` -- and a caret

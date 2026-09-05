@@ -6,30 +6,34 @@ The working checklist for foliage 1.0, and the one document meant to outlive the
 
 | Gate | State |
 |---|---|
-| `cargo test --workspace` | 435 headless tests, 24 doctests, 14 compile-fail doctests — passing |
+| `cargo test --workspace` | 450 headless tests, 24 doctests, 14 compile-fail doctests — passing |
 | `cargo check -p application` | passing (one dead-code warning: `Instances::len`, `Instances::holding`) |
 | `cargo check -p foliage --target wasm32-unknown-unknown` | passing |
 
-Landed: A7, B1–B9 and C1, plus the long-press primitive, drag auto-scroll, the public key surface,
-and the asset road. Not started: B11 (`Sprig`); B10 has its assets half and not its platform half.
+Landed: A7, B1–B10 and C1, plus the long-press primitive, drag auto-scroll, and the public key
+surface. Not started: B11 (`Sprig`).
 
-The engine is complete as a *model*. The frame law is implemented and proven end to end, the tree
-resolves, six renderers draw through one stack, one composite is built out of the same parts an app
-has, and a font, a mark or a picture can be read from a path or a URL. What is missing is not model
-— it is reach: no clipboard, no keyboard on a phone, and no build for anything but the desktop.
+The engine is complete as a *model*, and it now reaches the host. The frame law is implemented and
+proven end to end, the tree resolves, six renderers draw through one stack, one composite is built
+out of the same parts an app has, a font, a mark or a picture can be read from a path or a URL, and
+the clipboard, a soft keyboard and a URL handed over are all reached through the same queue every
+other change goes through. What is missing is not model and no longer reach — it is **packaging**:
+no build for anything but the desktop, no CI, and nothing that turns artwork into an icon field.
 
 ## Against the previous engine
 
-Every concept that carries the model is ported. What is left in `../working-foliage` is platform
-integration, tooling, and four features that were deliberately dropped.
+Every concept that carries the model is ported, and so is every platform edge that had a target to
+reach. What is left in `../working-foliage` is the Android integration, the tooling, and the
+features that were deliberately dropped.
 
 | Only in the previous engine | Disposition |
 |---|---|
 | `asset` — `AssetSource`, `AssetLoader` | ported as `Origin` and an arrival op. `OnRetrieval` (a callback) and `bundled_asset!` (a macro over a `cfg`) were rejected |
-| `clipboard` | B10 |
-| `virtual_keyboard` | B10 |
-| `web_ext` — `HrefLink`, download, video and document embeds | B10 |
-| `platform`, `foliage_android`, `application_android` | not ported; no target builds for Android |
+| `clipboard` | ported as `copy`/`paste` and `Pollen::pasted`. The read is an arrival op rather than a return value, so the web's promise and a desktop's round trip answer alike |
+| `virtual_keyboard` | ported as `Keypad`, raised by focus alone. `VirtualKeyboardAdapter::open`/`close` were rejected: a keyboard an app raises by hand is one it can leave up over nothing |
+| `web_ext` — `HrefLink`, download | ported as `navigate` and `download` |
+| `web_ext` — video and document embeds | not ported. A DOM overlay above the canvas is the browser's own player in front of the engine rather than an edge of it, and nothing has asked for one |
+| `platform`, `foliage_android`, `application_android` | not ported; no target builds for Android, which is why a keypad is raised on the web and nowhere else |
 | `boundary::sprig` — `Sprig`, `Conditions`, watched `Moss` | B11 |
 | `polyline` — `DashPattern`, `PolylineDrawProgress` | B8 owed; needs a renderer of its own |
 | `panel::Outline` | not ported, and nothing replaces it — a bordered box has no expression |
@@ -44,34 +48,34 @@ integration, tooling, and four features that were deliberately dropped.
 | `lichen` | already empty upstream; nothing to port |
 | `book/`, `examples/` | not ported |
 
-**The old engine is worth keeping only as reference for the four platform modules and the MSDF
-baker.** Everything else in it is either ported or replaced by something this engine states
-differently on purpose, so the new shape should be judged on its own consistency.
+**The old engine is worth keeping only as reference for the Android modules and the MSDF baker.**
+Everything else in it is either ported or replaced by something this engine states differently on
+purpose, so the new shape should be judged on its own consistency.
 
-## 1. B10 — the platform edges
-
-Assets landed; three edges are left.
-
-| | Unblocks |
-|---|---|
-| Clipboard | `Ctrl+C`/`Ctrl+V`, which B9 left owed on the clipboard rather than on the modifier |
-| Virtual keyboard | `TextInput` on a phone — a field that cannot raise a keyboard is not usable there |
-| Web ext | a link that navigates, and a download |
-
-Beside them, one gap the asset road left on purpose: **`Origin::url` is nameable everywhere and
-fetched only on the web.** Off it a URL is accepted and answered as `missing`, because an http client
-and a TLS stack are a large addition nothing has asked for yet. The surface is settled and the
-arrival is the only thing that changes when it lands, behind a feature that brings the client with
-it — the `TODO` sits at that arm in `asset.rs`.
-
-## 2. B11 — `Sprig`
+## 1. B11 — `Sprig`
 
 Off-thread ops, proven indistinguishable from in-frame ops. The names are already allocated from an
 atomic counter for exactly this, so what is left is the channel, the drain-side receipt, and the
 watched reads the previous engine's `Conditions` covered.
 
-## 3. Owed inside slices that landed
+## 2. Owed inside slices that landed
 
+- **A native http client** (B10). `Origin::url` is nameable everywhere and fetched only on the web;
+  off it a URL is accepted and answered as `missing`, because a client and a TLS stack are a large
+  addition nothing has asked for yet. The surface is settled and the arrival is the only thing that
+  changes when it lands, behind a feature that brings the client with it — the `TODO` sits at that
+  arm in `asset.rs`.
+- **A paste from another program, on the web** (B10). `navigator.clipboard.readText()` is
+  permission-gated and refused outside a user gesture, and a frame is not one. Refused, the engine's
+  own mirror answers — so a copy inside the app round-trips and one from outside it may not. The
+  road out is a `paste` event on the hidden input the keyboard already owns, which is the one place
+  a browser hands over what was pasted without asking.
+- **A soft keyboard anywhere but the web** (B10). Android is the other platform that has one and
+  there is no Android build to raise it from, so `Keypad` is carried, reported and ignored there.
+  What is missing is the target, not the seam.
+- **A download off the web** (B10). A browser is what turns a URL into a file in someone's
+  downloads; off it the verb is traced and does nothing, because a program that wants a file on disk
+  already has `std::fs` to write it with.
 - **`Polyline`** (B8). A path as one element, one coverage evaluation, a dash pattern and
   `Motion::DrawProgress`. `application/` draws its series as a chain of square-capped `Line`s.
 - **`LineQuad::new` snaps a stroke whose ends share a coordinate** (B8). A hazard rather than a
@@ -91,7 +95,7 @@ watched reads the previous engine's `Conditions` covered.
 - **Recolouring a field after it is grown** (B9). `color` reaches none of a field's four fills, and
   which part it would mean is unanswered.
 
-## 4. What the crate needs before anyone else can use it
+## 3. What the crate needs before anyone else can use it
 
 None of this is engine work, and all of it is between here and "a library".
 
@@ -109,12 +113,13 @@ None of this is engine work, and all of it is between here and "a library".
   compiles; nothing packages it.
 - **No book.** The slice plan named a chapter per slice; none exist.
 
-## 5. Settled — not open questions
+## 4. Settled — not open questions
 
 Listed so they are not reopened by a reader who did not see them decided: absolute elevation, a
 hit test that walks the stack, `ClipToViewport` (replaced by `floats`/`Escape`), a keybinding table,
-a second cache beyond text shaping, per-element tracing events, and a `Polyline` built as a single
-stack entry rather than a single coverage evaluation.
+a second cache beyond text shaping, per-element tracing events, a `Polyline` built as a single
+stack entry rather than a single coverage evaluation, a verb that opens or closes the soft keyboard,
+a clipboard read that returns what it read, and a media overlay drawn in the DOM over the canvas.
 
 **B8's "pixels and decoding are the app's" is reversed, deliberately.** foliage decodes PNG and JPEG
 now, and that is what makes one road serve three destinations: `font`, `icon` and `image` each take
@@ -138,7 +143,25 @@ else in `Pollen` is, because two keys in a frame mean different things in each o
 app's, through `Pollen::root_keys()`. Nothing consumes a key on another's behalf: a field is sent
 what it edited with and the app is told the same keys.
 
-## 6. For the optimisation pass
+**The host is reached through the queue, and only through it.** A `copy`, a `navigate` and a
+`download` are ops, drained in arrival order with everything else; a `paste` is an op whose *answer*
+is another op, pushed from wherever the read finished and drained in the frame it landed in. That is
+the asset road, and taking it twice is what makes a paste mean the same thing on a promise and on a
+round trip instead of landing in this frame on one target and the next on the other. There is no
+call on the engine that reaches the platform and returns.
+
+**Every platform edge is opened by `photosynthesize` and shut under the headless suite** — the seam
+`Wake` already sat on. The clipboard then answers from the engine's own mirror, the keyboard records
+what it was asked to raise and raises nothing, and a URL goes nowhere: which is what proves the rules
+on this side of the seam and keeps a test off the clipboard and the browser of whoever runs it.
+
+**A soft keyboard is raised by focus and by nothing else.** A field is the only thing that is typed
+into and focus already rests only on what receives, so there is no verb for opening one and none for
+closing it — the same reasoning that made `interactive()` the whole declaration for keys. `Keypad`
+is the one thing a field says about it, and it is a hint about which keys are easy rather than a
+rule about what the value may be.
+
+## 5. For the optimisation pass
 
 Candidates, not measured, and all deliberate as built:
 
@@ -152,8 +175,8 @@ Candidates, not measured, and all deliberate as built:
 
 ## Two finish lines
 
-**Useful to someone else** — §1's assets and clipboard, and §4's packaging, examples and an answer
-for icon fields. Virtual keyboard as well, if a phone is in scope.
+**Useful to someone else** — §3 entire: a `README`, licence files, examples, packaging, and an
+answer for icon fields. Nothing in §1 or §2 stands between the engine and someone else using it.
 
-**Feature-complete against the plan** — the above, plus B11, `Polyline`, the B9 field items, CI with
-golden images, and the book.
+**Feature-complete against the plan** — the above, plus B11, `Polyline`, the B9 field items, the B10
+items in §2, CI with golden images, and the book.

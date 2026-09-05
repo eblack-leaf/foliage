@@ -46,6 +46,7 @@ use crate::grove::Grove;
 use crate::interaction::focus::Intent;
 use crate::interaction::{self, Gestures};
 use crate::interaction::input::{Key, Keystroke};
+use crate::keyboard::Keypad;
 use crate::leaf::Leaf;
 use crate::lifecycle::Visible;
 use crate::frond::{Fronds, Sprouts};
@@ -100,6 +101,14 @@ const CARET: f32 = 2.0;
 ///
 /// What it types is reported as [`edited`](crate::Pollen::edited), and an `Enter` as
 /// [`submitted`](crate::Pollen::submitted).
+///
+/// It answers the clipboard itself: `Ctrl+C` and `Ctrl+X` put the selected span on it and `Ctrl+V`
+/// asks for what is there, which lands **in a later frame** because what a clipboard holds is the
+/// host's to say. A paste is reported as [`edited`](crate::Pollen::edited) like anything else the
+/// person at the keyboard did, so an app hears it where it hears the typing.
+///
+/// On a platform with a soft keyboard it raises the [`keypad`](TextInput::keypad) it named
+/// whenever it holds focus, and nothing declares that beyond being a field.
 #[derive(Clone, Debug)]
 pub struct TextInput {
     pub(crate) placement: Placement,
@@ -109,6 +118,7 @@ pub struct TextInput {
     pub(crate) hint: Fill,
     pub(crate) caret: Fill,
     pub(crate) selection: Fill,
+    pub(crate) keypad: Keypad,
 }
 
 impl Default for TextInput {
@@ -128,6 +138,7 @@ impl TextInput {
             hint: Fill::Role(Palette::Muted),
             caret: Fill::Role(Palette::Accent),
             selection: Fill::Role(Palette::Muted),
+            keypad: Keypad::Text,
         }
     }
 
@@ -170,6 +181,16 @@ impl TextInput {
         self.selection = fill.into();
         self
     }
+
+    /// Which soft keyboard the field raises while it holds focus.
+    ///
+    /// A hint about what is easy to type and not a rule about what the field takes: a
+    /// [`Keypad::Number`] field can still be pasted a word into, so what a value is allowed to be
+    /// is the app's to check either way. Ignored where the platform raises no keyboard of its own.
+    pub fn keypad(mut self, keypad: Keypad) -> Self {
+        self.keypad = keypad;
+        self
+    }
 }
 
 impl Places for TextInput {
@@ -208,6 +229,7 @@ impl Buds for TextInput {
                 hint: self.hint,
                 caret: self.caret,
                 selection: self.selection,
+                keypad: self.keypad,
             })),
             at,
             ..Bud::bare()
@@ -224,6 +246,7 @@ pub(crate) struct Sprout {
     pub(crate) hint: Fill,
     pub(crate) caret: Fill,
     pub(crate) selection: Fill,
+    pub(crate) keypad: Keypad,
 }
 
 /// The four elements a field is made of.
@@ -288,6 +311,19 @@ pub(crate) enum Applied {
     /// The caret moved and the value did not. A selection is a caret with its anchor left behind,
     /// so selecting is this as well.
     Moved(Editing),
+    /// The selected span, to go on the clipboard. The value is unchanged.
+    Copied(String),
+    /// The same span, with the value it came out of and where that leaves the caret.
+    Cut {
+        text: String,
+        written: String,
+        editing: Editing,
+    },
+    /// The clipboard was asked for, to be written in at the caret when it answers.
+    ///
+    /// The one keystroke a field cannot finish on its own: what is on the clipboard is the host's
+    /// to say and it does not say it now, so the write happens in the frame the answer lands.
+    Pasting,
     /// `Enter`.
     Submitted,
     /// Nothing a field does.
@@ -310,21 +346,32 @@ pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Appli
     // A command rather than a character. Held, a key says what to do with the value instead of
     // what to put in it, so it is answered before the key's own meaning is.
     if stroke.modifiers.control {
+        // A selection is what the clipboard verbs work over, and an empty one is nothing to work
+        // over: a field with its caret between two characters has no span to copy and none to cut.
+        // Taking the whole value instead would be a rule nobody asked for.
+        let selected = || characters[span.start..span.end].iter().collect::<String>();
         return match stroke.key {
             Key::Typed('a') | Key::Typed('A') => Applied::Moved(Editing {
                 anchor: 0,
                 caret: characters.len(),
             }),
+            Key::Typed('c') | Key::Typed('C') if !editing.collapsed() => {
+                Applied::Copied(selected())
+            }
+            Key::Typed('x') | Key::Typed('X') if !editing.collapsed() => Applied::Cut {
+                text: selected(),
+                written: spliced(&characters, span.clone(), ""),
+                editing: Editing::at(span.start),
+            },
+            Key::Typed('v') | Key::Typed('V') => Applied::Pasting,
             _ => Applied::Nothing,
         };
     }
     match stroke.key {
-        Key::Typed(character) => {
-            let mut written: String = characters[..span.start].iter().collect();
-            written.push(character);
-            written.extend(&characters[span.end..]);
-            Applied::Wrote(written, Editing::at(span.start + 1))
-        }
+        Key::Typed(character) => Applied::Wrote(
+            spliced(&characters, span.clone(), &character.to_string()),
+            Editing::at(span.start + 1),
+        ),
         Key::Backspace => {
             // A selection is what is removed where there is one; otherwise the character before the
             // caret. The two are one rule -- delete the span -- with an empty span reaching back by
@@ -337,7 +384,7 @@ pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Appli
                 return Applied::Nothing;
             }
             Applied::Wrote(
-                without(&characters, removed.clone()),
+                spliced(&characters, removed.clone(), ""),
                 Editing::at(removed.start),
             )
         }
@@ -350,7 +397,7 @@ pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Appli
                 return Applied::Nothing;
             }
             Applied::Wrote(
-                without(&characters, removed.clone()),
+                spliced(&characters, removed.clone(), ""),
                 Editing::at(removed.start),
             )
         }
@@ -369,11 +416,37 @@ pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Appli
     }
 }
 
-/// The value with a span of it taken out.
-fn without(characters: &[char], span: Range<usize>) -> String {
+/// Text put in at the caret, replacing whatever was selected.
+///
+/// The rule a paste is applied by, and the general case of the one a typed character is: what
+/// arrives is a string rather than a character, and it is written in at exactly the same place.
+///
+/// Control characters are dropped, which is the rule a keystroke already arrives under -- a field
+/// is one line, so a newline that came in on the clipboard would put a character in the value that
+/// no cell can be measured for and no caret can stand between.
+pub(crate) fn inserted(value: &str, editing: Editing, text: &str) -> Applied {
+    let characters: Vec<char> = value.chars().collect();
+    let span = editing.clamped(characters.len()).span();
+    let written: String = text
+        .chars()
+        .filter(|character| !character.is_control())
+        .collect();
+    if written.is_empty() {
+        return Applied::Nothing;
+    }
+    Applied::Wrote(
+        spliced(&characters, span.clone(), &written),
+        Editing::at(span.start + written.chars().count()),
+    )
+}
+
+/// The value with a span of it replaced by `text`, which is empty where the span is being removed.
+fn spliced(characters: &[char], span: Range<usize>, text: &str) -> String {
     characters[..span.start]
         .iter()
-        .chain(&characters[span.end..])
+        .copied()
+        .chain(text.chars())
+        .chain(characters[span.end..].iter().copied())
         .collect()
 }
 
@@ -535,6 +608,7 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
     );
     grove.tree.set_parts(field, parts);
     grove.tree.set_editing(field, Editing::default());
+    grove.tree.set_keypad(field, sprout.keypad);
     refresh(grove, field);
     debug!(leaf = field.id(), "field sprouted");
 }
@@ -596,22 +670,26 @@ pub(crate) fn typed(grove: &mut Grove, field: Leaf, stroke: Keystroke) {
     let Some(parts) = grove.tree.parts(field) else {
         return;
     };
-    let value = grove
-        .tree
-        .lettering(parts.run)
-        .unwrap_or_default()
-        .to_string();
-    match applied(&value, grove.tree.editing(field), stroke) {
-        Applied::Wrote(written, editing) => {
-            grove.tree.set_lettering(parts.run, written);
-            grove.tree.set_editing(field, editing);
-            grove.drift.edited.insert(field);
-            refresh(grove, field);
-            debug!(leaf = field.id(), "edited");
-        }
+    match applied(&value(grove, parts), grove.tree.editing(field), stroke) {
+        Applied::Wrote(written, editing) => wrote(grove, field, parts, written, editing),
         Applied::Moved(editing) => {
             grove.tree.set_editing(field, editing);
             refresh(grove, field);
+        }
+        Applied::Copied(text) => grove.clipboard.write(text),
+        Applied::Cut {
+            text,
+            written,
+            editing,
+        } => {
+            grove.clipboard.write(text);
+            wrote(grove, field, parts, written, editing);
+        }
+        // The one keystroke that finishes in another frame. The read is started here and the write
+        // happens where its answer is drained, which is `pasted`.
+        Applied::Pasting => {
+            let (queue, wake) = (grove.queue.clone(), grove.wake.clone());
+            grove.clipboard.read(&queue, &wake, Some(field));
         }
         Applied::Submitted => {
             grove.drift.submitted.insert(field);
@@ -619,6 +697,44 @@ pub(crate) fn typed(grove: &mut Grove, field: Leaf, stroke: Keystroke) {
         }
         Applied::Nothing => {}
     }
+}
+
+/// What the clipboard answered, written in at the caret of the field that asked for it.
+///
+/// A frame or more after the `Ctrl+V` that asked, which is the whole reason the answer is an op:
+/// what a clipboard holds is the host's to say and it does not say it now. Everything from here is
+/// the ordinary write the keystroke would have made, so the paste is
+/// [`edited`](crate::Pollen::edited) like anything else the person at the keyboard did.
+pub(crate) fn pasted(grove: &mut Grove, field: Leaf, text: &str) {
+    let Some(parts) = grove.tree.parts(field) else {
+        return;
+    };
+    if let Applied::Wrote(written, editing) =
+        inserted(&value(grove, parts), grove.tree.editing(field), text)
+    {
+        wrote(grove, field, parts, written, editing);
+    }
+}
+
+/// What the field currently says.
+fn value(grove: &Grove, parts: Parts) -> String {
+    grove
+        .tree
+        .lettering(parts.run)
+        .unwrap_or_default()
+        .to_string()
+}
+
+/// Puts a new value and caret on a field, however it was arrived at.
+///
+/// Typing, cutting and pasting are one write with three causes, and each is what the person at the
+/// keyboard did to the value -- so each is one [`edited`](crate::Pollen::edited).
+fn wrote(grove: &mut Grove, field: Leaf, parts: Parts, written: String, editing: Editing) {
+    grove.tree.set_lettering(parts.run, written);
+    grove.tree.set_editing(field, editing);
+    grove.drift.edited.insert(field);
+    refresh(grove, field);
+    debug!(leaf = field.id(), "edited");
 }
 
 /// The kind, for the two questions [`Fronds`] asks of every field at once.
@@ -709,6 +825,10 @@ fn gestured(grove: &mut Grove) {
 /// What is selected is not cleared with focus. A selection is state and focus is not, so a field
 /// stepped away from and back into is as it was left -- while a *tap* back into it collapses the
 /// selection, because a tap says where the caret goes.
+///
+/// The soft keyboard is settled here too, and it is the same statement the caret is: a platform's
+/// own keyboard is raised for the field that holds focus and lowered for everything else, so
+/// nothing about a phone is declared anywhere -- being a field is the whole of it.
 fn settled(grove: &mut Grove) {
     let focused = grove.focus.held();
     for (field, parts) in grove.tree.fields() {
@@ -719,6 +839,8 @@ fn settled(grove: &mut Grove) {
             .tree
             .set_visible(parts.selection, showing && !selected.is_empty());
     }
+    let wanted = focused.and_then(|leaf| grove.tree.keypad(leaf));
+    grove.keyboard.raise(wanted);
 }
 
 /// Selects a span of the value outright.
@@ -755,10 +877,6 @@ pub(crate) fn lettered(grove: &mut Grove, field: Leaf, parts: Parts, value: Stri
     refresh(grove, field);
 }
 
-/// Which character of the run a point falls on.
-///
-/// Rounded rather than floored, so pressing past the middle of a character puts the caret after it
-/// -- which is where a hand aiming between two characters means.
 /// Whether a point has left the field across, which is the axis it scrolls.
 ///
 /// Across and not the whole box: a pointer below a one-line field is at a character like any other,
@@ -768,6 +886,10 @@ fn beyond(grove: &Grove, field: Leaf, at: Position) -> bool {
     at.x < box_of.left() || at.x > box_of.right()
 }
 
+/// Which character of the run a point falls on.
+///
+/// Rounded rather than floored, so pressing past the middle of a character puts the caret after it
+/// -- which is where a hand aiming between two characters means.
 fn index_at(grove: &Grove, parts: Parts, at: Position) -> usize {
     let cell = grove.tree.cell(parts.run);
     if cell.width <= 0.0 {

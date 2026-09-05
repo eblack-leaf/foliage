@@ -2,6 +2,7 @@ use core::time::Duration;
 
 use crate::asset::{Bytes, Destination, Origin, Supply, retrieve};
 use crate::aspen::{Aspen, Sequence, Tween};
+use crate::clipboard::Clipboard;
 use crate::clock::Clock;
 use crate::coordinate::{Area, Axis, Position};
 use crate::elm::Elm;
@@ -11,8 +12,10 @@ use crate::interaction::focus::Focus;
 use crate::interaction::input::Incoming;
 use crate::interaction::stack::Stack;
 use crate::interaction::{Claim, Hold};
+use crate::keyboard::Keyboard;
 use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf, Presence};
+use crate::link::Links;
 use crate::op::Op;
 use crate::palette::Scheme;
 use crate::pollen::Drift;
@@ -52,6 +55,12 @@ pub struct Grove {
     pub(crate) scheme: Scheme,
     /// What arrived from the platform, and the gesture it is making.
     pub(crate) incoming: Incoming,
+    /// The system clipboard, and what this program last put on it.
+    pub(crate) clipboard: Clipboard,
+    /// The soft keyboard, and which one is up.
+    pub(crate) keyboard: Keyboard,
+    /// Whether a URL reaches the host.
+    pub(crate) links: Links,
     /// What the last frame drew, which is what a gesture is resolved against.
     pub(crate) stack: Stack,
     pub(crate) focus: Focus,
@@ -89,6 +98,9 @@ impl Grove {
             short: Short::No.next(viewport),
             scheme: Scheme::default(),
             incoming: Incoming::default(),
+            clipboard: Clipboard::default(),
+            keyboard: Keyboard::default(),
+            links: Links::default(),
             stack: Stack::default(),
             focus: Focus::default(),
             coasting: Coasting::default(),
@@ -261,6 +273,19 @@ impl Grove {
     /// Starts a read, against the queue and the wake it will come back through.
     fn retrieve(&mut self, destination: Destination, origin: Origin) {
         retrieve(&self.queue, &self.wake, destination, origin);
+    }
+
+    /// Opens the platform edges, once, at boot.
+    ///
+    /// Called by `photosynthesize` after the [`Wake`] is installed and by nothing else -- so the
+    /// headless suite, which runs frames by hand, reaches none of them. That is what keeps a test
+    /// off the clipboard, the keyboard and the browser of whoever is running it, and it is the same
+    /// seam the wake itself sits on: what is here on both sides of it is engine state, and what is
+    /// past it is the host.
+    pub(crate) fn attach(&mut self) {
+        self.clipboard.attach();
+        self.keyboard.attach(&self.wake);
+        self.links.attach();
     }
 
     /// What holds focus, if anything does.

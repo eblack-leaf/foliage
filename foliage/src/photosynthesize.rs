@@ -106,6 +106,9 @@ impl Foliage {
         foliage.grove.wake.install(move || {
             proxy.send_event(()).ok();
         });
+        // The rest of the platform, opened once the wake it reports through is in place: the
+        // clipboard, the hidden input a soft keyboard is raised by, and a URL's road to the host.
+        foliage.grove.attach();
         #[cfg(target_family = "wasm")]
         {
             use winit::platform::web::EventLoopExtWebSys;

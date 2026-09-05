@@ -158,6 +158,24 @@ pub(crate) enum Op {
         destination: Destination,
         bytes: Retrieved,
     },
+    /// Text to put on the clipboard.
+    Copy(String),
+    /// A request for what the clipboard holds, and who it is for: the field that was asked to paste
+    /// into itself, or the app where it asked for itself.
+    ///
+    /// Separate from the answer because reading a clipboard is not instant on either target -- a
+    /// promise on the web, a round trip to whoever owns the selection off it.
+    Paste { into: Option<Leaf> },
+    /// What the clipboard turned out to hold, and who asked for it.
+    ///
+    /// Pushed by whatever finished the read rather than by an app, which is what makes it an op for
+    /// the reason [`Arrived`](Op::Arrived) is one: it lands at a moment nothing chose, and the queue
+    /// is what gives it a place in the order anyway.
+    Pasted { into: Option<Leaf>, text: String },
+    /// A URL to go to.
+    Navigate(String),
+    /// A URL to hand the host to save.
+    Download(String),
 }
 
 /// An element formed and not yet open: what the queue carries between the call that described it

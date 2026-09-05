@@ -26,7 +26,11 @@
 //!   says how large it is; [`content()`] is a box measured rather than declared.
 //! - [`TextInput`] is an editable one: one [`Leaf`] to hold, [`select`](Grow::select) to move its
 //!   caret, and [`edited`](Pollen::edited) and [`submitted`](Pollen::submitted) to hear what was
-//!   typed into it.
+//!   typed into it. It answers `Ctrl+C`, `Ctrl+X` and `Ctrl+V` itself, and raises the [`Keypad`] it
+//!   named on a platform that has a keyboard to raise.
+//! - The host's own: [`copy`](Grow::copy) and [`paste`](Grow::paste) reach the clipboard, with
+//!   [`pasted`](Pollen::pasted) carrying what came back, and [`navigate`](Grow::navigate) and
+//!   [`download`](Grow::download) hand it a URL.
 //! - [`Motion`] is what can be animated and [`Timing`] how long it takes; [`Ease`] is the shape it
 //!   moves in, [`Tween`] names a value the engine only reports, and [`Sequence`] names a group of
 //!   them arriving.
@@ -38,6 +42,7 @@
 mod ash;
 mod aspen;
 mod asset;
+mod clipboard;
 mod clock;
 mod color;
 mod coordinate;
@@ -51,10 +56,12 @@ mod grove;
 mod icon;
 mod image;
 mod interaction;
+mod keyboard;
 mod layout;
 mod leaf;
 mod lifecycle;
 mod line;
+mod link;
 mod op;
 mod palette;
 mod panel;
@@ -91,6 +98,7 @@ pub use icon::{Field, Icon};
 pub use image::{Fit, Image, Plate};
 pub use interaction::input::{Key, Keystroke, Modifiers};
 pub use interaction::{Claim, Drag, Hold};
+pub use keyboard::Keypad;
 pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};
 pub use line::{Cap, HAIRLINE, Line};
