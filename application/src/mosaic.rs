@@ -280,7 +280,10 @@ impl Silhouette {
     }
 
     /// How far `point` is from the nearest edge of the outline.
-    fn clearance(&self, point: (f32, f32)) -> f32 {
+    ///
+    /// What sizes a tile, and what limits how far one may be moved afterwards: the outline is drawn
+    /// once and does not move, so nothing inside it may be carried out of it.
+    pub(crate) fn clearance(&self, point: (f32, f32)) -> f32 {
         self.edges()
             .map(|(from, to)| span(point, from, to))
             .fold(f32::MAX, f32::min)
