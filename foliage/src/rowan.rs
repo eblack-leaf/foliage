@@ -372,15 +372,35 @@ fn departure(
 /// and is given its real height by R2b like anything else. That is the correct reading rather than a
 /// limitation: a child sized to its trunk cannot also be what sizes it, and nothing is asked to
 /// converge.
+/// The two halves are separate walks because only one of them has an order. A run wraps at its own
+/// width and against its own font, so what an element shapes to reads nothing but the element --
+/// while what reaches below it reads the measures of everything under it, and so has to run after
+/// them.
 fn wrap(grove: &mut Grove, elements: &mut Elements) {
     let _pass = trace_span!("wrap").entered();
+    let shaped = shaped(grove, elements);
+    let _half = trace_span!("reach").entered();
     let fallback = Location::default();
     for at in (0..elements.len()).rev() {
-        let leaf = elements.order[at];
-        let width = elements.section[at].width();
-        let height = wrapped(grove, leaf, width).max(reach(grove, elements, &fallback, at));
-        elements.intrinsic[at].height = height;
+        elements.intrinsic[at].height = shaped[at].max(reach(grove, elements, &fallback, at));
     }
+}
+
+/// How tall each element's own run turned out at the width R2a gave it.
+///
+/// In any order, because no element's answer is another's: this is the half of R2m that reaches into
+/// the world for a typeface and a run, and the only half that touches the shaping cache.
+fn shaped(grove: &mut Grove, elements: &Elements) -> Vec<f32> {
+    let _half = trace_span!("shaped").entered();
+    let mut shaped = Vec::with_capacity(elements.len());
+    for at in 0..elements.len() {
+        shaped.push(wrapped(
+            grove,
+            elements.order[at],
+            elements.section[at].width(),
+        ));
+    }
+    shaped
 }
 
 /// How tall `leaf`'s own run of glyphs is at `width`, or zero if it says nothing.

@@ -26,6 +26,18 @@
 //! the field again, because a load writes a property the one before it may have written differently
 //! -- a fill stated outright is not a role any more, and would not answer a repaint.
 //!
+//! # How much of it is written
+//!
+//! `[` halves how much of the field a load writes to each frame and `]` doubles it, down to a single
+//! cell. The three loads that write a value per cell -- `layout`, `color` and `text` -- take it, over
+//! a window that rolls so the whole field still turns over. A motion, a churn and a repaint already
+//! state how much they touch, and none of them states it per cell.
+//!
+//! It is what a claim about the *change's* size is read against. Resolution costs the tree's size
+//! rather than the change's, so `layout` on a sixty-fourth of the field costs what `layout` on all
+//! of it costs, less the writes themselves -- and the difference between those two readings is what
+//! anything that skipped the unchanged would have to beat.
+//!
 //! # Reading it
 //!
 //! The window presents in step with the display, so a load that finishes inside a refresh interval
@@ -39,11 +51,13 @@
 //!
 //! # Running it
 //!
-//! The load and the cell count are also arguments, in either order, so the process can start in the
-//! state being sampled rather than be typed into it.
+//! The load, the cell count and the share are also arguments, in any order, so the process can start
+//! in the state being sampled rather than be typed into it. A whole number is a cell count and a
+//! fraction is a share, so the two never collide.
 //!
 //! ```sh
 //! cargo run -p foliage --release --example stress -- text 4096
+//! cargo run -p foliage --release --example stress -- layout 4096 0.015
 //! ```
 //!
 //! Release, because a profile of a debug build is a profile of a debug build.
@@ -206,20 +220,24 @@ impl Load {
     }
 }
 
-/// The load and the cell count asked for on the command line, in either order and both optional.
-fn requested() -> (Load, usize) {
+/// The load, the cell count and the share asked for on the command line, in any order and all
+/// optional. A whole number is a cell count and a fraction is a share, so the two never collide.
+fn requested() -> (Load, usize, f32) {
     let mut load = Load::Layout;
     let mut cells = CELLS;
+    let mut share = 1.0;
     for argument in std::env::args().skip(1) {
         if let Some(named) = Load::parse(&argument) {
             load = named;
         } else if let Ok(count) = argument.parse::<usize>() {
             cells = count.clamp(FEWEST, MOST);
+        } else if let Ok(fraction) = argument.parse::<f32>() {
+            share = fraction.clamp(0.0, 1.0);
         } else {
-            warn!(argument, "not a load or a cell count");
+            warn!(argument, "not a load, a cell count or a share");
         }
     }
-    (load, cells)
+    (load, cells, share)
 }
 
 /// How the field is divided, which is what fixes where a cell sits.
@@ -278,6 +296,10 @@ struct Stress {
     /// What is running, and the rate it is running at.
     headline: Leaf,
     rate: Leaf,
+    /// How much of the field a load writes to each frame, between one cell and all of them.
+    share: f32,
+    /// Where the next frame's window starts, so a share below one still turns the field over.
+    written: usize,
     /// Where [`Load::Churn`] regrows next.
     churn: usize,
     /// Frames since the rate was last written, and the time it was written at.
@@ -287,7 +309,7 @@ struct Stress {
 
 impl Root for Stress {
     fn take_root(grove: &mut Grove) -> Self {
-        let (load, cells) = requested();
+        let (load, cells, share) = requested();
         let page = grove.plant(Panel::new());
         let headline = grove.branch(
             page,
@@ -328,6 +350,8 @@ impl Root for Stress {
             field,
             headline,
             rate,
+            share,
+            written: 0,
             churn: 0,
             frames: 0,
             marked: Duration::ZERO,
@@ -363,6 +387,8 @@ impl Stress {
                 }
                 '+' | '=' => self.resize(grove, self.cells.len() * 2),
                 '-' | '_' => self.resize(grove, self.cells.len() / 2),
+                ']' => self.reshare(grove, self.share * 2.0),
+                '[' => self.reshare(grove, self.share / 2.0),
                 _ => {}
             }
         }
@@ -374,6 +400,16 @@ impl Stress {
         if cells != self.cells.len() {
             self.rebuild(grove, cells);
         }
+    }
+
+    /// Writes to `share` of the field from here on, down to a single cell.
+    ///
+    /// The field is not grown again: how much of it a load writes is not a property of the field,
+    /// and holding the same one across the change is what makes two shares comparable.
+    fn reshare(&mut self, grove: &mut Grove, share: f32) {
+        let least = 1.0 / self.cells.len().max(1) as f32;
+        self.share = share.clamp(least, 1.0);
+        grove.text(self.headline, self.headline());
     }
 
     /// Takes the field down and grows `cells` in its place.
@@ -388,6 +424,7 @@ impl Stress {
         }
         self.motions.clear();
         self.churn = 0;
+        self.written = 0;
         self.divided = Divided::of(cells);
         let (divided, field) = (self.divided, self.field);
         self.cells = (0..cells).map(|n| grow(grove, field, divided, n)).collect();
@@ -417,13 +454,42 @@ impl Stress {
         let elapsed = grove.elapsed().as_secs_f32();
         match self.load {
             Load::Idle => {}
-            Load::Layout => self.wander(grove, elapsed),
-            Load::Color => self.recolor(grove, elapsed),
-            Load::Text => self.relabel(grove),
+            Load::Layout => {
+                let window = self.window();
+                self.wander(grove, elapsed, window);
+            }
+            Load::Color => {
+                let window = self.window();
+                self.recolor(grove, elapsed, window);
+            }
+            Load::Text => {
+                let window = self.window();
+                self.relabel(grove, window);
+            }
             Load::Animate => self.remotion(grove, pollen),
             Load::Churn => self.regrow(grove),
             Load::Repaint => self.restate(grove, elapsed),
         }
+    }
+
+    /// The stretch of the field this frame's load writes to: where it starts, and how far it reaches.
+    ///
+    /// A share of one is every cell, which is the saturating case and what the loads state without
+    /// it. Anything less is what an app that rewrites part of its page does -- and since resolution
+    /// costs the tree's size rather than the change's, the two are what that claim is read against.
+    /// The window rolls, so a share below one still turns the whole field over.
+    ///
+    /// The three loads that write a value per cell take it. A motion, a churn and a repaint do not:
+    /// each already states how much it touches, and none of them states it per cell.
+    fn window(&mut self) -> (usize, usize) {
+        let cells = self.cells.len();
+        if cells == 0 {
+            return (0, 0);
+        }
+        let count = ((cells as f32 * self.share).ceil() as usize).clamp(1, cells);
+        let from = self.written;
+        self.written = (from + count) % cells;
+        (from, count)
     }
 
     /// Rewrites every cell's placement, which is the whole of resolution: both axes, the extents
@@ -432,30 +498,33 @@ impl Stress {
     /// The displacement is a real one every frame. A placement written back at the value it already
     /// holds settles at the same box and extracts as unchanged, which would measure the check
     /// rather than the work.
-    fn wander(&self, grove: &mut Grove, elapsed: f32) {
+    fn wander(&self, grove: &mut Grove, elapsed: f32, (from, count): (usize, usize)) {
         let divided = self.divided;
-        for (n, cell) in self.cells.iter().enumerate() {
+        for step in 0..count {
+            let n = (from + step) % self.cells.len();
             let phase = elapsed * 2.0 + n as f32 * 0.35;
-            grove.at(cell.shape, divided.seat(n, phase.sin() * WANDER));
+            grove.at(self.cells[n].shape, divided.seat(n, phase.sin() * WANDER));
         }
     }
 
     /// Rewrites every cell's fill, which reaches extraction without moving a box: the same
     /// instances, rewritten where they already stand.
-    fn recolor(&self, grove: &mut Grove, elapsed: f32) {
+    fn recolor(&self, grove: &mut Grove, elapsed: f32, (from, count): (usize, usize)) {
         let span = self.cells.len() as f32;
-        for (n, cell) in self.cells.iter().enumerate() {
-            grove.color(cell.shape, wheel(elapsed * 0.5 + n as f32 / span));
+        for step in 0..count {
+            let n = (from + step) % self.cells.len();
+            grove.color(self.cells[n].shape, wheel(elapsed * 0.5 + n as f32 / span));
         }
     }
 
     /// Rewrites every label with a value nothing has shaped: five characters carrying the frame, so
     /// the run misses the cache, is shaped and measured and wrapped, has its glyphs extracted, and
     /// is swept at the end of the frame because nothing states it any more.
-    fn relabel(&self, grove: &mut Grove) {
-        for (n, cell) in self.cells.iter().enumerate() {
+    fn relabel(&self, grove: &mut Grove, (from, count): (usize, usize)) {
+        for step in 0..count {
+            let n = (from + step) % self.cells.len();
             grove.text(
-                cell.label,
+                self.cells[n].label,
                 format!("{:02x}{:03x}", self.frames & 0xff, n & 0xfff),
             );
         }
@@ -519,12 +588,13 @@ impl Stress {
         info!(
             load = self.load.name(),
             cells = self.cells.len(),
+            written = portion(self.share),
             rate = rate as f64,
             frame_ms = last as f64,
             "stress"
         );
         grove.text(self.rate, format!("{rate:.0} fps, {last:.2} ms last frame"));
-        report(self.load, self.cells.len(), rate);
+        report(self.load, self.cells.len(), &portion(self.share), rate);
         self.frames = 0;
         self.marked = elapsed;
     }
@@ -532,12 +602,23 @@ impl Stress {
     /// What is running, on how much, and what it saturates.
     fn headline(&self) -> String {
         format!(
-            "{}  {} cells, {} elements  -  {}  -  1..7 load, +/- size",
+            "{}  {} cells, {} elements, {} written  -  {}  -  1..7 load, +/- size, [/] share",
             self.load.name(),
             self.cells.len(),
             self.cells.len() * 2,
+            portion(self.share),
             self.load.phase(),
         )
+    }
+}
+
+/// How much of the field a load writes to each frame, as the readouts state it.
+///
+/// A power of two while the keys are what moves it, so a fraction reads exactly.
+fn portion(share: f32) -> String {
+    match share >= 1.0 {
+        true => "all".to_string(),
+        false => format!("1/{}", (1.0 / share).round() as usize),
     }
 }
 
@@ -714,7 +795,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for Stopwatch {
 ///
 /// Every time is per frame rather than per call, so a phase that runs twice in a frame reads what
 /// it costs the frame and is comparable to the phase beside it.
-fn report(load: Load, cells: usize, rate: f32) {
+fn report(load: Load, cells: usize, share: &str, rate: f32) {
     let phases = PHASES.take();
     let total: u64 = phases
         .iter()
@@ -729,7 +810,10 @@ fn report(load: Load, cells: usize, rate: f32) {
     if total == 0 || frames == 0 {
         return;
     }
-    println!("\n{} on {cells} cells, {rate:.0} fps", load.name());
+    println!(
+        "\n{} on {cells} cells, {share} written, {rate:.0} fps",
+        load.name()
+    );
     println!(
         "  {:<20} {:>6} {:>10} {:>9}",
         "phase", "calls", "ms/frame", "share"

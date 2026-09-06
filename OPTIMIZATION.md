@@ -40,11 +40,28 @@ Milliseconds a frame, on a Radeon RX 7900 XTX under Vulkan. The cost is linear a
 reaching 0.89µs at the largest size. It is 69% of what a frame costs when nothing at all has
 changed, and a 60Hz budget runs out at around 13000 elements that are not moving.
 
-Moving it means a dirty set, and the constraint is R2: resolution is dependency-ordered and an anchor
-may point anywhere — a later sibling, a cousin, another subtree — so a dirty set has to close over
-everything anchored into it before it is safe to resolve only that. What it would save is the figure
-above, which reading by position has already taken 42% off: the closure over anchors costs what it
-always did, against a smaller prize.
+**Measured against the change's size.** The same load and the same tree, writing to less and less of
+it — 4096 elements, milliseconds a frame:
+
+| written | all | 1 in 4 | 1 in 16 | 1 in 64 |
+| --- | --- | --- | --- | --- |
+| `drain` + `root` | 1.62 | 0.42 | 0.12 | 0.04 |
+| `resolve` | 3.18 | 3.33 | 3.21 | 3.27 |
+| `extract` | 0.89 | 0.91 | 0.89 | 0.92 |
+| `frame` | 6.15 | 5.10 | 4.66 | 4.71 |
+
+What the app writes falls with what it writes. Nothing else moves. At one element in sixty-four,
+**4.6 of a 4.7ms frame is spent on the elements that did not change** — and extraction is in it as
+much as resolution, because a difference it declines to send still costs the walk that found it.
+
+Moving that means a dirty set, and the constraint is R2: resolution is dependency-ordered and an
+anchor may point anywhere — a later sibling, a cousin, another subtree — so a dirty set has to close
+over everything anchored into it before it is safe to resolve only that. Reading by position has
+already taken 42% off the prize; against that, this is the only candidate here whose ceiling is the
+frame rather than a pass, and the figure above is what it would be measured against. The first work
+on it is the closure rather than the skipping: mark what changed, close it over the anchors, and
+count what comes out. A closure that returns most of the tree at one in sixty-four settles the
+question without a line of resolution being changed.
 
 ### What the passes spend it on
 
@@ -67,6 +84,8 @@ Together those took 42% off resolution. At 4096 elements: `clip` 0.49ms to 0.11,
 ### The read itself
 
 `elements` costs 0.45ms at 4096 elements, and is flat at 0.11µs an element across every size above.
+The sort of every entity in the world that opens it is 0.03 of that, so what it spends is the reading
+rather than the ordering.
 
 It was 0.95 before it was one read. Two thirds of that was an ordering pass that asked each element
 for its trunk and its anchor twice over, kept a map of how many dependencies each element was waiting
@@ -75,14 +94,22 @@ appeared in a breakdown, and a pass that cost more than any other in resolution 
 all. Asking each element once, keying the sort by position among the leaves, and holding what waits
 on what as one array rather than a vector per element took it to a single pass that shows.
 
-What is left in it is a sort of every entity in the world, which `Tree::leaves` does on each call and
-which extraction does again later in the same frame. A live set kept by `grow` and `wither` would
-answer both without one.
+### R2m shapes in one walk and reaches in another
 
-### R1 and R2m read the world element by element
+R2m takes the greater of two measures, and only one of them has an order. What an element's own run
+wraps to reads nothing but that element, so it is `shaped`, in any order; what reaches below it reads
+the measures of everything under it, so it is `reach`, up the order after them. At 4096 elements
+`wrap` is 0.76ms, and it divides 0.29 to the first and 0.47 to the second.
 
-Both reach for a typeface, a run and a placement, and the last two are handed out by reference rather
-than copied. A reference into the world cannot be held across a write to it.
+That is the answer to where R2m's cost is, and it is not where the deferral below assumed. `reach`
+visits each element exactly once — as the one child of its own trunk — so there is no repeated
+question in it to hoist out. What it spends is a `branched` walk and a `measurable` read per child,
+against a resolve that is genuine arithmetic.
+
+### R1 and `shaped` read the world element by element
+
+Both reach for a typeface and a run, and the run is handed out by reference rather than copied. A
+reference into the world cannot be held across a write to it.
 
 **The write half is settled.** Neither pass writes as it walks any more: each states what it measures
 into the order, and `scatter` writes `Cell` and `Intrinsic` back once, after both have run. That took
@@ -90,15 +117,23 @@ into the order, and `scatter` writes `Cell` and `Intrinsic` back once, after bot
 scatter — and it leaves a measure in one place for the length of a frame, where before the array and
 the component both held it and R2m wrote both.
 
-**The read half is not.** What remains is the reach for a typeface, a run and a location, per element
-per pass. Making those columns means reading them where the rest are read, which is a gather of what
-is currently borrowed rather than copied: a run is a `&str`, and the shaping cache is keyed on it.
-That cache is reached mutably from the middle of both passes, which is a different field of the grove
-than the tree and so already a separate borrow — R1 destructures for it as it stands.
+**The read half is not.** What remains is the reach for a typeface and a run, per element per pass.
+Making those columns means reading them where the rest are read, which is a gather of what is
+currently borrowed rather than copied: a run is a `&str`, and the shaping cache is keyed on it. That
+cache is reached mutably from the middle of both passes, which is a different field of the grove than
+the tree and so already a separate borrow — R1 destructures for it as it stands.
 
-**What it is worth.** Unmeasured. On what reading by position was worth to the passes it reached,
-between a third and a half of the pair — 0.4 to 0.6ms at 4096 elements. An estimate rather than a
-measurement, and the first work on it is the measurement.
+The same borrow is what leaves the one question resolution still asks four times over. A `Location`
+is handed out by reference, so it is read once per axis, once by `measurable` and once again by the
+resolve `reach` does of each child — four reads of one element's placement in a frame, where every
+other thing a placement resolves against is now read once. It is the largest repeat left, and it is
+in the same gather as the two above rather than in a pass of its own.
+
+**What it is worth.** Less than it looked. The two passes are `measure` 0.44ms and `shaped` 0.29 at
+4096 elements, and both spend a large part of that in the font and the shaping cache rather than in
+reaching for the element — so what a gather could take is a fraction of 0.73, against 0.45 for the
+read that would carry it. An estimate still, but a smaller one than the pair suggested before `wrap`
+was split, and the candidate is weaker for it.
 
 **What it costs.** `Tree` hands out one element's value at a time, and owning the world is what lets
 it do that. A pass that reads a column asks instead for a read of the whole tree — so for these two
@@ -118,12 +153,18 @@ side of that line or it reopens R6's tie-break.
 
 `regions` reads an element's inherited product, its drawn box, its clip, its gestures and its rank.
 `painted` reads the first three again and `extract` the last, one step later in the same frame, over
-a walk of every entity in the world rather than of the order R8 already holds. `extract` is 0.96ms at
+a walk of every entity in the world rather than of the order R8 already holds. `extract` is 0.90ms at
 4096 elements against `regions`' 0.27.
 
-The same shape as the passes above, in another subsystem: an accessor per property, asked per
-element, per walk. What it would cost to move is the same decision — extraction reads what resolution
-settled, so the thing it would read is a column rather than an element.
+The same shape as the passes above, in another subsystem: an accessor per property, asked per element,
+per walk. And the same shape as resolution in what it costs — 0.89ms with every element rewritten,
+0.92 with one in sixty-four, because what a frame spends here is the walk that finds the differences
+rather than the differences.
+
+What it would cost to move is the same decision — extraction reads what resolution settled, so the
+thing it would read is a column rather than an element. `Elements` is dropped when resolution
+returns, so handing it on means it lives on the grove for the rest of the frame. That is the same
+call as the gather above, and it is worth making once for both rather than twice.
 
 ## `Pollen` builds its sets each frame
 
