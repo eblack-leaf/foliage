@@ -43,9 +43,9 @@ Not arithmetic — reaching for one element at a time. Two costs of about the sa
 ten nanoseconds against a few for the sums between them: a component read, which was a lookup by
 entity; and a step of an accumulation, which was a hash on a map keyed by element.
 
-Both are now read by position. [`Ordering`](../foliage/src/rowan.rs) holds each element's trunk and
-anchor as positions rather than names, `gather` reads what every element offers a placement before
-the axes run, and the accumulations R3 through R7 carry are arrays the length of the order. A write
+Both are now read by position. `Ordering` holds each element's trunk and anchor as positions rather
+than names, `gather` reads what every element offers a placement before the axes run, and the
+accumulations R3 through R7 carry are arrays the length of the order. A write
 that used to go through `insert` — the bundle machinery, which is what a component arriving for the
 first time needs and not what one being overwritten every frame does — is now made in place, since
 `grow` puts every one of them on the element when it is planted.
@@ -55,10 +55,30 @@ Together those took 42% off resolution. At 4096 elements: `clip` 0.49ms to 0.10,
 `extent` 0.40 to 0.25 — against 0.17 for the gather itself.
 
 What is left is R1 and R2m — `wrap` 0.86ms and `measure` 0.48 at 4096 elements, together 46% of
-resolution and the two that moved least. Both reach for a typeface, a run and a placement, none of
-which is copied out, because both write to the tree while they walk it and a borrow cannot be held
-across that. Gathering those means deferring their writes to the end of the pass, which is the one
-place left where the shape of the `Tree` boundary is what stands in the way.
+resolution and the two the rewrite did not reach.
+
+### R1 and R2m read and write in the same walk
+
+Both reach for a typeface, a run and a placement, and the last two are handed out by reference rather
+than copied. A reference into the world cannot be held across a write to it, and both passes write a
+measure for each element as they go — so neither can be gathered the way the passes around them are.
+
+Splitting each into three would make them able to be: one shared-borrow gather holding what the pass
+reads, the arithmetic against arrays holding what it produces, and one exclusive scatter writing
+`Cell` and `Intrinsic` back at the end. The shaping cache is reached mutably from the middle of
+that, which is a different field of the grove than the tree and so already a separate borrow — R1
+destructures for it as it stands.
+
+**What it is worth.** Unmeasured. On what reading by position was worth to the passes it did reach,
+between a third and a half of the pair — 0.5 to 0.8ms at 4096 elements, or a sixth to a quarter of
+what resolution now costs. An estimate rather than a measurement, and the first work on it is the
+measurement.
+
+**What it costs.** `Tree` hands out one element's value at a time, and owning the world is what lets
+it do that. A deferred pass asks instead for a read of the whole tree, computes away from it, and
+hands back a batch to be written — so for those two passes the boundary stops being an accessor per
+property and becomes a gather and a scatter. That is a decision about what `Tree` is for rather than
+a change inside a pass, which is what separates it from the rewrite above.
 
 ## Extraction rewrites a changed run entire
 
