@@ -846,7 +846,10 @@ fn a_motions_progress_is_read_by_its_name() {
     tick_with(&mut grove, &mut app);
     tick_with(&mut grove, &mut app);
     assert_eq!(app.last().tween(slide), Some(1.0));
-    assert!(app.last().finished(slide), "its end value and its finish together");
+    assert!(
+        app.last().finished(slide),
+        "its end value and its finish together"
+    );
 
     tick_with(&mut grove, &mut app);
     assert_eq!(app.last().tween(slide), None, "nothing left to read");

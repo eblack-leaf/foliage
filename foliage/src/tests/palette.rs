@@ -3,9 +3,7 @@
 
 use crate::color::Color;
 use crate::tests::{grove, tick};
-use crate::{
-    Boxed, Grove, Grow, Leaf, Location, Palette, Panel, Scheme, Source, Step, left, top,
-};
+use crate::{Boxed, Grove, Grow, Leaf, Location, Palette, Panel, Scheme, Source, Step, left, top};
 
 /// Every role, at its base step, in the order a scheme holds them.
 const ROLES: [Palette; 6] = [

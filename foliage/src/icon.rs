@@ -5,8 +5,8 @@ use tracing::info;
 
 use crate::color::Color;
 use crate::coordinate::Section;
-use crate::grove::Grove;
 use crate::elm::{Chlorophyll, Pigment};
+use crate::grove::Grove;
 use crate::op::Bud;
 use crate::palette::{Fill, Palette};
 use crate::place::{Boxed, Caller, Placement, Places};

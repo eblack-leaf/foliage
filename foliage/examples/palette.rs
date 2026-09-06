@@ -25,8 +25,8 @@
 //! ```
 
 use foliage::{
-    Area, Axes, Boxed, Color, Foliage, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place,
-    Polygon, Pollen, Root, Rounding, Scheme, Source, Step, Text, content, left, top,
+    Area, Axes, Boxed, Color, Foliage, FontSize, Grove, Grow, Leaf, Location, Palette, Panel,
+    Place, Pollen, Polygon, Root, Rounding, Scheme, Source, Step, Text, content, left, top,
 };
 
 /// The margin around the page, and the rhythm everything else is stated in.
@@ -301,7 +301,13 @@ fn grid(grove: &mut Grove, page: Leaf, top_y: f32) -> f32 {
     let first = top_y + 22.0;
     for (row, (name, role)) in ROLES.iter().enumerate() {
         let row_y = first + row as f32 * CELL_H;
-        label(grove, page, MARGIN, row_y + (CELL_H - MARK) / 2.0 + 18.0, name);
+        label(
+            grove,
+            page,
+            MARGIN,
+            row_y + (CELL_H - MARK) / 2.0 + 18.0,
+            name,
+        );
         for (column, (_, step)) in STEPS.iter().enumerate() {
             grove.branch(
                 page,

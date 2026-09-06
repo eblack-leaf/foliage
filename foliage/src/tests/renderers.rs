@@ -12,8 +12,8 @@ use crate::polygon::PolygonInstance;
 use crate::tests::{grove, section, tick};
 use crate::{
     Boxed, Cap, Color, Fill, Fit, Grove, Grow, Image, Leaf, Line, Location, Motion, Palette, Panel,
-    Place, Point, Polygon, Rounding, Sap, Scheme, Shape, Source, Stem, Text, Timing, Vein,
-    anchor, left, top,
+    Place, Point, Polygon, Rounding, Sap, Scheme, Shape, Source, Stem, Text, Timing, Vein, anchor,
+    left, top,
 };
 
 // -- Lines -----------------------------------------------------------------------------------

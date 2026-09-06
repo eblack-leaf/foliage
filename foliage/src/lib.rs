@@ -109,13 +109,6 @@ pub use coordinate::{Area, Axes, Position, Section};
 pub use elevation::Elevation;
 pub use foliage::Foliage;
 pub use grove::Grove;
-/// The activity Android started the process for, handed to [`Foliage::android`].
-///
-/// Re-exported rather than left to the app to name, because the glue crate this comes from defines
-/// the process entry point and winit calls into it: two versions of it in one binary is a link
-/// error at launch. Taking it from here is what makes that impossible to have.
-#[cfg(target_os = "android")]
-pub use winit::platform::android::activity::AndroidApp;
 pub use icon::{Field, Icon, Marks};
 pub use image::{Fit, Image, Plate};
 pub use interaction::input::{Key, Keystroke, Modifiers};
@@ -150,3 +143,10 @@ pub use text_input::TextInput;
 pub use vein::{Sap, Vein};
 pub use verbs::Grow;
 pub use view::{Escape, Momentum, Scroll, ScrollTo};
+/// The activity Android started the process for, handed to [`Foliage::android`].
+///
+/// Re-exported rather than left to the app to name, because the glue crate this comes from defines
+/// the process entry point and winit calls into it: two versions of it in one binary is a link
+/// error at launch. Taking it from here is what makes that impossible to have.
+#[cfg(target_os = "android")]
+pub use winit::platform::android::activity::AndroidApp;

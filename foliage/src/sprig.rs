@@ -21,7 +21,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use tracing::trace;
+use tracing::{trace, trace_span};
 
 use crate::aspen::{Sequence, Tween};
 use crate::asset::{Bytes, Destination, Supply, retrieve};
@@ -341,6 +341,7 @@ impl Watches {
 /// After settle, so what is published is what the frame ended at rather than what it passed
 /// through, and before extraction, which is the backend's business and not the boundary's.
 pub(crate) fn publish(grove: &mut Grove) {
+    let _step = trace_span!("publish", watched = grove.watched.0.len()).entered();
     grove.sprig.ambient(Conditions {
         viewport: grove.viewport,
         layout: grove.layout,

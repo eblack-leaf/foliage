@@ -20,10 +20,11 @@ use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType,
     ColorTargetState, CommandEncoderDescriptor, CompareFunction, CompositeAlphaMode,
     CurrentSurfaceTexture, DepthStencilState, Device, DeviceDescriptor, Features,
-    InstanceDescriptor, InstanceFlags, Limits, LoadOp, MultisampleState, Operations, PowerPreference, PresentMode,
-    PrimitiveState, PrimitiveTopology, Queue, RenderPass, RenderPassColorAttachment,
-    RenderPassDescriptor, RequestAdapterOptions, ShaderStages, StoreOp, Surface, SurfaceColorSpace,
-    SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
+    InstanceDescriptor, InstanceFlags, Limits, LoadOp, MultisampleState, Operations,
+    PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPass,
+    RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, ShaderStages, StoreOp,
+    Surface, SurfaceColorSpace, SurfaceConfiguration, TextureFormat, TextureUsages,
+    TextureViewDescriptor,
 };
 use winit::window::Window;
 

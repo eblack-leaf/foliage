@@ -31,6 +31,8 @@
 //! Both **queue or write like anything else**. Neither reaches into resolution, and nothing about a
 //! frond is an input to a pass that would otherwise not know it existed.
 
+use tracing::trace_span;
+
 use crate::grove::Grove;
 use crate::leaf::Leaf;
 use crate::text_input;
@@ -70,6 +72,7 @@ pub(crate) const FRONDS: &[&dyn Fronds] = &[&text_input::Field];
 
 /// Asks every kind what this frame's gestures meant to it.
 pub(crate) fn gestured(grove: &mut Grove) {
+    let _step = trace_span!("gestured").entered();
     for frond in FRONDS {
         frond.gestured(grove);
     }

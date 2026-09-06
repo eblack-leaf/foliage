@@ -57,17 +57,26 @@
 //!
 //! ```text
 //! layout on 4096 cells, 47 fps
-//!   phase          calls    mean ms     share
-//!   frame             47     21.180    100.0%
-//!   resolve           47     13.941     65.8%
-//!   axis              94      5.106     48.2%
-//!   extract           47      4.302     20.3%
-//!   drain             47      1.884      8.9%
+//!   phase          calls   ms/frame     share
+//!   frame             47     13.941     65.8%
+//!     resolve         47      9.174     43.3%
+//!       axis          94      3.402     16.1%
+//!     extract         47      4.302     20.3%
+//!     drain           47      1.884      8.9%
+//!   draw              47      6.140     29.0%
+//!   absorb            47      1.099      5.2%
 //! ```
 //!
-//! The times are inclusive, so a phase's share is of the frame it sits in and the nested phases sum
-//! past their parent. `frame` is the whole of one, and `calls` is how many times a phase ran over
-//! the interval -- twice a frame for the one that resolves an axis, once for the rest.
+//! Three phases enclose nothing: `frame`, and the `absorb` and `draw` that follow it. Together they
+//! are a frame end to end, so they are what a share is a share **of** -- and `draw` opens by
+//! acquiring the surface, so on a run held to the display's cadence it is largely the wait. A phase
+//! made cheaper therefore moves time into `draw` rather than shrinking the total: **the ms column is
+//! what a change shows in, and the share is only where a frame goes.**
+//!
+//! The times are inclusive, so a nested phase's is part of its parent's, and `calls` is how many
+//! times a phase ran over the interval -- twice a frame for the one that resolves an axis, once for
+//! the rest. What each phase cost is stated per frame whatever its call count, so the two runs of an
+//! axis read as the one cost the frame paid for them.
 //!
 //! The table is written whatever `RUST_LOG` is set to, which governs only the ordinary log.
 
@@ -121,11 +130,9 @@ fn main() {
     // because it needs the engine's phases at `trace` whatever the log is set to, and reports them
     // as a table rather than as the events a log would carry.
     tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::fmt::layer().with_filter(
-                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-            ),
-        )
+        .with(tracing_subscriber::fmt::layer().with_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        ))
         .with(Stopwatch.with_filter(Targets::new().with_target("foliage", LevelFilter::TRACE)))
         .init();
     let mut foliage = Foliage::new();
@@ -447,7 +454,10 @@ impl Stress {
     /// is swept at the end of the frame because nothing states it any more.
     fn relabel(&self, grove: &mut Grove) {
         for (n, cell) in self.cells.iter().enumerate() {
-            grove.text(cell.label, format!("{:02x}{:03x}", self.frames & 0xff, n & 0xfff));
+            grove.text(
+                cell.label,
+                format!("{:02x}{:03x}", self.frames & 0xff, n & 0xfff),
+            );
         }
     }
 
@@ -685,7 +695,11 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for Stopwatch {
         if let Some(span) = context.span(&id) {
             let nanos = span.extensions().get::<Busy>().map(|busy| busy.nanos);
             if let Some(nanos) = nanos {
-                PHASES.add(span.name(), span.parent().map(|parent| parent.name()), nanos);
+                PHASES.add(
+                    span.name(),
+                    span.parent().map(|parent| parent.name()),
+                    nanos,
+                );
             }
         }
     }
@@ -697,6 +711,9 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for Stopwatch {
 /// what it settled, which run after it has returned -- because between them those are a frame end
 /// to end. A nested phase's share is of that whole, and siblings under one parent sum to no more
 /// than their parent's.
+///
+/// Every time is per frame rather than per call, so a phase that runs twice in a frame reads what
+/// it costs the frame and is comparable to the phase beside it.
 fn report(load: Load, cells: usize, rate: f32) {
     let phases = PHASES.take();
     let total: u64 = phases
@@ -704,20 +721,25 @@ fn report(load: Load, cells: usize, rate: f32) {
         .filter(|tally| tally.parent.is_none())
         .map(|tally| tally.nanos)
         .sum();
-    if total == 0 {
+    let frames = phases
+        .iter()
+        .find(|tally| tally.phase == "frame")
+        .map(|tally| tally.calls)
+        .unwrap_or_default();
+    if total == 0 || frames == 0 {
         return;
     }
     println!("\n{} on {cells} cells, {rate:.0} fps", load.name());
     println!(
         "  {:<20} {:>6} {:>10} {:>9}",
-        "phase", "calls", "mean ms", "share"
+        "phase", "calls", "ms/frame", "share"
     );
-    branch(&phases, None, 0, total as f64);
+    branch(&phases, None, 0, frames, total as f64);
 }
 
 /// Writes every phase sitting directly under `parent`, costliest first, and then what sits under
 /// each of them.
-fn branch(phases: &[Tally], parent: Option<&'static str>, depth: usize, total: f64) {
+fn branch(phases: &[Tally], parent: Option<&'static str>, depth: usize, frames: u64, total: f64) {
     if depth > 6 {
         return;
     }
@@ -728,11 +750,11 @@ fn branch(phases: &[Tally], parent: Option<&'static str>, depth: usize, total: f
             "",
             tally.phase,
             tally.calls,
-            tally.nanos as f64 / tally.calls as f64 / 1.0e6,
+            tally.nanos as f64 / frames as f64 / 1.0e6,
             100.0 * tally.nanos as f64 / total,
             indent = indent,
             width = 20 - indent,
         );
-        branch(phases, Some(tally.phase), depth + 1, total);
+        branch(phases, Some(tally.phase), depth + 1, frames, total);
     }
 }
