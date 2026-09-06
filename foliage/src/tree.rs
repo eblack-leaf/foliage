@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bevy_ecs::component::{Component, Mutable};
 use bevy_ecs::entity::RemoteAllocator;
 use bevy_ecs::hierarchy::{ChildOf, Children};
@@ -32,13 +34,109 @@ use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrol
 /// Owns the world. The only place raw `bevy_ecs` is touched.
 pub(crate) struct Tree {
     world: World,
+    /// Every element written to since resolution last read this.
+    ///
+    /// A declaration is what resolution reads, so an element nothing has written to resolves to what
+    /// it resolved to last frame. What is recorded is the write rather than the difference: a
+    /// placement written back at the value it already held marks the element, and resolution answers
+    /// the same box for it.
+    touched: HashSet<Leaf>,
+    /// Every element that has to measure again because what is under it went away.
+    ///
+    /// Separate from `touched`, because the two spread differently: what an element was written to
+    /// travels to everything resolved against it, and what an element measures to travels no further
+    /// than the measure -- unless the measure moves, which R2m finds out and says so.
+    reached: HashSet<Leaf>,
+    /// Whether any run stopped being stated -- a run rewritten, or an element carrying one withered
+    /// -- which is the only thing that can leave the shaping cache holding what nothing wants.
+    restated: bool,
+    /// Whether the elements, or the edges between them, changed -- which is what the order is built
+    /// from and the only thing that makes it worth building again.
+    restructured: bool,
+    /// Whether something every element is read against has changed, which is every element written.
+    invalidated: bool,
+}
+
+/// What the tree has been written to since resolution last read it.
+///
+/// Borrowed rather than handed over, so a frame that writes to a great many elements is not also a
+/// frame that allocates a set the size of what it wrote.
+pub(crate) struct Written<'a> {
+    /// The elements whose own declarations were written.
+    pub(crate) declared: &'a HashSet<Leaf>,
+    /// The elements that have to measure again because what is under them went away.
+    pub(crate) measures: &'a HashSet<Leaf>,
+    /// Whether the order has to be built again.
+    pub(crate) restructured: bool,
+    /// Whether a run stopped being stated, so the shaping cache has to be swept.
+    pub(crate) restated: bool,
+    /// Whether everything has to be resolved again.
+    pub(crate) all: bool,
 }
 
 impl Tree {
     pub(crate) fn new() -> Self {
         Self {
             world: World::new(),
+            touched: HashSet::new(),
+            reached: HashSet::new(),
+            restated: true,
+            restructured: true,
+            // Nothing has resolved yet, so the first frame has everything to do.
+            invalidated: true,
         }
+    }
+
+    /// Records that `leaf`'s declared state was written.
+    ///
+    /// Every write of something resolution reads passes through here. What resolution *writes* does
+    /// not: those go through [`overwrite`](Tree::overwrite), which is the whole of the difference
+    /// between a declaration and a resolved value.
+    ///
+    /// [`aspen`](crate::aspen) states it directly, because a motion is the one thing resolution
+    /// reads that is not held on the element at all.
+    pub(crate) fn declared(&mut self, leaf: Leaf) {
+        self.touched.insert(leaf);
+    }
+
+    /// Records that what is under `leaf` changed, so what it measures to has to be found again.
+    fn measures(&mut self, leaf: Leaf) {
+        self.reached.insert(leaf);
+    }
+
+    /// Records that everything has to be resolved again.
+    ///
+    /// The viewport, the breakpoint and the short-side reading are each read by every placement in
+    /// the tree, and none of them belongs to an element that could be marked.
+    pub(crate) fn invalidate(&mut self) {
+        self.invalidated = true;
+        self.restated = true;
+        self.restructured = true;
+    }
+
+    /// What has been written to since resolution last read this.
+    pub(crate) fn written(&self) -> Written<'_> {
+        Written {
+            declared: &self.touched,
+            measures: &self.reached,
+            restructured: self.restructured,
+            restated: self.restated,
+            all: self.invalidated,
+        }
+    }
+
+    /// Forgets it, once resolution has taken it.
+    ///
+    /// Called the moment the read is made rather than at the end of the frame, so a write made by a
+    /// pass after that point belongs to the next frame -- which is the frame that would resolve it.
+    /// The sets keep the room they had, because a frame that writes a great deal is usually followed
+    /// by another one.
+    pub(crate) fn taken(&mut self) {
+        self.touched.clear();
+        self.reached.clear();
+        self.restated = false;
+        self.restructured = false;
+        self.invalidated = false;
     }
 
     /// The world's entity allocator, in the form that can be carried away from it.
@@ -162,6 +260,10 @@ impl Tree {
         if let Some(under) = under {
             entity.insert(ChildOf(under.0));
         }
+        // What it was grown under has one more element to reach over, and finds that out by the
+        // walk R2m makes from this one toward it.
+        self.declared(leaf);
+        self.restructured = true;
         true
     }
 
@@ -169,9 +271,18 @@ impl Tree {
     pub(crate) fn wither(&mut self, leaf: Leaf) -> Vec<Leaf> {
         let mut gone = Vec::new();
         self.gather(leaf, &mut gone);
+        let trunk = self.trunk(leaf);
         if let Ok(entity) = self.world.get_entity_mut(leaf.0) {
             entity.despawn();
         }
+        // What it hung off has one fewer element to reach over, and nothing left below it to say so:
+        // the element that went is what the walk would have started from.
+        if let Some(trunk) = trunk {
+            self.measures(trunk);
+        }
+        self.restructured = true;
+        // Whatever it said, it does not say any more.
+        self.restated = true;
         gone
     }
 
@@ -289,6 +400,9 @@ impl Tree {
             return false;
         };
         lettering.0 = value;
+        self.declared(leaf);
+        // The run it stated is not stated any more, whatever else still states one like it.
+        self.restated = true;
         true
     }
 
@@ -338,6 +452,7 @@ impl Tree {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(editing);
         }
+        self.declared(leaf);
     }
 
     /// The element `leaf`'s placement may read, if it has been given one.
@@ -393,6 +508,7 @@ impl Tree {
             return false;
         }
         entity.insert(location);
+        self.declared(leaf);
         true
     }
 
@@ -400,12 +516,16 @@ impl Tree {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(grid);
         }
+        self.declared(leaf);
     }
 
     pub(crate) fn set_anchor(&mut self, leaf: Leaf, to: Leaf, at: Caller) {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(Anchored { to, at });
         }
+        self.declared(leaf);
+        // An anchor is an edge of the graph the order is built from.
+        self.restructured = true;
     }
 
     /// Where the layout put `leaf`, which is what its children resolve against.
@@ -421,9 +541,10 @@ impl Tree {
         self.read::<Drawn>(leaf).unwrap_or_default().0
     }
 
-    pub(crate) fn settle(&mut self, leaf: Leaf, placed: Section, drawn: Section) {
+    /// Reports whether what is drawn moved, which is the half extraction reads.
+    pub(crate) fn settle(&mut self, leaf: Leaf, placed: Section, drawn: Section) -> bool {
         self.overwrite(leaf, Placed(placed));
-        self.overwrite(leaf, Drawn(drawn));
+        self.overwrite(leaf, Drawn(drawn))
     }
 
     /// What `leaf` draws, and what the renderer drawing it was told.
@@ -450,10 +571,11 @@ impl Tree {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(elevation);
         }
+        self.declared(leaf);
     }
 
-    pub(crate) fn set_rank(&mut self, leaf: Leaf, rank: ResolvedElevation) {
-        self.overwrite(leaf, rank);
+    pub(crate) fn set_rank(&mut self, leaf: Leaf, rank: ResolvedElevation) -> bool {
+        self.overwrite(leaf, rank)
     }
 
     /// What the panel renderer on `leaf` was told, or `None` if `leaf` is not a panel.
@@ -504,6 +626,7 @@ impl Tree {
         };
         traced.from = from;
         traced.to = to;
+        self.declared(leaf);
         true
     }
 
@@ -538,6 +661,7 @@ impl Tree {
             return false;
         }
         entity.insert(tints);
+        self.declared(leaf);
         true
     }
 
@@ -550,6 +674,7 @@ impl Tree {
             return false;
         };
         pigment.shape = shape;
+        self.declared(leaf);
         true
     }
 
@@ -582,6 +707,14 @@ impl Tree {
 
     /// Refills `leaf`, reporting whether it is something with a fill to write.
     pub(crate) fn set_fill(&mut self, leaf: Leaf, fill: Fill) -> bool {
+        let filled = self.filled(leaf, fill);
+        if filled {
+            self.declared(leaf);
+        }
+        filled
+    }
+
+    fn filled(&mut self, leaf: Leaf, fill: Fill) -> bool {
         let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
             return false;
         };
@@ -624,6 +757,14 @@ impl Tree {
     /// [`Shape::rounding`](crate::Shape::rounding) -- so an op naming one is dropped like any other
     /// that named something it does not apply to.
     pub(crate) fn set_rounding(&mut self, leaf: Leaf, rounding: Corners) -> bool {
+        let rounded = self.rounded(leaf, rounding);
+        if rounded {
+            self.declared(leaf);
+        }
+        rounded
+    }
+
+    fn rounded(&mut self, leaf: Leaf, rounding: Corners) -> bool {
         let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
             return false;
         };
@@ -692,8 +833,8 @@ impl Tree {
         self.read::<Clipped>(leaf).unwrap_or_default().0
     }
 
-    pub(crate) fn set_clip(&mut self, leaf: Leaf, clip: Section) {
-        self.overwrite(leaf, Clipped(clip));
+    pub(crate) fn set_clip(&mut self, leaf: Leaf, clip: Section) -> bool {
+        self.overwrite(leaf, Clipped(clip))
     }
 
     /// Whether the app has hidden `leaf` itself, as against an ancestor of it.
@@ -705,6 +846,7 @@ impl Tree {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(Visible(visible));
         }
+        self.declared(leaf);
     }
 
     /// How opaque `leaf` was told to be, before its ancestry is taken into account.
@@ -716,6 +858,7 @@ impl Tree {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(Opacity::new(opacity));
         }
+        self.declared(leaf);
     }
 
     /// Whether `leaf` was disabled in its own right.
@@ -727,6 +870,7 @@ impl Tree {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(Disabled(disabled));
         }
+        self.declared(leaf);
     }
 
     /// What the three off-states resolved to over `leaf`'s whole ancestry, as R7 last computed it.
@@ -734,8 +878,8 @@ impl Tree {
         self.read::<Inherited>(leaf).unwrap_or_default()
     }
 
-    pub(crate) fn set_inherited(&mut self, leaf: Leaf, inherited: Inherited) {
-        self.overwrite(leaf, inherited);
+    pub(crate) fn set_inherited(&mut self, leaf: Leaf, inherited: Inherited) -> bool {
+        self.overwrite(leaf, inherited)
     }
 
     /// Writes a component that is already there in place, inserting it only the first time.
@@ -743,16 +887,26 @@ impl Tree {
     /// `insert` goes through the bundle machinery whatever it is handed, which is what a component
     /// arriving for the first time needs and what one being overwritten does not. Resolution
     /// overwrites the same handful on every element on every frame.
-    fn overwrite<C: Component<Mutability = Mutable>>(&mut self, leaf: Leaf, value: C) {
+    fn overwrite<C: Component<Mutability = Mutable> + PartialEq>(
+        &mut self,
+        leaf: Leaf,
+        value: C,
+    ) -> bool {
         let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
-            return;
+            return false;
         };
         match entity.get_mut::<C>() {
-            Some(mut held) => *held = value,
+            Some(mut held) => {
+                if *held == value {
+                    return false;
+                }
+                *held = value;
+            }
             None => {
                 entity.insert(value);
             }
         }
+        true
     }
 
     fn read<C: Component + Copy>(&self, leaf: Leaf) -> Option<C> {

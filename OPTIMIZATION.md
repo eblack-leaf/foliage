@@ -21,14 +21,17 @@ is the wall clock — so on a run held to the display's cadence a phase made che
 `draw` rather than shrinking the total. **A change shows in the millisecond column and not in the
 share.**
 
-## Rowan recomputes the whole tree every frame
+## Rowan resolved the whole tree every frame
 
-The frame's cost is the tree's size rather than the change's. Nothing is skipped and nothing is
-cached, which is what makes a resolution reproducible and every ordering question answerable in one
-place.
+**Done.** The frame's cost was the tree's size rather than the change's. It is now the change's, for
+the four passes that answer one element at a time; what is left of the tree's size is measured at the
+end of this section.
+
+The rest of this section is the reading that led there, kept because it is what any further work on
+the same shape is measured against.
 
 **Measured.** `layout`, which rewrites every element's placement, against `idle`, which writes none.
-Resolution costs the same in both at every size, so all of it is the tree's and none of it is the
+Resolution cost the same in both at every size, so all of it was the tree's and none of it was the
 change's:
 
 | elements | 512 | 1024 | 2048 | 4096 | 8192 | 16384 |
@@ -41,7 +44,7 @@ reaching 0.89µs at the largest size. It is 69% of what a frame costs when nothi
 changed, and a 60Hz budget runs out at around 13000 elements that are not moving.
 
 **Measured against the change's size.** The same load and the same tree, writing to less and less of
-it — 4096 elements, milliseconds a frame:
+it — 4096 elements, milliseconds a frame, before any of it was skipped:
 
 | written | all | 1 in 4 | 1 in 16 | 1 in 64 |
 | --- | --- | --- | --- | --- |
@@ -54,14 +57,63 @@ What the app writes falls with what it writes. Nothing else moves. At one elemen
 **4.6 of a 4.7ms frame is spent on the elements that did not change** — and extraction is in it as
 much as resolution, because a difference it declines to send still costs the walk that found it.
 
-Moving that means a dirty set, and the constraint is R2: resolution is dependency-ordered and an
-anchor may point anywhere — a later sibling, a cousin, another subtree — so a dirty set has to close
-over everything anchored into it before it is safe to resolve only that. Reading by position has
-already taken 42% off the prize; against that, this is the only candidate here whose ceiling is the
-frame rather than a pass, and the figure above is what it would be measured against. The first work
-on it is the closure rather than the skipping: mark what changed, close it over the anchors, and
-count what comes out. A closure that returns most of the tree at one in sixty-four settles the
-question without a line of resolution being changed.
+### What skipping the unwritten was worth
+
+The tree records a write where the write happens, and the order closes it over the dependencies:
+an element resolves again if it was written to, or if what it hangs off or is anchored to does. R2m
+closes the other way as well — up the trunks, because what an element reaches over is what the
+elements under it resolved to — and a measure that moves under an element nothing wrote to makes that
+element resolve again, which R2b is placed after R2m to pick up.
+
+The constraint that made this look expensive was R2: an anchor may point anywhere, so a dirty set has
+to close over everything anchored into it. It cost nothing to satisfy. The order is already built by
+dependency and already holds each element's trunk and anchor as positions, so the closure is one walk
+of it — the same walk that reads the columns — and the anchors close in it for free.
+
+**Two kinds of change, spreading two ways.** What an element was *written to* travels to everything
+resolved against it, which is down. What an element *measures to* travels toward its trunk, and no
+further — unless the measure moves, which R2m finds out and says so, and R2b spreads from there.
+Recording a wither as the first kind rather than the second was worth 39% of resolution under `churn`
+on its own: a trunk marked as written to takes every one of its children with it, and a list adding a
+row would have re-resolved the list.
+
+What the passes that answer one element at a time cost, at 4096 elements and the same shares:
+`measure` 0.47ms to 0.01, `axis` 0.73 to 0.04 across both of its passes. Where most of the tree was
+written to, working out what to leave alone costs more than resolving it does — a lookup for every
+element and a skip that almost never takes — so past a quarter written the closure is not built at
+all, and that is what holds the cost of a frame that changes everything to a few percent.
+
+### What a frame costs, end to end
+
+4096 elements, milliseconds a frame, against the same tree resolving and extracting all of itself
+every frame:
+
+| load | resolving everything | resolving what was written | |
+| --- | --- | --- | --- |
+| nothing written | 4.57 | **1.49** | −67% |
+| every placement rewritten | 6.17 | **5.73** | −7% |
+| one placement in 64 rewritten | 4.88 | **1.98** | −60% |
+| every cell in motion | 6.10 | **5.78** | −5% |
+| one cell in 16 in motion | 4.86 | **2.05** | −58% |
+| 32 of 2048 cells regrown | 5.68 | **3.44** | −39% |
+| every run rewritten | 5.66 | **5.47** | −3% |
+
+Nothing is slower. A frame that writes to all of it pays for a closure it cannot use, and gets that
+back and a little more from the three fixed costs below, which fell for every frame rather than only
+for the quiet ones:
+
+- **The read is kept between frames.** Growing, withering and anchoring are the only things that
+  change the order, so an ordinary frame repairs it rather than reading it: `elements` 0.48ms to
+  0.02 with nothing written, and 0.56 to 0.10 with every cell in motion.
+- **A run is shaped to say it is still wanted.** The shaping cache is swept of what nothing stated
+  this frame, so skipping an element there evicts the glyphs extraction is still drawing — which is
+  what the suite reported the first time it was tried. A frame where no run *stopped* being stated
+  has nothing to sweep, so it shapes only what it is measuring: `wrap` 0.37ms to 0.02 with nothing
+  written.
+- **Extraction states what moved.** R4 through R7 report whether what they wrote differs from what
+  was held, and an element none of them moved is said to be unchanged rather than rebuilt and
+  compared. The same withdrawal contract as the sweep, answered the same way: what is not said is
+  withdrawn, so an element left alone is still said. `extract` 1.01ms to 0.14 with nothing written.
 
 ### What the passes spend it on
 
@@ -151,20 +203,11 @@ side of that line or it reopens R6's tie-break.
 
 ## R8 and extraction ask the same questions
 
-`regions` reads an element's inherited product, its drawn box, its clip, its gestures and its rank.
-`painted` reads the first three again and `extract` the last, one step later in the same frame, over
-a walk of every entity in the world rather than of the order R8 already holds. `extract` is 0.90ms at
-4096 elements against `regions`' 0.27.
-
-The same shape as the passes above, in another subsystem: an accessor per property, asked per element,
-per walk. And the same shape as resolution in what it costs — 0.89ms with every element rewritten,
-0.92 with one in sixty-four, because what a frame spends here is the walk that finds the differences
-rather than the differences.
-
-What it would cost to move is the same decision — extraction reads what resolution settled, so the
-thing it would read is a column rather than an element. `Elements` is dropped when resolution
-returns, so handing it on means it lives on the grove for the rest of the frame. That is the same
-call as the gather above, and it is worth making once for both rather than twice.
+`regions` reads an element's inherited product, its drawn box, its clip, its gestures and its rank,
+over the order. Extraction reads the first three again and the rank, one step later in the same
+frame, over the same order — and only for the elements something moved, which on a quiet frame is
+none of them. What is left to move is the duplication between the two: both walks are the order's,
+and neither reads what the other found.
 
 ## `Pollen` builds its sets each frame
 

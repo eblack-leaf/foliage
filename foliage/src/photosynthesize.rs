@@ -207,6 +207,7 @@ impl Foliage {
         if let Some(ginkgo) = &mut self.ginkgo {
             if ginkgo.scale() != scale {
                 self.grove.elm.recut();
+                self.grove.tree.invalidate();
             }
             ginkgo.resize(area, scale);
         }

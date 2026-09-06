@@ -21,6 +21,7 @@ use crate::op::Op;
 use crate::palette::Scheme;
 use crate::pollen::Drift;
 use crate::queue::{Queue, Wake};
+use crate::rowan::Elements;
 use crate::sprig::{Sprig, Watches};
 use crate::text::Font;
 use crate::text::font::Fonts;
@@ -55,6 +56,8 @@ pub struct Grove {
     pub(crate) plates: Plates,
     /// The one thing kept between frames: every run that has been shaped.
     pub(crate) shaping: Shaping,
+    /// Resolution's read of the tree, kept between frames and repaired where the tree was written.
+    pub(crate) elements: Elements,
     pub(crate) drift: Drift,
     pub(crate) viewport: Area,
     pub(crate) pending_resize: Option<Area>,
@@ -106,6 +109,7 @@ impl Grove {
             fields: Fields::default(),
             plates: Plates::default(),
             shaping: Shaping::default(),
+            elements: Elements::default(),
             drift: Drift::default(),
             viewport,
             pending_resize: None,

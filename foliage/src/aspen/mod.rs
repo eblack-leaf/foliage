@@ -695,6 +695,10 @@ fn motions(grove: &mut Grove, delta: Duration) {
     let mut ended = Vec::new();
     aspen.motions.retain(|(leaf, _), motioning| {
         let at = motioning.progress.advance(delta);
+        // A motion is held here rather than written to the tree until it lands, so nothing else
+        // would record that the element is resolving to something new this frame. It is: the blend
+        // moved, and on the frame it ends the blend gives way to the declaration underneath it.
+        tree.declared(*leaf);
         // How far it has come, for the app holding its name. The eased progress and not the fraction
         // of the duration, because what a motion is a fraction of the way through is what it looks
         // like, and the two differ under every shape but `Linear`.

@@ -78,6 +78,9 @@ fn intake(grove: &mut Grove) {
 fn breakpoints(grove: &mut Grove) {
     let layout = Layout::of(grove.viewport);
     let short = grove.short.next(grove.viewport);
+    // The viewport, the breakpoint and the short-side reading are read by every placement in the
+    // tree, so a change to any of them is every element written.
+    grove.tree.invalidate();
     if layout != grove.layout {
         debug!(from = ?grove.layout, to = ?layout, "breakpoint");
         grove.layout = layout;
@@ -243,6 +246,9 @@ fn drain(grove: &mut Grove) {
                 }
             }
             Op::Arrived { destination, bytes } => {
+                // What an element draws is what the asset now is, and nothing was written to the
+                // element to say so. Every one of them is stated again on this frame.
+                grove.tree.invalidate();
                 let arrival = Arrival::from(destination);
                 // One shape for three destinations: what was read is put where the name that was
                 // handed out points, and whether it could be is the whole of what is reported.
@@ -319,6 +325,8 @@ fn drain(grove: &mut Grove) {
                 size,
             } => {
                 grove.plates.load(plate, &pixels, size);
+                // Names no element, so nothing was written to any of the ones drawing it.
+                grove.tree.invalidate();
                 debug!(plate = plate.0, "loaded");
             }
             Op::Round { leaf, rounding } => {
@@ -428,6 +436,9 @@ fn drain(grove: &mut Grove) {
             Op::Repaint(scheme) => {
                 let moved = grove.scheme.moved(&scheme);
                 grove.scheme = scheme;
+                // Every role is resolved against the scheme at extraction, so a scheme that moved is
+                // every element's fill written.
+                grove.tree.invalidate();
                 debug!(tones = moved, "repainted");
             }
             Op::Copy(text) => grove.clipboard.write(text),

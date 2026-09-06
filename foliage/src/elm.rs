@@ -120,6 +120,9 @@ pub(crate) struct Elm {
     /// between frames for its capacity, and reused by every run in turn: a frame that changes
     /// nothing must not allocate.
     glyphs: Vec<Glyph>,
+    /// Whether the backend was let go of, so the next extraction has nothing to compare against and
+    /// states every element rather than only what moved.
+    recut: bool,
 }
 
 impl Elm {
@@ -157,7 +160,11 @@ impl Elm {
     ///
     /// Total rather than per renderer, because neither the density nor the device is any
     /// renderer's.
+    ///
+    /// The next extraction states every element rather than only what moved, because after this
+    /// there is nothing held for anything to have moved against.
     pub(crate) fn recut(&mut self) {
+        self.recut = true;
         self.panels.forget();
         self.polygons.forget();
         self.lines.forget();
@@ -270,6 +277,18 @@ impl Runs {
         self.written.push(key);
     }
 
+    /// Says a run is still wanted, unchanged, without stating it again.
+    ///
+    /// What the backend holds for an element whose resolved state did not move is what it should go
+    /// on holding, and rebuilding it to find that out is the work this is here to avoid. It still has
+    /// to be said, because what is not said is withdrawn.
+    fn keep(&mut self, key: impl Into<Key>) {
+        let pass = self.pass;
+        if let Some(held) = self.held.get_mut(&key.into()) {
+            held.seen = pass;
+        }
+    }
+
     /// Closes the extraction: what nothing wanted this frame is withdrawn.
     fn extract(&mut self) {
         let pass = self.pass;
@@ -328,6 +347,9 @@ pub(crate) struct Instances<I> {
     /// What should be drawn this frame, gathered before it is compared. Kept between frames for its
     /// capacity: a frame that changes nothing must not allocate.
     wanted: Vec<Stacked<I>>,
+    /// What is still wanted at exactly what the backend already holds, so it is said rather than
+    /// stated. Kept between frames for its capacity, like `wanted`.
+    kept: Vec<Key>,
     /// Instances the backend does not hold, or holds at a different value or rank.
     pub(crate) written: Vec<Stacked<I>>,
     /// Instances the backend holds and should not, in a stable order.
@@ -362,6 +384,7 @@ impl<I> Default for Instances<I> {
         Self {
             held: HashMap::new(),
             wanted: Vec::new(),
+            kept: Vec::new(),
             written: Vec::new(),
             withdrawn: Vec::new(),
             pass: 0,
@@ -379,6 +402,15 @@ impl<I: Copy + PartialEq> Instances<I> {
             clip,
             instance,
         });
+    }
+
+    /// Says an instance is still wanted, unchanged, without stating it again.
+    ///
+    /// What the backend holds for an element whose resolved state did not move is what it should go
+    /// on holding, and rebuilding it to find that out is the work this is here to avoid. It still has
+    /// to be said, because what is not said is withdrawn.
+    fn keep(&mut self, key: impl Into<Key>) {
+        self.kept.push(key.into());
     }
 
     /// Diffs what should be drawn against what the backend holds, and takes the result as the new
@@ -420,6 +452,11 @@ impl<I: Copy + PartialEq> Instances<I> {
             }
         }
         self.wanted.clear();
+        for key in self.kept.drain(..) {
+            if let Some(held) = self.held.get_mut(&key) {
+                held.seen = pass;
+            }
+        }
         let withdrawn = &mut self.withdrawn;
         self.held.retain(|key, held| {
             if held.seen == pass {
@@ -451,13 +488,32 @@ impl<I: Copy + PartialEq> Instances<I> {
     }
 }
 
+impl Elm {
+    /// Says the element is still drawn exactly as the backend holds it.
+    ///
+    /// One dispatch on what it draws, and nothing else read: the whole point is that the frame
+    /// already knows nothing about it moved.
+    fn keep(&mut self, chlorophyll: Chlorophyll, leaf: Leaf) {
+        match chlorophyll {
+            Chlorophyll::None => {}
+            Chlorophyll::Panel => self.panels.keep(leaf),
+            Chlorophyll::Polygon => self.polygons.keep(leaf),
+            Chlorophyll::Line => self.lines.keep(leaf),
+            Chlorophyll::Icon => self.icons.keep(leaf),
+            Chlorophyll::Image => self.images.keep(leaf),
+            Chlorophyll::Text => self.texts.keep(leaf),
+        }
+    }
+}
+
 /// Step 8. Resolved state becomes instances, and only where it differs from what is already drawn.
 pub(crate) fn run(grove: &mut Grove) {
     let step = trace_span!(
         "extract",
         written = Empty,
         withdrawn = Empty,
-        glyphs = Empty
+        glyphs = Empty,
+        kept = Empty
     );
     let _entered = step.enter();
     grove.elm.texts.open();
@@ -465,10 +521,22 @@ pub(crate) fn run(grove: &mut Grove) {
     // handing them over -- which writes what is held -- are not the same borrow. It goes back below,
     // with whatever capacity the widest run this frame gave it.
     let mut glyphs = core::mem::take(&mut grove.elm.glyphs);
+    // Taken off the grove for the walk, and put back below. Resolution left it holding the order it
+    // used and what moved in it, which is what decides how much of this there is to do.
+    let elements = core::mem::take(&mut grove.elements);
     let mut total = 0;
-    for leaf in grove.tree.leaves() {
-        let chlorophyll = grove.tree.chlorophyll(leaf);
+    let mut kept = 0;
+    // Nothing is held to compare against, so nothing can be said to be unchanged.
+    let recut = core::mem::take(&mut grove.elm.recut);
+    for (leaf, chlorophyll, moved) in elements.drawing() {
         if chlorophyll == Chlorophyll::None {
+            continue;
+        }
+        // Nothing extraction reads about it moved, so what the backend holds for it is what it
+        // should go on holding. Said rather than stated, because what is not said is withdrawn.
+        if !(moved || recut) {
+            grove.elm.keep(chlorophyll, leaf);
+            kept += 1;
             continue;
         }
         let Some(painted) = painted(grove, leaf) else {
@@ -617,6 +685,8 @@ pub(crate) fn run(grove: &mut Grove) {
         }
     }
     grove.elm.glyphs = glyphs;
+    grove.elements = elements;
+    step.record("kept", kept);
     grove.elm.panels.extract();
     grove.elm.polygons.extract();
     grove.elm.lines.extract();

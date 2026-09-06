@@ -429,8 +429,12 @@ impl Stress {
         let (divided, field) = (self.divided, self.field);
         self.cells = (0..cells).map(|n| grow(grove, field, divided, n)).collect();
         if self.load == Load::Animate {
-            self.motions.reserve(cells);
-            for n in 0..cells {
+            // The share names how much of the field is moving, which for a motion is how many are
+            // started rather than how many are written each frame: what a motion writes, it writes
+            // every frame until it lands.
+            let moving = ((cells as f32 * self.share).ceil() as usize).clamp(1, cells.max(1));
+            self.motions.reserve(moving);
+            for n in 0..moving {
                 let shape = self.cells[n].shape;
                 self.motions.push(Live {
                     tween: begin(grove, shape, divided, n, true),
