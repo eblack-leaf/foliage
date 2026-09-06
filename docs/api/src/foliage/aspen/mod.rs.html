@@ -695,64 +695,68 @@
 <a href=#695 id=695 data-nosnippet>695</a>    <span class="kw">let </span><span class="kw-2">mut </span>ended = Vec::new();
 <a href=#696 id=696 data-nosnippet>696</a>    aspen.motions.retain(|(leaf, <span class="kw">_</span>), motioning| {
 <a href=#697 id=697 data-nosnippet>697</a>        <span class="kw">let </span>at = motioning.progress.advance(delta);
-<a href=#698 id=698 data-nosnippet>698</a>        <span class="comment">// How far it has come, for the app holding its name. The eased progress and not the fraction
-<a href=#699 id=699 data-nosnippet>699</a>        // of the duration, because what a motion is a fraction of the way through is what it looks
-<a href=#700 id=700 data-nosnippet>700</a>        // like, and the two differ under every shape but `Linear`.
-<a href=#701 id=701 data-nosnippet>701</a>        </span>drift.tweens.insert(motioning.tween, at);
-<a href=#702 id=702 data-nosnippet>702</a>        <span class="kw">if let </span>Moving::Opacity { from, to } = motioning.moving {
-<a href=#703 id=703 data-nosnippet>703</a>            tree.set_opacity(<span class="kw-2">*</span>leaf, blend(from, to, at));
-<a href=#704 id=704 data-nosnippet>704</a>        }
-<a href=#705 id=705 data-nosnippet>705</a>        <span class="kw">if let </span>Moving::Shape { from, to } = motioning.moving {
-<a href=#706 id=706 data-nosnippet>706</a>            tree.set_shape(<span class="kw-2">*</span>leaf, from.blend(to, at));
-<a href=#707 id=707 data-nosnippet>707</a>        }
-<a href=#708 id=708 data-nosnippet>708</a>        <span class="kw">if </span>!motioning.progress.done() {
-<a href=#709 id=709 data-nosnippet>709</a>            <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#710 id=710 data-nosnippet>710</a>        }
-<a href=#711 id=711 data-nosnippet>711</a>        <span class="comment">// What the element declares is already the target, so ending is a removal: the blend at the
-<a href=#712 id=712 data-nosnippet>712</a>        // end equals the plain reading of the declaration. What is not declared on the element is
-<a href=#713 id=713 data-nosnippet>713</a>        // written out here, so the frame after a landing is identical to the one it landed in.
-<a href=#714 id=714 data-nosnippet>714</a>        </span>land(tree, sought, <span class="kw-2">*</span>leaf, <span class="kw-2">&amp;</span>motioning.moving);
-<a href=#715 id=715 data-nosnippet>715</a>        <span class="comment">// Two reports for one arrival, and they answer different questions: the element settled,
-<a href=#716 id=716 data-nosnippet>716</a>        // and this motion is the one that ended.
-<a href=#717 id=717 data-nosnippet>717</a>        </span>drift.landed.insert(<span class="kw-2">*</span>leaf);
-<a href=#718 id=718 data-nosnippet>718</a>        drift.finished.insert(motioning.tween);
-<a href=#719 id=719 data-nosnippet>719</a>        <span class="macro">debug!</span>(leaf = leaf.id(), tween = motioning.tween.<span class="number">0</span>, <span class="string">"tween landed"</span>);
-<a href=#720 id=720 data-nosnippet>720</a>        ended.push(motioning.within);
-<a href=#721 id=721 data-nosnippet>721</a>        <span class="bool-val">false
-<a href=#722 id=722 data-nosnippet>722</a>    </span>});
-<a href=#723 id=723 data-nosnippet>723</a>    <span class="kw">for </span>within <span class="kw">in </span>ended {
-<a href=#724 id=724 data-nosnippet>724</a>        aspen.release(within);
-<a href=#725 id=725 data-nosnippet>725</a>    }
-<a href=#726 id=726 data-nosnippet>726</a>}
-<a href=#727 id=727 data-nosnippet>727</a>
-<a href=#728 id=728 data-nosnippet>728</a><span class="doccomment">/// The groups that emptied, however their last member ended.
-<a href=#729 id=729 data-nosnippet>729</a>///
-<a href=#730 id=730 data-nosnippet>730</a>/// Drained once, here, rather than reported where each member ended: a group is over when nothing
-<a href=#731 id=731 data-nosnippet>731</a>/// is running under it, and that can be settled by a landing, by a direct write cancelling the last
-<a href=#732 id=732 data-nosnippet>732</a>/// one, or by the element carrying it being taken down. One place to report it is what keeps those
-<a href=#733 id=733 data-nosnippet>733</a>/// three the same fact.
-<a href=#734 id=734 data-nosnippet>734</a></span><span class="kw">fn </span>sequences(grove: <span class="kw-2">&amp;mut </span>Grove) {
-<a href=#735 id=735 data-nosnippet>735</a>    <span class="kw">let </span>Grove { aspen, drift, .. } = grove;
-<a href=#736 id=736 data-nosnippet>736</a>    <span class="kw">for </span>sequence <span class="kw">in </span>aspen.finished.drain(..) {
-<a href=#737 id=737 data-nosnippet>737</a>        drift.sequences.insert(sequence);
-<a href=#738 id=738 data-nosnippet>738</a>        <span class="macro">debug!</span>(sequence = sequence.<span class="number">0</span>, <span class="string">"sequence finished"</span>);
-<a href=#739 id=739 data-nosnippet>739</a>    }
-<a href=#740 id=740 data-nosnippet>740</a>}
-<a href=#741 id=741 data-nosnippet>741</a>
-<a href=#742 id=742 data-nosnippet>742</a><span class="doccomment">/// One number a fraction of the way to another.
-<a href=#743 id=743 data-nosnippet>743</a>///
-<a href=#744 id=744 data-nosnippet>744</a>/// Exact at both ends rather than merely close. A motion lands *on* its target, and an arithmetic
-<a href=#745 id=745 data-nosnippet>745</a>/// form that arrived a rounding error short of one would put every landing a fraction out and leave
-<a href=#746 id=746 data-nosnippet>746</a>/// every arrival needing a correction after it. The two comparisons are against the values
-<a href=#747 id=747 data-nosnippet>747</a>/// [`Ease`] returns exactly at the ends of a motion, and against nothing else -- a shape that
-<a href=#748 id=748 data-nosnippet>748</a>/// overshoots is left to overshoot.
-<a href=#749 id=749 data-nosnippet>749</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>blend(from: f32, to: f32, at: f32) -&gt; f32 {
-<a href=#750 id=750 data-nosnippet>750</a>    <span class="kw">if </span>at == <span class="number">0.0 </span>{
-<a href=#751 id=751 data-nosnippet>751</a>        <span class="kw">return </span>from;
-<a href=#752 id=752 data-nosnippet>752</a>    }
-<a href=#753 id=753 data-nosnippet>753</a>    <span class="kw">if </span>at == <span class="number">1.0 </span>{
-<a href=#754 id=754 data-nosnippet>754</a>        <span class="kw">return </span>to;
-<a href=#755 id=755 data-nosnippet>755</a>    }
-<a href=#756 id=756 data-nosnippet>756</a>    from + (to - from) * at
-<a href=#757 id=757 data-nosnippet>757</a>}
+<a href=#698 id=698 data-nosnippet>698</a>        <span class="comment">// A motion is held here rather than written to the tree until it lands, so nothing else
+<a href=#699 id=699 data-nosnippet>699</a>        // would record that the element is resolving to something new this frame. It is: the blend
+<a href=#700 id=700 data-nosnippet>700</a>        // moved, and on the frame it ends the blend gives way to the declaration underneath it.
+<a href=#701 id=701 data-nosnippet>701</a>        </span>tree.declared(<span class="kw-2">*</span>leaf);
+<a href=#702 id=702 data-nosnippet>702</a>        <span class="comment">// How far it has come, for the app holding its name. The eased progress and not the fraction
+<a href=#703 id=703 data-nosnippet>703</a>        // of the duration, because what a motion is a fraction of the way through is what it looks
+<a href=#704 id=704 data-nosnippet>704</a>        // like, and the two differ under every shape but `Linear`.
+<a href=#705 id=705 data-nosnippet>705</a>        </span>drift.tweens.insert(motioning.tween, at);
+<a href=#706 id=706 data-nosnippet>706</a>        <span class="kw">if let </span>Moving::Opacity { from, to } = motioning.moving {
+<a href=#707 id=707 data-nosnippet>707</a>            tree.set_opacity(<span class="kw-2">*</span>leaf, blend(from, to, at));
+<a href=#708 id=708 data-nosnippet>708</a>        }
+<a href=#709 id=709 data-nosnippet>709</a>        <span class="kw">if let </span>Moving::Shape { from, to } = motioning.moving {
+<a href=#710 id=710 data-nosnippet>710</a>            tree.set_shape(<span class="kw-2">*</span>leaf, from.blend(to, at));
+<a href=#711 id=711 data-nosnippet>711</a>        }
+<a href=#712 id=712 data-nosnippet>712</a>        <span class="kw">if </span>!motioning.progress.done() {
+<a href=#713 id=713 data-nosnippet>713</a>            <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#714 id=714 data-nosnippet>714</a>        }
+<a href=#715 id=715 data-nosnippet>715</a>        <span class="comment">// What the element declares is already the target, so ending is a removal: the blend at the
+<a href=#716 id=716 data-nosnippet>716</a>        // end equals the plain reading of the declaration. What is not declared on the element is
+<a href=#717 id=717 data-nosnippet>717</a>        // written out here, so the frame after a landing is identical to the one it landed in.
+<a href=#718 id=718 data-nosnippet>718</a>        </span>land(tree, sought, <span class="kw-2">*</span>leaf, <span class="kw-2">&amp;</span>motioning.moving);
+<a href=#719 id=719 data-nosnippet>719</a>        <span class="comment">// Two reports for one arrival, and they answer different questions: the element settled,
+<a href=#720 id=720 data-nosnippet>720</a>        // and this motion is the one that ended.
+<a href=#721 id=721 data-nosnippet>721</a>        </span>drift.landed.insert(<span class="kw-2">*</span>leaf);
+<a href=#722 id=722 data-nosnippet>722</a>        drift.finished.insert(motioning.tween);
+<a href=#723 id=723 data-nosnippet>723</a>        <span class="macro">debug!</span>(leaf = leaf.id(), tween = motioning.tween.<span class="number">0</span>, <span class="string">"tween landed"</span>);
+<a href=#724 id=724 data-nosnippet>724</a>        ended.push(motioning.within);
+<a href=#725 id=725 data-nosnippet>725</a>        <span class="bool-val">false
+<a href=#726 id=726 data-nosnippet>726</a>    </span>});
+<a href=#727 id=727 data-nosnippet>727</a>    <span class="kw">for </span>within <span class="kw">in </span>ended {
+<a href=#728 id=728 data-nosnippet>728</a>        aspen.release(within);
+<a href=#729 id=729 data-nosnippet>729</a>    }
+<a href=#730 id=730 data-nosnippet>730</a>}
+<a href=#731 id=731 data-nosnippet>731</a>
+<a href=#732 id=732 data-nosnippet>732</a><span class="doccomment">/// The groups that emptied, however their last member ended.
+<a href=#733 id=733 data-nosnippet>733</a>///
+<a href=#734 id=734 data-nosnippet>734</a>/// Drained once, here, rather than reported where each member ended: a group is over when nothing
+<a href=#735 id=735 data-nosnippet>735</a>/// is running under it, and that can be settled by a landing, by a direct write cancelling the last
+<a href=#736 id=736 data-nosnippet>736</a>/// one, or by the element carrying it being taken down. One place to report it is what keeps those
+<a href=#737 id=737 data-nosnippet>737</a>/// three the same fact.
+<a href=#738 id=738 data-nosnippet>738</a></span><span class="kw">fn </span>sequences(grove: <span class="kw-2">&amp;mut </span>Grove) {
+<a href=#739 id=739 data-nosnippet>739</a>    <span class="kw">let </span>Grove { aspen, drift, .. } = grove;
+<a href=#740 id=740 data-nosnippet>740</a>    <span class="kw">for </span>sequence <span class="kw">in </span>aspen.finished.drain(..) {
+<a href=#741 id=741 data-nosnippet>741</a>        drift.sequences.insert(sequence);
+<a href=#742 id=742 data-nosnippet>742</a>        <span class="macro">debug!</span>(sequence = sequence.<span class="number">0</span>, <span class="string">"sequence finished"</span>);
+<a href=#743 id=743 data-nosnippet>743</a>    }
+<a href=#744 id=744 data-nosnippet>744</a>}
+<a href=#745 id=745 data-nosnippet>745</a>
+<a href=#746 id=746 data-nosnippet>746</a><span class="doccomment">/// One number a fraction of the way to another.
+<a href=#747 id=747 data-nosnippet>747</a>///
+<a href=#748 id=748 data-nosnippet>748</a>/// Exact at both ends rather than merely close. A motion lands *on* its target, and an arithmetic
+<a href=#749 id=749 data-nosnippet>749</a>/// form that arrived a rounding error short of one would put every landing a fraction out and leave
+<a href=#750 id=750 data-nosnippet>750</a>/// every arrival needing a correction after it. The two comparisons are against the values
+<a href=#751 id=751 data-nosnippet>751</a>/// [`Ease`] returns exactly at the ends of a motion, and against nothing else -- a shape that
+<a href=#752 id=752 data-nosnippet>752</a>/// overshoots is left to overshoot.
+<a href=#753 id=753 data-nosnippet>753</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>blend(from: f32, to: f32, at: f32) -&gt; f32 {
+<a href=#754 id=754 data-nosnippet>754</a>    <span class="kw">if </span>at == <span class="number">0.0 </span>{
+<a href=#755 id=755 data-nosnippet>755</a>        <span class="kw">return </span>from;
+<a href=#756 id=756 data-nosnippet>756</a>    }
+<a href=#757 id=757 data-nosnippet>757</a>    <span class="kw">if </span>at == <span class="number">1.0 </span>{
+<a href=#758 id=758 data-nosnippet>758</a>        <span class="kw">return </span>to;
+<a href=#759 id=759 data-nosnippet>759</a>    }
+<a href=#760 id=760 data-nosnippet>760</a>    from + (to - from) * at
+<a href=#761 id=761 data-nosnippet>761</a>}
 </code></pre></div></section></main></body></html>

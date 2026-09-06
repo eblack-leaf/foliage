@@ -1,0 +1,76 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `APP_BUILD_GRADLE` constant in crate `foliage_android`."><title>APP_BUILD_GRADLE in foliage_android::templates - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="foliage_android" data-themes="" data-resource-suffix="" data-rustdoc-version="1.96.0 (ac68faa20 2026-05-25)" data-channel="1.96.0" data-search-js="search-b5634cc7.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-5013f961.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc constant"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">APP_BUILD_GRADLE</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../foliage_android/index.html">foliage_<wbr>android</a><span class="version">1.0.0</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"><h2><a href="index.html">In foliage_<wbr>android::<wbr>templates</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">foliage_android</a>::<wbr><a href="index.html">templates</a></div><h1>Constant <span class="constant">APP_<wbr>BUILD_<wbr>GRADLE</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/foliage_android/templates.rs.html#172-247">Source</a> </span></div><pre class="rust item-decl"><code>const APP_BUILD_GRADLE: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.96.0/std/primitive.str.html">str</a> = r#&quot;plugins {
+    id &#39;com.android.application&#39;
+}
+
+// Release signing: optional, and absent by default -- `assembleRelease` still works without it
+// (producing an unsigned artifact no device will install). Create keystore.properties next to this
+// file, as README.md&#39;s &quot;Release signing&quot; section describes, and it is picked up automatically.
+def keystorePropertiesFile = rootProject.file(&quot;keystore.properties&quot;)
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    compileSdk = {{COMPILE_SDK}}
+
+    // `foliage-android build` sets this, because it is what resolved the NDK in the first place.
+    // Without it AGP cannot find the strip tool and packages debug libraries whole -- unstripped
+    // Rust debug info is most of a debug APK, and the only sign is one line of build output.
+    def ndk = System.getenv(&quot;ANDROID_NDK_HOME&quot;)
+    if (ndk != null &amp;&amp; !ndk.isEmpty()) {
+        ndkPath = ndk
+        // An SDK-installed NDK sits in a directory named for its version. AGP defaults ndkVersion
+        // to whatever it was built against and reports CXX1100 when the two disagree, so the path
+        // is not enough on its own. A standalone NDK elsewhere keeps AGP&#39;s default.
+        def version = new File(ndk).getName()
+        if (version ==~ /\d+\.\d+\.\d+/) {
+            ndkVersion = version
+        }
+    }
+
+    defaultConfig {
+        applicationId = &quot;{{APP_ID}}&quot;
+        minSdk = {{MIN_SDK}}
+        targetSdk = {{TARGET_SDK}}
+        versionCode = 1
+        versionName = &quot;1.0&quot;
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile rootProject.file(keystoreProperties[&#39;storeFile&#39;])
+                storePassword keystoreProperties[&#39;storePassword&#39;]
+                keyAlias keystoreProperties[&#39;keyAlias&#39;]
+                keyPassword keystoreProperties[&#39;keyPassword&#39;]
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            minifyEnabled = false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    namespace = &#39;{{APP_ID}}&#39;
+}
+
+dependencies {
+    implementation &#39;androidx.appcompat:appcompat:1.7.0&#39;
+
+    // To use the Games Activity library
+    implementation &quot;androidx.games:games-activity:{{GAMES_ACTIVITY}}&quot;
+    // Note: don&#39;t include game-text-input separately, since it&#39;s integrated into game-activity
+}
+&quot;#;</code></pre></section></div></main></body></html>

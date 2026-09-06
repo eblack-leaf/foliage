@@ -113,49 +113,59 @@
 <a href=#113 id=113 data-nosnippet>113</a>            .expect(<span class="string">"canvas attached"</span>);
 <a href=#114 id=114 data-nosnippet>114</a>    }
 <a href=#115 id=115 data-nosnippet>115</a>
-<a href=#116 id=116 data-nosnippet>116</a>    <span class="doccomment">/// Whether a window has been opened.
-<a href=#117 id=117 data-nosnippet>117</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>connected(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#118 id=118 data-nosnippet>118</a>        <span class="self">self</span>.handle.is_some()
-<a href=#119 id=119 data-nosnippet>119</a>    }
-<a href=#120 id=120 data-nosnippet>120</a>
-<a href=#121 id=121 data-nosnippet>121</a>    <span class="doccomment">/// The window, which exists once the loop has resumed.
-<a href=#122 id=122 data-nosnippet>122</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>window(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;Window&gt; {
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="self">self</span>.handle.clone().expect(<span class="string">"window"</span>)
+<a href=#116 id=116 data-nosnippet>116</a>    <span class="doccomment">/// Lets go of the window.
+<a href=#117 id=117 data-nosnippet>117</a>    ///
+<a href=#118 id=118 data-nosnippet>118</a>    /// Called when the platform takes it back, which only Android does while the program is still
+<a href=#119 id=119 data-nosnippet>119</a>    /// running. What is dropped is the handle and not the description: the title, the app id and the
+<a href=#120 id=120 data-nosnippet>120</a>    /// size were written at boot and are what the *next* window is opened as, so a suspend leaves
+<a href=#121 id=121 data-nosnippet>121</a>    /// the engine holding exactly what [`connect`](Willow::connect) needs to run again.
+<a href=#122 id=122 data-nosnippet>122</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>disconnect(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#123 id=123 data-nosnippet>123</a>        <span class="self">self</span>.handle = <span class="prelude-val">None</span>;
 <a href=#124 id=124 data-nosnippet>124</a>    }
 <a href=#125 id=125 data-nosnippet>125</a>
-<a href=#126 id=126 data-nosnippet>126</a>    <span class="doccomment">/// The surface size in logical pixels, which is the only form the engine sees.
-<a href=#127 id=127 data-nosnippet>127</a>    ///
-<a href=#128 id=128 data-nosnippet>128</a>    /// Never zero on either axis: a minimised window reports a zero extent, and a surface cannot be
-<a href=#129 id=129 data-nosnippet>129</a>    /// configured at one.
-<a href=#130 id=130 data-nosnippet>130</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>area(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Area {
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="kw">let </span>window = <span class="self">self</span>.window();
-<a href=#132 id=132 data-nosnippet>132</a>        <span class="kw">let </span>size = window.inner_size();
-<a href=#133 id=133 data-nosnippet>133</a>        <span class="kw">let </span>scale = window.scale_factor() <span class="kw">as </span>f32;
-<a href=#134 id=134 data-nosnippet>134</a>        Area::new(
-<a href=#135 id=135 data-nosnippet>135</a>            (size.width <span class="kw">as </span>f32 / scale).max(<span class="number">1.0</span>),
-<a href=#136 id=136 data-nosnippet>136</a>            (size.height <span class="kw">as </span>f32 / scale).max(<span class="number">1.0</span>),
-<a href=#137 id=137 data-nosnippet>137</a>        )
-<a href=#138 id=138 data-nosnippet>138</a>    }
-<a href=#139 id=139 data-nosnippet>139</a>
-<a href=#140 id=140 data-nosnippet>140</a>    <span class="doccomment">/// The display's logical-to-physical ratio, applied here and nowhere above.
-<a href=#141 id=141 data-nosnippet>141</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>scale(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; f32 {
-<a href=#142 id=142 data-nosnippet>142</a>        <span class="self">self</span>.window().scale_factor() <span class="kw">as </span>f32
-<a href=#143 id=143 data-nosnippet>143</a>    }
-<a href=#144 id=144 data-nosnippet>144</a>
-<a href=#145 id=145 data-nosnippet>145</a>    <span class="doccomment">/// Asks the platform to paint.
-<a href=#146 id=146 data-nosnippet>146</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>repaint(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#147 id=147 data-nosnippet>147</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(window) = <span class="kw-2">&amp;</span><span class="self">self</span>.handle {
-<a href=#148 id=148 data-nosnippet>148</a>            window.request_redraw();
-<a href=#149 id=149 data-nosnippet>149</a>        }
-<a href=#150 id=150 data-nosnippet>150</a>    }
-<a href=#151 id=151 data-nosnippet>151</a>}
-<a href=#152 id=152 data-nosnippet>152</a>
-<a href=#153 id=153 data-nosnippet>153</a><span class="doccomment">/// The smallest window that can be opened, in logical pixels.
-<a href=#154 id=154 data-nosnippet>154</a>///
-<a href=#155 id=155 data-nosnippet>155</a>/// A floor rather than a preference: a window dragged to nothing leaves a surface with no pixels in
-<a href=#156 id=156 data-nosnippet>156</a>/// it, and every extent the layout resolves against would be zero.
-<a href=#157 id=157 data-nosnippet>157</a></span><span class="kw">const </span>MINIMUM: Area = Area {
-<a href=#158 id=158 data-nosnippet>158</a>    width: <span class="number">290.0</span>,
-<a href=#159 id=159 data-nosnippet>159</a>    height: <span class="number">290.0</span>,
-<a href=#160 id=160 data-nosnippet>160</a>};
+<a href=#126 id=126 data-nosnippet>126</a>    <span class="doccomment">/// Whether a window has been opened.
+<a href=#127 id=127 data-nosnippet>127</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>connected(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#128 id=128 data-nosnippet>128</a>        <span class="self">self</span>.handle.is_some()
+<a href=#129 id=129 data-nosnippet>129</a>    }
+<a href=#130 id=130 data-nosnippet>130</a>
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="doccomment">/// The window, which exists once the loop has resumed.
+<a href=#132 id=132 data-nosnippet>132</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>window(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Arc&lt;Window&gt; {
+<a href=#133 id=133 data-nosnippet>133</a>        <span class="self">self</span>.handle.clone().expect(<span class="string">"window"</span>)
+<a href=#134 id=134 data-nosnippet>134</a>    }
+<a href=#135 id=135 data-nosnippet>135</a>
+<a href=#136 id=136 data-nosnippet>136</a>    <span class="doccomment">/// The surface size in logical pixels, which is the only form the engine sees.
+<a href=#137 id=137 data-nosnippet>137</a>    ///
+<a href=#138 id=138 data-nosnippet>138</a>    /// Never zero on either axis: a minimised window reports a zero extent, and a surface cannot be
+<a href=#139 id=139 data-nosnippet>139</a>    /// configured at one.
+<a href=#140 id=140 data-nosnippet>140</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>area(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Area {
+<a href=#141 id=141 data-nosnippet>141</a>        <span class="kw">let </span>window = <span class="self">self</span>.window();
+<a href=#142 id=142 data-nosnippet>142</a>        <span class="kw">let </span>size = window.inner_size();
+<a href=#143 id=143 data-nosnippet>143</a>        <span class="kw">let </span>scale = window.scale_factor() <span class="kw">as </span>f32;
+<a href=#144 id=144 data-nosnippet>144</a>        Area::new(
+<a href=#145 id=145 data-nosnippet>145</a>            (size.width <span class="kw">as </span>f32 / scale).max(<span class="number">1.0</span>),
+<a href=#146 id=146 data-nosnippet>146</a>            (size.height <span class="kw">as </span>f32 / scale).max(<span class="number">1.0</span>),
+<a href=#147 id=147 data-nosnippet>147</a>        )
+<a href=#148 id=148 data-nosnippet>148</a>    }
+<a href=#149 id=149 data-nosnippet>149</a>
+<a href=#150 id=150 data-nosnippet>150</a>    <span class="doccomment">/// The display's logical-to-physical ratio, applied here and nowhere above.
+<a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>scale(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; f32 {
+<a href=#152 id=152 data-nosnippet>152</a>        <span class="self">self</span>.window().scale_factor() <span class="kw">as </span>f32
+<a href=#153 id=153 data-nosnippet>153</a>    }
+<a href=#154 id=154 data-nosnippet>154</a>
+<a href=#155 id=155 data-nosnippet>155</a>    <span class="doccomment">/// Asks the platform to paint.
+<a href=#156 id=156 data-nosnippet>156</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>repaint(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(window) = <span class="kw-2">&amp;</span><span class="self">self</span>.handle {
+<a href=#158 id=158 data-nosnippet>158</a>            window.request_redraw();
+<a href=#159 id=159 data-nosnippet>159</a>        }
+<a href=#160 id=160 data-nosnippet>160</a>    }
+<a href=#161 id=161 data-nosnippet>161</a>}
+<a href=#162 id=162 data-nosnippet>162</a>
+<a href=#163 id=163 data-nosnippet>163</a><span class="doccomment">/// The smallest window that can be opened, in logical pixels.
+<a href=#164 id=164 data-nosnippet>164</a>///
+<a href=#165 id=165 data-nosnippet>165</a>/// A floor rather than a preference: a window dragged to nothing leaves a surface with no pixels in
+<a href=#166 id=166 data-nosnippet>166</a>/// it, and every extent the layout resolves against would be zero.
+<a href=#167 id=167 data-nosnippet>167</a></span><span class="kw">const </span>MINIMUM: Area = Area {
+<a href=#168 id=168 data-nosnippet>168</a>    width: <span class="number">290.0</span>,
+<a href=#169 id=169 data-nosnippet>169</a>    height: <span class="number">290.0</span>,
+<a href=#170 id=170 data-nosnippet>170</a>};
 </code></pre></div></section></main></body></html>

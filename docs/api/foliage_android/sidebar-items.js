@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ATTEMPTS","WRAPPER"],"enum":["Cli"],"fn":["build","crate_dir","dependency","dependency_spec","doctor_first","download","ignore","init","install","main","member","normalize","package_name","relative","root","run","run_in","setup","size","update","value","write"],"mod":["environment","project","templates"]};

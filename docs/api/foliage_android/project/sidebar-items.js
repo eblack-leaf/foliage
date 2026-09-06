@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["AGP","COMPILE_SDK","FILE","GAMES_ACTIVITY","GRADLE","MIN_SDK","NDK","PROJECT","SDK","TARGET_SDK"],"fn":["parse"],"struct":["Project"]};
