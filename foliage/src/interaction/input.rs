@@ -11,7 +11,7 @@
 use crate::coordinate::Position;
 
 /// One input event, as the platform reported it.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Input {
     /// The pointer went down. Opens a gesture.
     Pressed(Position),
@@ -34,6 +34,19 @@ pub(crate) enum Input {
     /// What is now held down. Ordered here with everything else for the reason above: a modifier is
     /// only ever a statement about the keys pressed after it.
     Modifiers(Modifiers),
+    /// Text the host pasted, carrying what it holds rather than a request to go and read it.
+    ///
+    /// The one event here with a payload, and the reason is that some hosts answer a paste and are
+    /// never willing to be asked one: a browser hands the text to the gesture that pasted it and
+    /// refuses the same read a frame later. So where a host says what was pasted, it is taken here
+    /// and ordered against the keystrokes around it; where it does not,
+    /// [`Key::Typed('v')`](Key::Typed) with control asks and
+    /// [`Op::Pasted`](crate::op::Op::Pasted) answers a frame or more later.
+    ///
+    /// The web is the only host that announces one today, so a native build outside the suite
+    /// carries the variant and constructs none.
+    #[cfg_attr(not(target_family = "wasm"), allow(dead_code))]
+    Pasted(String),
 }
 
 /// One keystroke: which key, and what was held with it.

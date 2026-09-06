@@ -40,11 +40,13 @@ impl Origin {
 
     /// A URL to fetch.
     ///
-    /// Fetched on the web. **Off it, one is accepted and reported as
-    /// [`missing`](crate::Pollen::missing)**: an http client and a TLS stack are a large addition to
-    /// a dependency list, and nothing has yet asked for one. The name is here on every target so
-    /// that a program stating its assets' URLs states them once, and so what is outstanding is an
-    /// implementation rather than a surface.
+    /// Always fetched on the web, where the browser is the client. Off it, fetched under the
+    /// `origin-url` feature, which brings an http client and a TLS stack with it; **without that
+    /// feature a URL off the web is accepted and reported as
+    /// [`missing`](crate::Pollen::missing)**, so an app that bundles its assets pays for neither.
+    ///
+    /// The name is here on every target either way, so that a program stating its assets' URLs
+    /// states them once.
     pub fn url(url: impl Into<String>) -> Self {
         Self::Url(url.into())
     }
@@ -170,15 +172,24 @@ pub(crate) fn retrieve(queue: &Queue, wake: &Wake, destination: Destination, ori
                 arrived(&queue, &wake, destination, bytes);
             });
         }
-        // TODO: native http, behind a feature that brings the client and the TLS stack with it.
-        // The arrival is what would change; everything either side of it is already in place.
-        #[cfg(not(target_family = "wasm"))]
+        // On a thread for the reason a path is, and doubly: the client is blocking, and a network
+        // round trip is longer than any read from disk.
+        #[cfg(all(not(target_family = "wasm"), feature = "origin-url"))]
+        Origin::Url(url) => {
+            std::thread::spawn(move || {
+                let bytes = get(&url);
+                arrived(&queue, &wake, destination, bytes);
+            });
+        }
+        // No client was built in. The URL is answered rather than rejected at the callsite, because
+        // which targets fetch is a fact about how the program was built and not about the asset.
+        #[cfg(all(not(target_family = "wasm"), not(feature = "origin-url")))]
         Origin::Url(url) => {
             arrived(
                 &queue,
                 &wake,
                 destination,
-                Err(format!("a URL is only fetched on the web: {url}")),
+                Err(format!("a URL off the web needs `origin-url`: {url}")),
             );
         }
         #[cfg(target_family = "wasm")]
@@ -198,6 +209,30 @@ pub(crate) fn retrieve(queue: &Queue, wake: &Wake, destination: Destination, ori
 fn arrived(queue: &Queue, wake: &Wake, destination: Destination, bytes: Retrieved) {
     queue.push(Op::Arrived { destination, bytes });
     wake.rouse();
+}
+
+/// The largest body a fetch off the web will hold.
+///
+/// A read into a `Vec` needs a ceiling or a server decides how much memory this program uses. The
+/// number is far above what an asset is -- a typeface is megabytes and a picture rarely more -- so
+/// what it stops is a body that was never going to be one of them, reported like any other failure.
+#[cfg(all(not(target_family = "wasm"), feature = "origin-url"))]
+const CEILING: u64 = 64 * 1024 * 1024;
+
+/// The fetch itself, blocking, on the thread [`retrieve`] spawned for it.
+///
+/// A status outside the 2xx range is a failure here without being asked, which is what makes this
+/// the same shape as the web's: the bytes did not arrive, however far the request got.
+#[cfg(all(not(target_family = "wasm"), feature = "origin-url"))]
+fn get(url: &str) -> Retrieved {
+    ureq::get(url)
+        .call()
+        .map_err(|failed| failed.to_string())?
+        .body_mut()
+        .with_config()
+        .limit(CEILING)
+        .read_to_vec()
+        .map_err(|failed| failed.to_string())
 }
 
 /// The fetch itself, as a sequence of promises.

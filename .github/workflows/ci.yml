@@ -38,6 +38,10 @@ jobs:
       - name: cargo build --examples -p foliage
         run: cargo build --examples -p foliage
 
+      # The one feature, which is an arm of `asset` no default build compiles.
+      - name: cargo check -p foliage --features origin-url
+        run: cargo check -p foliage --features origin-url
+
       # The API gate: a page written against nothing but foliage's public surface.
       - name: cargo check -p application
         run: cargo check -p application

@@ -291,13 +291,14 @@ mod web {
         }
     }
 
-    /// Wires the two events a hidden input has to give back.
+    /// Wires the three events a hidden input has to give back.
     ///
     /// `input` is what was composed -- a plain letter, a dead-key sequence, a whole word an IME
     /// committed -- and is the only one that answers for text, because the browser is what resolved
     /// the layout. `keydown` is for the keys that produce no text and would otherwise be spent on
     /// the input's own editing, and for a character held with a modifier, which produces no `input`
-    /// event because it is a command rather than something to insert.
+    /// event because it is a command rather than something to insert. `paste` carries what another
+    /// program put on the clipboard, which is the only way this target ever sees it.
     fn listen(element: &web_sys::HtmlInputElement, captured: &Captured, wake: &Wake) {
         let composed = {
             let (captured, wake) = (captured.clone(), wake.clone());
@@ -352,21 +353,56 @@ mod web {
                 wake.rouse();
             }) as Box<dyn FnMut(_)>)
         };
-        for (name, callback) in [("input", composed.as_ref()), ("keydown", pressed.as_ref())] {
+        let pasted = {
+            let (captured, wake) = (captured.clone(), wake.clone());
+            Closure::wrap(Box::new(move |event: web_sys::ClipboardEvent| {
+                // Empty for a paste that is not text -- a picture, a file -- which the browser
+                // fires this for all the same. Nothing was pasted as far as this engine is
+                // concerned, and letting it through would be an edit that wrote nothing.
+                let Some(text) = event
+                    .clipboard_data()
+                    .and_then(|data| data.get_data("text/plain").ok())
+                    .filter(|text| !text.is_empty())
+                else {
+                    return;
+                };
+                // The value is where the browser would put this, and the `input` event that
+                // followed would then insert it a character at a time as if it had been typed.
+                event.prevent_default();
+                captured.push(vec![Input::Pasted(text)]);
+                wake.rouse();
+            }) as Box<dyn FnMut(_)>)
+        };
+        for (name, callback) in [
+            ("input", composed.as_ref()),
+            ("keydown", pressed.as_ref()),
+            ("paste", pasted.as_ref()),
+        ] {
             let _ = element.add_event_listener_with_callback(name, callback.unchecked_ref());
         }
         // The listeners outlive this call by exactly as long as the input does, which is the life
         // of the program: there is one hidden input and nothing ever takes it out of the page.
         composed.forget();
         pressed.forget();
+        pasted.forget();
     }
 
     /// Which engine key a browser's `KeyboardEvent.key` is, where it is one this path has to carry.
     ///
     /// Mirrors `photosynthesize`'s reading of a winit key, and for the same reason: a key that
     /// produced text is left to the `input` event that carries it, so the two paths do not both
-    /// answer for the same press.
+    /// answer for the same press. `Ctrl+V` is the same rule reaching the third listener --
+    /// answering it here would take the key, and taking the key is what stops the browser ever
+    /// firing the `paste` that carries the text.
+    ///
+    /// Nothing is lost at the root by declining it: this listener hears a key only while the hidden
+    /// input holds DOM focus, which is only ever while a field holds the engine's, and a chord
+    /// pressed with focus nowhere reaches the canvas through winit like every other key.
     fn named(key: &str, modifiers: Modifiers) -> Option<Key> {
+        // A browser reports the letter of a chord in the case the shift key put it in.
+        if modifiers.control && key.eq_ignore_ascii_case("v") {
+            return None;
+        }
         let named = match key {
             "Backspace" => Key::Backspace,
             "Delete" => Key::Delete,

@@ -177,6 +177,19 @@ input; a button or a card is yours to assemble.
 | Android | Supported. Runs on device — surface, rendering and touch verified on an emulator. `foliage-android` scaffolds the Gradle project and drives the build. |
 | iOS | Untested. The shared source carries iOS arms where a platform decision is forced, and there is no toolchain here to verify against, so it is unverified rather than unsupported. |
 
+## Features
+
+One, off by default:
+
+```toml
+foliage = { git = "https://github.com/eblack-leaf/foliage", features = ["origin-url"] }
+```
+
+`origin-url` fetches an `Origin::url` off the web, and is the only thing in the crate that needs an
+http client and a TLS stack. On the web a URL is fetched by the browser and the feature selects
+nothing; off it, without the feature, a URL is accepted and reported `missing` — so an app that
+bundles its assets or reads them from an `Origin::path` compiles neither dependency.
+
 ## Repo layout
 
 | Path | What it is |

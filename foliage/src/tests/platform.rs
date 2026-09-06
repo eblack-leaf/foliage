@@ -12,7 +12,7 @@
 //! this side of the seam to observe: they are a line of the host's, like the winit translation, and
 //! they are answered for by the app running rather than by the suite.
 
-use crate::interaction::input::Key;
+use crate::interaction::input::{Input, Key};
 use crate::keyboard::Keypad;
 use crate::leaf::Leaf;
 use crate::op::Op;
@@ -240,6 +240,40 @@ fn a_paste_of_nothing_is_not_an_edit() {
     tick(&mut grove);
     assert_eq!(value(&grove, leaf), "kept");
     assert!(!frame(&mut grove).edited(leaf));
+}
+
+/// A host that announces a paste is not asked for one, and what it announced still lands where an
+/// answer lands: the field that holds focus, written at the caret and reported as an edit. This is
+/// the road the web's `paste` event takes, and the only difference on this side of the seam is that
+/// no read was ever requested.
+#[test]
+fn a_paste_the_host_announced_reaches_the_focused_field() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove, TextInput::new());
+    typing(&mut grove, "hi ");
+    tick(&mut grove);
+
+    grove.incoming.take(Input::Pasted("there".to_string()));
+    tick(&mut grove);
+    assert_eq!(value(&grove, leaf), "hi there");
+    assert_eq!(selection(&grove, leaf), 8..8);
+    let heard = frame(&mut grove);
+    assert!(heard.edited(leaf));
+    // Nothing asked, so nothing is told: this is the person at the keyboard, not the app.
+    assert_eq!(heard.pasted(), None);
+}
+
+/// Ordered against the keys around it, because it arrived among them rather than as an answer to
+/// one. A paste between two keystrokes lands between them.
+#[test]
+fn an_announced_paste_keeps_its_place_among_the_keystrokes() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove, TextInput::new());
+    grove.incoming.take(Input::Keyed(Key::Typed('a')));
+    grove.incoming.take(Input::Pasted("BC".to_string()));
+    grove.incoming.take(Input::Keyed(Key::Typed('d')));
+    tick(&mut grove);
+    assert_eq!(value(&grove, leaf), "aBCd");
 }
 
 /// An answer outlives what asked for it, because it arrives at a moment nothing chose. Dropped like

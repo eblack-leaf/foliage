@@ -7,6 +7,11 @@
 //! the road [`asset`](crate::asset) already takes, and taking it here is what makes a paste mean the
 //! same thing on both targets rather than landing in this frame on one and the next on the other.
 //!
+//! Asking is not the only way text arrives. A host that announces a paste -- a browser, which hands
+//! the text to the gesture that pasted it and will not serve the same read afterwards -- is heard as
+//! [`Input::Pasted`](crate::interaction::input::Input::Pasted) and finishes on the very same op. So
+//! nothing downstream knows which of the two happened, and this module is only ever the asking half.
+//!
 //! The platform's own clipboard is opened by `photosynthesize` and left shut under the headless
 //! suite -- the seam [`Wake`] already sits on. A test therefore reads and writes the engine's own
 //! mirror and never touches the clipboard of whoever is running it.
@@ -32,6 +37,12 @@ pub(crate) struct Clipboard {
     /// Absent as a *field* on Android, which is the difference between a host that might have one
     /// and a host that cannot: reaching its `ClipboardManager` means calling into the JVM, which
     /// nothing else in the engine does. There is nothing to hold, so there is no slot to hold it.
+    ///
+    // TODO: Android's clipboard. `ClipboardManager` is reached from the `AndroidApp` the keyboard
+    // already takes at boot, through its VM and activity pointers -- so the handle is in the
+    // program and what is missing is the JNI to spend it: a `jni` dependency, the unsafe calls
+    // under it, and a slot on this struct that Android is no longer cut out of. Until then the
+    // mirror answers and a copy round-trips inside the app and no further.
     #[cfg(not(target_os = "android"))]
     system: Option<System>,
 }
@@ -150,6 +161,9 @@ fn answered(queue: &Queue, wake: &Wake, into: Option<Leaf>, text: String) {
 ///
 /// Refused far more often than it is answered -- it is permission-gated, and outside a user gesture
 /// most browsers say no. Each failure is one failure to an app, so none is distinguished.
+///
+/// Only ever the app asking for itself. `Ctrl+V` in a field is a gesture, and a gesture is answered
+/// by the `paste` event the keyboard's hidden input hears, which never reaches here.
 #[cfg(target_family = "wasm")]
 async fn read_text() -> Option<String> {
     use wasm_bindgen_futures::JsFuture;

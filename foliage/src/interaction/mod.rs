@@ -355,6 +355,7 @@ pub(crate) fn dispatch(grove: &mut Grove) {
             Input::Wheeled { at, delta } => wheeled(grove, at, delta),
             Input::Keyed(key) => keyed(grove, key),
             Input::Modifiers(modifiers) => grove.incoming.modifiers = modifiers,
+            Input::Pasted(text) => pasted(grove, text),
         }
     }
 }
@@ -420,6 +421,23 @@ fn keyed(grove: &mut Grove, key: Key) {
     grove.queue.push(Op::Keyed {
         target: grove.focus.held(),
         stroke,
+    });
+}
+
+/// A paste the host answered itself, delivered to whatever holds focus.
+///
+/// Goes where a read the engine asked for goes -- the same [`Op::Pasted`] a promise or a selection
+/// round trip finishes with -- so a field is written into and reports `edited` however the text was
+/// come by. It is carried with focus's answer rather than dropped when there is none, which is the
+/// op's own rule; a host that announces a paste only announces one to something that can take it,
+/// so what a target reaches here with is a field.
+///
+/// Queued rather than applied, for the reason a keystroke is: it takes its place in arrival order
+/// beside every other change.
+fn pasted(grove: &mut Grove, text: String) {
+    grove.queue.push(Op::Pasted {
+        into: grove.focus.held(),
+        text,
     });
 }
 

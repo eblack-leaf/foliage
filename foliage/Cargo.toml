@@ -8,6 +8,12 @@ repository = "https://github.com/eblack-leaf/foliage"
 homepage = "https://eblack-leaf.github.io/foliage/"
 documentation = "https://eblack-leaf.github.io/foliage/book/"
 
+[features]
+# Fetching an [`Origin::url`] off the web. Opt-in because it brings an http client and a TLS stack
+# with it, and an app that bundles its assets or reads them from a path needs neither. On the web
+# it selects nothing: a URL is fetched there by the browser, whatever this says.
+origin-url = ["dep:ureq"]
+
 [dependencies]
 bevy_ecs = "0.19.0"
 bytemuck = { version = "1.25.0", features = ["derive"] }
@@ -27,6 +33,11 @@ winit = "0.30.13"
 # Android this is an `ACTION_VIEW` intent rather than a desktop's opener, which is the same request.
 open = "5.4.3"
 pollster = "1.0.1"
+# What `origin-url` fetches with. Blocking, because a retrieval is already on a thread of its own --
+# an async client would bring a runtime to do what the `spawn` around a path read already does.
+# Default features are rustls carrying its own roots, so what a fetch trusts travels with the binary
+# rather than with the host, which is the same answer on a desktop and on Android.
+ureq = { version = "3.3.0", optional = true }
 
 [target.'cfg(all(not(target_family = "wasm"), not(target_os = "android")))'.dependencies]
 # The system clipboard. `image-data` is off because a clipboard holds text here and nothing else,
@@ -53,7 +64,9 @@ wasm-bindgen = "0.2.103"
 wasm-bindgen-futures = "0.4.76"
 web-sys = { version = "0.3.103", features = [
     "Clipboard",
+    "ClipboardEvent",
     "CssStyleDeclaration",
+    "DataTransfer",
     "Document",
     "Element",
     "Event",

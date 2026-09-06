@@ -41,6 +41,14 @@
 //!   whether each [`Scroll`]s outward or contains, [`pinned`](Place::pinned) keeps a child out of
 //!   the movement, [`ScrollTo`] is how a region is moved by name, and [`Momentum`] is how a release
 //!   coasts.
+//!
+//! # Features
+//!
+//! One, off by default: **`origin-url`** fetches an [`Origin::url`] off the web, which is the only
+//! thing in the crate that needs an http client and a TLS stack. On the web a URL is fetched by the
+//! browser and the feature selects nothing; off it, without the feature, a URL is accepted and
+//! reported [`missing`](Pollen::missing) -- so an app that bundles its assets or reads them from an
+//! [`Origin::path`] compiles neither dependency.
 
 #![deny(missing_docs)]
 

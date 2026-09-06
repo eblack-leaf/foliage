@@ -439,11 +439,13 @@ impl<I: Copy + PartialEq> Instances<I> {
     }
 
     /// How many instances the backend is holding.
+    #[allow(unused)]
     pub(crate) fn len(&self) -> usize {
         self.held.len()
     }
 
     /// What the backend is holding for `key`.
+    #[allow(unused)]
     pub(crate) fn holding(&self, key: impl Into<Key>) -> Option<I> {
         self.held.get(&key.into()).map(|held| held.instance)
     }
