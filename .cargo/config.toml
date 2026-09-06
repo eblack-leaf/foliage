@@ -1,3 +1,10 @@
 [alias]
 # `cargo xtask <command>` -- repo tasks. See xtask/.
 xtask = "run --package xtask --"
+
+[build]
+# Frame pointers, so a sampling profiler can walk a stack out of an optimized build. Cargo has no
+# per-profile rustflags, so this is stated for every profile rather than for the release one it is
+# wanted in; `[profile.release] debug = 1` in the workspace manifest is what symbolizes the frames
+# it recovers.
+rustflags = ["-C", "force-frame-pointers=yes"]

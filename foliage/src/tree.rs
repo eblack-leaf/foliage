@@ -1,4 +1,4 @@
-use bevy_ecs::component::Component;
+use bevy_ecs::component::{Component, Mutable};
 use bevy_ecs::entity::RemoteAllocator;
 use bevy_ecs::hierarchy::{ChildOf, Children};
 use bevy_ecs::world::World;
@@ -190,22 +190,26 @@ impl Tree {
 
     /// The elements the app branched directly off `leaf`, in the order they were grown.
     pub(crate) fn branches(&self, leaf: Leaf) -> Vec<Leaf> {
-        let Ok(entity) = self.world.get_entity(leaf.0) else {
-            return Vec::new();
-        };
-        let Some(children) = entity.get::<Children>() else {
-            return Vec::new();
-        };
-        children
-            .iter()
-            .copied()
+        self.branched(leaf).collect()
+    }
+
+    /// The same, borrowed rather than collected.
+    ///
+    /// Resolution asks this of every element on more than one of its passes, so the vector
+    /// [`branches`](Tree::branches) hands back would be an allocation per element per pass.
+    pub(crate) fn branched(&self, leaf: Leaf) -> impl Iterator<Item = Leaf> + '_ {
+        self.world
+            .get_entity(leaf.0)
+            .ok()
+            .and_then(|entity| entity.get::<Children>())
+            .into_iter()
+            .flat_map(|children| children.iter().copied())
             .filter(|child| {
                 self.world
                     .get_entity(*child)
                     .is_ok_and(|child| child.contains::<Grown>())
             })
             .map(Leaf)
-            .collect()
     }
 
     /// The element `leaf` was branched off, or `None` if it was planted at top level.
@@ -252,15 +256,11 @@ impl Tree {
     }
 
     pub(crate) fn set_cell(&mut self, leaf: Leaf, cell: Area) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(Cell(cell));
-        }
+        self.overwrite(leaf, Cell(cell));
     }
 
     pub(crate) fn set_intrinsic(&mut self, leaf: Leaf, intrinsic: Area) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(Intrinsic(intrinsic));
-        }
+        self.overwrite(leaf, Intrinsic(intrinsic));
     }
 
     /// Which font `leaf` composes in and at what size, or `None` if it was never given one.
@@ -422,9 +422,8 @@ impl Tree {
     }
 
     pub(crate) fn settle(&mut self, leaf: Leaf, placed: Section, drawn: Section) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert((Placed(placed), Drawn(drawn)));
-        }
+        self.overwrite(leaf, Placed(placed));
+        self.overwrite(leaf, Drawn(drawn));
     }
 
     /// What `leaf` draws, and what the renderer drawing it was told.
@@ -454,9 +453,7 @@ impl Tree {
     }
 
     pub(crate) fn set_rank(&mut self, leaf: Leaf, rank: ResolvedElevation) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(rank);
-        }
+        self.overwrite(leaf, rank);
     }
 
     /// What the panel renderer on `leaf` was told, or `None` if `leaf` is not a panel.
@@ -521,9 +518,7 @@ impl Tree {
     }
 
     pub(crate) fn set_stretched(&mut self, leaf: Leaf, stretched: Stretched) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(stretched);
-        }
+        self.overwrite(leaf, stretched);
     }
 
     /// How parts of `leaf`'s run are filled differently from the rest of it.
@@ -680,9 +675,7 @@ impl Tree {
     }
 
     pub(crate) fn set_offset(&mut self, leaf: Leaf, offset: Position) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(Offset(offset));
-        }
+        self.overwrite(leaf, Offset(offset));
     }
 
     /// How far `leaf`'s content reaches, as R3 last measured it.
@@ -691,9 +684,7 @@ impl Tree {
     }
 
     pub(crate) fn set_extent(&mut self, leaf: Leaf, extent: Area) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(Extent(extent));
-        }
+        self.overwrite(leaf, Extent(extent));
     }
 
     /// What a scrolling ancestor leaves visible of `leaf`.
@@ -702,9 +693,7 @@ impl Tree {
     }
 
     pub(crate) fn set_clip(&mut self, leaf: Leaf, clip: Section) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(Clipped(clip));
-        }
+        self.overwrite(leaf, Clipped(clip));
     }
 
     /// Whether the app has hidden `leaf` itself, as against an ancestor of it.
@@ -746,8 +735,23 @@ impl Tree {
     }
 
     pub(crate) fn set_inherited(&mut self, leaf: Leaf, inherited: Inherited) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(inherited);
+        self.overwrite(leaf, inherited);
+    }
+
+    /// Writes a component that is already there in place, inserting it only the first time.
+    ///
+    /// `insert` goes through the bundle machinery whatever it is handed, which is what a component
+    /// arriving for the first time needs and what one being overwritten does not. Resolution
+    /// overwrites the same handful on every element on every frame.
+    fn overwrite<C: Component<Mutability = Mutable>>(&mut self, leaf: Leaf, value: C) {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return;
+        };
+        match entity.get_mut::<C>() {
+            Some(mut held) => *held = value,
+            None => {
+                entity.insert(value);
+            }
         }
     }
 

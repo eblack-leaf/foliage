@@ -38,6 +38,7 @@ use crate::coordinate::{Area, Axes, Axis, Position, Section};
 use crate::grove::Grove;
 use crate::interaction;
 use crate::leaf::Leaf;
+use crate::rowan::Boxes;
 
 /// Which axes an element scrolls, and what each of them does at its end.
 ///
@@ -568,14 +569,14 @@ pub(crate) fn launch(grove: &mut Grove, leaf: Leaf, axis: Axis, velocity: f32) {
 /// extent -- and the extent is R3's, one pass earlier in this same frame. Asking to scroll to the
 /// end therefore lands at the end of the content as it is *now*, in the frame the content changed,
 /// with no settling frame.
-pub(crate) fn asked(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
+pub(crate) fn asked(grove: &mut Grove, boxes: &Boxes<'_>) {
     coast(grove, boxes);
     sought(grove, boxes);
     animated(grove, boxes);
 }
 
 /// Every running coast, advanced by this frame's share of its decay.
-fn coast(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
+fn coast(grove: &mut Grove, boxes: &Boxes<'_>) {
     if grove.coasting.idle() {
         return;
     }
@@ -587,7 +588,7 @@ fn coast(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
             grove.coasting.resume(leaf, axis, coast);
             continue;
         }
-        let section = boxes.get(&leaf).copied().unwrap_or_default();
+        let section = boxes.of(leaf);
         let span = range(grove.tree.extent(leaf), section.area, axis);
         let offset = grove.tree.offset(leaf);
         let (travelled, speed) = coasted(coast.velocity, momentum.half_life.as_secs_f32(), elapsed);
@@ -645,7 +646,7 @@ fn handed(grove: &Grove, leaf: Leaf, axis: Axis) -> Option<Leaf> {
 }
 
 /// The one-shot destinations written this frame.
-fn sought(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
+fn sought(grove: &mut Grove, boxes: &Boxes<'_>) {
     for (leaf, to) in core::mem::take(&mut grove.sought) {
         if let Some(landed) = destination(grove, boxes, leaf, to) {
             grove.tree.set_offset(leaf, landed);
@@ -660,7 +661,7 @@ fn sought(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
 /// extent R3 just measured, so a motion toward the end of a list that grew under it still lands on
 /// the end. What it left is a number of pixels and is carried as one, because the offset is a
 /// resolved value rather than a declaration that could be resolved again.
-fn animated(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
+fn animated(grove: &mut Grove, boxes: &Boxes<'_>) {
     for (leaf, from, to, at) in grove.aspen.scrolling() {
         let Some(target) = destination(grove, boxes, leaf, to) else {
             continue;
@@ -678,17 +679,17 @@ fn animated(grove: &mut Grove, boxes: &HashMap<Leaf, Section>) {
 /// pass later.
 fn destination(
     grove: &Grove,
-    boxes: &HashMap<Leaf, Section>,
+    boxes: &Boxes<'_>,
     leaf: Leaf,
     to: ScrollTo,
 ) -> Option<Position> {
     let moves = to.over(grove.tree.scrolls(leaf)?)?;
-    let section = boxes.get(&leaf).copied().unwrap_or_default();
+    let section = boxes.of(leaf);
     let extent = grove.tree.extent(leaf);
     let offset = grove.tree.offset(leaf);
     let shown = to
         .names()
-        .and_then(|named| boxes.get(&named).copied())
+        .map(|named| boxes.of(named))
         .unwrap_or_default();
     let mut landed = offset;
     for axis in Axis::BOTH {

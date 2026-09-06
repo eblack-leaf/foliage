@@ -6,3 +6,5 @@ resolver = "3"
 opt-level = 1
 [profile.test]
 opt-level = 1
+[profile.release]
+debug = 1

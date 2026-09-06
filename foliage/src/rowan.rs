@@ -3,10 +3,10 @@
 //! # Rowan recomputes. Elm decides what changed.
 //!
 //! Resolution runs over everything, every frame. There is no dirty tracking, no invalidation, and
-//! no mechanism by which a value can be stale because something forgot to mark it. The cost is
-//! arithmetic over a handful of numbers per element; the saving is a whole class of bug. Nothing is
-//! re-uploaded on account of it, because extraction compares against a cached copy and sends only
-//! genuine differences.
+//! no mechanism by which a value can be stale because something forgot to mark it. The cost is the
+//! tree's size rather than the change's; the saving is a whole class of bug. Nothing is re-uploaded
+//! on account of it, because extraction compares against a cached copy and sends only genuine
+//! differences.
 //!
 //! The passes each write exactly one thing, and nothing writes what another owns:
 //!
@@ -25,6 +25,24 @@
 //!
 //! Both halves of R2 call the same pure resolver, once per axis. That is only safe because it is
 //! pure: there is no accumulated state for a second call to corrupt.
+//!
+//! # Every pass reads an array, not the world
+//!
+//! The passes ask the same questions of the same elements over and over: what an element hangs off,
+//! what it is anchored to, and what each of those offers a placement reading it. Asked of the world
+//! each time, every one of those is a lookup by entity -- and the arithmetic a pass does is small
+//! enough that the lookups, not the arithmetic, are what a frame costs.
+//!
+//! So the order is resolved once into [`Ordering`], which holds every live element with its trunk
+//! and its anchor as **positions in the order** rather than as names, and [`gather`] reads what
+//! every element offers into [`Bases`] before the axes run. From there every pass indexes: the
+//! accumulations R3 through R7 carry are arrays the length of the order, and a trunk's contribution
+//! is `[..]` rather than a lookup on a map keyed by element.
+//!
+//! Nothing about what is computed changes, and neither does the ordering that makes it correct. The
+//! passes that still read the world element by element are R1 and R2m, which reach for a typeface,
+//! a run and a placement -- none of which is copied out here, because both write to the tree while
+//! they walk it.
 //!
 //! Two passes run the other way, and each is a cycle that turns out not to be vicious.
 //!
@@ -97,23 +115,71 @@ pub(crate) struct Cell(pub(crate) Area);
 #[derive(Component, Copy, Clone, Debug, Default)]
 pub(crate) struct Intrinsic(pub(crate) Area);
 
+/// Every live element in dependency order, with the two elements each one resolves against held
+/// beside it.
+///
+/// A trunk and an anchor are asked for on both axes and on four of the passes after them. Read out
+/// of the world each time, that is a lookup per question per element; resolved once to a position in
+/// the order, it is an index.
+pub(crate) struct Ordering {
+    /// Every live element, ordered so that nothing resolves before what it depends on.
+    order: Vec<Leaf>,
+    /// Where each element sits in the order.
+    index: HashMap<Leaf, usize>,
+    /// What each element hangs off, as a position in the order.
+    trunk: Vec<Option<usize>>,
+    /// What each element is anchored to, as a position in the order.
+    anchor: Vec<Option<usize>>,
+}
+
+impl Ordering {
+    /// How many elements are live.
+    fn len(&self) -> usize {
+        self.order.len()
+    }
+
+    /// Where `leaf` sits, or `None` if it is not live.
+    fn at(&self, leaf: Leaf) -> Option<usize> {
+        self.index.get(&leaf).copied()
+    }
+}
+
 /// Steps 6 and 7. Declared state becomes resolved geometry and resolved products, for everything.
 pub(crate) fn run(grove: &mut Grove) {
-    let order = order(&grove.tree);
+    let ordering = order(&grove.tree);
     {
-        let _step = trace_span!("resolve", elements = order.len()).entered();
-        measure(grove, &order);
-        let (boxes, ends) = axes(grove, &order);
+        let _step = trace_span!("resolve", elements = ordering.len()).entered();
+        measure(grove, &ordering.order);
+        let (bases, ends) = axes(grove, &ordering);
         // Both of the passes that shape have run, so what is not held now is a run nothing states.
         grove.shaping.sweep();
-        extent(grove, &order, &boxes);
-        scroll(grove, &order, &boxes, &ends);
-        clip(grove, &order);
-        rank(grove, &order);
+        extent(grove, &ordering, &bases.section);
+        scroll(grove, &ordering, &bases.section, &ends);
+        clip(grove, &ordering);
+        rank(grove, &ordering);
     }
     let _step = trace_span!("settle").entered();
-    inherit(grove, &order);
-    regions(grove, &order);
+    inherit(grove, &ordering);
+    regions(grove, &ordering.order);
+}
+
+/// The boxes the axes produced, reachable by element rather than by position.
+///
+/// Resolution reads a box by position, because it holds every element in order. A coast, a sought
+/// region and a running motion each name one element instead, so they ask the way an app asks.
+pub(crate) struct Boxes<'a> {
+    ordering: &'a Ordering,
+    sections: &'a [Section],
+}
+
+impl Boxes<'_> {
+    /// The box `leaf` resolved to, or a zero one if it is not live.
+    pub(crate) fn of(&self, leaf: Leaf) -> Section {
+        self.ordering
+            .at(leaf)
+            .map(|at| self.sections[at])
+            .unwrap_or_default()
+    }
 }
 
 /// R1. What an element's own font makes of it: its character cell, and the widest its content would
@@ -159,33 +225,82 @@ fn measure(grove: &mut Grove, order: &[Leaf]) {
 /// buys: the endpoints are consistent with each other because they were asked at the same position
 /// in the same dependency order, against the same settled ancestors, and neither is remembered
 /// afterwards.
-fn axes(grove: &mut Grove, order: &[Leaf]) -> (HashMap<Leaf, Section>, HashMap<Leaf, Stretched>) {
-    let mut boxes: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
-    let mut ends: HashMap<Leaf, Stretched> = HashMap::new();
-    axis(grove, order, Axis::Horizontal, &mut boxes, &mut ends);
-    wrap(grove, order, &boxes);
-    axis(grove, order, Axis::Vertical, &mut boxes, &mut ends);
-    (boxes, ends)
+fn axes(grove: &mut Grove, ordering: &Ordering) -> (Bases, Vec<Option<Stretched>>) {
+    let mut bases = gather(grove, ordering);
+    let mut ends: Vec<Option<Stretched>> = vec![None; ordering.len()];
+    axis(grove, ordering, &mut bases, Axis::Horizontal, &mut ends);
+    wrap(grove, ordering, &mut bases);
+    axis(grove, ordering, &mut bases, Axis::Vertical, &mut ends);
+    (bases, ends)
+}
+
+/// What every element offers a placement that reads it, in the order's own order.
+///
+/// [`basis`] asks four things of an element's trunk and of its anchor, and does so twice per element
+/// on each axis. Three of the four are settled before the axes run, so they are read once here; the
+/// fourth is the box, which each axis fills in as it produces it.
+struct Bases {
+    /// The box, as far as the axes have resolved it.
+    section: Vec<Section>,
+    /// Whether an axis has reached the element yet. A trunk that has not resolved offers the
+    /// fallback in place of its box, exactly as an element with no box at all does.
+    resolved: Vec<bool>,
+    /// What the element measured to. R1 writes the width and R2m the height.
+    intrinsic: Vec<Area>,
+    /// The element's own grid, divided at the breakpoint in force.
+    tracks: Vec<Tracks>,
+    /// The element's character cell.
+    cell: Vec<Area>,
+}
+
+/// Reads what every element offers a placement, once.
+///
+/// After R1, because the cell and the max-content width are R1's and are read here; before the axes,
+/// because they are what the axes resolve against.
+fn gather(grove: &Grove, ordering: &Ordering) -> Bases {
+    let _pass = trace_span!("gather").entered();
+    let mut bases = Bases {
+        section: vec![Section::default(); ordering.len()],
+        resolved: vec![false; ordering.len()],
+        intrinsic: Vec::with_capacity(ordering.len()),
+        tracks: Vec::with_capacity(ordering.len()),
+        cell: Vec::with_capacity(ordering.len()),
+    };
+    for &leaf in &ordering.order {
+        bases.intrinsic.push(grove.tree.intrinsic(leaf));
+        bases.tracks.push(
+            grove
+                .tree
+                .grid(leaf)
+                .unwrap_or_default()
+                .tracks(grove.layout, grove.short),
+        );
+        bases.cell.push(grove.tree.cell(leaf));
+    }
+    bases
 }
 
 /// One axis of the whole tree, in dependency order, through the one pure resolver.
 fn axis(
     grove: &Grove,
-    order: &[Leaf],
+    ordering: &Ordering,
+    bases: &mut Bases,
     axis: Axis,
-    boxes: &mut HashMap<Leaf, Section>,
-    ends: &mut HashMap<Leaf, Stretched>,
+    ends: &mut [Option<Stretched>],
 ) {
     let _pass = trace_span!("axis", vertical = (axis == Axis::Vertical)).entered();
     let viewport = Section::new(Position::default(), grove.viewport);
     let fallback = Location::default();
-    for &leaf in order {
-        let context = context(grove, boxes, viewport, leaf, axis);
+    for at in 0..ordering.len() {
+        let leaf = ordering.order[at];
+        let context = context(grove, ordering, bases, viewport, at, axis);
         let (span, stretched) = geometry(grove, leaf, &fallback, &context, axis);
         if let Some((from, to)) = stretched {
-            ends.entry(leaf).or_default().set(axis, from, to);
+            ends[at]
+                .get_or_insert_with(Stretched::default)
+                .set(axis, from, to);
         }
-        let section = boxes.entry(leaf).or_default();
+        let section = &mut bases.section[at];
         match axis {
             Axis::Horizontal => {
                 section.position.x = span.near;
@@ -196,6 +311,7 @@ fn axis(
                 section.area.height = span.extent();
             }
         }
+        bases.resolved[at] = true;
     }
 }
 
@@ -283,14 +399,18 @@ fn departure(
 /// and is given its real height by R2b like anything else. That is the correct reading rather than a
 /// limitation: a child sized to its trunk cannot also be what sizes it, and nothing is asked to
 /// converge.
-fn wrap(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
+fn wrap(grove: &mut Grove, ordering: &Ordering, bases: &mut Bases) {
     let _pass = trace_span!("wrap").entered();
     let fallback = Location::default();
-    for &leaf in order.iter().rev() {
-        let width = boxes.get(&leaf).copied().unwrap_or_default().width();
-        let height = wrapped(grove, leaf, width).max(reach(grove, boxes, &fallback, leaf));
-        let mut intrinsic = grove.tree.intrinsic(leaf);
+    for at in (0..ordering.len()).rev() {
+        let leaf = ordering.order[at];
+        let width = bases.section[at].width();
+        let height = wrapped(grove, leaf, width).max(reach(grove, ordering, bases, &fallback, at));
+        let mut intrinsic = bases.intrinsic[at];
         intrinsic.height = height;
+        // Held both ways: the array is what the vertical axis reads it back out of, and the
+        // component is what everything after resolution does.
+        bases.intrinsic[at] = intrinsic;
         grove.tree.set_intrinsic(leaf, intrinsic);
     }
 }
@@ -323,13 +443,22 @@ fn wrapped(grove: &mut Grove, leaf: Leaf, width: f32) -> f32 {
 /// a percentage of this element, a row of its grid, an anchor's edge -- is asking how tall
 /// something else is, so it cannot be what decides how tall this is. See
 /// [`Config::measurable`](crate::placement::role::Config::measurable).
-fn reach(grove: &Grove, boxes: &HashMap<Leaf, Section>, fallback: &Location, leaf: Leaf) -> f32 {
+fn reach(
+    grove: &Grove,
+    ordering: &Ordering,
+    bases: &Bases,
+    fallback: &Location,
+    at: usize,
+) -> f32 {
     let mut reach: f32 = 0.0;
-    for child in grove.tree.branches(leaf) {
+    for child in grove.tree.branched(ordering.order[at]) {
+        let Some(child_at) = ordering.at(child) else {
+            continue;
+        };
         if !measurable(grove, child, fallback) {
             continue;
         }
-        let context = raised(grove, boxes, leaf, child);
+        let context = raised(ordering, bases, at, child_at);
         reach = reach.max(
             geometry(grove, child, fallback, &context, Axis::Vertical)
                 .0
@@ -362,33 +491,29 @@ fn measurable(grove: &Grove, leaf: Leaf, fallback: &Location) -> bool {
 /// The same [`Context`] R2b will build, with every vertical reading taken as zero: no box on this
 /// axis has resolved yet, which is the point of measuring. Every horizontal reading is real, so a
 /// height stated in columns or read off a width still answers.
-fn raised(grove: &Grove, boxes: &HashMap<Leaf, Section>, trunk: Leaf, child: Leaf) -> Context {
-    let flattened = |leaf: Leaf| {
-        let section = boxes.get(&leaf).copied().unwrap_or_default();
+fn raised(ordering: &Ordering, bases: &Bases, trunk: usize, child: usize) -> Context {
+    let flattened = |at: usize| {
+        let section = bases.section[at];
         Basis {
             section: Section::new(
                 Position::new(section.left(), 0.0),
                 Area::new(section.width(), 0.0),
             ),
-            intrinsic: grove.tree.intrinsic(leaf),
-            tracks: grove
-                .tree
-                .grid(leaf)
-                .unwrap_or_default()
-                .tracks(grove.layout, grove.short),
-            cell: grove.tree.cell(leaf),
+            intrinsic: bases.intrinsic[at],
+            tracks: bases.tracks[at],
+            cell: bases.cell[at],
         }
     };
     Context {
         axis: Axis::Vertical,
         own: Basis {
             section: Section::default(),
-            intrinsic: grove.tree.intrinsic(child),
+            intrinsic: bases.intrinsic[child],
             tracks: Tracks::default(),
-            cell: grove.tree.cell(child),
+            cell: bases.cell[child],
         },
         trunk: flattened(trunk),
-        anchor: match grove.tree.anchor(child) {
+        anchor: match ordering.anchor[child] {
             Some(anchor) => flattened(anchor),
             None => Basis::default(),
         },
@@ -414,19 +539,21 @@ fn raised(grove: &Grove, boxes: &HashMap<Leaf, Section>, trunk: Leaf, child: Lea
 ///
 /// [`visible(false)`]: crate::Place::visible
 /// [`pinned`]: crate::Place::pinned
-fn extent(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
+fn extent(grove: &mut Grove, ordering: &Ordering, sections: &[Section]) {
     let _pass = trace_span!("extent").entered();
-    // The far corner of everything under an element, in absolute coordinates.
-    let mut reach: HashMap<Leaf, Position> = HashMap::with_capacity(order.len());
-    for &leaf in order.iter().rev() {
+    // The far corner of everything under an element, in absolute coordinates. Absent where the
+    // element was skipped, which is what keeps a hidden subtree out of what contains it.
+    let mut reach: Vec<Option<Position>> = vec![None; ordering.len()];
+    for at in (0..ordering.len()).rev() {
+        let leaf = ordering.order[at];
         // A hidden element is not content, and neither is anything under it: that is what makes
         // hiding the whole answer for parking something out of the way, rather than half of one.
         if !grove.tree.visible(leaf).0 {
             continue;
         }
-        let section = boxes.get(&leaf).copied().unwrap_or_default();
+        let section = sections[at];
         let mut far = Position::new(section.right(), section.bottom());
-        for child in grove.tree.branches(leaf) {
+        for child in grove.tree.branched(leaf) {
             // The two ways an element grown inside a region is not part of its content, and each
             // is left out here by the same one declaration that says the rest of what it means --
             // which is what keeps the halves from disagreeing.
@@ -437,7 +564,7 @@ fn extent(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
             if grove.tree.pinned(child) || grove.tree.floats(child).is_some() {
                 continue;
             }
-            let Some(child) = reach.get(&child).copied() else {
+            let Some(child) = ordering.at(child).and_then(|child| reach[child]) else {
                 continue;
             };
             far = Position::new(far.x.max(child.x), far.y.max(child.y));
@@ -446,7 +573,7 @@ fn extent(grove: &mut Grove, order: &[Leaf], boxes: &HashMap<Leaf, Section>) {
             grove.tree.set_extent(leaf, reached(scroll, section, far));
             far = Position::new(section.right(), section.bottom());
         }
-        reach.insert(leaf, far);
+        reach[at] = Some(far);
     }
 }
 
@@ -491,25 +618,22 @@ fn reached(scroll: Scroll, section: Section, far: Position) -> Area {
 /// than where they were written, because all three need the extent and the extent is one pass old.
 fn scroll(
     grove: &mut Grove,
-    order: &[Leaf],
-    boxes: &HashMap<Leaf, Section>,
-    ends: &HashMap<Leaf, Stretched>,
+    ordering: &Ordering,
+    sections: &[Section],
+    ends: &[Option<Stretched>],
 ) {
     let _pass = trace_span!("scroll", coasting = grove.coasting.len()).entered();
-    view::asked(grove, boxes);
-    let mut accumulated: HashMap<Leaf, Position> = HashMap::with_capacity(order.len());
+    view::asked(grove, &Boxes { ordering, sections });
+    let mut accumulated: Vec<Position> = vec![Position::default(); ordering.len()];
     // What a *pinned* child of each element receives, which is the accumulation with its nearest
     // scrolling ancestor left out of it.
-    let mut unpinned: HashMap<Leaf, Position> = HashMap::with_capacity(order.len());
-    for &leaf in order {
-        let placed = boxes.get(&leaf).copied().unwrap_or_default();
-        let trunk = grove.tree.trunk(leaf);
-        let inherited = trunk
-            .and_then(|trunk| accumulated.get(&trunk).copied())
-            .unwrap_or_default();
-        let outside = trunk
-            .and_then(|trunk| unpinned.get(&trunk).copied())
-            .unwrap_or_default();
+    let mut unpinned: Vec<Position> = vec![Position::default(); ordering.len()];
+    for at in 0..ordering.len() {
+        let leaf = ordering.order[at];
+        let placed = sections[at];
+        let trunk = ordering.trunk[at];
+        let inherited = trunk.map(|trunk| accumulated[trunk]).unwrap_or_default();
+        let outside = trunk.map(|trunk| unpinned[trunk]).unwrap_or_default();
         // A pinned element does not receive its nearest scrolling ancestor's offset, and receives
         // every offset outside that one: pinning is relative to the region the element sits in and
         // says nothing about what contains that region.
@@ -524,7 +648,7 @@ fn scroll(
         grove.tree.settle(leaf, placed, drawn);
         // A stroke's ends travel with its box, by the same offset, because they are the same
         // geometry said two ways.
-        if let Some(stretched) = ends.get(&leaf) {
+        if let Some(stretched) = &ends[at] {
             grove.tree.set_stretched(leaf, stretched.less(applied));
         }
         let (carried, escaped) = match grove.tree.scrolls(leaf) {
@@ -541,8 +665,8 @@ fn scroll(
             // whatever region contains it, exactly as a pinned sibling of this element would be.
             None => (applied, outside),
         };
-        accumulated.insert(leaf, carried);
-        unpinned.insert(leaf, escaped);
+        accumulated[at] = carried;
+        unpinned[at] = escaped;
     }
 }
 
@@ -577,22 +701,20 @@ fn clamp(grove: &mut Grove, leaf: Leaf, scroll: Scroll, placed: Section) -> Posi
 /// element with no scrolling ancestor is clipped by nothing at all. Whether an element is *culled*
 /// is extraction's decision from this rect, and is never recorded on the element -- so there is no
 /// state saying "currently clipped away" for anything else, extent first among them, to read.
-fn clip(grove: &mut Grove, order: &[Leaf]) {
+fn clip(grove: &mut Grove, ordering: &Ordering) {
     let _pass = trace_span!("clip").entered();
-    let mut passed: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
+    let unbounded = Clipped::unbounded().0;
+    let mut passed: Vec<Section> = vec![unbounded; ordering.len()];
     // What a *floating* child of each element is clipped to, which is the intersection with its
     // nearest scrolling ancestor's own rect left out of it. The same second accumulation R4 carries
     // for a pinned child, and for the same reason: both say "not part of this region", and both
     // have to say it about the region the element is actually in rather than about all of them.
-    let mut escaped: HashMap<Leaf, Section> = HashMap::with_capacity(order.len());
-    for &leaf in order {
-        let trunk = grove.tree.trunk(leaf);
-        let inherited = trunk
-            .and_then(|trunk| passed.get(&trunk).copied())
-            .unwrap_or(Clipped::unbounded().0);
-        let outside = trunk
-            .and_then(|trunk| escaped.get(&trunk).copied())
-            .unwrap_or(Clipped::unbounded().0);
+    let mut escaped: Vec<Section> = vec![unbounded; ordering.len()];
+    for at in 0..ordering.len() {
+        let leaf = ordering.order[at];
+        let trunk = ordering.trunk[at];
+        let inherited = trunk.map(|trunk| passed[trunk]).unwrap_or(unbounded);
+        let outside = trunk.map(|trunk| escaped[trunk]).unwrap_or(unbounded);
         // A floating element is positioned outside the region on purpose, so cutting it off at the
         // region's edge would undo the placement that put it there. How far out it reaches is the
         // element's own statement, because no one answer is right everywhere.
@@ -601,9 +723,9 @@ fn clip(grove: &mut Grove, order: &[Leaf]) {
             Some(Escape::Region) => outside,
             // Held by nothing, which extraction reads as the surface: a clip is never wider than
             // what is being drawn on.
-            Some(Escape::Surface) => Clipped::unbounded().0,
+            Some(Escape::Surface) => unbounded,
             // Held by the element named, which is what that element passes down to what it holds.
-            Some(Escape::Within(named)) => match within(grove, &passed, leaf, named) {
+            Some(Escape::Within(named)) => match within(ordering, &passed, at, named) {
                 Some(clip) => clip,
                 // Named something that is not above it, so it holds nothing. Falling back to the
                 // near answer rather than the far one: an element escapes no further than it was
@@ -614,20 +736,14 @@ fn clip(grove: &mut Grove, order: &[Leaf]) {
         };
         grove.tree.set_clip(leaf, applied);
         let scrolls = grove.tree.scrolls(leaf).is_some();
-        passed.insert(
-            leaf,
-            match scrolls {
-                true => applied.intersect(grove.tree.drawn(leaf)),
-                false => applied,
-            },
-        );
-        escaped.insert(
-            leaf,
-            match scrolls {
-                true => applied,
-                false => outside,
-            },
-        );
+        passed[at] = match scrolls {
+            true => applied.intersect(grove.tree.drawn(leaf)),
+            false => applied,
+        };
+        escaped[at] = match scrolls {
+            true => applied,
+            false => outside,
+        };
     }
 }
 
@@ -637,18 +753,16 @@ fn clip(grove: &mut Grove, order: &[Leaf]) {
 /// above it gets `None` and is answered as though it had named the region it is in. Naming the
 /// element rather than counting regions is what makes this survive a wrapper being added between
 /// the two, which a count would not.
-fn within(
-    grove: &Grove,
-    passed: &HashMap<Leaf, Section>,
-    leaf: Leaf,
-    named: Leaf,
-) -> Option<Section> {
-    let mut step = grove.tree.trunk(leaf);
+fn within(ordering: &Ordering, passed: &[Section], at: usize, named: Leaf) -> Option<Section> {
+    let named = ordering.at(named)?;
+    let mut step = ordering.trunk[at];
     while let Some(above) = step {
+        // An ancestor resolves before what hangs off it, so one found here has already passed its
+        // own clip down and the read is never of a position the pass has yet to reach.
         if above == named {
-            return passed.get(&named).copied();
+            return Some(passed[above]);
         }
-        step = grove.tree.trunk(above);
+        step = ordering.trunk[above];
     }
     None
 }
@@ -660,22 +774,19 @@ fn within(
 /// frame because the pass does not care when it arrived, and enabling that trunk leaves anything
 /// disabled in its own right disabled because the product is over the whole ancestry rather than a
 /// single bit that was overwritten on the way down.
-fn inherit(grove: &mut Grove, order: &[Leaf]) {
+fn inherit(grove: &mut Grove, ordering: &Ordering) {
     let _pass = trace_span!("inherit").entered();
-    let mut products: HashMap<Leaf, Inherited> = HashMap::with_capacity(order.len());
-    for &leaf in order {
-        let trunk = grove
-            .tree
-            .trunk(leaf)
-            .and_then(|trunk| products.get(&trunk).copied())
-            .unwrap_or_default();
+    let mut products: Vec<Inherited> = vec![Inherited::default(); ordering.len()];
+    for at in 0..ordering.len() {
+        let leaf = ordering.order[at];
+        let trunk = ordering.trunk[at].map(|trunk| products[trunk]).unwrap_or_default();
         let product = Inherited::under(
             trunk,
             grove.tree.visible(leaf),
             grove.tree.opacity(leaf),
             grove.tree.disabled(leaf),
         );
-        products.insert(leaf, product);
+        products[at] = product;
         grove.tree.set_inherited(leaf, product);
     }
 }
@@ -722,17 +833,14 @@ fn regions(grove: &mut Grove, order: &[Leaf]) {
 /// One walk in the same dependency order the axes used, which puts every trunk before what hangs
 /// off it. Nothing here reads a box: where an element sits in the stack has nothing to do with
 /// where it sits on the surface.
-fn rank(grove: &mut Grove, order: &[Leaf]) {
+fn rank(grove: &mut Grove, ordering: &Ordering) {
     let _pass = trace_span!("rank").entered();
-    let mut stacks: HashMap<Leaf, i32> = HashMap::with_capacity(order.len());
-    for &leaf in order {
-        let trunk = grove
-            .tree
-            .trunk(leaf)
-            .and_then(|trunk| stacks.get(&trunk).copied())
-            .unwrap_or_default();
+    let mut stacks: Vec<i32> = vec![0; ordering.len()];
+    for at in 0..ordering.len() {
+        let leaf = ordering.order[at];
+        let trunk = ordering.trunk[at].map(|trunk| stacks[trunk]).unwrap_or_default();
         let stack = grove.tree.elevation(leaf).accumulate(trunk);
-        stacks.insert(leaf, stack);
+        stacks[at] = stack;
         grove.tree.set_rank(
             leaf,
             ResolvedElevation {
@@ -743,12 +851,13 @@ fn rank(grove: &mut Grove, order: &[Leaf]) {
     }
 }
 
-/// Everything one axis of `leaf` resolves against.
+/// Everything one axis of the element at `at` resolves against.
 fn context(
-    grove: &Grove,
-    boxes: &HashMap<Leaf, Section>,
+    _grove: &Grove,
+    ordering: &Ordering,
+    bases: &Bases,
     viewport: Section,
-    leaf: Leaf,
+    at: usize,
     axis: Axis,
 ) -> Context {
     Context {
@@ -757,40 +866,34 @@ fn context(
         // rather than for itself, so neither is readable here.
         own: Basis {
             section: Section::default(),
-            intrinsic: grove.tree.intrinsic(leaf),
+            intrinsic: bases.intrinsic[at],
             tracks: Tracks::default(),
-            cell: grove.tree.cell(leaf),
+            cell: bases.cell[at],
         },
         // A top-level element has no trunk, and fills the viewport instead.
-        trunk: basis(grove, boxes, grove.tree.trunk(leaf), viewport),
+        trunk: basis(bases, ordering.trunk[at], viewport),
         // A placement that reads an anchor it has not been given resolves against a zero box.
-        anchor: basis(grove, boxes, grove.tree.anchor(leaf), Section::default()),
+        anchor: basis(bases, ordering.anchor[at], Section::default()),
     }
 }
 
-/// What `leaf` offers a placement reading it, or `fallback` in place of a box when there is no such
-/// element or it has not resolved yet.
-fn basis(
-    grove: &Grove,
-    boxes: &HashMap<Leaf, Section>,
-    leaf: Option<Leaf>,
-    fallback: Section,
-) -> Basis {
-    let Some(leaf) = leaf else {
+/// What the element at `at` offers a placement reading it, or `fallback` in place of a box when
+/// there is no such element or it has not resolved yet.
+fn basis(bases: &Bases, at: Option<usize>, fallback: Section) -> Basis {
+    let Some(at) = at else {
         return Basis {
             section: fallback,
             ..Basis::default()
         };
     };
     Basis {
-        section: boxes.get(&leaf).copied().unwrap_or(fallback),
-        intrinsic: grove.tree.intrinsic(leaf),
-        tracks: grove
-            .tree
-            .grid(leaf)
-            .unwrap_or_default()
-            .tracks(grove.layout, grove.short),
-        cell: grove.tree.cell(leaf),
+        section: match bases.resolved[at] {
+            true => bases.section[at],
+            false => fallback,
+        },
+        intrinsic: bases.intrinsic[at],
+        tracks: bases.tracks[at],
+        cell: bases.cell[at],
     }
 }
 
@@ -807,7 +910,7 @@ fn basis(
 /// and resolves against what its dependency last was. **Every live element is in the order**, which
 /// is the property the passes downstream rely on: an element left out would have no box, no rank and
 /// no place in the stack, and nothing would say so.
-fn order(tree: &Tree) -> Vec<Leaf> {
+fn order(tree: &Tree) -> Ordering {
     let leaves = tree.leaves();
     let mut waiting: HashMap<Leaf, usize> = HashMap::with_capacity(leaves.len());
     let mut dependents: HashMap<Leaf, Vec<Leaf>> = HashMap::with_capacity(leaves.len());
@@ -844,5 +947,19 @@ fn order(tree: &Tree) -> Vec<Leaf> {
     if order.len() != leaves.len() {
         order.extend(leaves.iter().copied().filter(|leaf| waiting[leaf] != 0));
     }
-    order
+    let index: HashMap<Leaf, usize> = order.iter().copied().zip(0..).collect();
+    let mut trunk = Vec::with_capacity(order.len());
+    let mut anchor = Vec::with_capacity(order.len());
+    for &leaf in &order {
+        // Resolved to a position here and nowhere else. One that names something not live has no
+        // position, which is the same answer every pass gave it when it looked the box up and missed.
+        trunk.push(tree.trunk(leaf).and_then(|trunk| index.get(&trunk).copied()));
+        anchor.push(tree.anchor(leaf).and_then(|anchor| index.get(&anchor).copied()));
+    }
+    Ordering {
+        order,
+        index,
+        trunk,
+        anchor,
+    }
 }
