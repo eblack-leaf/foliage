@@ -20,7 +20,7 @@ use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, BlendState, BufferBindingType,
     ColorTargetState, CommandEncoderDescriptor, CompareFunction, CompositeAlphaMode,
     CurrentSurfaceTexture, DepthStencilState, Device, DeviceDescriptor, Features,
-    InstanceDescriptor, Limits, LoadOp, MultisampleState, Operations, PowerPreference, PresentMode,
+    InstanceDescriptor, InstanceFlags, Limits, LoadOp, MultisampleState, Operations, PowerPreference, PresentMode,
     PrimitiveState, PrimitiveTopology, Queue, RenderPass, RenderPassColorAttachment,
     RenderPassDescriptor, RequestAdapterOptions, ShaderStages, StoreOp, Surface, SurfaceColorSpace,
     SurfaceConfiguration, TextureFormat, TextureUsages, TextureViewDescriptor,
@@ -60,6 +60,17 @@ impl Ginkgo {
     pub(crate) async fn acquire(window: Arc<Window>, area: Area, scale: f32) -> Self {
         let instance = wgpu::Instance::new(InstanceDescriptor {
             backends: Backends::VULKAN | Backends::METAL | Backends::DX12 | Backends::GL,
+            // A debug build otherwise asks wgpu to name every object it makes, and naming a Vulkan
+            // one goes through `vkSetDebugUtilsObjectNameEXT`. The Android emulator's driver
+            // segfaults inside that call, so a debug build of an app that runs everywhere else dies
+            // before its first frame on the one device most likely to be developed against.
+            //
+            // The names are a convenience for reading a capture. Giving them up on Android costs
+            // that and nothing else.
+            flags: match cfg!(target_os = "android") {
+                true => InstanceFlags::empty(),
+                false => InstanceFlags::from_build_config(),
+            },
             ..InstanceDescriptor::new_without_display_handle()
         });
         let surface = instance.create_surface(window).expect("surface");

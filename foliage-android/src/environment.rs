@@ -1,65 +1,60 @@
-//! Finding the SDK, and saying what is missing.
+//! The SDK, and saying what is missing.
 //!
-//! Android's toolchain is reached entirely through environment variables, and setting them by hand
-//! in every shell is the step most easily forgotten -- `cargo ndk` without `ANDROID_NDK_HOME` and
-//! Gradle without `ANDROID_HOME` both fail, at different points, with different messages.
+//! Android's toolchain is normally reached through `ANDROID_HOME` and `ANDROID_NDK_HOME`, which
+//! means a build depends on how the shell that started it was prepared. Nothing here reads either.
+//! The SDK is the path `foliage-android.toml` names and the NDK is the version it names inside that
+//! -- so the answer is the same from any shell, and changing it is an edit rather than an export.
 //!
-//! So they are resolved here and set on the processes this tool starts, rather than expected from
-//! the shell it was started in. Nothing is exported and nothing outlives the command.
+//! The variables are still *written*, onto the processes this tool starts, because `cargo ndk` and
+//! Gradle read them and there is no other way to tell them. That is the opposite direction: the
+//! environment is constructed here rather than consulted. Nothing is exported and nothing outlives
+//! the command.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::project::Project;
 
-/// Where an SDK is kept when it belongs to one repo rather than to the machine.
-///
-/// Checked after the environment and before the user-wide location, so a repo carrying its own SDK
-/// is found without being pointed at, and a machine-wide one still wins when it is asked for.
-pub const LOCAL: &str = ".android-sdk";
-
-/// The SDK and the NDK inside it, once both have been found.
+/// The SDK and the NDK inside it.
 pub struct Environment {
-    /// What `ANDROID_HOME` names.
+    /// What the children are told `ANDROID_HOME` is.
     pub sdk: PathBuf,
-    /// One NDK inside it. Any reasonably recent one works -- `cargo ndk` does not care which -- so
-    /// the newest installed is taken unless `ANDROID_NDK_HOME` says otherwise.
+    /// The NDK named by `foliage-android.toml`, inside the SDK.
     pub ndk: PathBuf,
 }
 
 impl Environment {
-    /// Finds the SDK and an NDK in it.
+    /// The SDK the project names, and the NDK in it.
     ///
-    /// In order: what the environment already says, an SDK kept beside the repo, then the location
-    /// Android's own tools default to. The first that exists wins.
-    pub fn resolve(root: &Path) -> Result<Self, String> {
-        let sdk = ["ANDROID_HOME", "ANDROID_SDK_ROOT"]
-            .iter()
-            .filter_map(|name| std::env::var_os(name).map(PathBuf::from))
-            .chain(std::iter::once(root.join(LOCAL)))
-            .chain(home().map(|home| home.join("Android/Sdk")))
-            .find(|path| path.is_dir())
-            .ok_or_else(|| {
-                format!(
-                    "no Android SDK -- looked at $ANDROID_HOME, $ANDROID_SDK_ROOT, {} and \
-                     ~/Android/Sdk.",
-                    root.join(LOCAL).display()
-                )
-            })?;
-        let ndk = match std::env::var_os("ANDROID_NDK_HOME") {
-            Some(ndk) => PathBuf::from(ndk),
-            None => newest_ndk(&sdk).ok_or_else(|| {
-                format!(
-                    "no NDK in {} -- install one with `android sdk install ndk/<version>`, or set \
-                     $ANDROID_NDK_HOME.",
-                    sdk.join("ndk").display()
-                )
-            })?,
-        };
+    /// One path, from one file. There is no search and no fallback: a missing SDK is reported as
+    /// the directory that is not there, rather than as a list of places that were tried.
+    pub fn resolve(root: &Path, project: &Project) -> Result<Self, String> {
+        let sdk = Self::sdk(root, project);
+        if !sdk.is_dir() {
+            return Err(format!(
+                "no Android SDK at {} (`sdk` in {}).",
+                sdk.display(),
+                crate::project::FILE
+            ));
+        }
+        let ndk = sdk.join("ndk").join(&project.ndk);
         if !ndk.is_dir() {
-            return Err(format!("no NDK at {}", ndk.display()));
+            return Err(format!(
+                "no NDK at {} (`ndk` in {}).",
+                ndk.display(),
+                crate::project::FILE
+            ));
         }
         Ok(Self { sdk, ndk })
+    }
+
+    /// Where the SDK is, whether or not anything is there yet.
+    ///
+    /// What `setup` installs into and what every other command builds against, so the two are the
+    /// same path by construction. Relative to the repo root unless the project names an absolute
+    /// one, which is how an SDK shared between repos is spelled.
+    pub fn sdk(root: &Path, project: &Project) -> PathBuf {
+        root.join(&project.sdk)
     }
 
     /// Puts the SDK on a command, the way a shell that had been set up would have.
@@ -98,36 +93,32 @@ pub fn doctor(root: &Path, project: &Project) -> Result<(), String> {
         "install one: `sudo apt install default-jdk`, or https://adoptium.net",
     );
 
-    match Environment::resolve(root) {
-        Ok(environment) => {
-            checks.have(&format!("SDK at {}", environment.sdk.display()));
-            checks.have(&format!("NDK at {}", environment.ndk.display()));
-            checks.check(
-                environment
-                    .sdk
-                    .join("platforms")
-                    .join(format!("android-{}", project.compile_sdk))
-                    .is_dir(),
-                &format!("platforms/android-{}", project.compile_sdk),
-                "run `foliage-android setup`",
-            );
-            checks.check(
-                environment
-                    .sdk
-                    .join("build-tools")
-                    .read_dir()
-                    .is_ok_and(|mut entries| entries.next().is_some()),
-                "build-tools",
-                "run `foliage-android setup`",
-            );
-            checks.check(
-                environment.adb().is_file(),
-                "platform-tools (adb)",
-                "run `foliage-android setup`",
-            );
-        }
-        Err(reason) => checks.check(false, "an Android SDK", &format!("{reason}\n          {INSTALL}")),
+    // Each package is asked about on its own rather than behind a resolved [`Environment`]. They are
+    // installed by one command and fail separately -- a dropped NDK download leaves a perfectly good
+    // SDK -- so a single answer for all of them would report three installed packages as missing.
+    let sdk = Environment::sdk(root, project);
+    if !sdk.is_dir() {
+        checks.check(false, &format!("no SDK at {}", sdk.display()), INSTALL);
+        return checks.finish();
     }
+    checks.have(&format!("SDK at {}", sdk.display()));
+    checks.check(
+        sdk.join("platforms")
+            .join(format!("android-{}", project.compile_sdk))
+            .is_dir(),
+        &format!("platforms/android-{}", project.compile_sdk),
+        "run `foliage-android setup`",
+    );
+    checks.check(
+        sdk.join("platform-tools").join(executable("adb")).is_file(),
+        "platform-tools (adb)",
+        "run `foliage-android setup`",
+    );
+    checks.check(
+        sdk.join("ndk").join(&project.ndk).is_dir(),
+        &format!("ndk/{}", project.ndk),
+        "run `foliage-android setup`",
+    );
 
     let targets = rustup_targets();
     for abi in &project.abis {
@@ -205,7 +196,7 @@ impl Checks {
 
 /// What to do about a missing SDK, which is one command rather than a section of a README.
 const INSTALL: &str = "run `foliage-android setup` -- it installs the `android` CLI and every\n\
-     \x20         package into .android-sdk/ beside the repo, and touches nothing else.";
+     \x20         package into that directory, and touches nothing outside it.";
 
 /// The rust target one Android ABI is built for.
 pub fn rust_target(abi: &str) -> Result<&'static str, String> {
@@ -330,26 +321,6 @@ pub fn rustup_targets() -> Vec<String> {
         .collect()
 }
 
-/// The highest-numbered NDK installed, by major version.
-///
-/// Compared as numbers rather than as strings, because `9` sorts after `27` as text and the two
-/// have coexisted.
-fn newest_ndk(sdk: &Path) -> Option<PathBuf> {
-    let mut versions: Vec<_> = sdk
-        .join("ndk")
-        .read_dir()
-        .ok()?
-        .filter_map(Result::ok)
-        .filter(|entry| entry.path().is_dir())
-        .filter_map(|entry| {
-            let name = entry.file_name().to_str()?.to_string();
-            let major: u32 = name.split('.').next()?.parse().ok()?;
-            Some((major, entry.path()))
-        })
-        .collect();
-    versions.sort_by_key(|(major, _)| *major);
-    versions.pop().map(|(_, path)| path)
-}
 
 /// A program's file name on this platform.
 pub fn executable(name: &str) -> String {
@@ -359,14 +330,18 @@ pub fn executable(name: &str) -> String {
     }
 }
 
-fn home() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
-}
 
+/// Where cargo unpacks what it downloads.
+///
+/// The one location this does read from the environment, because it is cargo's own and there is no
+/// other way to ask. Only the GameActivity version check reads it, and that check reports itself as
+/// unchecked rather than failing when nothing is found.
 fn cargo_home() -> Option<PathBuf> {
     std::env::var_os("CARGO_HOME")
         .map(PathBuf::from)
-        .or_else(|| home().map(|home| home.join(".cargo")))
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(|home| PathBuf::from(home).join(".cargo"))
+        })
 }

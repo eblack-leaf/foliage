@@ -56,6 +56,10 @@ changes when it lands.
 
 None of this is engine work, and all of it is between here and a library.
 
+- **A page worth showing.** `Site` grows one interactive panel, which is enough to prove the engine
+  end to end and is not a site. What it becomes is hand-written.
+- **An Android CI job that has run.** `.github/workflows/ci.yml` installs `cargo-ndk` and checks
+  `aarch64-linux-android`. Written against the runner's preinstalled SDK and never executed.
 - **A `README.md` and licence files.** `Cargo.toml` claims `MIT OR Apache-2.0` and points
   `repository`, `homepage` and `documentation` at pages that do not exist.
 - **`#![deny(missing_docs)]`.** The surface is documented today and nothing keeps it that way.

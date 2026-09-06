@@ -174,7 +174,7 @@ input; a button or a card is yours to assemble.
 |---|---|
 | Linux, Windows, macOS | Supported. Built and tested on all three in CI. |
 | Web (WebAssembly) | Supported. Built for `wasm32-unknown-unknown` in CI. |
-| Android | Supported. Built for `aarch64-linux-android` in CI. `foliage-android` scaffolds the Gradle project and drives the build. |
+| Android | Supported. Runs on device — surface, rendering and touch verified on an emulator. `foliage-android` scaffolds the Gradle project and drives the build. |
 | iOS | Untested. The shared source carries iOS arms where a platform decision is forced, and there is no toolchain here to verify against, so it is unverified rather than unsupported. |
 
 ## Repo layout

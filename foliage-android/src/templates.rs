@@ -380,7 +380,8 @@ one without Gradle. Unavoidable rather than a workaround.
 From the repo root:
 
 ```sh
-foliage-android doctor   # what is installed, and the command that fixes what is not
+foliage-android setup    # the SDK, NDK and rust targets, into the `sdk` directory
+foliage-android doctor   # what is installed, and what is not
 foliage-android build    # every configured ABI, then the APK
 foliage-android run      # the above, installed and launched on a connected device
 ```
@@ -480,9 +481,11 @@ real signed release:
   deliver no touch input at all -- the app launches, draws correctly, and ignores every tap, with
   nothing in the log.
 - **Gradle disagrees about where the SDK is.** Check `local.properties`, which Gradle writes with
-  the path it resolved, against what `foliage-android doctor` reports.
-- **Packages installed to `~/Android/Sdk` instead of the repo's SDK.** `ANDROID_HOME` was not
-  exported before `android` ran. Remove the stray tree and export it first.
+  the path it resolved, against what `foliage-android doctor` reports. Nothing in this toolchain
+  reads `ANDROID_HOME`: the SDK is the `sdk` path in `foliage-android.toml` and nowhere else, and
+  the variables Gradle and `cargo ndk` need are set on those processes rather than in your shell.
+- **A download died partway.** `setup` installs one package at a time and retries each, so what
+  already arrived is kept -- rerun it and it resumes rather than starting over.
 
 ## Getting the APK onto a phone
 

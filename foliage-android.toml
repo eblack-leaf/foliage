@@ -11,6 +11,9 @@ app-crate = "application"
 entry-crate = "application-android"
 # Where the generated Gradle project lives, relative to this file.
 project = "application/android"
+# The Android SDK. The only place one is looked for -- no environment variable is read, so `setup`
+# and every build always mean the same directory. Absolute paths work, for an SDK shared elsewhere.
+sdk = ".android-sdk"
 
 # Which ABIs `build` compiles. Each needs its rustup target -- `doctor` says which are missing.
 abis = ["arm64-v8a", "x86_64"]
@@ -27,8 +30,8 @@ games-activity = "4.4.0"
 agp = "9.1.0"
 gradle = "9.3.1"
 
-# What `setup` installs. Known-good rather than required -- cargo-ndk works against any reasonably
-# recent NDK -- but `android sdk install` takes exact versions, so they are named here. `android sdk
-# list --all` shows what is current.
+# The NDK `setup` installs. Known-good rather than required -- cargo-ndk works against any
+# reasonably recent one -- but `android sdk install` takes an exact version, so it is named here.
+# Build-tools are deliberately absent: the Android Gradle Plugin resolves and installs the version
+# it needs itself, so naming one here would only pin something nothing reads.
 ndk = "27.3.13750724"
-build-tools = "35.0.0"

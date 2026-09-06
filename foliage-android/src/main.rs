@@ -7,19 +7,18 @@
 //!
 //! ```text
 //! foliage-android init --app-id io.github.you.yourapp
-//! foliage-android doctor
+//! foliage-android setup
 //! foliage-android run
 //! ```
 //!
 //! [`init`] settles every choice once and records it in `foliage-android.toml`; every command after
 //! that reads it and needs no arguments. What the generated project does *not* hold is the SDK --
-//! [`doctor`] reports what is missing and the command that installs it, and [`build`] finds it
-//! wherever it ends up and sets the environment on the processes it starts, rather than expecting a
-//! shell that was prepared first.
+//! [`setup`] installs one, into the directory that file names -- the only place any command looks.
+//! No environment variable is read, so a build does not depend on how its shell was prepared; the
+//! variables `cargo ndk` and Gradle need are written onto those processes instead.
 //!
 //! [`init`]: Cli::Init
-//! [`doctor`]: Cli::Doctor
-//! [`build`]: Cli::Build
+//! [`setup`]: Cli::Setup
 
 mod environment;
 mod project;
@@ -76,12 +75,12 @@ enum Cli {
         #[arg(long)]
         skip_wrapper: bool,
     },
-    /// Install the toolchain into `.android-sdk/` beside the repo.
+    /// Install the toolchain into the `sdk` directory `foliage-android.toml` names.
     ///
-    /// Everything Android needs and nothing outside that directory, so removing it is `rm -rf
-    /// .android-sdk` and no part of the machine is left changed. The two exceptions are a rustup
-    /// target and `cargo-ndk`, which are toolchain components shared with every Rust project and
-    /// have no per-repo equivalent.
+    /// Everything Android needs and nothing outside that directory, so removing it is one `rm -rf`
+    /// and no part of the machine is left changed. The two exceptions are a rustup target and
+    /// `cargo-ndk`, which are toolchain components shared with every Rust project and have no
+    /// per-repo equivalent.
     ///
     /// A JDK is the one thing this cannot install: it is the package manager's, and every route to
     /// one needs a privilege this should not take. `doctor` says so if it is missing.
@@ -212,6 +211,9 @@ fn init(
         entry_crate,
         // Beside the crate it belongs to, rather than at the root. It is that app's Android
         // project, and a repo with two apps in it would otherwise have them collide.
+        sdk: existing
+            .as_ref()
+            .map_or_else(|| project::SDK.to_string(), |p| p.sdk.clone()),
         project: existing.as_ref().map_or_else(
             || match relative(root, &app_dir) {
                 Some(app) => format!("{app}/{}", project::PROJECT),
@@ -253,15 +255,6 @@ fn init(
         ndk: existing
             .as_ref()
             .map_or_else(|| project::NDK.to_string(), |p| p.ndk.clone()),
-        build_tools: existing.as_ref().map_or_else(
-            || {
-                format!(
-                    "{}.0.0",
-                    existing.as_ref().map_or(project::COMPILE_SDK, |p| p.compile_sdk)
-                )
-            },
-            |p| p.build_tools.clone(),
-        ),
     };
     for abi in &project.abis {
         environment::rust_target(abi)?;
@@ -371,7 +364,7 @@ fn init(
 /// Each step is skipped when what it installs is already there, so this is the command to run again
 /// after changing `compile-sdk` or `ndk` -- it fills in what changed and leaves the rest.
 fn setup(root: &Path, project: &Project, host: Option<&str>) -> Result<(), String> {
-    let sdk = root.join(environment::LOCAL);
+    let sdk = Environment::sdk(root, project);
     let cli = sdk.join("bin").join(environment::executable("android"));
     let host = host.map_or_else(environment::host, str::to_string);
 
@@ -396,25 +389,17 @@ fn setup(root: &Path, project: &Project, host: Option<&str>) -> Result<(), Strin
         }
     }
 
-    // `ANDROID_HOME` decides where packages land, and unset it is `~/Android/Sdk` -- gigabytes
-    // outside the directory this command promises to keep everything in. Set on every child here,
-    // never exported.
-    let android = |args: &[&str]| -> Result<(), String> {
-        let mut command = Command::new(&cli);
-        command.args(args);
-        command.env("ANDROID_HOME", &sdk);
-        command.env("ANDROID_SDK_ROOT", &sdk);
-        run_in(command, root)
-    };
-
     println!("\n== the CLI's own update");
-    // A small launcher that fetches the rest of itself, so this is what makes `sdk install` work
-    // rather than an optional freshening.
-    android(&["update"])?;
+    // Reported and carried on with rather than stopping the run. The update fetches a newer
+    // launcher and nothing here needs one -- the version just downloaded installs packages
+    // perfectly well -- and a CLI that is genuinely broken fails loudly at the first install
+    // rather than being taken on trust.
+    if let Err(reason) = update(&cli, &sdk, root) {
+        println!("could not update the CLI ({reason}) -- carrying on with the version on disk");
+    }
 
     println!("\n== SDK packages");
     let platform = format!("platforms/android-{}", project.compile_sdk);
-    let build_tools = format!("build-tools/{}", project.build_tools);
     let ndk = format!("ndk/{}", project.ndk);
     let wanted = [
         ("platform-tools", sdk.join("platform-tools")),
@@ -423,23 +408,12 @@ fn setup(root: &Path, project: &Project, host: Option<&str>) -> Result<(), Strin
             sdk.join("platforms")
                 .join(format!("android-{}", project.compile_sdk)),
         ),
-        (
-            build_tools.as_str(),
-            sdk.join("build-tools").join(&project.build_tools),
-        ),
         (ndk.as_str(), sdk.join("ndk").join(&project.ndk)),
     ];
-    let install: Vec<&str> = wanted
-        .iter()
-        .filter(|(_, at)| !at.is_dir())
-        .map(|(package, _)| *package)
-        .collect();
-    match install.is_empty() {
-        true => println!("have every package"),
-        false => {
-            let mut args = vec!["sdk", "install"];
-            args.extend(&install);
-            android(&args)?;
+    for (package, at) in &wanted {
+        match at.is_dir() {
+            true => println!("have {package}"),
+            false => install(&cli, &sdk, root, package)?,
         }
     }
 
@@ -477,6 +451,65 @@ fn setup(root: &Path, project: &Project, host: Option<&str>) -> Result<(), Strin
     environment::doctor(root, project)
 }
 
+/// How many times a package download is attempted before giving up.
+///
+/// The NDK is some two gigabytes over one connection, which is long enough that an ordinary dropped
+/// connection is a normal outcome rather than an exceptional one.
+const ATTEMPTS: u32 = 3;
+
+/// Installs one package, retrying a dropped download.
+///
+/// One command per package, rather than one naming all of them. `android sdk install` stages what
+/// it downloads and unpacks at the end, so a batch that fails on its last and largest member throws
+/// away the three that already arrived -- and a rerun starts over. Separately, each finishes and is
+/// on disk before the next begins, which is also what lets [`setup`] skip what is already there.
+fn install(cli: &Path, sdk: &Path, root: &Path, package: &str) -> Result<(), String> {
+    let mut attempt = 1;
+    loop {
+        let mut command = Command::new(cli);
+        command.args(["sdk", "install", package]);
+        command.env("ANDROID_HOME", sdk);
+        command.env("ANDROID_SDK_ROOT", sdk);
+        match run_in(command, root) {
+            Ok(()) => return Ok(()),
+            Err(reason) if attempt < ATTEMPTS => {
+                println!("{package} failed ({reason}) -- retrying, attempt {} of {ATTEMPTS}", attempt + 1);
+                attempt += 1;
+            }
+            Err(reason) => {
+                return Err(format!(
+                    "{package}: {reason}\ngave up after {ATTEMPTS} attempts. Whatever installed \
+                     before this is kept -- rerun `foliage-android setup` to resume."
+                ));
+            }
+        }
+    }
+}
+
+/// Runs `android update`, reading what it said rather than what it returned.
+///
+/// The CLI prints its own failures and exits 0 regardless, so the status is not an answer here. A
+/// download that dies halfway is reported on the output and nowhere else.
+fn update(cli: &Path, sdk: &Path, root: &Path) -> Result<(), String> {
+    let output = Command::new(cli)
+        .arg("update")
+        .env("ANDROID_HOME", sdk)
+        .env("ANDROID_SDK_ROOT", sdk)
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("running {}: {e}", cli.display()))?;
+    let said = format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    print!("{said}");
+    match output.status.success() && !said.to_lowercase().contains("failed") {
+        true => Ok(()),
+        false => Err("it reported a failure".to_string()),
+    }
+}
+
 /// Compiles every ABI and assembles the APK, and answers with where it landed.
 fn build(
     root: &Path,
@@ -484,7 +517,7 @@ fn build(
     release: bool,
     abi: Option<&str>,
 ) -> Result<PathBuf, String> {
-    let environment = Environment::resolve(root).map_err(doctor_first)?;
+    let environment = Environment::resolve(root, project).map_err(doctor_first)?;
     let abis: Vec<String> = match abi {
         Some(abi) => {
             environment::rust_target(abi)?;
@@ -559,7 +592,7 @@ fn run(
     logcat: bool,
 ) -> Result<(), String> {
     let apk = build(root, project, release, abi)?;
-    let environment = Environment::resolve(root).map_err(doctor_first)?;
+    let environment = Environment::resolve(root, project).map_err(doctor_first)?;
     let adb = environment.adb();
     if !adb.is_file() {
         return Err(format!(
@@ -828,8 +861,8 @@ fn ignore(root: &Path, project: &Project) -> Result<(), String> {
             "The Gradle project, written in full by `foliage-android init`.",
         ),
         (
-            environment::LOCAL,
-            "An Android SDK kept beside the repo, installed by `foliage-android setup`.",
+            project.sdk.as_str(),
+            "The Android SDK, installed by `foliage-android setup`.",
         ),
     ];
     let addition: String = wanted

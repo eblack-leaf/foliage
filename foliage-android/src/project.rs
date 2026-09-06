@@ -28,6 +28,14 @@ pub struct Project {
     pub entry_crate: String,
     /// The generated Gradle project, relative to the repo root.
     pub project: String,
+    /// The Android SDK, relative to the repo root.
+    ///
+    /// The only place one is looked for. No environment variable is read and no user-wide location
+    /// is tried: what is written here is what `setup` installs into and what every build uses, so
+    /// the two cannot disagree and neither depends on how a shell was prepared.
+    ///
+    /// An absolute path works, for an SDK shared between repos.
+    pub sdk: String,
     /// Which ABIs are built. `arm64-v8a` covers essentially every phone made since 2017; an
     /// emulator wants the host's, which is what `init` adds when it recognises one.
     pub abis: Vec<String>,
@@ -53,8 +61,6 @@ pub struct Project {
     /// recent one. It is pinned only because `android sdk install` takes an exact version and there
     /// is no spelling for "the current one".
     pub ndk: String,
-    /// The build-tools `setup` installs. Its major tracks the platform; the rest moves.
-    pub build_tools: String,
 }
 
 /// The `androidx.games:games-activity` release matching `android-activity 0.6`, which is what winit
@@ -74,6 +80,12 @@ pub const TARGET_SDK: u32 = 35;
 pub const PROJECT: &str = "android";
 /// A known-good NDK. Any reasonably recent one works; this is the one `setup` installs.
 pub const NDK: &str = "27.3.13750724";
+/// Where the SDK goes unless [`Project::sdk`] says otherwise.
+///
+/// Beside the repo, so it is contained and `rm -rf` undoes it. A default rather than a convention --
+/// Android's own tooling has no notion of a per-repo SDK, which is the reason this is written into
+/// the file rather than assumed.
+pub const SDK: &str = ".android-sdk";
 
 impl Project {
     /// The library the activity loads, as `System.loadLibrary` names it.
@@ -128,6 +140,7 @@ impl Project {
             app_crate: string("app-crate")?,
             entry_crate: string("entry-crate")?,
             project: string("project")?,
+            sdk: string("sdk")?,
             abis: string("abis")?
                 .split(',')
                 .map(|abi| abi.trim().to_string())
@@ -140,7 +153,6 @@ impl Project {
             agp: string("agp")?,
             gradle: string("gradle")?,
             ndk: string("ndk")?,
-            build_tools: string("build-tools")?,
         })
     }
 
@@ -158,6 +170,7 @@ impl Project {
             app_crate,
             entry_crate,
             project,
+            sdk,
             min_sdk,
             compile_sdk,
             target_sdk,
@@ -165,7 +178,6 @@ impl Project {
             agp,
             gradle,
             ndk,
-            build_tools,
             ..
         } = self;
         let text = format!(
@@ -183,6 +195,9 @@ app-crate = \"{app_crate}\"
 entry-crate = \"{entry_crate}\"
 # Where the generated Gradle project lives, relative to this file.
 project = \"{project}\"
+# The Android SDK. The only place one is looked for -- no environment variable is read, so `setup`
+# and every build always mean the same directory. Absolute paths work, for an SDK shared elsewhere.
+sdk = \"{sdk}\"
 
 # Which ABIs `build` compiles. Each needs its rustup target -- `doctor` says which are missing.
 abis = [{abis}]
@@ -199,11 +214,11 @@ games-activity = \"{games_activity}\"
 agp = \"{agp}\"
 gradle = \"{gradle}\"
 
-# What `setup` installs. Known-good rather than required -- cargo-ndk works against any reasonably
-# recent NDK -- but `android sdk install` takes exact versions, so they are named here. `android sdk
-# list --all` shows what is current.
+# The NDK `setup` installs. Known-good rather than required -- cargo-ndk works against any
+# reasonably recent one -- but `android sdk install` takes an exact version, so it is named here.
+# Build-tools are deliberately absent: the Android Gradle Plugin resolves and installs the version
+# it needs itself, so naming one here would only pin something nothing reads.
 ndk = \"{ndk}\"
-build-tools = \"{build_tools}\"
 "
         );
         let path = root.join(FILE);
