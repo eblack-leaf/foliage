@@ -8,7 +8,7 @@
 use foliage::{
     Boxed, Cap, Color, Ease, Elevation, FontSize, Grove, Grow, HAIRLINE, Key, Leaf, Line, Location,
     Motion, Palette, Panel, Place, Point, Pollen, Polygon, Root, Shape, Source, Stem, Text, Timing,
-    center_x, center_y, content, left, top,
+    anchor, center_x, center_y, content, left, right, top,
 };
 use tracing::{debug, info};
 
@@ -20,7 +20,7 @@ struct Destination {
     label: &'static str,
     /// Where a press on it goes.
     url: &'static str,
-    /// Where the tile sits, in unit space.
+    /// Where the tile sits, in the sketch's own terms, which the leaf converts.
     at: (f32, f32),
     /// How far it is turned, in radians.
     turn: f32,
@@ -31,29 +31,32 @@ const DESTINATIONS: [Destination; 3] = [
     Destination {
         label: "book",
         url: "https://eblack-leaf.github.io/foliage/book/",
-        at: (0.200, 0.270),
+        at: (0.232, 0.404),
         turn: 0.18,
     },
     Destination {
         label: "docs",
         url: "https://eblack-leaf.github.io/foliage/api/foliage/",
-        at: (0.471, 0.153),
+        at: (0.480, 0.260),
         turn: -0.24,
     },
     Destination {
         label: "github",
         url: "https://github.com/eblack-leaf/foliage",
-        at: (0.630, 0.470),
+        at: (0.610, 0.630),
         turn: 0.34,
     },
 ];
 
 /// How wide a destination's tile is, in unit space, and how far around it the mosaic keeps clear.
-const PRONG: f32 = 0.150;
-const CLEAR: f32 = 0.088;
+///
+/// A quarter of the leaf's width. Nothing is drawn over the middle of the leaf any more, so a
+/// destination is as large as the shape will hold rather than as large as what shared it allowed.
+const PRONG: f32 = 0.250;
+const CLEAR: f32 = 0.135;
 
-/// Where the wordmark is cut out of the leaf, in unit space.
-const CUTOUT: (f32, f32) = (0.380, 0.420);
+/// The space between the leaf and the wordmark beside it.
+const BESIDE: f32 = 24.0;
 
 /// The ramp the leaf is coloured from: gold at the tips, deep red toward the stem.
 const RAMP: [(f32, f32, f32); 4] = [
@@ -147,7 +150,7 @@ impl Root for Site {
         // the order the ramp runs.
         let taken: Vec<((f32, f32), f32)> = DESTINATIONS
             .iter()
-            .map(|destination| (destination.at, CLEAR))
+            .map(|destination| (silhouette.at(destination.at), CLEAR))
             .collect();
         let tiles = silhouette.tiles(&taken);
         let ramp = Ramp::over(
@@ -155,7 +158,11 @@ impl Root for Site {
             tiles
                 .iter()
                 .map(|tile| tile.center)
-                .chain(DESTINATIONS.iter().map(|destination| destination.at))
+                .chain(
+                    DESTINATIONS
+                        .iter()
+                        .map(|destination| silhouette.at(destination.at)),
+                )
                 .collect::<Vec<_>>()
                 .into_iter(),
         );
@@ -192,7 +199,8 @@ impl Root for Site {
         // its own cutout.
         let prongs = std::array::from_fn(|n| {
             let destination = &DESTINATIONS[n];
-            let warmth = ramp.warmth(height, destination.at);
+            let at = silhouette.at(destination.at);
+            let warmth = ramp.warmth(height, at);
             let hue = ember(warmth);
             let (rest, lit) = (fill(hue), fill(shifted(hue, LIFT)));
             let after = MOSAIC_AT + (warmth * MOSAIC_SPREAD) as u64;
@@ -209,12 +217,12 @@ impl Root for Site {
                     .round_hit_area()
                     .opacity(0.0)
                     .elevate(Elevation::up(1))
-                    .at(placed(height, destination.at, PRONG * SEED)),
+                    .at(placed(height, at, PRONG * SEED)),
             );
             morph(
                 grove,
                 tile,
-                placed(height, destination.at, PRONG),
+                placed(height, at, PRONG),
                 Shape {
                     sides: 6.0,
                     rounding: 0.16,
@@ -228,7 +236,7 @@ impl Root for Site {
                 tile,
                 Text::new(destination.label)
                     .color(Palette::Surface)
-                    .font_size(FontSize::new().xs(10).sm(12).md(16).lg(21).xl(25).short(11))
+                    .font_size(FontSize::new().xs(11).sm(13).md(18).lg(21).xl(24).short(11))
                     .intangible()
                     .opacity(0.0)
                     .at(Location::new().xs(
@@ -245,20 +253,25 @@ impl Root for Site {
             }
         });
 
-        let cutout = grove.branch(
-            leaf,
-            Text::new("FOLIAGE")
-                .color(Palette::Surface)
-                .font_size(FontSize::new().xs(20).sm(24).md(34).lg(44).xl(52).short(22))
+        // Beside the leaf rather than under it, and its own element rather than a hole in it: a
+        // cutout reads as one only where there is fill behind every glyph, which the tips and the
+        // notches of a leaf do not offer. Set against the leaf's own middle, so the two read as one
+        // composition at every size, and stacking nothing under an upright leaf is what keeps the
+        // leaf as large as the viewport's height allows.
+        let wordmark = grove.branch(
+            page,
+            Text::new("foliage")
+                .color(Palette::Ink)
+                .font_size(FontSize::new().xs(22).sm(28).md(36).lg(46).xl(56).short(28))
                 .intangible()
                 .opacity(0.0)
-                .elevate(Elevation::up(3))
+                .anchored(leaf)
                 .at(Location::new().xs(
-                    center_x((CUTOUT.0 * 100.0).pct()).width(content()),
-                    center_y((CUTOUT.1 / height * 100.0).pct()).height(content()),
+                    right(anchor().left() - BESIDE.px()).width(content()),
+                    center_y(anchor().center_y()).height(content()),
                 )),
         );
-        reveal(grove, cutout);
+        reveal(grove, wordmark);
 
         info!(
             dashes = dashes.len(),
@@ -327,15 +340,21 @@ fn reveal(grove: &mut Grove, leaf: Leaf) {
 /// Only the width is stated. The height follows from the proportions the outline was traced in, so
 /// the mosaic inside it -- every part of which is a fraction of this box -- is never distorted.
 fn frame(height: f32) -> Location {
-    let across = |width: f32| center_x(50.pct()).width(width.px());
+    // The leaf is what is centred and the wordmark hangs off its left, so the leaf moves right by
+    // half of what the wordmark and its gap take: the pair is centred rather than the leaf alone.
+    // The second number is that width -- seven characters of the size the wordmark is set at for
+    // that breakpoint -- so the two are stated together and cannot drift apart.
+    let across = |width: f32, wordmark: f32| {
+        center_x(50.pct() + ((wordmark + BESIDE) / 2.0).px()).width(width.px())
+    };
     let down = |width: f32| center_y(50.pct()).height((width * height).px());
     Location::new()
-        .xs(across(312.0), down(312.0))
-        .sm(across(380.0), down(380.0))
-        .md(across(540.0), down(540.0))
-        .lg(across(720.0), down(720.0))
-        .xl(across(840.0), down(840.0))
-        .short(across(340.0), down(340.0))
+        .xs(across(195.0, 98.0), down(195.0))
+        .sm(across(230.0, 119.0), down(230.0))
+        .md(across(330.0, 154.0), down(330.0))
+        .lg(across(400.0, 196.0), down(400.0))
+        .xl(across(460.0, 238.0), down(460.0))
+        .short(across(190.0, 119.0), down(190.0))
 }
 
 /// A square in unit space, as the placement the leaf's own box resolves it against.
@@ -351,12 +370,14 @@ fn spot(height: f32, (x, y): (f32, f32)) -> Point {
     Point::new((x * 100.0).pct(), (y / height * 100.0).pct())
 }
 
-/// Where a point sits across the leaf: `0.0` at the top and the tips, `1.0` toward the stem.
+/// Where a point sits along the leaf: `0.0` at the tip, `1.0` toward the stem.
 ///
 /// Unnormalised. A leaf is not a rectangle, so the corners of the box this is stated over are not
 /// in the shape and the raw reading never reaches either end -- which is what [`Ramp`] is for.
 fn along(height: f32, (x, y): (f32, f32)) -> f32 {
-    0.55 * x + 0.45 * (y / height)
+    // Mostly down the leaf, now that the leaf stands up: gold at the tip, deepening toward the
+    // stem. The across term is what keeps the bands from reading as stripes.
+    0.25 * x + 0.75 * (y / height)
 }
 
 /// The range the leaf actually occupies across the ramp.

@@ -18,6 +18,9 @@ const SKETCH: (f32, f32) = (2000.0, 1500.0);
 ///
 /// Closed implicitly: the last vertex joins the first. The stem is part of it rather than a second
 /// shape, so it is dashed, filled and measured with everything else.
+///
+/// Stated exactly as it was drawn -- lying on its side -- and stood up by [`upright`], so what was
+/// traced and which way it faces stay separable.
 const OUTLINE: [(f32, f32); 75] = [
     (0.480, 0.073),
     (0.520, 0.115),
@@ -97,7 +100,7 @@ const OUTLINE: [(f32, f32); 75] = [
 ];
 
 /// How far apart tile centres sit.
-const PITCH: f32 = 0.045;
+const PITCH: f32 = 0.068;
 
 /// How much of a pitch a tile spans, before the outline has its say.
 ///
@@ -119,11 +122,11 @@ const WANDER: f32 = 0.26;
 const ROOM: f32 = 3.4;
 
 /// A tile the outline leaves less room than this is not drawn at all.
-const LEAST: f32 = 0.010;
+const LEAST: f32 = 0.015;
 
 /// One dash, and the gap after it.
-const DASH: f32 = 0.017;
-const GAP: f32 = 0.013;
+const DASH: f32 = 0.026;
+const GAP: f32 = 0.020;
 
 /// One tile of the mosaic: where it sits, how large it is, and what shape it settles into.
 pub(crate) struct Tile {
@@ -145,6 +148,12 @@ pub(crate) struct Silhouette {
     outline: Vec<(f32, f32)>,
     /// How tall the shape is for every unit of its width.
     height: f32,
+    /// Where the turned sketch's near corner landed, and what its width was divided by. Kept so
+    /// that a point can be brought into unit space after the fact, which is what [`at`] is.
+    ///
+    /// [`at`]: Silhouette::at
+    origin: (f32, f32),
+    scale: f32,
 }
 
 impl Silhouette {
@@ -154,23 +163,34 @@ impl Silhouette {
     /// that the shape spans exactly `0.0..1.0` across. Its height falls out of that rather than
     /// being stated, which is what keeps the leaf the proportions it was drawn in.
     pub(crate) fn traced() -> Self {
-        let scaled: Vec<(f32, f32)> = OUTLINE
-            .iter()
-            .map(|(x, y)| (x * SKETCH.0, y * SKETCH.1))
-            .collect();
+        let turned: Vec<(f32, f32)> = OUTLINE.iter().copied().map(upright).collect();
         let reach = |axis: fn(&(f32, f32)) -> f32| {
-            let low = scaled.iter().map(axis).fold(f32::MAX, f32::min);
-            let high = scaled.iter().map(axis).fold(f32::MIN, f32::max);
+            let low = turned.iter().map(axis).fold(f32::MAX, f32::min);
+            let high = turned.iter().map(axis).fold(f32::MIN, f32::max);
             (low, high - low)
         };
         let ((left, width), (top, tall)) = (reach(|point| point.0), reach(|point| point.1));
-        Self {
-            outline: scaled
-                .iter()
-                .map(|(x, y)| ((x - left) / width, (y - top) / width))
-                .collect(),
+        let mut silhouette = Self {
+            outline: Vec::new(),
             height: tall / width,
-        }
+            origin: (left, top),
+            scale: width,
+        };
+        silhouette.outline = OUTLINE.iter().copied().map(|point| silhouette.at(point)).collect();
+        silhouette
+    }
+
+    /// A point of the sketch, in unit space.
+    ///
+    /// What lets the page say where a destination sits in the terms the leaf was drawn in. Read off
+    /// the drawing once, they then survive the shape being turned, rescaled or retraced, where
+    /// coordinates taken from the finished unit space would have to be derived again each time.
+    pub(crate) fn at(&self, point: (f32, f32)) -> (f32, f32) {
+        let (x, y) = upright(point);
+        (
+            (x - self.origin.0) / self.scale,
+            (y - self.origin.1) / self.scale,
+        )
     }
 
     /// How tall the shape is for every unit of its width.
@@ -296,6 +316,18 @@ impl Silhouette {
             .take(self.outline.len())
             .map(|(from, to)| (*from, *to))
     }
+}
+
+/// A point of the sketch, stood upright.
+///
+/// The leaf was drawn lying on its side with its stem out to the right, and a leaf hangs from its
+/// stem -- so a quarter turn clockwise puts the stem at the bottom and the blade above it. The two
+/// axes are scaled by the page first, because a turn is only a turn once they are comparable.
+///
+/// Applied in one place, so everything stated in the sketch's own terms turns together.
+fn upright((x, y): (f32, f32)) -> (f32, f32) {
+    let (x, y) = (x * SKETCH.0, y * SKETCH.1);
+    (-y, x)
 }
 
 /// How far apart two points are.
