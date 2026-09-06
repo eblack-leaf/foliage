@@ -35,7 +35,9 @@ changed, and a 60Hz budget runs out at around 13000 elements that are not moving
 
 Moving it means a dirty set, and the constraint is R2: resolution is dependency-ordered and an anchor
 may point anywhere — a later sibling, a cousin, another subtree — so a dirty set has to close over
-everything anchored into it before it is safe to resolve only that.
+everything anchored into it before it is safe to resolve only that. What it would save is the figure
+above, which reading by position has already taken 42% off: the closure over anchors costs what it
+always did, against a smaller prize.
 
 ### What the passes spend it on
 
@@ -94,6 +96,10 @@ side of that line or it reopens R6's tie-break.
 The sets are built every frame and handed out behind an `Arc`, including on frames where nothing was
 reported. The candidate is reusing the buffers across frames, or building only what a frame actually
 has to report.
+
+**Measured, and not a cost.** Step 3 — which seals the drift, delivers it, and hands the app its
+`Pollen` — takes 0.004ms a frame with nothing reported, and reads the same at 4096 elements as at
+8192, so it is not the tree's size either. There is nothing here to reclaim.
 
 ## The shared walk
 
