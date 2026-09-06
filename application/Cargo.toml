@@ -7,4 +7,11 @@ description = "The site foliage is proven against. Builds only against foliage's
 
 [dependencies]
 foliage = { path = "../foliage" }
+tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+# `tracing-subscriber`'s default writer is stderr and its default timer is `SystemTime`. A browser
+# discards the first and does not answer the second, so this supplies the console writer that
+# stands in for both.
+tracing-web = "0.1.3"

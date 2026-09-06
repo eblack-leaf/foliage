@@ -48,6 +48,36 @@ fn max_content_takes_the_widest_hard_line() {
     );
 }
 
+/// A run laid out at exactly the width it asked for takes one line, at every size.
+///
+/// The one width at which wrapping must not happen. A box is *solved* rather than stated -- a
+/// centred placement reaches its width by subtracting two coordinates -- so a box sized to
+/// max-content can measure a fraction of a pixel under it. Floored exactly, that fraction is a
+/// whole column, and the last character drops to a line of its own at the sizes where the
+/// arithmetic happens to round down rather than up.
+///
+/// Stated over a spread of cells and offsets because it is not a property of any one of them: the
+/// same run wraps at one size and not at the next.
+#[test]
+fn a_run_at_its_own_max_content_width_never_wraps() {
+    for size in 8..=64 {
+        // As `Fonts::cell` arrives at a pitch, which is what makes these the widths that occur.
+        let pitch = (0.6 * size as f32).ceil();
+        let shaped = shape("FOLIAGE", cell(pitch, pitch * 1.3));
+        for step in 0..400 {
+            // The box as a centred placement solves it: a centre, and half the extent either side.
+            let center = step as f32 * 0.9137;
+            let half = shaped.max_content() / 2.0;
+            let width = (center + half) - (center - half);
+            assert_eq!(
+                shaped.measure(width),
+                shaped.cell().height,
+                "wrapped at pitch {pitch} about {center}"
+            );
+        }
+    }
+}
+
 /// An element with nothing in it measures to zero rather than to one line of nothing.
 #[test]
 fn an_empty_run_measures_to_nothing() {

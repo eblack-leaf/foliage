@@ -18,6 +18,13 @@ use std::collections::HashMap;
 use crate::coordinate::{Area, Position};
 use crate::text::font::{Font, Fonts};
 
+/// How much of a cell a line may be short of a whole one and still hold it.
+///
+/// A sixty-fourth: far below what any glyph occupies, so nothing that would genuinely overflow
+/// fits, and far above the error a resolved box accumulates. It exists because a width is solved
+/// rather than stated -- see [`columns`](Shaped::columns).
+const SLACK: f32 = 1.0 / 64.0;
+
 /// One run, shaped: what the string turned out to be, before anything knows how wide it may be.
 ///
 /// The characters are in the run's own index space -- the space a per-character tint and a caret
@@ -77,11 +84,18 @@ impl Shaped {
     ///
     /// Whole cells, because a monospaced line is an integral number of them: half a cell of room at
     /// the end of a line is not somewhere a character goes.
+    ///
+    /// Counted with [`SLACK`] of tolerance, because the width is a resolved box and a box is solved
+    /// in floating point. An element sized to [`max_content`](Shaped::max_content) asks for exactly
+    /// its own character count, and a placement that reaches that width by subtracting two
+    /// coordinates -- which is every centred and every stretched one -- can land a fraction of a
+    /// pixel under it. Floored exactly, that fraction is a whole column, and the one width at which
+    /// a run must not wrap is the width it asked for.
     fn columns(&self, width: f32) -> usize {
         if self.cell.width <= 0.0 {
             return 0;
         }
-        (width / self.cell.width).floor().max(0.0) as usize
+        (width / self.cell.width + SLACK).floor().max(0.0) as usize
     }
 
     /// How many lines the run takes in `columns` cells.

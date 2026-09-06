@@ -7,6 +7,7 @@
 //! It is deliberately bare. What goes in [`site`] is written by hand, and what it costs to write is
 //! the reading.
 
+mod mosaic;
 mod site;
 
 use foliage::{Area, Foliage};
@@ -26,16 +27,34 @@ pub fn run(mut foliage: Foliage) {
     foliage.photosynthesize();
 }
 
-/// Sends the engine's own trace to stderr, at whatever `RUST_LOG` asks for.
+/// Sends the engine's own trace somewhere it can be read, at whatever `RUST_LOG` asks for.
 ///
 /// `info` by default: boot, the adapter and the surface. `RUST_LOG=foliage=debug` adds every
 /// structural change and every dropped op, which is the only account there is of an op that named
 /// something no longer live.
+///
+/// Where it goes differs per platform, because what a platform offers to be written to differs. A
+/// desktop has a stderr and a clock. A browser discards the first and does not answer the second at
+/// all, so it takes the console instead, with no timestamp to ask for and no escape codes a console
+/// would print rather than obey.
 fn trace() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    #[cfg(not(target_family = "wasm"))]
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+    #[cfg(target_family = "wasm")]
+    {
+        use tracing_subscriber::layer::SubscriberExt;
+        use tracing_subscriber::util::SubscriberInitExt;
+
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(
+                tracing_subscriber::fmt::layer()
+                    .with_ansi(false)
+                    .without_time()
+                    .with_writer(tracing_web::MakeWebConsoleWriter::new()),
+            )
+            .init();
+    }
 }
