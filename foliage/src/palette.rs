@@ -6,7 +6,7 @@ use tracing::trace;
 use crate::color::Color;
 
 /// How many roles a [`Scheme`] answers.
-const ROLES: usize = 6;
+const ROLES: usize = 7;
 
 /// How many steps a role's ramp holds.
 const STEPS: usize = 5;
@@ -26,7 +26,7 @@ const NOTCH: f32 = 0.06;
 /// A tone is a role and a step on that role's ramp. The role is what the color is for and is what a
 /// scheme is written in terms of; the step is how far the tone sits from the ground the scheme is
 /// read against, which is what a state -- a hover, a press, something disabled -- is expressed as
-/// without leaving the scheme. Each of the six roles names its own base step, so `Palette::Accent`
+/// without leaving the scheme. Each of the seven roles names its own base step, so `Palette::Accent`
 /// is a tone in its own right and every element that declares one says nothing about steps.
 ///
 /// Resolution happens in extraction, against the tone the element declared. Nothing on the element
@@ -37,7 +37,7 @@ pub struct Palette {
     step: Step,
 }
 
-// The six roles, each named at its base step. Cased as the roles they name rather than as the
+// The seven roles, each named at its base step. Cased as the roles they name rather than as the
 // constants they are, because a tone is what a caller writes and `Palette::Accent` is its name.
 #[allow(non_upper_case_globals)]
 impl Palette {
@@ -47,16 +47,28 @@ impl Palette {
     pub const Raised: Self = Self::base(Role::Raised);
     /// A quieter fill, for a division or a rule.
     pub const Muted: Self = Self::base(Role::Muted);
-    /// The one emphatic color.
+    /// The emphatic color, and what the app's own content is marked with.
     pub const Accent: Self = Self::base(Role::Accent);
+    /// The second hue: what reports the system's own state rather than the app's content.
+    ///
+    /// A separate role and not a step of [`Accent`](Palette::Accent), because the two answer
+    /// different questions and a scheme is expected to move them independently. What is read on top
+    /// of it is [`Contrast`](Palette::Contrast), the same as for the accent.
+    pub const Signal: Self = Self::base(Role::Signal);
     /// What is read against a surface rather than drawn as one.
     pub const Ink: Self = Self::base(Role::Ink);
-    /// What is read against [`Accent`](Palette::Accent) rather than against a surface.
+    /// What is read against a hue -- [`Accent`](Palette::Accent) or [`Signal`](Palette::Signal) --
+    /// rather than against a surface.
     ///
-    /// The accent is the one role whose color a scheme is expected to move furthest, and a label on
-    /// top of it cannot follow with [`Ink`](Palette::Ink) -- ink is legible against a surface by
-    /// construction and against an accent only by accident. Stating both is what lets an accent be
-    /// rehued without silently making everything written on it unreadable.
+    /// The hues are the roles whose colors a scheme is expected to move furthest, and a label on top
+    /// of one cannot follow with [`Ink`](Palette::Ink) -- ink is legible against a surface by
+    /// construction and against a hue only by accident. Stating both is what lets a hue be rehued
+    /// without silently making everything written on it unreadable.
+    ///
+    /// One contrast serves every hue, exactly as one ink serves every surface. That makes seeding
+    /// the hues coherently with it the scheme's job: a scheme that moves one hue far from the other
+    /// degrades legibility on it, which is the same latitude -- and the same failure -- `Ink`
+    /// already carries across `Surface`, `Raised` and `Muted`.
     pub const Contrast: Self = Self::base(Role::Contrast);
 }
 
@@ -119,6 +131,7 @@ enum Role {
     Raised,
     Muted,
     Accent,
+    Signal,
     Ink,
     Contrast,
 }
@@ -131,8 +144,9 @@ impl Role {
             Role::Raised => 1,
             Role::Muted => 2,
             Role::Accent => 3,
-            Role::Ink => 4,
-            Role::Contrast => 5,
+            Role::Signal => 4,
+            Role::Ink => 5,
+            Role::Contrast => 6,
         }
     }
 }
@@ -254,13 +268,13 @@ impl Reading {
 
 /// What each [`Palette`] tone resolves to.
 ///
-/// Six roles of five steps each, written at boot or at any frame after it with
+/// Seven roles of five steps each, written at boot or at any frame after it with
 /// [`repaint`](crate::Grow::repaint). Changing it changes every element carrying an affected tone
 /// and nothing else: extraction resolves the tone each frame and compares the result, so the
 /// elements that moved are exactly the ones that were painted in a color that changed.
 ///
-/// A scheme is stated in six colors, one per role, and derives the other four steps of each ramp
-/// from that seed -- so a theme is six decisions rather than thirty. Derivation holds the seed's hue
+/// A scheme is stated in seven colors, one per role, and derives the other four steps of each ramp
+/// from that seed -- so a theme is seven decisions rather than thirty-five. Derivation holds the seed's hue
 /// and chroma and moves only its lightness, in OKLab, away from the ground the reading names; a step
 /// that leaves sRGB has its chroma backed off until it fits. A single step can be replaced outright
 /// where a derived one will not do.
@@ -277,7 +291,7 @@ impl Scheme {
         Self::default()
     }
 
-    /// The same six roles read against a light ground.
+    /// The same seven roles read against a light ground.
     ///
     /// A separate scheme rather than a flag on this one, because which colors a role is seeded with
     /// is a decision and not a transform: a green that carries an accent against near-black is not
@@ -290,6 +304,7 @@ impl Scheme {
                 Color::rgb(1.0, 1.0, 1.0),
                 Color::rgb(0.66, 0.68, 0.72),
                 Color::rgb(0.20, 0.52, 0.34),
+                Color::rgb(0.19, 0.42, 0.60),
                 Color::rgb(0.10, 0.11, 0.13),
                 Color::rgb(0.97, 0.98, 0.99),
             ],
@@ -348,6 +363,7 @@ impl Default for Scheme {
                 Color::rgb(0.15, 0.16, 0.19),
                 Color::rgb(0.28, 0.30, 0.34),
                 Color::rgb(0.38, 0.71, 0.51),
+                Color::rgb(0.36, 0.63, 0.82),
                 Color::rgb(0.93, 0.94, 0.96),
                 Color::rgb(0.07, 0.08, 0.09),
             ],

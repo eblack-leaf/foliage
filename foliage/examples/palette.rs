@@ -7,7 +7,7 @@
 //!
 //! Three things to press:
 //!
-//! - **The reading**, `dark` or `light`. The same six roles, seeded for the ground they are read
+//! - **The reading**, `dark` or `light`. The same seven roles, seeded for the ground they are read
 //!   against. Every step on the page inverts with it, because a step is named for where it
 //!   stands relative to the ground rather than for which way it moves.
 //! - **The accent**, one of five seeds. A scheme is stated in one color per role and derives the
@@ -57,11 +57,12 @@ const STATE_W: f32 = 148.0;
 const STATE_H: f32 = 72.0;
 
 /// Every role, at its base step, with what to call it.
-const ROLES: [(&str, Palette); 6] = [
+const ROLES: [(&str, Palette); 7] = [
     ("surface", Palette::Surface),
     ("raised", Palette::Raised),
     ("muted", Palette::Muted),
     ("accent", Palette::Accent),
+    ("signal", Palette::Signal),
     ("ink", Palette::Ink),
     ("contrast", Palette::Contrast),
 ];

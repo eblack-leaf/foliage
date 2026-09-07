@@ -6,11 +6,12 @@ use crate::tests::{grove, tick};
 use crate::{Boxed, Grove, Grow, Leaf, Location, Palette, Panel, Scheme, Source, Step, left, top};
 
 /// Every role, at its base step, in the order a scheme holds them.
-const ROLES: [Palette; 6] = [
+const ROLES: [Palette; 7] = [
     Palette::Surface,
     Palette::Raised,
     Palette::Muted,
     Palette::Accent,
+    Palette::Signal,
     Palette::Ink,
     Palette::Contrast,
 ];
@@ -150,7 +151,7 @@ fn stepping_saturates_at_the_ends_of_a_ramp() {
     );
 }
 
-/// A theme is six decisions rather than thirty.
+/// A theme is seven decisions rather than thirty-five.
 #[test]
 fn seeding_a_role_derives_the_rest_of_its_ramp() {
     let before = Scheme::new();

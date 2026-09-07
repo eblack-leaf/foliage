@@ -239,9 +239,10 @@ An element declares a **tone**, and the `Scheme` decides what it resolves to. A 
 | `Surface` | The ordinary fill, and what an element that says nothing takes |
 | `Raised` | A surface in front of another: a card against the page |
 | `Muted` | A quieter fill, for a division or a rule |
-| `Accent` | The one emphatic color |
+| `Accent` | The emphatic color, and what the app's own content is marked with |
+| `Signal` | The second hue: what reports the system's own state rather than the app's content |
 | `Ink` | What is read against a surface |
-| `Contrast` | What is read against `Accent` |
+| `Contrast` | What is read against a hue — `Accent` or `Signal` |
 
 Each role names its own base step, so `Palette::Accent` is a tone in its own right. `Palette::at`
 takes a role to a named `Step` — `Farthest`, `Far`, `Base`, `Near`, `Nearest` — and
@@ -255,8 +256,8 @@ than a color picked beside it, so it survives a repaint without being restated.
 A `Fill` is either a tone or a `Color` stated outright. A literal is an element saying it is not
 part of the scheme: `Grow::repaint` moves the first and not the second.
 
-A `Scheme` is stated in six colors, one per role, and derives the other four steps of each ramp in
-OKLab — so a theme is six decisions rather than thirty. `Scheme::new` is a dark reading,
+A `Scheme` is stated in seven colors, one per role, and derives the other four steps of each ramp in
+OKLab — so a theme is seven decisions rather than thirty-five. `Scheme::new` is a dark reading,
 `Scheme::light` a light one, and `Scheme::set` replaces a role's seed (re-deriving its ramp) or
 one step outright. `Grow::repaint` is the one write that names no element.
 
