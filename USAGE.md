@@ -261,6 +261,32 @@ OKLab — so a theme is seven decisions rather than thirty-five. `Scheme::new` i
 `Scheme::light` a light one, and `Scheme::set` replaces a role's seed (re-deriving its ramp) or
 one step outright. `Grow::repaint` is the one write that names no element.
 
+### Grounds, and the marks read against them
+
+The seven are not seven independent decisions. A ramp reaches two notches either side of its seed,
+so **every seed is either a ground or a mark, and no step moves one into the other** — the distance
+from a fill to something legible on that fill is several times what a ramp spans. That is
+arithmetic, not convention, and it is why the roles come in the pairs they do.
+
+| Ground | Read against it |
+|---|---|
+| `Surface`, `Raised`, `Muted` | `Ink` |
+| `Accent` | `Contrast` |
+| `Signal` | whichever the app seeded it to be |
+
+Nothing enforces this. A role is an index into five colors, and an element filled with `Ink` or
+lettered in `Muted` draws exactly as asked. What the names carry is which seeds were chosen as
+partners, and holding a scheme to that is the scheme author's job — the failure it prevents is
+silent, because an illegible tone still renders.
+
+`Signal` is the one role with no partner assigned. Fill with it and seed it like a ground, reading
+`Contrast` on top; mark with it — a glyph, a rule, a run of text set apart — and seed it like ink
+instead. Which job it does is decided when it is seeded, not at the callsite.
+
+So: a role is seeded for the job it is given, and a role given the other job needs its own seed
+rather than a step. Text set in a hue seeded to fill with is unreadable at every step of its ramp,
+and `Accent` fails this exactly as readily as `Signal` does.
+
 *Modules: `src/palette.rs`, `src/color.rs`.*
 
 ## Text

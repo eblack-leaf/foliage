@@ -49,26 +49,32 @@ impl Palette {
     pub const Muted: Self = Self::base(Role::Muted);
     /// The emphatic color, and what the app's own content is marked with.
     pub const Accent: Self = Self::base(Role::Accent);
-    /// The second hue: what reports the system's own state rather than the app's content.
+    /// The second hue, and the one role with no partner assigned.
     ///
     /// A separate role and not a step of [`Accent`](Palette::Accent), because the two answer
-    /// different questions and a scheme is expected to move them independently. What is read on top
-    /// of it is [`Contrast`](Palette::Contrast), the same as for the accent.
+    /// different questions and a scheme is expected to move them independently.
+    ///
+    /// Every other role states which job it does, so its seed is decided for it. This one does not:
+    /// an app that fills with it seeds it like a ground, and reads [`Contrast`](Palette::Contrast)
+    /// on top; an app that marks with it -- a glyph, a rule, a run of text set apart from the rest
+    /// -- seeds it like ink instead. The two are different colors and a step does not connect them,
+    /// so which job it does is decided when it is seeded and not at the callsite.
     pub const Signal: Self = Self::base(Role::Signal);
     /// What is read against a surface rather than drawn as one.
     pub const Ink: Self = Self::base(Role::Ink);
-    /// What is read against a hue -- [`Accent`](Palette::Accent) or [`Signal`](Palette::Signal) --
-    /// rather than against a surface.
+    /// What is read against [`Accent`](Palette::Accent), and against
+    /// [`Signal`](Palette::Signal) wherever that is seeded as a ground.
     ///
     /// The hues are the roles whose colors a scheme is expected to move furthest, and a label on top
     /// of one cannot follow with [`Ink`](Palette::Ink) -- ink is legible against a surface by
     /// construction and against a hue only by accident. Stating both is what lets a hue be rehued
     /// without silently making everything written on it unreadable.
     ///
-    /// One contrast serves every hue, exactly as one ink serves every surface. That makes seeding
-    /// the hues coherently with it the scheme's job: a scheme that moves one hue far from the other
-    /// degrades legibility on it, which is the same latitude -- and the same failure -- `Ink`
-    /// already carries across `Surface`, `Raised` and `Muted`.
+    /// One contrast serves both hues, exactly as one ink serves all three surfaces. That makes
+    /// seeding them coherently with it the scheme's job: a scheme that moves one hue far from the
+    /// other degrades legibility on it, which is the same latitude -- and the same failure -- `Ink`
+    /// already carries across `Surface`, `Raised` and `Muted`. A `Signal` seeded as ink is not a
+    /// ground and has no label on it, so this does not answer it.
     pub const Contrast: Self = Self::base(Role::Contrast);
 }
 
@@ -274,10 +280,34 @@ impl Reading {
 /// elements that moved are exactly the ones that were painted in a color that changed.
 ///
 /// A scheme is stated in seven colors, one per role, and derives the other four steps of each ramp
-/// from that seed -- so a theme is seven decisions rather than thirty-five. Derivation holds the seed's hue
-/// and chroma and moves only its lightness, in OKLab, away from the ground the reading names; a step
-/// that leaves sRGB has its chroma backed off until it fits. A single step can be replaced outright
-/// where a derived one will not do.
+/// from that seed -- so a theme is seven decisions rather than thirty-five. Derivation holds the
+/// seed's hue and chroma and moves only its lightness, in OKLab, away from the ground the reading
+/// names; a step that leaves sRGB has its chroma backed off until it fits. A single step can be
+/// replaced outright where a derived one will not do.
+///
+/// # Grounds, and the marks read against them
+///
+/// The seven are not seven independent decisions. A ramp reaches two notches either side of its
+/// seed, so **every seed is either a ground or a mark, and no step moves one into the other**: the
+/// distance from a fill to something legible on that fill is several times what a ramp spans. That
+/// is arithmetic rather than convention, and it is the whole reason the roles come in the pairs
+/// they do.
+///
+/// | Ground | Read against it |
+/// |---|---|
+/// | [`Surface`](Palette::Surface), [`Raised`](Palette::Raised), [`Muted`](Palette::Muted) | [`Ink`](Palette::Ink) |
+/// | [`Accent`](Palette::Accent) | [`Contrast`](Palette::Contrast) |
+/// | [`Signal`](Palette::Signal) | whichever the app seeded it to be -- see the role |
+///
+/// Nothing enforces this. A role is an index into five colors, and an element filled with
+/// [`Ink`](Palette::Ink) or lettered in [`Muted`](Palette::Muted) draws exactly as asked. What the
+/// names carry is which seeds were chosen as partners, and holding a scheme to that is the scheme
+/// author's job -- the failure it prevents is silent, because an illegible tone still renders.
+///
+/// The practical form of the rule: a role is seeded for the job it is given, and a role given the
+/// other job needs its own seed rather than a step. Text set in a hue seeded to fill with is
+/// unreadable at every step of its ramp, and [`Accent`](Palette::Accent) fails this exactly as
+/// readily as [`Signal`](Palette::Signal) does.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Scheme {
     tones: [Color; ROLES * STEPS],
