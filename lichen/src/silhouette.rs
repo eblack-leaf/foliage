@@ -174,7 +174,7 @@ impl Silhouette {
         cells
     }
 
-    /// Where a region sits on each named vertex -- `(vertex index, drop)` -- and how large every
+    /// Where a region sits on each named vertex -- `(vertex index, nudge)` -- and how large every
     /// one of them is.
     ///
     /// Each is pulled off its vertex toward the middle of the shape so that a square centred there
@@ -186,8 +186,8 @@ impl Silhouette {
     ///
     /// Held inside the shape's own box, because a vertex on its edge would have a region hanging
     /// over the side. Sized again afterwards, since holding a region in moves it toward the others,
-    /// and then dropped by whatever its vertex asks for.
-    pub(crate) fn regions(&self, at: &[(usize, f32)]) -> (Vec<(f32, f32)>, f32) {
+    /// and then nudged by whatever its vertex asks for, in unit space on each axis.
+    pub(crate) fn regions(&self, at: &[(usize, (f32, f32))]) -> (Vec<(f32, f32)>, f32) {
         let middle = self.middle();
         let centers: Vec<(f32, f32)> = at
             .iter()
@@ -212,11 +212,11 @@ impl Silhouette {
             .map(|&(x, y)| (x.clamp(half, 1.0 - half), y.clamp(half, self.height - half)))
             .collect();
         let size = room(&held) * (1.0 - APART);
-        // Dropped last, so that a region asking to sit lower moves only itself.
+        // Nudged last, so that a region asking to sit elsewhere moves only itself.
         let regions = held
             .iter()
             .zip(at)
-            .map(|(&(x, y), &(_, drop))| (x, y + drop))
+            .map(|(&(x, y), &(_, (dx, dy)))| (x + dx, y + dy))
             .collect();
         (regions, size)
     }

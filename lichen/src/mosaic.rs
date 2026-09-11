@@ -229,13 +229,16 @@ impl Mosaic {
         root
     }
 
-    /// A square on each named vertex -- `(vertex index, drop)` -- sized so no two meet, and a stem
-    /// over each to hang something on. The tiles under a square are what `emphasize` recolours.
+    /// A square on each named vertex -- `(vertex index, nudge)` -- sized so no two meet, and a
+    /// stem over each to hang something on. The tiles under a square are what `emphasize`
+    /// recolours. The nudge is how far the square is moved off where it would otherwise sit, in
+    /// unit space on each axis, for a vertex that is a corner of its feature rather than the
+    /// middle of it.
     ///
     /// Once, after `grow`; nothing on one that was never grown. Branched after every tile, so what
     /// is hung off a region is branched after every part of the mosaic rather than into the middle
     /// of it. Hands back the stems to keep, in the order they were named.
-    pub fn regions(&mut self, grove: &mut Grove, at: &[(usize, f32)]) -> Vec<Leaf> {
+    pub fn regions(&mut self, grove: &mut Grove, at: &[(usize, (f32, f32))]) -> Vec<Leaf> {
         let Some(root) = self.root else {
             return Vec::new();
         };
