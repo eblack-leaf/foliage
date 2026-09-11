@@ -1,5 +1,5 @@
 [workspace]
-members = ["foliage", "foliage-icons", "foliage-android", "application", "xtask", "application-android"]
+members = ["foliage", "foliage-icons", "foliage-android", "lichen", "application", "xtask", "application-android"]
 resolver = "3"
 
 [profile.dev]

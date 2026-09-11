@@ -1,0 +1,9 @@
+[package]
+name = "lichen"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Scattered polygons on foliage: a mosaic in a silhouette, a trail of beads, a cluster of motes."
+
+[dependencies]
+foliage = { path = "../foliage" }

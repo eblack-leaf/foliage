@@ -199,7 +199,10 @@ fn init(
     let app_dir = match package_name(&here.join("Cargo.toml")).as_deref() == Some(&app_crate) {
         true => here,
         false => crate_dir(root, &app_crate).ok_or_else(|| {
-            format!("no crate `{app_crate}` in {} -- is it a workspace member?", root.display())
+            format!(
+                "no crate `{app_crate}` in {} -- is it a workspace member?",
+                root.display()
+            )
         })?,
     };
     let project = Project {
@@ -241,11 +244,10 @@ fn init(
         target_sdk: existing
             .as_ref()
             .map_or(project::TARGET_SDK, |p| p.target_sdk),
-        games_activity: existing
-            .as_ref()
-            .map_or_else(|| project::GAMES_ACTIVITY.to_string(), |p| {
-                p.games_activity.clone()
-            }),
+        games_activity: existing.as_ref().map_or_else(
+            || project::GAMES_ACTIVITY.to_string(),
+            |p| p.games_activity.clone(),
+        ),
         agp: existing
             .as_ref()
             .map_or_else(|| project::AGP.to_string(), |p| p.agp.clone()),
@@ -473,7 +475,10 @@ fn install(cli: &Path, sdk: &Path, root: &Path, package: &str) -> Result<(), Str
         match run_in(command, root) {
             Ok(()) => return Ok(()),
             Err(reason) if attempt < ATTEMPTS => {
-                println!("{package} failed ({reason}) -- retrying, attempt {} of {ATTEMPTS}", attempt + 1);
+                println!(
+                    "{package} failed ({reason}) -- retrying, attempt {} of {ATTEMPTS}",
+                    attempt + 1
+                );
                 attempt += 1;
             }
             Err(reason) => {
@@ -544,7 +549,9 @@ fn build(
         run_in(command, root)?;
         // `jniLibs/` is an input to Gradle rather than an output it tracks, so an absent library
         // here is a successful build of the previous one. Checked before anything is assembled.
-        let library = jni_libs.join(abi).join(format!("lib{}.so", project.lib_name()));
+        let library = jni_libs
+            .join(abi)
+            .join(format!("lib{}.so", project.lib_name()));
         if !library.is_file() {
             return Err(format!(
                 "{} was not written.\ncargo ndk reported success, so this is a naming \
@@ -699,7 +706,9 @@ fn dependency_spec(manifest: &Path, name: &str) -> Option<String> {
         if !inside || line.starts_with('#') {
             continue;
         }
-        if let Some(spec) = line.strip_prefix(name).and_then(|rest| rest.trim().strip_prefix('='))
+        if let Some(spec) = line
+            .strip_prefix(name)
+            .and_then(|rest| rest.trim().strip_prefix('='))
         {
             return Some(spec.trim().to_string());
         }
@@ -823,7 +832,10 @@ fn member(root: &Path, entry_crate: &str) -> Result<(), String> {
     let mut updated = text.clone();
     updated.insert_str(close, &format!("{separator}\"{entry_crate}\""));
     fs::write(&manifest, updated).map_err(|e| format!("writing {}: {e}", manifest.display()))?;
-    println!("added \"{entry_crate}\" to members in {}", manifest.display());
+    println!(
+        "added \"{entry_crate}\" to members in {}",
+        manifest.display()
+    );
     Ok(())
 }
 
@@ -891,13 +903,16 @@ fn ignore(root: &Path, project: &Project) -> Result<(), String> {
 /// Runs a command, reporting a missing one as the install that fixes it.
 fn run_in(mut command: Command, cwd: &Path) -> Result<(), String> {
     let program = command.get_program().to_string_lossy().to_string();
-    let status = command.current_dir(cwd).status().map_err(|e| match e.kind() {
-        std::io::ErrorKind::NotFound => match program.as_str() {
-            "cargo" => "no cargo on PATH".to_string(),
-            _ => format!("{program} not found"),
-        },
-        _ => format!("running {program}: {e}"),
-    })?;
+    let status = command
+        .current_dir(cwd)
+        .status()
+        .map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => match program.as_str() {
+                "cargo" => "no cargo on PATH".to_string(),
+                _ => format!("{program} not found"),
+            },
+            _ => format!("running {program}: {e}"),
+        })?;
     match status.success() {
         true => Ok(()),
         false => Err(format!("{program} failed")),

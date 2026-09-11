@@ -64,7 +64,6 @@ pub fn themes_xml() -> String {
     THEMES_XML.to_string()
 }
 
-
 pub fn main_activity_java(app_id: &str, lib_name: &str) -> String {
     fill(
         MAIN_ACTIVITY_JAVA,

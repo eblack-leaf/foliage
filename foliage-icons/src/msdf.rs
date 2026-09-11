@@ -152,7 +152,9 @@ pub fn bake(svg: &[u8], spec: Bake) -> Result<Baked, String> {
         }
         let mut built = Contour::default();
         for pair in contour.windows(2) {
-            built.segments.push(Segment::line(point(pair[0]), point(pair[1])));
+            built
+                .segments
+                .push(Segment::line(point(pair[0]), point(pair[1])));
         }
         let last = *contour.last().expect("a contour of three or more");
         built
@@ -224,11 +226,10 @@ fn collect(group: &usvg::Group, nonzero: &mut Vec<SkPath>, evenodd: &mut Vec<SkP
 /// Flattens a path into polyline contours within `tolerance` of the curves they came from.
 fn flatten(path: &SkPath, tolerance: f64, out: &mut Vec<Vec<[f64; 2]>>) {
     let mut contour: Vec<[f64; 2]> = Vec::new();
-    let close = |contour: &mut Vec<[f64; 2]>, out: &mut Vec<Vec<[f64; 2]>>| {
-        match contour.len() >= 3 {
-            true => out.push(std::mem::take(contour)),
-            false => contour.clear(),
-        }
+    let close = |contour: &mut Vec<[f64; 2]>, out: &mut Vec<Vec<[f64; 2]>>| match contour.len() >= 3
+    {
+        true => out.push(std::mem::take(contour)),
+        false => contour.clear(),
     };
     for segment in path.segments() {
         match segment {
@@ -262,7 +263,14 @@ fn flatten(path: &SkPath, tolerance: f64, out: &mut Vec<Vec<[f64; 2]>>) {
 }
 
 /// Subdivides a quadratic until its chord is within `tolerance`.
-fn quad(from: [f64; 2], control: [f64; 2], to: [f64; 2], tolerance: f64, depth: u32, out: &mut Vec<[f64; 2]>) {
+fn quad(
+    from: [f64; 2],
+    control: [f64; 2],
+    to: [f64; 2],
+    tolerance: f64,
+    depth: u32,
+    out: &mut Vec<[f64; 2]>,
+) {
     if depth >= MAX_FLATTEN_DEPTH || chord(control, from, to) <= tolerance {
         out.push(to);
         return;
@@ -355,7 +363,10 @@ mod tests {
                 _ => {}
             }
         }
-        assert!(inside > 0, "no inside texels -- the stroke was not outlined");
+        assert!(
+            inside > 0,
+            "no inside texels -- the stroke was not outlined"
+        );
         assert!(outside > 0, "no outside texels -- the field is degenerate");
     }
 

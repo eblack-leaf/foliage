@@ -306,7 +306,8 @@ impl Root for Site {
         for tile in &tiles {
             let warmth = ramp.warmth(height, tile.center);
             let hue = shifted(ember(warmth), scatter.between(-DRIFT, DRIFT));
-            let after = MOSAIC_AT + (warmth * MOSAIC_SPREAD) as u64 + scatter.between(0.0, 90.0) as u64;
+            let after =
+                MOSAIC_AT + (warmth * MOSAIC_SPREAD) as u64 + scatter.between(0.0, 90.0) as u64;
             let shape = Shape {
                 sides: tile.sides,
                 rounding: tile.rounding,
@@ -422,11 +423,7 @@ impl Root for Site {
         );
         reveal(grove, wordmark, grown);
 
-        info!(
-            dashes = dashes.len(),
-            tiles = tiles.len(),
-            "leaf grown"
-        );
+        info!(dashes = dashes.len(), tiles = tiles.len(), "leaf grown");
         Site {
             prongs,
             blades,
@@ -572,14 +569,7 @@ impl Wind {
 /// Three motions rather than one because they are three properties, and one delay because they are
 /// one arrival. Each is grown at what it is leaving, so the animation carries the whole of the
 /// difference and nothing has to be written back when it lands.
-fn morph(
-    grove: &mut Grove,
-    tile: Leaf,
-    into: Location,
-    shape: Shape,
-    after: u64,
-    grown: Sequence,
-) {
+fn morph(grove: &mut Grove, tile: Leaf, into: Location, shape: Shape, after: u64, grown: Sequence) {
     grove.animate(
         tile,
         Motion::Opacity(1.0),

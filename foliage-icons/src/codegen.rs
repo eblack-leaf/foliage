@@ -103,9 +103,10 @@ mod tests {
         assert!(generated.contains("/// The `arrow-up` mark.\n    pub arrow_up: Field,"));
         assert!(generated.contains("pub check: Field,"));
         assert!(generated.contains("impl Marks for Icons {"));
-        assert!(generated.contains(
-            "arrow_up: grove.icon(include_bytes!(\"arrow-up.icon\"), SIDE, RANGE),"
-        ));
+        assert!(
+            generated
+                .contains("arrow_up: grove.icon(include_bytes!(\"arrow-up.icon\"), SIDE, RANGE),")
+        );
         assert!(generated.contains("const SIDE: u32 = 48;"));
         assert!(generated.contains("const RANGE: f32 = 3.0;"));
     }

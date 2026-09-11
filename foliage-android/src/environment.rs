@@ -264,7 +264,13 @@ fn vendored_games_activity(root: &Path) -> Result<Option<String>, String> {
     let define = |name: &str| {
         header
             .lines()
-            .find_map(|line| line.trim().strip_prefix(&format!("#define {name} "))?.trim().parse::<u32>().ok())
+            .find_map(|line| {
+                line.trim()
+                    .strip_prefix(&format!("#define {name} "))?
+                    .trim()
+                    .parse::<u32>()
+                    .ok()
+            })
             .ok_or_else(|| format!("no {name} in GameActivity.h"))
     };
     Ok(Some(format!(
@@ -321,7 +327,6 @@ pub fn rustup_targets() -> Vec<String> {
         .collect()
 }
 
-
 /// A program's file name on this platform.
 pub fn executable(name: &str) -> String {
     match cfg!(windows) {
@@ -329,7 +334,6 @@ pub fn executable(name: &str) -> String {
         false => name.to_string(),
     }
 }
-
 
 /// Where cargo unpacks what it downloads.
 ///

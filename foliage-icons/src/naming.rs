@@ -6,11 +6,11 @@ const UNRAWABLE: [&str; 4] = ["crate", "self", "Self", "super"];
 
 /// Every other reserved word, which `r#` makes usable as-is.
 const KEYWORDS: [&str; 47] = [
-    "abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do",
-    "dyn", "else", "enum", "extern", "false", "final", "fn", "for", "gen", "if", "impl", "in",
-    "let", "loop", "macro", "match", "mod", "move", "mut", "override", "priv", "pub", "ref",
-    "return", "static", "struct", "trait", "true", "try", "type", "typeof", "unsafe", "unsized",
-    "use", "virtual", "where", "while",
+    "abstract", "as", "async", "await", "become", "box", "break", "const", "continue", "do", "dyn",
+    "else", "enum", "extern", "false", "final", "fn", "for", "gen", "if", "impl", "in", "let",
+    "loop", "macro", "match", "mod", "move", "mut", "override", "priv", "pub", "ref", "return",
+    "static", "struct", "trait", "true", "try", "type", "typeof", "unsafe", "unsized", "use",
+    "virtual", "where", "while",
 ];
 
 /// A file stem as a `snake_case` word: `arrow-up` and `ArrowUp` both become `arrow_up`.

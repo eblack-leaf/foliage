@@ -176,7 +176,11 @@ impl Silhouette {
             origin: (left, top),
             scale: width,
         };
-        silhouette.outline = OUTLINE.iter().copied().map(|point| silhouette.at(point)).collect();
+        silhouette.outline = OUTLINE
+            .iter()
+            .copied()
+            .map(|point| silhouette.at(point))
+            .collect();
         silhouette
     }
 
