@@ -9,8 +9,8 @@ use crate::placement::grid::{Grid, Tracks};
 use crate::placement::resolve::{Basis, Context, Span, resolve};
 use crate::placement::role::{Horizontal, Vertical};
 use crate::{
-    Columns, Divide, Rows, Source, anchor, bottom, center_x, center_y, content, left, right, top,
-    trunk,
+    Columns, Divide, Rows, Source, anchor, aspect, bottom, center_x, center_y, content, left,
+    right, top, trunk,
 };
 
 /// Everything a placement is read against, with a trunk that is deliberately not at the origin so
@@ -30,6 +30,8 @@ struct Given {
     /// The element's own, which is all it can read of itself.
     intrinsic: Area,
     cell: Area,
+    /// Its own resolved width, which the vertical pass alone can read.
+    width: f32,
     layout: Layout,
     short: Short,
 }
@@ -47,6 +49,7 @@ impl Default for Given {
             anchor_intrinsic: Area::default(),
             intrinsic: Area::default(),
             cell: Area::default(),
+            width: 0.0,
             layout: Layout::Xs,
             short: Short::No,
         }
@@ -58,7 +61,12 @@ impl Given {
         Context {
             axis,
             own: Basis {
-                section: Section::default(),
+                // What the resolver is handed on the vertical pass: the horizontal half it settled,
+                // and nothing on the axis it is now computing.
+                section: match axis {
+                    Axis::Horizontal => Section::default(),
+                    Axis::Vertical => Section::from_edges(0.0, 0.0, self.width, 0.0),
+                },
                 intrinsic: self.intrinsic,
                 tracks: Tracks::default(),
                 cell: self.cell,
@@ -619,6 +627,71 @@ fn an_element_with_no_content_is_intrinsically_empty() {
         given.across(left(0.px()).width(content())),
         span(10.0, 10.0)
     );
+}
+
+// Aspect: a height in proportion to the element's own width.
+
+/// The ratio is width to height, so sixteen by nine over a width of 320 is 180 tall.
+#[test]
+fn aspect_is_a_height_in_proportion_to_the_element_s_own_width() {
+    let given = Given {
+        width: 320.0,
+        ..Given::default()
+    };
+    assert_eq!(
+        given.down(top(0.px()).height(aspect(16.0 / 9.0))),
+        span(20.0, 200.0)
+    );
+    assert_eq!(
+        given.down(top(0.px()).height(aspect(1.0))),
+        span(20.0, 340.0)
+    );
+    assert_eq!(
+        given.down(top(0.px()).height(aspect(0.5))),
+        span(20.0, 660.0)
+    );
+}
+
+/// Every form a vertical axis has takes it, since it is a length like any other.
+#[test]
+fn aspect_is_legal_in_every_extent_form() {
+    let given = Given {
+        width: 100.0,
+        ..Given::default()
+    };
+    assert_eq!(
+        given.down(bottom(100.pct()).height(aspect(2.0))),
+        span(70.0, 120.0)
+    );
+    assert_eq!(
+        given.down(center_y(50.pct()).height(aspect(2.0))),
+        span(45.0, 95.0)
+    );
+}
+
+/// A length like any other, so it composes: a square with a caption bar under it, and content that
+/// is not allowed to grow taller than it is wide.
+#[test]
+fn aspect_composes_with_lengths_and_bounds() {
+    let given = Given {
+        width: 100.0,
+        intrinsic: Area::new(0.0, 250.0),
+        ..Given::default()
+    };
+    assert_eq!(
+        given.down(top(0.px()).height(aspect(1.0) + 40.px())),
+        span(20.0, 160.0)
+    );
+    assert_eq!(
+        given.down(top(0.px()).height(content()).at_most(aspect(1.0))),
+        span(20.0, 120.0)
+    );
+}
+
+#[test]
+#[should_panic(expected = "aspect ratio must be positive")]
+fn a_ratio_that_is_not_positive_is_refused_where_it_is_written() {
+    let _ = aspect(0.0);
 }
 
 // Breakpoints.

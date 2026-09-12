@@ -304,6 +304,20 @@ fn asking_for_another_frame_lasts_exactly_one_frame() {
     assert!(!grove.again);
 }
 
+/// A rouse from off the frame is owed a frame whether or not what it announced is something the
+/// loop can see, and the frame that runs answers it (F9).
+#[test]
+fn a_rouse_is_owed_a_frame_and_answered_by_the_one_that_runs() {
+    let mut grove = grove();
+    assert!(!grove.wake.pending());
+
+    grove.wake.rouse();
+    assert!(grove.wake.pending());
+
+    tick(&mut grove);
+    assert!(!grove.wake.pending());
+}
+
 #[test]
 fn advance_is_exact() {
     let mut grove = grove();

@@ -121,7 +121,7 @@ impl Foliage {
         // What rouses a sleeping loop when something arrives from outside a frame. A retrieval
         // finishes on a thread or in a promise and pushes its op onto the shared queue, which no
         // frame would ever run to drain -- the loop is asleep and the platform has nothing to say.
-        // Waking it is enough: `about_to_wait` asks what is owed, and a queued op is owed.
+        // Waking it is enough: `about_to_wait` asks what is owed, and a rouse is owed.
         let proxy = event_loop.create_proxy();
         foliage.grove.wake.install(move || {
             proxy.send_event(()).ok();
@@ -151,6 +151,10 @@ impl Foliage {
         self.grove.frames == 0
             || self.grove.again
             || self.grove.pending_resize.is_some()
+            // Something arrived from off the frame. Usually an op, which the clause below sees on
+            // its own; but a key the hidden input captured is nowhere this can look, and the rouse
+            // is the only word that it is there.
+            || self.grove.wake.pending()
             || !self.grove.queue.is_empty()
             || !self.grove.incoming.pending.is_empty()
             || !self.grove.aspen.idle()

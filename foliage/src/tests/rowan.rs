@@ -5,10 +5,11 @@
 //! and in the right order.
 
 use crate::coordinate::{Area, Axes, Section};
-use crate::tests::{grove, resize, section, tick};
+use crate::tests::{advance, grove, resize, section, tick};
 use crate::{
-    Boxed, Divide, Grid, Grove, Grow, Layout, Location, Panel, Place, Sap, ScrollTo, Source, Stem,
-    Vein, anchor, bottom, center_x, center_y, left, right, top,
+    Boxed, Divide, Grid, Grove, Grow, Layout, Location, Motion, Panel, Place, Sap, ScrollTo,
+    Source, Stem, Timing, Vein, anchor, aspect, bottom, center_x, center_y, content, left, right,
+    top,
 };
 
 /// A box at a stated place, for the passes that are about where boxes end up rather than about the
@@ -463,4 +464,88 @@ fn a_withered_element_reads_no_section() {
     grove.prune(leaf);
     tick(&mut grove);
     assert_eq!(grove.tap(leaf, Vein::Drawn), None);
+}
+
+// A height in proportion to the element's own width.
+
+/// The width read is the one R2a produced, not the one stated: the clamp is in it, and so is the
+/// viewport a percentage resolved against.
+#[test]
+fn an_aspect_height_follows_the_width_the_horizontal_pass_produced() {
+    let mut grove = grove();
+    let clamped = grove.plant(Stem::new().at(Location::new().xs(
+        left(0.px()).width(1000.px()).at_most(300.px()),
+        top(0.px()).height(aspect(1.5)),
+    )));
+    let filling = grove.plant(Stem::new().at(Location::new().xs(
+        left(0.px()).right(100.pct()),
+        top(0.px()).height(aspect(2.0)),
+    )));
+    tick(&mut grove);
+    assert_eq!(
+        section(&grove, clamped),
+        Section::from_edges(0.0, 0.0, 300.0, 200.0)
+    );
+    assert_eq!(
+        section(&grove, filling),
+        Section::from_edges(0.0, 0.0, 400.0, 200.0)
+    );
+
+    resize(&mut grove, Area::new(800.0, 300.0));
+    tick(&mut grove);
+    assert_eq!(
+        section(&grove, filling),
+        Section::from_edges(0.0, 0.0, 800.0, 400.0)
+    );
+}
+
+/// An element in proportion describes its own height, in terms the measure can read -- its width is
+/// settled before anything is measured -- so it counts toward a trunk sized to its contents.
+#[test]
+fn a_container_grows_to_fit_a_child_held_in_proportion() {
+    let mut grove = grove();
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
+    let child = grove.branch(
+        container,
+        Stem::new().at(Location::new().xs(
+            left(0.px()).right(100.pct()),
+            top(0.px()).height(aspect(2.0)),
+        )),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, child).height(), 100.0);
+    assert_eq!(section(&grove, container).height(), 100.0);
+}
+
+/// Both ends of a motion resolve in one context, and that context's own width is the blended one
+/// R2a just wrote -- so an element in proportion stays in proportion the whole way.
+#[test]
+fn an_aspect_height_follows_an_animated_width_mid_motion() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new().at(Location::new().xs(
+        left(0.px()).width(100.px()),
+        top(0.px()).height(aspect(1.0)),
+    )));
+    tick(&mut grove);
+    assert_eq!(section(&grove, leaf).area, Area::new(100.0, 100.0));
+
+    grove.animate(
+        leaf,
+        Motion::Location(Location::new().xs(
+            left(0.px()).width(300.px()),
+            top(0.px()).height(aspect(1.0)),
+        )),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(section(&grove, leaf).area, Area::new(200.0, 200.0));
+
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(section(&grove, leaf).area, Area::new(300.0, 300.0));
 }

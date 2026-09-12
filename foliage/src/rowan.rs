@@ -578,32 +578,22 @@ fn measurable(grove: &Grove, leaf: Leaf, fallback: &Location) -> bool {
 /// What one child resolves its vertical axis against while its trunk is being measured.
 ///
 /// The same [`Context`] R2b will build, with every vertical reading taken as zero: no box on this
-/// axis has resolved yet, which is the point of measuring. Every horizontal reading is real, so a
-/// height stated in columns or read off a width still answers.
+/// axis has resolved yet, which is the point of measuring. Every horizontal reading is real -- the
+/// child's own width included -- so a height stated in columns, read off a width, or held in
+/// proportion to its own still answers.
 fn raised(elements: &Elements, trunk: usize, child: usize) -> Context {
-    let flattened = |at: usize| {
-        let section = elements.section[at];
-        Basis {
-            section: Section::new(
-                Position::new(section.left(), 0.0),
-                Area::new(section.width(), 0.0),
-            ),
-            intrinsic: elements.intrinsic[at],
-            tracks: elements.tracks[at],
-            cell: elements.cell[at],
-        }
+    let offered = |at: usize| Basis {
+        section: flattened(elements.section[at]),
+        intrinsic: elements.intrinsic[at],
+        tracks: elements.tracks[at],
+        cell: elements.cell[at],
     };
     Context {
         axis: Axis::Vertical,
-        own: Basis {
-            section: Section::default(),
-            intrinsic: elements.intrinsic[child],
-            tracks: Tracks::default(),
-            cell: elements.cell[child],
-        },
-        trunk: flattened(trunk),
+        own: own(elements, child, Axis::Vertical),
+        trunk: offered(trunk),
         anchor: match elements.anchor[child] {
-            Some(anchor) => flattened(anchor),
+            Some(anchor) => offered(anchor),
             None => Basis::default(),
         },
     }
@@ -943,19 +933,45 @@ fn rank(grove: &mut Grove, elements: &mut Elements) {
 fn context(elements: &Elements, viewport: Section, at: usize, axis: Axis) -> Context {
     Context {
         axis,
-        // Its box is the answer being computed, and its own grid divides it for its children
-        // rather than for itself, so neither is readable here.
-        own: Basis {
-            section: Section::default(),
-            intrinsic: elements.intrinsic[at],
-            tracks: Tracks::default(),
-            cell: elements.cell[at],
-        },
+        // Its box on this axis is the answer being computed, and its own grid divides it for its
+        // children rather than for itself, so neither is readable here. Its box on the *other* axis
+        // is readable exactly when that axis has already run, which is what [`own`] hands over.
+        own: own(elements, at, axis),
         // A top-level element has no trunk, and fills the viewport instead.
         trunk: basis(elements, elements.trunk[at], viewport, axis),
         // A placement that reads an anchor it has not been given resolves against a zero box.
         anchor: basis(elements, elements.anchor[at], Section::default(), axis),
     }
+}
+
+/// What the element at `at` offers its own placement.
+///
+/// Its measured extent and its character cell on either axis, and its width on the vertical one:
+/// the horizontal pass has run for the whole tree by then, so the width is settled where the
+/// height is the answer being computed. That is what [`aspect`](crate::aspect) reads, and it is
+/// offered flattened the way [`basis`] flattens a resolved box -- with nothing on the axis being
+/// resolved -- so nothing about the box that is still open can be read back.
+///
+/// Nothing on the horizontal pass, where neither axis of it is known.
+fn own(elements: &Elements, at: usize, axis: Axis) -> Basis {
+    Basis {
+        section: match axis {
+            Axis::Horizontal => Section::default(),
+            Axis::Vertical => flattened(elements.section[at]),
+        },
+        intrinsic: elements.intrinsic[at],
+        tracks: Tracks::default(),
+        cell: elements.cell[at],
+    }
+}
+
+/// A box with its vertical half taken away: its left edge and its width, and nothing on the other
+/// axis. What a box is worth to a reader while no height is known.
+fn flattened(section: Section) -> Section {
+    Section::new(
+        Position::new(section.left(), 0.0),
+        Area::new(section.width(), 0.0),
+    )
 }
 
 /// What the element at `at` offers a placement reading it, or `fallback` in place of a box when
@@ -977,13 +993,7 @@ fn basis(elements: &Elements, at: Option<usize>, fallback: Section, axis: Axis) 
     };
     Basis {
         section: match (elements.resolved[at], axis) {
-            (true, Axis::Horizontal) => {
-                let section = elements.section[at];
-                Section::new(
-                    Position::new(section.left(), 0.0),
-                    Area::new(section.width(), 0.0),
-                )
-            }
+            (true, Axis::Horizontal) => flattened(elements.section[at]),
             (true, Axis::Vertical) => elements.section[at],
             (false, _) => fallback,
         },

@@ -46,8 +46,9 @@ pub(crate) struct Basis {
 pub(crate) struct Context {
     /// Which axis is being resolved.
     pub(crate) axis: Axis,
-    /// The element itself. Only its measured extent and its character cell are readable -- its box
-    /// is the answer being computed.
+    /// The element itself. Its measured extent and its character cell are readable, and on the
+    /// vertical axis so is its width, settled by the pass before -- the rest of its box is the
+    /// answer being computed, and is zero here.
     pub(crate) own: Basis,
     /// The element it was grown under, and what it fills when it says nothing.
     pub(crate) trunk: Basis,

@@ -35,8 +35,9 @@ use crate::coordinate::Axis;
 /// describe the trunk, and an element grown somewhere else loses the vocabulary it was written in.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Against {
-    /// The element itself. Its declared character cell and its measured size, which are the only
-    /// two things about itself an element can read: its box is what is being solved for.
+    /// The element itself. Its declared character cell, its measured size, and -- on the vertical
+    /// axis alone -- its own width, which the horizontal pass has settled by then. Nothing else:
+    /// the rest of its box is what is being solved for.
     Own,
     /// The element this one was grown under.
     Trunk,
@@ -353,6 +354,42 @@ pub fn content() -> Length {
     Length::of(Kind::Content {
         against: Against::Own,
     })
+}
+
+/// A height that keeps the element in proportion to its own width.
+///
+/// `ratio` is width to height, as CSS states it: `aspect(16.0 / 9.0)` is a box nine tall for every
+/// sixteen wide, `aspect(1.0)` is a square. The width it follows is the one the horizontal pass
+/// resolved -- after any [`at_most`](crate::Horizontal::at_most) -- so whatever a width was stated
+/// in, the height follows what it came to.
+///
+/// Vertical only, and for the same reason every other vertical-only source is: width flows down
+/// and height flows up, so a height may read a width and a width may not read a height. The type
+/// says so:
+///
+/// ```compile_fail,E0277
+/// use foliage::{Source, aspect, left};
+/// left(0.px()).width(aspect(1.0));
+/// ```
+///
+/// A length like any other, so it composes: `height(aspect(1.0) + 40.px())` is a square with a
+/// caption bar under it, and `height(content()).at_most(aspect(1.0))` is as tall as what it holds
+/// but no taller than it is wide. It describes the element's extent in its own terms, so an element
+/// sized this way counts toward the [`content()`] of what it is grown under.
+///
+/// # Panics
+///
+/// If `ratio` is not positive. A box with no width for its height is not a proportion, and stating
+/// one is a mistake worth stopping for where it was written.
+pub fn aspect(ratio: f32) -> VerticalLength {
+    assert!(
+        ratio > 0.0,
+        "aspect ratio must be positive; `aspect({ratio})` states a box with no proportion"
+    );
+    VerticalLength::of(Kind::Extent {
+        axis: Axis::Horizontal,
+        against: Against::Own,
+    }) * (1.0 / ratio)
 }
 
 macro_rules! source {

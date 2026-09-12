@@ -60,6 +60,9 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
 fn intake(grove: &mut Grove) {
     let _step = trace_span!("intake").entered();
     grove.clock.sample();
+    // This frame answers every rouse made before it. Before anything a rouse could have announced
+    // is taken, so what arrived is found by this frame and what arrives after is owed the next.
+    grove.wake.answer();
     // Keys the soft keyboard took while it held the page's own focus. They enter the stream exactly
     // where a translated window event enters it, because that is what they are -- the platform's,
     // reaching the engine by the one road it has for keys.

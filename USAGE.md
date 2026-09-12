@@ -159,6 +159,7 @@ same pair. Over `content()`, `at_most` is fit-content.
 | `Source::col` / `Source::row` | A one-based track of the trunk's grid |
 | `Source::letters` | A count of the element's own character cells |
 | `content()` | The element's own intrinsic extent |
+| `aspect(ratio)` | A height in proportion to the element's own width; `ratio` is width to height, as CSS states it. Vertical only |
 | `anchor()` / `trunk()` | Another element's edges, extents, tracks, cells and measure |
 
 ### Whose geometry
@@ -207,9 +208,15 @@ Text wrapping makes height depend on width, and width comes from layout. The cyc
 passes with no iteration: the horizontal axis resolves for the whole tree, each run wraps at its
 now-known width, and the vertical axis resolves and reads the heights that came out.
 
-The order is visible in the types. A `VerticalLength` — `Source::row`, `anchor().height()` — is
-refused by a horizontal role. The reverse is fine and useful: `height(2.col())` is a two-column span
-used as a height.
+The order is visible in the types. A `VerticalLength` — `Source::row`, `anchor().height()`,
+`aspect(..)` — is refused by a horizontal role. The reverse is fine and useful: `height(2.col())` is
+a two-column span used as a height.
+
+`aspect` is the same order read from the element's own side: by the vertical pass its width is
+settled, so `top(0.px()).height(aspect(16.0 / 9.0))` is a box nine tall for every sixteen wide,
+whatever its width was stated in and after any clamp. It is a length like any other —
+`height(aspect(1.0) + 40.px())` is a square with a caption bar, `height(content()).at_most(aspect(1.0))`
+is content no taller than it is wide — and it counts toward a trunk's `content()`.
 
 One consequence is worth stating outright. An element sized with `height(content())` takes the
 furthest its children reach, **counting only the children that describe their own extent**. A child

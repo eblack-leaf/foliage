@@ -129,7 +129,7 @@ pub use placement::role::{
     left, right, top,
 };
 pub use placement::source::{
-    HorizontalCoordinate, Length, Source, VerticalCoordinate, VerticalLength, content,
+    HorizontalCoordinate, Length, Source, VerticalCoordinate, VerticalLength, aspect, content,
 };
 pub use pollen::Pollen;
 pub use polygon::{Polygon, Shape};
