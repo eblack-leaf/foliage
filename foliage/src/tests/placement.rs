@@ -8,6 +8,7 @@ use crate::layout::{Layout, Short};
 use crate::placement::grid::{Grid, Tracks};
 use crate::placement::resolve::{Basis, Context, Span, resolve};
 use crate::placement::role::{Horizontal, Vertical};
+use crate::text::shape::{Shaped, shape};
 use crate::{
     Columns, Divide, Rows, Source, anchor, aspect, bottom, center_x, center_y, content, left,
     right, top, trunk,
@@ -27,6 +28,8 @@ struct Given {
     anchor_grid: Grid,
     anchor_cell: Area,
     anchor_intrinsic: Area,
+    /// The anchor's run, shaped, where the anchor says something.
+    anchor_run: Option<Shaped>,
     /// The element's own, which is all it can read of itself.
     intrinsic: Area,
     cell: Area,
@@ -47,6 +50,7 @@ impl Default for Given {
             anchor_grid: Grid::default(),
             anchor_cell: Area::default(),
             anchor_intrinsic: Area::default(),
+            anchor_run: None,
             intrinsic: Area::default(),
             cell: Area::default(),
             width: 0.0,
@@ -57,7 +61,7 @@ impl Default for Given {
 }
 
 impl Given {
-    fn context(&self, axis: Axis) -> Context {
+    fn context(&self, axis: Axis) -> Context<'_> {
         Context {
             axis,
             own: Basis {
@@ -70,18 +74,21 @@ impl Given {
                 intrinsic: self.intrinsic,
                 tracks: Tracks::default(),
                 cell: self.cell,
+                run: None,
             },
             trunk: Basis {
                 section: self.trunk,
                 intrinsic: self.trunk_intrinsic,
                 tracks: self.trunk_grid.tracks(self.layout, self.short),
                 cell: self.trunk_cell,
+                run: None,
             },
             anchor: Basis {
                 section: self.anchor,
                 intrinsic: self.anchor_intrinsic,
                 tracks: self.anchor_grid.tracks(self.layout, self.short),
                 cell: self.anchor_cell,
+                run: self.anchor_run.as_ref(),
             },
         }
     }
@@ -409,6 +416,56 @@ fn letters_are_the_reader_s_own_unless_another_is_named() {
     assert_eq!(
         given.across(left(0.px()).width(anchor().letters(4.0))),
         span(10.0, 54.0)
+    );
+}
+
+/// Where a character of the anchor's run stands is read off the run as it wrapped at the anchor's
+/// own width: a column across and a line down, each in the anchor's cells. The one reading that
+/// puts a caret against a run of more than one line.
+#[test]
+fn a_character_is_where_the_anchor_s_run_wrapped_it_to() {
+    // "hello world" in a box five cells wide is "hello" over "world".
+    let given = Given {
+        anchor: Section::from_edges(300.0, 40.0, 350.0, 84.0),
+        anchor_cell: Area::new(10.0, 22.0),
+        anchor_run: Some(shape("hello world", Area::new(10.0, 22.0))),
+        ..Given::default()
+    };
+    // The 'w' is the first cell of the second line.
+    assert_eq!(
+        given.across(left(anchor().left() + anchor().character(6)).width(2.px())),
+        span(300.0, 302.0)
+    );
+    assert_eq!(
+        given.down(top(anchor().top() + anchor().character(6)).height(anchor().letters(1.0))),
+        span(62.0, 84.0)
+    );
+    // Before the space is the end of the first line, and past the end is after the last character.
+    assert_eq!(
+        given.across(left(anchor().left() + anchor().character(5)).width(2.px())),
+        span(350.0, 352.0)
+    );
+    assert_eq!(
+        given.across(left(anchor().left() + anchor().character(99)).width(2.px())),
+        span(350.0, 352.0)
+    );
+    assert_eq!(
+        given.down(top(anchor().top() + anchor().character(99)).height(anchor().letters(1.0))),
+        span(62.0, 84.0)
+    );
+}
+
+/// An element with no run has nowhere for a character to stand, so the reading is its corner.
+#[test]
+fn a_character_of_an_element_with_no_run_is_its_corner() {
+    let given = Given {
+        anchor: Section::from_edges(300.0, 40.0, 400.0, 90.0),
+        anchor_cell: Area::new(10.0, 22.0),
+        ..Given::default()
+    };
+    assert_eq!(
+        given.across(left(anchor().left() + anchor().character(3)).width(2.px())),
+        span(300.0, 302.0)
     );
 }
 

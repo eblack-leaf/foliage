@@ -258,6 +258,38 @@ fn redividing_a_grid_moves_the_children_addressing_it() {
     assert_eq!(section(&grove, branch).left(), 50.0);
 }
 
+/// A grid nothing wrote to is still the grid, wherever the order now puts the element it is on.
+///
+/// The order is built again when something is grown or pruned, and an element nothing wrote to
+/// keeps what it resolved to -- including its grid, which has to be found at the position the
+/// element now holds and not at the one it held before. Enough siblings that the write does not
+/// simply resolve everything, and pruned from before the trunk so that it moves.
+#[test]
+fn a_grid_survives_the_order_being_built_again() {
+    let mut grove = grove();
+    let trunk = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(100.px())))
+            .grid(Grid::new().xs(2.columns(), 1.rows())),
+    );
+    let siblings: Vec<_> = (0..12)
+        .map(|_| grove.plant(Stem::new().at(box_at(0.0, 0.0, 10.0, 10.0))))
+        .collect();
+    tick(&mut grove);
+    for sibling in &siblings[..3] {
+        grove.prune(*sibling);
+    }
+    tick(&mut grove);
+
+    let branch = grove.branch(
+        trunk,
+        Stem::new()
+            .at(Location::new().xs(left(2.col()).right(2.col()), top(0.px()).height(10.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, branch).left(), 100.0);
+}
+
 // The surface changing.
 
 #[test]

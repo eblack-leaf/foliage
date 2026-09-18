@@ -14,6 +14,7 @@
 //! is why there is one cache here and none anywhere else.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::coordinate::{Area, Position};
 use crate::text::font::{Font, Fonts};
@@ -30,6 +31,7 @@ const SLACK: f32 = 1.0 / 64.0;
 /// The characters are in the run's own index space -- the space a per-character tint and a caret
 /// both address -- and each occupies one cell whatever it is, because a monospaced run advances by
 /// its pitch rather than by what is in it.
+#[derive(Debug)]
 pub(crate) struct Shaped {
     characters: Vec<char>,
     /// The pitch this run was shaped at, which is what makes the entry the run *at this size*.
@@ -71,12 +73,14 @@ impl Shaped {
     /// written.
     pub(crate) fn place(&self, width: f32, mut at: impl FnMut(char, usize, Position)) {
         let cell = self.cell;
-        self.walk(self.columns(width), |character, index, column, line| {
-            at(
-                character,
-                index,
-                Position::new(column as f32 * cell.width, line as f32 * cell.height),
-            );
+        self.walk(self.columns(width), |index, column, line, ink| {
+            if ink {
+                at(
+                    self.characters[index],
+                    index,
+                    Position::new(column as f32 * cell.width, line as f32 * cell.height),
+                );
+            }
         });
     }
 
@@ -91,7 +95,7 @@ impl Shaped {
     /// coordinates -- which is every centred and every stretched one -- can land a fraction of a
     /// pixel under it. Floored exactly, that fraction is a whole column, and the one width at which
     /// a run must not wrap is the width it asked for.
-    fn columns(&self, width: f32) -> usize {
+    pub(crate) fn columns(&self, width: f32) -> usize {
         if self.cell.width <= 0.0 {
             return 0;
         }
@@ -103,12 +107,21 @@ impl Shaped {
         self.walk(columns, |_, _, _, _| {})
     }
 
-    /// Wraps the run into `columns` cells, handing every character the cell it lands in, and reports
-    /// how many lines that took.
+    /// The run wrapped into `columns` cells, for the questions asked per index rather than per
+    /// glyph: where a caret stands, and which character a point falls on.
+    pub(crate) fn wrap(&self, columns: usize) -> Wrap<'_> {
+        Wrap {
+            shaped: self,
+            columns,
+        }
+    }
+
+    /// Wraps the run into `columns` cells, handing every index the cell it lands in, and reports how
+    /// many lines that took.
     ///
-    /// The one walk. How tall a run is and where its glyphs go are the same question asked for two
-    /// reasons, and asking it twice is how a run comes to be measured at one height and drawn at
-    /// another.
+    /// The one walk. How tall a run is, where its glyphs go and where a caret stands are the same
+    /// question asked for three reasons, and asking it three times is how a run comes to be measured
+    /// at one height and drawn at another.
     ///
     /// Greedy, on word boundaries, with three rules and no fourth:
     ///
@@ -121,23 +134,25 @@ impl Shaped {
     /// A run with nothing in it takes no lines at all, which is what makes an empty element measure
     /// to zero rather than to one line of nothing.
     ///
-    /// Only characters that leave ink are handed over. A space is an advance and a newline is a
-    /// break; neither is a glyph, and a walk that reported them would have the renderer deciding
-    /// what is worth drawing.
-    fn walk(&self, columns: usize, mut place: impl FnMut(char, usize, usize, usize)) -> usize {
-        if self.characters.is_empty() {
-            return 0;
-        }
+    /// **Every index is handed over, and one more.** A character that leaves ink is handed the cell
+    /// it is drawn in. One that does not -- a space, a newline -- is handed the cell a caret standing
+    /// before it would occupy: the next cell along on the line it is on, held inside the line's
+    /// width, so the spaces that went with a break are all at the end of the line they ended. The
+    /// index past the last character is handed over last, because that is where a caret stands at
+    /// the end of a run. What leaves ink is said alongside, so a walker that only draws can tell.
+    fn walk(&self, columns: usize, mut at: impl FnMut(usize, usize, usize, bool)) -> usize {
         let columns = columns.max(1);
+        let count = self.characters.len();
         let mut lines = 1;
         // Cells committed to the current line, and the spaces since the last word that are not
         // committed to anything yet.
         let mut used = 0;
         let mut pending = 0;
         let mut index = 0;
-        while index < self.characters.len() {
+        while index < count {
             match self.characters[index] {
                 '\n' => {
+                    at(index, (used + pending).min(columns), lines - 1, false);
                     lines += 1;
                     used = 0;
                     pending = 0;
@@ -145,6 +160,7 @@ impl Shaped {
                     continue;
                 }
                 ' ' => {
+                    at(index, (used + pending).min(columns), lines - 1, false);
                     pending += 1;
                     index += 1;
                     continue;
@@ -152,56 +168,134 @@ impl Shaped {
                 _ => {}
             }
             let start = index;
-            while index < self.characters.len() && !matches!(self.characters[index], ' ' | '\n') {
+            while index < count && !matches!(self.characters[index], ' ' | '\n') {
                 index += 1;
             }
             let word = index - start;
-            let laid = |place: &mut dyn FnMut(char, usize, usize, usize),
+            let laid = |at: &mut dyn FnMut(usize, usize, usize, bool),
                         from: usize,
                         count: usize,
                         column: usize,
                         line: usize| {
                 for offset in 0..count {
-                    place(
-                        self.characters[from + offset],
-                        from + offset,
-                        column + offset,
-                        line,
-                    );
+                    at(from + offset, column + offset, line, true);
                 }
             };
             if word > columns {
                 let mut left = word;
-                let mut at = start;
+                let mut from = start;
                 let mut room = columns.saturating_sub(used + pending);
+                // No room at all is a break, and the spaces go with it exactly as they do before a
+                // word that fits on the next line.
                 if room == 0 {
                     lines += 1;
                     used = 0;
+                    pending = 0;
                     room = columns;
                 }
                 let taken = room.min(left);
-                laid(&mut place, at, taken, used + pending, lines - 1);
-                at += taken;
+                laid(&mut at, from, taken, used + pending, lines - 1);
+                from += taken;
                 used += pending + taken;
                 left -= taken;
                 while left > 0 {
                     lines += 1;
                     used = columns.min(left);
-                    laid(&mut place, at, used, 0, lines - 1);
-                    at += used;
+                    laid(&mut at, from, used, 0, lines - 1);
+                    from += used;
                     left -= used;
                 }
             } else if used + pending + word > columns {
                 lines += 1;
                 used = word;
-                laid(&mut place, start, word, 0, lines - 1);
+                laid(&mut at, start, word, 0, lines - 1);
             } else {
-                laid(&mut place, start, word, used + pending, lines - 1);
+                laid(&mut at, start, word, used + pending, lines - 1);
                 used += pending + word;
             }
             pending = 0;
         }
-        lines
+        at(count, (used + pending).min(columns), lines - 1, false);
+        match count {
+            0 => 0,
+            _ => lines,
+        }
+    }
+}
+
+/// A shaped run at one width: the questions that are asked of an index rather than of a glyph.
+///
+/// What a caret and a hit test read. Both are stated in the run's own index space and answered in
+/// its cells, and both are answered by the walk that measures and draws it -- so a caret stands
+/// exactly where the glyph it precedes is drawn, at whatever width the run wrapped to.
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct Wrap<'a> {
+    shaped: &'a Shaped,
+    columns: usize,
+}
+
+impl Wrap<'_> {
+    /// The cell a caret before character `index` stands in, as a column and a line.
+    ///
+    /// An index past the end is the place after the last character, which is where a caret stands
+    /// at the end of a run.
+    pub(crate) fn cell_of(&self, index: usize) -> (usize, usize) {
+        let index = index.min(self.shaped.characters.len());
+        let mut found = (0, 0);
+        self.shaped.walk(self.columns, |at, column, line, _| {
+            if at == index {
+                found = (column, line);
+            }
+        });
+        found
+    }
+
+    /// Which index a point at `column` on `line` falls on.
+    ///
+    /// The last index on the line that stands at or before the column, so a point further along a
+    /// line is never an earlier place in the value; a point before the line's first index is that
+    /// index, and a line past the last is the last. The column is already rounded to the nearer
+    /// cell boundary by the caller, because which boundary a point is nearer is a question about
+    /// pixels and this is a question about cells.
+    pub(crate) fn index_at(&self, column: usize, line: usize) -> usize {
+        let last = self.last_line();
+        let line = line.min(last);
+        let mut found = None;
+        self.shaped.walk(self.columns, |index, at, on, _| {
+            if on != line {
+                return;
+            }
+            match found {
+                None => found = Some(index),
+                Some(_) if at <= column => found = Some(index),
+                Some(_) => {}
+            }
+        });
+        found.unwrap_or_default()
+    }
+
+    /// The first and last index on `line`, or on the last line where there is no such line.
+    ///
+    /// What `Home` and `End` go to in a run that wraps: the ends of the line the caret is on, which
+    /// on a run of one line are the ends of the run.
+    pub(crate) fn ends(&self, line: usize) -> (usize, usize) {
+        let line = line.min(self.last_line());
+        let mut ends = None;
+        self.shaped.walk(self.columns, |index, _, on, _| {
+            if on != line {
+                return;
+            }
+            ends = Some(match ends {
+                None => (index, index),
+                Some((first, _)) => (first, index),
+            });
+        });
+        ends.unwrap_or_default()
+    }
+
+    /// The line the index past the end stands on, which is the last line a caret can be on.
+    fn last_line(&self) -> usize {
+        self.cell_of(self.shaped.characters.len()).1
     }
 }
 
@@ -219,14 +313,24 @@ pub(crate) struct Shaping {
 }
 
 /// One shaped run, and the sweep that last asked for it.
+///
+/// Shared rather than owned, because the run is also held by the element it was shaped for --
+/// where a placement reading a character of that element resolves against it -- and a sweep that
+/// drops the entry here must not take it out from under the element.
 struct Held {
-    shaped: Shaped,
+    shaped: Arc<Shaped>,
     seen: u64,
 }
 
 impl Shaping {
     /// The shaped form of `value`, shaping it if this is the first frame that has asked.
-    pub(crate) fn shape(&mut self, fonts: &Fonts, font: Font, size: u32, value: &str) -> &Shaped {
+    pub(crate) fn shape(
+        &mut self,
+        fonts: &Fonts,
+        font: Font,
+        size: u32,
+        value: &str,
+    ) -> &Arc<Shaped> {
         let pass = self.pass;
         let cell = fonts.cell(font, size);
         let runs = self.runs.entry((font, size)).or_default();
@@ -237,7 +341,7 @@ impl Shaping {
             runs.insert(
                 value.to_string(),
                 Held {
-                    shaped: shape(value, cell),
+                    shaped: Arc::new(shape(value, cell)),
                     seen: pass,
                 },
             );

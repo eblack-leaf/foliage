@@ -31,7 +31,9 @@
 //! - [`TextInput`] is an editable one: one [`Leaf`] to hold, [`select`](Grow::select) to move its
 //!   caret, and [`edited`](Pollen::edited) and [`submitted`](Pollen::submitted) to hear what was
 //!   typed into it. It answers `Ctrl+C`, `Ctrl+X` and `Ctrl+V` itself, and raises the [`Keypad`] it
-//!   named on a platform that has a keyboard to raise.
+//!   named on a platform that has a keyboard to raise. [`TextArea`] is the same with as many lines
+//!   as its value wraps to, and [`character`](Anchor::character) is what places a mark against a
+//!   run that wraps.
 //! - The host's own: [`copy`](Grow::copy) and [`paste`](Grow::paste) reach the clipboard, with
 //!   [`pasted`](Pollen::pasted) carrying what came back, and [`navigate`](Grow::navigate) and
 //!   [`download`](Grow::download) hand it a URL.
@@ -141,7 +143,7 @@ pub use seed::Seed;
 pub use sprig::{Conditions, Sprig};
 pub use stem::Stem;
 pub use text::{Font, FontSize, Text};
-pub use text_input::TextInput;
+pub use text_input::{TextArea, TextInput};
 pub use vein::{Sap, Vein};
 pub use verbs::Grow;
 pub use view::{Escape, Momentum, Scroll, ScrollTo};

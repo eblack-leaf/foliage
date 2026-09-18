@@ -64,6 +64,10 @@ pub(crate) enum Kind {
     },
     /// A count of character cells on the resolving axis, in the named element's font.
     Letters { letters: f32, against: Against },
+    /// Where one character of the named element's run stands, as it wrapped at the width it
+    /// resolved to: its column on the horizontal axis and its line on the vertical one, each as a
+    /// count of that element's cells.
+    Character { index: usize, against: Against },
     /// A measured intrinsic extent on the resolving axis.
     Content { against: Against },
     /// One edge of a box. Already a position on the surface, so it is measured from nothing.

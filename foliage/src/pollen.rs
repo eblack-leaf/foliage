@@ -160,14 +160,16 @@ impl Pollen {
 
     /// Whether the person at the keyboard changed what `leaf` says.
     ///
-    /// A [`TextInput`](crate::TextInput) only, and only what was typed into it: a value the app
+    /// A [`TextInput`](crate::TextInput) or a [`TextArea`](crate::TextArea) only, and only what
+    /// was typed into it: a value the app
     /// wrote with [`text`](crate::Grow::text) is not reported back, because an app that wrote one
     /// already knows what it wrote. What it now says is [`Vein::Text`](crate::Vein::Text).
     pub fn edited(&self, leaf: Leaf) -> bool {
         self.0.edited.contains(&leaf)
     }
 
-    /// Whether `Enter` was pressed in `leaf`.
+    /// Whether `Enter` was pressed in `leaf` -- `Ctrl+Enter` on a [`TextArea`](crate::TextArea),
+    /// whose bare `Enter` is a newline.
     ///
     /// What that means is the app's: a field says the key was pressed and holds no opinion about
     /// whether anything is to be submitted.

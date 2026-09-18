@@ -797,9 +797,34 @@ fn a_word_longer_than_a_line_breaks_inside_itself() {
     );
 }
 
+/// A word too long for any line, arriving at a line with no room left on it, starts the next line
+/// at its first cell exactly as a word that fits would: the spaces it was separated by go with the
+/// break. Indenting it by them would push its last cell past the box.
+#[test]
+fn a_long_word_after_a_full_line_starts_the_next_at_its_first_cell() {
+    assert_eq!(
+        placed("abcde fghijklm", 5),
+        vec![
+            ('a', 0, 0),
+            ('b', 1, 0),
+            ('c', 2, 0),
+            ('d', 3, 0),
+            ('e', 4, 0),
+            ('f', 0, 1),
+            ('g', 1, 1),
+            ('h', 2, 1),
+            ('i', 3, 1),
+            ('j', 4, 1),
+            ('k', 0, 2),
+            ('l', 1, 2),
+            ('m', 2, 2),
+        ]
+    );
+}
+
 /// The one walk. A glyph placed on a line the measure never counted is a run drawn taller than the
 /// box it was measured into, which is the bug having two walks would produce and could not be seen
-/// in either of them alone.
+/// in either of them alone. A glyph placed past the last column is the same bug across.
 #[test]
 fn no_glyph_lands_past_the_height_the_run_measured() {
     for (value, columns) in [
@@ -808,6 +833,7 @@ fn no_glyph_lands_past_the_height_the_run_measured() {
         ("aaaa   bbbb", 4),
         ("ab cdefghij", 4),
         ("abcdefghij", 4),
+        ("abcde fghijklm", 5),
         ("a\nb\nc", 40),
         ("aaaa bbbb\ncc", 4),
         ("hello   ", 5),
@@ -815,7 +841,8 @@ fn no_glyph_lands_past_the_height_the_run_measured() {
         ("", 8),
     ] {
         let counted = lines(value, columns);
-        let reached = placed(value, columns)
+        let placed = placed(value, columns);
+        let reached = placed
             .iter()
             .map(|(_, _, line)| line + 1)
             .max()
@@ -824,7 +851,104 @@ fn no_glyph_lands_past_the_height_the_run_measured() {
             reached <= counted,
             "{value:?} at {columns}: drawn on {reached} lines, measured at {counted}"
         );
+        let widest = placed
+            .iter()
+            .map(|(_, column, _)| column + 1)
+            .max()
+            .unwrap_or(0);
+        assert!(
+            widest <= columns,
+            "{value:?} at {columns}: drawn {widest} cells across"
+        );
     }
+}
+
+// -- Where a caret stands ------------------------------------------------------------------------
+
+/// The cell a caret before `index` of `value` stands in, in a box `columns` cells wide.
+fn caret(value: &str, columns: usize, index: usize) -> (usize, usize) {
+    shape(value, cell(10.0, 20.0)).wrap(columns).cell_of(index)
+}
+
+/// A caret stands where the character it precedes is drawn, and at the end of the run it stands
+/// after the last character -- on the same walk that draws, so the two cannot disagree.
+#[test]
+fn a_caret_stands_before_the_character_it_indexes() {
+    assert_eq!(caret("hi there", 20, 0), (0, 0));
+    assert_eq!(caret("hi there", 20, 3), (3, 0));
+    assert_eq!(caret("hi there", 20, 8), (8, 0));
+    // Past the end is the end.
+    assert_eq!(caret("hi there", 20, 99), (8, 0));
+    // An empty run has one place to stand.
+    assert_eq!(caret("", 20, 0), (0, 0));
+}
+
+/// Across a break, a caret before the space that broke stands at the end of the line the space
+/// ended, and a caret before the word stands at the start of the next. The spaces went with the
+/// break, so every one of them stands at the end of the line -- held inside it, so a run of them
+/// does not carry the caret out past the box.
+#[test]
+fn a_caret_at_a_break_stands_at_the_end_of_the_line_it_broke() {
+    assert_eq!(caret("hello world", 5, 5), (5, 0));
+    assert_eq!(caret("hello world", 5, 6), (0, 1));
+    assert_eq!(caret("hello world", 5, 11), (5, 1));
+    assert_eq!(caret("hello   world", 5, 6), (5, 0));
+    assert_eq!(caret("hello   world", 5, 7), (5, 0));
+    assert_eq!(caret("hello   world", 5, 8), (0, 1));
+}
+
+/// A newline is a break the value states, and the caret on either side of it reads the same way: the
+/// end of the line it ended, then the start of the next -- which is a line of its own even when
+/// nothing follows.
+#[test]
+fn a_caret_at_a_newline_stands_on_either_side_of_it() {
+    assert_eq!(caret("ab\ncd", 20, 2), (2, 0));
+    assert_eq!(caret("ab\ncd", 20, 3), (0, 1));
+    assert_eq!(caret("ab\n", 20, 3), (0, 1));
+    assert_eq!(caret("ab\n\ncd", 20, 4), (0, 2));
+}
+
+/// Inside a word that broke, a caret stands at the character's cell wherever the break put it.
+#[test]
+fn a_caret_inside_a_broken_word_follows_the_break() {
+    assert_eq!(caret("ab cdefghij", 4, 3), (3, 0));
+    assert_eq!(caret("ab cdefghij", 4, 4), (0, 1));
+    assert_eq!(caret("ab cdefghij", 4, 8), (0, 2));
+    assert_eq!(caret("ab cdefghij", 4, 11), (3, 2));
+}
+
+/// The index a point falls on: the last index on the line that stands at or before the column, so a
+/// point further along a line is never an earlier place in the value.
+#[test]
+fn a_point_falls_on_the_last_index_at_or_before_it() {
+    let shaped = shape("hello world", cell(10.0, 20.0));
+    let wrap = shaped.wrap(5);
+    assert_eq!(wrap.index_at(0, 0), 0);
+    assert_eq!(wrap.index_at(3, 0), 3);
+    // The end of the first line is before the space, not before the word that wrapped.
+    assert_eq!(wrap.index_at(5, 0), 5);
+    assert_eq!(wrap.index_at(9, 0), 5);
+    assert_eq!(wrap.index_at(0, 1), 6);
+    assert_eq!(wrap.index_at(5, 1), 11);
+    // A line past the last is the last, and a point before a line's first index is that index.
+    assert_eq!(wrap.index_at(2, 7), 8);
+    let shaped = shape("ab\n  cd", cell(10.0, 20.0));
+    assert_eq!(shaped.wrap(20).index_at(0, 1), 3);
+    // An empty run has one index to fall on.
+    assert_eq!(shape("", cell(10.0, 20.0)).wrap(20).index_at(4, 2), 0);
+}
+
+/// The ends of a line, for `Home` and `End`: the first and last index standing on it.
+#[test]
+fn a_line_s_ends_are_its_first_and_last_index() {
+    let shaped = shape("hello world", cell(10.0, 20.0));
+    assert_eq!(shaped.wrap(5).ends(0), (0, 5));
+    assert_eq!(shaped.wrap(5).ends(1), (6, 11));
+    assert_eq!(shaped.wrap(5).ends(9), (6, 11));
+    assert_eq!(shaped.wrap(20).ends(0), (0, 11));
+    let shaped = shape("ab\ncd", cell(10.0, 20.0));
+    assert_eq!(shaped.wrap(20).ends(0), (0, 2));
+    assert_eq!(shaped.wrap(20).ends(1), (3, 5));
 }
 
 // -- What extraction hands the backend -----------------------------------------------------------

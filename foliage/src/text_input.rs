@@ -2,7 +2,7 @@
 //!
 //! # What a field is made of
 //!
-//! Everything else foliage grows is one element. A field is four, because the parts move
+//! Everything else foliage grows is one element. A field is six, because the parts move
 //! independently of each other and each is already something the engine draws:
 //!
 //! | | Part | Is |
@@ -10,7 +10,7 @@
 //! | | `run` | the value, as an ordinary [`Text`](crate::Text) |
 //! | | `hint` | the placeholder, shown only while the value is empty |
 //! | | `caret` | a [`Panel`](crate::Panel) [`CARET`] wide, shown only while the field holds focus |
-//! | | `selection` | a [`Panel`](crate::Panel) behind the run, from one end of the selection to the other |
+//! | | `head`, `body`, `tail` | the selection: [`Panel`](crate::Panel)s behind the run, one per part of a span that crosses lines |
 //!
 //! The app names the field and nothing else. Every verb and every read is addressed to it, and the
 //! parts are grown, placed and hidden from here -- so a field is one [`Leaf`] to hold, and what it
@@ -18,19 +18,27 @@
 //!
 //! # The caret is placed in the ordinary grammar
 //!
-//! A caret at character `n` is `anchor().left() + anchor().letters(n)` against the run, and a
-//! selection is the span between two of those. That is the whole of the geometry: no pass measures
-//! a caret, because [`letters`](crate::Source::letters) already resolves a character count against
-//! the font the run composes in, and it moves when the run moves because an anchor does.
+//! A caret at character `n` is `anchor().left() + anchor().character(n)` across and
+//! `anchor().top() + anchor().character(n)` down, against the run. That is the whole of the
+//! geometry: no pass measures a caret, because [`character`](crate::Anchor::character) resolves an
+//! index to the cell the run wrapped that character into, and it moves when the run moves because
+//! an anchor does. It is exact on the frame the run wraps differently, because it is read off the
+//! wrap rather than off where the caret was last seen.
 //!
-//! The run is drawn in front of both marks. A caret sits on the boundary between two character
+//! A selection is the span between two of those. On one line it is one box; across lines it is
+//! three -- the rest of the first line, every whole line between, and the start of the last -- and
+//! which of the three are drawn is the one thing decided here rather than by the layout, against the
+//! width the run was last drawn at.
+//!
+//! The run is drawn in front of all of them. A caret sits on the boundary between two character
 //! cells and is as wide as it needs to be seen, so a caret drawn over the run would take a bite out
 //! of the glyph it stands before -- at a small size, a quarter of it.
 //!
 //! # The field is a scrolling region
 //!
-//! One line, as wide as its own value, inside a box that clips it. That is a region, so it is
-//! declared as one -- which is also what makes the caret stay in view: every edit asks the field to
+//! A [`TextInput`] is one line, as wide as its own value, inside a box that clips it and scrolls
+//! across. A [`TextArea`] wraps at its box and scrolls down. Either is a region, so it is declared as
+//! one -- which is also what makes the caret stay in view: every edit asks the field to
 //! [`show`](crate::ScrollTo::show) the caret, and R4 answers it against the extent the same frame
 //! measured.
 
@@ -55,11 +63,12 @@ use crate::palette::{Fill, Palette};
 use crate::place::{Anchored, Boxed, Caller, Manner, Placement, Places};
 use crate::placement::basis::anchor;
 use crate::placement::location::Location;
-use crate::placement::role::{center_y, left};
+use crate::placement::role::{center_y, left, top};
 use crate::placement::source::{Source, content};
 use crate::seed::Buds;
 use crate::text::Lettering;
 use crate::text::TextPigment;
+use crate::text::shape::{Shaped, Wrap, shape};
 use crate::view::{Scroll, ScrollTo, Scrolls};
 
 /// How wide the caret is drawn, in logical pixels.
@@ -109,6 +118,8 @@ const CARET: f32 = 2.0;
 ///
 /// On a platform with a soft keyboard it raises the [`keypad`](TextInput::keypad) it named
 /// whenever it holds focus, and nothing declares that beyond being a field.
+///
+/// A value of more than one line is a [`TextArea`].
 #[derive(Clone, Debug)]
 pub struct TextInput {
     pub(crate) placement: Placement,
@@ -121,118 +132,205 @@ pub struct TextInput {
     pub(crate) keypad: Keypad,
 }
 
-impl Default for TextInput {
-    fn default() -> Self {
-        Self::new()
-    }
+/// An editable run of glyphs that wraps.
+///
+/// A [`TextInput`] with as many lines as its value takes: the run wraps at the box's width exactly
+/// as a [`Text`](crate::Text) does, and the field scrolls **down** rather than across to keep the
+/// caret in view.
+///
+/// ```no_run
+/// # use foliage::{Boxed, FontSize, Location, Palette, Place, Source, TextArea, left, top};
+/// TextArea::new()
+///     .placeholder("Notes")
+///     .color(Palette::Ink)
+///     .font_size(FontSize::new().xs(14))
+///     .at(Location::new().xs(
+///         left(0.px()).right(100.pct()),
+///         top(0.px()).height(160.px()),
+///     ));
+/// ```
+///
+/// Where the two differ is what the keys that are about lines mean. `Enter` puts a newline in the
+/// value where a field would submit, and `Ctrl+Enter` is what submits. `Up` and `Down` move the
+/// caret by a line, and `Home` and `End` go to the ends of the line the caret is on rather than of
+/// the whole value -- the line as it wrapped, which is the line a reader sees. A newline that comes
+/// in on the clipboard is kept, where a field drops it.
+///
+/// Everything else -- the placeholder, the fills, the clipboard, the keypad, what a tap and a hold
+/// do, and what it reports -- is as it is on a [`TextInput`], and it is read with the same
+/// [`Vein::Text`](crate::Vein::Text) and [`Vein::Selection`](crate::Vein::Selection).
+#[derive(Clone, Debug)]
+pub struct TextArea {
+    pub(crate) placement: Placement,
+    pub(crate) value: String,
+    pub(crate) placeholder: String,
+    pub(crate) fill: Fill,
+    pub(crate) hint: Fill,
+    pub(crate) caret: Fill,
+    pub(crate) selection: Fill,
+    pub(crate) keypad: Keypad,
 }
 
-impl TextInput {
-    /// An empty field, read in [`Palette::Ink`] with an [`Palette::Accent`] caret.
-    pub fn new() -> Self {
-        Self {
-            placement: Placement::default(),
-            value: String::new(),
-            placeholder: String::new(),
-            fill: Fill::Role(Palette::Ink),
-            hint: Fill::Role(Palette::Muted),
-            caret: Fill::Role(Palette::Accent),
-            selection: Fill::Role(Palette::Muted),
-            keypad: Keypad::Text,
+/// The builders a field and an area share, which are all of them: the two are the same thing to
+/// describe and differ only in what they do with a line.
+macro_rules! field {
+    ($seed:ident, $lines:expr) => {
+        impl Default for $seed {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
+        impl $seed {
+            /// An empty one, read in [`Palette::Ink`] with an [`Palette::Accent`] caret.
+            pub fn new() -> Self {
+                Self {
+                    placement: Placement::default(),
+                    value: String::new(),
+                    placeholder: String::new(),
+                    fill: Fill::Role(Palette::Ink),
+                    hint: Fill::Role(Palette::Muted),
+                    caret: Fill::Role(Palette::Accent),
+                    selection: Fill::Role(Palette::Muted),
+                    keypad: Keypad::Text,
+                }
+            }
+
+            /// What the field starts out saying.
+            pub fn value(mut self, value: impl Into<String>) -> Self {
+                self.value = value.into();
+                self
+            }
+
+            /// What is read in the field's place while it says nothing.
+            ///
+            /// Drawn in [`hint`](Self::hint) rather than in the value's own fill, and never part of
+            /// the value: it is absent from [`Vein::Text`](crate::Vein::Text) and a field showing
+            /// one is empty.
+            pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
+                self.placeholder = placeholder.into();
+                self
+            }
+
+            /// What the value is filled with.
+            pub fn color(mut self, fill: impl Into<Fill>) -> Self {
+                self.fill = fill.into();
+                self
+            }
+
+            /// What the placeholder is filled with.
+            pub fn hint(mut self, fill: impl Into<Fill>) -> Self {
+                self.hint = fill.into();
+                self
+            }
+
+            /// What the caret is filled with.
+            pub fn caret(mut self, fill: impl Into<Fill>) -> Self {
+                self.caret = fill.into();
+                self
+            }
+
+            /// What is drawn behind a selected span.
+            pub fn selection(mut self, fill: impl Into<Fill>) -> Self {
+                self.selection = fill.into();
+                self
+            }
+
+            /// Which soft keyboard the field raises while it holds focus.
+            ///
+            /// A hint about what is easy to type and not a rule about what the field takes: a
+            /// [`Keypad::Number`] field can still be pasted a word into, so what a value is allowed
+            /// to be is the app's to check either way. Ignored where the platform raises no
+            /// keyboard of its own.
+            pub fn keypad(mut self, keypad: Keypad) -> Self {
+                self.keypad = keypad;
+                self
+            }
+        }
+
+        impl Places for $seed {
+            fn placement(&mut self) -> &mut Placement {
+                &mut self.placement
+            }
+        }
+
+        impl Boxed for $seed {}
+
+        impl Buds for $seed {
+            fn bud(mut self, at: Caller) -> Bud {
+                let lines: Lines = $lines;
+                // A field is measured in characters throughout -- its caret, its selection and its
+                // own value -- so it carries a typeface whether or not one was named, exactly as a
+                // run does.
+                self.placement.typeface.get_or_insert_default();
+                // Declared here rather than left to the app, because both are what make a field a
+                // field rather than a preference about one. It receives, so a gesture can reach it
+                // and focus can rest on it -- which is what makes a tap focus it, since that is
+                // where focus goes for anything that receives; and it is a region along the axis
+                // its value grows on, which is what clips a value larger than its box and what the
+                // caret is kept in view by.
+                //
+                // It declares no drags. A drag across a field is then the region's, and the region
+                // is the field, so the value moves under its box; selection comes out of a hold,
+                // which claims a drag whatever an element declared.
+                self.placement.manner.gestures.receives = true;
+                let axes = lines.axes();
+                self.placement.manner.scrolls = Some(Scrolls(Scroll::new(axes).contain(axes)));
+                Bud {
+                    chlorophyll: Chlorophyll::None,
+                    placement: self.placement,
+                    sprout: Some(Box::new(Sprout {
+                        value: self.value,
+                        placeholder: self.placeholder,
+                        fill: self.fill,
+                        hint: self.hint,
+                        caret: self.caret,
+                        selection: self.selection,
+                        keypad: self.keypad,
+                        lines,
+                    })),
+                    at,
+                    ..Bud::bare()
+                }
+            }
+        }
+    };
+}
+
+field!(TextInput, Lines::One);
+field!(TextArea, Lines::Many);
+
+/// How many lines a field has: one, or as many as its value wraps to.
+///
+/// The one thing that tells a [`TextInput`] from a [`TextArea`]. Everything a field does reads the
+/// same way in either -- what differs is which axis the value grows along, and so which axis the
+/// field scrolls, which keys are about lines, and whether a newline is a character it holds.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Lines {
+    /// One line, as wide as its value, scrolling across.
+    #[default]
+    One,
+    /// As many lines as the value wraps to at the box's width, scrolling down.
+    Many,
+}
+
+impl Lines {
+    /// The axis the value grows along, which is the one the field scrolls.
+    fn axes(self) -> Axes {
+        match self {
+            Lines::One => Axes::Horizontal,
+            Lines::Many => Axes::Vertical,
         }
     }
 
-    /// What the field starts out saying.
-    pub fn value(mut self, value: impl Into<String>) -> Self {
-        self.value = value.into();
-        self
-    }
-
-    /// What is read in the field's place while it says nothing.
+    /// How many cells across the run wraps at, given the width it was last drawn at.
     ///
-    /// Drawn in [`hint`](TextInput::hint) rather than in the value's own fill, and never part of
-    /// the value: it is absent from [`Vein::Text`](crate::Vein::Text) and a field showing one is
-    /// empty.
-    pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
-        self.placeholder = placeholder.into();
-        self
-    }
-
-    /// What the value is filled with.
-    pub fn color(mut self, fill: impl Into<Fill>) -> Self {
-        self.fill = fill.into();
-        self
-    }
-
-    /// What the placeholder is filled with.
-    pub fn hint(mut self, fill: impl Into<Fill>) -> Self {
-        self.hint = fill.into();
-        self
-    }
-
-    /// What the caret is filled with.
-    pub fn caret(mut self, fill: impl Into<Fill>) -> Self {
-        self.caret = fill.into();
-        self
-    }
-
-    /// What is drawn behind a selected span.
-    pub fn selection(mut self, fill: impl Into<Fill>) -> Self {
-        self.selection = fill.into();
-        self
-    }
-
-    /// Which soft keyboard the field raises while it holds focus.
-    ///
-    /// A hint about what is easy to type and not a rule about what the field takes: a
-    /// [`Keypad::Number`] field can still be pasted a word into, so what a value is allowed to be
-    /// is the app's to check either way. Ignored where the platform raises no keyboard of its own.
-    pub fn keypad(mut self, keypad: Keypad) -> Self {
-        self.keypad = keypad;
-        self
-    }
-}
-
-impl Places for TextInput {
-    fn placement(&mut self) -> &mut Placement {
-        &mut self.placement
-    }
-}
-
-impl Boxed for TextInput {}
-
-impl Buds for TextInput {
-    fn bud(mut self, at: Caller) -> Bud {
-        // A field is measured in characters throughout -- its caret, its selection and its own
-        // value -- so it carries a typeface whether or not one was named, exactly as a run does.
-        self.placement.typeface.get_or_insert_default();
-        // Declared here rather than left to the app, because both are what make a field a field
-        // rather than a preference about one. It receives, so a gesture can reach it and focus can
-        // rest on it -- which is what makes a tap focus it, since that is where focus goes for
-        // anything that receives; and it is a region across, which is what clips a value longer
-        // than its box and what the caret is kept in view by.
-        //
-        // It declares no drags. A drag across a field is then the region's, and the region is the
-        // field, so the value moves under its box; selection comes out of a hold, which claims a
-        // drag whatever an element declared.
-        self.placement.manner.gestures.receives = true;
-        self.placement.manner.scrolls = Some(Scrolls(
-            Scroll::new(Axes::Horizontal).contain(Axes::Horizontal),
-        ));
-        Bud {
-            chlorophyll: Chlorophyll::None,
-            placement: self.placement,
-            sprout: Some(Box::new(Sprout {
-                value: self.value,
-                placeholder: self.placeholder,
-                fill: self.fill,
-                hint: self.hint,
-                caret: self.caret,
-                selection: self.selection,
-                keypad: self.keypad,
-            })),
-            at,
-            ..Bud::bare()
+    /// A field of one line never wraps: its run is as wide as its own value by declaration, so the
+    /// answer is not read off a width that may not have been resolved yet.
+    fn columns(self, shaped: &Shaped, width: f32) -> usize {
+        match self {
+            Lines::One => usize::MAX,
+            Lines::Many => shaped.columns(width),
         }
     }
 }
@@ -247,9 +345,10 @@ pub(crate) struct Sprout {
     pub(crate) caret: Fill,
     pub(crate) selection: Fill,
     pub(crate) keypad: Keypad,
+    pub(crate) lines: Lines,
 }
 
-/// The four elements a field is made of.
+/// The six elements a field is made of, and how many lines it has.
 ///
 /// Carried on the field, which is what makes every verb addressed to the field able to reach the
 /// part it actually changes -- and what makes an element a field at all, since nothing else grows
@@ -259,7 +358,15 @@ pub(crate) struct Parts {
     pub(crate) run: Leaf,
     pub(crate) hint: Leaf,
     pub(crate) caret: Leaf,
-    pub(crate) selection: Leaf,
+    /// The selection on the line it begins: from its start to its end where the two share a line,
+    /// and to the run's right edge where they do not.
+    pub(crate) head: Leaf,
+    /// Every whole line the selection covers between the one it begins on and the one it ends on.
+    pub(crate) body: Leaf,
+    /// The selection on the line it ends, from the run's left edge, where that is not the line it
+    /// began on.
+    pub(crate) tail: Leaf,
+    pub(crate) lines: Lines,
 }
 
 /// Where the caret is and what is selected, in characters of the value.
@@ -324,7 +431,7 @@ pub(crate) enum Applied {
     /// The one keystroke a field cannot finish on its own: what is on the clipboard is the host's
     /// to say and it does not say it now, so the write happens in the frame the answer lands.
     Pasting,
-    /// `Enter`.
+    /// `Enter` on a field, or `Ctrl+Enter` on an area.
     Submitted,
     /// Nothing a field does.
     Nothing,
@@ -338,11 +445,22 @@ pub(crate) enum Applied {
 /// Indices are **characters**, not bytes -- the space [`Shaped`](crate::text::shape) lays a run out
 /// in and the space a [`tint`](crate::Grow::tint) is written in, so a caret, a highlight and a
 /// range all mean the same thing by the same number.
-pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Applied {
+///
+/// `wrap` is the value as it wrapped, for a field of more than one line, and `None` for a field of
+/// one. It is what the keys that are about lines are answered against -- a line is a fact about the
+/// wrap and not about the value -- and its absence is what makes `Enter` a submission and `Up` and
+/// `Down` nothing at all.
+pub(crate) fn applied(
+    value: &str,
+    editing: Editing,
+    stroke: Keystroke,
+    wrap: Option<Wrap<'_>>,
+) -> Applied {
     let characters: Vec<char> = value.chars().collect();
     let editing = editing.clamped(characters.len());
     let extend = stroke.modifiers.shift;
     let span = editing.span();
+    let length = characters.len();
     // A command rather than a character. Held, a key says what to do with the value instead of
     // what to put in it, so it is answered before the key's own meaning is.
     if stroke.modifiers.control {
@@ -364,6 +482,9 @@ pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Appli
                 editing: Editing::at(span.start),
             },
             Key::Typed('v') | Key::Typed('V') => Applied::Pasting,
+            // What submits an area, whose bare `Enter` is a newline. Answered for a field too, so
+            // the chord means one thing wherever it is pressed.
+            Key::Enter => Applied::Submitted,
             _ => Applied::Nothing,
         };
     }
@@ -401,18 +522,27 @@ pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Appli
                 Editing::at(removed.start),
             )
         }
-        Key::Left => Applied::Moved(moved(editing, characters.len(), Toward::Left, extend)),
-        Key::Right => Applied::Moved(moved(editing, characters.len(), Toward::Right, extend)),
-        Key::Home => Applied::Moved(moved(editing, characters.len(), Toward::Start, extend)),
-        Key::End => Applied::Moved(moved(editing, characters.len(), Toward::End, extend)),
-        // Not an edit and not a caret: the app is told, and what that means is the app's.
-        Key::Enter => Applied::Submitted,
+        Key::Left => Applied::Moved(moved(editing, length, Toward::Left, extend, wrap)),
+        Key::Right => Applied::Moved(moved(editing, length, Toward::Right, extend, wrap)),
+        Key::Home => Applied::Moved(moved(editing, length, Toward::Start, extend, wrap)),
+        Key::End => Applied::Moved(moved(editing, length, Toward::End, extend, wrap)),
+        // A field is one line, so there is no line above or below to move to. An app reading its
+        // own keys is what steps a list of them.
+        Key::Up | Key::Down if wrap.is_none() => Applied::Nothing,
+        Key::Up => Applied::Moved(moved(editing, length, Toward::Up, extend, wrap)),
+        Key::Down => Applied::Moved(moved(editing, length, Toward::Down, extend, wrap)),
+        // On a field, not an edit and not a caret: the app is told, and what that means is the
+        // app's. On an area it is the one character a key cannot otherwise put in the value.
+        Key::Enter => match wrap {
+            None => Applied::Submitted,
+            Some(_) => Applied::Wrote(
+                spliced(&characters, span.clone(), "\n"),
+                Editing::at(span.start + 1),
+            ),
+        },
         // Both answered before a field is ever asked, because both move focus wherever focus is:
         // `Tab` steps it and `Escape` takes it away. A field never sees either.
         Key::Tab | Key::Escape => Applied::Nothing,
-        // A field is one line, so there is no line above or below to move to. An app reading its
-        // own keys is what steps a list of them.
-        Key::Up | Key::Down => Applied::Nothing,
     }
 }
 
@@ -421,15 +551,20 @@ pub(crate) fn applied(value: &str, editing: Editing, stroke: Keystroke) -> Appli
 /// The rule a paste is applied by, and the general case of the one a typed character is: what
 /// arrives is a string rather than a character, and it is written in at exactly the same place.
 ///
-/// Control characters are dropped, which is the rule a keystroke already arrives under -- a field
-/// is one line, so a newline that came in on the clipboard would put a character in the value that
-/// no cell can be measured for and no caret can stand between.
-pub(crate) fn inserted(value: &str, editing: Editing, text: &str) -> Applied {
+/// Control characters are dropped, which is the rule a keystroke already arrives under. A newline
+/// is the exception on an area, where it is a character the value holds; on a field it is dropped
+/// with the rest, because a field is one line and a newline in it would be a character no cell can
+/// be measured for. A carriage return is a newline's other spelling, and is read as one.
+pub(crate) fn inserted(value: &str, editing: Editing, text: &str, lines: Lines) -> Applied {
     let characters: Vec<char> = value.chars().collect();
     let span = editing.clamped(characters.len()).span();
     let written: String = text
+        .replace("\r\n", "\n")
         .chars()
-        .filter(|character| !character.is_control())
+        .filter(|character| match (lines, character) {
+            (Lines::Many, '\n') => true,
+            _ => !character.is_control(),
+        })
         .collect();
     if written.is_empty() {
         return Applied::Nothing;
@@ -457,6 +592,8 @@ enum Toward {
     Right,
     Start,
     End,
+    Up,
+    Down,
 }
 
 /// Where the caret lands, and what that leaves selected.
@@ -464,15 +601,50 @@ enum Toward {
 /// An unshifted arrow against a selection **collapses it to the edge it points at** rather than
 /// stepping from the caret. That is what every editor does and what a reader means by it: the
 /// selection was the thing being moved away from.
-fn moved(editing: Editing, length: usize, toward: Toward, extend: bool) -> Editing {
+///
+/// The keys that are about lines read the wrap. `Home` and `End` go to the ends of the line the
+/// caret is on; `Up` and `Down` go to the same column of the line above or below, or to the ends of
+/// the value where there is no such line -- and a column past the end of a shorter line is that
+/// line's end, which is where a reader expects to land. Without a wrap there is one line, and its
+/// ends are the value's.
+fn moved(
+    editing: Editing,
+    length: usize,
+    toward: Toward,
+    extend: bool,
+    wrap: Option<Wrap<'_>>,
+) -> Editing {
     let span = editing.span();
     let caret = match (toward, extend, editing.collapsed()) {
         (Toward::Left, false, false) => span.start,
         (Toward::Right, false, false) => span.end,
         (Toward::Left, _, _) => editing.caret.saturating_sub(1),
         (Toward::Right, _, _) => (editing.caret + 1).min(length),
-        (Toward::Start, _, _) => 0,
-        (Toward::End, _, _) => length,
+        (Toward::Start, _, _) => match wrap {
+            Some(wrap) => wrap.ends(wrap.cell_of(editing.caret).1).0,
+            None => 0,
+        },
+        (Toward::End, _, _) => match wrap {
+            Some(wrap) => wrap.ends(wrap.cell_of(editing.caret).1).1,
+            None => length,
+        },
+        (Toward::Up, _, _) => match wrap {
+            Some(wrap) => match wrap.cell_of(editing.caret) {
+                (_, 0) => 0,
+                (column, line) => wrap.index_at(column, line - 1),
+            },
+            None => editing.caret,
+        },
+        (Toward::Down, _, _) => match wrap {
+            Some(wrap) => {
+                let (column, line) = wrap.cell_of(editing.caret);
+                match line >= wrap.cell_of(length).1 {
+                    true => length,
+                    false => wrap.index_at(column, line + 1),
+                }
+            }
+            None => editing.caret,
+        },
     };
     match extend {
         true => Editing {
@@ -489,33 +661,46 @@ impl Sprouts for Sprout {
     }
 }
 
-/// Grows a field's four parts under it, in the drain that grew the field.
+/// Grows a field's six parts under it, in the drain that grew the field.
 fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
     let at = grove
         .tree
         .spawned_at(field)
         .unwrap_or(core::panic::Location::caller());
     let typeface = grove.tree.typeface(field);
+    let lines = sprout.lines;
     // Every name first, so the parts can be placed against each other as they are grown.
     let (run, run_growth) = grove.naming.leaf();
     let (hint, hint_growth) = grove.naming.leaf();
     let (caret, caret_growth) = grove.naming.leaf();
-    let (selection, selection_growth) = grove.naming.leaf();
+    let (head, head_growth) = grove.naming.leaf();
+    let (body, body_growth) = grove.naming.leaf();
+    let (tail, tail_growth) = grove.naming.leaf();
     let parts = Parts {
         run,
         hint,
         caret,
-        selection,
+        head,
+        body,
+        tail,
+        lines,
     };
-    // A run as wide as its own value, one line tall, centred in whatever box the field was given.
-    // Its width is what the field's extent is measured from, so a value longer than the box is what
-    // makes the field scrollable and nothing has to say so. It sits in front of both marks, because
-    // a mark drawn over it would cut into the glyph it stands against.
+    // A run sized along the axis the value grows on and held to the box on the other: as wide as
+    // its own value and one line tall, centred, on a field; as wide as the box and as tall as it
+    // wraps to, from the top, on an area. Its extent along that axis is what the field's is
+    // measured from, so a value larger than the box is what makes the field scrollable and nothing
+    // has to say so. It sits in front of every mark, because a mark drawn over it would cut into
+    // the glyph it stands against.
     let line = |elevation: i32| Placement {
-        location: Some(Location::new().xs(
-            left(0.px()).width(content()),
-            center_y(50.pct()).height(1.letters()),
-        )),
+        location: Some(match lines {
+            Lines::One => Location::new().xs(
+                left(0.px()).width(content()),
+                center_y(50.pct()).height(1.letters()),
+            ),
+            Lines::Many => {
+                Location::new().xs(left(0.px()).right(100.pct()), top(0.px()).height(content()))
+            }
+        }),
         elevation: Some(Elevation::up(elevation)),
         typeface,
         manner: Manner {
@@ -529,10 +714,11 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
         },
         ..Placement::default()
     };
-    // The caret and the selection are spans of the run's own character cells, so both are anchored
-    // to it and both are rewritten by `refresh` whenever the caret moves.
+    // The caret and the selection are spans of the run's own character cells, so all are anchored
+    // to it: the caret is rewritten by `refresh` whenever it moves, and the selection by `settled`
+    // every frame it is drawn.
     let against = |elevation: i32, visible: bool| Placement {
-        location: Some(span(0, 0)),
+        location: Some(head_at(0, Some(0))),
         anchor: Some(Anchored { to: run, at }),
         elevation: Some(Elevation::up(elevation)),
         manner: Manner {
@@ -545,21 +731,31 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
         },
         ..Placement::default()
     };
-    grove.tree.grow(
-        selection,
-        selection_growth,
-        Some(field),
-        Bud {
-            chlorophyll: Chlorophyll::Panel,
-            pigment: Some(Pigment::Panel(PanelPigment {
-                fill: sprout.selection,
-                rounding: Default::default(),
-            })),
-            placement: against(0, false),
-            at,
-            ..Bud::bare()
-        },
-    );
+    let mark = |fill: Fill, placement: Placement| Bud {
+        chlorophyll: Chlorophyll::Panel,
+        pigment: Some(Pigment::Panel(PanelPigment {
+            fill,
+            rounding: Default::default(),
+        })),
+        placement,
+        at,
+        ..Bud::bare()
+    };
+    // The selection says it is hidden, because nothing is selected yet. The caret always has
+    // something to show, so it declares itself shown and lets focus be the only thing that hides
+    // it.
+    for (leaf, growth) in [
+        (head, head_growth),
+        (body, body_growth),
+        (tail, tail_growth),
+    ] {
+        grove.tree.grow(
+            leaf,
+            growth,
+            Some(field),
+            mark(sprout.selection, against(0, false)),
+        );
+    }
     let empty = sprout.value.is_empty();
     grove.tree.grow(
         run,
@@ -593,18 +789,7 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
         caret,
         caret_growth,
         Some(field),
-        Bud {
-            chlorophyll: Chlorophyll::Panel,
-            pigment: Some(Pigment::Panel(PanelPigment {
-                fill: sprout.caret,
-                rounding: Default::default(),
-            })),
-            // A caret always has something to show, so it declares itself shown and lets focus be
-            // the only thing that hides it. The selection says otherwise for itself, below.
-            placement: against(1, true),
-            at,
-            ..Bud::bare()
-        },
+        mark(sprout.caret, against(1, true)),
     );
     grove.tree.set_parts(field, parts);
     grove.tree.set_editing(field, Editing::default());
@@ -613,27 +798,49 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
     debug!(leaf = field.id(), "field sprouted");
 }
 
-/// Where the caret sits at character `index` of the run.
+/// Where the caret sits at character `index` of the run: the cell that character wrapped into.
 fn caret_at(index: usize) -> Location {
     Location::new().xs(
-        left(anchor().left() + anchor().letters(index as f32)).width(CARET.px()),
-        center_y(anchor().center_y()).height(anchor().letters(1.0)),
+        left(anchor().left() + anchor().character(index)).width(CARET.px()),
+        top(anchor().top() + anchor().character(index)).height(anchor().letters(1.0)),
     )
 }
 
-/// The box covering characters `from..to` of the run.
-fn span(from: usize, to: usize) -> Location {
+/// The selection on the line character `from` is on: to character `to` where it is on the same
+/// line, and to the run's right edge where it is not.
+fn head_at(from: usize, to: Option<usize>) -> Location {
+    let across = left(anchor().left() + anchor().character(from));
     Location::new().xs(
-        left(anchor().left() + anchor().letters(from as f32))
-            .right(anchor().left() + anchor().letters(to as f32)),
-        center_y(anchor().center_y()).height(anchor().letters(1.0)),
+        match to {
+            Some(to) => across.right(anchor().left() + anchor().character(to)),
+            None => across.right(anchor().right()),
+        },
+        top(anchor().top() + anchor().character(from)).height(anchor().letters(1.0)),
+    )
+}
+
+/// Every whole line between the one character `from` is on and the one character `to` is on.
+fn body_at(from: usize, to: usize) -> Location {
+    Location::new().xs(
+        left(anchor().left()).right(anchor().right()),
+        top(anchor().top() + anchor().character(from) + anchor().letters(1.0))
+            .bottom(anchor().top() + anchor().character(to)),
+    )
+}
+
+/// The line character `to` is on, from the run's left edge up to it.
+fn tail_at(to: usize) -> Location {
+    Location::new().xs(
+        left(anchor().left()).right(anchor().left() + anchor().character(to)),
+        top(anchor().top() + anchor().character(to)).height(anchor().letters(1.0)),
     )
 }
 
 /// Puts the parts back in step with the value and the caret.
 ///
 /// Runs at the drain, after whatever changed either of them, so the frame that took the keystroke is
-/// the frame the caret has moved in.
+/// the frame the caret has moved in. The selection is not placed here: it is placed at the end of
+/// the drain, where focus is final and so is what it is drawn against.
 pub(crate) fn refresh(grove: &mut Grove, field: Leaf) {
     let Some(parts) = grove.tree.parts(field) else {
         return;
@@ -645,20 +852,13 @@ pub(crate) fn refresh(grove: &mut Grove, field: Leaf) {
         .unwrap_or_default();
     let editing = grove.tree.editing(field).clamped(length);
     grove.tree.set_editing(field, editing);
-    let selected = editing.span();
     grove
         .tree
         .set_location(parts.caret, caret_at(editing.caret));
-    grove
-        .tree
-        .set_location(parts.selection, span(selected.start, selected.end));
-    grove
-        .tree
-        .set_visible(parts.selection, !selected.is_empty());
     grove.tree.set_visible(parts.hint, length == 0);
     // The caret is kept in view by the region the field already is, against the extent this frame's
     // R3 measures rather than the one the last frame left -- which is what makes typing past the
-    // right edge of the box scroll it in the same frame.
+    // edge of the box scroll it in the same frame.
     grove.sought.push((field, ScrollTo::show(parts.caret)));
 }
 
@@ -670,7 +870,13 @@ pub(crate) fn typed(grove: &mut Grove, field: Leaf, stroke: Keystroke) {
     let Some(parts) = grove.tree.parts(field) else {
         return;
     };
-    match applied(&value(grove, parts), grove.tree.editing(field), stroke) {
+    let value = value(grove, parts);
+    let shaped = shaped(grove, parts, &value);
+    let wrap = match parts.lines {
+        Lines::One => None,
+        Lines::Many => Some(shaped.wrap(columns(grove, parts, &shaped))),
+    };
+    match applied(&value, grove.tree.editing(field), stroke, wrap) {
         Applied::Wrote(written, editing) => wrote(grove, field, parts, written, editing),
         Applied::Moved(editing) => {
             grove.tree.set_editing(field, editing);
@@ -709,9 +915,12 @@ pub(crate) fn pasted(grove: &mut Grove, field: Leaf, text: &str) {
     let Some(parts) = grove.tree.parts(field) else {
         return;
     };
-    if let Applied::Wrote(written, editing) =
-        inserted(&value(grove, parts), grove.tree.editing(field), text)
-    {
+    if let Applied::Wrote(written, editing) = inserted(
+        &value(grove, parts),
+        grove.tree.editing(field),
+        text,
+        parts.lines,
+    ) {
         wrote(grove, field, parts, written, editing);
     }
 }
@@ -723,6 +932,25 @@ fn value(grove: &Grove, parts: Parts) -> String {
         .lettering(parts.run)
         .unwrap_or_default()
         .to_string()
+}
+
+/// The field's value, shaped in the run's own cell.
+///
+/// Shaped here rather than read out of the cache, because the value may have been written in this
+/// same drain and R1 has not seen it yet -- two keystrokes in one frame are the ordinary case. The
+/// cell is the run's as R1 last measured it, which changes only with the font.
+fn shaped(grove: &Grove, parts: Parts, value: &str) -> Shaped {
+    shape(value, grove.tree.cell(parts.run))
+}
+
+/// How many cells across the field's run wraps at, as it was last drawn.
+///
+/// Last drawn, because the drain runs before this frame's layout: it is the width a reader is
+/// looking at, which is the one a key or a point means. On a field of one line it is unbounded.
+fn columns(grove: &Grove, parts: Parts, shaped: &Shaped) -> usize {
+    parts
+        .lines
+        .columns(shaped, grove.tree.drawn(parts.run).width())
 }
 
 /// Puts a new value and caret on a field, however it was arrived at.
@@ -808,7 +1036,7 @@ fn gestured(grove: &mut Grove) {
             // A pointer past the edge is a reader still asking for more of the value, and the
             // caret it is being taken to is further out every frame. So the field owes itself the
             // frames that get there, the way anything driving its own motion does.
-            if beyond(grove, field, to) {
+            if beyond(grove, field, parts, to) {
                 grove.again();
             }
         }
@@ -826,6 +1054,13 @@ fn gestured(grove: &mut Grove) {
 /// stepped away from and back into is as it was left -- while a *tap* back into it collapses the
 /// selection, because a tap says where the caret goes.
 ///
+/// The selection is placed here as well as shown, every frame it is drawn. Its geometry is the
+/// layout's, read off the wrap by the same [`character`](crate::Anchor::character) the caret is --
+/// but *how many boxes* it takes is a fact about which lines its two ends fell on, and that is read
+/// here against the width the run was last drawn at. A frame that changes the wrap under a
+/// selection is answered on the frame after, which is the one frame the drawn and the declared can
+/// disagree.
+///
 /// The soft keyboard is settled here too, and it is the same statement the caret is: a platform's
 /// own keyboard is raised for the field that holds focus and lowered for everything else, so
 /// nothing about a phone is declared anywhere -- being a field is the whole of it.
@@ -835,9 +1070,29 @@ fn settled(grove: &mut Grove) {
         let showing = Some(field) == focused;
         grove.tree.set_visible(parts.caret, showing);
         let selected = grove.tree.editing(field).span();
+        if !showing || selected.is_empty() {
+            for mark in [parts.head, parts.body, parts.tail] {
+                grove.tree.set_visible(mark, false);
+            }
+            continue;
+        }
+        let value = value(grove, parts);
+        let shaped = shaped(grove, parts, &value);
+        let wrap = shaped.wrap(columns(grove, parts, &shaped));
+        let (_, first) = wrap.cell_of(selected.start);
+        let (_, last) = wrap.cell_of(selected.end);
+        let same = first == last;
+        grove.tree.set_location(
+            parts.head,
+            head_at(selected.start, same.then_some(selected.end)),
+        );
+        grove.tree.set_visible(parts.head, true);
         grove
             .tree
-            .set_visible(parts.selection, showing && !selected.is_empty());
+            .set_location(parts.body, body_at(selected.start, selected.end));
+        grove.tree.set_visible(parts.body, last > first + 1);
+        grove.tree.set_location(parts.tail, tail_at(selected.end));
+        grove.tree.set_visible(parts.tail, !same);
     }
     let wanted = focused.and_then(|leaf| grove.tree.keypad(leaf));
     grove.keyboard.raise(wanted);
@@ -877,29 +1132,36 @@ pub(crate) fn lettered(grove: &mut Grove, field: Leaf, parts: Parts, value: Stri
     refresh(grove, field);
 }
 
-/// Whether a point has left the field across, which is the axis it scrolls.
+/// Whether a point has left the field along the axis it scrolls.
 ///
-/// Across and not the whole box: a pointer below a one-line field is at a character like any other,
-/// and the field has nowhere to go for it.
-fn beyond(grove: &Grove, field: Leaf, at: Position) -> bool {
+/// That axis and not the whole box: a pointer below a one-line field is at a character like any
+/// other, and the field has nowhere to go for it -- and a pointer beside an area is on the line it
+/// is level with.
+fn beyond(grove: &Grove, field: Leaf, parts: Parts, at: Position) -> bool {
     let box_of = grove.tree.drawn(field);
-    at.x < box_of.left() || at.x > box_of.right()
+    match parts.lines {
+        Lines::One => at.x < box_of.left() || at.x > box_of.right(),
+        Lines::Many => at.y < box_of.top() || at.y > box_of.bottom(),
+    }
 }
 
 /// Which character of the run a point falls on.
 ///
-/// Rounded rather than floored, so pressing past the middle of a character puts the caret after it
-/// -- which is where a hand aiming between two characters means.
+/// The column is rounded rather than floored, so pressing past the middle of a character puts the
+/// caret after it -- which is where a hand aiming between two characters means. The line is floored,
+/// because a hand is on the line it is on. Which index that cell is, on a run that wraps, is the
+/// wrap's to say.
 fn index_at(grove: &Grove, parts: Parts, at: Position) -> usize {
     let cell = grove.tree.cell(parts.run);
-    if cell.width <= 0.0 {
+    if cell.width <= 0.0 || cell.height <= 0.0 {
         return 0;
     }
-    let length = grove
-        .tree
-        .lettering(parts.run)
-        .map(|value| value.chars().count())
-        .unwrap_or_default();
-    let across = at.x - grove.tree.drawn(parts.run).left();
-    ((across / cell.width).round().max(0.0) as usize).min(length)
+    let drawn = grove.tree.drawn(parts.run);
+    let column = ((at.x - drawn.left()) / cell.width).round().max(0.0) as usize;
+    let line = ((at.y - drawn.top()) / cell.height).floor().max(0.0) as usize;
+    let value = value(grove, parts);
+    let shaped = shaped(grove, parts, &value);
+    shaped
+        .wrap(columns(grove, parts, &shaped))
+        .index_at(column, line)
 }

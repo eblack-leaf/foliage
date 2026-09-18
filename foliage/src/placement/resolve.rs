@@ -18,6 +18,7 @@ use crate::placement::grid::Tracks;
 use crate::placement::point::Point;
 use crate::placement::role::{Config, Form};
 use crate::placement::source::{Against, Coord, Edge, Expr, Kind, Origin};
+use crate::text::shape::Shaped;
 
 /// Everything one element offers a placement that reads it.
 ///
@@ -25,7 +26,7 @@ use crate::placement::source::{Against, Coord, Edge, Expr, Kind, Origin};
 /// asking and every element answers the same questions. It is what stops the grammar being able to
 /// describe a trunk and not an anchor.
 #[derive(Copy, Clone, Debug, Default)]
-pub(crate) struct Basis {
+pub(crate) struct Basis<'a> {
     /// Its box: the edges a coordinate reads, and the extent a percentage is a fraction of.
     pub(crate) section: Section,
     /// Its measured extent, for [`content`](crate::content).
@@ -35,6 +36,13 @@ pub(crate) struct Basis {
     /// Its character cell, for a count of letters and for a letter-pitched track. An element with
     /// no font has none.
     pub(crate) cell: Area,
+    /// Its run of glyphs as R1 shaped it, for where a character of it stands. An element that says
+    /// nothing has none.
+    ///
+    /// Borrowed rather than looked up, so a term reading it costs what any other term does: the
+    /// resolver stays a function of what it is handed, and what it is handed was read out of the
+    /// order once.
+    pub(crate) run: Option<&'a Shaped>,
 }
 
 /// Everything one axis of one element resolves against.
@@ -43,22 +51,22 @@ pub(crate) struct Basis {
 /// not yet known. Nothing can read that half: a vertical source cannot enter a horizontal role,
 /// which is what the [`VerticalLength`](crate::VerticalLength) type is for.
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct Context {
+pub(crate) struct Context<'a> {
     /// Which axis is being resolved.
     pub(crate) axis: Axis,
     /// The element itself. Its measured extent and its character cell are readable, and on the
     /// vertical axis so is its width, settled by the pass before -- the rest of its box is the
     /// answer being computed, and is zero here.
-    pub(crate) own: Basis,
+    pub(crate) own: Basis<'a>,
     /// The element it was grown under, and what it fills when it says nothing.
-    pub(crate) trunk: Basis,
+    pub(crate) trunk: Basis<'a>,
     /// The one other element it may read. Zero throughout when it has no anchor.
-    pub(crate) anchor: Basis,
+    pub(crate) anchor: Basis<'a>,
 }
 
-impl Context {
+impl<'a> Context<'a> {
     /// The element a term is reading.
-    fn basis(&self, against: Against) -> &Basis {
+    fn basis(&self, against: Against) -> &Basis<'a> {
         match against {
             Against::Own => &self.own,
             Against::Trunk => &self.trunk,
@@ -212,6 +220,9 @@ fn source(kind: Kind, role: Role, context: &Context) -> f32 {
         Kind::Letters { letters, against } => {
             letters * extent_of_area(context.basis(against).cell, context.axis)
         }
+        Kind::Character { index, against } => {
+            character(index, context.basis(against), context.axis)
+        }
         Kind::Content { against } => extent_of_area(context.basis(against).intrinsic, context.axis),
         Kind::Edge { edge, against } => {
             let section = context.basis(against).section;
@@ -248,6 +259,23 @@ fn cell(index: i32, axis: Axis, role: Role, basis: &Basis) -> f32 {
         size / 2.0
     } else {
         0.0
+    }
+}
+
+/// Where character `index` of `basis`'s run stands on `axis`, in logical pixels from the run's own
+/// corner.
+///
+/// The run is wrapped at the width `basis` resolved to, which the horizontal pass has settled
+/// before anything can read this -- and on that pass the box is flattened to exactly that width, so
+/// the same wrap answers both axes. An element with no run offers nothing to stand in.
+fn character(index: usize, basis: &Basis, axis: Axis) -> f32 {
+    let Some(run) = basis.run else {
+        return 0.0;
+    };
+    let (column, line) = run.wrap(run.columns(basis.section.width())).cell_of(index);
+    match axis {
+        Axis::Horizontal => column as f32 * basis.cell.width,
+        Axis::Vertical => line as f32 * basis.cell.height,
     }
 }
 

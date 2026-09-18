@@ -93,7 +93,8 @@ pub enum Key {
     Backspace,
     /// Delete, which deletes ahead of it.
     Delete,
-    /// Enter, which submits a [`TextInput`](crate::TextInput).
+    /// Enter, which submits a [`TextInput`](crate::TextInput) and puts a newline in a
+    /// [`TextArea`](crate::TextArea).
     Enter,
     /// Tab.
     Tab,

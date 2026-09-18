@@ -210,7 +210,8 @@ pub trait Grow: Queues {
         });
     }
 
-    /// Selects a span of a [`TextInput`](crate::TextInput)'s value, in characters.
+    /// Selects a span of a [`TextInput`](crate::TextInput)'s or a [`TextArea`](crate::TextArea)'s
+    /// value, in characters.
     ///
     /// The caret goes to the range's end and the selection is anchored at its start, so an empty
     /// range places a caret and nothing else -- which is what makes this one verb rather than two

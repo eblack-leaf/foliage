@@ -161,8 +161,8 @@ fn android_main(activity: foliage::AndroidApp) {
 ## What draws, and what is assembled
 
 Six elements own a render pipeline and an instance buffer: `Panel`, `Text`, `Icon`, `Image`,
-`Polygon` and `Line`. Everything else is assembly on top of those — `TextInput` is a panel, a run
-of glyphs and a caret — and draws nothing of its own. Only the state that actually changed is
+`Polygon` and `Line`. Everything else is assembly on top of those — `TextInput` and `TextArea` are
+a run of glyphs, a caret and a selection made of panels — and draws nothing of its own. Only the state that actually changed is
 drained into the backend each frame.
 
 foliage stays unopinionated about widgets. It gives the renderers, the layout, the motion and the

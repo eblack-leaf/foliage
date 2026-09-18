@@ -23,7 +23,7 @@ use crate::placement::location::Location;
 use crate::placement::trace::Trace;
 use crate::polygon::{PolygonPigment, Shape};
 use crate::rounding::Corners;
-use crate::rowan::{Cell, Drawn, Intrinsic, Placed};
+use crate::rowan::{Cell, Composed, Drawn, Intrinsic, Placed};
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
 use crate::text_input::{Editing, Parts};
@@ -372,6 +372,20 @@ impl Tree {
 
     pub(crate) fn set_intrinsic(&mut self, leaf: Leaf, intrinsic: Area) {
         self.overwrite(leaf, Intrinsic(intrinsic));
+    }
+
+    /// `leaf`'s run as R1 shaped it, which is what a placement reading a character of it resolves
+    /// against. An element that says nothing has none.
+    pub(crate) fn composed(&self, leaf: Leaf) -> Composed {
+        self.world
+            .get_entity(leaf.0)
+            .ok()
+            .and_then(|entity| entity.get::<Composed>().cloned())
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn set_composed(&mut self, leaf: Leaf, composed: Composed) {
+        self.overwrite(leaf, composed);
     }
 
     /// Which font `leaf` composes in and at what size, or `None` if it was never given one.

@@ -82,6 +82,7 @@
 //! Neither iterates to convergence. Every pass here runs exactly once.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use bevy_ecs::component::Component;
 use tracing::field::Empty;
@@ -101,6 +102,7 @@ use crate::placement::location::Location;
 use crate::placement::resolve::{Basis, Context, Span, locate, resolve};
 use crate::placement::role::Config;
 use crate::placement::trace::{Ends, Trace};
+use crate::text::shape::Shaped;
 use crate::view::{self, Clipped, Escape, Scroll, range};
 
 /// Where the layout put an element. What its children resolve against.
@@ -138,6 +140,28 @@ pub(crate) struct Cell(pub(crate) Area);
 ///   gave it.
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Intrinsic(pub(crate) Area);
+
+/// An element's run of glyphs as R1 shaped it, which is what a placement reading a
+/// [`character`](crate::Anchor::character) of the element resolves against.
+///
+/// Held on the element the way its [`Cell`] is, and for the same reason: it is what the element
+/// offers a placement that reads it, so it is read into the order once and never looked up by a
+/// pass. Shared with the shaping cache rather than copied out of it, and absent on an element that
+/// says nothing.
+#[derive(Component, Clone, Debug, Default)]
+pub(crate) struct Composed(pub(crate) Option<Arc<Shaped>>);
+
+impl PartialEq for Composed {
+    /// The same run, not an equal one: two shapings of one value are one entry in the cache, so
+    /// what changed is whether the element was shaped again.
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.0, &other.0) {
+            (Some(held), Some(other)) => Arc::ptr_eq(held, other),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
 
 /// Every live element in dependency order, with what each one resolves against and what each one
 /// offers a placement that reads it.
@@ -195,6 +219,8 @@ pub(crate) struct Elements {
     tracks: Vec<Tracks>,
     /// The element's character cell.
     cell: Vec<Area>,
+    /// The element's run as R1 shaped it, where it has one.
+    composed: Vec<Option<Arc<Shaped>>>,
 }
 
 impl Elements {
@@ -273,6 +299,9 @@ fn scatter(grove: &mut Grove, elements: &Elements) {
         let leaf = elements.order[at];
         grove.tree.set_cell(leaf, elements.cell[at]);
         grove.tree.set_intrinsic(leaf, elements.intrinsic[at]);
+        grove
+            .tree
+            .set_composed(leaf, Composed(elements.composed[at].clone()));
     }
 }
 
@@ -307,13 +336,17 @@ fn measure(grove: &mut Grove, elements: &mut Elements) {
         };
         let size = typeface.size.at(*layout, *short);
         let cell = fonts.cell(typeface.font, size);
-        let width = match tree.lettering(leaf) {
-            Some(value) => shaping
-                .shape(fonts, typeface.font, size, value)
-                .max_content(),
-            None => 0.0,
-        };
+        // The run, shaped, is kept beside the cell: it is what a placement reading a character of
+        // this element resolves against, and this is the one pass that shapes.
+        let composed = tree
+            .lettering(leaf)
+            .map(|value| shaping.shape(fonts, typeface.font, size, value).clone());
+        let width = composed
+            .as_ref()
+            .map(|shaped| shaped.max_content())
+            .unwrap_or_default();
         elements.cell[at] = cell;
+        elements.composed[at] = composed;
         // The height half is R2m's, and is written before anything reads it.
         elements.intrinsic[at] = Area::new(width, 0.0);
     }
@@ -615,12 +648,13 @@ fn measurable(grove: &Grove, leaf: Leaf, fallback: &Location) -> bool {
 /// axis has resolved yet, which is the point of measuring. Every horizontal reading is real -- the
 /// child's own width included -- so a height stated in columns, read off a width, or held in
 /// proportion to its own still answers.
-fn raised(elements: &Elements, trunk: usize, child: usize) -> Context {
+fn raised<'a>(elements: &'a Elements, trunk: usize, child: usize) -> Context<'a> {
     let offered = |at: usize| Basis {
         section: flattened(elements.section[at]),
         intrinsic: elements.intrinsic[at],
         tracks: elements.tracks[at],
         cell: elements.cell[at],
+        run: elements.composed[at].as_deref(),
     };
     Context {
         axis: Axis::Vertical,
@@ -973,7 +1007,7 @@ fn rank(grove: &mut Grove, elements: &mut Elements) {
 }
 
 /// Everything one axis of the element at `at` resolves against.
-fn context(elements: &Elements, viewport: Section, at: usize, axis: Axis) -> Context {
+fn context<'a>(elements: &'a Elements, viewport: Section, at: usize, axis: Axis) -> Context<'a> {
     Context {
         axis,
         // Its box on this axis is the answer being computed, and its own grid divides it for its
@@ -996,7 +1030,7 @@ fn context(elements: &Elements, viewport: Section, at: usize, axis: Axis) -> Con
 /// resolved -- so nothing about the box that is still open can be read back.
 ///
 /// Nothing on the horizontal pass, where neither axis of it is known.
-fn own(elements: &Elements, at: usize, axis: Axis) -> Basis {
+fn own<'a>(elements: &'a Elements, at: usize, axis: Axis) -> Basis<'a> {
     Basis {
         section: match axis {
             Axis::Horizontal => Section::default(),
@@ -1005,6 +1039,8 @@ fn own(elements: &Elements, at: usize, axis: Axis) -> Basis {
         intrinsic: elements.intrinsic[at],
         tracks: Tracks::default(),
         cell: elements.cell[at],
+        // Where its own characters stand is a question about a box that is still being solved.
+        run: None,
     }
 }
 
@@ -1027,7 +1063,12 @@ fn flattened(section: Section) -> Section {
 ///
 /// The fallback is not flattened, because it is not a resolved box: the viewport a top-level element
 /// fills is as tall on this axis as on the other one.
-fn basis(elements: &Elements, at: Option<usize>, fallback: Section, axis: Axis) -> Basis {
+fn basis<'a>(
+    elements: &'a Elements,
+    at: Option<usize>,
+    fallback: Section,
+    axis: Axis,
+) -> Basis<'a> {
     let Some(at) = at else {
         return Basis {
             section: fallback,
@@ -1043,6 +1084,7 @@ fn basis(elements: &Elements, at: Option<usize>, fallback: Section, axis: Axis) 
         intrinsic: elements.intrinsic[at],
         tracks: elements.tracks[at],
         cell: elements.cell[at],
+        run: elements.composed[at].as_deref(),
     }
 }
 
@@ -1143,7 +1185,9 @@ fn structure(elements: &mut Elements, grove: &Grove) {
     elements.section.clear();
     elements.intrinsic.clear();
     elements.cell.clear();
+    elements.composed.clear();
     elements.chlorophyll.clear();
+    elements.tracks.clear();
     elements.index = index;
     for &at in &order {
         let leaf = leaves[at];
@@ -1155,9 +1199,16 @@ fn structure(elements: &mut Elements, grove: &Grove) {
         elements.section.push(tree.placed(leaf));
         elements.intrinsic.push(tree.intrinsic(leaf));
         elements.cell.push(tree.cell(leaf));
+        elements.composed.push(tree.composed(leaf).0);
+        // Divided again here rather than left to `read`, which divides only what is dirty: an
+        // element nothing wrote to keeps its grid, and its grid has to be at the position the
+        // element now holds rather than the one it held before the order was built again.
+        elements.tracks.push(
+            tree.grid(leaf)
+                .unwrap_or_default()
+                .tracks(grove.layout, grove.short),
+        );
     }
-    elements.tracks.resize(count, Tracks::default());
-    elements.tracks.truncate(count);
 }
 
 /// What this frame has to resolve, and what it may leave alone.
@@ -1206,8 +1257,9 @@ fn read(elements: &mut Elements, grove: &Grove) {
         elements.resolved.push(!dirty);
         // The grid is divided at the breakpoint in force, so it is read again wherever the element
         // is -- a breakpoint that moved is every element written to, and nothing else can change a
-        // division without writing the grid it divides.
-        if dirty {
+        // division without writing the grid it divides. A frame that built the order again has
+        // already divided every grid into it.
+        if dirty && !written.restructured {
             elements.tracks[at] = grove
                 .tree
                 .grid(leaf)

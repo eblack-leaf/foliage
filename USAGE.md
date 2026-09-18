@@ -79,10 +79,12 @@ The set of seeds is closed:
 | `Image` | A registered picture, fitted into its box | yes |
 | `Polygon` | A regular polygon: sides, corner rounding, rotation | yes |
 | `Line` | A stroke between two points | yes |
-| `TextInput` | An editable run, with a caret and a selection | assembled |
+| `TextInput` | An editable run of one line, with a caret and a selection | assembled |
+| `TextArea` | The same, with as many lines as its value wraps to | assembled |
 
 The six that draw own a render pipeline and an instance buffer. Everything else is assembly on top
-of them: a `TextInput` is a panel, a run of glyphs and a caret, and draws nothing of its own.
+of them: a `TextInput` is a run of glyphs, a caret and a selection made of panels, and draws nothing
+of its own.
 
 foliage provides no widgets. A button or a card is assembled from the seeds above.
 
@@ -337,6 +339,16 @@ like any other, so a role follows a repaint and a literal does not. `Grow::untin
 and `Ctrl+V` itself and raises the `Keypad` it named where there is one to raise. Its value is
 read with `Vein::Text` and its selection with `Vein::Selection`.
 
+`TextArea` is the same with as many lines as its value wraps to. It wraps at its box and scrolls
+down rather than across; `Enter` puts a newline in the value and `Ctrl+Enter` is what submits;
+`Up` and `Down` move by a line and `Home` and `End` go to the ends of the line the caret is on, as
+it wrapped. A newline that arrives on the clipboard is kept, where a field drops it.
+
+`anchor().character(n)` is where character `n` of the anchor's run stands, as it wrapped: its column
+across and its line down, each in the anchor's cells. It is how a caret is placed against a run of
+more than one line, and it is read off the wrap the frame it changes -- so a mark placed with it is
+exact on the frame the run wraps differently.
+
 *Modules: `src/text/`, `src/text_input.rs`.*
 
 ## Input
@@ -590,7 +602,8 @@ Four things an app can ask for that the engine cannot do itself:
 | `Grow::navigate` | Goes to a URL. **On the web this replaces the page**; off it the desktop is asked to open it |
 | `Grow::download` | Asks the host to save what is at a URL. The web's only; elsewhere it is traced |
 
-A `TextInput` answers `Ctrl+C`, `Ctrl+X` and `Ctrl+V` for itself and does not go through these.
+A `TextInput` or a `TextArea` answers `Ctrl+C`, `Ctrl+X` and `Ctrl+V` for itself and does not go
+through these.
 
 *Modules: `src/clipboard.rs`, `src/link.rs`.*
 

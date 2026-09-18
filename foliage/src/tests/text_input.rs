@@ -1,4 +1,4 @@
-//! TextInput: what a keystroke does, where the caret lands, and the four elements behind one name.
+//! TextInput: what a keystroke does, where the caret lands, and the six elements behind one name.
 //!
 //! The first half is pure -- a value, a caret and a key in, a value and a caret out -- because that
 //! is where every off-by-one in editing lives and none of it needs a tree. The second half runs the
@@ -21,7 +21,7 @@ use crate::{
 
 /// Applies a key and reports what the value and the caret became, for the cases where both matter.
 fn edit(value: &str, editing: Editing, stroke: Keystroke) -> (String, Editing) {
-    match applied(value, editing, stroke) {
+    match applied(value, editing, stroke, None) {
         Applied::Wrote(written, editing) => (written, editing),
         Applied::Moved(editing) => (value.to_string(), editing),
         other => panic!(
@@ -88,7 +88,7 @@ fn backspace_takes_the_selection_where_there_is_one() {
 #[test]
 fn backspace_at_the_start_does_nothing() {
     assert!(matches!(
-        applied("hello", at(0), stroke(Key::Backspace)),
+        applied("hello", at(0), stroke(Key::Backspace), None),
         Applied::Nothing
     ));
 }
@@ -100,7 +100,7 @@ fn delete_takes_the_character_after_the_caret() {
         ("ello".to_string(), at(0))
     );
     assert!(matches!(
-        applied("hello", at(5), stroke(Key::Delete)),
+        applied("hello", at(5), stroke(Key::Delete), None),
         Applied::Nothing
     ));
 }
@@ -150,7 +150,7 @@ fn an_arrow_collapses_a_selection_to_the_edge_it_points_at() {
 #[test]
 fn enter_is_a_submission_and_changes_nothing() {
     assert!(matches!(
-        applied("hello", at(2), stroke(Key::Enter)),
+        applied("hello", at(2), stroke(Key::Enter), None),
         Applied::Submitted
     ));
 }
@@ -212,7 +212,8 @@ fn selection(grove: &Grove, leaf: Leaf) -> core::ops::Range<usize> {
     }
 }
 
-/// The parts, in the order they were grown: selection, run, hint, caret.
+/// The parts, in the order they were grown: the selection's head, body and tail, then the run, the
+/// hint and the caret.
 fn parts(grove: &Grove, leaf: Leaf) -> Vec<Leaf> {
     match grove.tap(leaf, Vein::Branches) {
         Some(Sap::Leaves(leaves)) => leaves,
@@ -221,15 +222,16 @@ fn parts(grove: &Grove, leaf: Leaf) -> Vec<Leaf> {
 }
 
 fn caret(grove: &Grove, leaf: Leaf) -> Leaf {
-    parts(grove, leaf)[3]
+    parts(grove, leaf)[5]
 }
 
+/// The selection on the line it begins, which on a field of one line is the whole of it.
 fn selection_box(grove: &Grove, leaf: Leaf) -> Leaf {
     parts(grove, leaf)[0]
 }
 
 fn hint(grove: &Grove, leaf: Leaf) -> Leaf {
-    parts(grove, leaf)[2]
+    parts(grove, leaf)[4]
 }
 
 /// Where a part sits in the one stack, which is what decides who is drawn over whom.
@@ -246,14 +248,14 @@ fn shown(grove: &Grove, leaf: Leaf) -> bool {
     grove.tree.inherited(leaf).visible
 }
 
-/// One name to the app, four elements underneath it -- and the frame that plants a field is the
+/// One name to the app, six elements underneath it -- and the frame that plants a field is the
 /// frame the whole of it is live in, because the parts are grown in the drain that grew it.
 #[test]
-fn a_field_is_one_name_and_four_elements() {
+fn a_field_is_one_name_and_six_elements() {
     let mut grove = grove();
     let leaf = field(&mut grove);
     tick(&mut grove);
-    assert_eq!(parts(&grove, leaf).len(), 4);
+    assert_eq!(parts(&grove, leaf).len(), 6);
     assert_eq!(value(&grove, leaf), "");
 }
 
@@ -821,7 +823,7 @@ fn control_and_a_selects_the_whole_value() {
     // And a control chord a field has no answer for is nothing a field does, rather than a
     // character it inserts.
     assert!(matches!(
-        applied("hello", at(2), with_control(Key::Typed('q'))),
+        applied("hello", at(2), with_control(Key::Typed('q')), None),
         Applied::Nothing
     ));
 }
@@ -931,9 +933,11 @@ fn the_run_is_drawn_in_front_of_the_caret_and_the_selection() {
     let mut grove = grove();
     let leaf = focused(&mut grove);
     let parts = parts(&grove, leaf);
-    let (selection, run, hint, caret) = (parts[0], parts[1], parts[2], parts[3]);
+    let (run, hint, caret) = (parts[3], parts[4], parts[5]);
     assert!(rank(&grove, run) > rank(&grove, caret));
-    assert!(rank(&grove, caret) > rank(&grove, selection));
+    for selection in &parts[..3] {
+        assert!(rank(&grove, caret) > rank(&grove, *selection));
+    }
     // The hint reads in the run's own place, so it stands at the same elevation as the run --
     // separated only by the allocation order that separates any two equals.
     assert_eq!(rank(&grove, hint).stack, rank(&grove, run).stack);

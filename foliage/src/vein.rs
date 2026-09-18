@@ -80,7 +80,8 @@ pub enum Vein {
     /// What was written, not how it wrapped: where the lines fell is a function of the box the
     /// layout gave it, and the box is [`Drawn`](Vein::Drawn).
     Text,
-    /// What a [`TextInput`](crate::TextInput) has selected, in characters of its value.
+    /// What a [`TextInput`](crate::TextInput) or a [`TextArea`](crate::TextArea) has selected, in
+    /// characters of its value.
     ///
     /// Empty where nothing is selected, and its one end is then where the caret is -- so a caret
     /// and a selection are one read rather than two that could disagree.

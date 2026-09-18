@@ -20,6 +20,7 @@ mod root;
 mod rowan;
 mod sprig;
 mod text;
+mod text_area;
 mod text_input;
 mod tracing;
 mod views;

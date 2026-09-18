@@ -143,6 +143,25 @@ macro_rules! basis {
                 })
             }
 
+            /// Where character `index` of its run stands, as a distance from its top-left corner:
+            /// the column on the horizontal axis and the line on the vertical one, each in its own
+            /// cells.
+            ///
+            /// Read off the run **as it wrapped** at the width the layout gave it, so it is exact
+            /// where a count of [`letters`](Self::letters) is exact only on a run of one line. An
+            /// index past the end is the place after the last character, which is where a caret
+            /// stands at the end of a run; on an element with no run it is zero.
+            ///
+            /// A length rather than a coordinate for the reason `letters` is: it is measured from
+            /// the run's own edge, and `left(anchor().left() + anchor().character(n))` says which.
+            /// That is the whole of how a caret is placed against a run that wraps.
+            pub fn character(self, index: usize) -> Length {
+                Length::of(Kind::Character {
+                    index,
+                    against: $against,
+                })
+            }
+
             /// Its measured intrinsic extent on the resolving axis.
             ///
             /// A different number from its box whenever it was given more room than it asked for,
