@@ -174,18 +174,18 @@ fn drain(grove: &mut Grove) {
                     dropped("at", leaf, "is placed by its ends; use `between`");
                 }
             }
-            Op::Trace { leaf, from, to } => {
+            Op::Trace { leaf, trace } => {
                 if !grove.tree.is_live(leaf) {
-                    dropped("between", leaf, "not live");
+                    dropped("trace", leaf, "not live");
                     continue;
                 }
                 // The same property `at` writes: a stroke's ends and a box are two ways of saying
                 // where an element is, so a motion moving one is cancelled by a write to the other.
-                cancel(grove, "between", leaf, Property::Location);
-                if grove.tree.set_traced(leaf, from, to) {
+                cancel(grove, "trace", leaf, Property::Location);
+                if grove.tree.set_trace(leaf, trace) {
                     debug!(leaf = leaf.id(), "traced");
                 } else {
-                    dropped("between", leaf, "is placed by a box; use `at`");
+                    dropped("trace", leaf, "is placed by a box; use `at`");
                 }
             }
             Op::Divide { leaf, grid } => {
@@ -409,7 +409,7 @@ fn drain(grove: &mut Grove) {
                 if aspen::animate(grove, leaf, motion, timing, tween) {
                     debug!(leaf = leaf.id(), tween = tween.0, "animating");
                 } else {
-                    dropped("animate", leaf, "draws nothing to fill");
+                    dropped("animate", leaf, "has no such property to move");
                 }
             }
             Op::Channel {

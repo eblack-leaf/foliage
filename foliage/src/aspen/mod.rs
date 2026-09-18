@@ -47,6 +47,7 @@
 //! |---|---|---|
 //! | [`Motion::Opacity`] | a number, like its declaration | `animate` -- written back |
 //! | [`Motion::Location`] | a box, where the declaration is a placement | `resolve` |
+//! | [`Motion::Trace`] | two ends, where the declaration is a trace | `resolve` |
 //! | [`Motion::Color`], [`Motion::Palette`] | a color, where the declaration is a [`Fill`] | `extract` |
 //! | [`Motion::Polygon`] | a shape, like its declaration | `animate` -- written back |
 //! | [`Motion::Scroll`] | an offset, where the target is a [`ScrollTo`] | `resolve`, at R4 |
@@ -77,8 +78,10 @@ use crate::color::Color;
 use crate::coordinate::{Position, Section};
 use crate::grove::Grove;
 use crate::leaf::Leaf;
+use crate::line::Stretched;
 use crate::palette::{Fill, Palette, Scheme};
 use crate::placement::location::Location;
+use crate::placement::trace::Trace;
 use crate::polygon::Shape;
 use crate::tree::Tree;
 use crate::view::ScrollTo;
@@ -114,9 +117,10 @@ pub struct Sequence(pub(crate) u64);
 ///
 /// A property belongs here if animating it is a normal thing to want, or if it **cannot be animated
 /// from outside** because it needs context only the engine has. [`Location`](Motion::Location),
-/// [`Palette`](Motion::Palette) and [`Scroll`](Motion::Scroll) are the second kind: nothing outside
-/// can resolve a placement against a breakpoint and an anchor, a role against the scheme in force,
-/// or a destination against an extent the frame has yet to measure.
+/// [`Trace`](Motion::Trace), [`Palette`](Motion::Palette) and [`Scroll`](Motion::Scroll) are the
+/// second kind: nothing outside can resolve a placement or a pair of ends against a breakpoint and
+/// an anchor, a role against the scheme in force, or a destination against an extent the frame has
+/// yet to measure.
 ///
 /// The list is closed because the engine's obligations should be, not because an app's are.
 /// Everything else -- a font size, a count of sides, a value foliage has no concept of -- is a
@@ -140,7 +144,20 @@ pub enum Motion {
     Palette(Palette),
     /// Where the element sits. Both endpoints re-resolve every frame in the same context, so the
     /// motion stays correct through anything that moves either of them.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is placed by its
+    /// ends rather than by a box -- which is [`Trace`](Motion::Trace).
     Location(Location),
+    /// Where a stroke's two ends are. The point-mode [`Location`](Motion::Location), on the same
+    /// terms: both traces re-resolve every frame, and each end blends toward where its target end
+    /// is now. The box follows the blended ends rather than blending on its own, so it always
+    /// encloses the stroke that is drawn -- whichever diagonal that turns out to run along.
+    ///
+    /// The same property as a placement, so a write to either cancels either.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is placed by a
+    /// box.
+    Trace(Trace),
     /// Where a scrolling region is moved to.
     ///
     /// The other kind that cannot be animated from outside: nothing outside can answer
@@ -211,6 +228,9 @@ enum Moving {
     /// The placement the element left. Its target is the element's own [`Location`], written when
     /// the motion started.
     Location(Departed<Location, Section>),
+    /// The trace the element left, on the same terms. A snapshot is the two ends rather than the
+    /// box around them, because the box cannot say which diagonal the stroke ran along.
+    Trace(Departed<Trace, Stretched>),
     /// The fill the element left, role or literal alike. Its target is the element's own fill,
     /// written when the motion started.
     Fill(Departed<Fill, Color>),
@@ -382,6 +402,15 @@ impl Aspen {
         }
     }
 
+    /// The motion moving `leaf`'s two ends, on the same terms. Read by R2, once per axis.
+    pub(crate) fn trace(&self, leaf: Leaf) -> Option<(&Departed<Trace, Stretched>, f32)> {
+        let motioning = self.moving(leaf, Property::Location)?;
+        match &motioning.moving {
+            Moving::Trace(departed) => Some((departed, motioning.progress.at())),
+            _ => None,
+        }
+    }
+
     /// Every region a motion is moving: what it left, where it is going, and how far it has come.
     ///
     /// Read by R4, which is the one pass holding both this frame's extent and the offset the
@@ -486,8 +515,25 @@ pub(crate) fn animate(
                 true => Departed::Snapshot(tree.placed(leaf)),
                 false => Departed::Declared(tree.location(leaf).cloned().unwrap_or_default()),
             };
-            tree.set_location(leaf, to);
+            // A stroke has no box to write a placement to, and refuses it. Refused here too, rather
+            // than registering a motion nothing would read that still reported its arrival.
+            if !tree.set_location(leaf, to) {
+                return false;
+            }
             (Property::Location, Moving::Location(departed))
+        }
+        Motion::Trace(to) => {
+            let departed = match aspen.motions.contains_key(&(leaf, Property::Location)) {
+                // Where the two ends are now, which is a pair between two traces rather than a
+                // trace of its own.
+                true => Departed::Snapshot(tree.spanned(leaf).unwrap_or_default()),
+                false => Departed::Declared(tree.trace(leaf).cloned().unwrap_or_default()),
+            };
+            // A box has no ends to write a trace to. The same refusal as above, the other way round.
+            if !tree.set_trace(leaf, to) {
+                return false;
+            }
+            (Property::Location, Moving::Trace(departed))
         }
         Motion::Opacity(to) => {
             // The blend is written back over the declaration every frame, so what the element
@@ -615,7 +661,7 @@ pub(crate) fn stop(grove: &mut Grove, tween: Tween, reported: bool) -> bool {
 /// written directly, which is what makes the frame after a landing identical to the one it landed in.
 fn land(tree: &mut Tree, sought: &mut Vec<(Leaf, ScrollTo)>, leaf: Leaf, moving: &Moving) {
     match moving {
-        Moving::Location(_) | Moving::Fill(_) => {}
+        Moving::Location(_) | Moving::Trace(_) | Moving::Fill(_) => {}
         Moving::Opacity { to, .. } => tree.set_opacity(leaf, *to),
         Moving::Shape { to, .. } => {
             tree.set_shape(leaf, *to);

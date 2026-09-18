@@ -14,13 +14,13 @@ use crate::interaction::Gestures;
 use crate::keyboard::Keypad;
 use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
 use crate::lifecycle::{Disabled, Inherited, Opacity, Visible};
-use crate::line::{LinePigment, Stretched, Stroke, Traced};
+use crate::line::{LinePigment, Spanned, Stretched, Stroke};
 use crate::op::Bud;
 use crate::palette::Fill;
 use crate::place::{Anchored, Caller, Focusing};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
-use crate::placement::point::Point;
+use crate::placement::trace::Trace;
 use crate::polygon::{PolygonPigment, Shape};
 use crate::rounding::Corners;
 use crate::rowan::{Cell, Drawn, Intrinsic, Placed};
@@ -242,11 +242,11 @@ impl Tree {
         if let Some(tints) = bud.tints {
             entity.insert(tints);
         }
-        // The point-mode placement, and the resolved geometry the passes write back into. Both are
-        // absent on everything placed by a box, which is what makes "has a trace" the one question
-        // the resolver asks to tell the two apart.
-        if let Some(traced) = bud.placement.traced {
-            entity.insert((traced, Stretched::default()));
+        // The point-mode placement, and the resolved geometry the passes write back into. All three
+        // are absent on everything placed by a box, which is what makes "has a trace" the one
+        // question the resolver asks to tell the two apart.
+        if let Some(trace) = bud.placement.traced {
+            entity.insert((trace, Spanned::default(), Stretched::default()));
         }
         if let Some(stroke) = bud.placement.stroke {
             entity.insert(stroke);
@@ -504,7 +504,7 @@ impl Tree {
         let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
             return false;
         };
-        if entity.contains::<Traced>() {
+        if entity.contains::<Trace>() {
             return false;
         }
         entity.insert(location);
@@ -608,24 +608,28 @@ impl Tree {
         self.read::<ImagePigment>(leaf)
     }
 
-    /// Where `leaf`'s two ends are declared to be, or `None` if it is placed by a box.
+    /// Where `leaf`'s two ends are declared to be, per breakpoint, or `None` if it is placed by a
+    /// box.
     ///
     /// The one question that says which of the two placements an element states, which is why every
     /// pass that resolves geometry asks it first.
-    pub(crate) fn traced(&self, leaf: Leaf) -> Option<&Traced> {
-        self.world.get_entity(leaf.0).ok()?.get::<Traced>()
+    pub(crate) fn trace(&self, leaf: Leaf) -> Option<&Trace> {
+        self.world.get_entity(leaf.0).ok()?.get::<Trace>()
     }
 
     /// Moves `leaf`'s two ends, reporting whether it is something placed by ends at all.
-    pub(crate) fn set_traced(&mut self, leaf: Leaf, from: Point, to: Point) -> bool {
+    ///
+    /// A box-placed element has none, and refuses the write for the reason
+    /// [`set_location`](Tree::set_location) refuses the other: a trace on a box would sit there
+    /// being ignored.
+    pub(crate) fn set_trace(&mut self, leaf: Leaf, trace: Trace) -> bool {
         let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
             return false;
         };
-        let Some(mut traced) = entity.get_mut::<Traced>() else {
+        let Some(mut held) = entity.get_mut::<Trace>() else {
             return false;
         };
-        traced.from = from;
-        traced.to = to;
+        *held = trace;
         self.declared(leaf);
         true
     }
@@ -633,6 +637,16 @@ impl Tree {
     /// How thick `leaf` is stroked, or `None` if it is not a stroke.
     pub(crate) fn stroke(&self, leaf: Leaf) -> Option<Stroke> {
         self.read::<Stroke>(leaf)
+    }
+
+    /// Where the layout put `leaf`'s two ends, as R2b settled them and before R4 moved them, or
+    /// `None` if it is placed by a box.
+    pub(crate) fn spanned(&self, leaf: Leaf) -> Option<Stretched> {
+        self.read::<Spanned>(leaf).map(|spanned| spanned.0)
+    }
+
+    pub(crate) fn set_spanned(&mut self, leaf: Leaf, spanned: Stretched) {
+        self.overwrite(leaf, Spanned(spanned));
     }
 
     /// Where `leaf`'s two ends landed, as R2b resolved them and R4 moved them.

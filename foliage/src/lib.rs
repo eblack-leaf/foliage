@@ -12,7 +12,8 @@
 //! - [`Sprig`] is the engine reached from off the frame -- every write, every registration, and the
 //!   reads a thread that cannot sample needs: [`Conditions`] and a [`watch`](Sprig::watch).
 //! - [`Place`] states where an element sits and how it behaves, and [`Location`] carries the
-//!   grammar the first of those is said in.
+//!   grammar the first of those is said in. [`Trace`] is the same grammar read as two [`Point`]s,
+//!   for a [`Line`] that has ends rather than a box.
 //! - [`Panel`] is a filled rectangle; [`Fill`] is what fills it -- a [`Palette`] role or a [`Color`]
 //!   stated outright -- and [`Corners`] is how it is rounded.
 //! - A gesture goes to the top of the box stack: [`interactive`](Place::interactive) says who
@@ -131,6 +132,7 @@ pub use placement::role::{
 pub use placement::source::{
     HorizontalCoordinate, Length, Source, VerticalCoordinate, VerticalLength, aspect, content,
 };
+pub use placement::trace::Trace;
 pub use pollen::Pollen;
 pub use polygon::{Polygon, Shape};
 pub use root::Root;

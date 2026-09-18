@@ -12,7 +12,7 @@ use crate::palette::{Fill, Scheme};
 use crate::place::{Caller, Placement};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
-use crate::placement::point::Point;
+use crate::placement::trace::Trace;
 use crate::rounding::Corners;
 use crate::text::{Lettering, Tints};
 use crate::vein::Vein;
@@ -41,8 +41,7 @@ pub(crate) enum Op {
     /// an op that could write either would be able to write the one the element does not have.
     Trace {
         leaf: Leaf,
-        from: Point,
-        to: Point,
+        trace: Trace,
     },
     Divide {
         leaf: Leaf,

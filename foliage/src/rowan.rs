@@ -87,7 +87,7 @@ use bevy_ecs::component::Component;
 use tracing::field::Empty;
 use tracing::trace_span;
 
-use crate::aspen::Departed;
+use crate::aspen::{Departed, blend};
 use crate::coordinate::{Area, Axis, Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::elm::Chlorophyll;
@@ -100,6 +100,7 @@ use crate::placement::grid::Tracks;
 use crate::placement::location::Location;
 use crate::placement::resolve::{Basis, Context, Span, locate, resolve};
 use crate::placement::role::Config;
+use crate::placement::trace::{Ends, Trace};
 use crate::view::{self, Clipped, Escape, Scroll, range};
 
 /// Where the layout put an element. What its children resolve against.
@@ -385,11 +386,11 @@ fn geometry(
     context: &Context,
     axis: Axis,
 ) -> (Span, Option<(f32, f32)>) {
-    let Some(traced) = grove.tree.traced(leaf) else {
+    let Some(trace) = grove.tree.trace(leaf) else {
         return (span(grove, leaf, fallback, context, axis), None);
     };
     let half = grove.tree.stroke(leaf).unwrap_or_default().half();
-    let (from, to) = (locate(&traced.from, context), locate(&traced.to, context));
+    let (from, to) = ends(grove, leaf, trace, context, axis);
     (
         Span {
             near: from.min(to) - half,
@@ -397,6 +398,36 @@ fn geometry(
         },
         Some((from, to)),
     )
+}
+
+/// One axis of where `leaf`'s two ends currently are: what it declares, blended with the ends a
+/// motion left.
+///
+/// [`span`] for a trace. Each end blends on its own and the box is taken from the blended pair,
+/// rather than the two boxes blending: a stroke part way between a rising and a falling diagonal is
+/// a stroke, and a box that blended separately would not be the rectangle around it.
+fn ends(grove: &Grove, leaf: Leaf, trace: &Trace, context: &Context, axis: Axis) -> (f32, f32) {
+    let (from, to) = located(pinned_ends(trace, grove), context);
+    match grove.aspen.trace(leaf) {
+        Some((departed, at)) => {
+            let (left_from, left_to) = match departed {
+                Departed::Declared(trace) => located(pinned_ends(trace, grove), context),
+                Departed::Snapshot(stretched) => stretched.along(axis),
+            };
+            (blend(left_from, from, at), blend(left_to, to, at))
+        }
+        None => (from, to),
+    }
+}
+
+/// One axis of both of a pair of ends, through the resolver.
+fn located(ends: &Ends, context: &Context) -> (f32, f32) {
+    (locate(&ends.from, context), locate(&ends.to, context))
+}
+
+/// Which pair of ends a trace states, at the breakpoint in force. [`pinned`] for a trace.
+fn pinned_ends<'a>(trace: &'a Trace, grove: &Grove) -> &'a Ends {
+    trace.ends(grove.layout, grove.short)
 }
 
 /// One axis of where `leaf` currently is: what it declares, blended with the endpoint a motion left.
@@ -564,8 +595,11 @@ fn reach(grove: &Grove, elements: &Elements, fallback: &Location, at: usize) -> 
 /// configuration; a trace asks it of both of its ends, since either one reading a vertical box is
 /// enough to make the answer circular.
 fn measurable(grove: &Grove, leaf: Leaf, fallback: &Location) -> bool {
-    match grove.tree.traced(leaf) {
-        Some(traced) => traced.from.measurable() && traced.to.measurable(),
+    match grove.tree.trace(leaf) {
+        Some(trace) => {
+            let ends = pinned_ends(trace, grove);
+            ends.from.measurable() && ends.to.measurable()
+        }
         None => pinned(
             grove.tree.location(leaf).unwrap_or(fallback),
             grove,
@@ -721,9 +755,18 @@ fn scroll(grove: &mut Grove, elements: &mut Elements, ends: &[Option<Stretched>]
         );
         elements.moved[at] |= grove.tree.settle(leaf, placed, drawn);
         // A stroke's ends travel with its box, by the same offset, because they are the same
-        // geometry said two ways.
-        if let Some(stretched) = &ends[at] {
-            grove.tree.set_stretched(leaf, stretched.less(applied));
+        // geometry said two ways. The ends this frame settled are written where the layout put
+        // them; a stroke nothing wrote to keeps what it settled at last frame, and moves under the
+        // offset exactly as its box does -- the same two writes `settle` makes for a box.
+        let spanned = match ends[at] {
+            Some(spanned) => {
+                grove.tree.set_spanned(leaf, spanned);
+                Some(spanned)
+            }
+            None => grove.tree.spanned(leaf),
+        };
+        if let Some(spanned) = spanned {
+            grove.tree.set_stretched(leaf, spanned.less(applied));
         }
         let (carried, escaped) = match grove.tree.scrolls(leaf) {
             Some(scroll) => {

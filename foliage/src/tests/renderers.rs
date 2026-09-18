@@ -9,11 +9,11 @@ use crate::icon::IconInstance;
 use crate::image::ImageInstance;
 use crate::line::LineInstance;
 use crate::polygon::PolygonInstance;
-use crate::tests::{grove, section, tick};
+use crate::tests::{grove, resize, section, tick};
 use crate::{
-    Boxed, Cap, Color, Fill, Fit, Grove, Grow, Image, Leaf, Line, Location, Motion, Palette, Panel,
-    Place, Point, Polygon, Rounding, Sap, Scheme, Shape, Source, Stem, Text, Timing, Vein, anchor,
-    left, top,
+    Axes, Boxed, Cap, Color, Fill, Fit, Grove, Grow, Image, Leaf, Line, Location, Motion, Palette,
+    Panel, Place, Point, Polygon, Rounding, Sap, Scheme, ScrollTo, Shape, Source, Stem, Text,
+    Timing, Trace, Vein, anchor, left, top,
 };
 
 // -- Lines -----------------------------------------------------------------------------------
@@ -31,6 +31,18 @@ fn stroke(grove: &Grove, leaf: Leaf) -> LineInstance {
         .lines
         .holding(leaf)
         .expect("the backend is holding this stroke")
+}
+
+/// Where a stroke's two ends landed, as an app would read them.
+fn ends(grove: &Grove, leaf: Leaf) -> (Position, Position) {
+    match grove.tap(leaf, Vein::Ends) {
+        Some(Sap::Ends(from, to)) => (from, to),
+        other => panic!("expected two ends, got {other:?}"),
+    }
+}
+
+fn at(x: f32, y: f32) -> Point {
+    Point::new(x.px(), y.px())
 }
 
 /// A stroke has no box of its own, so the resolver gives it one: the rectangle around its ends,
@@ -131,6 +143,124 @@ fn a_box_and_a_trace_refuse_each_others_verbs() {
     );
     tick(&mut grove);
     assert_eq!((section(&grove, stroke), section(&grove, panel)), before);
+}
+
+/// A line that said nothing about its ends is still placed by them: a stroke of no length at its
+/// trunk's corner, and not a box filling the trunk that no renderer would draw.
+#[test]
+fn a_bare_line_is_a_stroke_of_no_length_at_its_trunks_corner() {
+    let mut grove = grove();
+    let leaf = grove.plant(Line::new().weight(2.0));
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(0.0, 0.0), Position::new(0.0, 0.0))
+    );
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(-1.0, -1.0, 1.0, 1.0)
+    );
+    // Placed by its ends, so the box verb is the one it refuses.
+    grove.at(
+        leaf,
+        Location::new().xs(left(0.px()).width(90.px()), top(0.px()).height(90.px())),
+    );
+    tick(&mut grove);
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(-1.0, -1.0, 1.0, 1.0)
+    );
+}
+
+/// A trace is the chain a placement is written in, read as two ends: each link states both, a
+/// breakpoint with none of its own takes the nearest smaller one that has, and crossing one picks
+/// the other link with nothing re-stated.
+#[test]
+fn a_trace_states_its_ends_per_breakpoint() {
+    let mut grove = Grove::new(Area::new(400.0, 800.0));
+    let leaf = grove.plant(
+        Line::new().weight(2.0).trace(
+            Trace::new()
+                .xs(at(0.0, 50.0), at(100.0, 50.0))
+                .md(at(50.0, 0.0), at(50.0, 100.0)),
+        ),
+    );
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(0.0, 50.0), Position::new(100.0, 50.0))
+    );
+
+    // `sm` has no link of its own, and falls back to `xs`.
+    resize(&mut grove, Area::new(500.0, 800.0));
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(0.0, 50.0), Position::new(100.0, 50.0))
+    );
+
+    resize(&mut grove, Area::new(700.0, 800.0));
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(50.0, 0.0), Position::new(50.0, 100.0))
+    );
+    // The box is the rectangle around whichever pair is in force.
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(49.0, -1.0, 51.0, 101.0)
+    );
+}
+
+/// The whole chain is one value, so writing one replaces every link and not only the one in force.
+#[test]
+fn trace_replaces_the_whole_chain() {
+    let mut grove = Grove::new(Area::new(700.0, 800.0));
+    let leaf = grove.plant(
+        Line::new().weight(2.0).trace(
+            Trace::new()
+                .xs(at(0.0, 0.0), at(10.0, 10.0))
+                .md(at(20.0, 20.0), at(30.0, 30.0)),
+        ),
+    );
+    tick(&mut grove);
+    grove.trace(leaf, Trace::new().xs(at(40.0, 40.0), at(50.0, 50.0)));
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(40.0, 40.0), Position::new(50.0, 50.0))
+    );
+}
+
+/// A region scrolling under a stroke nothing wrote to moves its ends exactly as it moves its box.
+///
+/// The ends are settled where the layout put them and moved by the offset every frame, on the same
+/// two terms a box is -- so a stroke in a list is drawn where the list has scrolled it to, and not
+/// where it was resolved on the frame it was written.
+#[test]
+fn a_strokes_ends_travel_with_a_scroll_it_was_not_written_during() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(200.px())))
+            .scrolls(Axes::Vertical),
+    );
+    grove.branch(
+        region,
+        Panel::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(600.px()))),
+    );
+    let leaf = grove.branch(region, line((10.0, 100.0), (50.0, 140.0), 2.0));
+    tick(&mut grove);
+
+    grove.scroll(region, ScrollTo::px(40.0));
+    tick(&mut grove);
+    assert_eq!(section(&grove, leaf).top(), 59.0);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(10.0, 60.0), Position::new(50.0, 100.0))
+    );
+    assert_eq!(stroke(&grove, leaf).from, Position::new(10.0, 60.0));
 }
 
 #[test]

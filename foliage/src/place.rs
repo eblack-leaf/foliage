@@ -7,9 +7,10 @@ use crate::elevation::Elevation;
 use crate::interaction::{Gestures, Shape};
 use crate::leaf::Leaf;
 use crate::lifecycle::{Opacity, Visible};
-use crate::line::{Stroke, Traced};
+use crate::line::Stroke;
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
+use crate::placement::trace::Trace;
 use crate::text::font::{Font, FontSize, Typeface};
 use crate::view::{Escape, Scroll, Scrolls};
 
@@ -22,13 +23,13 @@ pub(crate) type Caller = &'static core::panic::Location<'static>;
 /// [`location`](Placement::location) and [`traced`](Placement::traced) are the two ways to say it,
 /// and an element states one of them: a box is a rectangle the grammar resolves, and a trace is the
 /// same grammar read as vertices. Which of the two a seed offers is a type -- [`Boxed`] against
-/// [`Line::between`](crate::Line::between) -- so nothing can state both and no pass has to decide
+/// [`Line::trace`](crate::Line::trace) -- so nothing can state both and no pass has to decide
 /// which was meant.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Placement {
     pub(crate) location: Option<Location>,
-    /// The two ends of a stroked element, in place of a box.
-    pub(crate) traced: Option<Traced>,
+    /// The two ends of a stroked element, per breakpoint, in place of a box.
+    pub(crate) traced: Option<Trace>,
     /// How thick a stroked element is drawn. Placement input rather than decoration: it is what a
     /// trace's box is inflated by, so a rule with two ends on one line still has a box.
     pub(crate) stroke: Option<Stroke>,
@@ -322,8 +323,9 @@ impl<T: Places> Place for T {}
 ///
 /// It is a separate trait from [`Place`] rather than a method on it because a
 /// [`Line`](crate::Line) has no box to state: it is two ends, said with
-/// [`between`](crate::Line::between). An `at` it could be handed and would ignore is the kind of
-/// surface that has to be remembered rather than read, so it is not there to hand it.
+/// [`between`](crate::Line::between) or, per breakpoint, with [`trace`](crate::Line::trace). An
+/// `at` it could be handed and would ignore is the kind of surface that has to be remembered rather
+/// than read, so it is not there to hand it.
 ///
 /// Sealed: it can be called, never implemented.
 #[allow(private_bounds)]

@@ -8,6 +8,9 @@
 //! That is the whole of the point mode. Nothing here is a second way to describe geometry: `px`,
 //! `pct`, `col`, `letters`, `content()`, `anchor()` and every arithmetic on them read identically,
 //! so a line's end can sit on a grid track, half way across its trunk, or at an anchor's edge.
+//!
+//! What is responsive is the pair and not the point: a [`Trace`](crate::Trace) states two of these
+//! per breakpoint, in the chain a [`Location`](crate::Location) is written in.
 
 use crate::placement::role::known;
 use crate::placement::source::{Coord, HorizontalCoordinate, Origin, VerticalCoordinate};

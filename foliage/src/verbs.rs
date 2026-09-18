@@ -11,6 +11,7 @@ use crate::palette::{Fill, Scheme};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::placement::point::Point;
+use crate::placement::trace::Trace;
 use crate::polygon::Shape;
 use crate::rounding::Corners;
 use crate::seed::Seed;
@@ -79,18 +80,28 @@ pub trait Grow: Queues {
         self.queue(Op::Place { leaf, location });
     }
 
-    /// Moves both ends of a stroke.
+    /// Moves both ends of a stroke, at every breakpoint.
     ///
-    /// The point-mode counterpart to [`at`](Grow::at), and separate for the same reason the two
-    /// declarations are: an element has a box or it has ends, and a verb that wrote either would be
-    /// able to write the one the element does not have.
+    /// [`trace`](Grow::trace) with one link, as [`Line::between`](crate::Line::between) is to
+    /// [`Line::trace`](crate::Line::trace).
     ///
     /// Both ends together, because a stroke is one thing: a verb per end would leave a frame in
     /// which the line is half moved.
     ///
     /// Dropped if the element is placed by a box.
     fn between(&mut self, leaf: Leaf, from: Point, to: Point) {
-        self.queue(Op::Trace { leaf, from, to });
+        self.trace(leaf, Trace::new().xs(from, to));
+    }
+
+    /// Moves a stroke, replacing its whole trace.
+    ///
+    /// The point-mode counterpart to [`at`](Grow::at), and separate for the same reason the two
+    /// declarations are: an element has a box or it has ends, and a verb that wrote either would be
+    /// able to write the one the element does not have.
+    ///
+    /// Dropped if the element is placed by a box.
+    fn trace(&mut self, leaf: Leaf, trace: Trace) {
+        self.queue(Op::Trace { leaf, trace });
     }
 
     /// Redivides an element's box for the elements grown under it.

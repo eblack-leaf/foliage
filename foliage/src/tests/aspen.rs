@@ -4,12 +4,12 @@
 //! advance half its duration reads its midpoint and not a number near it.
 
 use crate::aspen::Ease;
-use crate::coordinate::{Area, Section};
+use crate::coordinate::{Area, Position, Section};
 use crate::panel::PanelInstance;
 use crate::tests::{Observer, advance, grove, opacity, resize, section, tick, tick_with};
 use crate::{
-    Boxed, Color, Fill, Grove, Grow, Leaf, Location, Motion, Palette, Panel, Place, Sap, Scheme,
-    Source, Stem, Text, Timing, Vein, anchor, content, left, top,
+    Boxed, Color, Fill, Grove, Grow, Leaf, Line, Location, Motion, Palette, Panel, Place, Point,
+    Sap, Scheme, Source, Stem, Text, Timing, Trace, Vein, anchor, content, left, top,
 };
 
 /// A box of a stated width on one line, so a placement reads as one number.
@@ -33,6 +33,22 @@ fn close(left: f32, right: f32) {
         (left - right).abs() < 1e-4,
         "expected {left} and {right} to agree"
     );
+}
+
+/// A pair of ends in pixels, as a trace with one link.
+fn trace(from: (f32, f32), to: (f32, f32)) -> Trace {
+    Trace::new().xs(
+        Point::new(from.0.px(), from.1.px()),
+        Point::new(to.0.px(), to.1.px()),
+    )
+}
+
+/// Where a stroke's two ends landed, as an app would read them.
+fn ends(grove: &Grove, leaf: Leaf) -> (Position, Position) {
+    match grove.tap(leaf, Vein::Ends) {
+        Some(Sap::Ends(from, to)) => (from, to),
+        other => panic!("expected two ends, got {other:?}"),
+    }
 }
 
 // Both endpoints re-resolve, every frame, in the same context.
@@ -311,6 +327,269 @@ fn a_retargeted_motion_still_lands_on_a_target_that_moved() {
         section(&grove, leaf),
         Section::from_edges(0.0, 0.0, 800.0, 10.0)
     );
+}
+
+// A stroke's ends move on the same terms as a box.
+
+/// A trace motion blends each end toward its target, and the box is the rectangle around the
+/// blended pair grown by half the weight -- so the frame it lands is the plain reading of the
+/// declaration, and nothing is left running.
+#[test]
+fn a_stroke_animates_its_ends() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        Line::new()
+            .weight(2.0)
+            .trace(trace((0.0, 0.0), (10.0, 10.0))),
+    );
+    tick(&mut grove);
+
+    grove.animate(
+        leaf,
+        Motion::Trace(trace((100.0, 0.0), (110.0, 10.0))),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(0.0, 0.0), Position::new(10.0, 10.0))
+    );
+
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(50.0, 0.0), Position::new(60.0, 10.0))
+    );
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(49.0, -1.0, 61.0, 11.0)
+    );
+
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(100.0, 0.0), Position::new(110.0, 10.0))
+    );
+    assert!(grove.aspen.idle());
+}
+
+/// The ends blend and the box follows them, rather than the two boxes blending. A falling diagonal
+/// becoming a rising one passes through a horizontal rule, whose box is a sliver -- and a blend of
+/// the two boxes, which are the same square, would have said the stroke never moved.
+#[test]
+fn a_strokes_box_follows_its_blended_ends_across_a_diagonal_flip() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        Line::new()
+            .weight(2.0)
+            .trace(trace((0.0, 0.0), (40.0, 40.0))),
+    );
+    tick(&mut grove);
+    let square = section(&grove, leaf);
+
+    grove.animate(
+        leaf,
+        Motion::Trace(trace((0.0, 40.0), (40.0, 0.0))),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(0.0, 20.0), Position::new(40.0, 20.0))
+    );
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(-1.0, 19.0, 41.0, 21.0)
+    );
+
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(section(&grove, leaf), square);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(0.0, 40.0), Position::new(40.0, 0.0))
+    );
+}
+
+/// Both traces re-resolve every frame, so a target that reads its trunk follows a resize
+/// mid-motion and lands on where the trunk went.
+#[test]
+fn a_resize_mid_trace_motion_lands_exactly_on_the_target() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        Line::new()
+            .weight(2.0)
+            .trace(trace((0.0, 0.0), (0.0, 10.0))),
+    );
+    tick(&mut grove);
+
+    grove.animate(
+        leaf,
+        Motion::Trace(Trace::new().xs(
+            Point::new(100.pct(), 0.px()),
+            Point::new(100.pct(), 10.px()),
+        )),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(ends(&grove, leaf).0.x, 200.0);
+
+    resize(&mut grove, Area::new(800.0, 300.0));
+    tick(&mut grove);
+    assert_eq!(ends(&grove, leaf).0.x, 400.0);
+
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(ends(&grove, leaf).0.x, 800.0);
+}
+
+/// The target is a chain of breakpoints, and crossing one mid-motion picks the other link.
+#[test]
+fn a_breakpoint_crossed_mid_trace_motion_lands_on_the_link_in_force() {
+    let mut grove = Grove::new(Area::new(400.0, 800.0));
+    let leaf = grove.plant(
+        Line::new()
+            .weight(2.0)
+            .trace(trace((0.0, 0.0), (0.0, 10.0))),
+    );
+    tick(&mut grove);
+
+    grove.animate(
+        leaf,
+        Motion::Trace(
+            trace((100.0, 0.0), (100.0, 10.0))
+                .md(Point::new(300.px(), 0.px()), Point::new(300.px(), 10.px())),
+        ),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(ends(&grove, leaf).0.x, 50.0);
+
+    resize(&mut grove, Area::new(700.0, 800.0));
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(ends(&grove, leaf).0.x, 300.0);
+}
+
+/// Retargeting starts from where the ends **are**, which is the snapshot the ends offer and not
+/// the box around them -- the box has two diagonals and could not say which to start from.
+#[test]
+fn retargeting_a_trace_motion_starts_from_where_the_ends_are() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        Line::new()
+            .weight(2.0)
+            .trace(trace((0.0, 0.0), (40.0, 40.0))),
+    );
+    tick(&mut grove);
+
+    grove.animate(
+        leaf,
+        Motion::Trace(trace((0.0, 40.0), (40.0, 0.0))),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    let midway = (Position::new(0.0, 20.0), Position::new(40.0, 20.0));
+    assert_eq!(ends(&grove, leaf), midway);
+
+    grove.animate(
+        leaf,
+        Motion::Trace(trace((100.0, 20.0), (140.0, 20.0))),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    assert_eq!(ends(&grove, leaf), midway);
+
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(50.0, 20.0), Position::new(90.0, 20.0))
+    );
+
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(100.0, 20.0), Position::new(140.0, 20.0))
+    );
+}
+
+/// A stroke's ends and a box are one property, so a write to the ends cancels the motion moving
+/// them and the stroke is at what was written.
+#[test]
+fn a_write_to_a_strokes_ends_mid_motion_drops_it() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        Line::new()
+            .weight(2.0)
+            .trace(trace((0.0, 0.0), (10.0, 10.0))),
+    );
+    tick(&mut grove);
+
+    grove.animate(
+        leaf,
+        Motion::Trace(trace((100.0, 0.0), (110.0, 10.0))),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert!(!grove.aspen.idle());
+
+    grove.between(
+        leaf,
+        Point::new(20.px(), 20.px()),
+        Point::new(30.px(), 30.px()),
+    );
+    tick(&mut grove);
+    assert!(grove.aspen.idle());
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(20.0, 20.0), Position::new(30.0, 30.0))
+    );
+}
+
+/// Each of the two placements refuses the other's motion, on the terms the verbs already refuse
+/// each other's writes: nothing is registered, so nothing runs and nothing is reported.
+#[test]
+fn a_box_motion_on_a_stroke_and_a_trace_motion_on_a_box_are_both_dropped() {
+    let mut grove = grove();
+    let stroke = grove.plant(
+        Line::new()
+            .weight(2.0)
+            .trace(trace((0.0, 0.0), (10.0, 10.0))),
+    );
+    let panel = grove.plant(Panel::new().at(across(0.0, 10.0)));
+    tick(&mut grove);
+    let before = (section(&grove, stroke), section(&grove, panel));
+
+    grove.animate(
+        stroke,
+        Motion::Location(across(100.0, 10.0)),
+        Timing::ms(200),
+    );
+    grove.animate(
+        panel,
+        Motion::Trace(trace((100.0, 0.0), (110.0, 10.0))),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    assert!(grove.aspen.idle());
+
+    advance(&mut grove, 200);
+    tick(&mut grove);
+    assert_eq!((section(&grove, stroke), section(&grove, panel)), before);
 }
 
 // Timing.

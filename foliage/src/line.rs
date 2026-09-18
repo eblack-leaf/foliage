@@ -9,6 +9,7 @@ use crate::op::Bud;
 use crate::palette::{Fill, Palette};
 use crate::place::{Caller, Placement, Places};
 use crate::placement::point::Point;
+use crate::placement::trace::Trace;
 use crate::seed::Buds;
 
 /// The thinnest stroke that means anything, in logical pixels.
@@ -31,6 +32,18 @@ pub const HAIRLINE: f32 = 1.0;
 ///     .weight(2.0)
 ///     .color(Palette::Muted)
 ///     .between(Point::new(0.px(), 0.px()), Point::new(100.pct(), 0.px()));
+/// ```
+///
+/// A stroke whose ends differ by breakpoint states a [`Trace`], which is the same pair per
+/// breakpoint in the chain a [`Location`](crate::Location) is written in:
+///
+/// ```no_run
+/// # use foliage::{Line, Point, Source, Trace};
+/// Line::new().trace(
+///     Trace::new()
+///         .xs(Point::new(0.px(), 50.pct()), Point::new(100.pct(), 50.pct()))
+///         .md(Point::new(50.pct(), 0.px()), Point::new(50.pct(), 100.pct())),
+/// );
 /// ```
 ///
 /// Its box is the rectangle around the two ends, grown by half its weight on every side -- so a
@@ -56,9 +69,21 @@ impl Line {
         }
     }
 
-    /// Where the two ends are.
-    pub fn between(mut self, from: Point, to: Point) -> Self {
-        self.placement.traced = Some(Traced { from, to });
+    /// Where the two ends are, at every breakpoint.
+    ///
+    /// The ordinary case, and [`trace`](Line::trace) with one link: a stroke that runs the same way
+    /// at every width says so once.
+    pub fn between(self, from: Point, to: Point) -> Self {
+        self.trace(Trace::new().xs(from, to))
+    }
+
+    /// Where the two ends are, per breakpoint.
+    ///
+    /// What [`at`](crate::Boxed::at) is to a box. Separate from it rather than a second form of it,
+    /// because an element has a box or it has ends, and a stroke handed a [`Location`](crate::Location)
+    /// would have nothing to read it with.
+    pub fn trace(mut self, trace: Trace) -> Self {
+        self.placement.traced = Some(trace);
         self
     }
 
@@ -110,9 +135,12 @@ impl Places for Line {
 
 impl Buds for Line {
     fn bud(mut self, at: Caller) -> Bud {
-        // A line always has a weight, because its box is derived from one. Everything else about a
-        // placement stays absent when it was not stated.
+        // A line always has a weight, because its box is derived from one, and always has a trace,
+        // because that is what says it is placed by its ends: one that stated neither is a stroke
+        // of no length at its trunk's corner, and not a box filling the trunk. Everything else
+        // about a placement stays absent when it was not stated.
         self.placement.stroke.get_or_insert_default();
+        self.placement.traced.get_or_insert_default();
         Bud {
             chlorophyll: Chlorophyll::Line,
             pigment: Some(Pigment::Line(LinePigment {
@@ -126,26 +154,24 @@ impl Buds for Line {
     }
 }
 
-/// Where a stroked element's two ends are, in place of a box.
+/// Where the layout put a stroke's two ends, in the space [`Placed`](crate::rowan::Placed) is in.
 ///
-/// Content rather than renderer state, in the same sense a run's [`Lettering`](crate::text::Lettering)
-/// is: R2a and R2b resolve it into the element's box, so it is read by passes that have nothing to
-/// do with drawing.
-#[derive(Component, Clone, Debug, PartialEq)]
-pub(crate) struct Traced {
-    pub(crate) from: Point,
-    pub(crate) to: Point,
-}
-
-/// Where a stroke's two ends actually landed, in the space [`Drawn`](crate::rowan::Drawn) is in.
-///
-/// Settled by R2b beside the box and moved by R4 beside it, because it is resolved geometry rather
-/// than a declaration -- the same standing `Drawn` has, and for the same reason.
+/// Settled by R2b beside the box, and on the same terms: what R2b answered, before any scrolling
+/// ancestor moves it. A stroke in motion is settled at the blend, so this is also what a retarget
+/// snapshots -- a box in motion offers `Placed` for the same purpose.
 ///
 /// The box cannot stand in for it. A box is the rectangle around the two ends grown by half the
 /// weight, and a rectangle has two diagonals: which of them the stroke runs along is a fact about
 /// the ends that the rectangle does not carry, and it depends on where the ends resolved rather
 /// than on how they were written.
+#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+pub(crate) struct Spanned(pub(crate) Stretched);
+
+/// Where a stroke's two ends actually landed, in the space [`Drawn`](crate::rowan::Drawn) is in.
+///
+/// [`Spanned`] less every scrolling ancestor's accumulated offset, written by R4 beside `Drawn` for
+/// every stroke on every frame -- a region scrolling under a stroke nothing wrote to moves its ends
+/// exactly as it moves its box. What drawing and [`Vein::Ends`](crate::Vein::Ends) read.
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Stretched {
     pub(crate) from: Position,
@@ -157,6 +183,11 @@ impl Stretched {
     pub(crate) fn set(&mut self, axis: Axis, from: f32, to: f32) {
         self.from = self.from.set(axis, from);
         self.to = self.to.set(axis, to);
+    }
+
+    /// Reads one axis of both ends, which is what one pass of the resolver blends toward.
+    pub(crate) fn along(&self, axis: Axis) -> (f32, f32) {
+        (self.from.along(axis), self.to.along(axis))
     }
 
     /// Both ends moved by a scrolling ancestor's accumulated offset.

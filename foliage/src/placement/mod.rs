@@ -8,3 +8,4 @@ pub(crate) mod point;
 pub(crate) mod resolve;
 pub(crate) mod role;
 pub(crate) mod source;
+pub(crate) mod trace;

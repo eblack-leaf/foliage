@@ -97,7 +97,7 @@ sealed traits: they can be called, never implemented.
 | Declared on the seed | Written afterwards |
 |---|---|
 | `Boxed::at` | `Grow::at` |
-| `Line::between` | `Grow::between` |
+| `Line::between`, `Line::trace` | `Grow::between`, `Grow::trace` |
 | `Place::grid` | `Grow::grid` |
 | `Place::anchored` | `Grow::anchor` |
 | `Place::elevate` | `Grow::elevate` |
@@ -150,6 +150,22 @@ subtraction, and scaling by a plain number.
 `Horizontal::at_least` / `Horizontal::at_most` clamp the extent, and the vertical axis has the
 same pair. Over `content()`, `at_most` is fit-content.
 
+### Points
+
+A `Line` has no box to state. It has two ends, and each is a `Point`: one coordinate per axis in
+the same grammar, so an end can sit on a grid track, half way across its trunk, or at an anchor's
+edge. `Line::between` states the pair once; `Line::trace` states a `Trace`, which is the pair per
+breakpoint in the chain below. The line's box is the rectangle around its ends grown by half its
+weight, which is what makes a rule with both ends on one row clippable and hit-testable.
+
+```rust
+Line::new().weight(2.0).trace(
+    Trace::new()
+        .xs(Point::new(0.px(), 50.pct()), Point::new(100.pct(), 50.pct()))
+        .md(Point::new(50.pct(), 0.px()), Point::new(50.pct(), 100.pct())),
+)
+```
+
 ### Sources
 
 | Source | Reads |
@@ -175,9 +191,10 @@ that would close a cycle is refused with a panic naming both elements and the wr
 
 ### Breakpoints
 
-`Location`, `Grid` and `FontSize` are all written in the same chain: `xs`, `sm`, `md`, `lg`,
-`xl`, and `short`. A breakpoint with nothing of its own takes the nearest smaller one that has, so
-only `xs` is ever required, and a chain that runs out falls back to the whole of the parent's box.
+`Location`, `Trace`, `Grid` and `FontSize` are all written in the same chain: `xs`, `sm`, `md`,
+`lg`, `xl`, and `short`. A breakpoint with nothing of its own takes the nearest smaller one that
+has, so only `xs` is ever required, and a chain that runs out falls back to the whole of the
+parent's box -- or, for a trace, to a stroke of no length at its corner.
 
 | Breakpoint | Viewport width |
 |---|---|
@@ -438,6 +455,7 @@ arrival.
 | `Color(Color)` | The fill, stated outright |
 | `Palette(Palette)` | The fill, as a role — so a repaint mid-motion moves the motion |
 | `Location(Location)` | Where the element sits; both ends re-resolve every frame |
+| `Trace(Trace)` | Where a stroke's two ends are; each end blends, and the box follows the pair |
 | `Scroll(ScrollTo)` | Where a region is moved to; the destination re-resolves every frame |
 | `Polygon(Shape)` | Sides, corner rounding and rotation together |
 
@@ -452,6 +470,8 @@ whose last ending is reported as `Pollen::sequence_finished`.
 
 A second `animate` on a property already moving replaces it, starting from where the element
 currently is. A **direct write** to that property cancels it, and the element is at what was written.
+A box and a pair of ends are one property -- where the element is -- so `at` cancels a `Trace`
+motion and `between` a `Location` one, and each motion is dropped on an element placed the other way.
 
 Two ways to end one early:
 
