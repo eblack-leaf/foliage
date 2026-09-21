@@ -9,11 +9,12 @@ use core::f32::consts::TAU;
 
 use crate::Scatter;
 
-/// How much of a pitch a tile spans, before the outline has its say. Over one, and it has to be: a
-/// tile is a polygon inscribed in this box and covers about two thirds of it, so tiles the size of
-/// their own cell leave the gaps between them showing. They overlap instead, which is what a mosaic
-/// is.
-const SPAN: (f32, f32) = (1.45, 1.85);
+/// How much of a pitch a tile spans, before the outline has its say. Well over one, and it has to
+/// be: a tile is a polygon inscribed in this box and covers about two thirds of it, so tiles the
+/// size of their own cell leave the gaps between them showing. They overlap instead, which is what
+/// a mosaic is, and at a fine pitch they overlap by more than they would at a coarse one because
+/// a gap between fine tiles reads as a hole rather than as grout.
+const SPAN: (f32, f32) = (1.8, 2.3);
 
 /// How far a tile centre wanders off its cell, as a fraction of the pitch.
 const WANDER: f32 = 0.26;
@@ -53,10 +54,22 @@ pub struct Silhouette {
     pub(crate) outline: Vec<(f32, f32)>,
     /// How tall it is per unit of width.
     pub(crate) height: f32,
+    /// How a point of the sketch is brought into unit space: the page it was traced on, how it
+    /// was turned, where the turned sketch's near corner landed, and what its width was divided
+    /// by. Kept so that another outline traced on the same page can be brought into the same
+    /// space after the fact, which is what a [`part`](Self::part) is.
+    page: (f32, f32),
+    turn: Turn,
+    origin: (f32, f32),
+    scale: f32,
 }
 
-/// One cell of the grid a mosaic is laid on: where its tile sits, how large it is, and what shape
-/// it settles into.
+/// One cell of the grid a mosaic is laid on: where its tile sits, how large it is, what shape it
+/// settles into, and the rest of what the scatter decided for it.
+///
+/// Everything the scatter decides is decided here, cell by cell in grid order and before the
+/// outline has its say, so that what a tile is does not depend on which tiles the outline let
+/// through before it.
 pub(crate) struct Cell {
     /// Its centre, in unit space.
     pub(crate) center: (f32, f32),
@@ -68,6 +81,12 @@ pub(crate) struct Cell {
     pub(crate) rounding: f32,
     /// How far it is turned, in radians.
     pub(crate) rotation: f32,
+    /// How far off a ramp its colour sits, `-1.0..1.0`.
+    pub(crate) drift: f32,
+    /// How far off its true distance from anything it is read as sitting, `-1.0..1.0`.
+    pub(crate) jitter: f32,
+    /// How much later than its place in a sweep it moves, `0.0..1.0`.
+    pub(crate) lag: f32,
 }
 
 impl Silhouette {
@@ -81,15 +100,7 @@ impl Silhouette {
         assert!(outline.len() >= 3, "an outline is three or more points");
         let turned: Vec<(f32, f32)> = outline
             .iter()
-            .map(|&(x, y)| {
-                let (x, y) = (x * page.0, y * page.1);
-                match turn {
-                    Turn::None => (x, y),
-                    Turn::Quarter => (-y, x),
-                    Turn::Half => (-x, -y),
-                    Turn::ThreeQuarter => (y, -x),
-                }
-            })
+            .map(|&(x, y)| turned((x * page.0, y * page.1), turn))
             .collect();
         let reach = |axis: fn(&(f32, f32)) -> f32| {
             let low = turned.iter().map(axis).fold(f32::MAX, f32::min);
@@ -103,7 +114,47 @@ impl Silhouette {
                 .map(|&(x, y)| ((x - left) / width, (y - top) / width))
                 .collect(),
             height: tall / width,
+            page,
+            turn,
+            origin: (left, top),
+            scale: width,
         }
+    }
+
+    /// Another outline traced on the same page, in this shape's own unit space: the same box,
+    /// the same height, so it can be laid over a mosaic of this. For a piece of the shape, drawn
+    /// over it.
+    pub fn part(&self, outline: &[(f32, f32)]) -> Self {
+        assert!(outline.len() >= 3, "an outline is three or more points");
+        Self {
+            outline: outline.iter().map(|&point| self.at(point)).collect(),
+            ..self.clone()
+        }
+    }
+
+    /// How tall it is per unit of width.
+    pub fn aspect(&self) -> f32 {
+        self.height
+    }
+
+    /// A point of the sketch this was traced from, in unit space.
+    pub fn at(&self, point: (f32, f32)) -> (f32, f32) {
+        let (x, y) = turned((point.0 * self.page.0, point.1 * self.page.1), self.turn);
+        (
+            (x - self.origin.0) / self.scale,
+            (y - self.origin.1) / self.scale,
+        )
+    }
+
+    /// How large a tile centred at `center` may be for the outline to hold it whole, or `None`
+    /// for a centre the outline does not hold, or holds too near its edge for any tile at all.
+    /// What [`cells`](Self::cells) sizes a tile by, asked again of another outline.
+    pub(crate) fn room(&self, center: (f32, f32)) -> Option<f32> {
+        if !self.contains(center) {
+            return None;
+        }
+        let room = self.clearance(center) * ROOM;
+        (room >= LEAST).then_some(room)
     }
 
     /// The same outline flipped left-to-right.
@@ -155,19 +206,22 @@ impl Silhouette {
                 let sides = scatter.between(5.0, 7.0).round();
                 let rounding = scatter.between(0.03, 0.18);
                 let rotation = scatter.next() * TAU;
-                if !self.contains(center) {
+                let drift = scatter.between(-1.0, 1.0);
+                let jitter = scatter.between(-1.0, 1.0);
+                let lag = scatter.next();
+                let Some(room) = self.room(center) else {
                     continue;
-                }
-                let size = size.min(self.clearance(center) * ROOM);
-                if size < LEAST {
-                    continue;
-                }
+                };
+                let size = size.min(room);
                 cells.push(Cell {
                     center,
                     size,
                     sides,
                     rounding,
                     rotation,
+                    drift,
+                    jitter,
+                    lag,
                 });
             }
         }
@@ -178,16 +232,20 @@ impl Silhouette {
     /// one of them is.
     ///
     /// Each is pulled off its vertex toward the middle of the shape so that a square centred there
-    /// sits over the vertex rather than half outside it. All of them are the same size, and that
-    /// size is the most the closest pair of them leaves: two equal squares centred at `a` and `b`
-    /// clear each other exactly when their side is no longer than the greater of `|dx|` and `|dy|`,
-    /// so the least of those over every pair is what every region gets. One region alone gets the
-    /// largest square the shape's box holds.
+    /// sits over the vertex rather than half outside it. All of them are the same size: `size`
+    /// where one is stated, else the most the closest pair of them leaves -- two equal squares
+    /// centred at `a` and `b` clear each other exactly when their side is no longer than the
+    /// greater of `|dx|` and `|dy|`, so the least of those over every pair is what every region
+    /// gets, and one region alone gets the largest square the shape's box holds.
     ///
     /// Held inside the shape's own box, because a vertex on its edge would have a region hanging
     /// over the side. Sized again afterwards, since holding a region in moves it toward the others,
     /// and then nudged by whatever its vertex asks for, in unit space on each axis.
-    pub(crate) fn regions(&self, at: &[(usize, (f32, f32))]) -> (Vec<(f32, f32)>, f32) {
+    pub(crate) fn regions(
+        &self,
+        at: &[(usize, (f32, f32))],
+        size: Option<f32>,
+    ) -> (Vec<(f32, f32)>, f32) {
         let middle = self.middle();
         let centers: Vec<(f32, f32)> = at
             .iter()
@@ -206,12 +264,12 @@ impl Silhouette {
             }
             room
         };
-        let half = room(&centers) / 2.0;
+        let half = size.unwrap_or_else(|| room(&centers)) / 2.0;
         let held: Vec<(f32, f32)> = centers
             .iter()
             .map(|&(x, y)| (x.clamp(half, 1.0 - half), y.clamp(half, self.height - half)))
             .collect();
-        let size = room(&held) * (1.0 - APART);
+        let size = size.unwrap_or_else(|| room(&held) * (1.0 - APART));
         // Nudged last, so that a region asking to sit elsewhere moves only itself.
         let regions = held
             .iter()
@@ -280,6 +338,16 @@ impl Silhouette {
             .zip(self.outline.iter().cycle().skip(1))
             .take(self.outline.len())
             .map(|(from, to)| (*from, *to))
+    }
+}
+
+/// A point of the sketch, turned.
+fn turned((x, y): (f32, f32), turn: Turn) -> (f32, f32) {
+    match turn {
+        Turn::None => (x, y),
+        Turn::Quarter => (-y, x),
+        Turn::Half => (-x, -y),
+        Turn::ThreeQuarter => (y, -x),
     }
 }
 

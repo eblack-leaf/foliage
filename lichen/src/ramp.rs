@@ -26,11 +26,10 @@ impl Ramp {
         let steps = (self.stops.len() - 1) as f32;
         let step = (at * steps).floor().min(steps - 1.0);
         let into = at * steps - step;
-        let (from, to) = (self.stops[step as usize], self.stops[step as usize + 1]);
-        (
-            from.0 + (to.0 - from.0) * into,
-            from.1 + (to.1 - from.1) * into,
-            from.2 + (to.2 - from.2) * into,
+        between(
+            self.stops[step as usize],
+            self.stops[step as usize + 1],
+            into,
         )
     }
 }
@@ -41,6 +40,15 @@ pub fn shifted((red, green, blue): Rgb, by: f32) -> Rgb {
         (red + by).clamp(0.0, 1.0),
         (green + by).clamp(0.0, 1.0),
         (blue + by).clamp(0.0, 1.0),
+    )
+}
+
+/// `from` a fraction `at` of the way to `to`, channel by channel.
+fn between(from: Rgb, to: Rgb, at: f32) -> Rgb {
+    (
+        from.0 + (to.0 - from.0) * at,
+        from.1 + (to.1 - from.1) * at,
+        from.2 + (to.2 - from.2) * at,
     )
 }
 
