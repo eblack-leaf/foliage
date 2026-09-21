@@ -4,7 +4,7 @@ use core::f32::consts::TAU;
 
 use foliage::{
     Boxed, Cap, Ease, Elevation, Grove, Grow, HAIRLINE, Leaf, Line, Location, Motion, Place, Point,
-    Pollen, Polygon, Sequence, Shape, Source, Stem, Timing, left, top,
+    Pollen, Polygon, Sequence, Shape, Source, Stem, Timing, Tween, left, top,
 };
 
 use crate::ramp::between;
@@ -36,6 +36,10 @@ const EMPHASIS_SPREAD: f32 = 220.0;
 /// and how much later than its place in that a tile may move.
 const CHANGE_SPREAD: f32 = 420.0;
 const CHANGE_LAG: f32 = 90.0;
+
+/// How long a change of the whole mosaic takes altogether: the sweep, the lag, and the last
+/// tile's own motion.
+const CHANGE_MS: u64 = (CHANGE_SPREAD + CHANGE_LAG) as u64 + GROW_MS;
 
 /// How far a tile may be read as sitting off its true distance from a region, as a fraction of
 /// the region's size either way. What makes a rim ragged. About a tile's worth at a fine pitch:
@@ -69,7 +73,8 @@ const LOBES: (f32, f32) = (0.16, 0.10);
 ///
 /// [`crop`](Self::crop) cuts the mosaic down to a part of its shape, in place -- what is outside
 /// goes, what crosses the edge is cut to it, what is inside is recoloured over the part -- until
-/// [`uncrop`](Self::uncrop) puts the whole back. The outline stays through both.
+/// [`uncrop`](Self::uncrop) puts the whole back, or as much of it as it is asked to and then,
+/// slowly, the rest. The outline stays through both.
 pub struct Mosaic {
     silhouette: Silhouette,
     ramp: Ramp,
@@ -95,6 +100,10 @@ pub struct Mosaic {
     forming: Option<Sequence>,
     /// Whether that group has landed, latched, so that asking after the frame it lands still answers.
     arrived: bool,
+    /// A still held by an uncrop that is to be let go of: the timer on the sweep that puts it
+    /// there, waited on, and how long the letting go takes once that has landed. `None` while
+    /// nothing is restoring, and cleared by whatever moves the mosaic before then.
+    restoring: Option<(Tween, u64)>,
 }
 
 /// One dash of the outline, as grown.
@@ -161,6 +170,7 @@ impl Mosaic {
             region: 0.0,
             forming: None,
             arrived: false,
+            restoring: None,
         }
     }
 
@@ -401,10 +411,17 @@ impl Mosaic {
                 .is_some_and(|forming| pollen.sequence_finished(forming))
     }
 
-    /// Carries the arrival. Call once a frame while it is on screen.
-    pub fn frame(&mut self, pollen: &Pollen) {
+    /// Carries the arrival, and a restore waiting on its uncrop. Call once a frame while it is on
+    /// screen.
+    pub fn frame(&mut self, grove: &mut Grove, pollen: &Pollen) {
         if !self.arrived && self.formed(pollen) {
             self.arrived = true;
+        }
+        if let Some((sweep, over)) = self.restoring
+            && pollen.finished(sweep)
+        {
+            self.restoring = None;
+            self.restore(grove, over);
         }
     }
 
@@ -418,7 +435,8 @@ impl Mosaic {
     /// colour of the ground, shrunk to a seed, is a speck of ground on the ground.
     ///
     /// Nothing on one that was never grown.
-    pub fn vanish(&self, grove: &mut Grove, toward: (f32, f32), after: u64, ground: Rgb) {
+    pub fn vanish(&mut self, grove: &mut Grove, toward: (f32, f32), after: u64, ground: Rgb) {
+        self.restoring = None;
         let far = self.far(toward);
         for tile in &self.tiles {
             let front = 1.0 - distance(tile.center, toward) / far;
@@ -444,7 +462,8 @@ impl Mosaic {
     ///
     /// Nothing on one that was never grown. On one that was grown and never formed, this is its
     /// arrival.
-    pub fn appear(&self, grove: &mut Grove, from: (f32, f32), after: u64) {
+    pub fn appear(&mut self, grove: &mut Grove, from: (f32, f32), after: u64) {
+        self.restoring = None;
         let far = self.far(from);
         for tile in &self.tiles {
             let front = distance(tile.center, from) / far;
@@ -492,7 +511,7 @@ impl Mosaic {
     /// crop; [`uncrop`](Self::uncrop) is what puts the whole back. Nothing on one that was never
     /// grown.
     pub fn crop(
-        &self,
+        &mut self,
         grove: &mut Grove,
         within: &Silhouette,
         toward: (f32, f32),
@@ -500,6 +519,7 @@ impl Mosaic {
         tinge: Option<((f32, f32), f32, &Ramp)>,
         scatter: &mut Scatter,
     ) {
+        self.restoring = None;
         let far = self.far(toward);
         let height = self.silhouette.height;
         let phases = (
@@ -566,12 +586,23 @@ impl Mosaic {
     /// colour that far toward `ground`, its size and shape that far toward its seed, on the
     /// sweep's own timing and easing -- so the near side is whole, the far side is gone, and
     /// what lies between is the going's own gradient, radial and ragged. A mosaic put back this
-    /// way carries where it was last put back from.
+    /// way carries where it was last put back from -- for as long as `restore` says: given, it
+    /// is how long the mosaic then takes to come the rest of the way back to whole, every tile
+    /// at once and at a constant rate, once the sweep has landed. Frames are owed all the while,
+    /// so it is a cost as well as a look. Not given, the still holds.
     ///
     /// Told to every tile, a tile already at what it is told being nothing to look at, so however
     /// often the mosaic is cropped it comes back to exactly this still and nothing else of where
     /// it has been. Nothing on one that was never grown.
-    pub fn uncrop(&self, grove: &mut Grove, from: (f32, f32), ground: Rgb, held: f32) {
+    pub fn uncrop(
+        &mut self,
+        grove: &mut Grove,
+        from: (f32, f32),
+        ground: Rgb,
+        held: f32,
+        restore: Option<u64>,
+    ) {
+        self.restoring = restore.map(|over| (grove.timer(Timing::ms(CHANGE_MS)), over));
         let far = self.far(from);
         // The sweep runs from the far side's first tile moving to the near side's last landing.
         let whole = CHANGE_SPREAD + CHANGE_LAG + GROW_MS as f32;
@@ -662,6 +693,24 @@ impl Mosaic {
             timing(GROW_MS),
         );
         grove.animate(tile.leaf, Motion::Polygon(tile.seed), timing(GROW_MS));
+    }
+
+    /// Lets go of a still: every tile drifts from wherever it is to its own size, colour and
+    /// shape, all at once and at a constant rate over `over` milliseconds. Settling rather than
+    /// moving, so no sweep and no lag: what was held part way comes the rest of the way as one
+    /// thing, and the far side, with furthest to come, is what is seen to come.
+    fn restore(&self, grove: &mut Grove, over: u64) {
+        let height = self.silhouette.height;
+        let timing = Timing::ms(over).ease(Ease::Linear);
+        for tile in &self.tiles {
+            grove.animate(tile.leaf, Motion::Color(fill(tile.hue)), timing);
+            grove.animate(
+                tile.leaf,
+                Motion::Location(placed(height, tile.center, tile.size)),
+                timing,
+            );
+            grove.animate(tile.leaf, Motion::Polygon(tile.shape), timing);
+        }
     }
 
     /// Brings one tile in, `after` a delay, to `size`, in `hue` and as `shape`: its own, which is
