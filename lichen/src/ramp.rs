@@ -44,7 +44,7 @@ pub fn shifted((red, green, blue): Rgb, by: f32) -> Rgb {
 }
 
 /// `from` a fraction `at` of the way to `to`, channel by channel.
-fn between(from: Rgb, to: Rgb, at: f32) -> Rgb {
+pub(crate) fn between(from: Rgb, to: Rgb, at: f32) -> Rgb {
     (
         from.0 + (to.0 - from.0) * at,
         from.1 + (to.1 - from.1) * at,

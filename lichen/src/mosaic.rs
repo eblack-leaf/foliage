@@ -7,6 +7,7 @@ use foliage::{
     Pollen, Polygon, Sequence, Shape, Source, Stem, Timing, left, top,
 };
 
+use crate::ramp::between;
 use crate::{Ramp, Rgb, Scatter, Silhouette, fill, shifted};
 
 /// How far one tile's colour may sit off the ramp, so that no two neighbours read as one shape.
@@ -98,7 +99,9 @@ pub struct Mosaic {
 
 /// One dash of the outline, as grown.
 struct Dash {
-    leaf: Leaf,
+    /// Its strokes, one per stretch of the outline it runs along, end to end. Moved together,
+    /// always: a dash is one mark, and the strokes are only how it follows the outline.
+    strokes: Vec<Leaf>,
     /// Its middle, in unit space, which is where it is measured from.
     at: (f32, f32),
     /// When it appears, as a delay into the form.
@@ -219,25 +222,33 @@ impl Mosaic {
         let root = grove.branch(at, Stem::new().at(location));
 
         // The outline, drawn first and left in front of the fill, so the shape is legible before
-        // there is anything inside it and stays legible after.
+        // there is anything inside it and stays legible after. A dash is a stroke per stretch of
+        // the outline it follows, and round caps are what join them: two strokes sharing an end
+        // put one disc over the wedge between them.
         let dashes = self.silhouette.dashes();
         let trace = EDGE_SWEEP as f32 / dashes.len() as f32;
         self.dashes = dashes
             .iter()
             .enumerate()
-            .map(|(n, (from, to))| {
-                let leaf = grove.branch(
-                    root,
-                    Line::new()
-                        .between(spot(height, *from), spot(height, *to))
-                        .weight(HAIRLINE * 1.5)
-                        .color(fill(self.edge))
-                        .cap(Cap::Round)
-                        .opacity(0.0)
-                        .elevate(Elevation::up(2)),
-                );
+            .map(|(n, points)| {
+                let strokes = points
+                    .windows(2)
+                    .map(|pair| {
+                        grove.branch(
+                            root,
+                            Line::new()
+                                .between(spot(height, pair[0]), spot(height, pair[1]))
+                                .weight(HAIRLINE * 1.5)
+                                .color(fill(self.edge))
+                                .cap(Cap::Round)
+                                .opacity(0.0)
+                                .elevate(Elevation::up(2)),
+                        )
+                    })
+                    .collect();
+                let (from, to) = (points[0], points[points.len() - 1]);
                 Dash {
-                    leaf,
+                    strokes,
                     at: ((from.0 + to.0) / 2.0, (from.1 + to.1) / 2.0),
                     after: (n as f32 * trace) as u64,
                 }
@@ -346,14 +357,16 @@ impl Mosaic {
         }
         let forming = grove.sequence();
         for dash in &self.dashes {
-            grove.animate(
-                dash.leaf,
-                Motion::Opacity(1.0),
-                Timing::ms(EDGE_MS)
-                    .after(dash.after)
-                    .ease(Ease::Decelerate)
-                    .within(forming),
-            );
+            for &stroke in &dash.strokes {
+                grove.animate(
+                    stroke,
+                    Motion::Opacity(1.0),
+                    Timing::ms(EDGE_MS)
+                        .after(dash.after)
+                        .ease(Ease::Decelerate)
+                        .within(forming),
+                );
+            }
         }
         let height = self.silhouette.height;
         for tile in &self.tiles {
@@ -413,13 +426,15 @@ impl Mosaic {
         }
         for dash in &self.dashes {
             let front = 1.0 - distance(dash.at, toward) / far;
-            grove.animate(
-                dash.leaf,
-                Motion::Opacity(0.0),
-                Timing::ms(EDGE_MS)
-                    .after(after + (front * CHANGE_SPREAD) as u64)
-                    .ease(Ease::Accelerate),
-            );
+            for &stroke in &dash.strokes {
+                grove.animate(
+                    stroke,
+                    Motion::Opacity(0.0),
+                    Timing::ms(EDGE_MS)
+                        .after(after + (front * CHANGE_SPREAD) as u64)
+                        .ease(Ease::Accelerate),
+                );
+            }
         }
     }
 
@@ -433,17 +448,26 @@ impl Mosaic {
         let far = self.far(from);
         for tile in &self.tiles {
             let front = distance(tile.center, from) / far;
-            self.come(grove, tile, after + (front * CHANGE_SPREAD) as u64);
+            self.come(
+                grove,
+                tile,
+                after + (front * CHANGE_SPREAD) as u64,
+                tile.size,
+                tile.hue,
+                tile.shape,
+            );
         }
         for dash in &self.dashes {
             let front = distance(dash.at, from) / far;
-            grove.animate(
-                dash.leaf,
-                Motion::Opacity(1.0),
-                Timing::ms(EDGE_MS)
-                    .after(after + (front * CHANGE_SPREAD) as u64)
-                    .ease(Ease::Decelerate),
-            );
+            for &stroke in &dash.strokes {
+                grove.animate(
+                    stroke,
+                    Motion::Opacity(1.0),
+                    Timing::ms(EDGE_MS)
+                        .after(after + (front * CHANGE_SPREAD) as u64)
+                        .ease(Ease::Decelerate),
+                );
+            }
         }
     }
 
@@ -522,30 +546,49 @@ impl Mosaic {
                 }
             }
             grove.animate(tile.leaf, Motion::Color(fill(hue)), timing(TILE_MS));
-            // Cut down to what the part holds, in place. Only stated for what has to give, so a
-            // tile the part holds whole is not told to be what it is.
-            if room < tile.size {
-                grove.animate(
-                    tile.leaf,
-                    Motion::Location(placed(height, tile.center, room)),
-                    timing(GROW_MS),
-                );
-            }
+            // Cut down to what the part holds, in place -- or back up to its size and into its
+            // shape, where the last uncrop left it short of them. Told to every held tile: one
+            // already at what it is told is nothing to look at, and a section is whole whatever
+            // was left gone around it.
+            grove.animate(
+                tile.leaf,
+                Motion::Location(placed(height, tile.center, room.min(tile.size))),
+                timing(GROW_MS),
+            );
+            grove.animate(tile.leaf, Motion::Polygon(tile.shape), timing(GROW_MS));
         }
     }
 
-    /// Puts the whole back as it was grown, swept out from `from` to the far side: what went
-    /// comes as [`appear`](Self::appear) brings it, what was cut down grows back, and what was
-    /// recoloured is returned to its own colour.
+    /// Puts the mosaic back to `held` of the way through a crop toward `from`, swept out from
+    /// `from` to the far side: a still of the going, drawn in toward `from` as
+    /// [`vanish`](Self::vanish) draws it, at that moment of it. `0.0` is the whole back as grown;
+    /// `1.0` is all of it gone; between, every tile is where the sweep would have it -- its
+    /// colour that far toward `ground`, its size and shape that far toward its seed, on the
+    /// sweep's own timing and easing -- so the near side is whole, the far side is gone, and
+    /// what lies between is the going's own gradient, radial and ragged. A mosaic put back this
+    /// way carries where it was last put back from.
     ///
     /// Told to every tile, a tile already at what it is told being nothing to look at, so however
-    /// often the mosaic is cropped it comes back to exactly what was grown. Nothing on one that
-    /// was never grown.
-    pub fn uncrop(&self, grove: &mut Grove, from: (f32, f32)) {
+    /// often the mosaic is cropped it comes back to exactly this still and nothing else of where
+    /// it has been. Nothing on one that was never grown.
+    pub fn uncrop(&self, grove: &mut Grove, from: (f32, f32), ground: Rgb, held: f32) {
         let far = self.far(from);
+        // The sweep runs from the far side's first tile moving to the near side's last landing.
+        let whole = CHANGE_SPREAD + CHANGE_LAG + GROW_MS as f32;
+        let moment = held * whole;
         for tile in &self.tiles {
             let front = distance(tile.center, from) / far;
-            self.come(grove, tile, (front * CHANGE_SPREAD) as u64);
+            let started = (1.0 - front) * CHANGE_SPREAD + tile.lag * CHANGE_LAG;
+            let gone = |ms: u64| Ease::Accelerate.at((moment - started) / ms as f32);
+            let (dim, shrunk) = (gone(TILE_MS), gone(GROW_MS));
+            self.come(
+                grove,
+                tile,
+                (front * CHANGE_SPREAD) as u64,
+                tile.size * (1.0 - shrunk * (1.0 - SEED)),
+                between(tile.hue, ground, dim),
+                blend(tile.shape, tile.seed, shrunk),
+            );
         }
     }
 
@@ -570,7 +613,9 @@ impl Mosaic {
         for dash in &self.dashes {
             let depth = reach(dash.at, center, region) / (self.region / 2.0);
             if depth <= 1.0 {
-                tint(grove, dash.leaf, ramp.at(depth), depth);
+                for &stroke in &dash.strokes {
+                    tint(grove, stroke, ramp.at(depth), depth);
+                }
             }
         }
     }
@@ -594,7 +639,9 @@ impl Mosaic {
         for dash in &self.dashes {
             let depth = reach(dash.at, center, region) / (self.region / 2.0);
             if depth <= 1.0 {
-                tint(grove, dash.leaf, self.edge, 1.0 - depth);
+                for &stroke in &dash.strokes {
+                    tint(grove, stroke, self.edge, 1.0 - depth);
+                }
             }
         }
     }
@@ -617,9 +664,9 @@ impl Mosaic {
         grove.animate(tile.leaf, Motion::Polygon(tile.seed), timing(GROW_MS));
     }
 
-    /// Brings one tile in, `after` a delay: out of its seed, into its shape, and in its own
-    /// colour. The arrival, and what puts back whatever a crop or a vanish did to it.
-    fn come(&self, grove: &mut Grove, tile: &Tile, after: u64) {
+    /// Brings one tile in, `after` a delay, to `size`, in `hue` and as `shape`: its own, which is
+    /// the arrival and what puts back whatever a crop or a vanish did to it, or short of them.
+    fn come(&self, grove: &mut Grove, tile: &Tile, after: u64, size: f32, hue: Rgb, shape: Shape) {
         let height = self.silhouette.height;
         let timing = |ms: u64| {
             Timing::ms(ms)
@@ -627,13 +674,13 @@ impl Mosaic {
                 .ease(Ease::Decelerate)
         };
         grove.animate(tile.leaf, Motion::Opacity(1.0), timing(TILE_MS));
-        grove.animate(tile.leaf, Motion::Color(fill(tile.hue)), timing(TILE_MS));
+        grove.animate(tile.leaf, Motion::Color(fill(hue)), timing(TILE_MS));
         grove.animate(
             tile.leaf,
-            Motion::Location(placed(height, tile.center, tile.size)),
+            Motion::Location(placed(height, tile.center, size)),
             timing(GROW_MS),
         );
-        grove.animate(tile.leaf, Motion::Polygon(tile.shape), timing(GROW_MS));
+        grove.animate(tile.leaf, Motion::Polygon(shape), timing(GROW_MS));
     }
 
     /// What a point reads along the ramp's direction, before it is spread.
@@ -708,6 +755,17 @@ fn tint(grove: &mut Grove, leaf: Leaf, hue: Rgb, front: f32) {
             .after((front * EMPHASIS_SPREAD) as u64)
             .ease(Ease::Decelerate),
     );
+}
+
+/// `shape` a fraction `at` of the way to `other`, field by field: where a polygon moving between
+/// the two would be at that point of the motion.
+fn blend(shape: Shape, other: Shape, at: f32) -> Shape {
+    let between = |from: f32, to: f32| from + (to - from) * at;
+    Shape {
+        sides: between(shape.sides, other.sides),
+        rounding: between(shape.rounding, other.rounding),
+        rotation: between(shape.rotation, other.rotation),
+    }
 }
 
 /// A square in unit space, as the placement the mosaic's own box resolves it against.

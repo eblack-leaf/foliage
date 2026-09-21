@@ -66,8 +66,9 @@ impl Ease {
     /// The progress this shape is at, `fraction` of the way through the motion's duration.
     ///
     /// Exact at both ends: `0.0` and `1.0` map to themselves whatever the shape, so a motion always
-    /// leaves where it was and lands on its target rather than near it.
-    pub(crate) fn at(self, fraction: f32) -> f32 {
+    /// leaves where it was and lands on its target rather than near it. Public so that what is
+    /// built on a motion can say where the motion would be part way through, in the same terms.
+    pub fn at(self, fraction: f32) -> f32 {
         let fraction = fraction.clamp(0.0, 1.0);
         if fraction == 0.0 || fraction == 1.0 || self == Ease::Linear {
             return fraction;

@@ -13,11 +13,15 @@ use crate::Scatter;
 /// be: a tile is a polygon inscribed in this box and covers about two thirds of it, so tiles the
 /// size of their own cell leave the gaps between them showing. They overlap instead, which is what
 /// a mosaic is, and at a fine pitch they overlap by more than they would at a coarse one because
-/// a gap between fine tiles reads as a hole rather than as grout.
-const SPAN: (f32, f32) = (1.8, 2.3);
+/// a gap between fine tiles reads as a hole rather than as grout. The floor is what keeps the
+/// holes out: a pentagon at the small end, wandered off its cell and turned edge-on, still has to
+/// meet its neighbours over the gap between them. As low as that allows, and no lower, so tiles
+/// read as tiles rather than as the fragments of them that heavier overlap leaves showing.
+const SPAN: (f32, f32) = (1.7, 2.0);
 
-/// How far a tile centre wanders off its cell, as a fraction of the pitch.
-const WANDER: f32 = 0.26;
+/// How far a tile centre wanders off its cell, as a fraction of the pitch. Enough that the grid
+/// is not read; not so much that two neighbours can both leave the same gap.
+const WANDER: f32 = 0.18;
 
 /// How much of the room the outline leaves a tile may take. Above one, because a tile is a polygon
 /// inscribed in the box being sized here: its corners sit inside the box.
@@ -26,9 +30,11 @@ const ROOM: f32 = 3.4;
 /// A tile the outline leaves less room than this is not drawn at all.
 const LEAST: f32 = 0.015;
 
-/// One dash, and the gap after it.
+/// One dash, and the gap after it. A short gap: the round caps eat half a weight of it at each
+/// end, and what is left reads as a line made of pieces rather than a dashed one. `0.020` is a
+/// dashed line; `0.0` is a solid one, the pieces joined by their caps.
 const DASH: f32 = 0.026;
-const GAP: f32 = 0.020;
+const GAP: f32 = 0.010;
 
 /// How far a region is pulled off the vertex it is named for, toward the middle of the shape. A
 /// region centred on the vertex itself would hang half of itself outside the outline.
@@ -168,11 +174,14 @@ impl Silhouette {
         self
     }
 
-    /// The outline as dashes, in order around it.
+    /// The outline as dashes, in order around it: each the points it runs through, its two ends
+    /// and every vertex of the outline between them.
     ///
     /// Walked by arc length rather than by vertex, so a dash is the same length on a long edge and
-    /// on a short one and the rhythm survives the jagged parts of the outline.
-    pub(crate) fn dashes(&self) -> Vec<((f32, f32), (f32, f32))> {
+    /// on a short one and the rhythm survives the jagged parts of the outline. Drawn through the
+    /// vertices it passes rather than straight between its ends, so it follows the outline over
+    /// those parts rather than cutting the corners off them.
+    pub(crate) fn dashes(&self) -> Vec<Vec<(f32, f32)>> {
         let perimeter = self.perimeter();
         let stride = DASH + GAP;
         let count = (perimeter / stride).floor().max(1.0) as usize;
@@ -182,12 +191,17 @@ impl Silhouette {
         (0..count)
             .map(|n| {
                 let from = n as f32 * stride;
-                (self.along(from), self.along(from + stride - GAP))
+                self.stretch(from, from + stride - GAP)
             })
             .collect()
     }
 
     /// The mosaic: one tile per cell of a jittered grid that the outline holds, `pitch` apart.
+    ///
+    /// Every other row is set half a pitch over, so a row's tiles sit over the gaps in the row
+    /// before rather than in line with its tiles: the packing that covers most for the count, and
+    /// what lets the tiles be as small as they are without a gap opening where four corners meet.
+    /// Every row runs a cell past the box, so the rows set over still reach its far edge.
     ///
     /// A tile never crosses the outline. What the edge leaves is what the tile gets, so the fill
     /// thins toward the boundary and stops rather than being cut off, and the shape is legible from
@@ -197,9 +211,13 @@ impl Silhouette {
         let columns = (1.0 / pitch).ceil() as i32;
         let rows = (self.height / pitch).ceil() as i32;
         for row in 0..rows {
-            for column in 0..columns {
+            let over = match row % 2 {
+                0 => 0.5,
+                _ => 0.0,
+            };
+            for column in 0..=columns {
                 let center = (
-                    (column as f32 + 0.5) * pitch + scatter.between(-WANDER, WANDER) * pitch,
+                    (column as f32 + over) * pitch + scatter.between(-WANDER, WANDER) * pitch,
                     (row as f32 + 0.5) * pitch + scatter.between(-WANDER, WANDER) * pitch,
                 );
                 let size = pitch * scatter.between(SPAN.0, SPAN.1);
@@ -307,6 +325,30 @@ impl Silhouette {
         self.edges()
             .map(|(from, to)| span(point, from, to))
             .fold(f32::MAX, f32::min)
+    }
+
+    /// The outline from `from` to `to`, both distances along it from its first vertex: the point
+    /// at each end, and every vertex strictly between them in order. `to` past `from`, and by
+    /// less than the whole way round; past the end of the outline is round to its start.
+    fn stretch(&self, from: f32, to: f32) -> Vec<(f32, f32)> {
+        let perimeter = self.perimeter();
+        let from = from.rem_euclid(perimeter);
+        let to = from + (to - from).min(perimeter);
+        let mut points = vec![self.along(from)];
+        // Twice round, since a stretch may run past the end of the outline and pick up vertices
+        // from its start. Each edge's end vertex sits at `reached` along the outline.
+        let mut reached = 0.0;
+        for (a, b) in self.edges().chain(self.edges()) {
+            reached += self::distance(a, b);
+            if reached >= to {
+                break;
+            }
+            if reached > from {
+                points.push(b);
+            }
+        }
+        points.push(self.along(to));
+        points
     }
 
     /// The point `distance` along the outline from its first vertex.
