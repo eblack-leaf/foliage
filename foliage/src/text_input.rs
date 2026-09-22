@@ -111,6 +111,12 @@ const CARET: f32 = 2.0;
 /// What it types is reported as [`edited`](crate::Pollen::edited), and an `Enter` as
 /// [`submitted`](crate::Pollen::submitted).
 ///
+/// Its value is what [`text`](crate::Grow::text) rewrites and [`Vein::Text`](crate::Vein::Text)
+/// reads, and what [`color`](crate::Grow::color) refills -- moved with a
+/// [`Motion::Color`](crate::Motion::Color) or a [`Motion::Palette`](crate::Motion::Palette) like
+/// any other fill, and read back as [`Vein::Color`](crate::Vein::Color). The placeholder, the
+/// caret and the selection keep the fills they were grown with.
+///
 /// It answers the clipboard itself: `Ctrl+C` and `Ctrl+X` put the selected span on it and `Ctrl+V`
 /// asks for what is there, which lands **in a later frame** because what a clipboard holds is the
 /// host's to say. A paste is reported as [`edited`](crate::Pollen::edited) like anything else the

@@ -222,6 +222,10 @@ fn drain(grove: &mut Grove) {
                     dropped("color", leaf, "not live");
                     continue;
                 }
+                // A field is addressed as one element and draws nothing itself, so a fill
+                // written to it is its value's: it goes to the run that holds the value, as
+                // `text` does. Anything else is filled in its own right.
+                let leaf = valued(grove, leaf);
                 cancel(grove, "color", leaf, Property::Fill);
                 if grove.tree.set_fill(leaf, fill) {
                     debug!(leaf = leaf.id(), "recolored");
@@ -406,6 +410,11 @@ fn drain(grove: &mut Grove) {
                         continue;
                     }
                 }
+                // A fill moved on a field is its value's, on the terms `color` writes one.
+                let leaf = match motion {
+                    Motion::Color(_) | Motion::Palette(_) => valued(grove, leaf),
+                    _ => leaf,
+                };
                 if aspen::animate(grove, leaf, motion, timing, tween) {
                     debug!(leaf = leaf.id(), tween = tween.0, "animating");
                 } else {
@@ -573,6 +582,12 @@ fn reaches(grove: &Grove, verb: &'static str, leaf: Leaf, to: &ScrollTo) -> bool
 /// The drain runs before `animate`, so by the time a tween would be advanced no property has both a
 /// pending write and a running one. That is what makes the old advisory rule -- "if a property is
 /// animated anywhere, animate it everywhere" -- structural, and gone.
+/// The element a fill addressed to `leaf` is written to: the run holding its value, for a field,
+/// and `leaf` itself for anything else.
+fn valued(grove: &Grove, leaf: Leaf) -> Leaf {
+    grove.tree.parts(leaf).map_or(leaf, |parts| parts.run)
+}
+
 fn cancel(grove: &mut Grove, verb: &'static str, leaf: Leaf, property: Property) {
     if grove.aspen.cancel(leaf, property) {
         debug!(verb, leaf = leaf.id(), "tween cancelled");

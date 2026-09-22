@@ -150,7 +150,11 @@ impl Grove {
             Vein::Drawn => Sap::Section(self.tree.drawn(leaf)),
             Vein::Anchor => Sap::Leaf(self.tree.anchor(leaf)),
             Vein::Elevation => Sap::Elevation(self.tree.elevation(leaf)),
-            Vein::Color => Sap::Color(self.tree.fill(leaf)?),
+            // A field is filled as its value is, since a fill written to it goes to the run.
+            Vein::Color => Sap::Color(match self.tree.parts(leaf) {
+                Some(parts) => self.tree.fill(parts.run)?,
+                None => self.tree.fill(leaf)?,
+            }),
             Vein::Rounding => Sap::Rounding(self.tree.rounding(leaf)?),
             Vein::Ends => {
                 let stretched = self.tree.stretched(leaf)?;

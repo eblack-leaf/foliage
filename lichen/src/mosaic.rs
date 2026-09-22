@@ -37,10 +37,6 @@ const EMPHASIS_SPREAD: f32 = 220.0;
 const CHANGE_SPREAD: f32 = 420.0;
 const CHANGE_LAG: f32 = 90.0;
 
-/// How long a change of the whole mosaic takes altogether: the sweep, the lag, and the last
-/// tile's own motion.
-const CHANGE_MS: u64 = (CHANGE_SPREAD + CHANGE_LAG) as u64 + GROW_MS;
-
 /// How far a tile may be read as sitting off its true distance from a region, as a fraction of
 /// the region's size either way. What makes a rim ragged. About a tile's worth at a fine pitch:
 /// more, and the rim is not ragged but a band of tiles that could be either side of it.
@@ -153,6 +149,11 @@ struct Mark {
 }
 
 impl Mosaic {
+    /// How long a change of the whole mosaic -- appearing, vanishing, cropping -- takes
+    /// altogether: the sweep, the lag, and the last tile's own motion, in milliseconds. For
+    /// whatever waits on one, and stated here so that nothing waiting on it states its own.
+    pub const CHANGE_MS: u64 = (CHANGE_SPREAD + CHANGE_LAG) as u64 + GROW_MS;
+
     /// An ungrown mosaic, to be placed by [`grow`](Self::grow).
     pub fn new(silhouette: Silhouette, ramp: Ramp) -> Self {
         let edge = ramp.at(0.5);
@@ -602,7 +603,7 @@ impl Mosaic {
         held: f32,
         restore: Option<u64>,
     ) {
-        self.restoring = restore.map(|over| (grove.timer(Timing::ms(CHANGE_MS)), over));
+        self.restoring = restore.map(|over| (grove.timer(Timing::ms(Self::CHANGE_MS)), over));
         let far = self.far(from);
         // The sweep runs from the far side's first tile moving to the near side's last landing.
         let whole = CHANGE_SPREAD + CHANGE_LAG + GROW_MS as f32;

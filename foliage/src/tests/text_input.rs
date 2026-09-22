@@ -807,6 +807,38 @@ fn a_fields_parts_carry_the_fills_it_was_given() {
     );
 }
 
+/// A fill addressed to the field is its value's, the way a `text` addressed to it is: it lands on
+/// the run, reads back from the field, and leaves the other parts as they were.
+#[test]
+fn a_fields_fill_is_its_values() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        TextInput::new()
+            .color(Palette::Ink)
+            .caret(Palette::Accent)
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(32.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(
+        grove.tap(leaf, Vein::Color),
+        Some(Sap::Color(Palette::Ink.into()))
+    );
+    grove.color(leaf, Palette::Muted);
+    tick(&mut grove);
+    assert_eq!(
+        grove.tap(leaf, Vein::Color),
+        Some(Sap::Color(Palette::Muted.into()))
+    );
+    assert_eq!(
+        grove.tap(parts(&grove, leaf)[3], Vein::Color),
+        Some(Sap::Color(Palette::Muted.into()))
+    );
+    assert_eq!(
+        grove.tap(caret(&grove, leaf), Vein::Color),
+        Some(Sap::Color(Palette::Accent.into()))
+    );
+}
+
 /// Control makes a key a command rather than a character: it says what to do with the value instead
 /// of what to put in it, and nothing is inserted.
 #[test]
