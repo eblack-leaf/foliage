@@ -143,17 +143,36 @@
 <a href=#143 id=143 data-nosnippet>143</a>                })
 <a href=#144 id=144 data-nosnippet>144</a>            }
 <a href=#145 id=145 data-nosnippet>145</a>
-<a href=#146 id=146 data-nosnippet>146</a>            <span class="doccomment">/// Its measured intrinsic extent on the resolving axis.
-<a href=#147 id=147 data-nosnippet>147</a>            ///
-<a href=#148 id=148 data-nosnippet>148</a>            /// A different number from its box whenever it was given more room than it asked for,
-<a href=#149 id=149 data-nosnippet>149</a>            /// which is what makes "as wide as that label's text" sayable at all.
-<a href=#150 id=150 data-nosnippet>150</a>            </span><span class="kw">pub fn </span>content(<span class="self">self</span>) -&gt; Length {
-<a href=#151 id=151 data-nosnippet>151</a>                Length::of(Kind::Content { against: <span class="macro-nonterminal">$against </span>})
-<a href=#152 id=152 data-nosnippet>152</a>            }
-<a href=#153 id=153 data-nosnippet>153</a>        }
-<a href=#154 id=154 data-nosnippet>154</a>    };
-<a href=#155 id=155 data-nosnippet>155</a>}
-<a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a><span class="macro">basis!</span>(Trunk, Against::Trunk, Origin::Trunk);
-<a href=#158 id=158 data-nosnippet>158</a><span class="macro">basis!</span>(Anchor, Against::Anchor, Origin::Anchor);
+<a href=#146 id=146 data-nosnippet>146</a>            <span class="doccomment">/// Where character `index` of its run stands, as a distance from its top-left corner:
+<a href=#147 id=147 data-nosnippet>147</a>            /// the column on the horizontal axis and the line on the vertical one, each in its own
+<a href=#148 id=148 data-nosnippet>148</a>            /// cells.
+<a href=#149 id=149 data-nosnippet>149</a>            ///
+<a href=#150 id=150 data-nosnippet>150</a>            /// Read off the run **as it wrapped** at the width the layout gave it, so it is exact
+<a href=#151 id=151 data-nosnippet>151</a>            /// where a count of [`letters`](Self::letters) is exact only on a run of one line. An
+<a href=#152 id=152 data-nosnippet>152</a>            /// index past the end is the place after the last character, which is where a caret
+<a href=#153 id=153 data-nosnippet>153</a>            /// stands at the end of a run; on an element with no run it is zero.
+<a href=#154 id=154 data-nosnippet>154</a>            ///
+<a href=#155 id=155 data-nosnippet>155</a>            /// A length rather than a coordinate for the reason `letters` is: it is measured from
+<a href=#156 id=156 data-nosnippet>156</a>            /// the run's own edge, and `left(anchor().left() + anchor().character(n))` says which.
+<a href=#157 id=157 data-nosnippet>157</a>            /// That is the whole of how a caret is placed against a run that wraps.
+<a href=#158 id=158 data-nosnippet>158</a>            </span><span class="kw">pub fn </span>character(<span class="self">self</span>, index: usize) -&gt; Length {
+<a href=#159 id=159 data-nosnippet>159</a>                Length::of(Kind::Character {
+<a href=#160 id=160 data-nosnippet>160</a>                    index,
+<a href=#161 id=161 data-nosnippet>161</a>                    against: <span class="macro-nonterminal">$against</span>,
+<a href=#162 id=162 data-nosnippet>162</a>                })
+<a href=#163 id=163 data-nosnippet>163</a>            }
+<a href=#164 id=164 data-nosnippet>164</a>
+<a href=#165 id=165 data-nosnippet>165</a>            <span class="doccomment">/// Its measured intrinsic extent on the resolving axis.
+<a href=#166 id=166 data-nosnippet>166</a>            ///
+<a href=#167 id=167 data-nosnippet>167</a>            /// A different number from its box whenever it was given more room than it asked for,
+<a href=#168 id=168 data-nosnippet>168</a>            /// which is what makes "as wide as that label's text" sayable at all.
+<a href=#169 id=169 data-nosnippet>169</a>            </span><span class="kw">pub fn </span>content(<span class="self">self</span>) -&gt; Length {
+<a href=#170 id=170 data-nosnippet>170</a>                Length::of(Kind::Content { against: <span class="macro-nonterminal">$against </span>})
+<a href=#171 id=171 data-nosnippet>171</a>            }
+<a href=#172 id=172 data-nosnippet>172</a>        }
+<a href=#173 id=173 data-nosnippet>173</a>    };
+<a href=#174 id=174 data-nosnippet>174</a>}
+<a href=#175 id=175 data-nosnippet>175</a>
+<a href=#176 id=176 data-nosnippet>176</a><span class="macro">basis!</span>(Trunk, Against::Trunk, Origin::Trunk);
+<a href=#177 id=177 data-nosnippet>177</a><span class="macro">basis!</span>(Anchor, Against::Anchor, Origin::Anchor);
 </code></pre></div></section></main></body></html>
