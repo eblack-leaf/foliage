@@ -216,6 +216,15 @@ impl Foliage {
             ginkgo.resize(area, scale);
         }
         self.grove.pending_resize = Some(area);
+        // The web paints before this returns, because a paint asked for is a frame too late there.
+        // Configuring the surface sets the canvas's width and height, which clears it, and the
+        // event arrives from a `ResizeObserver` -- after the frame's animation callbacks have run
+        // and before the browser composites it. A requested paint lands in the frame after, so the
+        // browser would show this one blank, and a resize dragged across many frames would show a
+        // blank frame for every step of the drag.
+        #[cfg(target_family = "wasm")]
+        self.paint();
+        #[cfg(not(target_family = "wasm"))]
         self.willow.repaint();
     }
 
@@ -276,7 +285,7 @@ impl Foliage {
         if self.ginkgo.is_some() {
             return;
         }
-        let Some(ginkgo) = self
+        let Some(mut ginkgo) = self
             .acquiring
             .as_ref()
             .and_then(|slot| slot.try_recv().ok())
@@ -284,6 +293,10 @@ impl Foliage {
             return;
         };
         self.acquiring = None;
+        // Acquired against the size the window had at resume, which on the web is none: the canvas
+        // is not laid out until winit's observer first fires, and a resize before now found no
+        // surface to resize.
+        ginkgo.resize(self.willow.area(), self.willow.scale());
         self.boot(ginkgo);
     }
 }
