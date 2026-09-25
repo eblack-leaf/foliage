@@ -224,6 +224,15 @@ pub trait Grow: Queues {
         self.queue(Op::Select { leaf, range });
     }
 
+    /// Makes a [`TextInput`](crate::TextInput) or a [`TextArea`](crate::TextArea) read-only, or
+    /// editable again: see [`read_only`](crate::TextInput::read_only) for what that keeps and what
+    /// it refuses. What it says, where its caret is and what is selected are left as they are.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is not a field.
+    fn read_only(&mut self, leaf: Leaf, read_only: bool) {
+        self.queue(Op::ReadOnly { leaf, read_only });
+    }
+
     /// Rounds an element's corners, per corner or all at once.
     ///
     /// Dropped, like any op naming something it does not apply to, unless the element is a

@@ -347,3 +347,50 @@ fn a_field_that_was_hidden_lowers_the_keyboard() {
     tick(&mut grove);
     assert_eq!(grove.keyboard.raised(), None);
 }
+
+// Read-only.
+
+/// A paste asked of a read-only field is not asked at all, and one that was asked before the field
+/// became read-only lands on nothing.
+#[test]
+fn a_read_only_field_takes_no_paste() {
+    let mut grove = grove();
+    grove.copy("pasted");
+    let leaf = focused(&mut grove, TextInput::new().read_only(true));
+    controlled(&mut grove, Key::Typed('v'));
+    tick(&mut grove);
+    tick(&mut grove);
+    tick(&mut grove);
+    assert_eq!(value(&grove, leaf), "");
+
+    answers(&mut grove, Some(leaf), "late");
+    tick(&mut grove);
+    assert_eq!(value(&grove, leaf), "");
+}
+
+/// A read-only field copies and cuts to the clipboard alike, and a cut takes nothing out.
+#[test]
+fn a_read_only_cut_is_a_copy() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove, TextInput::new());
+    grove.text(leaf, "hello");
+    grove.read_only(leaf, true);
+    tick(&mut grove);
+    grove.select(leaf, 1..4);
+    tick(&mut grove);
+    controlled(&mut grove, Key::Typed('x'));
+    tick(&mut grove);
+    assert_eq!(value(&grove, leaf), "hello");
+    assert_eq!(taken(&mut grove), "ell");
+}
+
+/// Nothing is raised to type into a field that takes no typing, even with focus on it.
+#[test]
+fn no_keyboard_is_raised_for_a_read_only_field() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove, TextInput::new().read_only(true));
+    assert_eq!(grove.keyboard.raised(), None);
+    grove.read_only(leaf, false);
+    tick(&mut grove);
+    assert_eq!(grove.keyboard.raised(), Some(Keypad::Text));
+}

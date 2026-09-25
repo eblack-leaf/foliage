@@ -339,6 +339,13 @@ like any other, so a role follows a repaint and a literal does not. `Grow::untin
 and `Ctrl+V` itself and raises the `Keypad` it named where there is one to raise. Its value is
 read with `Vein::Text` and its selection with `Vein::Selection`.
 
+`TextInput::read_only` -- or `Grow::read_only`, to change it later -- keeps the value and nothing
+else from the person at the keyboard. The field still receives: a drag scrolls it, a hold
+selects in it, and with focus the arrows walk it and `Ctrl+C` copies out of it. Typing, deleting
+and pasting do nothing, a cut is only a copy, no caret is drawn and no keyboard is raised. It is
+what a value that must be readable but not editable wants, where disabling the field would stop
+it being scrolled at all.
+
 `TextArea` is the same with as many lines as its value wraps to. It wraps at its box and scrolls
 down rather than across; `Enter` puts a newline in the value and `Ctrl+Enter` is what submits;
 `Up` and `Down` move by a line and `Home` and `End` go to the ends of the line the caret is on, as

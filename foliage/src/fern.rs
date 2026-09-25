@@ -301,6 +301,13 @@ fn drain(grove: &mut Grove) {
                 }
                 text_input::select(grove, leaf, range);
             }
+            Op::ReadOnly { leaf, read_only } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("read_only", leaf, "not live");
+                    continue;
+                }
+                text_input::read_only(grove, leaf, read_only);
+            }
             Op::Tint { leaf, tints } => {
                 if !grove.tree.is_live(leaf) {
                     dropped("tint", leaf, "not live");

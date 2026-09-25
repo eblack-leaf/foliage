@@ -11,7 +11,7 @@ use crate::tests::{
     Observer, controlled, drag, grove, key, past_the_hold, press, release, section, shifted,
     stroke, tick, tick_with, typing, with_control, with_shift,
 };
-use crate::text_input::{Applied, Editing, applied};
+use crate::text_input::{Applied, Editing, applied, held};
 use crate::{
     Boxed, Grove, Grow, Leaf, Location, Palette, Place, Sap, Source, Stem, TextInput, Vein, left,
     top,
@@ -973,4 +973,91 @@ fn the_run_is_drawn_in_front_of_the_caret_and_the_selection() {
     // The hint reads in the run's own place, so it stands at the same elevation as the run --
     // separated only by the allocation order that separates any two equals.
     assert_eq!(rank(&grove, hint).stack, rank(&grove, run).stack);
+}
+
+// Read-only.
+
+/// On a read-only field, a keystroke comes to what it would have, less anything that changes the
+/// value: a write is nothing, a paste is not asked for, and a cut is only its copy.
+#[test]
+fn read_only_keeps_the_reading_and_refuses_the_writing() {
+    let typed = held(applied("abc", at(1), stroke(Key::Typed('X')), None));
+    assert!(matches!(typed, Applied::Nothing));
+    let deleted = held(applied("abc", at(1), stroke(Key::Backspace), None));
+    assert!(matches!(deleted, Applied::Nothing));
+    let pasted = held(applied("abc", at(1), with_control(Key::Typed('v')), None));
+    assert!(matches!(pasted, Applied::Nothing));
+    match held(applied("abc", selecting(0, 2), with_control(Key::Typed('x')), None)) {
+        Applied::Copied(text) => assert_eq!(text, "ab"),
+        _ => panic!("a cut on a read-only field is its copy"),
+    }
+    let moved = held(applied("abc", at(1), stroke(Key::Right), None));
+    assert!(matches!(moved, Applied::Moved(editing) if editing == at(2)));
+    let submitted = held(applied("abc", at(1), stroke(Key::Enter), None));
+    assert!(matches!(submitted, Applied::Submitted));
+}
+
+/// A read-only field that holds focus is walked by the keys and written by none of them, and is
+/// not reported as edited -- nothing about its value moved.
+#[test]
+fn a_read_only_field_is_walked_and_not_written() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove);
+    grove.text(leaf, "fixed");
+    grove.read_only(leaf, true);
+    tick(&mut grove);
+
+    typing(&mut grove, "xyz");
+    key(&mut grove, Key::Backspace);
+    key(&mut grove, Key::Home);
+    key(&mut grove, Key::Right);
+    tick(&mut grove);
+    let mut app = Observer::default();
+    tick_with(&mut grove, &mut app);
+    assert_eq!(value(&grove, leaf), "fixed");
+    assert_eq!(selection(&grove, leaf), 1..1);
+    assert!(!app.last().edited(leaf));
+}
+
+/// The reason read-only is not disabled: a value longer than its box can still be dragged into
+/// view -- and without focus, because reading does not ask for it.
+#[test]
+fn a_drag_scrolls_a_read_only_field() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        TextInput::new()
+            .read_only(true)
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(32.px()))),
+    );
+    grove.text(leaf, "abcdefghijklmnopqrstuvwxyz0123");
+    tick(&mut grove);
+    grove.select(leaf, 0..0);
+    tick(&mut grove);
+    assert_eq!(offset(&grove, leaf), 0.0);
+
+    press(&mut grove, 15.0 * CELL, 16.0);
+    tick(&mut grove);
+    drag(&mut grove, 5.0 * CELL, 16.0);
+    tick(&mut grove);
+    release(&mut grove, 5.0 * CELL, 16.0);
+    tick(&mut grove);
+    assert_eq!(offset(&grove, leaf), 100.0);
+}
+
+/// No caret is drawn on a read-only field holding focus, because a caret says where typing goes;
+/// made editable again, it is drawn, and typing lands.
+#[test]
+fn read_only_is_undone_by_the_same_write() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove);
+    grove.read_only(leaf, true);
+    tick(&mut grove);
+    assert!(!shown(&grove, caret(&grove, leaf)));
+
+    grove.read_only(leaf, false);
+    tick(&mut grove);
+    assert!(shown(&grove, caret(&grove, leaf)));
+    typing(&mut grove, "ok");
+    tick(&mut grove);
+    assert_eq!(value(&grove, leaf), "ok");
 }

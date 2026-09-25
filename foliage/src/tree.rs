@@ -26,7 +26,7 @@ use crate::rounding::Corners;
 use crate::rowan::{Cell, Composed, Drawn, Intrinsic, Placed};
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
-use crate::text_input::{Editing, Parts};
+use crate::text_input::{Editing, Parts, ReadOnly};
 use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrolls};
 
 /// The tree itself, seen from the inside.
@@ -454,6 +454,18 @@ impl Tree {
     pub(crate) fn set_keypad(&mut self, leaf: Leaf, keypad: Keypad) {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(keypad);
+        }
+    }
+
+    /// Whether `leaf` is a field that refuses the keystrokes that would change its value. `false`
+    /// for everything that is not a field, which has no value to keep.
+    pub(crate) fn read_only(&self, leaf: Leaf) -> bool {
+        self.read::<ReadOnly>(leaf).is_some_and(|read_only| read_only.0)
+    }
+
+    pub(crate) fn set_read_only(&mut self, leaf: Leaf, read_only: bool) {
+        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+            entity.insert(ReadOnly(read_only));
         }
     }
 

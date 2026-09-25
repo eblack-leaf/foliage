@@ -41,6 +41,15 @@
 //! one -- which is also what makes the caret stay in view: every edit asks the field to
 //! [`show`](crate::ScrollTo::show) the caret, and R4 answers it against the extent the same frame
 //! measured.
+//!
+//! # Read-only is a field that keeps its value
+//!
+//! A field [`read_only`](TextInput::read_only) is still a field: it receives, so a drag scrolls it
+//! and a hold selects in it; it takes focus, so the arrows walk it and `Ctrl+C` copies out of it.
+//! What it refuses is every keystroke that would change the value -- typing, deleting, cutting
+//! and pasting -- which is the one thing that separates reading a value from editing it.
+//! Disabling a field would refuse far more: a disabled region takes no gesture at all, so a value
+//! longer than its box could not be scrolled to be read.
 
 use core::ops::Range;
 
@@ -136,6 +145,7 @@ pub struct TextInput {
     pub(crate) caret: Fill,
     pub(crate) selection: Fill,
     pub(crate) keypad: Keypad,
+    pub(crate) read_only: bool,
 }
 
 /// An editable run of glyphs that wraps.
@@ -175,6 +185,7 @@ pub struct TextArea {
     pub(crate) caret: Fill,
     pub(crate) selection: Fill,
     pub(crate) keypad: Keypad,
+    pub(crate) read_only: bool,
 }
 
 /// The builders a field and an area share, which are all of them: the two are the same thing to
@@ -199,6 +210,7 @@ macro_rules! field {
                     caret: Fill::Role(Palette::Accent),
                     selection: Fill::Role(Palette::Muted),
                     keypad: Keypad::Text,
+                    read_only: false,
                 }
             }
 
@@ -252,6 +264,19 @@ macro_rules! field {
                 self.keypad = keypad;
                 self
             }
+
+            /// Whether the value can be read but not changed.
+            ///
+            /// Read-only, the field still receives: a drag scrolls it, a hold selects in it, and
+            /// with focus the arrows walk it and `Ctrl+C` copies out of it. Every keystroke that
+            /// would change the value does nothing -- a cut is only a copy -- no caret is drawn,
+            /// and no soft keyboard is raised. What the app writes with
+            /// [`text`](crate::Grow::text) is written either way; this is about the person at the
+            /// keyboard. Changed later with [`read_only`](crate::Grow::read_only).
+            pub fn read_only(mut self, read_only: bool) -> Self {
+                self.read_only = read_only;
+                self
+            }
         }
 
         impl Places for $seed {
@@ -293,6 +318,7 @@ macro_rules! field {
                         caret: self.caret,
                         selection: self.selection,
                         keypad: self.keypad,
+                        read_only: self.read_only,
                         lines,
                     })),
                     at,
@@ -351,8 +377,16 @@ pub(crate) struct Sprout {
     pub(crate) caret: Fill,
     pub(crate) selection: Fill,
     pub(crate) keypad: Keypad,
+    pub(crate) read_only: bool,
     pub(crate) lines: Lines,
 }
+
+/// Whether a field refuses the keystrokes that would change its value.
+///
+/// Carried on the field beside its [`Keypad`], and read wherever a keystroke is about to write:
+/// the whole of read-only is that those writes do not happen.
+#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ReadOnly(pub(crate) bool);
 
 /// The six elements a field is made of, and how many lines it has.
 ///
@@ -549,6 +583,18 @@ pub(crate) fn applied(
         // Both answered before a field is ever asked, because both move focus wherever focus is:
         // `Tab` steps it and `Escape` takes it away. A field never sees either.
         Key::Tab | Key::Escape => Applied::Nothing,
+    }
+}
+
+/// What a keystroke comes to on a field that is read-only: the same, less anything that would
+/// change the value. A write is nothing, a paste is not asked for, and a cut is the copy it
+/// contains -- the person asked for the span, and taking it out is the part refused. Moving,
+/// selecting, copying and submitting are reading, and go through.
+pub(crate) fn held(applied: Applied) -> Applied {
+    match applied {
+        Applied::Wrote(..) | Applied::Pasting => Applied::Nothing,
+        Applied::Cut { text, .. } => Applied::Copied(text),
+        other => other,
     }
 }
 
@@ -800,6 +846,7 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
     grove.tree.set_parts(field, parts);
     grove.tree.set_editing(field, Editing::default());
     grove.tree.set_keypad(field, sprout.keypad);
+    grove.tree.set_read_only(field, sprout.read_only);
     refresh(grove, field);
     debug!(leaf = field.id(), "field sprouted");
 }
@@ -882,7 +929,11 @@ pub(crate) fn typed(grove: &mut Grove, field: Leaf, stroke: Keystroke) {
         Lines::One => None,
         Lines::Many => Some(shaped.wrap(columns(grove, parts, &shaped))),
     };
-    match applied(&value, grove.tree.editing(field), stroke, wrap) {
+    let mut applied = applied(&value, grove.tree.editing(field), stroke, wrap);
+    if grove.tree.read_only(field) {
+        applied = held(applied);
+    }
+    match applied {
         Applied::Wrote(written, editing) => wrote(grove, field, parts, written, editing),
         Applied::Moved(editing) => {
             grove.tree.set_editing(field, editing);
@@ -921,6 +972,12 @@ pub(crate) fn pasted(grove: &mut Grove, field: Leaf, text: &str) {
     let Some(parts) = grove.tree.parts(field) else {
         return;
     };
+    // Asked for before the field was made read-only, and answered after: it lands on a field that
+    // no longer takes it.
+    if grove.tree.read_only(field) {
+        debug!(leaf = field.id(), "paste dropped: read-only");
+        return;
+    }
     if let Applied::Wrote(written, editing) = inserted(
         &value(grove, parts),
         grove.tree.editing(field),
@@ -1074,7 +1131,11 @@ fn settled(grove: &mut Grove) {
     let focused = grove.focus.held();
     for (field, parts) in grove.tree.fields() {
         let showing = Some(field) == focused;
-        grove.tree.set_visible(parts.caret, showing);
+        // A caret says where typing goes, and a read-only field takes none -- so it has none to
+        // show. Its selection is reading, and is drawn like any other.
+        grove
+            .tree
+            .set_visible(parts.caret, showing && !grove.tree.read_only(field));
         let selected = grove.tree.editing(field).span();
         if !showing || selected.is_empty() {
             for mark in [parts.head, parts.body, parts.tail] {
@@ -1100,8 +1161,23 @@ fn settled(grove: &mut Grove) {
         grove.tree.set_location(parts.tail, tail_at(selected.end));
         grove.tree.set_visible(parts.tail, !same);
     }
-    let wanted = focused.and_then(|leaf| grove.tree.keypad(leaf));
+    // Nothing is raised to type into a field that takes no typing.
+    let wanted = focused
+        .filter(|&leaf| !grove.tree.read_only(leaf))
+        .and_then(|leaf| grove.tree.keypad(leaf));
     grove.keyboard.raise(wanted);
+}
+
+/// Makes a field read-only, or editable again.
+///
+/// Dropped, like any op naming something it does not apply to, if the element is not a field. The
+/// caret and the soft keyboard follow at the end of the drain, where focus is settled.
+pub(crate) fn read_only(grove: &mut Grove, field: Leaf, read_only: bool) {
+    if grove.tree.parts(field).is_none() {
+        debug!(leaf = field.id(), "read-only dropped: not a field");
+        return;
+    }
+    grove.tree.set_read_only(field, read_only);
 }
 
 /// Selects a span of the value outright.

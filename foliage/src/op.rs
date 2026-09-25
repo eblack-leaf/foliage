@@ -86,6 +86,8 @@ pub(crate) enum Op {
         leaf: Leaf,
         range: core::ops::Range<usize>,
     },
+    /// Makes a field read-only, or editable again.
+    ReadOnly { leaf: Leaf, read_only: bool },
     /// Refills part of a run, over a range of its own index space.
     Tint {
         leaf: Leaf,
