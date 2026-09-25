@@ -7,6 +7,8 @@
 
 use core::f32::consts::TAU;
 
+use foliage::{Location, Source, left, top};
+
 use crate::Scatter;
 
 /// How much of a pitch a tile spans, before the outline has its say. Well over one, and it has to
@@ -51,6 +53,30 @@ pub enum Turn {
     Quarter,
     Half,
     ThreeQuarter,
+}
+
+/// A place on a shape, in its unit space: `x` over `0.0..1.0`, `y` over `0.0..` its
+/// [`aspect`](Silhouette::aspect).
+///
+/// What a [`Mosaic`](crate::Mosaic) stands something on, and recolours when it is emphasized.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Region {
+    /// A square standing on vertex `n` of the outline, pulled in toward the middle of the shape
+    /// until it sits over the vertex, and nudged by as much again on each axis -- for a vertex that
+    /// is the corner of its feature rather than the middle of it. The shape's points, its tips and
+    /// lobes, are these.
+    Vertex(usize, (f32, f32)),
+    /// A square centred at a point. Sized with the vertex squares, all alike.
+    Point((f32, f32)),
+    /// A box: its top-left corner, and its width and height. Sized as stated.
+    Box((f32, f32), (f32, f32)),
+}
+
+/// Where a region sits, as it was resolved: its middle, and how far it reaches either way.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) struct Area {
+    pub(crate) center: (f32, f32),
+    pub(crate) half: (f32, f32),
 }
 
 /// A closed outline in unit space.
@@ -136,6 +162,24 @@ impl Silhouette {
             outline: outline.iter().map(|&point| self.at(point)).collect(),
             ..self.clone()
         }
+    }
+
+    /// The same shape's space, holding `outline` -- already in unit space -- instead.
+    pub(crate) fn outlined(&self, outline: Vec<(f32, f32)>) -> Self {
+        Self {
+            outline,
+            ..self.clone()
+        }
+    }
+
+    /// A box in unit space -- its top-left corner, and its width and height -- as the placement the
+    /// box the shape is grown into resolves it against. For standing something on the shape that
+    /// the mosaic need not know about.
+    pub fn boxed(&self, (x, y): (f32, f32), (width, height): (f32, f32)) -> Location {
+        Location::new().xs(
+            left((x * 100.0).pct()).width((width * 100.0).pct()),
+            top((y / self.height * 100.0).pct()).height((height / self.height * 100.0).pct()),
+        )
     }
 
     /// How tall it is per unit of width.
@@ -246,30 +290,30 @@ impl Silhouette {
         cells
     }
 
-    /// Where a region sits on each named vertex -- `(vertex index, nudge)` -- and how large every
-    /// one of them is.
+    /// Where each of `at` sits, and how far it reaches either way from its middle.
     ///
-    /// Each is pulled off its vertex toward the middle of the shape so that a square centred there
-    /// sits over the vertex rather than half outside it. All of them are the same size: `size`
-    /// where one is stated, else the most the closest pair of them leaves -- two equal squares
-    /// centred at `a` and `b` clear each other exactly when their side is no longer than the
-    /// greater of `|dx|` and `|dy|`, so the least of those over every pair is what every region
-    /// gets, and one region alone gets the largest square the shape's box holds.
+    /// A square -- on a vertex, or at a point -- is pulled off a vertex toward the middle of the
+    /// shape so that it sits over the vertex rather than half outside it. Every square is the same
+    /// size: `size` where one is stated, else the most the closest pair of them leaves -- two equal
+    /// squares centred at `a` and `b` clear each other exactly when their side is no longer than
+    /// the greater of `|dx|` and `|dy|`, so the least of those over every pair is what every square
+    /// gets, and one square alone gets the largest the shape's box holds.
     ///
-    /// Held inside the shape's own box, because a vertex on its edge would have a region hanging
-    /// over the side. Sized again afterwards, since holding a region in moves it toward the others,
-    /// and then nudged by whatever its vertex asks for, in unit space on each axis.
-    pub(crate) fn regions(
-        &self,
-        at: &[(usize, (f32, f32))],
-        size: Option<f32>,
-    ) -> (Vec<(f32, f32)>, f32) {
+    /// Held inside the shape's own box, because a vertex on its edge would have a square hanging
+    /// over the side. Sized again afterwards, since holding a square in moves it toward the
+    /// others, and then nudged by whatever it asks for, in unit space on each axis. A box is where
+    /// it was stated and nothing else.
+    pub(crate) fn regions(&self, at: &[Region], size: Option<f32>) -> Vec<Area> {
         let middle = self.middle();
-        let centers: Vec<(f32, f32)> = at
+        let squares: Vec<(f32, f32)> = at
             .iter()
-            .map(|&(vertex, _)| {
-                let (x, y) = self.outline[vertex];
-                (x + (middle.0 - x) * INSET, y + (middle.1 - y) * INSET)
+            .filter_map(|region| match *region {
+                Region::Vertex(vertex, _) => {
+                    let (x, y) = self.outline[vertex];
+                    Some((x + (middle.0 - x) * INSET, y + (middle.1 - y) * INSET))
+                }
+                Region::Point(center) => Some(center),
+                Region::Box(..) => None,
             })
             .collect();
         let apart = |a: (f32, f32), b: (f32, f32)| (a.0 - b.0).abs().max((a.1 - b.1).abs());
@@ -282,19 +326,33 @@ impl Silhouette {
             }
             room
         };
-        let half = size.unwrap_or_else(|| room(&centers)) / 2.0;
-        let held: Vec<(f32, f32)> = centers
+        let half = size.unwrap_or_else(|| room(&squares)) / 2.0;
+        let held: Vec<(f32, f32)> = squares
             .iter()
             .map(|&(x, y)| (x.clamp(half, 1.0 - half), y.clamp(half, self.height - half)))
             .collect();
-        let size = size.unwrap_or_else(|| room(&held) * (1.0 - APART));
-        // Nudged last, so that a region asking to sit elsewhere moves only itself.
-        let regions = held
-            .iter()
-            .zip(at)
-            .map(|(&(x, y), &(_, (dx, dy)))| (x + dx, y + dy))
-            .collect();
-        (regions, size)
+        let half = size.unwrap_or_else(|| room(&held) * (1.0 - APART)) / 2.0;
+        // Nudged last, so that a square asking to sit elsewhere moves only itself.
+        let mut held = held.into_iter();
+        at.iter()
+            .map(|region| match *region {
+                Region::Vertex(_, (dx, dy)) => {
+                    let (x, y) = held.next().expect("a square for every square");
+                    Area {
+                        center: (x + dx, y + dy),
+                        half: (half, half),
+                    }
+                }
+                Region::Point(_) => Area {
+                    center: held.next().expect("a square for every square"),
+                    half: (half, half),
+                },
+                Region::Box((x, y), (width, height)) => Area {
+                    center: (x + width / 2.0, y + height / 2.0),
+                    half: (width / 2.0, height / 2.0),
+                },
+            })
+            .collect()
     }
 
     /// The middle of the shape, as the average of the outline's vertices. What a region is pulled

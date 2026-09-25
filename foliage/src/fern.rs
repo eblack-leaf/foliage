@@ -455,6 +455,7 @@ fn drain(grove: &mut Grove) {
             Op::Repaint(scheme) => {
                 let moved = grove.scheme.moved(&scheme);
                 grove.scheme = scheme;
+                grove.drift.repainted = true;
                 // Every role is resolved against the scheme at extraction, so a scheme that moved is
                 // every element's fill written.
                 grove.tree.invalidate();

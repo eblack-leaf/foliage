@@ -180,6 +180,29 @@ pub enum Motion {
     Polygon(Shape),
 }
 
+impl From<Fill> for Motion {
+    /// A fill as the motion that arrives at it: a tone as [`Palette`](Motion::Palette), a literal
+    /// as [`Color`](Motion::Color). So whatever an element can be filled with, it can be animated to.
+    fn from(fill: Fill) -> Self {
+        match fill {
+            Fill::Role(tone) => Motion::Palette(tone),
+            Fill::Literal(color) => Motion::Color(color),
+        }
+    }
+}
+
+impl From<Palette> for Motion {
+    fn from(tone: Palette) -> Self {
+        Motion::Palette(tone)
+    }
+}
+
+impl From<Color> for Motion {
+    fn from(color: Color) -> Self {
+        Motion::Color(color)
+    }
+}
+
 /// Which declared property a motion is moving.
 ///
 /// The key one is stored under, so starting a second motion on a property replaces the first and a

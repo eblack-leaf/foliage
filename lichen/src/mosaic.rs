@@ -8,6 +8,7 @@ use foliage::{
 };
 
 use crate::ramp::between;
+use crate::silhouette::{Area, Region};
 use crate::{Ramp, Rgb, Scatter, Silhouette, fill, shifted};
 
 /// How far one tile's colour may sit off the ramp, so that no two neighbours read as one shape.
@@ -63,8 +64,9 @@ const LOBES: (f32, f32) = (0.16, 0.10);
 /// [`vanish`](Self::vanish) takes it away toward a point and [`appear`](Self::appear) brings it
 /// back out from one, the arrival run backwards and forwards.
 ///
-/// [`regions`](Self::regions) stands a square on each vertex the caller names, and hands back a
-/// stem over each to hang something off. [`emphasize`](Self::emphasize) recolours the tiles under
+/// [`regions`](Self::regions) stands a [`Region`] on the shape for each the caller names -- a
+/// square on a vertex or at a point, or a box -- and hands back a stem over each to hang something
+/// off. [`emphasize`](Self::emphasize) recolours the tiles under
 /// one of those onto another ramp until [`unemphasize`](Self::unemphasize) puts them back.
 ///
 /// [`crop`](Self::crop) cuts the mosaic down to a part of its shape, in place -- what is outside
@@ -88,10 +90,8 @@ pub struct Mosaic {
     dashes: Vec<Dash>,
     /// Every tile, in the order they were grown. Empty until it is grown.
     tiles: Vec<Tile>,
-    /// Where each region's middle is, in unit space, and how large every one of them is. Empty
-    /// until regions are stood.
-    regions: Vec<(f32, f32)>,
-    region: f32,
+    /// Where each region is, in unit space. Empty until regions are stood.
+    regions: Vec<Area>,
     /// The whole arrival, as one group. `None` until it is formed.
     forming: Option<Sequence>,
     /// Whether that group has landed, latched, so that asking after the frame it lands still answers.
@@ -168,7 +168,6 @@ impl Mosaic {
             dashes: Vec::new(),
             tiles: Vec::new(),
             regions: Vec::new(),
-            region: 0.0,
             forming: None,
             arrived: false,
             restoring: None,
@@ -210,7 +209,7 @@ impl Mosaic {
 
     /// Where the middle of a region is, in unit space. `None` for one that was never stood.
     pub fn middle_of(&self, region: usize) -> Option<(f32, f32)> {
-        self.regions.get(region).copied()
+        self.regions.get(region).map(|area| area.center)
     }
 
     /// Grows it into `location` off `at`, and hands back what everything is branched from -- to
@@ -321,39 +320,35 @@ impl Mosaic {
         root
     }
 
-    /// A square on each named vertex -- `(vertex index, nudge)` -- sized so no two meet unless
-    /// [`square`](Self::square) said how large, and a stem over each to hang something on. The
-    /// tiles under a square are what `emphasize` recolours. The nudge is how far the square is
-    /// moved off where it would otherwise sit, in unit space on each axis, for a vertex that is a
-    /// corner of its feature rather than the middle of it.
+    /// Stands each of `at` on the shape -- squares sized alike so no two meet unless
+    /// [`square`](Self::square) said how large, boxes as stated -- and a stem over each to hang
+    /// something on. The tiles under a region are what `emphasize` recolours; where two regions
+    /// overlap, a tile is the first's.
     ///
     /// Once, after `grow`; nothing on one that was never grown. Branched after every tile, so what
     /// is hung off a region is branched after every part of the mosaic rather than into the middle
     /// of it. Hands back the stems to keep, in the order they were named.
-    pub fn regions(&mut self, grove: &mut Grove, at: &[(usize, (f32, f32))]) -> Vec<Leaf> {
+    pub fn regions(&mut self, grove: &mut Grove, at: &[Region]) -> Vec<Leaf> {
         let Some(root) = self.root else {
             return Vec::new();
         };
-        let (regions, size) = self.silhouette.regions(at, self.square);
-        let half = size / 2.0;
+        let regions = self.silhouette.regions(at, self.square);
         for tile in &mut self.tiles {
-            // How far out of a region's middle the tile sits, which is `1.0` at the rim. No two
-            // regions meet, so at most one answers and the first that does is it.
-            tile.mark = regions.iter().enumerate().find_map(|(region, &center)| {
-                let out = reach(tile.center, center, region) + tile.jitter * RAGGED * size;
-                (out <= half).then_some(Mark {
+            // How far out of a region's middle the tile sits, which is `1.0` at the rim.
+            tile.mark = regions.iter().enumerate().find_map(|(region, area)| {
+                let out = reach(tile.center, area, region) + tile.jitter * RAGGED * 2.0;
+                (out <= 1.0).then_some(Mark {
                     region,
-                    depth: (out / half).clamp(0.0, 1.0),
+                    depth: out.clamp(0.0, 1.0),
                 })
             });
         }
         let height = self.silhouette.height;
         let stems = regions
             .iter()
-            .map(|&center| grove.branch(root, Stem::new().at(placed(height, center, size))))
+            .map(|area| grove.branch(root, Stem::new().at(boxed(height, area))))
             .collect();
         self.regions = regions;
-        self.region = size;
         stems
     }
 
@@ -632,7 +627,7 @@ impl Mosaic {
     /// colour moves. Emphasizing a region that is already emphasized runs it again from wherever it
     /// currently is; emphasizing one on a mosaic with no regions does nothing.
     pub fn emphasize(&self, grove: &mut Grove, region: usize, ramp: &Ramp) {
-        let Some(&center) = self.regions.get(region) else {
+        let Some(area) = self.regions.get(region) else {
             return;
         };
         for tile in &self.tiles {
@@ -643,7 +638,7 @@ impl Mosaic {
             tint(grove, tile.leaf, hue, mark.depth);
         }
         for dash in &self.dashes {
-            let depth = reach(dash.at, center, region) / (self.region / 2.0);
+            let depth = reach(dash.at, area, region);
             if depth <= 1.0 {
                 for &stroke in &dash.strokes {
                     tint(grove, stroke, ramp.at(depth), depth);
@@ -659,7 +654,7 @@ impl Mosaic {
     /// was grown. Unemphasizing a region that is not emphasized states what it is already at,
     /// which is nothing to look at.
     pub fn unemphasize(&self, grove: &mut Grove, region: usize) {
-        let Some(&center) = self.regions.get(region) else {
+        let Some(area) = self.regions.get(region) else {
             return;
         };
         for tile in &self.tiles {
@@ -669,7 +664,7 @@ impl Mosaic {
             tint(grove, tile.leaf, tile.hue, 1.0 - mark.depth);
         }
         for dash in &self.dashes {
-            let depth = reach(dash.at, center, region) / (self.region / 2.0);
+            let depth = reach(dash.at, area, region);
             if depth <= 1.0 {
                 for &stroke in &dash.strokes {
                     tint(grove, stroke, self.edge, 1.0 - depth);
@@ -773,7 +768,8 @@ fn distance(from: (f32, f32), to: (f32, f32)) -> f32 {
     ((to.0 - from.0).powi(2) + (to.1 - from.1).powi(2)).sqrt()
 }
 
-/// How far `at` is out of `region`'s middle at `center`.
+/// How far `at` is out of `region`'s middle, as a fraction of how far the region reaches that way:
+/// `1.0` on its rim.
 ///
 /// Neither the box's own reading, which puts a straight side on everything measured from it, nor
 /// a circle's, which puts nothing of the box in it: the fourth-power mean of the two distances,
@@ -781,8 +777,11 @@ fn distance(from: (f32, f32), to: (f32, f32)) -> f32 {
 /// round, on two counts that do not divide each other, phased by the region so that no two
 /// regions are lobed alike -- because a rounded square is still a shape drawn with a rule, and
 /// what is wanted is one that could have grown there.
-fn reach((x, y): (f32, f32), (cx, cy): (f32, f32), region: usize) -> f32 {
-    let (dx, dy) = (x - cx, y - cy);
+fn reach((x, y): (f32, f32), area: &Area, region: usize) -> f32 {
+    let (dx, dy) = (
+        (x - area.center.0) / area.half.0.max(f32::EPSILON),
+        (y - area.center.1) / area.half.1.max(f32::EPSILON),
+    );
     let plain = (dx.powi(4) + dy.powi(4)).sqrt().sqrt();
     let angle = dy.atan2(dx);
     let phase = region as f32 * 1.7;
@@ -823,6 +822,15 @@ fn placed(height: f32, (x, y): (f32, f32), size: f32) -> Location {
     Location::new().xs(
         left(((x - size / 2.0) * 100.0).pct()).width((size * 100.0).pct()),
         top(((y - size / 2.0) / height * 100.0).pct()).height((size / height * 100.0).pct()),
+    )
+}
+
+/// A region's box in unit space, as the placement the mosaic's own box resolves it against.
+fn boxed(height: f32, area: &Area) -> Location {
+    let ((x, y), (hx, hy)) = (area.center, area.half);
+    Location::new().xs(
+        left(((x - hx) * 100.0).pct()).width((2.0 * hx * 100.0).pct()),
+        top(((y - hy) / height * 100.0).pct()).height((2.0 * hy / height * 100.0).pct()),
     )
 }
 

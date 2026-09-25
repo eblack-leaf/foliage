@@ -258,60 +258,82 @@ An element that has to clear the stack it was grown in is grown somewhere else a
 ## Color
 
 An element declares a **tone**, and the `Scheme` decides what it resolves to. A tone is a
-`Palette` role and a `Step` on that role's ramp.
+`Palette` role, a form, and a `Step` on that form's ramp.
+
+Four roles are **neutral**:
 
 | Role | What it is for |
 |---|---|
 | `Surface` | The ordinary fill, and what an element that says nothing takes |
 | `Raised` | A surface in front of another: a card against the page |
 | `Muted` | A quieter fill, for a division or a rule |
-| `Accent` | The emphatic color, and what the app's own content is marked with |
-| `Signal` | The second hue: what reports the system's own state rather than the app's content |
 | `Ink` | What is read against a surface |
-| `Contrast` | What is read against a hue — `Accent` or `Signal` |
+
+The rest are **hues**:
+
+| Role | What it is for |
+|---|---|
+| `Accent` | The emphatic hue, and what the app's own content is marked with |
+| `Signal` | The second hue: what reports the system's own state rather than the app's content |
+| `Danger` | What cannot be taken back, and what went wrong |
+| `Caution` | What wants care before it is done |
+| `Positive` | What went right, or was chosen |
+| `Palette::hue(0..SLOTS)` | Numbered slots, for an app to name for itself: `const MOSS: Palette = Palette::hue(0);` |
+
+A hue is held in three **forms**, because one color cannot do all three jobs a hue is given:
+
+| Form | Written | What it is |
+|---|---|---|
+| ground | `Palette::Accent` (or `.ground()`) | what is filled with the hue |
+| mark | `Palette::Accent.mark()` | the hue carried on the neutral grounds: a glyph, a rule, a word set apart |
+| on | `Palette::Accent.on()` | what is read on the ground form |
+
+`Palette::Contrast` is `Palette::Accent.on()`, kept by the name it had. A neutral answers the forms
+too: `Surface.on()` and `Surface.mark()` are `Ink`, and `Ink.on()` is `Surface` — so `on` names the
+partner of anything.
 
 Each role names its own base step, so `Palette::Accent` is a tone in its own right. `Palette::at`
-takes a role to a named `Step` — `Farthest`, `Far`, `Base`, `Near`, `Nearest` — and
+takes a tone to a named `Step` — `Farthest`, `Far`, `Base`, `Near`, `Nearest` — and
 `Palette::recede` / `Palette::advance` move one step at a time. A step is named for where it
 stands relative to the ground rather than for which way it moves in lightness, so a state written
 once is correct against a dark scheme and a light one.
 
-States are steps. A hover, a press, something disabled: each is a step on the role's own ramp rather
+States are steps. A hover, a press, something disabled: each is a step on the tone's own ramp rather
 than a color picked beside it, so it survives a repaint without being restated.
 
 A `Fill` is either a tone or a `Color` stated outright. A literal is an element saying it is not
-part of the scheme: `Grow::repaint` moves the first and not the second.
+part of the scheme: `Grow::repaint` moves the first and not the second. Either converts into a
+`Motion`, so whatever an element can be filled with, it can be animated to.
 
-A `Scheme` is stated in seven colors, one per role, and derives the other four steps of each ramp in
-OKLab — so a theme is seven decisions rather than thirty-five. `Scheme::new` is a dark reading,
-`Scheme::light` a light one, and `Scheme::set` replaces a role's seed (re-deriving its ramp) or
-one step outright. `Grow::repaint` is the one write that names no element.
+A `Scheme` states each ramp in one color and derives the other four steps in OKLab. Seeding a
+hue's ground derives its mark (the hue at text lightness) and its `on` (near-black or near-white,
+whichever the ground is not, tinted) as well, unless either was seeded outright — so a theme is a
+handful of decisions. `Scheme::new` is a dark reading, `Scheme::light` a light one, and
+`Scheme::set` replaces a seed (re-deriving its ramp) or one step outright. A numbered slot no one
+has seeded answers as `Accent`. `Grow::repaint` is the one write that names no element.
+
+A scheme also holds numbered **spectra** — `Scheme::spectrum(n, &stops)`, read back with
+`Scheme::stops(n)` — for whatever colors many things along a line rather than one thing in one tone.
+Nothing in foliage reads them; they keep the colors an app draws from in one place.
+`Grove::scheme` reads the scheme in force, and `Pollen::repainted` says it was replaced, for
+whatever an app computed from it and has to compute again. `Color::toward` and
+`Color::lightened` move a color through OKLab.
 
 ### Grounds, and the marks read against them
 
-The seven are not seven independent decisions. A ramp reaches two notches either side of its seed,
-so **every seed is either a ground or a mark, and no step moves one into the other** — the distance
-from a fill to something legible on that fill is several times what a ramp spans. That is
-arithmetic, not convention, and it is why the roles come in the pairs they do.
+A ramp reaches two notches either side of its seed, so **every seed is either a ground or a mark,
+and no step moves one into the other** — the distance from a fill to something legible on that
+fill is several times what a ramp spans. That is arithmetic, not convention, and it is why the
+tones come in the pairs they do, and why a hue has forms rather than more steps.
 
 | Ground | Read against it |
 |---|---|
-| `Surface`, `Raised`, `Muted` | `Ink` |
-| `Accent` | `Contrast` |
-| `Signal` | whichever the app seeded it to be |
+| `Surface`, `Raised`, `Muted` | `Ink`, or any hue's `mark()` |
+| any hue | that hue's `on()` |
 
-Nothing enforces this. A role is an index into five colors, and an element filled with `Ink` or
-lettered in `Muted` draws exactly as asked. What the names carry is which seeds were chosen as
-partners, and holding a scheme to that is the scheme author's job — the failure it prevents is
-silent, because an illegible tone still renders.
-
-`Signal` is the one role with no partner assigned. Fill with it and seed it like a ground, reading
-`Contrast` on top; mark with it — a glyph, a rule, a run of text set apart — and seed it like ink
-instead. Which job it does is decided when it is seeded, not at the callsite.
-
-So: a role is seeded for the job it is given, and a role given the other job needs its own seed
-rather than a step. Text set in a hue seeded to fill with is unreadable at every step of its ramp,
-and `Accent` fails this exactly as readily as `Signal` does.
+Nothing enforces this. A tone is an index into a table of colors, and an element filled with `Ink`
+or lettered in `Muted` draws exactly as asked. The failure the forms prevent is silent, because an
+illegible tone still renders.
 
 *Modules: `src/palette.rs`, `src/color.rs`.*
 

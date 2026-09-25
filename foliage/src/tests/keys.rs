@@ -180,3 +180,23 @@ fn the_keys_that_steer_focus_are_not_delivered() {
     assert!(heard.keys(listener).is_empty());
     assert!(heard.root_keys().is_empty());
 }
+
+/// A press a keyboard can make: `Enter` or the space bar on what holds focus reads as the tap would,
+/// and a key that is neither does not.
+#[test]
+fn enter_and_space_activate_what_holds_focus() {
+    for (sent, pressed) in [
+        (Key::Enter, true),
+        (Key::Typed(' '), true),
+        (Key::Typed('x'), false),
+    ] {
+        let mut grove = grove();
+        let listener = listener(&mut grove);
+        grove.focus(listener);
+        tick(&mut grove);
+
+        key(&mut grove, sent);
+        assert!(!frame(&mut grove).activated(listener));
+        assert_eq!(frame(&mut grove).activated(listener), pressed, "{sent:?}");
+    }
+}

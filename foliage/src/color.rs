@@ -29,12 +29,12 @@ pub struct Color {
 
 impl Color {
     /// An opaque color.
-    pub fn rgb(red: f32, green: f32, blue: f32) -> Self {
+    pub const fn rgb(red: f32, green: f32, blue: f32) -> Self {
         Self::rgba(red, green, blue, 1.0)
     }
 
     /// A color with an alpha channel. Every channel is clamped to `0.0..=1.0`.
-    pub fn rgba(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
+    pub const fn rgba(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
         Self {
             red: red.clamp(0.0, 1.0),
             green: green.clamp(0.0, 1.0),
@@ -55,6 +55,37 @@ impl Color {
             blend(self.blue, other.blue, at),
             blend(self.alpha, other.alpha, at),
         )
+    }
+
+    /// This color a fraction `at` of the way to `other`, through OKLab.
+    ///
+    /// What a gradient is read along. Perceptual rather than channel-wise, so the middle of two
+    /// saturated colors is not a grey between them and equal fractions read as equal distances.
+    /// Alpha is carried channel-wise.
+    pub fn toward(self, other: Self, at: f32) -> Self {
+        let at = at.clamp(0.0, 1.0);
+        let (l0, a0, b0) = self.oklab();
+        let (l1, a1, b1) = other.oklab();
+        Self::from_oklab(
+            blend(l0, l1, at),
+            blend(a0, a1, at),
+            blend(b0, b1, at),
+            blend(self.alpha, other.alpha, at),
+        )
+        .0
+    }
+
+    /// This color with its OKLab lightness moved by `by`, hue and chroma held -- lighter where `by`
+    /// is positive, deeper where it is negative. Chroma is backed off where the result would leave
+    /// sRGB, as a ramp's steps are.
+    pub fn lightened(self, by: f32) -> Self {
+        let (lightness, a, b) = self.oklab();
+        Self::from_oklab((lightness + by).clamp(0.0, 1.0), a, b, self.alpha).0
+    }
+
+    /// This color's OKLab lightness, in `0.0..=1.0`: how light it reads, whatever its hue.
+    pub fn lightness(self) -> f32 {
+        self.oklab().0
     }
 
     /// This color at a fraction of its own alpha.

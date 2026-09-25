@@ -2,18 +2,31 @@
 //! step resolves to.
 
 use crate::color::Color;
-use crate::tests::{grove, tick};
+use crate::tests::{Observer, grove, tick, tick_with};
 use crate::{Boxed, Grove, Grow, Leaf, Location, Palette, Panel, Scheme, Source, Step, left, top};
 
-/// Every role, at its base step, in the order a scheme holds them.
-const ROLES: [Palette; 7] = [
+/// Every role, at its base step, and a form or two of the hues.
+const ROLES: [Palette; 11] = [
     Palette::Surface,
     Palette::Raised,
     Palette::Muted,
+    Palette::Ink,
     Palette::Accent,
     Palette::Signal,
-    Palette::Ink,
+    Palette::Danger,
+    Palette::Caution,
+    Palette::Positive,
     Palette::Contrast,
+    Palette::Signal.mark(),
+];
+
+/// Every hue, at its ground.
+const HUES: [Palette; 5] = [
+    Palette::Accent,
+    Palette::Signal,
+    Palette::Danger,
+    Palette::Caution,
+    Palette::Positive,
 ];
 
 /// Every step, deepest into the ground first.
@@ -179,17 +192,110 @@ fn setting_a_step_that_is_not_the_base_leaves_the_ramp_it_sits_in() {
     }
 }
 
+/// Seeding a hue's ground moves that hue -- its ground, and the mark and the `on` derived from it --
+/// and nothing else.
 #[test]
 fn a_scheme_only_moves_the_roles_it_was_given() {
     let before = Scheme::new();
     let after = before.set(Palette::Accent, Color::rgb(0.42, 0.13, 0.77));
-    for role in ROLES.into_iter().filter(|role| *role != Palette::Accent) {
+    let accent = [
+        Palette::Accent,
+        Palette::Accent.mark(),
+        Palette::Accent.on(),
+    ];
+    for role in ROLES.into_iter().filter(|role| !accent.contains(role)) {
         for step in STEPS {
             let tone = role.at(step);
-            assert_eq!(before.color(tone), after.color(tone), "{role:?} moved");
+            assert_eq!(before.color(tone), after.color(tone), "{tone:?} moved");
         }
     }
-    assert_eq!(before.moved(&after), STEPS.len());
+    assert_eq!(before.moved(&after), accent.len() * STEPS.len());
+}
+
+/// What makes a hue usable as a fill and as a mark at once: the mark is the ground's hue at text
+/// lightness, and what is on the ground is legible on it.
+#[test]
+fn a_hue_derives_a_mark_and_what_is_read_on_it() {
+    for scheme in [Scheme::new(), Scheme::light()] {
+        for hue in HUES {
+            let ground = scheme.color(hue);
+            let mark = scheme.color(hue.mark());
+            let on = scheme.color(hue.on());
+            let surface = scheme.color(Palette::Surface);
+            assert!(
+                (lightness(on) - lightness(ground)).abs() > 0.35,
+                "{hue:?} has nothing legible on it"
+            );
+            assert!(
+                (lightness(mark) - lightness(surface)).abs() > 0.35,
+                "{hue:?}'s mark does not read on the surface"
+            );
+            let (_, a, b) = ground.oklab();
+            let (_, ma, mb) = mark.oklab();
+            if a.hypot(b) > 0.03 {
+                let drift = (mb.atan2(ma) - b.atan2(a)).abs();
+                assert!(drift < 0.1, "{hue:?}'s mark drifted {drift} radians");
+            }
+        }
+    }
+}
+
+/// A form seeded outright is the app's, and a later seed of the ground does not derive over it.
+#[test]
+fn a_seeded_form_survives_its_ground_being_seeded() {
+    let mark = Color::rgb(0.62, 0.86, 0.84);
+    let scheme = Scheme::new()
+        .set(Palette::Signal.mark(), mark)
+        .set(Palette::Signal, Color::rgb(0.16, 0.40, 0.38));
+    assert_eq!(scheme.color(Palette::Signal.mark()), mark);
+    assert_eq!(scheme.color(Palette::Signal), Color::rgb(0.16, 0.40, 0.38));
+}
+
+#[test]
+fn a_slot_answers_as_the_accent_until_it_is_seeded() {
+    let scheme = Scheme::new();
+    for step in STEPS {
+        assert_eq!(
+            scheme.color(Palette::hue(0).at(step)),
+            scheme.color(Palette::Accent.at(step))
+        );
+        assert_eq!(
+            scheme.color(Palette::hue(0).on().at(step)),
+            scheme.color(Palette::Accent.on().at(step))
+        );
+    }
+    let moss = Color::rgb(0.30, 0.50, 0.20);
+    let seeded = scheme.set(Palette::hue(0), moss);
+    assert_eq!(seeded.color(Palette::hue(0)), moss);
+    assert_eq!(seeded.color(Palette::hue(1)), seeded.color(Palette::Accent));
+    assert_ne!(
+        seeded.color(Palette::hue(0).mark()),
+        seeded.color(Palette::Accent.mark())
+    );
+}
+
+#[test]
+fn contrast_is_what_is_read_on_the_accent() {
+    assert_eq!(Palette::Contrast, Palette::Accent.on());
+    assert_eq!(Palette::Surface.on(), Palette::Ink);
+    assert_eq!(
+        Palette::Raised.at(Step::Near).mark(),
+        Palette::Ink.at(Step::Near)
+    );
+    assert_eq!(Palette::Ink.on(), Palette::Surface);
+    assert_eq!(Palette::Danger.on().ground(), Palette::Danger);
+}
+
+#[test]
+fn a_spectrum_is_its_stops_or_the_accents_ramp() {
+    let scheme = Scheme::new();
+    let unstated = scheme.stops(0);
+    assert_eq!(unstated.len(), STEPS.len());
+    assert_eq!(unstated[2], scheme.color(Palette::Accent));
+    let stops = [Color::rgb(0.9, 0.6, 0.2), Color::rgb(0.5, 0.1, 0.1)];
+    let stated = scheme.spectrum(1, &stops);
+    assert_eq!(stated.stops(1), stops.to_vec());
+    assert_eq!(stated.stops(0), unstated);
 }
 
 /// A step is not a literal: it is part of the scheme, and a repaint moves it like any other tone.
@@ -214,4 +320,20 @@ fn an_element_filled_with_a_step_follows_a_repaint() {
         painted(&grove, leaf),
         repainted.color(Palette::Accent.advance())
     );
+}
+
+/// A repaint is reported, for what an app computed from the scheme and has to compute again.
+#[test]
+fn a_repaint_is_reported_the_frame_after() {
+    let mut grove = grove();
+    let frame = |grove: &mut Grove| {
+        let mut app = Observer::default();
+        tick_with(grove, &mut app);
+        app.last().clone()
+    };
+    frame(&mut grove);
+    grove.repaint(Scheme::light());
+    let heard = [frame(&mut grove), frame(&mut grove)];
+    assert!(heard.iter().any(|pollen| pollen.repainted()));
+    assert!(!frame(&mut grove).repainted());
 }

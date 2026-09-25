@@ -7,12 +7,13 @@
 //!
 //! Three things to press:
 //!
-//! - **The reading**, `dark` or `light`. The same seven roles, seeded for the ground they are read
+//! - **The reading**, `dark` or `light`. The same roles, seeded for the ground they are read
 //!   against. Every step on the page inverts with it, because a step is named for where it
 //!   stands relative to the ground rather than for which way it moves.
 //! - **The accent**, one of five seeds. A scheme is stated in one color per role and derives the
-//!   other four steps of each ramp from it, so this is one decision moving five colors -- and only
-//!   the accent's row moves, because the other five roles were not restated.
+//!   other four steps of each ramp from it -- and, for a hue, its mark and what is read on it -- so
+//!   this is one decision moving fifteen colors. Only the accent's three rows move, because nothing
+//!   else was restated.
 //! - Nothing else. The swatches themselves are the only fills on the page written as literals, and
 //!   they are the only things that do not move when the rest of it does.
 //!
@@ -56,15 +57,20 @@ const CARD_PAD: f32 = 12.0;
 const STATE_W: f32 = 148.0;
 const STATE_H: f32 = 72.0;
 
-/// Every role, at its base step, with what to call it.
-const ROLES: [(&str, Palette); 7] = [
+/// The neutrals, and the hues with a form or two of each, at the base step, with what to call them.
+const ROLES: [(&str, Palette); 12] = [
     ("surface", Palette::Surface),
     ("raised", Palette::Raised),
     ("muted", Palette::Muted),
-    ("accent", Palette::Accent),
-    ("signal", Palette::Signal),
     ("ink", Palette::Ink),
-    ("contrast", Palette::Contrast),
+    ("accent", Palette::Accent),
+    ("accent mark", Palette::Accent.mark()),
+    ("accent on", Palette::Accent.on()),
+    ("signal", Palette::Signal),
+    ("signal mark", Palette::Signal.mark()),
+    ("danger", Palette::Danger),
+    ("caution", Palette::Caution),
+    ("positive", Palette::Positive),
 ];
 
 /// Every step of a ramp, deepest into the ground first.

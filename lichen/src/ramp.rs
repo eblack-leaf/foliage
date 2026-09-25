@@ -20,6 +20,12 @@ impl Ramp {
         }
     }
 
+    /// Two or more colours, evenly spaced: a spectrum out of a scheme, say --
+    /// `Ramp::of(&grove.scheme().stops(0))`.
+    pub fn of(stops: &[Color]) -> Self {
+        Self::new(&stops.iter().map(|&color| rgb(color)).collect::<Vec<_>>())
+    }
+
     /// The colour `at` along the ramp, in `0.0..=1.0`.
     pub fn at(&self, at: f32) -> Rgb {
         let at = at.clamp(0.0, 1.0);
@@ -50,6 +56,11 @@ pub(crate) fn between(from: Rgb, to: Rgb, at: f32) -> Rgb {
         from.1 + (to.1 - from.1) * at,
         from.2 + (to.2 - from.2) * at,
     )
+}
+
+/// A colour as its three channels, alpha let go: what a ramp is stated in, from what a scheme is.
+pub fn rgb(color: Color) -> Rgb {
+    (color.red, color.green, color.blue)
 }
 
 /// A colour off a ramp, as what an element is filled with. Stated outright rather than as a palette

@@ -2,7 +2,7 @@ use crate::aspen::{Sequence, Tween};
 use crate::asset::Arrival;
 use crate::coordinate::{Area, Position};
 use crate::interaction::Drag;
-use crate::interaction::input::Keystroke;
+use crate::interaction::input::{Key, Keystroke};
 use crate::leaf::Leaf;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -24,6 +24,16 @@ impl Pollen {
     /// The surface's new size, if it changed this frame.
     pub fn resized(&self) -> Option<Area> {
         self.0.resized
+    }
+
+    /// Whether the scheme was repainted this frame.
+    ///
+    /// Everything filled with a [`Palette`](crate::Palette) tone follows a repaint by itself. This
+    /// is for what cannot: colors an app computed from the scheme -- a gradient's stops, a literal
+    /// jittered off a tone -- which have to be computed again from
+    /// [`scheme`](crate::Grove::scheme).
+    pub fn repainted(&self) -> bool {
+        self.0.repainted
     }
 
     /// Whether a gesture went down on `leaf`.
@@ -52,6 +62,20 @@ impl Pollen {
     /// resolving, so there is nothing to retract when it turns out to be a drag.
     pub fn clicked(&self, leaf: Leaf) -> bool {
         self.0.clicked.contains_key(&leaf)
+    }
+
+    /// Whether `leaf` was pressed: tapped, or sent `Enter` or the space bar while it held focus.
+    ///
+    /// The one reading of a press that a keyboard can make as well as a pointer, so what focus steps
+    /// to can be pressed where it lands. A text field is sent its own `Enter` and space as edits and
+    /// as a [`submitted`](Pollen::submitted), which is what a field's press is; this is for the
+    /// things that are pressed rather than typed into.
+    pub fn activated(&self, leaf: Leaf) -> bool {
+        self.clicked(leaf)
+            || self
+                .keys(leaf)
+                .iter()
+                .any(|stroke| matches!(stroke.key, Key::Enter | Key::Typed(' ')))
     }
 
     /// Where `leaf` was tapped, if it was.
@@ -288,6 +312,7 @@ impl fmt::Debug for Pollen {
 pub(crate) struct Drift {
     pub(crate) withered: HashSet<Leaf>,
     pub(crate) resized: Option<Area>,
+    pub(crate) repainted: bool,
     pub(crate) engaged: HashSet<Leaf>,
     pub(crate) disengaged: HashSet<Leaf>,
     /// Where each tap landed, which is where its gesture began. Carried rather than counted,
