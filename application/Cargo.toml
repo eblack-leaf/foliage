@@ -3,10 +3,13 @@ name = "application"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "The site foliage is proven against. Builds only against foliage's public surface."
+description = "The site foliage is proven against. Builds only against the public surfaces of foliage and lichen."
 
 [dependencies]
 foliage = { path = "../foliage" }
+# The opinionated parts on top: the mosaic, chips, fields and the rest. The site is lichen's gate as
+# much as foliage's -- a part that cannot build a page is an incomplete part.
+lichen = { path = "../lichen" }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
 

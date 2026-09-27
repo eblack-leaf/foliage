@@ -142,6 +142,7 @@ name = "application"
 version = "0.1.0"
 dependencies = [
  "foliage",
+ "lichen",
  "tracing",
  "tracing-subscriber",
  "tracing-web",

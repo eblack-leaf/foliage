@@ -19,7 +19,8 @@
 //!
 //! # Presses, and what they wear
 //!
-//! A [`Chip`] -- a mark in a cell, a bar, a name -- is the one shape a press is offered in, and a
+//! A [`Chip`] -- a mark in a cell, a bar, a name, or the cell alone -- is the one shape a press is
+//! offered in, and a
 //! [`Press`] is the state it stands in: at rest, armed, inert, chosen, dangerous. The app says
 //! which; the look says what that looks like, and the accent is kept for the one press to make.
 //! [`gate`] turns a run of steps into what each step's press wears, which is what a chain is built

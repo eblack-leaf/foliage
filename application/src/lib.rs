@@ -1,14 +1,23 @@
 //! The API gate.
 //!
-//! `cargo check -p application` is a gate on the engine rather than on this crate. An API that
-//! cannot build a page is an incomplete API, and this is where that is found out: everything here
-//! is written against `foliage`'s public surface and reaches nothing else.
+//! `cargo check -p application` is a gate on the engine and on lichen rather than on this crate. An
+//! API that cannot build a page is an incomplete API, and this is where that is found out:
+//! everything here is written against the public surfaces of `foliage` and `lichen` and reaches
+//! nothing else.
 //!
-//! It is deliberately bare. What goes in [`site`] is written by hand, and what it costs to write is
-//! the reading.
+//! What goes in [`site`] and the sections it opens is written by hand, and what it costs to write
+//! is the reading.
 
-mod mosaic;
+#[path = "../assets/gen/icons.rs"]
+mod icons;
+mod internals;
+mod leaf;
+mod links;
+mod parts;
+mod showcase;
 mod site;
+mod specimen;
+mod theme;
 
 use foliage::{Area, Foliage};
 

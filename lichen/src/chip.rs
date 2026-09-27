@@ -41,6 +41,33 @@ impl Chip {
         mark: Field,
         name: &str,
     ) -> Self {
+        Self::grown(grove, under, at, lift, mark, Some(name))
+    }
+
+    /// Grows a chip that is its cell and nothing else: `mark`, with no bar and no name beside it.
+    /// For a press whose mark says the whole of it -- a plus, a heart, a send -- and so it stands
+    /// [`measure`]'s height square, which is the cell.
+    ///
+    /// Its name is there and empty, so [`label`](Self::label) still names something; writing
+    /// over it writes into the cell's own width and no further.
+    pub fn mark(
+        grove: &mut Grove,
+        under: Leaf,
+        at: Location,
+        lift: Elevation,
+        mark: Field,
+    ) -> Self {
+        Self::grown(grove, under, at, lift, mark, None)
+    }
+
+    fn grown(
+        grove: &mut Grove,
+        under: Leaf,
+        at: Location,
+        lift: Elevation,
+        mark: Field,
+        name: Option<&str>,
+    ) -> Self {
         let m = measure();
         let chip = grove.branch(
             under,
@@ -70,21 +97,25 @@ impl Chip {
                 .intangible()
                 .color(tone::REST.ink),
         );
-        grove.branch(
-            back,
-            Panel::new()
-                .at(Location::new().xs(
-                    left(m.height.px()).width(1.px()),
-                    top(m.notch.px()).bottom(100.pct() - m.notch.px()),
-                ))
-                .elevate(Elevation::up(1))
-                .intangible()
-                .color(tone::BAR),
-        );
+        // The bar stands between the cell and the name, so a chip with no name has none: it would
+        // stand on the cell's far edge, dividing it from nothing.
+        if name.is_some() {
+            grove.branch(
+                back,
+                Panel::new()
+                    .at(Location::new().xs(
+                        left(m.height.px()).width(1.px()),
+                        top(m.notch.px()).bottom(100.pct() - m.notch.px()),
+                    ))
+                    .elevate(Elevation::up(1))
+                    .intangible()
+                    .color(tone::BAR),
+            );
+        }
         // In the middle of what is right of the cell and the bar, however wide the chip is.
         let label = grove.branch(
             back,
-            Text::new(name)
+            Text::new(name.unwrap_or_default())
                 .at(Location::new().xs(
                     center_x(50.pct() + ((m.height + 1.0) / 2.0).px()).width(content()),
                     center_y(50.pct()).height(1.letters()),
