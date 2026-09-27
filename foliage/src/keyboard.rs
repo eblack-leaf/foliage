@@ -135,10 +135,17 @@ impl Keyboard {
     /// is a product of focus and is recomputed like every other product.
     ///
     /// What is *up* is compared, so the mode is written and the trace is made only where it moved.
-    /// DOM focus is not: the page can take it off the hidden input without the engine hearing about
-    /// it -- a press on the canvas does exactly that, and is how every tap from one field to
-    /// another arrives -- so it is asserted on every frame instead. Focusing what already holds
-    /// focus does nothing, which is what makes asserting it free.
+    /// DOM focus is taken on the same change, and again after any press: the page can take focus
+    /// off the hidden input without the engine hearing about it -- a press on the canvas does
+    /// exactly that, and is how every tap from one field to another arrives -- so a press is what
+    /// it is given back after.
+    ///
+    /// And only then. A browser takes focus off the input for reasons of its own as well -- a
+    /// phone's enter key, a back gesture, the keyboard's own dismiss -- and each of those is the
+    /// person putting the keyboard away. Taken back on every frame, the keyboard comes straight up
+    /// again, the viewport resizes under it, the resize is a frame, the frame takes focus back,
+    /// and the page and the engine trade the keyboard back and forth for as long as there are
+    /// frames to trade it on. Left down, it stays down until the field is pressed again.
     pub(crate) fn raise(&mut self, wanted: Option<Keypad>) {
         let moved = wanted != self.raised;
         if moved {
@@ -147,12 +154,17 @@ impl Keyboard {
         }
         #[cfg(target_family = "wasm")]
         if let Some(trigger) = &self.trigger {
+            // Taken whatever is wanted, so a press made with no field focused is not still waiting
+            // to be answered the next time one is.
+            let pressed = trigger.pressed();
             match wanted {
                 Some(keypad) => {
                     if moved {
                         trigger.mode(keypad);
                     }
-                    trigger.focus();
+                    if moved || pressed {
+                        trigger.focus();
+                    }
                 }
                 None if moved => trigger.blur(),
                 None => {}
@@ -203,7 +215,7 @@ impl Keyboard {
 /// The browser's half: one hidden input, and the keys it takes from the canvas given back.
 #[cfg(target_family = "wasm")]
 mod web {
-    use std::cell::RefCell;
+    use std::cell::{Cell, RefCell};
     use std::rc::Rc;
 
     use wasm_bindgen::JsCast;
@@ -232,10 +244,12 @@ mod web {
     #[derive(Clone, Default)]
     struct Captured(Rc<RefCell<Vec<Input>>>);
 
-    /// The hidden input, and what it has taken.
+    /// The hidden input, what it has taken, and whether the page has been pressed since the engine
+    /// last asked.
     pub(super) struct Trigger {
         element: web_sys::HtmlInputElement,
         captured: Captured,
+        pressed: Rc<Cell<bool>>,
     }
 
     impl Trigger {
@@ -265,7 +279,28 @@ mod web {
             document.body()?.append_child(&element).ok()?;
             let captured = Captured::default();
             listen(&element, &captured, &wake);
-            Some(Self { element, captured })
+            let pressed = Rc::new(Cell::new(false));
+            // On the document and while capturing, so it is heard before the press moves focus
+            // anywhere and whatever the press lands on. Nothing is taken from the press: it goes on
+            // to the canvas, and to winit, as it would have.
+            {
+                let pressed = pressed.clone();
+                let noted = Closure::wrap(Box::new(move |_: web_sys::Event| {
+                    pressed.set(true);
+                }) as Box<dyn FnMut(_)>);
+                let _ = document.add_event_listener_with_callback_and_bool(
+                    "pointerdown",
+                    noted.as_ref().unchecked_ref(),
+                    true,
+                );
+                // For the life of the program, as the input's own listeners are.
+                noted.forget();
+            }
+            Some(Self {
+                element,
+                captured,
+                pressed,
+            })
         }
 
         /// Says which keys to offer, before anything is offered.
@@ -284,6 +319,12 @@ mod web {
 
         pub(super) fn blur(&self) {
             let _ = self.element.blur();
+        }
+
+        /// Whether the page has been pressed since this was last asked, which is the one way focus
+        /// leaves the input that the engine takes it back after.
+        pub(super) fn pressed(&self) -> bool {
+            self.pressed.replace(false)
         }
 
         pub(super) fn captured(&self) -> Vec<Input> {
