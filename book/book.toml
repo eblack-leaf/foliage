@@ -9,3 +9,8 @@ build-dir = "dist"
 
 [output.html]
 git-repository-url = "https://github.com/eblack-leaf/foliage"
+
+# The samples use foliage, which the Rust playground does not have, so there is nothing to run
+# there. Hidden lines still toggle.
+[output.html.playground]
+runnable = false

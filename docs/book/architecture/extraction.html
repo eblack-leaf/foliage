@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Extraction - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,181 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="extraction"><a class="header" href="#extraction">Extraction</a></h1>
+<p>Step 8 turns resolved elements into render instances, and only where something changed. It is
+<code>Elm</code>, in <a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/elm.rs"><code>elm.rs</code></a>, and the
+module’s first line is its whole idea: <strong>Rowan resolves. Elm decides what changed.</strong></p>
+<h2 id="the-cache-is-what-the-backend-holds"><a class="header" href="#the-cache-is-what-the-backend-holds">The cache is what the backend holds</a></h2>
+<p>For every renderer, <code>Elm</code> keeps a copy of what the backend is holding: each instance’s value, its
+rank, and its clip, keyed by element. Extraction states what each element should be drawn as now and
+compares it against that copy. An element that has not changed costs one comparison and no upload.</p>
+<p>What is cached is deliberately <em>what the backend holds</em>, and not what the element last was. That
+distinction makes two guarantees:</p>
+<ul>
+<li><strong>A skipped frame cannot lose a change.</strong> There is no dirty flag to miss, only a value that still
+differs at the next comparison. If the loop idles through a change, the next frame that runs finds
+it.</li>
+<li><strong>The backend must apply every batch.</strong> A batch that was produced and dropped would leave the cache
+claiming something the GPU does not have, and nothing afterwards would disagree with it. That is why
+<a href="loop.html#frames-happen-inside-paints">the loop</a> absorbs a batch immediately after the extraction that
+made it, in the same branch, whether or not the paint that follows succeeds.</li>
+</ul>
+<h2 id="the-walk"><a class="header" href="#the-walk">The walk</a></h2>
+<pre><code class="language-rust ignore">// elm.rs, shortened
+pub(crate) fn run(grove: &amp;mut Grove) {
+    grove.elm.open();
+    let elements = core::mem::take(&amp;mut grove.elements);
+    let recut = core::mem::take(&amp;mut grove.elm.recut);
+    // Whatever the backend held for an element that withered, it holds for nothing now.
+    for &amp;(leaf, chlorophyll) in &amp;elements.gone {
+        grove.elm.withdraw(chlorophyll, leaf);
+    }
+    let surface = Section::new(Position::default(), grove.viewport);
+    for at in 0..elements.len() {
+        let chlorophyll = elements.standing[at].chlorophyll;
+        if chlorophyll == Chlorophyll::None {
+            continue; // a stem draws nothing
+        }
+        if !(elements.moved[at] || recut) {
+            continue; // nothing extraction reads about it moved
+        }
+        let stated = match painted(&amp;elements, at, surface) {
+            Some(painted) =&gt; state(grove, /* ... */),
+            None =&gt; false,
+        };
+        if !stated {
+            grove.elm.withdraw(chlorophyll, elements.order[at]);
+        }
+    }
+    // ...
+}</code></pre>
+<p>Extraction walks resolution’s order once and routes each element on its <code>Chlorophyll</code>, so a further
+renderer costs a match arm rather than another pass. It visits only elements resolution marked
+<code>moved</code>. A frame that moves nothing does nothing here, whatever the size of the tree.</p>
+<p>What the backend is told to let go of is said outright, and there are exactly two ways to earn it:
+an element that withered (resolution lists those in <code>gone</code> when it rebuilds its order), and an element
+that moved and is no longer painted. There is no per-frame sweep of everything held.</p>
+<h2 id="painted-or-not"><a class="header" href="#painted-or-not">Painted, or not</a></h2>
+<pre><code class="language-rust ignore">// elm.rs
+fn painted(elements: &amp;Elements, at: usize, surface: Section) -&gt; Option&lt;Painted&gt; {
+    let inherited = elements.inherited[at];
+    let section = elements.drawn[at];
+    let clip = elements.clip[at].intersect(surface);
+    if !inherited.visible || section.intersect(clip).is_empty() {
+        return None;
+    }
+    Some(Painted { section, clip, opacity: inherited.opacity })
+}</code></pre>
+<p>An element is painted if it is visible over its whole ancestry and some part of its drawn box is
+inside its clip, which is never wider than the surface. <strong>Culling is decided here, from the clip
+rectangle, and recorded nowhere.</strong> An element scrolled out of its region is absent from the batch
+and unchanged in every other respect, so scrolling back to it needs nothing undone, and nothing that
+reads state (the extent, above all) can ever see “currently culled”.</p>
+<p>Two more things are not drawn yet rather than not drawn: an icon whose distance field has not arrived
+and an image whose pixels have not. Each occupies its box, is absent from the batch rather than held
+as blank, and appears on the frame its asset lands, with nothing to undo.</p>
+<h2 id="what-is-stated"><a class="header" href="#what-is-stated">What is stated</a></h2>
+<p>For each painted element, extraction builds what its renderer needs, entirely in logical pixels:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Element</th><th>Stated as</th></tr>
+</thead>
+<tbody>
+<tr><td>panel</td><td>its drawn box, its color, its corner radii</td></tr>
+<tr><td>polygon</td><td>its drawn box, its color, its shape (sides, rounding, rotation)</td></tr>
+<tr><td>line</td><td>its two ends as resolved and scrolled, its color, its weight and cap</td></tr>
+<tr><td>icon</td><td>the largest square its box holds, its color, which mark</td></tr>
+<tr><td>image</td><td>the box and crop its <code>Fit</code> produces, its corner radii, its opacity, which picture</td></tr>
+<tr><td>text</td><td>a run: every inked glyph’s cell and character and color, its face and size</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>The color is resolved here</strong>, because this is where a fill becomes a color:</p>
+<pre><code class="language-rust ignore">// elm.rs
+fn tint(grove: &amp;Grove, leaf: Leaf, fill: Fill) -&gt; Color {
+    let target = fill.color(&amp;grove.scheme);
+    match grove.aspen.fill(leaf) {
+        Some((Departed::Declared(fill), at)) =&gt; fill.color(&amp;grove.scheme).blend(target, at),
+        Some((Departed::Snapshot(color), at)) =&gt; color.blend(target, at),
+        None =&gt; target,
+    }
+}</code></pre>
+<p>A role is looked up in the scheme in force; a color motion in progress is blended here, with both
+ends read against the same scheme at the same instant; and the result is faded by the element’s
+inherited opacity. So a repaint is extraction’s alone: the scheme is replaced in the drain, every
+element is marked moved, and every fill is resolved again here, with nothing placed again.</p>
+<h2 id="compared-and-handed-on"><a class="header" href="#compared-and-handed-on">Compared, and handed on</a></h2>
+<p>Each renderer’s instances go through the same small comparison:</p>
+<pre><code class="language-rust ignore">// elm.rs
+fn want(&amp;mut self, key: impl Into&lt;Key&gt;, rank: ResolvedElevation, clip: Section, instance: I) {
+    let key = key.into();
+    match self.held.get_mut(&amp;key) {
+        Some(held) =&gt; {
+            if held.instance == instance &amp;&amp; held.rank == rank &amp;&amp; held.clip == clip {
+                return;
+            }
+            held.instance = instance;
+            held.rank = rank;
+            held.clip = clip;
+        }
+        None =&gt; {
+            self.held.insert(key, Held { instance, rank, clip });
+        }
+    }
+    self.written.push(Stacked { key, rank, clip, instance });
+}</code></pre>
+<p>The rank and the clip travel beside the instance rather than inside it. Where an element sits in the
+stack is a fact about the element, not about what it draws, and the backend needs it in a different
+form from the one resolution produced; a clip says where the backend may paint, which it applies to
+the pass rather than to the instance. Keeping both out is also what lets an instance be exactly the
+bytes a vertex buffer takes.</p>
+<p>A run of text is compared whole (its glyphs, face, size, rank and clip), because a run’s glyphs move,
+refill and restack together, and finding which of them changed would cost more than rewriting the
+run.</p>
+<p>The batch is the <code>written</code> and <code>withdrawn</code> lists of every renderer. The withdrawn lists are sorted
+before they are handed on, so two identical runs of the engine extract identically whatever order the
+elements that went were found in.</p>
+<h2 id="logical-here-device-pixels-below"><a class="header" href="#logical-here-device-pixels-below">Logical here, device pixels below</a></h2>
+<p>A panel and a polygon are described entirely in logical pixels, so what is compared here is also what
+the vertex buffer holds. The other four are not, each for the same reason: turning what the element
+declares into what the GPU draws needs the display’s density, and the density stops at the backend.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Element</th><th>Declares</th><th>The backend derives</th></tr>
+</thead>
+<tbody>
+<tr><td>text</td><td>cells and characters</td><td>the cut ink, snapped to device pixels</td></tr>
+<tr><td>line</td><td>two ends and a weight</td><td>a segment, axis-aligned ones snapped to whole device pixels</td></tr>
+<tr><td>icon</td><td>a box and a mark</td><td>the mark’s place on the sheet, and its distance range on screen</td></tr>
+<tr><td>image</td><td>a box and a picture</td><td>which texture to bind</td></tr>
+</tbody>
+</table>
+</div>
+<p>So extraction compares logical values, and the derivation happens once per written instance rather
+than once per frame. The cost is one rule: when the density changes (a window dragged to another
+display) the logical values do not, and would compare equal forever against instances derived for a
+density that is gone. So a density change, and a backend rebuilt from nothing after an Android
+suspend, both call <code>recut</code>, which empties every cache. The next extraction has nothing to compare
+against and states every element.</p>
+<h2 id="in-the-trace"><a class="header" href="#in-the-trace">In the trace</a></h2>
+<p>The <code>extract</code> span records how many instances were written, how many withdrawn, how many glyphs the
+written runs held, and how many elements were <code>kept</code>: visited by the walk and skipped because nothing
+about them moved. On an idle frame everything is kept and nothing is written, which is the number
+that says an unchanged frame really cost nothing.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/fronds.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../architecture/backend.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +359,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/fronds.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../architecture/backend.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +383,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

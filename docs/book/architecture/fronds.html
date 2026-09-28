@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Fronds - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,164 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="fronds"><a class="header" href="#fronds">Fronds</a></h1>
+<p>Almost everything foliage grows is one element. A few things are several: the app names one <code>Leaf</code>,
+and parts are grown under it, placed and hidden on its behalf. A frond is a leaf divided into
+leaflets that is still one leaf, and <a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/frond.rs"><code>frond.rs</code></a>
+is the whole of what the frame knows about them. Today there is one kind, the text field, in
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/text_input.rs"><code>text_input.rs</code></a>.</p>
+<h2 id="three-questions"><a class="header" href="#three-questions">Three questions</a></h2>
+<pre><code class="language-rust ignore">// frond.rs
+pub(crate) trait Sprouts: Send + Sync + 'static {
+    fn sprout(self: Box&lt;Self&gt;, grove: &amp;mut Grove, leaf: Leaf);
+}
+
+pub(crate) trait Fronds: Sync {
+    fn gestured(&amp;self, grove: &amp;mut Grove);
+    fn settled(&amp;self, grove: &amp;mut Grove);
+}
+
+pub(crate) const FRONDS: &amp;[&amp;dyn Fronds] = &amp;[&amp;text_input::Field];</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>Asked</th><th>For</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Sprouts::sprout</code></td><td>in the drain step that grew the leaf</td><td>grow my leaflets</td></tr>
+<tr><td><code>Fronds::gestured</code></td><td>straight after dispatch, before the app’s <code>frame</code></td><td>what did this frame’s gestures mean to me</td></tr>
+<tr><td><code>Fronds::settled</code></td><td>at the end of the drain</td><td>put my leaflets back in step</td></tr>
+</tbody>
+</table>
+</div>
+<p>The last two are asked of a <em>kind</em> rather than of an element, because each is about every element of
+that kind at once. <code>FRONDS</code> is the only place a kind is named: <code>fern</code> walks the list and names none
+of them, so adding a kind is a seed, an implementation and one line, and no pass of the engine grows
+a branch for whatever one of them happens to want.</p>
+<p>Neither hook is a place for arbitrary work, and each sits where it does for a reason. <code>gestured</code> runs
+while this frame’s reports are still being collected and before the app runs, so a frond reads
+interaction on exactly the terms an app does, and whatever the app queues afterwards has the last
+word. <code>settled</code> runs once focus and every queued write are final, so leaflets are put in step with
+state that cannot change again this frame. Both <strong>queue or write like anything else</strong>, and neither
+reaches into resolution: nothing about a frond is an input to a pass that would otherwise not know it
+existed.</p>
+<h2 id="what-a-field-is-made-of"><a class="header" href="#what-a-field-is-made-of">What a field is made of</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Part</th><th>Is</th></tr>
+</thead>
+<tbody>
+<tr><td>the field</td><td>the element the app named: it receives, and it is a scrolling region</td></tr>
+<tr><td><code>run</code></td><td>the value, as an ordinary run of text</td></tr>
+<tr><td><code>hint</code></td><td>the placeholder, visible only while the value is empty</td></tr>
+<tr><td><code>caret</code></td><td>a panel two pixels wide, visible only while the field holds focus</td></tr>
+<tr><td><code>head</code>, <code>body</code>, <code>tail</code></td><td>the selection: one panel per part of a span that crosses lines</td></tr>
+</tbody>
+</table>
+</div>
+<p>The field’s own seed declares two things an app never has to. It is <strong>interactive</strong>, which is what
+lets a gesture reach it and focus rest on it. And it <strong>scrolls</strong> along the axis its value grows on,
+across for a <code>TextInput</code> and down for a <code>TextArea</code>, containing that axis. That one declaration is
+what clips a value longer than its box and what the caret is kept in view by. It declares no drags,
+so a plain drag across a field is the region’s and scrolls the value; a selection comes out of a
+hold, which claims a drag whatever an element declared (<a href="interaction.html#a-press-that-was-held">Interaction</a>).</p>
+<h2 id="sprouting"><a class="header" href="#sprouting">Sprouting</a></h2>
+<p>The seed carries a <code>Sprout</code> (the value, the placeholder, the four fills, the keypad, whether it is
+read-only, and how many lines it has) in its <code>Bud</code>. When the drain grows the field, it takes the
+sprout and hands it the new leaf, and <code>sprout</code> grows the six parts directly into the tree, in the same
+drain step, with names from the same allocator. Nothing downstream can tell them from anything else
+grown that frame, and the frame that planted the field is the frame all of it is live in.</p>
+<p>Every part is <code>intangible</code>. The hit test stops at the top of the stack, so if any part could be the
+top, the field itself never would be. The selection sits at the back, the caret in front of it, and
+the run in front of both, because a caret drawn over the run would take a bite out of the glyph it
+stands before.</p>
+<h2 id="the-caret-is-placed-in-the-ordinary-grammar"><a class="header" href="#the-caret-is-placed-in-the-ordinary-grammar">The caret is placed in the ordinary grammar</a></h2>
+<p>Nothing measures a caret. It is anchored to the run and placed with the same grammar an app writes:</p>
+<pre><code class="language-rust ignore">// text_input.rs
+fn caret_at(index: usize) -&gt; Location {
+    Location::new().xs(
+        left(anchor().left() + anchor().character(index)).width(CARET.px()),
+        top(anchor().top() + anchor().character(index)).height(anchor().letters(1.0)),
+    )
+}</code></pre>
+<p><code>anchor().character(n)</code> resolves to the cell the run wrapped character <code>n</code> into, read off the wrap at
+the width the run has <em>this</em> frame (<a href="resolver.html#how-each-source-reads">the resolver</a>). So the caret
+is right on the frame the run wraps differently, and it moves when the run moves, because an anchor
+does.</p>
+<p>A selection is the span between two such positions. On one line it is one box; across lines it is
+three: the rest of the first line, every whole line between, and the start of the last. All three
+are always placed, and the ones a span does not need resolve to nothing: the tail has no width when
+both ends share a line, and the body has no height unless there are whole lines between them. Which
+lines the ends fell on is the layout’s to read off the wrap, exactly as the caret’s line is, so a
+frame that rewraps under a selection draws it divided the new way with nothing decided here.</p>
+<h2 id="gestured-what-a-tap-means-to-a-field"><a class="header" href="#gestured-what-a-tap-means-to-a-field">Gestured: what a tap means to a field</a></h2>
+<p>Dispatch knows nothing about fields. It reports a tap, a hold or a drag like any other, and
+<code>gestured</code> reads what was reported about each field:</p>
+<ul>
+<li>a <strong>tap</strong> queues a <code>select</code> of an empty range at the character it landed on, placing the caret and
+collapsing any selection;</li>
+<li>a <strong>hold</strong> queues focus and the same empty <code>select</code>, where the selection will begin;</li>
+<li>a <strong>drag</strong> out of a hold queues a <code>select</code> from the selection’s anchor to the character the pointer
+has reached, and while the pointer is past the field’s edge it asks for another frame, because a
+reader holding still out there is still asking for more of the value.</li>
+</ul>
+<p>These are the same <code>select</code> ops an app would write, queued before the app runs, so an app that wants
+something else writes it in <code>frame</code> and wins. Which character a point falls on rounds the column (a
+press past the middle of a character puts the caret after it) and floors the line, then asks the
+wrap which index that cell is.</p>
+<h2 id="typing"><a class="header" href="#typing">Typing</a></h2>
+<p>A key for a focused field reaches it in the drain, as a <code>Keyed</code> op, and the field applies it through
+one pure function:</p>
+<pre><code class="language-rust ignore">// text_input.rs
+pub(crate) fn applied(
+    value: &amp;str,
+    editing: Editing,
+    stroke: Keystroke,
+    wrap: Option&lt;Wrap&lt;'_&gt;&gt;,
+) -&gt; Applied</code></pre>
+<p>It takes the value, the caret and selection, the key, and (for an area) the value as it wrapped, and
+says what the key does: a new value and caret, a moved caret, a copy, a cut, a paste to ask for, a
+submission, or nothing. Everything editing means is in that one function, as arithmetic over
+character indices, which is why every case of it can be tested as one line of a table. A read-only
+field passes the answer through a filter that turns writes into nothing and a cut into a copy.</p>
+<p>A write sets the run’s text and the caret, records <code>edited</code>, and calls <code>refresh</code>, which re-places the
+caret, shows or hides the placeholder, and asks the field to <code>show</code> the caret, so R4 scrolls the
+value in the same frame the caret passed the edge. A paste is the one key that cannot finish in the
+frame it arrived: the clipboard is asked, and the answer comes back as a <code>Pasted</code> op in a later drain,
+where it is written exactly as typing would have been.</p>
+<h2 id="settled-putting-the-parts-in-step"><a class="header" href="#settled-putting-the-parts-in-step">Settled: putting the parts in step</a></h2>
+<p>At the end of every drain, <code>settled</code> walks the fields once focus is final:</p>
+<ul>
+<li>the caret is visible if the field holds focus and is not read-only;</li>
+<li>the selection is placed and shown if the field holds focus and something is selected, and hidden
+otherwise. It is not cleared when focus leaves: a selection is state and focus is not, so a field
+stepped away from and back into is as it was left;</li>
+<li>the soft keyboard is raised for the focused field’s keypad, or lowered if nothing typeable holds
+focus. Nothing about a phone is declared anywhere; being a field is the whole of it.</li>
+</ul>
+<p>Every one of those is an ordinary <code>visible</code> or <code>at</code> write, recorded like any other and resolved by R7
+and R2 in the same frame. That is the payoff of settling focus before resolution runs: a caret is not
+a product patched up after the pass that composes it.</p>
+<h2 id="addressed-as-one"><a class="header" href="#addressed-as-one">Addressed as one</a></h2>
+<p>Every verb and every read an app aims at a field is redirected to the part it concerns. <code>text</code> writes
+the run and moves the caret to the end; <code>color</code> refills the run; <code>tap(field, Vein::Text)</code> reads the
+run; <code>Vein::Selection</code> reads the field’s <code>Editing</code>. The field carries a <code>Parts</code> component naming its
+six parts, and that component’s presence is the one test for “is this a field”, asked once per op.
+So what a field is made of is never a name an app has to hold, and never a surface an app has to keep
+in step.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/views.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../architecture/extraction.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +342,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/views.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../architecture/extraction.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +366,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

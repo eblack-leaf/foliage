@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>The backend - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,172 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="the-backend"><a class="header" href="#the-backend">The backend</a></h1>
+<p>Two subsystems sit below extraction. <code>Ash</code>
+(<a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/src/ash"><code>ash/</code></a>) is the six renderers
+and the one stack across them. <code>Ginkgo</code>
+(<a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/src/ginkgo"><code>ginkgo/</code></a>) is the GPU: the
+device, the surface, and everything sized against it. Both are built when the platform hands over a
+window, dropped when it takes the window back, and invisible to everything above them.</p>
+<h2 id="six-renderers-one-quad"><a class="header" href="#six-renderers-one-quad">Six renderers, one quad</a></h2>
+<p>Six kinds of element own a pipeline and an instance buffer: panels, polygons, lines, icons, images
+and text. Everything else, the fields included, is assembled from those. Every one of them draws the
+same geometry, a unit quad of two triangles:</p>
+<pre><code class="language-rust ignore">// ash/mod.rs
+pub(crate) const CORNERS: [[f32; 2]; 6] = [
+    [0.0, 0.0], [1.0, 0.0], [0.0, 1.0],
+    [1.0, 0.0], [1.0, 1.0], [0.0, 1.0],
+];</code></pre>
+<p>What differs is what the fragment shader does inside it: a rounded rectangle is a signed distance
+field, a regular polygon is another, a line is the distance to a segment, an icon is a multi-channel
+distance field sampled from a sheet, a picture is a texture sampled through a crop, and a glyph is a
+coverage texture sampled from the atlas. Nothing is carved into a mesh. So five of the renderers are
+one generic pipeline (<code>Quads&lt;I&gt;</code> in <code>ash/quad.rs</code>) given three things of their own: a shader, the
+shape of an instance, and whether it samples a texture. Text is the sixth, and differs structurally
+rather than by shader, because a run is one entry in the stack holding many quads
+(<a href="text.html#one-entry-in-the-stack">Text</a>).</p>
+<p>Edges are antialiased by the shapes themselves. A distance field’s coverage is ramped over the
+screen-space derivative of the distance (<code>fwidth</code>), so a rounded corner is smooth at any scale with
+one sample per pixel, and there is no multisampling.</p>
+<h2 id="absorbing-a-batch"><a class="header" href="#absorbing-a-batch">Absorbing a batch</a></h2>
+<p><code>Ash::absorb</code> runs once for every extraction, immediately after it, and applies the batch to each
+renderer. This is where everything that depends on the display’s density is derived:</p>
+<ul>
+<li>a <strong>line</strong>’s segment has its axis-aligned edges snapped to whole device pixels, and its coverage
+ramp sized for the density;</li>
+<li>an <strong>icon</strong>’s mark is packed onto the sheet the first time any instance draws it, and its distance
+range is converted into one on screen;</li>
+<li>an <strong>image</strong>’s picture is uploaded the first time an instance draws it, as a texture of its own;</li>
+<li>a <strong>run</strong>’s glyphs are cut through the atlas at the density, and snapped to the device grid.</li>
+</ul>
+<p>Then each renderer flushes to the GPU. An instance buffer is kept in rank order, so what a flush costs
+depends on what changed:</p>
+<ul>
+<li><strong>Values changed, order did not</strong> (a move, a recolor): only the changed slots are written, as runs
+of neighbouring slots, one write per run. Slots up to sixteen apart are bridged into one write,
+because rewriting an unchanged slot is harmless and a write has a cost of its own.</li>
+<li><strong>Something was added, removed or re-ranked</strong>: every slot after the change has moved, so the whole
+buffer is rebuilt in order and written once.</li>
+</ul>
+<p>Each renderer keeps two buffers per instance: its own data, and a depth. They are separate because
+they change for different reasons. A depth comes from an instance’s <em>position</em> in the whole stack, so
+it is untouched while the stack is; holding it inside the instance would make every recolor a
+candidate for a full rewrite.</p>
+<h2 id="one-stack-many-renderers"><a class="header" href="#one-stack-many-renderers">One stack, many renderers</a></h2>
+<p>Everything draws back to front with alpha blending, so there is one stack across all six renderers,
+ordered by rank. Each renderer keeps its own slots sorted by rank, and <code>Ash::restack</code> merges them:</p>
+<pre><code class="language-rust ignore">// ash/mod.rs, shortened
+fn restack(&amp;mut self, ginkgo: &amp;Ginkgo) {
+    self.stack.clear();
+    // every renderer's slots as (rank, renderer, slot); a run of text is one slot
+    gather(self.panels.instances.ranks(), Renderer::Panel, &amp;mut self.stack);
+    // ... the other five
+    self.stack.sort_unstable();
+    let total = self.stack.len();
+    self.spans.clear();
+    for (position, entry) in self.stack.iter().enumerate() {
+        let depth = Depth::of(position, total);
+        // write the depth into the renderer's slot, read its clip and binding,
+        // and extend the current span or start a new one
+    }
+    // flush every renderer's depths
+}</code></pre>
+<p>Two things come out of one walk, and they have to come out of the same one.</p>
+<p><strong>A depth for every instance, from its position.</strong> Depths are spread evenly and strictly inside the
+range, front-most smallest:</p>
+<pre><code class="language-rust ignore">// ginkgo/depth.rs
+pub(crate) fn of(index: usize, total: usize) -&gt; f32 {
+    let step = (index + 1) as f32 / (total + 1) as f32;
+    Self::FAR - step * (Self::FAR - Self::NEAR)
+}</code></pre>
+<p>A rank is a pair (an accumulated elevation and an allocation number) with an order but no meaningful
+magnitude, so depth is taken from the position rather than scaled from the rank. The range subdivides
+rather than fills, so there is no budget to run out of; the only ceiling is the depth format’s
+precision, somewhere around eight million elements. The depth test (<code>LessEqual</code>, with writes on)
+then holds the order for fragments the draw order alone would not, and a repaint of the same content
+lands on the same result.</p>
+<p><strong>Spans.</strong> The walk is cut into maximal runs that share a renderer, a clip and a binding, and each
+span is one draw of one contiguous range of one renderer’s buffer (contiguous because the merge meets
+each renderer’s slots in slot order). A binding only ever differs for images, which are a texture each;
+everything else binds one thing or nothing.</p>
+<p>The walk only runs when something it reads changed: a slot appeared, went, was re-ranked, or changed
+its clip or binding. A frame that only recolored what was already there leaves the stack as it was.</p>
+<h2 id="drawing"><a class="header" href="#drawing">Drawing</a></h2>
+<pre><code class="language-rust ignore">// ash/mod.rs, shortened
+pub(crate) fn draw(&amp;self, ginkgo: &amp;Ginkgo, clear: Color) {
+    ginkgo.draw(clear, |pass| {
+        for span in &amp;self.spans {
+            let (left, top, width, height) = ginkgo.scissor(span.clip);
+            if width == 0 || height == 0 {
+                continue;
+            }
+            pass.set_scissor_rect(left, top, width, height);
+            // draw span.from..span.to with the span's renderer (and binding, for images)
+        }
+    });
+}</code></pre>
+<p><strong>Clipping is a scissor.</strong> A clip is applied to the pass rather than carried in an instance and
+tested per fragment, so it costs nothing per element and every renderer has it without a line of
+shader. The scissor is the clip in device pixels, expanded outward to whole pixels (a fractional scale
+factor would otherwise shave the far edge off every clipped region) and clamped to the surface.</p>
+<p>The surface is cleared to whatever <code>Palette::Surface</code> resolves to in the current scheme: nothing of
+the engine’s own sits behind the tree, so the ground is the app’s.</p>
+<p><strong>Drawing never changes anything.</strong> What is drawn is held by the renderers rather than consumed by the
+draw, so a draw can be repeated at any time (a window exposed, a compositor asking) and produce the
+same picture. A surface that cannot be acquired (occluded, or mid-resize) skips the paint and loses a
+picture, never a change; one that went stale is reconfigured once and tried again.</p>
+<h2 id="ginkgo-where-the-scale-factor-stops"><a class="header" href="#ginkgo-where-the-scale-factor-stops">Ginkgo: where the scale factor stops</a></h2>
+<p>The engine is written in logical pixels throughout, and the display’s ratio of device pixels to
+logical ones is applied in exactly two places below this line: the surface and its depth attachment
+are sized in physical pixels, and the projection every renderer binds at group 0 is built from the
+logical area. The rasteriser does the conversion between them, so no instance, radius or section is
+ever carried in device pixels. The scissor and the density a glyph is cut at are the only other places
+that read the scale.</p>
+<p>A few decisions in <code>Ginkgo::acquire</code> are worth knowing about:</p>
+<ul>
+<li><strong>Backends</strong>: Vulkan, Metal, DirectX 12 and GL (which is WebGL2 in a browser), whichever the
+adapter supports.</li>
+<li><strong>Limits</strong>: on the web and on Android, the device is requested with WebGL2’s downlevel limits, so
+asking for something the device lacks fails at startup rather than at the draw that needed it.</li>
+<li><strong>Color</strong>: a <code>Color</code> holds sRGB channels, which is how a scheme is stated and how a shader reads
+them, so the surface’s non-sRGB view is taken and the channels are written through unchanged.</li>
+<li><strong>No debug names on Android.</strong> A debug build normally names every GPU object, and the Android
+emulator’s Vulkan driver crashes inside the naming call, so naming is turned off there.</li>
+<li><strong>Presentation</strong> is FIFO, so frames are paced by the display.</li>
+</ul>
+<h2 id="what-the-backend-holds-and-for-how-long"><a class="header" href="#what-the-backend-holds-and-for-how-long">What the backend holds, and for how long</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>Held on</th><th>Freed</th></tr>
+</thead>
+<tbody>
+<tr><td>glyphs</td><td>one 2048 by 2048 single-channel atlas</td><td>never (<a href="text.html#the-cut">Text</a>)</td></tr>
+<tr><td>marks</td><td>one sheet of distance fields, three channels</td><td>never: a set an app names once</td></tr>
+<tr><td>pictures</td><td>a texture each</td><td>not today</td></tr>
+<tr><td>instances</td><td>one pair of buffers per renderer, grown to the next power of two</td><td>with the backend</td></tr>
+</tbody>
+</table>
+</div>
+<p>Marks and glyphs cannot share a texture because one holds coverage in one channel and the other a
+distance in three. Pictures get a texture each because they are arbitrarily large, arrive whenever a
+decode finishes, and come in any number: packing them onto a shared texture would need eviction, and
+evicting one would orphan every instance already pointing at it.</p>
+<p>All of it is dropped when the platform takes the surface away, and rebuilt when it gives one back,
+with extraction’s cache dropped alongside so the next extraction states everything again
+(<a href="loop.html#when-the-surface-goes-away">The loop</a>).</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/extraction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../architecture/sprig.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +350,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/extraction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../architecture/sprig.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +374,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

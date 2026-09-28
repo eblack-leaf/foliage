@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Text, shaped and cut - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,182 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="text-shaped-and-cut"><a class="header" href="#text-shaped-and-cut">Text, shaped and cut</a></h1>
+<p>Text passes through four hands on its way to the screen. The font registry measures a character
+cell; R1 shapes the run and R2m wraps it; extraction lays each character in its cell; and the
+backend cuts each glyph onto a texture and draws it. This chapter follows a run through all four:
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/text/font.rs"><code>text/font.rs</code></a>,
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/text/shape.rs"><code>text/shape.rs</code></a>,
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/elm.rs"><code>elm.rs</code></a>,
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/ash/atlas.rs"><code>ash/atlas.rs</code></a> and
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/ash/text.rs"><code>ash/text.rs</code></a>.</p>
+<h2 id="why-only-monospace"><a class="header" href="#why-only-monospace">Why only monospace</a></h2>
+<p>Every text measurement foliage makes is a count of cells: <code>letters</code>, a letter-pitched grid track,
+max-content width, wrapping, where a caret stands. In a monospaced face all of those are exact
+arithmetic, and one of them is the key to the whole layout model: a run’s widest unwrapped line is
+its character count times the cell width, known before any layout runs. That is what lets
+<a href="resolution.html#r2-the-two-axes-and-the-measure-between-them">width flow down and height flow up</a>
+in two passes instead of an iteration.</p>
+<p>A proportional face would not degrade gracefully under that model. It would silently put every
+column address somewhere it does not belong. So the registry checks, when a face is handed over,
+that six characters spanning the narrowest and widest Latin shapes (<code>i</code>, <code>W</code>, <code>m</code>, <code>.</code>, <code>1</code>, <code>g</code>)
+advance the same distance, and refuses the face otherwise. Bytes the program handed over directly
+are a statement the program made, and a proportional face there panics at the call. Bytes read
+from a path or a URL are refused instead and reported <code>missing</code>, since what a file turned out to
+hold is not something the program stated.</p>
+<h2 id="the-cell"><a class="header" href="#the-cell">The cell</a></h2>
+<pre><code class="language-rust ignore">// text/font.rs
+pub(crate) fn cell(&amp;self, font: Font, size: u32) -&gt; Area {
+    let face = self.face(font);
+    let px = size as f32;
+    let advance = face.metrics(REFERENCE, px).advance_width;
+    let line = face
+        .horizontal_line_metrics(px)
+        .map(|metrics| metrics.new_line_size)
+        .unwrap_or(px);
+    Area::new(advance.ceil(), line.ceil())
+}</code></pre>
+<p>A cell is the face’s advance and its line height at a size, <strong>each rounded up to a whole logical
+pixel</strong>. A cell is the pitch a whole run is addressed on, so a fractional one would accumulate along
+a line, and the hundredth column would not be a hundred cells in. The bundled face, JetBrains Mono
+NL Medium, has a cell of 10 by 22 at 16 pixels and 9 by 19 at 14.</p>
+<p>A font name is handed out before its face arrives (a font fetched from a URL, say). A name with no
+face yet reads as the bundled face, so every element composed in it still has a cell and a page laid
+out in <code>letters</code> is laid out sensibly from the first frame. When the real face lands, the drain drops
+every run shaped in the stand-in and marks every element to be resolved again, and the page reflows
+once.</p>
+<h2 id="shaping-and-the-one-cache-of-content"><a class="header" href="#shaping-and-the-one-cache-of-content">Shaping, and the one cache of content</a></h2>
+<p>R1 turns an element’s text into a <code>Shaped</code> run:</p>
+<pre><code class="language-rust ignore">// text/shape.rs
+pub(crate) struct Shaped {
+    characters: Vec&lt;char&gt;,
+    cell: Area,     // the pitch it was shaped at
+    widest: usize,  // the longest hard line, in cells
+}</code></pre>
+<p>In a monospaced face, shaping is almost nothing: the characters, and the longest line between
+newlines. <code>max_content</code> is <code>widest * cell.width</code>. Nothing about glyph shapes is known or needed at
+this point.</p>
+<p>Shaped runs are kept in the <code>Shaping</code> cache, keyed by font and size and then by the string, and
+looked up by <code>&amp;str</code>, so a frame in which every run has been seen before allocates nothing. It is the
+one cache in the engine keyed by <em>content</em> rather than by element, and the reason is that shaping is
+a function of the string alone: it does not change when the layout moves, and redoing it saves
+nothing. Wrapping is deliberately <strong>not</strong> cached, because it depends on the width the layout
+produced, which changes whenever the layout does, and walking an already-shaped run is cheap.</p>
+<p>The cache is shared with the elements rather than copied into them: R1 hands each element the
+<code>Arc&lt;Shaped&gt;</code> it states, and everything after R1 (wrapping, placing a caret, drawing) reads the
+element’s own. That makes eviction simple. On a frame where some run stopped being stated (text was
+rewritten, or an element withered), the cache drops every run no element still holds:</p>
+<pre><code class="language-rust ignore">// text/shape.rs
+pub(crate) fn sweep(&amp;mut self) {
+    self.runs.retain(|_, runs| {
+        runs.retain(|_, shaped| Arc::strong_count(shaped) &gt; 1);
+        !runs.is_empty()
+    });
+}</code></pre>
+<p>So the cache stays the size of what is on the page rather than the size of the session.</p>
+<h2 id="one-walk"><a class="header" href="#one-walk">One walk</a></h2>
+<p>How tall a run is, where each of its glyphs goes, and where a caret stands are the same question asked
+three ways, and asking it three ways is how text comes to be measured at one height and drawn at
+another. So there is one walk, <code>Shaped::walk</code>, and all three are answered by it.</p>
+<p>It wraps greedily, on word boundaries, by three rules:</p>
+<ul>
+<li>a newline ends a line;</li>
+<li>a word that does not fit in what is left of the line starts the next one, and the spaces before
+it go with the break rather than trailing off the end;</li>
+<li>a word longer than a whole line fills what is left and breaks inside itself.</li>
+</ul>
+<p>The walk hands every index in the value its cell, including spaces and newlines (which leave no
+ink, and are handed the cell a caret before them would stand in) and one index past the end, where a
+caret stands at the end of the run. What leaves ink is said alongside, so a caller that only draws
+can skip the rest. An empty run takes no lines at all, which is why an empty element measures to
+zero rather than to one line of nothing.</p>
+<p>The column count has a tolerance. A width is solved, not stated, and a box that reaches its width
+by subtracting two coordinates (every centred and every stretched one) can land a hair under the
+width it asked for. Floored exactly, that hair is a whole column, and a run sized to its own content
+would wrap at the one width it must not. So a line may be up to a sixty-fourth of a cell short and
+still hold it.</p>
+<p><code>Wrap</code> answers the per-index questions against one width: <code>cell_of(index)</code> for where a caret
+stands, <code>index_at(column, line)</code> for which character a pointer landed on, and <code>ends(line)</code> for what
+<code>Home</code> and <code>End</code> go to. <a href="resolver.html#how-each-source-reads">The resolver’s</a> <code>anchor().character(n)</code>
+reads <code>cell_of</code>, which is how a field’s caret is an ordinary element placed against its run.</p>
+<h2 id="from-run-to-glyphs"><a class="header" href="#from-run-to-glyphs">From run to glyphs</a></h2>
+<p>Extraction lays the run out at the width it resolved to, which is the width it was measured at:</p>
+<pre><code class="language-rust ignore">// elm.rs, shortened
+shaped.place(painted.section.width(), |character, index, at| {
+    glyphs.push(Glyph {
+        cell: Section::new(origin.moved(at), cell),
+        character,
+        color: match tints.and_then(|tints| tints.over(index)) {
+            Some(fill) =&gt; fill.color(&amp;grove.scheme).faded(painted.opacity),
+            None =&gt; color,
+        },
+    });
+});</code></pre>
+<p>Each glyph is a cell on the surface, a character, and a color. The color is per glyph because a
+<code>tint</code> is a fill over a range of the run’s own index space, spaces and newlines included, which is
+the same space a caret and a selection are addressed in. Counting drawn glyphs instead would make
+every index after a space mean something other than what was written.</p>
+<p>A run is compared against what the backend holds <strong>whole</strong>: its glyphs, face, size, rank and clip.
+A run’s glyphs move, refill and restack together, so finding which of them changed would cost more
+than rewriting the run.</p>
+<h2 id="the-cut"><a class="header" href="#the-cut">The cut</a></h2>
+<p>The backend turns each glyph into a textured quad. What it rasterises is a <code>Cut</code>:</p>
+<pre><code class="language-rust ignore">// ash/atlas.rs
+pub(crate) struct Cut {
+    pub(crate) font: Font,
+    pub(crate) size: u32,
+    pub(crate) density: u32,  // device pixels per logical pixel, in thousandths
+    pub(crate) character: char,
+}</code></pre>
+<p>The density is part of the key because a bitmap is made in device pixels: the same character at the
+same size on a denser display is a different cut. It is stored in thousandths because a key has to
+compare exactly, and a float from a window manager does not.</p>
+<p>A cut is rasterised once, by <a href="https://crates.io/crates/fontdue"><code>fontdue</code></a>, at <code>size × density</code>, and
+packed onto <strong>one 2048 by 2048 single-channel texture</strong>. Three details are worth knowing:</p>
+<ul>
+<li><strong>Three samples, one channel.</strong> The rasteriser’s subpixel path produces three coverage samples per
+pixel, and they are averaged back into one. That is horizontal supersampling rather than subpixel
+antialiasing: keeping them as red, green and blue would need dual-source blending, which WebGL2
+lacks, and would assume a stripe order that is wrong on a rotated or pentile display. What it buys
+is the case single-sample coverage gets worst, a vertical stem narrower than a pixel: small type,
+and the bowls of round letters.</li>
+<li><strong>Snapped to the device grid.</strong> A cut is an exact number of device pixels, and the quad it is drawn
+on is placed on a whole device pixel, so each sample lands on a texel centre and the glyph is the
+bitmap. Unsnapped, every sample would fall between texels and the glyph’s outer rows would fade,
+which reads as a trimmed glyph rather than as a glyph half a pixel low.</li>
+<li><strong>Nothing is evicted.</strong> The sheet is packed in shelves and never freed. A monospaced app addresses a
+small alphabet at a handful of sizes, and four megabytes holds thousands of cuts. If it does fill,
+an <code>error</code> is written once and further characters stop drawing; the
+<a href="https://github.com/eblack-leaf/foliage/blob/main/TODO.md#glyph-atlas">TODO</a> records the plan to
+rebuild it from what the frame draws instead.</li>
+</ul>
+<p>A character with no outline (a space, and more characters than a space) is remembered as nothing, so
+asking again does not rasterise again.</p>
+<h2 id="one-entry-in-the-stack"><a class="header" href="#one-entry-in-the-stack">One entry in the stack</a></h2>
+<p>Every other renderer draws one instance per element. A run draws one quad per character, but it is
+<strong>one entry in the stack</strong>: one rank, one clip, one depth. The text renderer keeps two numberings
+to make that work. Its slots are runs, sorted by rank, and are what the backend’s shared walk sees.
+Its glyphs are its own, laid out in slot order with each run’s contiguous, so a span of runs is a
+range of glyphs and one draw call covers it. That keeps the stack the size of the tree rather than
+the size of the text on it.</p>
+<h2 id="what-it-costs"><a class="header" href="#what-it-costs">What it costs</a></h2>
+<p>Rewriting a run’s text costs the run: R1 shapes the new string (once, if it has not been seen), R2m
+wraps it, and extraction lays out and compares every glyph. For a label that is nothing. For a text
+area holding tens of thousands of characters it is noticeable, because a keystroke rewrites the whole
+run, and the caret and selection are placed by reading character positions that each walk the run
+from its start. <a href="performance.html">What a frame costs</a> has the measurement and the planned fix.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/resolver.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../architecture/motion.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +360,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/resolver.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../architecture/motion.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +384,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

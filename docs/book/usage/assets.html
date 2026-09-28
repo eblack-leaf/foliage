@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Assets - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,213 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="assets"><a class="header" href="#assets">Assets</a></h1>
+<p>A font, an icon and a picture are all bytes. Each is registered by handing over the bytes, or an
+<a href="https://eblack-leaf.github.io/foliage/api/foliage/enum.Origin.html"><code>Origin</code></a> to read them from,
+and <strong>the name comes back at once either way</strong>. An element can be grown against the name in the
+same frame, and draws the asset on whichever frame it arrives. That is what keeps “is it loaded
+yet” out of an app’s state.</p>
+<h2 id="registering"><a class="header" href="#registering">Registering</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Registers</th><th>At boot</th><th>At any frame</th><th>Hands back</th></tr>
+</thead>
+<tbody>
+<tr><td>a font</td><td><code>Foliage::font</code></td><td><code>Grove::font</code></td><td><code>Font</code></td></tr>
+<tr><td>a mark (an icon’s field)</td><td><code>Foliage::icon</code></td><td><code>Grove::icon</code></td><td><code>Field</code></td></tr>
+<tr><td>a set of marks</td><td><code>Foliage::marks</code></td><td><code>Grove::marks</code></td><td>the app’s own set</td></tr>
+<tr><td>an encoded picture</td><td><code>Foliage::image</code></td><td><code>Grove::image</code></td><td><code>Plate</code></td></tr>
+<tr><td>pixels the app made</td><td><code>Foliage::pixels</code></td><td><code>Grow::pixels</code></td><td><code>Plate</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Each takes <code>impl Into&lt;Bytes&gt;</code>, which is satisfied by bytes the app holds (a <code>Vec&lt;u8&gt;</code>, a slice, or
+what <code>include_bytes!</code> produces) and by an <code>Origin</code>:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Grove, Origin};
+</span><span class="boring">fn f(grove: &amp;mut Grove, bytes: &amp;'static [u8]) {
+</span>// `bytes` is what `include_bytes!("assets/avatar.png")` produced.
+let bundled = grove.image(bytes);
+<span class="boring">#[cfg(not(target_family = "wasm"))]
+</span>let read = grove.image(Origin::path("assets/avatar.png"));
+let fetched = grove.image(Origin::url("https://example.com/avatar.jpg"));
+<span class="boring">let _ = (bundled, read, fetched);
+</span><span class="boring">}</span></code></pre>
+<p>A registration from held bytes is done in the call. One from an <code>Origin</code> is read off the frame (on
+a thread for a path, by the browser for a URL on the web) and lands as an op, in whichever frame
+it finishes, ordered against everything else that frame.</p>
+<ul>
+<li><code>Origin::path</code> exists wherever there is a filesystem. Naming one on the web is a compile error.</li>
+<li><code>Origin::url</code> is fetched by the browser on the web. Everywhere else it needs the <code>origin-url</code>
+feature, which is the only thing in foliage that brings an http client and a TLS stack; without
+it a URL is accepted and reported <code>missing</code>, so an app that bundles its assets compiles neither.</li>
+</ul>
+<h2 id="arriving"><a class="header" href="#arriving">Arriving</a></h2>
+<p>An element drawing a mark or a picture that has not arrived yet <strong>occupies its box and draws
+nothing</strong>, and appears on the frame the bytes do. There is nothing to undo when they land.</p>
+<p>Two reports say what happened, for anything that wants to know:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Grove, Grow, Leaf, Plate, Pollen};
+</span><span class="boring">fn f(grove: &amp;mut Grove, pollen: &amp;Pollen, avatar: Plate, placeholder: Leaf) {
+</span>if pollen.loaded(avatar) {
+    grove.visible(placeholder, false);
+}
+if pollen.missing(avatar) {
+    // The name stays valid and unfilled; a second attempt is a second call.
+}
+<span class="boring">}</span></code></pre>
+<p><code>loaded</code> and <code>missing</code> take a <code>Font</code>, a <code>Field</code> or a <code>Plate</code> alike. <code>loaded</code> is reported for bytes
+that <em>arrived</em>: read from an <code>Origin</code>, or handed over through a <a href="off-frame.html"><code>Sprig</code></a>. Bytes
+handed to the grove directly are registered in the call itself, and there is nothing to wait for.
+<code>missing</code> covers every way the bytes did not become an asset: a path that is not there, a fetch that answered with an error, a
+picture in a format foliage does not decode, a font that turned out to be proportional. There is
+one thing an app can do about any of them, so they are one report, and the reason is written to
+the trace.</p>
+<p>Bytes given outright that are wrong are a different matter. A proportional font or an icon field
+too small for the size it was said to be, stated in the program’s own source, panics at the call:
+that is a mistake in the program and worth stopping for where it can be fixed. The same bytes read
+from a path or a URL are reported <code>missing</code> instead, because what a file turned out to hold is not
+something the program stated.</p>
+<p><strong>A font is the one worth waiting for.</strong> A run composed in a face that has not arrived is measured
+in the bundled face, so a page laid out in <code>letters</code> is laid out sensibly from the first frame. When
+the real face lands, every run is measured again and the page reflows on that frame. An app that
+would rather not show the reflow keeps the text hidden until <code>loaded(font)</code>.</p>
+<h2 id="pictures"><a class="header" href="#pictures">Pictures</a></h2>
+<pre><code class="language-rust"><span class="boring">use foliage::{Boxed, Fit, Image, Location, Plate, Rounding, Source, left, top};
+</span><span class="boring">fn f(avatar: Plate) {
+</span>Image::new(avatar)
+    .fit(Fit::Crop)
+    .rounding(Rounding::Full)
+    .at(Location::new().xs(left(16.px()).width(64.px()), top(16.px()).height(64.px())));
+<span class="boring">}</span></code></pre>
+<p>PNG and JPEG are decoded, at whatever size the file says. How the picture’s own proportions meet
+its box is its <a href="https://eblack-leaf.github.io/foliage/api/foliage/enum.Fit.html"><code>Fit</code></a>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th><code>Fit</code></th><th>Does</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Aspect</code> (default)</td><td>scaled to sit inside the box, centred, keeping its ratio; every pixel of the picture shows</td></tr>
+<tr><td><code>Crop</code></td><td>scaled to fill the box, centred, keeping its ratio; the overflowing axis is cropped</td></tr>
+<tr><td><code>Stretch</code></td><td>stretched to the box exactly, distorting where the ratios disagree</td></tr>
+</tbody>
+</table>
+</div>
+<p>Corners round exactly as a panel’s do, through the same distance field, so a picture set flush in a
+rounded card sits flush. An image has no fill: it carries its own color, and its opacity (and that
+of everything above it) still applies.</p>
+<p><code>grove.depict(image, plate)</code> swaps the picture an image draws, keeping its fit and corners, and
+<code>grove.fit(image, fit)</code> changes the fit.</p>
+<h3 id="pixels-an-app-makes"><a class="header" href="#pixels-an-app-makes">Pixels an app makes</a></h3>
+<p><code>grove.pixels(rgba, size)</code> registers pixels the app computed: RGBA, one byte per channel,
+row-major, <code>size</code> texels across.</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Area, Boxed, Fit, Grove, Grow, Image, Leaf, Location, Pollen, Source, left, top};
+</span>/// A one-pixel-tall strip of the scheme's first spectrum.
+fn strip(grove: &amp;Grove) -&gt; (Vec&lt;u8&gt;, Area) {
+    let stops = grove.scheme().stops(0);
+    let width = 256;
+    let mut rgba = Vec::with_capacity(width * 4);
+    for x in 0..width {
+        let at = x as f32 / (width - 1) as f32;
+        let color = stops[0].toward(stops[stops.len() - 1], at);
+        let channels = [color.red, color.green, color.blue, color.alpha];
+        rgba.extend(channels.map(|channel| (channel * 255.0).round() as u8));
+    }
+    (rgba, Area::new(width as f32, 1.0))
+}
+
+<span class="boring">fn grow(grove: &amp;mut Grove, page: Leaf) -&gt; Leaf {
+</span>let (rgba, size) = strip(grove);
+let gradient = grove.pixels(rgba, size);
+let bar = grove.branch(
+    page,
+    Image::new(gradient)
+        .fit(Fit::Stretch)
+        .at(Location::new().xs(left(16.px()).right(100.pct() - 16.px()), top(16.px()).height(8.px()))),
+);
+<span class="boring">bar
+</span><span class="boring">}
+</span><span class="boring">fn frame(grove: &amp;mut Grove, pollen: &amp;Pollen, bar: Leaf) {
+</span>// The strip depends on the scheme, so a new scheme is a new picture, drawn by the same element.
+if pollen.repainted() {
+    let (rgba, size) = strip(grove);
+    let gradient = grove.pixels(rgba, size);
+    grove.depict(bar, gradient);
+}
+<span class="boring">}</span></code></pre>
+<p><code>grove.plate()</code> hands out a name with nothing behind it yet, and <code>grove.load(plate, rgba, size)</code>
+fills it in a later frame, which is the shape of a picture decoded or rendered somewhere else: the
+element is grown against the name now, occupies its box, and appears on the frame the pixels land.</p>
+<h2 id="marks"><a class="header" href="#marks">Marks</a></h2>
+<p>An icon is not a bitmap. A mark has no size of its own (the same artwork is a 16-pixel affordance
+and a 96-pixel empty state), so it is stored as a <strong>multi-channel signed distance field</strong>: a small
+square texture holding, per texel, the distance to the artwork’s edge. It is reconstructed sharp at
+whatever box a layout hands it, and the median of three channels keeps the corners a single
+channel would round off.</p>
+<p><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage-icons"><code>foliage-icons</code></a> bakes fields from
+SVGs:</p>
+<pre><code class="language-sh">cargo install --git https://github.com/eblack-leaf/foliage foliage-icons
+foliage-icons bake --svg assets/svg --out src/icons --marks Icons
+foliage-icons preview --icon src/icons/check.icon --size 24 --out check.png
+</code></pre>
+<p><code>bake</code> writes one <code>.icon</code> per SVG, and a module beside them that declares the set:</p>
+<pre><code class="language-rust ignore">// AUTO-GENERATED by foliage-icons -- do not edit by hand.
+use foliage::{Field, Grove, Marks};
+
+const SIDE: u32 = 48;
+const RANGE: f32 = 3.0;
+
+pub struct Icons {
+    /// The `arrow-up` mark.
+    pub arrow_up: Field,
+    /// The `check` mark.
+    pub check: Field,
+}
+
+impl Marks for Icons {
+    fn register(grove: &amp;mut Grove) -&gt; Self {
+        Self {
+            arrow_up: grove.icon(include_bytes!("arrow-up.icon"), SIDE, RANGE),
+            check: grove.icon(include_bytes!("check.icon"), SIDE, RANGE),
+        }
+    }
+}</code></pre>
+<p>Both are committed. An app registers the set by naming it, the way it names its <code>Root</code>, and
+reaches a mark by the name it was given:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Boxed, Field, Grove, Grow, Icon, Leaf, Location, Marks, Palette, Source, left, top};
+</span><span class="boring">struct Icons { check: Field }
+</span><span class="boring">impl Marks for Icons { fn register(grove: &amp;mut Grove) -&gt; Self { Icons { check: grove.icon(vec![0; 48 * 48 * 4], 48, 3.0) } } }
+</span><span class="boring">fn f(grove: &amp;mut Grove, bar: Leaf) {
+</span>let icons = grove.marks::&lt;Icons&gt;();
+grove.branch(
+    bar,
+    Icon::new(icons.check)
+        .color(Palette::Accent)
+        .at(Location::new().xs(left(0.px()).width(24.px()), top(0.px()).height(24.px()))),
+);
+<span class="boring">}</span></code></pre>
+<p>Adding or removing a mark and baking again moves no callsite, because nothing addresses a mark by
+its position in a list.</p>
+<p>A mark is fitted into the largest square its box holds, so a box that is not square leaves room
+around it rather than stretching it. It carries shape and no color, exactly as a glyph does, so an
+icon is filled, repainted and animated by the same writes a panel takes. <code>grove.mark(icon, field)</code>
+swaps the mark and keeps the fill, which is how a toggle trades one mark for another.</p>
+<p><code>preview</code> renders a baked field to a PNG, sampling exactly as the shader does, which is how to
+judge a field without running an app. <code>--side</code> (texels across, 48 by default) and <code>--range</code> (how
+many texels the distance spread covers, 3 by default) are facts about the bake, and are stated
+once per set rather than per mark.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/motion.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../usage/components.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +391,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/motion.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../usage/components.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +415,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

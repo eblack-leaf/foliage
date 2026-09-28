@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Responsive layout - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,225 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="responsive-layout"><a class="header" href="#responsive-layout">Responsive layout</a></h1>
+<p>A phone and a desk want different layouts from the same app. foliage answers that in the
+placement itself: a <code>Location</code> says where an element sits <em>at each breakpoint</em>, and a <code>Grid</code> says
+how a box is divided at each one. This chapter builds a page whose navigation is a bar along the
+bottom on a phone and a rail down the left on a desk.</p>
+<h2 id="breakpoints"><a class="header" href="#breakpoints">Breakpoints</a></h2>
+<p>The viewport’s width puts it at one of five breakpoints:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Breakpoint</th><th>Viewport width</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Xs</code></td><td>below 420</td></tr>
+<tr><td><code>Sm</code></td><td>420 and above</td></tr>
+<tr><td><code>Md</code></td><td>600 and above</td></tr>
+<tr><td><code>Lg</code></td><td>840 and above</td></tr>
+<tr><td><code>Xl</code></td><td>1200 and above</td></tr>
+</tbody>
+</table>
+</div>
+<p>The bounds are constants on <a href="https://eblack-leaf.github.io/foliage/api/foliage/enum.Layout.html"><code>Layout</code></a>
+(<code>Layout::SM</code>, <code>Layout::MD</code> and so on) and <code>grove.layout()</code> says which one is in force.</p>
+<p>Four things are written per breakpoint, all in the same chain: <code>Location</code>, <code>Grid</code>, <code>FontSize</code>, and
+a line’s <code>Trace</code>. Each has <code>xs</code>, <code>sm</code>, <code>md</code>, <code>lg</code> and <code>xl</code>, and a breakpoint with nothing of its
+own takes the nearest smaller one that has. So only <code>xs</code> is ever needed, and an element that only
+differs above some width states that width and nothing else:</p>
+<pre><code class="language-rust ignore">Location::new()
+    .xs(left(16.px()).right(100.pct() - 16.px()), top(16.px()).height(content()))
+    .lg(left(4.col()).right(12.col()), top(32.px()).height(content()))
+// Sm and Md fall back to xs; Xl falls back to lg.</code></pre>
+<p>A chain that states nothing at all falls back to the whole of the parent’s box.</p>
+<h3 id="short"><a class="header" href="#short">Short</a></h3>
+<p>Width alone reads a landscape phone wrong: it is <code>Md</code>-wide, with a fraction of the height a
+portrait one has. So the viewport has a second, independent reading,
+<a href="https://eblack-leaf.github.io/foliage/api/foliage/enum.Short.html"><code>Short</code></a>: it becomes
+<code>Short::Yes</code> below 400 logical pixels tall, and goes back to <code>Short::No</code> at 440.</p>
+<p>The gap between the two is deliberate. On mobile web the address bar hides and shows as a page
+scrolls, and a single threshold would flip on every scroll and re-lay the whole page. Leaning
+toward <code>Yes</code> is the safer mistake: a layout slightly more compact than it needed to be, rather than
+content running off the bottom.</p>
+<p>Every chain also takes <code>short(..)</code>. A configuration keyed to <code>short</code> wins outright while the
+viewport is cramped, whatever its width, and nothing without one is affected.</p>
+<h2 id="grids"><a class="header" href="#grids">Grids</a></h2>
+<p>Every element divides its box for the elements grown under it. Undeclared, it is one column and
+one row. A <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Grid.html"><code>Grid</code></a> states the
+division, per breakpoint:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Divide, Grid};
+</span>Grid::new()
+    .xs(4.columns().gap(12.0), 1.rows())
+    .md(12.columns().gap(16.0), 1.rows());</code></pre>
+<p><code>4.columns()</code> (from the <a href="https://eblack-leaf.github.io/foliage/api/foliage/trait.Divide.html"><code>Divide</code></a>
+trait) is four equal tracks, with the gaps taken out first. A gap is between tracks only, so <code>n</code>
+tracks have <code>n - 1</code> gaps and no margin at either end. Two other pitches size the track rather than
+count them:</p>
+<ul>
+<li><code>Columns::px(80.0)</code> is tracks of 80 pixels, as many as fit.</li>
+<li><code>Columns::letters(12.0)</code> is tracks of twelve character cells, in the font of the element the grid
+is <em>on</em>, not of the children addressing it. A table whose columns line up with its text is a grid
+like this.</li>
+</ul>
+<p>A child addresses the grid with <code>col</code> and <code>row</code>, which are one-based. The role decides which part
+of the track is meant:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Written</th><th>Means</th></tr>
+</thead>
+<tbody>
+<tr><td><code>left(2.col())</code></td><td>the left edge of column 2</td></tr>
+<tr><td><code>right(3.col())</code></td><td>the right edge of column 3</td></tr>
+<tr><td><code>center_x(2.col())</code></td><td>the middle of column 2</td></tr>
+<tr><td><code>width(2.col())</code></td><td>the width of two columns and the gap between them</td></tr>
+<tr><td><code>left(1.col()).right(1.col())</code></td><td>exactly column 1</td></tr>
+</tbody>
+</table>
+</div>
+<p>A grid decides how children are laid out and nothing else. In particular it says nothing about
+scrolling: a column with more rows than fit is simply taller than its parent, and an element
+scrolls only because it says so (<a href="scrolling.html">Scrolling</a>).</p>
+<h2 id="a-page-with-navigation"><a class="header" href="#a-page-with-navigation">A page with navigation</a></h2>
+<pre><code class="language-rust no_run">use foliage::{
+    Area, Boxed, Divide, Foliage, FontSize, Grid, Grove, Grow, Line, Location, Palette, Panel,
+    Place, Point, Pollen, Root, Source, Text, Trace, anchor, bottom, content, left, top,
+};
+
+const ABOUT: &amp;str = "The navigation is a bar along the bottom on a phone and a rail down the left \
+                     on a desk. Nothing in the app decides which: every element says where it \
+                     sits at each breakpoint, and the viewport picks.";
+
+struct Page;
+
+impl Root for Page {
+    fn take_root(grove: &amp;mut Grove) -&gt; Self {
+        let page = grove.plant(
+            Panel::new().grid(
+                Grid::new()
+                    .xs(4.columns().gap(12.0), 1.rows())
+                    .md(12.columns().gap(16.0), 1.rows()),
+            ),
+        );
+        // A bar along the bottom, then a rail three columns wide.
+        let nav = grove.branch(
+            page,
+            Panel::new().color(Palette::Raised).at(
+                Location::new()
+                    .xs(
+                        left(0.px()).right(100.pct()),
+                        bottom(100.pct()).height(56.px()),
+                    )
+                    .md(left(0.px()).width(3.col()), top(0.px()).bottom(100.pct())),
+            ),
+        );
+        // A rule along the navigation's inner edge: its top as a bar, its right as a rail.
+        grove.branch(
+            page,
+            Line::new().color(Palette::Muted).anchored(nav).trace(
+                Trace::new()
+                    .xs(
+                        Point::new(anchor().left(), anchor().top()),
+                        Point::new(anchor().right(), anchor().top()),
+                    )
+                    .md(
+                        Point::new(anchor().right(), anchor().top()),
+                        Point::new(anchor().right(), anchor().bottom()),
+                    ),
+            ),
+        );
+        // The content, full width on a phone and to the right of the rail on a desk.
+        grove.branch(
+            page,
+            Text::new(ABOUT)
+                .font_size(FontSize::new().xs(14).lg(16).short(12))
+                .at(
+                    Location::new()
+                        .xs(
+                            left(16.px()).right(100.pct() - 16.px()),
+                            top(16.px()).height(content()),
+                        )
+                        .md(left(4.col()).right(12.col()), top(24.px()).height(content())),
+                ),
+        );
+        Page
+    }
+
+    fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
+        if let Some(size) = pollen.resized() {
+            println!("{} wide, at {:?}", size.width, grove.layout());
+        }
+    }
+}
+
+fn main() {
+    let mut foliage = Foliage::new();
+    foliage.title("responsive");
+    foliage.desktop_size(Area::new(390.0, 700.0));
+    foliage.root::&lt;Page&gt;();
+    foliage.photosynthesize();
+}</code></pre>
+<p>Open it narrow and drag the window wider. At 600 pixels the grid changes from four columns to
+twelve, the bar becomes a rail, the rule turns from horizontal to vertical, and the text moves to
+the right of the rail and re-wraps at its new width. Drag the window short and the text drops a
+size.</p>
+<p>Three details in it:</p>
+<ul>
+<li><strong>The rule is placed against the navigation</strong>, not against the grid. A point reads an anchor
+exactly as a box does, so at each breakpoint the rule names the edge of the navigation it runs
+along, and it stays on that edge however the navigation was placed. Stating it in columns
+instead would work, but a column in a <em>point</em> is always the track’s near edge (a point is a
+position, and a position is what a near role reads), while the rail’s right edge is a far edge.
+The two differ by a gap.</li>
+<li><strong><code>bottom(100.pct())</code> is the trunk’s bottom edge.</strong> An edge role is a coordinate, so the bar’s
+bottom sits on the page’s bottom and its height grows upward from there.</li>
+<li><strong>Content right of the rail starts at <code>4.col()</code></strong>: the near edge of column 4, one gap past the
+rail’s far edge at <code>3.col()</code>. The gutter between them is the grid’s own gap.</li>
+</ul>
+<h2 id="font-sizes"><a class="header" href="#font-sizes">Font sizes</a></h2>
+<p><code>FontSize</code> is the same chain:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::FontSize;
+</span>FontSize::new().xs(14).lg(18).short(12);</code></pre>
+<p>A size is stated on <em>any</em> element, not only one that draws text, because a font and a size are
+what give an element a character cell, and a cell is what <code>letters</code> and a letter-pitched grid are
+measured in. An element that states neither has no cell at all.</p>
+<h2 id="reading-the-breakpoint"><a class="header" href="#reading-the-breakpoint">Reading the breakpoint</a></h2>
+<p>Most of the time an app never asks: every element says what it does at each breakpoint and the
+viewport decides. Where an app does need to know (to grow a different set of parts on a phone, or
+to choose between two behaviours) it reads the frame:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Grove, Layout, Pollen, Short};
+</span><span class="boring">fn f(grove: &amp;Grove, pollen: &amp;Pollen) {
+</span>match grove.layout() {
+    Layout::Xs | Layout::Sm =&gt; { /* narrow */ }
+    _ =&gt; { /* wide */ }
+}
+if grove.short() == Short::Yes { /* cramped */ }
+if let Some(size) = pollen.resized() {
+    // The surface's new size, reported once, in the frame it changed.
+    let _ = (size.width, size.height, grove.viewport());
+}
+<span class="boring">}</span></code></pre>
+<p><code>pollen.resized()</code> is reported on the frame the new size took effect, including the first frame,
+which reports the size the platform actually gave the window.</p>
+<h2 id="what-a-resize-costs"><a class="header" href="#what-a-resize-costs">What a resize costs</a></h2>
+<p>The viewport, the breakpoint and the short reading are read by every placement in the tree, so a
+change to any of them is a write to every element: the whole tree is resolved again. Ordinary
+frames resolve only what was written to and what depends on it, so a resize is the most expensive
+thing that routinely happens. Dragging a window’s edge on a desktop does it every frame of the
+drag. <a href="../architecture/performance.html">What a frame costs</a> has the numbers.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/placement.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../usage/color.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +403,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/placement.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../usage/color.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +427,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

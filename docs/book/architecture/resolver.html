@@ -1,0 +1,477 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>The resolver - foliage</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-c59f2531.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">foliage</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="the-resolver"><a class="header" href="#the-resolver">The resolver</a></h1>
+<p>Every placement an app writes (<code>left(16.px()).right(100.pct() - 16.px())</code>) becomes numbers in one
+function: <a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/placement/resolve.rs"><code>placement/resolve.rs</code></a>.
+It takes one axis of one element’s placement and everything that axis may read, and returns a span:
+a near edge and a far edge.</p>
+<pre><code class="language-rust ignore">// placement/resolve.rs
+pub(crate) fn resolve(config: &amp;Config, context: &amp;Context) -&gt; Span {
+    let (near, far) = match &amp;config.form {
+        Form::NearExtent { near, extent } =&gt; {
+            let near = coordinate(near, Role::Near, context);
+            (near, near + clamped(extent, config, context))
+        }
+        Form::NearFar { near, far } =&gt; {
+            let near = coordinate(near, Role::Near, context);
+            let far = coordinate(far, Role::Far, context);
+            let extent = clamp(far - near, config, context);
+            (near, near + extent)
+        }
+        Form::FarExtent { far, extent } =&gt; {
+            let far = coordinate(far, Role::Far, context);
+            (far - clamped(extent, config, context), far)
+        }
+        Form::CenterExtent { center, extent } =&gt; {
+            let center = coordinate(center, Role::Center, context);
+            let extent = clamped(extent, config, context);
+            (center - extent / 2.0, center + extent / 2.0)
+        }
+    };
+    Span { near, far }
+}</code></pre>
+<h2 id="pure-on-purpose"><a class="header" href="#pure-on-purpose">Pure, on purpose</a></h2>
+<p>The resolver touches no world, no entity names and no mutable state. Given the same inputs it gives
+the same answer, and it may be called as many times per element per frame as anything needs. Three
+things depend on that:</p>
+<ul>
+<li><strong>Both axes are the same code.</strong> R2a and R2b call it once per element each. With no accumulated
+state, the second call cannot be corrupted by the first.</li>
+<li><strong>Motion resolves both ends.</strong> An element with a <code>Location</code> motion running is resolved twice per
+axis, once for where it is going and once for where it left, in the same context, and the two
+answers are blended. Nothing about the motion is remembered between frames, so nothing about it
+can go stale when the window resizes mid-slide.</li>
+<li><strong>The whole placement algebra is testable as arithmetic.</strong> A <code>Config</code> and a <code>Context</code> in, a <code>Span</code>
+out, with no engine anywhere near it.</li>
+</ul>
+<h2 id="what-a-placement-is-made-of"><a class="header" href="#what-a-placement-is-made-of">What a placement is made of</a></h2>
+<p>A <code>Location</code> is one pointer to a set of placements, one per breakpoint (<code>xs</code>, <code>sm</code>, <code>md</code>, <code>lg</code>, <code>xl</code>,
+and <code>short</code>), each an optional pair of axes. Looking one up is <code>Breakpoints::at</code>: a <code>short</code>
+placement wins outright when the viewport is short; otherwise the breakpoint in force is taken if it
+was stated, then each smaller one in turn, and finally <code>xs</code>, whose default is the whole of the
+parent’s box. That lookup is not part of resolving, so it happens in <code>rowan.rs</code> before the resolver
+is called.</p>
+<p>One axis of one breakpoint is a <code>Config</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/placement/role.rs"><code>placement/role.rs</code></a>):
+one of four <strong>forms</strong>, and an optional floor and ceiling on the extent.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Written</th><th>Form</th></tr>
+</thead>
+<tbody>
+<tr><td><code>left(a).width(b)</code>, <code>top(a).height(b)</code></td><td><code>NearExtent</code></td></tr>
+<tr><td><code>left(a).right(b)</code>, <code>top(a).bottom(b)</code></td><td><code>NearFar</code></td></tr>
+<tr><td><code>right(a).width(b)</code>, <code>bottom(a).height(b)</code></td><td><code>FarExtent</code></td></tr>
+<tr><td><code>center_x(a).width(b)</code>, <code>center_y(a).height(b)</code></td><td><code>CenterExtent</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Each value in a form is an <strong>expression</strong>: a sum of scaled <strong>terms</strong>, each of which reads one source.</p>
+<pre><code class="language-rust ignore">// placement/source.rs, shortened
+pub(crate) enum Expr {
+    One(Term),        // almost every expression: a length, a percentage, an edge
+    Sum(Vec&lt;Term&gt;),   // only a sum allocates
+}
+
+pub(crate) struct Term {
+    pub(crate) scale: f32,
+    pub(crate) kind: Kind,
+}
+
+pub(crate) enum Kind {
+    Px(f32),
+    Pct { fraction: f32, against: Against },
+    Extent { axis: Axis, against: Against },
+    Cell { index: i32, axis: Axis, against: Against },
+    Letters { letters: f32, against: Against },
+    Character { index: usize, against: Against },
+    Span { from: usize, to: usize, end: SpanEnd, against: Against },
+    Content { against: Against },
+    Edge { edge: Edge, against: Against },
+}</code></pre>
+<p>Every operator the grammar supports (adding, subtracting, scaling by a number) keeps an expression
+linear, so a sum of scaled terms is the whole of what can be written rather than a simplification of
+it. It is built once, where the placement is written, and resolving it allocates nothing.</p>
+<p><code>Against</code> says <strong>whose</strong> geometry a term reads: the element’s own (<code>Own</code>), its trunk’s (<code>Trunk</code>),
+or its anchor’s (<code>Anchor</code>). The bare sources on <code>Source</code> (<code>20.px()</code>, <code>50.pct()</code>, <code>2.col()</code>) read the
+trunk. <code>trunk()</code> and <code>anchor()</code> open the same vocabulary against a named element, so nothing can be
+said about a trunk that cannot be said about an anchor, and an element grown somewhere else (to
+escape a clip, say) anchors back to where it came from and goes on addressing the same grid in the
+same words.</p>
+<p>A <strong>coordinate</strong> is an expression plus an origin: the near edge it is measured from. A bare length
+used as a position is measured from the trunk’s near edge, which is why <code>left(16.px())</code> is sixteen
+pixels inside the trunk. An edge (<code>anchor().right()</code>) is already a position on the surface, so its
+origin is the surface and nothing is added to it.</p>
+<h2 id="what-the-element-can-see"><a class="header" href="#what-the-element-can-see">What the element can see</a></h2>
+<pre><code class="language-rust ignore">// placement/resolve.rs
+pub(crate) struct Context&lt;'a&gt; {
+    pub(crate) axis: Axis,
+    pub(crate) own: Basis&lt;'a&gt;,     // itself
+    pub(crate) trunk: Basis&lt;'a&gt;,   // what it was grown under, or the viewport
+    pub(crate) anchor: Basis&lt;'a&gt;,  // what it is anchored to, or a zero box
+}
+
+pub(crate) struct Basis&lt;'a&gt; {
+    pub(crate) section: Section,        // its box
+    pub(crate) intrinsic: Area,         // its measured content
+    pub(crate) tracks: Tracks,          // its grid, at the breakpoint in force
+    pub(crate) cell: Area,              // its character cell
+    pub(crate) run: Option&lt;&amp;'a Shaped&gt;, // its shaped run
+}</code></pre>
+<p>Every element offers the same five readings, which is what keeps the grammar symmetric. What is
+<em>in</em> them depends on where in the frame the resolver is called:</p>
+<ul>
+<li><strong>On the horizontal axis</strong>, no height anywhere is known yet, so every box offered is flattened to
+its horizontal half. A top-level element’s trunk is the viewport, which is complete.</li>
+<li><strong>The element’s own box</strong> is what is being solved for, so it offers only what is already settled:
+its content measure and its cell, and, on the vertical axis alone, its width, since R2a has run.
+That is what <code>aspect(16.0 / 9.0)</code> reads.</li>
+<li><strong>An anchor that was never set</strong> offers a zero box. A placement reading it resolves against
+nothing, rather than failing.</li>
+</ul>
+<h2 id="how-each-source-reads"><a class="header" href="#how-each-source-reads">How each source reads</a></h2>
+<p>The role decides how a source reads, which is why a source says nothing about what it is for until
+a role names it.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Source</th><th>Reads</th></tr>
+</thead>
+<tbody>
+<tr><td><code>px</code></td><td>itself: the only source that reads no geometry</td></tr>
+<tr><td><code>pct</code></td><td>a fraction of the basis’s extent on the resolving axis</td></tr>
+<tr><td><code>col</code>, <code>row</code></td><td>a track of the basis’s grid: its near edge in a near role, its far edge in a far role, its middle in a centre role, and <code>n</code> tracks with the gaps between them in a size role</td></tr>
+<tr><td><code>letters</code></td><td>a count of the basis’s character cells on the resolving axis</td></tr>
+<tr><td><code>content()</code></td><td>the basis’s measured extent on the resolving axis: max-content width, or wrapped height</td></tr>
+<tr><td><code>anchor().width()</code>, <code>.height()</code></td><td>the anchor’s extent on the named axis, whichever axis is resolving</td></tr>
+<tr><td>edges</td><td>a position on the surface</td></tr>
+<tr><td><code>anchor().character(n)</code></td><td>where character <code>n</code> of the anchor’s run stands, as it wrapped at the anchor’s width: its column times the cell width, or its line times the cell height</td></tr>
+</tbody>
+</table>
+</div>
+<p>The track arithmetic is short enough to read whole:</p>
+<pre><code class="language-rust ignore">// placement/resolve.rs
+fn cell(index: i32, axis: Axis, role: Role, basis: &amp;Basis) -&gt; f32 {
+    let track = basis.tracks.on(axis);
+    let size = track.size(
+        extent_of(basis.section, axis),
+        extent_of_area(basis.cell, axis),
+    );
+    let index = index as f32;
+    let inclusive = matches!(role, Role::Far | Role::Extent);
+    let edge = (index - if inclusive { 0.0 } else { 1.0 }) * size + (index - 1.0) * track.gap;
+    edge + if role == Role::Center { size / 2.0 } else { 0.0 }
+}</code></pre>
+<p>A track’s size is its pitch: a count divides the extent (gaps taken out first, and no outer margin),
+a pixel pitch is fixed, and a letter pitch is that many cells <em>of the element the grid is on</em>, so a
+child addressing a letter-pitched grid gets real column addresses in its parent’s font whatever its
+own is.</p>
+<p><code>character</code> is how a caret and a selection are placed against a run that wraps: the run R1 shaped is
+wrapped at the width the anchor resolved to this frame, and the character’s line and column are read
+off that wrap. The same wrap answers both axes, because the horizontal pass settled the width before
+anything could ask. <a href="fronds.html">Fronds</a> shows it in use.</p>
+<h2 id="clamps"><a class="header" href="#clamps">Clamps</a></h2>
+<p><code>at_most</code> and <code>at_least</code> bound the extent, and the order is fixed: the ceiling first, then the floor,
+then never below zero.</p>
+<pre><code class="language-rust ignore">// placement/resolve.rs
+fn clamp(extent: f32, config: &amp;Config, context: &amp;Context) -&gt; f32 {
+    let mut extent = extent;
+    if let Some(most) = &amp;config.most {
+        extent = extent.min(value(most, Role::Extent, context));
+    }
+    if let Some(least) = &amp;config.least {
+        extent = extent.max(value(least, Role::Extent, context));
+    }
+    extent.max(0.0)
+}</code></pre>
+<p>So a floor always wins over a ceiling, and <code>width(content()).at_most(240.px())</code> is fit-content: the
+smaller of what the text wants and what the ceiling allows. In the <code>NearFar</code> form the clamp applies
+to the distance between the two edges and keeps the near edge where it is.</p>
+<h2 id="the-order-is-in-the-types"><a class="header" href="#the-order-is-in-the-types">The order is in the types</a></h2>
+<p>The horizontal axis resolves before the vertical one, so a horizontal role can never read a height.
+Rather than check that at run time, the grammar makes it unwritable. Four types carry the model:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Is</th><th>Legal in</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Length</code></td><td>an extent that reads nothing vertical</td><td>any role, as a size or as a position from the trunk’s near edge</td></tr>
+<tr><td><code>VerticalLength</code></td><td>an extent only the vertical pass can answer: <code>row</code>, <code>anchor().height()</code>, <code>aspect</code></td><td>vertical roles only</td></tr>
+<tr><td><code>HorizontalCoordinate</code></td><td>a position on the horizontal axis: an edge, a track of another element’s grid</td><td>horizontal position roles</td></tr>
+<tr><td><code>VerticalCoordinate</code></td><td>the same, vertically</td><td>vertical position roles</td></tr>
+</tbody>
+</table>
+</div>
+<p>A <code>Length</code> converts into a <code>VerticalLength</code>, and never the reverse. Two coordinates subtract to the
+length between them, and do not add. So <code>height(2.col())</code> is a two-column span used as a height,
+while <code>width(2.row())</code> does not compile, and neither does <code>left(anchor().bottom())</code>.</p>
+<p>The roles themselves are typed the same way. <code>left(..)</code> returns a <code>Left</code>, which has exactly two
+methods, <code>width</code> and <code>right</code>, and each returns a complete <code>Horizontal</code>, which has no method that
+could state a third value. An illegal pairing is not rejected; there is nothing to call. Each of
+these is a <code>compile_fail</code> doctest in the crate, pinned to its error code rather than to the
+compiler’s wording:</p>
+<pre><code class="language-rust compile_fail">use foliage::{Source, left};
+left(0.px()).center_x(50.pct());</code></pre>
+<pre><code class="language-rust compile_fail">use foliage::{Source, left};
+left(0.px()).width(2.row());</code></pre>
+<h2 id="measurable-stated-once"><a class="header" href="#measurable-stated-once">Measurable, stated once</a></h2>
+<p>R2m needs to know which children describe their own height (see
+<a href="resolution.html#r2-the-two-axes-and-the-measure-between-them">Resolution</a>). That question is answered
+next to the grammar, term by term:</p>
+<pre><code class="language-rust ignore">// placement/role.rs
+pub(crate) fn known(kind: Kind) -&gt; bool {
+    match kind {
+        Kind::Px(_) =&gt; true,
+        Kind::Letters { .. } =&gt; true,
+        Kind::Character { .. } | Kind::Span { .. } =&gt; true,
+        Kind::Content { against } =&gt; against == Against::Own,
+        Kind::Extent { axis, .. } | Kind::Cell { axis, .. } =&gt; axis == Axis::Horizontal,
+        Kind::Pct { .. } =&gt; false,
+        Kind::Edge { .. } =&gt; false,
+    }
+}</code></pre>
+<p>A vertical placement is measurable if every term in it is known and it is not measured from an
+anchor’s edge. Everything else waits for R2b.</p>
+<h2 id="lines-are-the-same-grammar"><a class="header" href="#lines-are-the-same-grammar">Lines are the same grammar</a></h2>
+<p>A <code>Line</code> has no box: it has two ends. Each end is a <code>Point</code>, an x coordinate and a y coordinate in
+the same grammar, and <code>locate</code> resolves one axis of a point through the same <code>coordinate</code> function a
+box’s near edge uses. That is the whole of the point mode: it adds a caller to the resolver rather
+than a path through it. R2 then turns the two ends into a box, the rectangle around them grown by
+half the stroke’s weight, so a line has a box for clipping, extents and the stack like everything
+else, and keeps its ends beside it because the box cannot say which diagonal it runs along.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/resolution.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../architecture/text.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/resolution.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../architecture/text.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - foliage</title>
+        <title>Text fields - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -177,72 +177,277 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
-ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
-<a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
-code runs on Linux, Windows, macOS, the web and Android.</p>
-<p>Everything that crosses the seam between an app and the engine is plain data:</p>
+                        <h1 id="text-fields"><a class="header" href="#text-fields">Text fields</a></h1>
+<p><a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.TextInput.html"><code>TextInput</code></a> is an
+editable line, and <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.TextArea.html"><code>TextArea</code></a>
+is the same with as many lines as its value wraps to. Each is several elements under the hood (a
+run of text, a placeholder, a caret, a selection), and each is <strong>one <code>Leaf</code></strong> to the app: every
+verb and every read is addressed to the field, and what it is made of is never something the app
+has to keep in step. This chapter builds a list that filters as a name is typed.</p>
+<h2 id="a-filter"><a class="header" href="#a-filter">A filter</a></h2>
+<pre><code class="language-rust no_run">use foliage::{
+    Area, Boxed, Foliage, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place, Pollen,
+    Root, Rounding, Sap, Source, Text, TextInput, Vein, content, left, right, top,
+};
+
+const NAMES: [&amp;str; 8] = [
+    "ash", "aspen", "elm", "fern", "ginkgo", "lichen", "rowan", "willow",
+];
+
+struct Filter {
+    field: Leaf,
+    rows: Vec&lt;(Leaf, &amp;'static str)&gt;,
+    count: Leaf,
+}
+
+/// Where the `n`th row that is showing stands.
+fn row_at(n: usize) -&gt; Location {
+    Location::new().xs(
+        left(28.px()).width(content()),
+        top((80.0 + n as f32 * 28.0).px()).height(content()),
+    )
+}
+
+impl Root for Filter {
+    fn take_root(grove: &amp;mut Grove) -&gt; Self {
+        let page = grove.plant(Panel::new());
+        // A field draws no ground or border of its own; it sits in whatever box it is given.
+        let well = grove.branch(
+            page,
+            Panel::new()
+                .color(Palette::Raised)
+                .rounding(Rounding::Sm)
+                .at(Location::new().xs(
+                    left(16.px()).right(100.pct() - 16.px()),
+                    top(16.px()).height(40.px()),
+                )),
+        );
+        let field = grove.branch(
+            well,
+            TextInput::new()
+                .placeholder("filter")
+                .font_size(FontSize::new().xs(15))
+                .at(Location::new().xs(
+                    left(12.px()).right(100.pct() - 12.px()),
+                    top(0.px()).bottom(100.pct()),
+                )),
+        );
+        let rows = NAMES
+            .iter()
+            .enumerate()
+            .map(|(n, name)| {
+                let row = grove.branch(page, Text::new(*name).at(row_at(n)));
+                (row, *name)
+            })
+            .collect();
+        let count = grove.branch(
+            page,
+            Text::new(format!("{} of {}", NAMES.len(), NAMES.len()))
+                .color(Palette::Ink.recede())
+                .font_size(FontSize::new().xs(12))
+                .at(Location::new().xs(
+                    right(100.pct() - 16.px()).width(content()),
+                    top(62.px()).height(content()),
+                )),
+        );
+        grove.focus(field);
+        Filter { field, rows, count }
+    }
+
+    fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
+        if pollen.edited(self.field) {
+            let Some(Sap::Text(query)) = grove.tap(self.field, Vein::Text) else {
+                return;
+            };
+            let mut showing = 0;
+            for (row, name) in &amp;self.rows {
+                let matched = name.contains(query.trim());
+                grove.visible(*row, matched);
+                if matched {
+                    grove.at(*row, row_at(showing));
+                    showing += 1;
+                }
+            }
+            grove.text(self.count, format!("{showing} of {}", self.rows.len()));
+        }
+        if pollen.submitted(self.field) {
+            // Enter clears it. An app's own write is not reported back as `edited`.
+            grove.text(self.field, "");
+            for (n, (row, _)) in self.rows.iter().enumerate() {
+                grove.visible(*row, true);
+                grove.at(*row, row_at(n));
+            }
+            grove.text(self.count, format!("{} of {}", self.rows.len(), self.rows.len()));
+        }
+    }
+}
+
+fn main() {
+    let mut foliage = Foliage::new();
+    foliage.title("filter");
+    foliage.desktop_size(Area::new(320.0, 360.0));
+    foliage.root::&lt;Filter&gt;();
+    foliage.photosynthesize();
+}</code></pre>
+<p>The field has focus from the first frame, so typing goes straight into it. Typing is reported as
+<code>edited</code> (once per frame, however many keys it took), the app reads the value back, hides the rows
+that do not match and moves the rest up. Enter submits, and the app clears it.</p>
+<h2 id="what-a-field-does-by-itself"><a class="header" href="#what-a-field-does-by-itself">What a field does by itself</a></h2>
+<p>A field answers the keyboard and the pointer without any app code:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Input</th><th>Does</th></tr>
+</thead>
+<tbody>
+<tr><td>typing</td><td>inserts at the caret, replacing any selection</td></tr>
+<tr><td><code>Backspace</code>, <code>Delete</code></td><td>removes the selection, or the character before or after the caret</td></tr>
+<tr><td><code>Left</code>, <code>Right</code>, <code>Home</code>, <code>End</code></td><td>moves the caret; with <code>Shift</code>, extends the selection</td></tr>
+<tr><td><code>Ctrl+A</code></td><td>selects everything</td></tr>
+<tr><td><code>Ctrl+C</code>, <code>Ctrl+X</code></td><td>copies or cuts the selection to the system clipboard</td></tr>
+<tr><td><code>Ctrl+V</code></td><td>asks the clipboard, and inserts what it holds when it answers</td></tr>
+<tr><td><code>Enter</code></td><td>reports <code>submitted</code></td></tr>
+<tr><td>a tap</td><td>puts the caret where it landed and takes focus</td></tr>
+<tr><td>a drag</td><td>scrolls the value inside the field</td></tr>
+<tr><td>a hold, then a drag</td><td>selects from where the hold landed</td></tr>
+</tbody>
+</table>
+</div>
+<p>An unshifted arrow against a selection collapses it to the edge it points at rather than stepping
+from the caret, which is what every editor does.</p>
+<p>Dragging to scroll and dragging to select are the same motion, and the only thing that separates
+them is time: a field takes no drags, so a plain drag is the field’s scrolling, and a press held
+still for <a href="input.html#feel"><code>Hold::after</code></a> first is the start of a selection. That is the same rule
+on a phone and a desktop.</p>
+<p>The app still hears everything: a field’s own keys are reported in <code>pollen.keys(field)</code> as well,
+alongside the <code>edited</code> they produced.</p>
+<h2 id="reading-and-writing-a-field"><a class="header" href="#reading-and-writing-a-field">Reading and writing a field</a></h2>
 <ul>
-<li><strong>ops in.</strong> An app never touches an element directly. It writes verbs (<code>plant</code>, <code>at</code>, <code>color</code>,
-<code>animate</code>) against a name, and each one is queued.</li>
-<li><strong>reports out.</strong> Once a frame, the engine hands the app a <code>Pollen</code>: what was clicked, what
-finished, what arrived, what withered.</li>
-<li><strong>reads beside.</strong> At any point in its frame an app can <code>tap</code> one property of one element and
-get a copy of it back.</li>
+<li><code>pollen.edited(field)</code>: the person at the keyboard changed the value (typed, deleted, cut or
+pasted into it). Keys are applied in the drain, so the change is on screen at the end of the
+frame that took the keys and reported in the frame after; the value read then is the one that
+was drawn.</li>
+<li><code>pollen.submitted(field)</code>: <code>Enter</code> was pressed in it. What that means is the app’s; a field holds
+no opinion about whether anything is to be submitted.</li>
+<li><code>grove.tap(field, Vein::Text)</code>: the value, as <code>Sap::Text</code>.</li>
+<li><code>grove.tap(field, Vein::Selection)</code>: the selection, as <code>Sap::Selection(range)</code>, in characters of
+the value. An empty range is a caret with nothing selected, standing at the range’s position, so
+the caret and the selection are one read rather than two that could disagree.</li>
 </ul>
-<p>An app says what an element <em>is</em> (where it sits, what fills it, whether it takes a gesture) and
-then only writes verbs against the name it got back. There is no render call to make: the next
-frame is already different.</p>
-<h2 id="how-this-book-is-laid-out"><a class="header" href="#how-this-book-is-laid-out">How this book is laid out</a></h2>
-<p>It has two halves, and they can be read in either order.</p>
-<p><strong><a href="usage/first-app.html">Using foliage</a></strong> is a set of walkthroughs. Each chapter builds something
-small and runnable (a counter, a card that sizes to its text, a scrolling list with a pinned
-header, a field that filters it) and explains the part of the engine it leans on while it goes. The
-last chapter puts most of it together in one app.</p>
-<p><strong><a href="architecture/overview.html">How foliage works</a></strong> follows one frame through the engine, from the
-platform’s event loop to the pixels. Each chapter takes one subsystem: what it owns, what it reads,
-what it hands the next one, and why it is shaped that way. It names the module each piece lives in,
-because the modules carry their own reasoning in their comments, and this half is a guided route
-through them rather than a replacement for them.</p>
-<p>The two halves meet in the middle. The usage chapters say <em>what</em> happens when an app writes a
-verb. The architecture chapters say <em>where</em> in the frame it happens and <em>what it costs</em>, which is
-what explains the rules the usage chapters state.</p>
-<h2 id="conventions"><a class="header" href="#conventions">Conventions</a></h2>
+<p>And the writes:</p>
 <ul>
-<li><strong>Every distance is in logical pixels</strong>, with the origin at the top-left and <code>y</code> growing
-downward. Device pixels exist only inside the render backend, and nothing an app writes or reads
-is in them.</li>
-<li><strong>Code samples compile.</strong> Each one is checked against the crate as it stands. Where a sample is a
-fragment, the lines that make it compile (imports, the function around it) are hidden; the
-button at the top right of a code block shows them. The architecture half also quotes the
-engine’s own source; those excerpts name the file they come from, are sometimes shortened, and
-are not compiled with the book.</li>
-<li><strong>“An app”</strong> is the value implementing <code>Root</code>, and the code written around it. “The engine” is
-everything behind <code>Foliage</code>.</li>
-<li>Names of subsystems are trees: <code>Fern</code> is the frame, <code>Rowan</code> resolves, <code>Elm</code> extracts, <code>Ash</code>
-renders. The <a href="appendix/lexicon.html">lexicon</a> lists all of them.</li>
+<li><code>grove.text(field, value)</code> rewrites the value and leaves the caret at its end. It is <strong>not</strong>
+reported as <code>edited</code>: an app that wrote a value already knows what it wrote.</li>
+<li><code>grove.select(field, from..to)</code> selects a span. The selection is anchored at <code>from</code> and the caret
+goes to <code>to</code>, so a range whose end comes before its start is a selection reaching backwards, and
+an empty range just places the caret. A range past the end is held to the end.</li>
+<li><code>grove.color(field, fill)</code> refills the value’s text. The placeholder, the caret and the selection
+keep the fills they were grown with.</li>
 </ul>
-<h2 id="elsewhere"><a class="header" href="#elsewhere">Elsewhere</a></h2>
-<ul>
-<li>The <a href="https://eblack-leaf.github.io/foliage/api/foliage/">API reference</a> states every public type
-and method, and the crate root is a map of the whole surface.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/blob/main/USAGE.md"><code>USAGE.md</code></a> is the concept reference:
-shorter than this book, and organised as a lookup rather than as a walkthrough.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/examples"><code>foliage/examples</code></a> holds
-runnable examples, each doing one thing.</li>
-<li><a href="https://eblack-leaf.github.io/foliage/">The site</a> is itself a foliage app, built from
-<a href="https://github.com/eblack-leaf/foliage/tree/main/application"><code>application/</code></a> against nothing
-but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/foliage/tree/main/lichen"><code>lichen</code></a>.</li>
-</ul>
+<p>A useful combination: selecting the whole value whenever the field takes focus, so that typing
+replaces it.</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Grove, Grow, Leaf, Pollen};
+</span><span class="boring">fn f(grove: &amp;mut Grove, pollen: &amp;Pollen, field: Leaf) {
+</span>if pollen.focused(field) {
+    grove.select(field, 0..usize::MAX);
+}
+<span class="boring">}</span></code></pre>
+<p>It works when focus arrives by a tap too, even though the tap places a caret: the tap’s own
+<code>select</code> is queued before the app’s frame runs, and the app’s is queued after it, so the app’s
+lands last.</p>
+<h2 id="building-one"><a class="header" href="#building-one">Building one</a></h2>
+<pre><code class="language-rust"><span class="boring">use foliage::{FontSize, Keypad, Palette, Place, TextInput};
+</span>TextInput::new()
+    .value("")                        // what it starts out saying
+    .placeholder("quantity")          // read in the field's place while it is empty
+    .color(Palette::Ink)              // the value
+    .hint(Palette::Muted)             // the placeholder
+    .caret(Palette::Accent)           // the caret
+    .selection(Palette::Muted)        // what is drawn behind a selected span
+    .keypad(Keypad::Number)           // which soft keyboard to raise
+    .read_only(false)
+    .font_size(FontSize::new().xs(15));</code></pre>
+<p>Those are the defaults, apart from the placeholder, the keypad and the size.</p>
+<p>A field is a scrolling region along the axis its value grows on, which is what clips a value longer
+than its box and what keeps the caret in view: every edit asks the field to show the caret, and
+the frame that typed past the edge is the frame that scrolls.</p>
+<p><strong>It draws no border and no ground.</strong> A field is a run and a caret inside whatever box an app puts
+it in, and a chrome the engine drew would be one more thing to talk an app out of. It draws no
+focus ring either: the caret and the selection are shown only while it holds focus, and that is
+the only change focus makes to it. An app that wants a ring watches <code>focused</code> and <code>unfocused</code>, as
+the slider in the last chapter does.</p>
+<h2 id="many-lines"><a class="header" href="#many-lines">Many lines</a></h2>
+<p>A <code>TextArea</code> wraps at its box and scrolls down rather than across. Everything above applies,
+and four keys change meaning because a line means something:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Key</th><th>On a <code>TextArea</code></th></tr>
+</thead>
+<tbody>
+<tr><td><code>Enter</code></td><td>inserts a newline</td></tr>
+<tr><td><code>Ctrl+Enter</code></td><td>reports <code>submitted</code></td></tr>
+<tr><td><code>Up</code>, <code>Down</code></td><td>move the caret a line, to the same column or the end of a shorter line</td></tr>
+<tr><td><code>Home</code>, <code>End</code></td><td>go to the ends of the line the caret is on, as it wrapped</td></tr>
+</tbody>
+</table>
+</div>
+<p>A newline that arrives on the clipboard is kept, where a one-line field drops it.</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Boxed, FontSize, Grove, Grow, Leaf, Location, Palette, Place, Pollen, Sap, Source, Text, TextArea, Vein, content, left, top};
+</span><span class="boring">fn f(grove: &amp;mut Grove, page: Leaf) -&gt; (Leaf, Leaf) {
+</span>let notes = grove.branch(
+    page,
+    TextArea::new()
+        .placeholder("notes")
+        .font_size(FontSize::new().xs(14))
+        .at(Location::new().xs(
+            left(16.px()).right(100.pct() - 16.px()),
+            top(16.px()).height(200.px()),
+        )),
+);
+let counter = grove.branch(
+    page,
+    Text::new("0 characters")
+        .color(Palette::Ink.recede())
+        .font_size(FontSize::new().xs(12))
+        .at(Location::new().xs(left(16.px()).width(content()), top(224.px()).height(content()))),
+);
+<span class="boring">(notes, counter)
+</span><span class="boring">}
+</span><span class="boring">fn frame(grove: &amp;mut Grove, pollen: &amp;Pollen, notes: Leaf, counter: Leaf) {
+</span>if pollen.edited(notes) {
+    if let Some(Sap::Text(value)) = grove.tap(notes, Vein::Text) {
+        grove.text(counter, format!("{} characters", value.chars().count()));
+    }
+}
+<span class="boring">}</span></code></pre>
+<h2 id="read-only"><a class="header" href="#read-only">Read-only</a></h2>
+<p><code>TextInput::read_only(true)</code>, or <code>grove.read_only(field, true)</code> later, keeps the value and nothing
+else from the person at the keyboard. The field still receives: a drag scrolls it, a hold selects
+in it, and with focus the arrows walk it and <code>Ctrl+C</code> copies out of it. Typing, deleting and
+pasting do nothing, a cut is only a copy, no caret is drawn, and no soft keyboard is raised.</p>
+<p>That is the answer for a value that must be readable but not editable. Disabling the field would
+refuse far more: a disabled region takes no gesture, so a long value could not even be scrolled
+to be read.</p>
+<h2 id="soft-keyboards"><a class="header" href="#soft-keyboards">Soft keyboards</a></h2>
+<p>On a platform with a keyboard of its own to raise, a field raises one while it holds focus and
+lowers it when it lets go. Nothing is declared for this beyond being a field. <code>keypad</code> says which
+keys to offer (<code>Keypad::Text</code>, <code>Number</code> or <code>Telephone</code>); it is a hint about what is easy to type
+and never a rule about what the field accepts, so a number field can still be pasted a word into
+and what a value is allowed to be is the app’s to check.</p>
+<p>On the web, the browser’s keyboard is raised through a hidden input, which hands every key back to
+the engine. On Android the activity raises it directly. See <a href="platforms.html">Platforms</a> for what is
+and is not wired up on each.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/input.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="usage/first-app.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../usage/scrolling.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -252,8 +457,11 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/input.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="usage/first-app.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../usage/scrolling.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -273,13 +481,13 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 
