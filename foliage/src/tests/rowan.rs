@@ -7,9 +7,9 @@
 use crate::coordinate::{Area, Axes, Section};
 use crate::tests::{advance, grove, resize, section, tick};
 use crate::{
-    Boxed, Divide, Grid, Grove, Grow, Layout, Location, Motion, Panel, Place, Sap, ScrollTo,
-    Source, Stem, Timing, Vein, anchor, aspect, bottom, center_x, center_y, content, left, right,
-    top,
+    Boxed, Divide, FontSize, Grid, Grove, Grow, Layout, Leaf, Location, Motion, Panel, Place, Sap,
+    ScrollTo, Source, Stem, Text, Timing, Vein, anchor, aspect, bottom, center_x, center_y,
+    content, left, right, top,
 };
 
 /// A box at a stated place, for the passes that are about where boxes end up rather than about the
@@ -580,4 +580,174 @@ fn an_aspect_height_follows_an_animated_width_mid_motion() {
     advance(&mut grove, 100);
     tick(&mut grove);
     assert_eq!(section(&grove, leaf).area, Area::new(300.0, 300.0));
+}
+
+// -- Resolving only what was written -----------------------------------------------------------
+
+/// A stream of numbers that is the same on every run, so a script that wanders is one script.
+struct Wander(u64);
+
+impl Wander {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+
+    fn below(&mut self, n: usize) -> usize {
+        (self.next() % n as u64) as usize
+    }
+
+    fn px(&mut self, most: u64) -> f32 {
+        (self.next() % most) as f32
+    }
+}
+
+/// Everything a wandering script grew, in the order it grew it. The same script run on two groves
+/// names its elements in the same order, which is what the two are compared by.
+#[derive(Default)]
+struct Garden {
+    columns: Vec<Leaf>,
+    rows: Vec<Leaf>,
+    labels: Vec<Leaf>,
+    grown: Vec<Leaf>,
+}
+
+/// Where a row goes: mostly somewhere that states its own extent, which is what a column sized to
+/// its contents reaches over, and sometimes somewhere read off the column, which counts for nothing.
+fn row_at(wander: &mut Wander) -> Location {
+    let across = left(wander.px(20).px()).right(100.pct() - wander.px(20).px());
+    let y = wander.px(360);
+    match wander.below(4) {
+        0 | 1 => Location::new().xs(across, top(y.px()).height(content())),
+        2 => Location::new().xs(across, top(y.px()).height((wander.px(60) + 4.0).px())),
+        _ => Location::new().xs(across, top(wander.px(100).pct()).height(10.pct())),
+    }
+}
+
+/// A run of a few words, which wraps to a different height at every width.
+fn words(wander: &mut Wander) -> String {
+    let count = wander.below(14);
+    vec!["leaf"; count].join(" ")
+}
+
+/// Grows a row under one of the columns, with a label on it half the time.
+fn sprout(grove: &mut Grove, wander: &mut Wander, garden: &mut Garden) {
+    let column = garden.columns[wander.below(garden.columns.len())];
+    let row = grove.branch(column, Stem::new().at(row_at(wander)));
+    garden.rows.push(row);
+    garden.grown.push(row);
+    if wander.below(2) == 0 {
+        let label = grove.branch(
+            row,
+            Text::new(words(wander))
+                .font_size(FontSize::new().xs(14))
+                .at(Location::new().xs(
+                    left(4.px()).right(100.pct() - 4.px()),
+                    top(4.px()).height(content()),
+                )),
+        );
+        garden.labels.push(label);
+        garden.grown.push(label);
+    }
+}
+
+/// Three columns sized to what is in them, and a fourth grown in the first as one of its rows, so a
+/// measure travels up more than one trunk.
+fn garden(grove: &mut Grove, wander: &mut Wander) -> Garden {
+    let mut garden = Garden::default();
+    let page = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).right(100.pct()), top(0.px()).height(content()))),
+    );
+    garden.grown.push(page);
+    for n in 0..3 {
+        let column = grove.branch(
+            page,
+            Stem::new().at(Location::new().xs(
+                left((n as f32 * 130.0).px()).width(120.px()),
+                top(0.px()).height(content()),
+            )),
+        );
+        garden.columns.push(column);
+        garden.grown.push(column);
+    }
+    let nested = grove.branch(
+        garden.columns[0],
+        Stem::new().at(Location::new().xs(
+            left(0.px()).right(100.pct()),
+            top(wander.px(200).px()).height(content()),
+        )),
+    );
+    garden.columns.push(nested);
+    garden.grown.push(nested);
+    for _ in 0..24 {
+        sprout(grove, wander, &mut garden);
+    }
+    garden
+}
+
+/// One frame's worth of writes: rows grown, moved, set in motion, hidden and pruned, labels
+/// rewritten, and columns narrowed so everything in them wraps again.
+fn tend(grove: &mut Grove, wander: &mut Wander, garden: &mut Garden) {
+    for _ in 0..1 + wander.below(4) {
+        let row = garden.rows[wander.below(garden.rows.len())];
+        match wander.below(8) {
+            0 => sprout(grove, wander, garden),
+            1 | 2 => grove.at(row, row_at(wander)),
+            3 => {
+                let label = garden.labels[wander.below(garden.labels.len())];
+                grove.text(label, words(wander));
+            }
+            4 => {
+                let to = row_at(wander);
+                grove.animate(row, Motion::Location(to), Timing::ms(80));
+            }
+            5 => {
+                let column = garden.columns[wander.below(garden.columns.len())];
+                let width = 60.0 + wander.px(90);
+                grove.at(
+                    column,
+                    Location::new().xs(
+                        left(wander.px(260).px()).width(width.px()),
+                        top(wander.px(40).px()).height(content()),
+                    ),
+                );
+            }
+            6 => grove.visible(row, wander.below(2) == 0),
+            _ => grove.prune(row),
+        }
+    }
+}
+
+/// What resolution leaves alone is exactly what resolving it again would have produced. The same
+/// wandering script runs on two groves, one of them made to resolve everything every frame, and
+/// every element has to be where the other one put it after every frame -- which is the claim the
+/// whole of incremental resolution rests on, and the one each cache it keeps has to keep.
+#[test]
+fn resolving_only_what_was_written_lands_where_resolving_everything_does() {
+    let mut incremental = grove();
+    let mut entire = grove();
+    let mut one = Wander(0x5eed_1eaf);
+    let mut two = Wander(0x5eed_1eaf);
+    let mut ours = garden(&mut incremental, &mut one);
+    let mut theirs = garden(&mut entire, &mut two);
+    for frame in 0..400 {
+        tend(&mut incremental, &mut one, &mut ours);
+        tend(&mut entire, &mut two, &mut theirs);
+        advance(&mut incremental, 16);
+        advance(&mut entire, 16);
+        entire.tree.invalidate();
+        tick(&mut incremental);
+        tick(&mut entire);
+        assert_eq!(ours.grown.len(), theirs.grown.len());
+        for (mine, reference) in ours.grown.iter().zip(&theirs.grown) {
+            assert_eq!(
+                incremental.tap(*mine, Vein::Drawn),
+                entire.tap(*reference, Vein::Drawn),
+                "frame {frame}: {mine:?} is not where resolving everything puts it",
+            );
+        }
+    }
 }
