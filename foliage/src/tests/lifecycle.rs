@@ -340,7 +340,7 @@ fn a_child_grown_under_a_disabled_trunk_is_disabled_on_its_first_frame() {
 
     let child = grove.branch(trunk, panel());
     tick(&mut grove);
-    assert!(grove.tree.inherited(child).disabled);
+    assert!(grove.elements.inherited(child).disabled);
     // Its own declaration is untouched: what changed is the product over its ancestry.
     assert_eq!(grove.tap(child, Vein::Disabled), Some(Sap::Disabled(false)));
 }
@@ -359,8 +359,8 @@ fn enabling_a_trunk_does_not_enable_a_child_disabled_in_its_own_right() {
 
     grove.enable(trunk);
     tick(&mut grove);
-    assert!(grove.tree.inherited(child).disabled);
-    assert!(!grove.tree.inherited(sibling).disabled);
+    assert!(grove.elements.inherited(child).disabled);
+    assert!(!grove.elements.inherited(sibling).disabled);
 }
 
 /// Disabled still draws. A greyed control is still a control, and what it looks like disabled is

@@ -199,7 +199,7 @@ fn clamp(extent: f32, config: &Config, context: &Context) -> f32 {
 }
 
 fn value(expr: &Expr, role: Role, context: &Context) -> f32 {
-    expr.terms
+    expr.terms()
         .iter()
         .map(|term| term.scale * source(term.kind, role, context))
         .sum()

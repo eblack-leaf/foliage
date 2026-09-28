@@ -5,6 +5,7 @@
 
 mod aspen;
 mod assets;
+mod bench;
 mod elevation;
 mod elm;
 mod focus;

@@ -236,7 +236,7 @@ fn hint(grove: &Grove, leaf: Leaf) -> Leaf {
 
 /// Where a part sits in the one stack, which is what decides who is drawn over whom.
 fn rank(grove: &Grove, leaf: Leaf) -> ResolvedElevation {
-    grove.tree.rank(leaf)
+    grove.elements.rank(leaf)
 }
 
 /// Whether a part is actually drawn, which is the resolved product and not the declaration.
@@ -245,7 +245,7 @@ fn rank(grove: &Grove, leaf: Leaf) -> ResolvedElevation {
 /// by the field and gated by another, and what a reader sees is the two composed -- so that is what
 /// these ask.
 fn shown(grove: &Grove, leaf: Leaf) -> bool {
-    grove.tree.inherited(leaf).visible
+    grove.elements.inherited(leaf).visible
 }
 
 /// One name to the app, six elements underneath it -- and the frame that plants a field is the

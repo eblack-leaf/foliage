@@ -42,7 +42,7 @@ impl Config {
     /// Everything that describes an extent in its own terms counts: pixels, letters, its own
     /// content, and any horizontal reading, because the horizontal axis has already resolved.
     pub(crate) fn measurable(&self) -> bool {
-        let terms = |expr: &Expr| expr.terms.iter().all(|term| known(term.kind));
+        let terms = |expr: &Expr| expr.terms().iter().all(|term| known(term.kind));
         let coordinate = |coordinate: &Coord| {
             // An anchor's near edge is a vertical position, which is exactly what is not known.
             coordinate.origin != Origin::Anchor && terms(&coordinate.expr)

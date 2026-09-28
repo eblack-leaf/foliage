@@ -1,20 +1,18 @@
-use std::collections::HashSet;
-
 use bevy_ecs::component::{Component, Mutable};
 use bevy_ecs::entity::RemoteAllocator;
 use bevy_ecs::hierarchy::{ChildOf, Children};
 use bevy_ecs::world::World;
 
-use crate::coordinate::{Area, Position, Section};
-use crate::elevation::{Elevation, ResolvedElevation};
+use crate::coordinate::{Area, Position};
+use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, PanelPigment, Pigment};
 use crate::icon::{Field, IconPigment};
 use crate::image::{Fit, ImagePigment, Plate};
 use crate::interaction::Gestures;
 use crate::keyboard::Keypad;
-use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
-use crate::lifecycle::{Disabled, Inherited, Opacity, Visible};
-use crate::line::{LinePigment, Spanned, Stretched, Stroke};
+use crate::leaf::{Grown, Growth, Leaf, Leaves, Presence, SpawnedAt};
+use crate::lifecycle::{Disabled, Opacity, Visible};
+use crate::line::{LinePigment, Stroke};
 use crate::op::Bud;
 use crate::palette::Fill;
 use crate::place::{Anchored, Caller, Focusing};
@@ -23,11 +21,11 @@ use crate::placement::location::Location;
 use crate::placement::trace::Trace;
 use crate::polygon::{PolygonPigment, Shape};
 use crate::rounding::Corners;
-use crate::rowan::{Cell, Composed, Drawn, Intrinsic, Placed};
+use crate::rowan::Standing;
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
 use crate::text_input::{Editing, Parts, ReadOnly};
-use crate::view::{Clipped, Escape, Extent, Floats, Offset, Pinned, Scroll, Scrolls};
+use crate::view::{Extent, Floats, Offset, Pinned, Scroll, Scrolls};
 
 /// The tree itself, seen from the inside.
 ///
@@ -37,16 +35,30 @@ pub(crate) struct Tree {
     /// Every element written to since resolution last read this.
     ///
     /// A declaration is what resolution reads, so an element nothing has written to resolves to what
-    /// it resolved to last frame. What is recorded is the write rather than the difference: a
-    /// placement written back at the value it already held marks the element, and resolution answers
-    /// the same box for it.
-    touched: HashSet<Leaf>,
+    /// it resolved to last frame. A placement, a trace, a grid or a run written back at what the
+    /// element already held is not recorded -- the setter compares first -- because resolution would
+    /// answer the same box for it, and asking is the cost of the element and of everything resolved
+    /// against it.
+    touched: Leaves,
+    /// Every element written to in a way no pass that places anything reads.
+    ///
+    /// How an element is filled, rounded, tinted or shaped is read by extraction alone, and whether
+    /// it is shown, how opaque it is, whether it is disabled and how far forward it sits are read by
+    /// the passes that run over every element anyway. None of it moves a box, so none of it is a
+    /// reason to resolve one again: an element here is read afresh and drawn again, and its subtree
+    /// is left where it was.
+    restyled: Leaves,
+    /// Every element whose run was written, or that was grown: what R1 measures again.
+    ///
+    /// Apart from `touched`, because R1 reads nothing but the element's own run and face. An element
+    /// that moved says what it said, in the cell it said it in, and has nothing to measure again.
+    lettered: Leaves,
     /// Every element that has to measure again because what is under it went away.
     ///
     /// Separate from `touched`, because the two spread differently: what an element was written to
     /// travels to everything resolved against it, and what an element measures to travels no further
     /// than the measure -- unless the measure moves, which R2m finds out and says so.
-    reached: HashSet<Leaf>,
+    reached: Leaves,
     /// Whether any run stopped being stated -- a run rewritten, or an element carrying one withered
     /// -- which is the only thing that can leave the shaping cache holding what nothing wants.
     restated: bool,
@@ -55,6 +67,17 @@ pub(crate) struct Tree {
     restructured: bool,
     /// Whether something every element is read against has changed, which is every element written.
     invalidated: bool,
+    /// Whether something every element is drawn against has changed -- the scheme, or an asset --
+    /// which is every element drawn again and none of them placed again.
+    repainted: bool,
+}
+
+/// How an element is placed, borrowed from its declaration.
+pub(crate) enum Placement<'a> {
+    /// By a box.
+    Boxed(&'a Location),
+    /// By two ends, and the weight of the stroke between them.
+    Traced(&'a Trace, Stroke),
 }
 
 /// What the tree has been written to since resolution last read it.
@@ -63,27 +86,36 @@ pub(crate) struct Tree {
 /// frame that allocates a set the size of what it wrote.
 pub(crate) struct Written<'a> {
     /// The elements whose own declarations were written.
-    pub(crate) declared: &'a HashSet<Leaf>,
+    pub(crate) declared: &'a Leaves,
+    /// The elements written to in a way that moves nothing.
+    pub(crate) restyled: &'a Leaves,
+    /// The elements whose run was written, or that were grown.
+    pub(crate) lettered: &'a Leaves,
     /// The elements that have to measure again because what is under them went away.
-    pub(crate) measures: &'a HashSet<Leaf>,
+    pub(crate) measures: &'a Leaves,
     /// Whether the order has to be built again.
     pub(crate) restructured: bool,
     /// Whether a run stopped being stated, so the shaping cache has to be swept.
     pub(crate) restated: bool,
     /// Whether everything has to be resolved again.
     pub(crate) all: bool,
+    /// Whether everything has to be drawn again.
+    pub(crate) repainted: bool,
 }
 
 impl Tree {
     pub(crate) fn new() -> Self {
         Self {
             world: World::new(),
-            touched: HashSet::new(),
-            reached: HashSet::new(),
+            touched: Leaves::default(),
+            restyled: Leaves::default(),
+            lettered: Leaves::default(),
+            reached: Leaves::default(),
             restated: true,
             restructured: true,
             // Nothing has resolved yet, so the first frame has everything to do.
             invalidated: true,
+            repainted: false,
         }
     }
 
@@ -99,6 +131,14 @@ impl Tree {
         self.touched.insert(leaf);
     }
 
+    /// Records that something about how `leaf` is drawn was written, and nothing about where.
+    ///
+    /// [`aspen`](crate::aspen) states it directly for a fill in motion, which is blended at
+    /// extraction and never written to the element.
+    pub(crate) fn restyled(&mut self, leaf: Leaf) {
+        self.restyled.insert(leaf);
+    }
+
     /// Records that what is under `leaf` changed, so what it measures to has to be found again.
     fn measures(&mut self, leaf: Leaf) {
         self.reached.insert(leaf);
@@ -107,21 +147,35 @@ impl Tree {
     /// Records that everything has to be resolved again.
     ///
     /// The viewport, the breakpoint and the short-side reading are each read by every placement in
-    /// the tree, and none of them belongs to an element that could be marked.
+    /// the tree, and none of them belongs to an element that could be marked. A breakpoint can move
+    /// what size a run is set at, which leaves the run it was set at unstated.
+    ///
+    /// The order is not built again: none of this changes which elements there are or what any of
+    /// them hangs off.
     pub(crate) fn invalidate(&mut self) {
         self.invalidated = true;
         self.restated = true;
-        self.restructured = true;
+    }
+
+    /// Records that everything has to be drawn again, and nothing placed again.
+    ///
+    /// The scheme every role resolves against, and an asset an element draws, are read by extraction
+    /// alone -- so a repaint or an arrival is every element's fill written, and no box's.
+    pub(crate) fn repaint(&mut self) {
+        self.repainted = true;
     }
 
     /// What has been written to since resolution last read this.
     pub(crate) fn written(&self) -> Written<'_> {
         Written {
             declared: &self.touched,
+            restyled: &self.restyled,
+            lettered: &self.lettered,
             measures: &self.reached,
             restructured: self.restructured,
             restated: self.restated,
             all: self.invalidated,
+            repainted: self.repainted,
         }
     }
 
@@ -133,10 +187,13 @@ impl Tree {
     /// by another one.
     pub(crate) fn taken(&mut self) {
         self.touched.clear();
+        self.restyled.clear();
+        self.lettered.clear();
         self.reached.clear();
         self.restated = false;
         self.restructured = false;
         self.invalidated = false;
+        self.repainted = false;
     }
 
     /// The world's entity allocator, in the form that can be carried away from it.
@@ -181,17 +238,11 @@ impl Tree {
             bud.placement.location.unwrap_or_default(),
             bud.placement.grid.unwrap_or_default(),
             bud.placement.elevation.unwrap_or_default(),
-            ResolvedElevation::default(),
-            Placed::default(),
-            Drawn::default(),
-            // What R1 and R2m write. Present on every element, so no measuring pass has to ask
-            // whether the element is the kind of thing that has one.
-            Cell::default(),
-            Intrinsic::default(),
         ));
-        // Everything an element declares about how it behaves, and the values the passes that read
-        // those declarations write back. Each is present on every element, so no pass has to ask
-        // whether an element is the kind of thing that has one.
+        // Everything an element declares about how it behaves. Each is present on every element, so
+        // nothing that reads one has to ask whether the element is the kind of thing that has it.
+        // What resolution makes of them is not here: that is held in resolution's own columns
+        // ([`Elements`](crate::rowan::Elements)), which is where every pass reads it.
         let manner = bud.placement.manner;
         entity.insert((
             manner.gestures,
@@ -199,10 +250,8 @@ impl Tree {
             manner.visible,
             manner.opacity,
             Disabled::default(),
-            Inherited::default(),
             Offset::default(),
             Extent::default(),
-            Clipped::default(),
         ));
         if let Some(scrolls) = manner.scrolls {
             entity.insert(scrolls);
@@ -242,11 +291,10 @@ impl Tree {
         if let Some(tints) = bud.tints {
             entity.insert(tints);
         }
-        // The point-mode placement, and the resolved geometry the passes write back into. All three
-        // are absent on everything placed by a box, which is what makes "has a trace" the one
-        // question the resolver asks to tell the two apart.
+        // The point-mode placement. Absent on everything placed by a box, which is what makes "has a
+        // trace" the one question the resolver asks to tell the two apart.
         if let Some(trace) = bud.placement.traced {
-            entity.insert((trace, Spanned::default(), Stretched::default()));
+            entity.insert(trace);
         }
         if let Some(stroke) = bud.placement.stroke {
             entity.insert(stroke);
@@ -263,6 +311,7 @@ impl Tree {
         // What it was grown under has one more element to reach over, and finds that out by the
         // walk R2m makes from this one toward it.
         self.declared(leaf);
+        self.lettered.insert(leaf);
         self.restructured = true;
         true
     }
@@ -344,48 +393,25 @@ impl Tree {
         self.world.get_entity(leaf.0).ok()?.get::<Location>()
     }
 
+    /// How `leaf` is placed: by its two ends and the weight between them, or by a box. `None` for
+    /// an element that is not live.
+    ///
+    /// One read of the element for the question every pass that resolves geometry asks first, and
+    /// the declaration it goes on to read -- which a pass resolving every element on two axes would
+    /// otherwise ask the world for separately.
+    pub(crate) fn placement(&self, leaf: Leaf) -> Option<Placement<'_>> {
+        let entity = self.world.get_entity(leaf.0).ok()?;
+        match entity.get::<Trace>() {
+            Some(trace) => Some(Placement::Traced(
+                trace,
+                entity.get::<Stroke>().copied().unwrap_or_default(),
+            )),
+            None => entity.get::<Location>().map(Placement::Boxed),
+        }
+    }
+
     pub(crate) fn grid(&self, leaf: Leaf) -> Option<Grid> {
         self.world.get_entity(leaf.0).ok()?.get::<Grid>().copied()
-    }
-
-    /// The character cell of `leaf`'s own font, at its own size, as R1 measured it.
-    ///
-    /// Per element rather than per engine: an app registers as many fonts as it likes and each
-    /// element chooses, so `8.letters()` is eight cells of *that* element's font. An element that
-    /// has not been given one has no cell.
-    pub(crate) fn cell(&self, leaf: Leaf) -> Area {
-        self.read::<Cell>(leaf).unwrap_or_default().0
-    }
-
-    /// What `leaf` measured to: max-content across, and the height it wrapped to down.
-    ///
-    /// What [`content()`](crate::content) reads, of the element itself or of one it names. R1 writes
-    /// the width and R2m the height, which is the whole of width-down and height-up. An element with
-    /// nothing in it measures to zero.
-    pub(crate) fn intrinsic(&self, leaf: Leaf) -> Area {
-        self.read::<Intrinsic>(leaf).unwrap_or_default().0
-    }
-
-    pub(crate) fn set_cell(&mut self, leaf: Leaf, cell: Area) {
-        self.overwrite(leaf, Cell(cell));
-    }
-
-    pub(crate) fn set_intrinsic(&mut self, leaf: Leaf, intrinsic: Area) {
-        self.overwrite(leaf, Intrinsic(intrinsic));
-    }
-
-    /// `leaf`'s run as R1 shaped it, which is what a placement reading a character of it resolves
-    /// against. An element that says nothing has none.
-    pub(crate) fn composed(&self, leaf: Leaf) -> Composed {
-        self.world
-            .get_entity(leaf.0)
-            .ok()
-            .and_then(|entity| entity.get::<Composed>().cloned())
-            .unwrap_or_default()
-    }
-
-    pub(crate) fn set_composed(&mut self, leaf: Leaf, composed: Composed) {
-        self.overwrite(leaf, composed);
     }
 
     /// Which font `leaf` composes in and at what size, or `None` if it was never given one.
@@ -413,8 +439,13 @@ impl Tree {
         let Some(mut lettering) = entity.get_mut::<Lettering>() else {
             return false;
         };
+        // The same words again are the same run, measured and drawn as it already is.
+        if lettering.0 == value {
+            return true;
+        }
         lettering.0 = value;
         self.declared(leaf);
+        self.lettered.insert(leaf);
         // The run it stated is not stated any more, whatever else still states one like it.
         self.restated = true;
         true
@@ -527,22 +558,24 @@ impl Tree {
     /// declaration nothing would read: the resolver asks for a trace first, so a `Location` written
     /// onto a stroke would sit there being ignored.
     pub(crate) fn set_location(&mut self, leaf: Leaf, location: Location) -> bool {
-        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+        let Ok(entity) = self.world.get_entity(leaf.0) else {
             return false;
         };
         if entity.contains::<Trace>() {
             return false;
         }
-        entity.insert(location);
-        self.declared(leaf);
+        // Written back at what it already holds is no write at all. Resolution would answer the
+        // same box, and asking it to is the whole cost of the element and everything under it.
+        if self.overwrite(leaf, location) {
+            self.declared(leaf);
+        }
         true
     }
 
     pub(crate) fn set_grid(&mut self, leaf: Leaf, grid: Grid) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(grid);
+        if self.overwrite(leaf, grid) {
+            self.declared(leaf);
         }
-        self.declared(leaf);
     }
 
     pub(crate) fn set_anchor(&mut self, leaf: Leaf, to: Leaf, at: Caller) {
@@ -554,38 +587,9 @@ impl Tree {
         self.restructured = true;
     }
 
-    /// Where the layout put `leaf`, which is what its children resolve against.
-    ///
-    /// Every grown element carries one, so this is the answer for anything live and a zero box for
-    /// anything else.
-    pub(crate) fn placed(&self, leaf: Leaf) -> Section {
-        self.read::<Placed>(leaf).unwrap_or_default().0
-    }
-
-    /// Where `leaf` is on screen, which is what an app reads and what a hit test runs against.
-    pub(crate) fn drawn(&self, leaf: Leaf) -> Section {
-        self.read::<Drawn>(leaf).unwrap_or_default().0
-    }
-
-    /// Reports whether what is drawn moved, which is the half extraction reads.
-    pub(crate) fn settle(&mut self, leaf: Leaf, placed: Section, drawn: Section) -> bool {
-        self.overwrite(leaf, Placed(placed));
-        self.overwrite(leaf, Drawn(drawn))
-    }
-
-    /// What `leaf` draws, and what the renderer drawing it was told.
-    pub(crate) fn chlorophyll(&self, leaf: Leaf) -> Chlorophyll {
-        self.read::<Chlorophyll>(leaf).unwrap_or_default()
-    }
-
     /// How far in front of its trunk `leaf` was told to sit.
     pub(crate) fn elevation(&self, leaf: Leaf) -> Elevation {
         self.read::<Elevation>(leaf).unwrap_or_default()
-    }
-
-    /// Where `leaf` sits in the one stack, as R6 last resolved it.
-    pub(crate) fn rank(&self, leaf: Leaf) -> ResolvedElevation {
-        self.read::<ResolvedElevation>(leaf).unwrap_or_default()
     }
 
     /// Where `leaf` came in allocation order.
@@ -594,14 +598,9 @@ impl Tree {
     }
 
     pub(crate) fn set_elevation(&mut self, leaf: Leaf, elevation: Elevation) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(elevation);
+        if self.overwrite(leaf, elevation) {
+            self.restyled(leaf);
         }
-        self.declared(leaf);
-    }
-
-    pub(crate) fn set_rank(&mut self, leaf: Leaf, rank: ResolvedElevation) -> bool {
-        self.overwrite(leaf, rank)
     }
 
     /// What the panel renderer on `leaf` was told, or `None` if `leaf` is not a panel.
@@ -655,33 +654,16 @@ impl Tree {
         let Some(mut held) = entity.get_mut::<Trace>() else {
             return false;
         };
-        *held = trace;
-        self.declared(leaf);
+        if *held != trace {
+            *held = trace;
+            self.declared(leaf);
+        }
         true
     }
 
     /// How thick `leaf` is stroked, or `None` if it is not a stroke.
     pub(crate) fn stroke(&self, leaf: Leaf) -> Option<Stroke> {
         self.read::<Stroke>(leaf)
-    }
-
-    /// Where the layout put `leaf`'s two ends, as R2b settled them and before R4 moved them, or
-    /// `None` if it is placed by a box.
-    pub(crate) fn spanned(&self, leaf: Leaf) -> Option<Stretched> {
-        self.read::<Spanned>(leaf).map(|spanned| spanned.0)
-    }
-
-    pub(crate) fn set_spanned(&mut self, leaf: Leaf, spanned: Stretched) {
-        self.overwrite(leaf, Spanned(spanned));
-    }
-
-    /// Where `leaf`'s two ends landed, as R2b resolved them and R4 moved them.
-    pub(crate) fn stretched(&self, leaf: Leaf) -> Option<Stretched> {
-        self.read::<Stretched>(leaf)
-    }
-
-    pub(crate) fn set_stretched(&mut self, leaf: Leaf, stretched: Stretched) {
-        self.overwrite(leaf, stretched);
     }
 
     /// How parts of `leaf`'s run are filled differently from the rest of it.
@@ -701,7 +683,7 @@ impl Tree {
             return false;
         }
         entity.insert(tints);
-        self.declared(leaf);
+        self.restyled(leaf);
         true
     }
 
@@ -714,7 +696,7 @@ impl Tree {
             return false;
         };
         pigment.shape = shape;
-        self.declared(leaf);
+        self.restyled(leaf);
         true
     }
 
@@ -727,7 +709,7 @@ impl Tree {
             return false;
         };
         pigment.field = field;
-        self.declared(leaf);
+        self.restyled(leaf);
         true
     }
 
@@ -740,7 +722,7 @@ impl Tree {
             return false;
         };
         pigment.plate = plate;
-        self.declared(leaf);
+        self.restyled(leaf);
         true
     }
 
@@ -753,7 +735,7 @@ impl Tree {
             return false;
         };
         pigment.fit = fit;
-        self.declared(leaf);
+        self.restyled(leaf);
         true
     }
 
@@ -788,7 +770,7 @@ impl Tree {
     pub(crate) fn set_fill(&mut self, leaf: Leaf, fill: Fill) -> bool {
         let filled = self.filled(leaf, fill);
         if filled {
-            self.declared(leaf);
+            self.restyled(leaf);
         }
         filled
     }
@@ -838,7 +820,7 @@ impl Tree {
     pub(crate) fn set_rounding(&mut self, leaf: Leaf, rounding: Corners) -> bool {
         let rounded = self.rounded(leaf, rounding);
         if rounded {
-            self.declared(leaf);
+            self.restyled(leaf);
         }
         rounded
     }
@@ -866,17 +848,6 @@ impl Tree {
     /// What `leaf` declared about scrolling, or `None` if it does not scroll.
     pub(crate) fn scrolls(&self, leaf: Leaf) -> Option<Scroll> {
         Some(self.read::<Scrolls>(leaf)?.0)
-    }
-
-    /// Whether `leaf` stays put while its region's content slides under it.
-    pub(crate) fn pinned(&self, leaf: Leaf) -> bool {
-        self.read::<Pinned>(leaf).is_some()
-    }
-
-    /// How far `leaf` floats out of the regions above it, or `None` if it sits in its region like
-    /// anything else.
-    pub(crate) fn floats(&self, leaf: Leaf) -> Option<Escape> {
-        Some(self.read::<Floats>(leaf)?.0)
     }
 
     /// Where `leaf` was told to sit in focus order, relative to the elements around it.
@@ -907,25 +878,15 @@ impl Tree {
         self.overwrite(leaf, Extent(extent));
     }
 
-    /// What a scrolling ancestor leaves visible of `leaf`.
-    pub(crate) fn clip(&self, leaf: Leaf) -> Section {
-        self.read::<Clipped>(leaf).unwrap_or_default().0
-    }
-
-    pub(crate) fn set_clip(&mut self, leaf: Leaf, clip: Section) -> bool {
-        self.overwrite(leaf, Clipped(clip))
-    }
-
     /// Whether the app has hidden `leaf` itself, as against an ancestor of it.
     pub(crate) fn visible(&self, leaf: Leaf) -> Visible {
         self.read::<Visible>(leaf).unwrap_or_default()
     }
 
     pub(crate) fn set_visible(&mut self, leaf: Leaf, visible: bool) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(Visible(visible));
+        if self.overwrite(leaf, Visible(visible)) {
+            self.restyled(leaf);
         }
-        self.declared(leaf);
     }
 
     /// How opaque `leaf` was told to be, before its ancestry is taken into account.
@@ -934,10 +895,9 @@ impl Tree {
     }
 
     pub(crate) fn set_opacity(&mut self, leaf: Leaf, opacity: f32) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(Opacity::new(opacity));
+        if self.overwrite(leaf, Opacity::new(opacity)) {
+            self.restyled(leaf);
         }
-        self.declared(leaf);
     }
 
     /// Whether `leaf` was disabled in its own right.
@@ -946,26 +906,41 @@ impl Tree {
     }
 
     pub(crate) fn set_disabled(&mut self, leaf: Leaf, disabled: bool) {
-        if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
-            entity.insert(Disabled(disabled));
+        if self.overwrite(leaf, Disabled(disabled)) {
+            self.restyled(leaf);
         }
-        self.declared(leaf);
     }
 
-    /// What the three off-states resolved to over `leaf`'s whole ancestry, as R7 last computed it.
-    pub(crate) fn inherited(&self, leaf: Leaf) -> Inherited {
-        self.read::<Inherited>(leaf).unwrap_or_default()
+    /// Everything the passes after the axes read about `leaf`, in one read of the element.
+    ///
+    /// What resolution holds beside the order for every element, and reads again only where one of
+    /// these was written -- so the passes that run over every element on every frame index a column
+    /// rather than look each of these up.
+    pub(crate) fn standing(&self, leaf: Leaf) -> Standing {
+        let Ok(entity) = self.world.get_entity(leaf.0) else {
+            return Standing::default();
+        };
+        Standing {
+            chlorophyll: entity.get::<Chlorophyll>().copied().unwrap_or_default(),
+            growth: entity.get::<Growth>().map_or(0, |growth| growth.0),
+            gestures: entity.get::<Gestures>().copied().unwrap_or_default(),
+            scrolls: entity.get::<Scrolls>().map(|scrolls| scrolls.0),
+            pinned: entity.contains::<Pinned>(),
+            floats: entity.get::<Floats>().map(|floats| floats.0),
+            visible: entity.get::<Visible>().copied().unwrap_or_default().0,
+            opacity: entity.get::<Opacity>().copied().unwrap_or_default().0,
+            disabled: entity.get::<Disabled>().copied().unwrap_or_default().0,
+            elevation: entity.get::<Elevation>().copied().unwrap_or_default(),
+        }
     }
 
-    pub(crate) fn set_inherited(&mut self, leaf: Leaf, inherited: Inherited) -> bool {
-        self.overwrite(leaf, inherited)
-    }
-
-    /// Writes a component that is already there in place, inserting it only the first time.
+    /// Writes a component that is already there in place, inserting it only the first time, and
+    /// reports whether what it held changed.
     ///
     /// `insert` goes through the bundle machinery whatever it is handed, which is what a component
-    /// arriving for the first time needs and what one being overwritten does not. Resolution
-    /// overwrites the same handful on every element on every frame.
+    /// arriving for the first time needs and what one being overwritten does not. And a write of
+    /// what is already held is reported as none, which is what lets a setter mark an element only
+    /// when something about it actually changed.
     fn overwrite<C: Component<Mutability = Mutable> + PartialEq>(
         &mut self,
         leaf: Leaf,

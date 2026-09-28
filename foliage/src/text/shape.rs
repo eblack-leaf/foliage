@@ -301,25 +301,16 @@ impl Wrap<'_> {
 
 /// Every run that has been shaped, keyed on `(value, font, size)`.
 ///
-/// The font and the size are the outer key so that a lookup is by `&str` and allocates nothing: a
-/// run is looked up twice a frame -- once to measure it, once to wrap it -- and a cache that built a
-/// key each time would cost more than it saved.
+/// The font and the size are the outer key so that a lookup is by `&str` and allocates nothing
+/// unless the run is new.
+///
+/// Asked only by R1, which hands each element the run it states and keeps it there: everything after
+/// R1 that reads a run -- wrapping it, placing a character against it, drawing it -- reads the
+/// element's own. So what this holds is shared with the elements rather than copied to them, and a
+/// run is still stated for exactly as long as an element is holding it.
 #[derive(Default)]
 pub(crate) struct Shaping {
-    runs: HashMap<(Font, u32), HashMap<String, Held>>,
-    /// Which sweep is running. An entry left at an older one belongs to a run nothing states any
-    /// more.
-    pass: u64,
-}
-
-/// One shaped run, and the sweep that last asked for it.
-///
-/// Shared rather than owned, because the run is also held by the element it was shaped for --
-/// where a placement reading a character of that element resolves against it -- and a sweep that
-/// drops the entry here must not take it out from under the element.
-struct Held {
-    shaped: Arc<Shaped>,
-    seen: u64,
+    runs: HashMap<(Font, u32), HashMap<String, Arc<Shaped>>>,
 }
 
 impl Shaping {
@@ -331,48 +322,37 @@ impl Shaping {
         size: u32,
         value: &str,
     ) -> &Arc<Shaped> {
-        let pass = self.pass;
         let cell = fonts.cell(font, size);
         let runs = self.runs.entry((font, size)).or_default();
         // Looked up by `&str`, so the ordinary frame -- in which every run has been seen before --
         // allocates nothing. Only a run that is genuinely new pays for a key, and it is already
         // paying to walk the whole string.
         if !runs.contains_key(value) {
-            runs.insert(
-                value.to_string(),
-                Held {
-                    shaped: Arc::new(shape(value, cell)),
-                    seen: pass,
-                },
-            );
+            runs.insert(value.to_string(), Arc::new(shape(value, cell)));
         }
-        let held = runs.get_mut(value).expect("a run just shaped");
-        held.seen = pass;
-        &held.shaped
+        runs.get(value).expect("a run just shaped")
     }
 
-    /// The shaped form of `value`, if a pass this frame has already shaped it.
+    /// Drops every run shaped in `font`, whatever holds it.
     ///
-    /// The read-only half, for the passes that come after the ones that measure. Extraction is one:
-    /// every run it draws was shaped by R1 to be measured at all, so a run that is not here is a run
-    /// nothing is laying out -- and a phase that shaped one of its own would be inserting entries
-    /// after the sweep that decides what is still stated.
-    pub(crate) fn shaped(&self, font: Font, size: u32, value: &str) -> Option<&Shaped> {
-        Some(&self.runs.get(&(font, size))?.get(value)?.shaped)
+    /// For a face that has just arrived: what was shaped before it landed was shaped in the cell of
+    /// the face that stood in for it.
+    pub(crate) fn forget(&mut self, font: Font) {
+        self.runs.retain(|(held, _), _| *held != font);
     }
 
-    /// Drops every run nothing asked for this frame, and opens the next sweep.
+    /// Drops every run no element is holding.
     ///
-    /// Called once, at the end of the pass that measures, so what is kept is exactly what the tree
-    /// currently states. A run that comes back is shaped again, which is the same cost it was the
-    /// first time and is what keeps this the size of the tree rather than the size of the session.
+    /// Called once R1 has handed every element the run it now states, so what is kept is exactly
+    /// what the tree currently states: an element that says something else, or withered, let go of
+    /// the run it held, and a run held by nothing but this is one nothing states. A run that comes
+    /// back is shaped again, which is the same cost it was the first time and is what keeps this the
+    /// size of the tree rather than the size of the session.
     pub(crate) fn sweep(&mut self) {
-        let pass = self.pass;
         self.runs.retain(|_, runs| {
-            runs.retain(|_, held| held.seen == pass);
+            runs.retain(|_, shaped| Arc::strong_count(shaped) > 1);
             !runs.is_empty()
         });
-        self.pass += 1;
     }
 
     /// How many runs are held. The one measurable fact about the exception, so it is the one the

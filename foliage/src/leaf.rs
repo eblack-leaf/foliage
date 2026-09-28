@@ -1,5 +1,7 @@
+use std::collections::{HashMap, HashSet};
+
 use bevy_ecs::component::Component;
-use bevy_ecs::entity::Entity;
+use bevy_ecs::entity::{Entity, EntityHash};
 
 /// An opaque name for one element.
 ///
@@ -11,6 +13,16 @@ use bevy_ecs::entity::Entity;
 /// reused**, so a stale one cannot come to address whatever grew after it.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Leaf(pub(crate) Entity);
+
+/// A set of elements, hashed as the one number an element's name is.
+///
+/// A name is a generational index and hashes as one, so what the engine keys on elements is hashed
+/// in a multiply rather than by a general-purpose hash built to resist inputs chosen against it --
+/// which a name, handed out by the engine itself, never is.
+pub(crate) type Leaves = HashSet<Leaf, EntityHash>;
+
+/// A map keyed on anything that hashes as one name: an element, or what one is held under.
+pub(crate) type Named<K, V> = HashMap<K, V, EntityHash>;
 
 impl Leaf {
     /// A stable number for this element, for logging or as a map key. Not an address -- there is

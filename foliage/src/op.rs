@@ -23,13 +23,13 @@ pub(crate) enum Op {
     Plant {
         leaf: Leaf,
         growth: Growth,
-        bud: Bud,
+        bud: Box<Bud>,
     },
     Branch {
         leaf: Leaf,
         growth: Growth,
         under: Leaf,
-        bud: Bud,
+        bud: Box<Bud>,
     },
     Prune(Leaf),
     Place {
@@ -174,7 +174,7 @@ pub(crate) enum Op {
     /// inherited state this frame resolves.
     Focus(Intent),
     /// The one op that names no element: what every role resolves to, for the whole tree.
-    Repaint(Scheme),
+    Repaint(Box<Scheme>),
     /// Bytes that were read from somewhere outside the frame, and the name they were read for.
     ///
     /// Pushed by whatever finished the retrieval rather than by an app, which is the whole reason it

@@ -114,9 +114,22 @@ pub(crate) enum Edge {
 ///
 /// Terms in one expression may read different elements: `anchor().bottom() + 50.pct()` is half the
 /// trunk's extent below the anchor's bottom edge, and each half names its own.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct Expr {
-    pub(crate) terms: Vec<Term>,
+///
+/// Almost every expression is one term -- a length, a percentage, an edge -- and that one is held
+/// in place. Only a sum puts its terms on the heap, so writing a placement allocates for the sums in
+/// it and nothing else, and so does letting go of the one it replaced.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Expr {
+    /// One term.
+    One(Term),
+    /// Any number of them, added together. Empty is zero.
+    Sum(Vec<Term>),
+}
+
+impl Default for Expr {
+    fn default() -> Self {
+        Self::Sum(Vec::new())
+    }
 }
 
 /// One addend of an expression: a source, and the factor it was scaled by.
@@ -134,14 +147,24 @@ impl Term {
 
 impl Expr {
     fn of(kind: Kind) -> Self {
-        Self {
-            terms: vec![Term::new(kind)],
+        Self::One(Term::new(kind))
+    }
+
+    /// Every term, in the order they were added.
+    pub(crate) fn terms(&self) -> &[Term] {
+        match self {
+            Self::One(term) => core::slice::from_ref(term),
+            Self::Sum(terms) => terms,
         }
     }
 
-    fn plus(mut self, other: Expr) -> Self {
-        self.terms.extend(other.terms);
-        self
+    fn plus(self, other: Expr) -> Self {
+        let mut terms = match self {
+            Self::One(term) => vec![term],
+            Self::Sum(terms) => terms,
+        };
+        terms.extend_from_slice(other.terms());
+        Self::Sum(terms)
     }
 
     fn minus(self, other: Expr) -> Self {
@@ -153,8 +176,13 @@ impl Expr {
     }
 
     fn scaled(mut self, by: f32) -> Self {
-        for term in &mut self.terms {
-            term.scale *= by;
+        match &mut self {
+            Self::One(term) => term.scale *= by,
+            Self::Sum(terms) => {
+                for term in terms {
+                    term.scale *= by;
+                }
+            }
         }
         self
     }

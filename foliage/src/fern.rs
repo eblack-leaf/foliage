@@ -127,7 +127,7 @@ fn drain(grove: &mut Grove) {
                 // Taken before the bud is spent, because a frond's leaflets are grown under the leaf
                 // this is about to grow and so cannot be grown until it exists.
                 let sprout = bud.sprout.take();
-                if grove.tree.grow(leaf, growth, None, bud) {
+                if grove.tree.grow(leaf, growth, None, *bud) {
                     sprouted(grove, leaf, sprout);
                     debug!(leaf = leaf.id(), "planted");
                 } else {
@@ -144,7 +144,7 @@ fn drain(grove: &mut Grove) {
                 let sprout = bud.sprout.take();
                 if !grove.tree.is_live(under) {
                     dropped("branch", leaf, "trunk is not live");
-                } else if grove.tree.grow(leaf, growth, Some(under), bud) {
+                } else if grove.tree.grow(leaf, growth, Some(under), *bud) {
                     sprouted(grove, leaf, sprout);
                     debug!(leaf = leaf.id(), under = under.id(), "branched");
                 } else {
@@ -254,8 +254,16 @@ fn drain(grove: &mut Grove) {
             }
             Op::Arrived { destination, bytes } => {
                 // What an element draws is what the asset now is, and nothing was written to the
-                // element to say so. Every one of them is stated again on this frame.
-                grove.tree.invalidate();
+                // element to say so. Every one of them is stated again on this frame -- and a face
+                // is what runs are measured in, so one arriving is every run placed again, in the
+                // face that landed rather than the one it was shaped in while it had not.
+                match destination {
+                    Destination::Face(font) => {
+                        grove.shaping.forget(font);
+                        grove.tree.invalidate();
+                    }
+                    Destination::Mark(..) | Destination::Picture(_) => grove.tree.repaint(),
+                }
                 let arrival = Arrival::from(destination);
                 // One shape for three destinations: what was read is put where the name that was
                 // handed out points, and whether it could be is the whole of what is reported.
@@ -373,7 +381,7 @@ fn drain(grove: &mut Grove) {
             } => {
                 grove.plates.load(plate, &pixels, size);
                 // Names no element, so nothing was written to any of the ones drawing it.
-                grove.tree.invalidate();
+                grove.tree.repaint();
                 debug!(plate = plate.0, "loaded");
             }
             Op::Round { leaf, rounding } => {
@@ -487,11 +495,11 @@ fn drain(grove: &mut Grove) {
             Op::Focus(intent) => focus::moved(grove, intent),
             Op::Repaint(scheme) => {
                 let moved = grove.scheme.moved(&scheme);
-                grove.scheme = scheme;
+                grove.scheme = *scheme;
                 grove.drift.repainted = true;
                 // Every role is resolved against the scheme at extraction, so a scheme that moved is
-                // every element's fill written.
-                grove.tree.invalidate();
+                // every element's fill written -- and nothing else.
+                grove.tree.repaint();
                 debug!(tones = moved, "repainted");
             }
             Op::Copy(text) => grove.clipboard.write(text),

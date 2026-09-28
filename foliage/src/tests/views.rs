@@ -1088,7 +1088,7 @@ fn an_element_positioned_outside_its_region_is_cut_off_at_the_region_s_edge() {
     let (_, _, options) = menu(&mut grove, false);
     tick(&mut grove);
 
-    let seen = section(&grove, options).intersect(grove.tree.clip(options));
+    let seen = section(&grove, options).intersect(grove.elements.clip(options));
     assert_eq!(seen, Section::from_edges(0.0, 80.0, 120.0, 100.0));
 }
 
@@ -1100,7 +1100,7 @@ fn a_floating_element_is_not_clipped_by_the_region_it_is_grown_in() {
     tick(&mut grove);
 
     let drawn = section(&grove, options);
-    assert_eq!(drawn.intersect(grove.tree.clip(options)), drawn);
+    assert_eq!(drawn.intersect(grove.elements.clip(options)), drawn);
 }
 
 /// The other half of the one declaration: an overlay is not content, so it invents no room to
@@ -1176,7 +1176,7 @@ fn a_floating_element_is_still_held_by_the_region_outside_its_own() {
 
     // The pane's sixty is escaped; the sheet's hundred and fifty is not.
     assert_eq!(
-        grove.tree.clip(options),
+        grove.elements.clip(options),
         Section::from_edges(0.0, 0.0, 200.0, 150.0)
     );
     // And it is not content of the pane either.
@@ -1223,7 +1223,7 @@ fn escaping_the_region_leaves_one_and_is_held_by_the_next() {
     let (_, _, _, menu) = nested_regions(&mut grove, Escape::Region);
     tick(&mut grove);
     assert_eq!(
-        grove.tree.clip(menu),
+        grove.elements.clip(menu),
         Section::from_edges(0.0, 0.0, 200.0, 60.0)
     );
 }
@@ -1236,8 +1236,8 @@ fn escaping_to_the_surface_leaves_every_region() {
     let (sidebar, _, _, menu) = nested_regions(&mut grove, Escape::Surface);
     tick(&mut grove);
     let drawn = section(&grove, menu);
-    assert_eq!(drawn.intersect(grove.tree.clip(menu)), drawn);
-    assert!(grove.tree.clip(menu).bottom() > section(&grove, sidebar).bottom());
+    assert_eq!(drawn.intersect(grove.elements.clip(menu)), drawn);
+    assert!(grove.elements.clip(menu).bottom() > section(&grove, sidebar).bottom());
 }
 
 /// Out of the pane and the list, and held by the sidebar. Neither of the other two says this, which
@@ -1271,7 +1271,7 @@ fn escaping_within_a_named_element_leaves_everything_up_to_it() {
     tick(&mut grove);
     // Out of the pane and out of the list; the sidebar still holds it.
     assert_eq!(
-        grove.tree.clip(menu),
+        grove.elements.clip(menu),
         Section::from_edges(0.0, 0.0, 200.0, 150.0)
     );
 }
@@ -1303,7 +1303,7 @@ fn escaping_within_something_that_is_not_above_it_falls_back_to_its_own_region()
     // Out of the list, and no further: the sidebar holds it, exactly as `Escape::Region` would
     // have. A name that holds nothing is not permission to leave everything.
     assert_eq!(
-        grove.tree.clip(menu),
+        grove.elements.clip(menu),
         Section::from_edges(0.0, 0.0, 200.0, 150.0)
     );
 }

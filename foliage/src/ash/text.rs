@@ -13,23 +13,24 @@
 //! and what keeps R6's total order over elements from having to say anything about characters.
 
 use core::ops::Range;
-use std::collections::HashMap;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
-    Buffer, BufferAddress, BufferDescriptor, BufferUsages, Device, PipelineLayoutDescriptor, Queue,
-    RenderPass, RenderPipeline, RenderPipelineDescriptor, ShaderModuleDescriptor, ShaderSource,
-    VertexBufferLayout, VertexState, VertexStepMode,
+    Buffer, BufferAddress, BufferDescriptor, BufferSize, BufferUsages, Device,
+    PipelineLayoutDescriptor, Queue, RenderPass, RenderPipeline, RenderPipelineDescriptor,
+    ShaderModuleDescriptor, ShaderSource, VertexBufferLayout, VertexState, VertexStepMode,
 };
 
 use crate::ash::CORNERS;
 use crate::ash::atlas::{Atlas, Cut};
+use crate::ash::instances::runs;
 use crate::color::Color;
 use crate::coordinate::{Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::elm::{Key, Run};
 use crate::ginkgo::Ginkgo;
+use crate::leaf::Named;
 use crate::text::font::Fonts;
 
 /// How many glyphs there is room for before the buffers are grown.
@@ -57,7 +58,7 @@ pub(crate) struct Texts {
     pipeline: RenderPipeline,
     corners: Buffer,
     atlas: Atlas,
-    held: HashMap<Key, Held>,
+    held: Named<Key, Held>,
     /// Slot order: which run each slot is, and the rank and clip the stack is built from.
     order: Vec<Key>,
     ranks: Vec<ResolvedElevation>,
@@ -151,7 +152,7 @@ impl Texts {
                 usage: BufferUsages::VERTEX,
             }),
             atlas,
-            held: HashMap::new(),
+            held: Named::default(),
             order: Vec::new(),
             ranks: Vec::new(),
             clips: Vec::new(),
@@ -243,27 +244,45 @@ impl Texts {
             self.reorder(device, queue);
             return;
         }
-        self.touched.sort_unstable();
-        self.touched.dedup();
-        for slot in self.touched.drain(..) {
-            let block = self.blocks[slot as usize].clone();
+        let mut touched = core::mem::take(&mut self.touched);
+        for run in runs(&mut touched) {
+            self.upload(queue, run);
+        }
+        touched.clear();
+        self.touched = touched;
+    }
+
+    /// Puts the glyphs of the runs in `slots` on the GPU, as one write.
+    ///
+    /// Filled from each run where it is held, straight into what the write stages, so there is no
+    /// flat copy of every glyph on the page kept only to be uploaded -- and no write per run, which
+    /// is a cost of its own however few glyphs the run has.
+    fn upload(&self, queue: &Queue, slots: Range<usize>) {
+        let stride = size_of::<GlyphInstance>();
+        let from = self.blocks[slots.start].start as usize;
+        let to = self.blocks[slots.end - 1].end as usize;
+        let Some(size) = BufferSize::new(((to - from) * stride) as BufferAddress) else {
+            return;
+        };
+        let Some(mut staged) =
+            queue.write_buffer_with(&self.glyphs, (from * stride) as BufferAddress, size)
+        else {
+            return;
+        };
+        for slot in slots {
+            let block = &self.blocks[slot];
             if block.is_empty() {
                 continue;
             }
-            let held = &self.held[&self.order[slot as usize]];
-            queue.write_buffer(
-                &self.glyphs,
-                block.start as BufferAddress * size_of::<GlyphInstance>() as BufferAddress,
-                bytemuck::cast_slice(&held.glyphs),
-            );
+            let held = &self.held[&self.order[slot]];
+            staged
+                .slice((block.start as usize - from) * stride..(block.end as usize - from) * stride)
+                .copy_from_slice(bytemuck::cast_slice(&held.glyphs));
         }
     }
 
-    /// Rebuilds the order back to front and rewrites every glyph.
-    ///
-    /// One write per run rather than one for the whole buffer: the runs are already the unit the
-    /// glyphs are held in, and a flat mirror of them kept only to be uploaded in one call would be
-    /// a second copy of every glyph on the page.
+    /// Rebuilds the order back to front and rewrites every glyph, in one write filled from each run
+    /// where it is held.
     fn reorder(&mut self, device: &Device, queue: &Queue) {
         self.resort = false;
         self.disturbed = true;
@@ -298,17 +317,8 @@ impl Texts {
             self.glyphs = buffer(device, size_of::<GlyphInstance>() as u32 * self.capacity);
             self.depth = buffer(device, size_of::<f32>() as u32 * self.capacity);
         }
-        for slot in 0..self.order.len() {
-            let held = &self.held[&self.order[slot]];
-            if held.glyphs.is_empty() {
-                continue;
-            }
-            queue.write_buffer(
-                &self.glyphs,
-                self.blocks[slot].start as BufferAddress
-                    * size_of::<GlyphInstance>() as BufferAddress,
-                bytemuck::cast_slice(&held.glyphs),
-            );
+        if !self.order.is_empty() {
+            self.upload(queue, 0..self.order.len());
         }
     }
 

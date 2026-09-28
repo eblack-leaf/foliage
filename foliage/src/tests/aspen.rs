@@ -1190,6 +1190,43 @@ fn a_stopped_motion_is_left_on_its_target_and_says_nothing() {
     }
 }
 
+/// The same for a motion that moves a box, and for one that moves a fill: what is left is the
+/// target, drawn as the target, in the frame the stop was written -- and not the blend the motion
+/// had reached, which nothing declared.
+#[test]
+fn a_stopped_placement_or_fill_is_drawn_at_its_target() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        Panel::new()
+            .color(Color::rgb(0.0, 0.0, 0.0))
+            .at(across(0.0, 10.0)),
+    );
+    tick(&mut grove);
+
+    let moving = grove.animate(leaf, Motion::Location(across(100.0, 10.0)), Timing::ms(200));
+    let filling = grove.animate(
+        leaf,
+        Motion::Color(Color::rgb(1.0, 1.0, 1.0)),
+        Timing::ms(200),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    assert!(section(&grove, leaf).left() > 0.0, "part way");
+    assert!(section(&grove, leaf).left() < 100.0, "part way");
+
+    grove.stop(moving);
+    grove.stop(filling);
+    tick(&mut grove);
+    assert_eq!(
+        section(&grove, leaf).left(),
+        100.0,
+        "where it was told to end"
+    );
+    assert_eq!(held(&grove, leaf).section.left(), 100.0, "and drawn there");
+    assert_eq!(held(&grove, leaf).color, Color::rgb(1.0, 1.0, 1.0));
+}
+
 /// Stopping it as an arrival, which is the app declaring the ending the motion would have reported
 /// itself. The same landing, and the same two reports, in the frame it was asked for.
 #[test]

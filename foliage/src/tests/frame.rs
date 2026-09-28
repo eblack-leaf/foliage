@@ -23,6 +23,20 @@ fn branches(grove: &Grove, leaf: Leaf) -> Option<usize> {
 
 /// `first` and `second` are the same op against the same trunk. Only their position in the queue
 /// differs, and that alone decides whether either lands.
+/// A write is what the queue carries, the drain moves and a placement is held as, so it is small
+/// enough to move freely: everything large an op can say -- a whole element, a scheme, a placement
+/// at every breakpoint -- is behind a pointer.
+#[test]
+fn a_write_is_small_enough_to_carry() {
+    assert!(
+        size_of::<crate::op::Op>() <= 256,
+        "{}",
+        size_of::<crate::op::Op>()
+    );
+    assert_eq!(size_of::<Location>(), size_of::<usize>());
+    assert_eq!(size_of::<crate::Trace>(), size_of::<usize>());
+}
+
 #[test]
 fn the_drain_is_fifo_within_one_frame() {
     let mut grove = grove();

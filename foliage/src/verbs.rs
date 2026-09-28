@@ -46,7 +46,7 @@ pub trait Grow: Queues {
         self.queue(Op::Plant {
             leaf,
             growth,
-            bud: seed.bud(core::panic::Location::caller()),
+            bud: Box::new(seed.bud(core::panic::Location::caller())),
         });
         leaf
     }
@@ -59,7 +59,7 @@ pub trait Grow: Queues {
             leaf,
             growth,
             under,
-            bud: seed.bud(core::panic::Location::caller()),
+            bud: Box::new(seed.bud(core::panic::Location::caller())),
         });
         leaf
     }
@@ -658,7 +658,7 @@ pub trait Grow: Queues {
     /// the elements declaring it. Everything painted in a tone whose color changed is re-extracted
     /// and nothing else is, which is what makes a theme one op rather than a walk.
     fn repaint(&mut self, scheme: Scheme) {
-        self.queue(Op::Repaint(scheme));
+        self.queue(Op::Repaint(Box::new(scheme)));
     }
 }
 

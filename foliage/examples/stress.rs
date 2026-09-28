@@ -20,6 +20,7 @@
 //! | `5` | `animate` | a live motion on every cell, and the placements they write |
 //! | `6` | `churn` | a slab of the field taken down and regrown, which is the drain |
 //! | `7` | `repaint` | the scheme restated, which re-resolves every role in the tree |
+//! | `8` | `scroll` | the field in a region four pages tall, moved every frame |
 //!
 //! `-` halves the field and `+` doubles it, between 16 and 16384 cells. Each cell is two elements:
 //! the shape a load writes to, and a label grown on it. Changing either the load or the count grows
@@ -101,9 +102,9 @@ use std::sync::{LazyLock, Mutex};
 use std::time::Instant;
 
 use foliage::{
-    Area, Boxed, Color, Ease, Foliage, FontSize, Grove, Grow, Key, Leaf, Location, Motion, Palette,
-    Panel, Place, Pollen, Polygon, Root, Rounding, Scheme, Source, Step, Text, Timing, Tween,
-    content, left, top,
+    Area, Axes, Boxed, Color, Ease, Foliage, FontSize, Grove, Grow, Key, Leaf, Location, Motion,
+    Palette, Panel, Place, Pollen, Polygon, Root, Rounding, Scheme, ScrollTo, Source, Stem, Step,
+    Text, Timing, Tween, content, left, top,
 };
 use tracing::span::{Attributes, Id};
 use tracing::{Subscriber, info, warn};
@@ -130,6 +131,11 @@ const INSET: f32 = 0.86;
 
 /// How far a cell is displaced from its seat, as a fraction of the field.
 const WANDER: f32 = 1.2;
+
+/// How many pages tall the sheet under [`Load::Scroll`] is, and how many seconds the region takes
+/// to travel down it and back.
+const SCROLLED: f32 = 4.0;
+const SLIDE_S: f32 = 6.0;
 
 /// How many cells [`Load::Churn`] takes down and regrows each frame.
 const CHURN: usize = 32;
@@ -174,10 +180,12 @@ enum Load {
     Churn,
     /// The scheme every role is resolved against.
     Repaint,
+    /// The region the field is grown in, four pages tall and moved every frame.
+    Scroll,
 }
 
 /// The loads in the order the number keys select them.
-const LOADS: [Load; 7] = [
+const LOADS: [Load; 8] = [
     Load::Idle,
     Load::Layout,
     Load::Color,
@@ -185,6 +193,7 @@ const LOADS: [Load; 7] = [
     Load::Animate,
     Load::Churn,
     Load::Repaint,
+    Load::Scroll,
 ];
 
 impl Load {
@@ -198,6 +207,7 @@ impl Load {
             Load::Animate => "animate",
             Load::Churn => "churn",
             Load::Repaint => "repaint",
+            Load::Scroll => "scroll",
         }
     }
 
@@ -211,6 +221,7 @@ impl Load {
             Load::Animate => "animate",
             Load::Churn => "drain",
             Load::Repaint => "extract, every role",
+            Load::Scroll => "scroll, clip and extract",
         }
     }
 
@@ -248,9 +259,12 @@ struct Divided {
 }
 
 impl Divided {
-    /// The division of `cells` that is as square as the page the field fills.
-    fn of(cells: usize) -> Self {
-        let across = (cells as f32 * PAGE_W / (PAGE_H - HEADER)).sqrt().ceil();
+    /// The division of `cells` that is as square as the sheet they are grown on, which is the page
+    /// the field fills, `tall` times over.
+    fn of(cells: usize, tall: f32) -> Self {
+        let across = (cells as f32 * PAGE_W / ((PAGE_H - HEADER) * tall))
+            .sqrt()
+            .ceil();
         let columns = (across as usize).max(1);
         Self {
             columns,
@@ -291,8 +305,14 @@ struct Stress {
     motions: Vec<Live>,
     /// How the field is divided, which every seat is stated against.
     divided: Divided,
-    /// What the cells are grown under.
+    /// The strip of the page below the readout.
     field: Leaf,
+    /// The region filling the field, grown again with the cells: it scrolls under
+    /// [`Load::Scroll`], and holds still under every other load.
+    region: Option<Leaf>,
+    /// What the cells are grown under, inside the region: the field's size, or four times its
+    /// height under [`Load::Scroll`].
+    sheet: Leaf,
     /// What is running, and the rate it is running at.
     headline: Leaf,
     rate: Leaf,
@@ -346,8 +366,10 @@ impl Root for Stress {
             load,
             cells: Vec::new(),
             motions: Vec::new(),
-            divided: Divided::of(cells),
+            divided: Divided::of(cells, 1.0),
             field,
+            region: None,
+            sheet: field,
             headline,
             rate,
             share,
@@ -378,7 +400,7 @@ impl Stress {
                 continue;
             };
             match typed {
-                '1'..='7' => {
+                '1'..='8' => {
                     let load = LOADS[typed as usize - '1' as usize];
                     if load != self.load {
                         self.load = load;
@@ -419,15 +441,36 @@ impl Stress {
     /// -- a fill stated outright is no longer a role, and a cell that has wandered is no longer at
     /// its seat. Growing the field again is what makes two readings comparable.
     fn rebuild(&mut self, grove: &mut Grove, cells: usize) {
-        for cell in self.cells.drain(..) {
-            grove.prune(cell.shape);
+        // The cells go with the region they are grown in.
+        if let Some(region) = self.region.take() {
+            grove.prune(region);
         }
+        self.cells.clear();
         self.motions.clear();
         self.churn = 0;
         self.written = 0;
-        self.divided = Divided::of(cells);
-        let (divided, field) = (self.divided, self.field);
-        self.cells = (0..cells).map(|n| grow(grove, field, divided, n)).collect();
+        let tall = match self.load {
+            Load::Scroll => SCROLLED,
+            _ => 1.0,
+        };
+        let whole =
+            Location::new().xs(left(0.px()).right(100.pct()), top(0.px()).bottom(100.pct()));
+        let region = match self.load {
+            Load::Scroll => Stem::new().scrolls(Axes::Vertical),
+            _ => Stem::new(),
+        };
+        let region = grove.branch(self.field, region.intangible().at(whole));
+        self.sheet = grove.branch(
+            region,
+            Stem::new().intangible().at(Location::new().xs(
+                left(0.px()).right(100.pct()),
+                top(0.px()).height((tall * 100.0).pct()),
+            )),
+        );
+        self.region = Some(region);
+        self.divided = Divided::of(cells, tall);
+        let (divided, sheet) = (self.divided, self.sheet);
+        self.cells = (0..cells).map(|n| grow(grove, sheet, divided, n)).collect();
         if self.load == Load::Animate {
             // The share names how much of the field is moving, which for a motion is how many are
             // started rather than how many are written each frame: what a motion writes, it writes
@@ -473,6 +516,7 @@ impl Stress {
             Load::Animate => self.remotion(grove, pollen),
             Load::Churn => self.regrow(grove),
             Load::Repaint => self.restate(grove, elapsed),
+            Load::Scroll => self.slide(grove, elapsed),
         }
     }
 
@@ -559,13 +603,24 @@ impl Stress {
     ///
     /// A rolling window rather than the same slab every frame, so the whole field turns over.
     fn regrow(&mut self, grove: &mut Grove) {
-        let (divided, field) = (self.divided, self.field);
+        let (divided, sheet) = (self.divided, self.sheet);
         for _ in 0..CHURN.min(self.cells.len()) {
             let n = self.churn % self.cells.len();
             grove.prune(self.cells[n].shape);
-            self.cells[n] = grow(grove, field, divided, n);
+            self.cells[n] = grow(grove, sheet, divided, n);
             self.churn = self.churn.wrapping_add(1);
         }
+    }
+
+    /// Moves the region the field is grown in down its whole range and back up again, which moves
+    /// every cell in it without a single one of them being written to: what is saturated is the
+    /// offset carried down, the clip, the cells crossing its edge, and extraction.
+    fn slide(&self, grove: &mut Grove, elapsed: f32) {
+        let Some(region) = self.region else {
+            return;
+        };
+        let turn = (elapsed / SLIDE_S).fract();
+        grove.scroll(region, ScrollTo::fraction(1.0 - (turn * 2.0 - 1.0).abs()));
     }
 
     /// Restates the scheme, which re-resolves every role in the tree at extraction.
@@ -606,7 +661,7 @@ impl Stress {
     /// What is running, on how much, and what it saturates.
     fn headline(&self) -> String {
         format!(
-            "{}  {} cells, {} elements, {} written  -  {}  -  1..7 load, +/- size, [/] share",
+            "{}  {} cells, {} elements, {} written  -  {}  -  1..8 load, +/- size, [/] share",
             self.load.name(),
             self.cells.len(),
             self.cells.len() * 2,

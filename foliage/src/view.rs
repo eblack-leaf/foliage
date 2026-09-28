@@ -392,7 +392,7 @@ pub(crate) struct Pinned;
 /// A rect, and only a rect. Whether an element is *culled* is a decision extraction makes by
 /// comparing this against the element's box, and is never recorded on the element -- which is what
 /// keeps culling out of anything that reads state, extent first among them.
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct Clipped(pub(crate) Section);
 
 impl Clipped {
@@ -588,7 +588,7 @@ fn coast(grove: &mut Grove, elements: &Elements) {
             grove.coasting.resume(leaf, axis, coast);
             continue;
         }
-        let section = elements.of(leaf);
+        let section = elements.placed(leaf);
         let span = range(grove.tree.extent(leaf), section.area, axis);
         let offset = grove.tree.offset(leaf);
         let (travelled, speed) = coasted(coast.velocity, momentum.half_life.as_secs_f32(), elapsed);
@@ -601,7 +601,7 @@ fn coast(grove: &mut Grove, elements: &Elements) {
         // An end reached while coasting chains outward or absorbs exactly as a drag would, because
         // it is the same question asked of the same region at the same place in its own extent.
         if landed != wanted {
-            match handed(grove, leaf, axis) {
+            match handed(grove, elements, leaf, axis) {
                 Some(next) => {
                     debug!(from = leaf.id(), to = next.id(), "coast handed outward");
                     // Already mid-flight: this frame's time is spent, and the region it came from
@@ -635,8 +635,8 @@ fn coast(grove: &mut Grove, elements: &Elements) {
 }
 
 /// The region a coast passes to when `leaf` can move no further, or `None` where it absorbs.
-fn handed(grove: &Grove, leaf: Leaf, axis: Axis) -> Option<Leaf> {
-    let chain = interaction::chain(grove, leaf);
+fn handed(grove: &Grove, elements: &Elements, leaf: Leaf, axis: Axis) -> Option<Leaf> {
+    let chain = interaction::chain(grove, elements, leaf);
     // A coasting region scrolls, so it is the innermost link of its own chain -- unless it stopped
     // being one under the coast, in which case there is nothing to hand anything to.
     if chain.first() != Some(&leaf) {
@@ -679,12 +679,12 @@ fn animated(grove: &mut Grove, elements: &Elements) {
 /// pass later.
 fn destination(grove: &Grove, elements: &Elements, leaf: Leaf, to: ScrollTo) -> Option<Position> {
     let moves = to.over(grove.tree.scrolls(leaf)?)?;
-    let section = elements.of(leaf);
+    let section = elements.placed(leaf);
     let extent = grove.tree.extent(leaf);
     let offset = grove.tree.offset(leaf);
     let shown = to
         .names()
-        .map(|named| elements.of(named))
+        .map(|named| elements.placed(named))
         .unwrap_or_default();
     let mut landed = offset;
     for axis in Axis::BOTH {
