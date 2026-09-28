@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -268,13 +268,13 @@ fn a_drag_on_a_button_scrolls_the_region_and_the_button_gets_no_tap() {
 </thead>
 <tbody>
 <tr><td><code>frame.rs</code>, <code>root.rs</code>, <code>lifecycle.rs</code></td><td>41</td><td>the frame laws, taking root, planting and withering</td></tr>
-<tr><td><code>placement.rs</code>, <code>rowan.rs</code>, <code>elevation.rs</code></td><td>89</td><td>the placement algebra, resolution, the stack order</td></tr>
+<tr><td><code>placement.rs</code>, <code>rowan.rs</code>, <code>elevation.rs</code></td><td>90</td><td>the placement algebra, resolution, the stack order</td></tr>
 <tr><td><code>text.rs</code>, <code>text_input.rs</code>, <code>text_area.rs</code></td><td>127</td><td>the cell, wrapping, <code>content()</code>, and editing</td></tr>
 <tr><td><code>interaction.rs</code>, <code>focus.rs</code>, <code>keys.rs</code></td><td>61</td><td>the box stack, claiming, holds, focus, keys</td></tr>
 <tr><td><code>views.rs</code></td><td>53</td><td>extent, pinning, chaining, <code>ScrollTo</code>, momentum</td></tr>
-<tr><td><code>aspen.rs</code></td><td>58</td><td>motion, channels, timers, sequences</td></tr>
-<tr><td><code>elm.rs</code>, <code>renderers.rs</code>, <code>palette.rs</code></td><td>78</td><td>extraction, every renderer, the scheme</td></tr>
-<tr><td><code>sprig.rs</code>, <code>assets.rs</code>, <code>platform.rs</code></td><td>55</td><td>off the frame, arriving bytes, the platform edges</td></tr>
+<tr><td><code>aspen.rs</code></td><td>59</td><td>motion, channels, timers, sequences</td></tr>
+<tr><td><code>elm.rs</code>, <code>renderers.rs</code>, <code>palette.rs</code></td><td>80</td><td>extraction, every renderer, the scheme</td></tr>
+<tr><td><code>sprig.rs</code>, <code>assets.rs</code>, <code>platform.rs</code></td><td>56</td><td>off the frame, arriving bytes, the platform edges</td></tr>
 <tr><td><code>tracing.rs</code></td><td>3</td><td>what a quiet frame reports</td></tr>
 </tbody>
 </table>
@@ -301,6 +301,18 @@ code</strong> rather than to the compiler’s wording, which changes between rel
 <p>Each one holds a line of <a href="resolver.html#the-order-is-in-the-types">the grammar’s types</a>: no second
 extent on an axis, no vertical length in a horizontal role, no coordinate crossing axes, no adding two
 positions.</p>
+<h2 id="resolving-less-lands-where-resolving-everything-does"><a class="header" href="#resolving-less-lands-where-resolving-everything-does">Resolving less lands where resolving everything does</a></h2>
+<p>Resolution leaves alone whatever nothing it reads was written to, and keeps the answers it already
+has in its columns (<a href="resolution.html">Resolution</a>). The claim that makes that safe, that the answer
+kept is the answer resolving again would give, is tested directly rather than case by case:
+<code>resolving_only_what_was_written_lands_where_resolving_everything_does</code> (<code>tests/rowan.rs</code>) runs one
+seeded, wandering script on two groves (rows grown, moved, set in motion, hidden and pruned under
+columns sized to what they hold, labels rewritten, columns narrowed) for four hundred frames. One
+grove is made to resolve every element every frame, and after each frame every element has to be
+where the other one put it.</p>
+<p>A test like that is only worth what it can catch, so it was checked by breaking the thing it
+guards: with R2m made to trust a child’s held reach where the child had only just measured to
+something new, it fails on its third frame.</p>
 <h2 id="the-quiet-frame"><a class="header" href="#the-quiet-frame">The quiet frame</a></h2>
 <p><code>tests/tracing.rs</code> installs a subscriber and asserts that a frame which changes nothing, over a tree
 of five hundred elements, emits nothing above <code>trace</code>, and the same for a watch at rest and a focused

@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -293,9 +293,9 @@ display density onto one texture, and nothing is ever evicted from it. When it f
 is written once and new characters stop drawing. A monospaced app addresses a small alphabet at a
 handful of sizes and is nowhere near this; animating a font size through every integer would be.</p>
 <h2 id="panics-and-what-they-mean"><a class="header" href="#panics-and-what-they-mean">Panics, and what they mean</a></h2>
-<p>foliage panics only where a program stated something that cannot be true. Most of these panic at
-the call that stated it; the anchor cycle and a picture’s pixels are checked when the op is
-applied, in the drain, and the anchor cycle names the calls involved for that reason:</p>
+<p>foliage panics only where a program stated something that cannot be true. All but one of these
+panic at the call that stated it. The anchor cycle is checked when the op is applied, in the drain,
+because it takes the whole tree to see, and it names the calls involved for that reason:</p>
 <div class="table-wrapper">
 <table>
 <thead>

@@ -43,7 +43,8 @@ renderer. This is where everything that depends on the display's density is deri
   ramp sized for the density;
 - an **icon**'s mark is packed onto the sheet the first time any instance draws it, and its distance
   range is converted into one on screen;
-- an **image**'s picture is uploaded the first time an instance draws it, as a texture of its own;
+- an **image**'s picture is uploaded the first time an instance draws it, as a texture of its own,
+  and uploaded again whenever the batch says its name was filled anew while it is held (see below);
 - a **run**'s glyphs are cut through the atlas at the density, and snapped to the device grid.
 
 Then each renderer flushes to the GPU. An instance buffer is kept in rank order, so what a flush costs

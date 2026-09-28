@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -253,11 +253,23 @@ font is megabytes, and the thread that asked is the one drawing), a URL is fetch
 browser, on the web), and when the bytes are in hand the thread pushes <code>Arrived</code> and rouses the loop.
 So a worker that <em>made</em> an asset and a thread that <em>read</em> one are the same case, and both are drained
 in the frame they reached.</p>
-<p>That is also why a worker’s registrations never panic. Bytes handed to the grove at a call site are a
+<p>That is also why nothing a worker hands over panics. Bytes handed to the grove at a call site are a
 statement the program made, and a proportional font there stops the program where it can be fixed.
 Bytes a worker built or was sent are not, and a panic on a worker would end the thread rather than
-name a call site, so they are refused and reported <code>missing</code> instead. (<code>load</code> and <code>pixels</code> are <code>Grow</code>
-verbs rather than registrations, so they keep their panic, and it happens in the drain.)</p>
+stop the program, so they are refused and reported <code>missing</code> instead.</p>
+<p><code>load</code> and <code>pixels</code> are <code>Grow</code> verbs rather than registrations, shared by both sides, so the rule is
+one method of the <code>Queues</code> trait both sides implement. The verb measures the pixels against their
+size where it is called, and hands a mismatch to <code>misfit</code>: the grove’s panics at the caller’s line
+(it is <code>#[track_caller]</code> all the way down), and the sprig’s pushes the <code>Arrived</code> a failed decode would
+have pushed, so the refusal is reported <code>missing</code> in its place among everything else the worker
+wrote.</p>
+<pre><code class="language-rust ignore">// sprig.rs
+fn misfit(&amp;mut self, plate: Plate, reason: String) {
+    self.queue(Op::Arrived {
+        destination: Destination::Picture(plate),
+        bytes: Err(reason),
+    });
+}</code></pre>
 <h2 id="reading-pushed-not-sampled"><a class="header" href="#reading-pushed-not-sampled">Reading: pushed, not sampled</a></h2>
 <p>A worker cannot sample the tree. A read needs the world, and the world belongs to the frame. So the
 reads a worker needs are <strong>pushed</strong> to it, at one point in the frame, by <code>sprig::publish</code>:</p>

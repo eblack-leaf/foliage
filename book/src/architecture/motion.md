@@ -193,7 +193,9 @@ overshoot is left to overshoot in the middle.
 
 Timing is milliseconds throughout. `after(n)` holds the motion where it was for `n` milliseconds
 rather than queuing it: the motion exists from the frame it was asked for, and a direct write cancels
-it whether or not it has begun to move.
+it whether or not it has begun to move. A motion of no length holds for its delay like any other and
+then lands in one step, because `Timing::at` asks whether the delay has passed before it asks whether
+there is a duration to be a fraction of.
 
 ## One clock, capped
 

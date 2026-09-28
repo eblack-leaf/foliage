@@ -102,13 +102,13 @@ Read down a test file and the list of names is a specification of that subsystem
 | File | Tests | Covers |
 |---|---|---|
 | `frame.rs`, `root.rs`, `lifecycle.rs` | 41 | the frame laws, taking root, planting and withering |
-| `placement.rs`, `rowan.rs`, `elevation.rs` | 89 | the placement algebra, resolution, the stack order |
+| `placement.rs`, `rowan.rs`, `elevation.rs` | 90 | the placement algebra, resolution, the stack order |
 | `text.rs`, `text_input.rs`, `text_area.rs` | 127 | the cell, wrapping, `content()`, and editing |
 | `interaction.rs`, `focus.rs`, `keys.rs` | 61 | the box stack, claiming, holds, focus, keys |
 | `views.rs` | 53 | extent, pinning, chaining, `ScrollTo`, momentum |
-| `aspen.rs` | 58 | motion, channels, timers, sequences |
-| `elm.rs`, `renderers.rs`, `palette.rs` | 78 | extraction, every renderer, the scheme |
-| `sprig.rs`, `assets.rs`, `platform.rs` | 55 | off the frame, arriving bytes, the platform edges |
+| `aspen.rs` | 59 | motion, channels, timers, sequences |
+| `elm.rs`, `renderers.rs`, `palette.rs` | 80 | extraction, every renderer, the scheme |
+| `sprig.rs`, `assets.rs`, `platform.rs` | 56 | off the frame, arriving bytes, the platform edges |
 | `tracing.rs` | 3 | what a quiet frame reports |
 
 ## Pure parts are tested as arithmetic
@@ -139,6 +139,21 @@ code** rather than to the compiler's wording, which changes between releases:
 Each one holds a line of [the grammar's types](resolver.md#the-order-is-in-the-types): no second
 extent on an axis, no vertical length in a horizontal role, no coordinate crossing axes, no adding two
 positions.
+
+## Resolving less lands where resolving everything does
+
+Resolution leaves alone whatever nothing it reads was written to, and keeps the answers it already
+has in its columns ([Resolution](resolution.md)). The claim that makes that safe, that the answer
+kept is the answer resolving again would give, is tested directly rather than case by case:
+`resolving_only_what_was_written_lands_where_resolving_everything_does` (`tests/rowan.rs`) runs one
+seeded, wandering script on two groves (rows grown, moved, set in motion, hidden and pruned under
+columns sized to what they hold, labels rewritten, columns narrowed) for four hundred frames. One
+grove is made to resolve every element every frame, and after each frame every element has to be
+where the other one put it.
+
+A test like that is only worth what it can catch, so it was checked by breaking the thing it
+guards: with R2m made to trust a child's held reach where the child had only just measured to
+something new, it fails on its third frame.
 
 ## The quiet frame
 

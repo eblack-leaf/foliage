@@ -87,6 +87,13 @@ Two more things are not drawn yet rather than not drawn: an icon whose distance 
 and an image whose pixels have not. Each occupies its box, is absent from the batch rather than held
 as blank, and appears on the frame its asset lands, with nothing to undo.
 
+One change reaches the backend without any instance saying so. An image's instance *names* its
+picture rather than holding it, so new pixels loaded under the same name, at the same shape, leave
+every instance drawing them exactly as it was, and every comparison equal. So the batch carries one
+more list beside the instances, `refilled`: every picture name filled since the last batch, sorted
+and each once, taken from the registry where the drain noted it. The backend uploads each one it
+already holds again, and leaves the rest for the first instance that wants them.
+
 ## What is stated
 
 For each painted element, extraction builds what its renderer needs, entirely in logical pixels:
