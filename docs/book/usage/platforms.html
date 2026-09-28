@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Platforms - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,165 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="platforms"><a class="header" href="#platforms">Platforms</a></h1>
+<p>The same app runs on Linux, Windows, macOS, the web and Android. <strong>Only construction differs</strong>:
+everything after <code>Foliage::new()</code> (or <code>Foliage::android(..)</code>) is the same statements on every
+platform. This chapter covers how to lay an app out so that it builds for all of them, and what is
+particular to each.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Platform</th><th>Built with</th><th>Status</th></tr>
+</thead>
+<tbody>
+<tr><td>Linux, Windows, macOS</td><td><code>Foliage::new()</code></td><td>supported; built and tested in CI</td></tr>
+<tr><td>Web (<code>wasm32-unknown-unknown</code>)</td><td><code>Foliage::new()</code></td><td>supported; built in CI</td></tr>
+<tr><td>Android</td><td><code>Foliage::android(activity)</code></td><td>supported; surface, rendering and touch verified on an emulator</td></tr>
+<tr><td>iOS</td><td><code>Foliage::new()</code></td><td>untested: the source carries iOS arms, and there is no toolchain in CI to check them</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="one-entry-point-shared"><a class="header" href="#one-entry-point-shared">One entry point, shared</a></h2>
+<p>Put the app in a library crate, with one function that takes a <code>Foliage</code> and runs it. Each
+platform’s entry point then only builds the engine and hands it over:</p>
+<pre><code class="language-rust no_run">// src/lib.rs
+use foliage::{Area, Foliage};
+<span class="boring">use foliage::{Grove, Pollen, Root};
+</span><span class="boring">struct App;
+</span><span class="boring">impl Root for App {
+</span><span class="boring">    fn take_root(_: &amp;mut Grove) -&gt; Self { App }
+</span><span class="boring">    fn frame(&amp;mut self, _: &amp;mut Grove, _: Pollen) {}
+</span><span class="boring">}
+</span>
+/// Shared by every platform's entry point.
+pub fn run(mut foliage: Foliage) {
+    foliage.title("app");
+    foliage.app_id("app");
+    foliage.desktop_size(Area::new(390.0, 844.0));
+    foliage.root::&lt;App&gt;();
+    foliage.photosynthesize();
+}
+<span class="boring">fn main() {}</span></code></pre>
+<pre><code class="language-rust no_run">// src/main.rs: desktop and web
+<span class="boring">mod app { pub fn run(_: foliage::Foliage) {} }
+</span>fn main() {
+    app::run(foliage::Foliage::new());
+}</code></pre>
+<pre><code class="language-rust no_run">// app-android/src/lib.rs: Android, in a crate of its own
+<span class="boring">mod app { pub fn run(_: foliage::Foliage) {} }
+</span>#[cfg(target_os = "android")]
+#[unsafe(no_mangle)]
+fn android_main(activity: foliage::AndroidApp) {
+    app::run(foliage::Foliage::android(activity));
+}
+<span class="boring">fn main() {}</span></code></pre>
+<p>This is how the site is built: <a href="https://github.com/eblack-leaf/foliage/blob/main/application/src/lib.rs"><code>application/src/lib.rs</code></a>
+holds <code>run</code>, and <code>main.rs</code> and
+<a href="https://github.com/eblack-leaf/foliage/tree/main/application-android"><code>application-android</code></a> are
+three lines each.</p>
+<h2 id="desktop"><a class="header" href="#desktop">Desktop</a></h2>
+<p><code>Foliage::new()</code>, and nothing else. <code>desktop_size</code> is the size the window opens at; the window can
+be made no smaller than 290 by 290 logical pixels, because a window dragged to nothing leaves every
+extent resolving against zero.</p>
+<p><code>app_id</code> matters on Linux. It becomes the Wayland <code>app_id</code> and the X11 <code>WM_CLASS</code>, which is how the
+desktop matches the window to the entry that launched it. Without one, some desktops draw a second,
+generic icon beside the one that was clicked.</p>
+<p>Building on Linux needs the windowing headers (see <a href="first-app.html#setting-up">A first app</a>).
+Nothing else needs anything beyond Rust.</p>
+<h2 id="web"><a class="header" href="#web">Web</a></h2>
+<p>The app compiles to <code>wasm32-unknown-unknown</code> unchanged and is served by
+<a href="https://trunkrs.dev"><code>trunk</code></a>. The page needs almost nothing:</p>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"/&gt;
+    &lt;meta content="width=device-width, viewport-fit=cover, initial-scale=1.0" name="viewport"/&gt;
+    &lt;style&gt;
+        html, body { margin: 0; border: 0; padding: 0; height: 100%; }
+    &lt;/style&gt;
+    &lt;link data-trunk rel="rust" href="./Cargo.toml" data-bin="app"/&gt;
+&lt;/head&gt;
+&lt;body&gt;&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>The engine puts its canvas in the body and styles it to fill its parent, and the surface follows
+whatever size the page resolves that to. <code>desktop_size</code> is ignored. The site’s
+<a href="https://github.com/eblack-leaf/foliage/blob/main/application/index.html"><code>index.html</code></a> and
+<a href="https://github.com/eblack-leaf/foliage/blob/main/application/Trunk.toml"><code>Trunk.toml</code></a> are a
+complete, deployed example, served from a GitHub Pages project path with <code>public_url</code>.</p>
+<p>What is different on the web:</p>
+<ul>
+<li><strong>The device arrives by promise.</strong> A browser hands over its GPU adapter asynchronously, so the
+first frame runs once it lands rather than at startup.</li>
+<li><strong>No threads.</strong> A <code>Sprig</code> is not <code>Send</code> on the web; it is used from a promise or a callback
+instead of a spawned thread.</li>
+<li><strong>No paths.</strong> <code>Origin::path</code> does not exist on the web; <code>Origin::url</code> is fetched by the browser,
+with no feature needed.</li>
+<li><strong>The keyboard is the browser’s.</strong> While a field holds focus, the engine focuses a hidden input
+so that a phone raises its keyboard, and that input hands every key back. <code>Keypad</code> becomes the
+input’s <code>inputmode</code>. While it holds the keys, the Command key counts as <code>control</code>, so a field’s
+<code>Cmd+C</code> copies on a Mac.</li>
+<li><strong>The clipboard is permission-gated.</strong> A browser usually refuses a clipboard read outside a user
+gesture; a field’s <code>Ctrl+V</code> takes the text from the paste event instead.</li>
+<li><strong><code>navigate</code> replaces the page</strong>, and <code>download</code> saves through a link the engine clicks.</li>
+<li><strong>A resize paints immediately.</strong> The canvas is cleared when its size changes, so the engine
+paints the new size in the same browser frame rather than showing a blank one.</li>
+<li><strong>Logging goes to the console</strong>, through a subscriber such as <code>tracing-web</code>.</li>
+</ul>
+<h2 id="android"><a class="header" href="#android">Android</a></h2>
+<p>Android is the one platform a Rust program cannot reach on its own: the process belongs to a Java
+activity, and <code>androidx.games:games-activity</code> (the library behind winit’s GameActivity backend)
+can only be linked by Gradle. <a href="https://github.com/eblack-leaf/foliage/tree/main/foliage-android"><code>foliage-android</code></a>
+generates that project and then drives it:</p>
+<pre><code class="language-sh">cargo install --git https://github.com/eblack-leaf/foliage foliage-android
+foliage-android init --app-id io.github.yourname.yourapp
+foliage-android setup    # the SDK and NDK, into a directory beside the repo
+foliage-android doctor   # what is missing, and the command that installs each piece
+foliage-android run      # every configured ABI, built, installed and launched
+</code></pre>
+<p><code>init</code> writes the Gradle project, a <code>cdylib</code> entry crate holding <code>android_main</code>, and
+<code>foliage-android.toml</code> recording every choice, so no later command takes arguments and running
+<code>init</code> again regenerates the project against an edited file. The entry crate is its own crate
+rather than the app’s, because a <code>cdylib</code> target in the app crate would also produce a wasm
+artifact with the app’s name and confuse the web build.</p>
+<p><code>Foliage::android</code> takes the activity the process was started for, re-exported as
+<code>foliage::AndroidApp</code> so the app never names the glue crate itself (two versions of it in one
+binary is a link error at launch).</p>
+<p>What is different on Android:</p>
+<ul>
+<li><strong>The surface comes and goes.</strong> When the app leaves the foreground, Android destroys its window,
+and the engine drops everything built against it: the GPU device, the renderers, the surface.
+When it comes back they are built again. <strong>The tree is untouched</strong>, so an app returns to exactly
+the frame it left, and the first frame back is not told about the time it was away.</li>
+<li><strong>Typing into fields is not wired up yet.</strong> A focused field raises the soft keyboard, with the
+field’s <code>Keypad</code>, but Android delivers what is typed on it through the input method (IME), and
+the engine does not handle IME commits yet. A hardware keyboard works.</li>
+<li><strong>The clipboard is the engine’s own.</strong> The system clipboard is not reached yet, so a copy
+round-trips inside the app and no further.</li>
+<li><strong><code>navigate</code> opens the URL</strong> with an <code>ACTION_VIEW</code> intent.</li>
+</ul>
+<h2 id="ios"><a class="header" href="#ios">iOS</a></h2>
+<p>The shared source carries iOS arms wherever a platform decision is forced, and <code>Foliage::new()</code> is
+the constructor. It has not been built or run, so it is unverified rather than unsupported.</p>
+<h2 id="the-one-feature"><a class="header" href="#the-one-feature">The one feature</a></h2>
+<pre><code class="language-toml">foliage = { git = "https://github.com/eblack-leaf/foliage", features = ["origin-url"] }
+</code></pre>
+<p><code>origin-url</code> lets <code>Origin::url</code> fetch off the web. It is the only thing in foliage that brings an
+http client and a TLS stack, so it is off by default: an app that bundles its assets, or reads them
+from paths, compiles neither. Without it a URL is still accepted everywhere and reported <code>missing</code>
+off the web. On the web it selects nothing, because the browser does the fetching.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/debugging.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../usage/notes.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +343,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/debugging.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../usage/notes.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +367,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>What a frame costs - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,142 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="what-a-frame-costs"><a class="header" href="#what-a-frame-costs">What a frame costs</a></h1>
+<p>This chapter is about reading the engine’s cost: how to measure a frame, what one costs today, where
+the time goes, and what that means for an app. The open optimisation candidates, and the history
+behind the numbers, are in
+<a href="https://github.com/eblack-leaf/foliage/blob/main/OPTIMIZATION.md"><code>OPTIMIZATION.md</code></a>.</p>
+<h2 id="the-cheapest-frame-is-the-one-that-does-not-run"><a class="header" href="#the-cheapest-frame-is-the-one-that-does-not-run">The cheapest frame is the one that does not run</a></h2>
+<p>Before any number: the engine idles. A frame runs only when something is owed
+(<a href="loop.html#whether-a-frame-is-owed">The loop</a>), so an app that is not being touched, not animating and
+not loading anything costs nothing at all between events. Everything below is the cost of a frame
+that <em>does</em> run.</p>
+<h2 id="three-readings"><a class="header" href="#three-readings">Three readings</a></h2>
+<p>No single measurement sees the whole frame, so there are three.</p>
+<p><strong>Headless, by aspect.</strong> The suite carries a benchmark that runs the frame exactly as the loop does,
+against a grove with no surface and a clock moved by hand, so what it times is the frame on the
+processor and nothing else:</p>
+<pre><code class="language-sh">cargo test -p foliage --release --lib bench -- --ignored --nocapture --test-threads 1
+FOLIAGE_BENCH=layout,scroll FOLIAGE_BENCH_CELLS=4096 FOLIAGE_BENCH_PHASES=1 cargo test ...
+</code></pre>
+<p>It grows a field of cells (each a shape with a label on it, so two elements per cell) and runs one
+load at a time, each writing one kind of thing every frame. <code>FOLIAGE_BENCH_PHASES</code> follows each
+reading with where the frame went, from the engine’s own trace spans.</p>
+<p><strong>Windowed, with the backend.</strong> <code>cargo run -p foliage --release --example stress -- &lt;load&gt; &lt;cells&gt;</code>
+saturates one phase under a real surface and prints a phase table once a second. It is the only
+reading that sees <code>absorb</code> (what the backend does with a batch) and <code>draw</code>. Raise the cell count until
+the frame rate falls below the display’s; below that point, the profile is mostly the wait to
+present.</p>
+<p><strong>On the web.</strong> The same headless harness runs under <code>wasm-bindgen-test-runner</code>; it reads the same
+shape as native, 30 to 60 per cent slower.</p>
+<h2 id="where-a-frame-goes-today"><a class="header" href="#where-a-frame-goes-today">Where a frame goes today</a></h2>
+<p>Headless, release build, median of 120 frames, on a 4-core 2.1 GHz cloud VM with no GPU:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Load</th><th>Writes each frame</th><th>512 cells</th><th>4096 cells</th></tr>
+</thead>
+<tbody>
+<tr><td><code>idle</code></td><td>nothing</td><td>0.034 ms</td><td>0.27 ms</td></tr>
+<tr><td><code>hover</code></td><td>one color motion on one cell</td><td>0.034 ms</td><td>0.27 ms</td></tr>
+<tr><td><code>scroll</code></td><td>a region holding every cell, wheeled</td><td>0.034 ms</td><td>0.53 ms</td></tr>
+<tr><td><code>color/64</code></td><td>a sixty-fourth of the fills</td><td>0.036 ms</td><td>0.28 ms</td></tr>
+<tr><td><code>color</code></td><td>every fill</td><td>0.11 ms</td><td>0.88 ms</td></tr>
+<tr><td><code>repaint</code></td><td>the scheme</td><td>0.089 ms</td><td>0.79 ms</td></tr>
+<tr><td><code>fade</code></td><td>one opacity motion on the container of every cell</td><td>0.10 ms</td><td>0.92 ms</td></tr>
+<tr><td><code>toggle</code></td><td>the whole field hidden and shown on alternate frames</td><td>0.12 ms</td><td>1.1 ms</td></tr>
+<tr><td><code>layout/64</code></td><td>a sixty-fourth of the placements</td><td>0.061 ms</td><td>0.66 ms</td></tr>
+<tr><td><code>text/64</code></td><td>a sixty-fourth of the labels</td><td>0.052 ms</td><td>0.61 ms</td></tr>
+<tr><td><code>churn</code></td><td>32 cells pruned and grown again</td><td>0.34 ms</td><td>1.9 ms</td></tr>
+<tr><td><code>layout</code></td><td>every placement</td><td>0.34 ms</td><td>3.3 ms</td></tr>
+<tr><td><code>move</code></td><td>a location motion on every cell</td><td>0.32 ms</td><td>3.2 ms</td></tr>
+<tr><td><code>deep</code></td><td>the root of a chain of stems nested as deep as there are cells</td><td>0.30 ms</td><td>3.2 ms</td></tr>
+<tr><td><code>resize</code></td><td>the viewport</td><td>0.36 ms</td><td>3.6 ms</td></tr>
+<tr><td><code>text</code></td><td>every label, with strings never shaped before</td><td>0.41 ms</td><td>4.4 ms</td></tr>
+<tr><td><code>type</code></td><td>a character typed and taken back, in an area of that many words</td><td>0.11 ms</td><td>0.86 ms</td></tr>
+</tbody>
+</table>
+</div>
+<p>These agree with the table in <code>OPTIMIZATION.md</code>, measured separately on a similar machine, to within
+the jitter a shared VM has. For scale: a 60 Hz display allows 16.7 milliseconds a frame, and the
+4096-cell column is over eight thousand elements.</p>
+<h2 id="reading-the-table"><a class="header" href="#reading-the-table">Reading the table</a></h2>
+<p>Each load writes one kind of thing, so the difference between two rows is where those writes land.
+The phase breakdowns (4096 cells) say which part of the frame paid.</p>
+<p><strong>The floor is the accumulations.</strong> An idle frame at eight thousand elements is about a quarter of a
+millisecond, and almost all of it is resolution’s passes that carry a running product (extent,
+scroll, clip, inherit), each about 0.05 ms. They run over every element because what they carry has no
+position to start from; they skip nothing but also do nothing expensive per element. Extraction on an
+idle frame visits nothing that moved and costs a hundredth of a millisecond.</p>
+<p><strong>A write that moves nothing places nothing.</strong> <code>color</code>, <code>repaint</code>, <code>fade</code> and <code>hover</code> rewrite what
+elements look like, and none of them runs the axes: <code>color</code> at 0.88 ms is re-reading each restyled
+element’s standing (0.32 ms), extraction resolving and comparing fills (0.24 ms), and the drain
+applying eight thousand ops (0.21 ms). One motion on one cell (<code>hover</code>) is indistinguishable from
+idle.</p>
+<p><strong>A write that moves a box costs the box, and what depends on it.</strong> <code>layout</code> at 3.3 ms is mostly the
+two axes (1.1 ms) and the measure pass (0.43 ms), then the drain and extraction. <code>layout/64</code> shows the
+incremental resolution working: a sixty-fourth of the writes costs a fifth of the frame. What is left
+is worth reading: most of <code>layout/64</code>’s resolution is R2m’s <code>reach</code> (0.19 ms), because every element
+written marks its ancestors to measure again, and the container over the field measures by reaching
+over all four thousand of its children. A write under a very wide container pays for the container’s
+children.</p>
+<p><strong>New text pays for shaping.</strong> <code>text</code> at 4.4 ms is <code>measure</code> shaping eight thousand strings it has
+never seen (1.5 ms) and <code>wrap</code> wrapping them (0.83 ms). A string that has been shaped before, at that
+font and size, is a cache lookup. The same labels rewritten to strings already on screen would cost
+little more than <code>layout</code>.</p>
+<p><strong>Changing the tree’s shape rebuilds its order.</strong> <code>churn</code> regrows only 32 cells, yet costs 1.9 ms, and
+0.79 ms of it is <code>structure</code>: the dependency order rebuilt over all eight thousand elements, which any
+grow or prune triggers. Another 0.36 ms is the box stack sorted again. Hiding and showing the entire
+field (<code>toggle</code>, 1.1 ms) is cheaper than regrowing 32 cells of it.</p>
+<p><strong>A resize is everything.</strong> The viewport, the breakpoint and the short reading are read by every
+placement, so <code>resize</code> is every element resolved and every run measured again (3.6 ms). Dragging a
+window’s edge does this every frame of the drag, which is why it is the most expensive thing that
+routinely happens.</p>
+<p><strong>Scrolling moves what is inside.</strong> <code>scroll</code> resolves no more than idle does, but R4 moves the drawn
+box of everything in the region, so every descendant is <code>moved</code> and extraction revisits all of it
+(0.20 ms), most of it only to find it culled.</p>
+<p><strong>Typing into a long run is linear in the run.</strong> The <code>type</code> load is a character typed into an area
+holding four thousand words, and it costs 0.86 ms per keystroke: the run is shaped, wrapped and drawn
+whole, and placing the caret and selection reads character positions that each walk the run from its
+start.</p>
+<h2 id="what-an-app-can-do-with-this"><a class="header" href="#what-an-app-can-do-with-this">What an app can do with this</a></h2>
+<p>Most apps are nowhere near these numbers: a few hundred elements, a handful of writes a frame. Where
+one is, the table suggests where to look:</p>
+<ul>
+<li><strong>Prefer writes that do not move boxes.</strong> Color, opacity, visibility, elevation and rounding changes
+are drawn again without being placed again.</li>
+<li><strong>Keep content-sized containers narrow.</strong> A container whose children number in the thousands is
+measured over all of them whenever any one of them is written.</li>
+<li><strong>Hide rather than regrow</strong> things that come and go every frame: a grow or a prune rebuilds the
+order of the whole tree. (The reverse holds for something parked for good: a hidden subtree is still
+resolved whenever everything is, on a resize for instance.)</li>
+<li><strong>Reuse strings where it is natural.</strong> Shaping is cached by string, font and size; a clock that
+rewrites its label every frame shapes a new string every frame.</li>
+<li><strong>Split very long text.</strong> A text area’s costs grow with the length of its run.</li>
+<li><strong>Expect a resize to cost the whole tree</strong>, and keep the tree to what is on screen or near it.</li>
+</ul>
+<h2 id="following-a-frame-in-the-trace"><a class="header" href="#following-a-frame-in-the-trace">Following a frame in the trace</a></h2>
+<p>Every phase is a span. With a subscriber installed (<a href="../usage/debugging.html">Debugging</a>) and
+<code>RUST_LOG=foliage=trace</code>, each frame is a <code>frame</code> span containing <code>intake</code>, <code>dispatch</code>, <code>gestured</code>,
+<code>root</code>, <code>drain</code>, <code>animate</code>, <code>resolve</code> (with <code>elements</code>, <code>measure</code>, <code>axis</code>, <code>wrap</code>, <code>extent</code>,
+<code>scroll</code>, <code>clip</code> and <code>rank</code> under it), <code>settle</code> (with <code>inherit</code> and <code>regions</code>), <code>publish</code> and
+<code>extract</code>, then the backend’s <code>absorb</code>, <code>restack</code> and <code>draw</code>. The spans carry counts: how many
+inputs dispatch took, how many ops the drain applied, how many elements resolution held and how many
+were dirty, how many instances extraction wrote, withdrew and kept.</p>
+<p>A profiler that understands spans, or the <code>stress</code> example’s phase table, turns that into the
+breakdowns above without any instrumentation of an app’s own.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/testing.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../appendix/lexicon.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +320,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/testing.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../appendix/lexicon.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +344,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

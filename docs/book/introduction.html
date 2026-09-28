@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-4fc56618.js";
+            window.path_to_searchindex_js = "searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-7275294e.js"></script>
+        <script src="toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -178,18 +178,73 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>This book is not written yet.</p>
-<p>The scaffold is here so that <code>cargo xtask book</code> builds and publishes to <code>docs/book</code>, and so the
-chapters have somewhere to land. Until they do, the
-<a href="https://eblack-leaf.github.io/foliage/api/foliage/">API reference</a> is the documentation: every
-type in the public surface carries what it is for and why it is shaped the way it is, and the
-crate root is the map.</p>
+<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
+ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
+type is ever handed out, and nothing an app holds borrows from the world. Rendering is
+<a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
+code runs on Linux, Windows, macOS, the web and Android.</p>
+<p>Everything that crosses the seam between an app and the engine is plain data:</p>
+<ul>
+<li><strong>ops in.</strong> An app never touches an element directly. It writes verbs (<code>plant</code>, <code>at</code>, <code>color</code>,
+<code>animate</code>) against a name, and each one is queued.</li>
+<li><strong>reports out.</strong> Once a frame, the engine hands the app a <code>Pollen</code>: what was clicked, what
+finished, what arrived, what withered.</li>
+<li><strong>reads beside.</strong> At any point in its frame an app can <code>tap</code> one property of one element and
+get a copy of it back.</li>
+</ul>
+<p>An app says what an element <em>is</em> (where it sits, what fills it, whether it takes a gesture) and
+then only writes verbs against the name it got back. There is no render call to make: the next
+frame is already different.</p>
+<h2 id="how-this-book-is-laid-out"><a class="header" href="#how-this-book-is-laid-out">How this book is laid out</a></h2>
+<p>It has two halves, and they can be read in either order.</p>
+<p><strong><a href="usage/first-app.html">Using foliage</a></strong> is a set of walkthroughs. Each chapter builds something
+small and runnable (a counter, a card that sizes to its text, a scrolling list with a pinned
+header, a field that filters it) and explains the part of the engine it leans on while it goes. The
+last chapter puts most of it together in one app.</p>
+<p><strong><a href="architecture/overview.html">How foliage works</a></strong> follows one frame through the engine, from the
+platform’s event loop to the pixels. Each chapter takes one subsystem: what it owns, what it reads,
+what it hands the next one, and why it is shaped that way. It names the module each piece lives in,
+because the modules carry their own reasoning in their comments, and this half is a guided route
+through them rather than a replacement for them.</p>
+<p>The two halves meet in the middle. The usage chapters say <em>what</em> happens when an app writes a
+verb. The architecture chapters say <em>where</em> in the frame it happens and <em>what it costs</em>, which is
+what explains the rules the usage chapters state.</p>
+<h2 id="conventions"><a class="header" href="#conventions">Conventions</a></h2>
+<ul>
+<li><strong>Every distance is in logical pixels</strong>, with the origin at the top-left and <code>y</code> growing
+downward. Device pixels exist only inside the render backend, and nothing an app writes or reads
+is in them.</li>
+<li><strong>Code samples compile.</strong> Each one is checked against the crate as it stands. Where a sample is a
+fragment, the lines that make it compile (imports, the function around it) are hidden; the
+button at the top right of a code block shows them. The architecture half also quotes the
+engine’s own source; those excerpts name the file they come from, are sometimes shortened, and
+are not compiled with the book.</li>
+<li><strong>“An app”</strong> is the value implementing <code>Root</code>, and the code written around it. “The engine” is
+everything behind <code>Foliage</code>.</li>
+<li>Names of subsystems are trees: <code>Fern</code> is the frame, <code>Rowan</code> resolves, <code>Elm</code> extracts, <code>Ash</code>
+renders. The <a href="appendix/lexicon.html">lexicon</a> lists all of them.</li>
+</ul>
+<h2 id="elsewhere"><a class="header" href="#elsewhere">Elsewhere</a></h2>
+<ul>
+<li>The <a href="https://eblack-leaf.github.io/foliage/api/foliage/">API reference</a> states every public type
+and method, and the crate root is a map of the whole surface.</li>
+<li><a href="https://github.com/eblack-leaf/foliage/blob/main/USAGE.md"><code>USAGE.md</code></a> is the concept reference:
+shorter than this book, and organised as a lookup rather than as a walkthrough.</li>
+<li><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/examples"><code>foliage/examples</code></a> holds
+runnable examples, each doing one thing.</li>
+<li><a href="https://eblack-leaf.github.io/foliage/">The site</a> is itself a foliage app, built from
+<a href="https://github.com/eblack-leaf/foliage/tree/main/application"><code>application/</code></a> against nothing
+but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/foliage/tree/main/lichen"><code>lichen</code></a>.</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
 
+                            <a rel="next prefetch" href="usage/first-app.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -198,6 +253,9 @@ crate root is the map.</p>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
 
+                    <a rel="next prefetch" href="usage/first-app.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Text - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,206 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="text"><a class="header" href="#text">Text</a></h1>
+<p>A <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Text.html"><code>Text</code></a> is a run of
+glyphs. It is the one element whose box can be <em>measured</em> rather than declared, and the thing
+everything else measured in characters is measured against. This chapter covers fonts, sizing,
+wrapping, per-character color, and placing things against a particular character of a run.</p>
+<h2 id="every-font-is-monospaced"><a class="header" href="#every-font-is-monospaced">Every font is monospaced</a></h2>
+<p>foliage lays text out on a grid of identical cells. A run’s width is its character count times the
+cell width, a line is a whole number of cells, and <code>letters</code> and letter-pitched grid tracks are
+counts of cells. A proportional face does not degrade under that model; it silently puts every
+column address somewhere it does not belong. So a proportional font is <strong>refused</strong>:</p>
+<ul>
+<li>bytes handed to <code>Foliage::font</code> or <code>Grove::font</code> outright are checked on the spot, and a
+proportional face panics with a message naming two characters whose advances differ;</li>
+<li>bytes read from a path or a URL are refused without panicking and reported as <code>missing</code>, because
+what a file turned out to hold is not something the program stated.</li>
+</ul>
+<p>The bundled face is JetBrains Mono NL Medium. It is what an element that names no font composes
+in, and it is always there, so there is always a cell to measure.</p>
+<h2 id="registering-a-font"><a class="header" href="#registering-a-font">Registering a font</a></h2>
+<pre><code class="language-rust"><span class="boring">use foliage::{Font, Foliage, Grove};
+</span><span class="boring">fn boot(foliage: &amp;mut Foliage, bytes: &amp;'static [u8]) {
+</span>// At boot, before anything runs:
+let italic: Font = foliage.font(bytes);
+<span class="boring">}
+</span><span class="boring">fn later(grove: &amp;mut Grove, bytes: &amp;'static [u8]) {
+</span>// Or at any frame, which is where an app that takes root usually does it:
+let italic: Font = grove.font(bytes);
+<span class="boring">}</span></code></pre>
+<p>A <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Font.html"><code>Font</code></a> is a name and
+nothing else. An element chooses one with <code>font(..)</code>, and a size with <code>font_size(..)</code>:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Font, FontSize, Place, Text};
+</span><span class="boring">fn f(italic: Font) {
+</span>Text::new("an aside")
+    .font(italic)
+    .font_size(FontSize::new().xs(13).lg(15));
+<span class="boring">}</span></code></pre>
+<p>A size is in logical pixels, per breakpoint, and defaults to <code>FontSize::DEFAULT</code> (16). The cell
+is the face’s advance and line height at that size, each rounded up to a whole logical pixel, so
+that the hundredth column is exactly a hundred cells in.</p>
+<p>Both <code>font</code> and <code>font_size</code> are on every element, not only on text. A font and a size are what
+give an element a character cell, and <code>letters</code> counts the element’s <em>own</em> cells, so a panel meant
+to be eight characters wide states a size to be eight characters of.</p>
+<h2 id="sizing-text"><a class="header" href="#sizing-text">Sizing text</a></h2>
+<p>In a width role, <code>content()</code> is the widest the run would like to be: its longest line, unwrapped.
+In a height role it is how tall the run came out at the width it was given. Those two combine into
+the three shapes text is placed in:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Boxed, Location, Source, Text, center_x, content, left, right, top};
+</span>// A label: exactly as large as its text.
+Text::new("ok").at(Location::new().xs(
+    left(16.px()).width(content()),
+    top(16.px()).height(content()),
+));
+
+// A paragraph: as wide as it is allowed, as tall as it wraps to.
+Text::new("a paragraph").at(Location::new().xs(
+    left(16.px()).right(100.pct() - 16.px()),
+    top(16.px()).height(content()),
+));
+
+// A line centred or right-aligned: size the box to the text, and place the box.
+Text::new("centred").at(Location::new().xs(
+    center_x(50.pct()).width(content()),
+    top(16.px()).height(content()),
+));
+Text::new("right").at(Location::new().xs(
+    right(100.pct() - 16.px()).width(content()),
+    top(16.px()).height(content()),
+));</code></pre>
+<p>A run has no alignment of its own: its lines start at the left of its box. Centring and right
+alignment are placements of a box sized to the text, which is exact for a line and not available
+for a paragraph.</p>
+<p>Where the count is known ahead of time, <code>letters</code> says it directly and costs nothing to resolve:
+<code>width(12.letters())</code> is twelve cells of the element’s own font, whatever it says.</p>
+<p>The measure follows the value in the same frame. <code>grove.text(run, ..)</code> is drained, shaped,
+wrapped and placed before anything is drawn, so a box sized to its text is the right size on the
+frame the text changed rather than the frame after, and whatever is anchored below it moves with
+it on that frame too.</p>
+<h2 id="wrapping"><a class="header" href="#wrapping">Wrapping</a></h2>
+<p>A run wraps at the width of its box, on word boundaries, greedily. There are three rules and no
+fourth:</p>
+<ul>
+<li>a newline ends a line;</li>
+<li>a word that does not fit in what is left of a line starts the next one, and the spaces before it
+go with the break rather than trailing off the end;</li>
+<li>a word longer than a whole line fills what is left and breaks inside itself, because there is
+no width at which it would fit.</li>
+</ul>
+<p>A run with nothing in it takes no lines at all, so an empty element measures to zero rather than
+to one line of nothing.</p>
+<h2 id="color-per-character"><a class="header" href="#color-per-character">Color, per character</a></h2>
+<p>A run is filled like anything else: <code>Text::new(..)</code> defaults to <code>Palette::Ink</code>, and <code>color</code> takes
+a tone or a literal. Part of a run can be filled differently with a <strong>tint</strong>, over a range of the
+run’s own character indices:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Color, Grove, Grow, Leaf, Palette, Text};
+</span><span class="boring">fn f(grove: &amp;mut Grove, line: Leaf) {
+</span>Text::new("ok  warn  error")
+    .color(Palette::Ink)
+    .tint(4..8, Palette::Caution.mark())
+    .tint(10..15, Palette::Danger.mark());
+
+// Rewritten later, all at once:
+grove.tint(line, [(0..2, Palette::Positive.mark())]);
+// And taken off:
+grove.untint(line);
+<span class="boring">}</span></code></pre>
+<p>The indices are <strong>characters</strong>, not bytes, spaces and newlines included: the same space a caret
+and a selection are addressed in. Where two tints overlap, the later one wins. <code>grove.tint</code>
+replaces every tint on the run rather than adding one, for the reason <code>at</code> replaces a whole
+placement.</p>
+<p>A tint is a <code>Fill</code>, so a tone follows a repaint and a literal does not. Use a hue’s <code>mark()</code> form
+for a word set apart on a neutral ground; that is what the form is for.</p>
+<h2 id="placing-things-against-a-character"><a class="header" href="#placing-things-against-a-character">Placing things against a character</a></h2>
+<p>A run knows where each of its characters landed after wrapping, and that is readable from the
+grammar. <code>anchor().character(n)</code> is where character <code>n</code> of the anchor’s run stands: its column
+across and its line down, each measured in the anchor’s cells from the run’s top-left. It is exact
+on the frame the run wraps differently, because it is read off the wrap the layout just made.</p>
+<p>This page highlights a word, and the highlight follows it when the text reflows:</p>
+<pre><code class="language-rust no_run">use foliage::{
+    Area, Boxed, Elevation, Foliage, FontSize, Grove, Grow, Location, Palette, Panel, Place,
+    Pollen, Root, Rounding, Source, Step, Text, anchor, content, left, top,
+};
+
+const SAYS: &amp;str = "Every measurement foliage makes is a count of character cells, which is \
+                    why every font it draws is monospaced.";
+
+struct Highlight;
+
+impl Root for Highlight {
+    fn take_root(grove: &amp;mut Grove) -&gt; Self {
+        let page = grove.plant(Panel::new());
+        let run = grove.branch(
+            page,
+            Text::new(SAYS)
+                .font_size(FontSize::new().xs(16))
+                // In front of the highlight, which is grown after it.
+                .elevate(Elevation::up(1))
+                .at(Location::new().xs(
+                    left(24.px()).right(100.pct() - 24.px()),
+                    top(24.px()).height(content()),
+                )),
+        );
+        let word = "character";
+        let from = SAYS[..SAYS.find(word).unwrap()].chars().count();
+        let length = word.chars().count() as f32;
+        grove.branch(
+            page,
+            Panel::new()
+                .color(Palette::Caution.at(Step::Farthest))
+                .rounding(Rounding::Xs)
+                .anchored(run)
+                .at(Location::new().xs(
+                    left(anchor().left() + anchor().character(from)).width(anchor().letters(length)),
+                    top(anchor().top() + anchor().character(from)).height(anchor().letters(1.0)),
+                )),
+        );
+        Highlight
+    }
+
+    fn frame(&amp;mut self, _grove: &amp;mut Grove, _pollen: Pollen) {}
+}
+
+fn main() {
+    let mut foliage = Foliage::new();
+    foliage.title("highlight");
+    foliage.desktop_size(Area::new(480.0, 240.0));
+    foliage.root::&lt;Highlight&gt;();
+    foliage.photosynthesize();
+}</code></pre>
+<p>Resize the window until “character” is pushed to the next line: the highlight goes with it on the
+same frame.</p>
+<p>Three things make it work:</p>
+<ul>
+<li><code>anchor().character(from)</code> is a <strong>length</strong>, measured from the run’s own corner, which is why it
+is added to <code>anchor().left()</code> and <code>anchor().top()</code> rather than used alone. On the horizontal axis
+it is the column times the cell width; on the vertical axis, the line times the cell height.</li>
+<li><code>anchor().letters(n)</code> counts cells of the <em>anchor’s</em> font, which is what a highlight on its
+text has to be measured in. A bare <code>letters</code> would count the panel’s own cells, and the panel
+has no font.</li>
+<li>The run is raised one step, so the highlight (grown after it, and so otherwise in front of it)
+sits behind its glyphs.</li>
+</ul>
+<p>A highlight across a line break needs one box per line. The text fields do exactly that for their
+selection, with three boxes whose sizes come out as zero when a span does not need them; <a href="../architecture/fronds.html">the
+Fronds chapter</a> shows how.</p>
+<h2 id="reading-text-back"><a class="header" href="#reading-text-back">Reading text back</a></h2>
+<p><code>grove.tap(run, Vein::Text)</code> answers what a run says, as <code>Sap::Text(String)</code>. It is what was
+written, not how it wrapped; where the lines fell is a function of the box, and the box is
+<code>Vein::Drawn</code>. For a field, the same vein answers the field’s value.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/color.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../usage/input.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +384,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/color.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../usage/input.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +408,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

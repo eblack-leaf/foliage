@@ -1,0 +1,999 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Walkthrough: a notes app - foliage</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-c59f2531.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">foliage</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="walkthrough-a-notes-app"><a class="header" href="#walkthrough-a-notes-app">Walkthrough: a notes app</a></h1>
+<p>This chapter builds one whole app from the parts the others covered: a list of notes and an editor
+for them. It is about 370 lines, and every line is in the full program at the end.</p>
+<ul>
+<li>On a desk the list and the editor sit side by side. On a phone the list fills the screen, and
+opening a note replaces it with the editor, which has a way back.</li>
+<li><strong>new</strong>, or <code>Ctrl+N</code> from anywhere, adds a note, opens it and puts the caret in it.</li>
+<li>A row’s title follows the first line of its note as it is typed.</li>
+<li><strong>delete</strong> fades the note’s row out while the rows below slide up to close the gap.</li>
+<li><strong>theme</strong> switches between the dark and the light scheme.</li>
+</ul>
+<p><label class="checkbox-label"><input class="checkbox-img" type="checkbox"><img src="notes-desk.png" alt="The notes app at 900 logical pixels wide: a list of two notes on the left, the second one open in the editor on the right"><span class="img-wrapper"><img src="notes-desk.png" alt="The notes app at 900 logical pixels wide: a list of two notes on the left, the second one open in the editor on the right"></span></label></p>
+<p><label class="checkbox-label"><input class="checkbox-img" type="checkbox"><img src="notes-phone.png" alt="The same app at 390 wide: the list alone, with one note in it"><span class="img-wrapper"><img src="notes-phone.png" alt="The same app at 390 wide: the list alone, with one note in it"></span></label></p>
+<p>To run it, put the program in <code>src/main.rs</code> of a crate set up as in
+<a href="first-app.html#setting-up">A first app</a>, and <code>cargo run</code>. The window opens phone-sized; drag it wider
+than 600 logical pixels to see the desk layout.</p>
+<h2 id="what-the-app-holds"><a class="header" href="#what-the-app-holds">What the app holds</a></h2>
+<pre><code class="language-rust ignore">/// One note: its row in the list, and the area in the editor that holds what it says.
+struct Note {
+    ground: Leaf,
+    title: Leaf,
+    area: Leaf,
+}
+
+struct Notes {
+    list: Leaf,
+    column: Leaf,
+    editor: Leaf,
+    hint: Leaf,
+    count: Leaf,
+    new: Leaf,
+    theme: Leaf,
+    back: Leaf,
+    delete: Leaf,
+    notes: Vec&lt;Note&gt;,
+    selected: Option&lt;usize&gt;,
+    /// Rows fading out, and the motion that says when each is gone.
+    leaving: Vec&lt;(Leaf, Tween)&gt;,
+    dark: bool,
+}</code></pre>
+<p>The app’s own state is small: which notes exist, in what order, and which one is open. Everything
+else lives in the tree, including what each note <em>says</em>. A <code>Note</code> is three names: the ground of
+its row, the title drawn on that row, and the text area in the editor that holds its text. No
+copy of the text is kept on this side, so there is nothing to keep in step with what is on screen;
+when the app needs a note’s text it reads it with <code>tap</code>.</p>
+<p>The other fields are the elements <code>frame</code> asks about, plus <code>leaving</code>, the rows on their way out,
+and <code>dark</code>, which scheme is in force.</p>
+<h2 id="two-panes-one-grid"><a class="header" href="#two-panes-one-grid">Two panes, one grid</a></h2>
+<pre><code class="language-rust ignore">let page = grove.plant(
+    Panel::new().grid(
+        Grid::new()
+            .xs(1.columns(), 1.rows())
+            .md(12.columns().gap(16.0), 1.rows()),
+    ),
+);
+
+// The list: the whole page on a phone, the first five columns on a desk.
+let list = grove.branch(
+    page,
+    Stem::new().at(Location::new()
+        .xs(left(0.px()).right(100.pct()), top(0.px()).bottom(100.pct()))
+        .md(left(1.col()).right(5.col()), top(0.px()).bottom(100.pct()))),
+);
+// ...
+// The editor: the whole page on a phone, the other seven columns on a desk.
+let editor = grove.branch(
+    page,
+    Stem::new().at(Location::new()
+        .xs(left(0.px()).right(100.pct()), top(0.px()).bottom(100.pct()))
+        .md(left(6.col()).right(12.col()), top(0.px()).bottom(100.pct()))),
+);</code></pre>
+<p>The page is one column below <code>Md</code> and twelve from <code>Md</code> up, and each pane says where it sits at
+both. Below 600 logical pixels both panes are the whole page; from 600 up the list takes columns 1
+to 5 and the editor columns 6 to 12, with the grid’s gap between them. <code>Lg</code> and <code>Xl</code> state nothing
+of their own and take <code>md</code>’s placements, so the panes grow with the window.</p>
+<p>Each pane is a <code>Stem</code>: it draws nothing, and exists to be a box the things in it are placed
+against, and one element to hide, disable or dim for everything under it at once.</p>
+<p>On a phone the two panes are in the same place, so only one of them may show. That is a decision
+about <em>visibility</em>, which is not part of a placement, so the app makes it:</p>
+<pre><code class="language-rust ignore">/// Which panes show: both on a desk, and on a phone the editor while a note is open.
+fn panes(&amp;self, grove: &amp;mut Grove) {
+    let narrow = grove.layout() &lt; Layout::Md;
+    let open = self.selected.is_some();
+    grove.visible(self.list, !narrow || !open);
+    grove.visible(self.editor, !narrow || open);
+    grove.visible(self.back, narrow);
+}</code></pre>
+<p><code>panes</code> is called whenever the selection changes and whenever the window was resized:</p>
+<pre><code class="language-rust ignore">if pollen.resized().is_some() {
+    self.panes(grove);
+}</code></pre>
+<p>A resize that crosses 600 is taken in the same frame’s intake, before <code>frame</code> runs, so
+<code>grove.layout()</code> is already the new breakpoint when <code>panes</code> asks. The placements need no such
+call: every one is re-read against the new breakpoint by the engine.</p>
+<h2 id="parts"><a class="header" href="#parts">Parts</a></h2>
+<p>Three small functions build what repeats:</p>
+<pre><code class="language-rust ignore">/// A pressable panel with a label on it, lettered in what reads on its fill.
+fn button(grove: &amp;mut Grove, under: Leaf, at: Location, fill: Palette, says: &amp;str) -&gt; Leaf {
+    let button = grove.branch(
+        under,
+        Panel::new()
+            .color(fill)
+            .rounding(Rounding::Sm)
+            .interactive()
+            .at(at),
+    );
+    grove.branch(
+        button,
+        Text::new(says)
+            .color(fill.on())
+            .font_size(FontSize::new().xs(13))
+            .intangible()
+            .at(Location::new().xs(
+                center_x(50.pct()).width(content()),
+                center_y(50.pct()).height(content()),
+            )),
+    );
+    button
+}
+
+/// A button's place in a header: `width` wide, its right edge `inset` from the header's.
+fn tail(inset: f32, width: f32) -&gt; Location {
+    Location::new().xs(
+        right(100.pct() - inset.px()).width(width.px()),
+        center_y(50.pct()).height(32.px()),
+    )
+}</code></pre>
+<p>A button is a panel that receives, with a label on it that does not. Without <code>intangible</code> the
+label would be on top of the panel wherever it has letters, and a press there would reach nothing.
+<code>fill.on()</code> is the tone that reads on the button’s fill, so the label is legible in either scheme
+without the app choosing a color for each. <code>tail</code> places from the right: the right edge is stated
+and the width runs back from it.</p>
+<p>The third, <code>header</code>, is a <code>Raised</code> strip across the top of a pane. The list’s header holds the
+count of notes as its title and two buttons; the editor’s holds <strong>back</strong> and <strong>delete</strong>.</p>
+<p>The header’s arithmetic has to hold at the narrowest the list gets, which is five of twelve columns
+at 600 logical pixels: 240 wide. The two buttons take the right-hand 128 of that, and the title
+(“100 notes” is nine cells of 10 at 16 pixels) fits in what is left. That is why the list has five
+columns and not four: four are 189 wide at 600, and <strong>theme</strong> would sit on top of the title.</p>
+<h2 id="the-list"><a class="header" href="#the-list">The list</a></h2>
+<p>Rows are placed by their index in the list:</p>
+<pre><code class="language-rust ignore">/// Where row `n` of the list stands.
+fn row_at(n: usize) -&gt; Location {
+    Location::new().xs(
+        left(8.px()).right(100.pct() - 8.px()),
+        top((8.0 + n as f32 * ROW).px()).height((ROW - 4.0).px()),
+    )
+}</code></pre>
+<p>They are grown under <code>column</code>, a <code>Stem</code> below the header that scrolls vertically. Its extent is
+what its rows cover, so it starts scrolling as soon as a row runs past its bottom, with nothing to
+declare about how long the list is.</p>
+<p>Adding a note is one function, and every op in it lands in the same frame:</p>
+<pre><code class="language-rust ignore">/// A new, empty note at the end of the list, open, and ready to type into.
+fn add(&amp;mut self, grove: &amp;mut Grove) {
+    let n = self.notes.len();
+    let ground = grove.branch(
+        self.column,
+        Panel::new()
+            .color(Palette::Raised)
+            .rounding(Rounding::Sm)
+            .interactive()
+            .at(row_at(n)),
+    );
+    let title = grove.branch(
+        ground,
+        Text::new(title_of(""))
+            .font_size(FontSize::new().xs(14))
+            .intangible()
+            .at(Location::new().xs(
+                left(12.px()).right(100.pct() - 12.px()),
+                center_y(50.pct()).height(1.letters()),
+            )),
+    );
+    let area = grove.branch(
+        self.editor,
+        TextArea::new()
+            .placeholder("write something")
+            .font_size(FontSize::new().xs(15))
+            .visible(false)
+            .at(Location::new().xs(
+                left(16.px()).right(100.pct() - 16.px()),
+                top((HEADER + 16.0).px()).bottom(100.pct() - 16.px()),
+            )),
+    );
+    self.notes.push(Note {
+        ground,
+        title,
+        area,
+    });
+    self.select(grove, Some(n));
+    grove.focus(area);
+    grove.scroll(self.column, ScrollTo::show(ground));
+    self.counted(grove);
+}</code></pre>
+<p>Each line names things grown a few lines earlier, and all of it works on the first try because the
+drain applies ops in the order they were written:</p>
+<ul>
+<li><code>select</code> shows the new area before <code>focus</code> asks for it. Whether an element can take focus is
+answered against what has been declared as of the drain, not against last frame’s resolution, so
+showing something and focusing into it in one frame is ordinary.</li>
+<li><code>ScrollTo::show</code> is a destination rather than a distance. It is answered after this frame has
+placed the new row and measured the column’s new extent, so the column moves by exactly as much
+as it takes to bring the row in, and not at all if it is already in view.</li>
+<li>The name <code>area</code> is usable the moment <code>branch</code> returns, before the area exists anywhere but the
+queue.</li>
+</ul>
+<p>A title is the first line of its note with anything on it:</p>
+<pre><code class="language-rust ignore">/// What a note is called in the list: its first line with anything on it, cut to fit a row.
+fn title_of(text: &amp;str) -&gt; String {
+    let line = text
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("untitled");
+    match line.chars().count() &gt; TITLE {
+        true =&gt; format!("{}…", line.chars().take(TITLE - 1).collect::&lt;String&gt;()),
+        false =&gt; line.to_string(),
+    }
+}</code></pre>
+<p><code>TITLE</code> is 20, and it is arithmetic rather than taste. Only a scrolling region clips what is in it,
+so a row does not clip its title, and a title that wrapped would spill into the row below. Text is
+monospaced, so twenty characters at 14 pixels are twenty cells of 9: 180 pixels. The narrowest a
+title’s box gets is the narrowest row, 224 pixels, less 12 on each side: 200. Twenty always fits
+on one line.</p>
+<h2 id="one-area-per-note"><a class="header" href="#one-area-per-note">One area per note</a></h2>
+<p>The editor could have had a single <code>TextArea</code>, rewritten with a note’s text whenever a row was
+clicked. It has one per note instead, all in the same place, with only the open one visible:</p>
+<pre><code class="language-rust ignore">/// Opens note `selected` in the editor, or nothing.
+fn select(&amp;mut self, grove: &amp;mut Grove, selected: Option&lt;usize&gt;) {
+    if let Some(old) = self.selected.and_then(|n| self.notes.get(n)) {
+        grove.color(old.ground, Palette::Raised);
+        grove.visible(old.area, false);
+    }
+    self.selected = selected;
+    let open = selected.and_then(|n| self.notes.get(n));
+    if let Some(note) = open {
+        grove.color(note.ground, Palette::Raised.advance());
+        grove.visible(note.area, true);
+    }
+    // With nothing open the editor still stands, dimmed, and takes no presses.
+    grove.visible(self.hint, open.is_none());
+    match open {
+        Some(_) =&gt; grove.enable(self.editor),
+        None =&gt; grove.disable(self.editor),
+    }
+    grove.opacity(self.editor, if open.is_some() { 1.0 } else { 0.5 });
+    self.panes(grove);
+}</code></pre>
+<p>The reason is timing. A tap is reported in the frame that takes it, but what a key does is an op:
+it is queued at dispatch and applied in the drain, and <code>edited</code> reports it in the <em>next</em> frame
+(<a href="input.html#keys">Keys</a> has the whole of it). So when someone types and then clicks another row
+within one frame, the app hears the click first. With a single area, the app would answer the click
+by writing the other note’s text into it, and a frame later would be told the area was edited and
+read back text that was no longer the typing. The typing would be filed under the wrong note, or
+lost.</p>
+<p>With an area per note, a key goes into the area that held focus when it was pressed, and <code>edited</code>
+names that area, whatever has been opened since. The app cannot misfile it:</p>
+<pre><code class="language-rust ignore">// A row's title follows the first line of its note.
+for note in self.notes.iter().filter(|note| pollen.edited(note.area)) {
+    if let Some(Sap::Text(text)) = grove.tap(note.area, Vein::Text) {
+        grove.text(note.title, title_of(&amp;text));
+    }
+}</code></pre>
+<p>The <code>tap</code> answers with what the area said at the end of the last frame, which is the frame that
+applied the keys: the value on screen, as it always is.</p>
+<p>A hidden area is not drawn and takes no input. It is still placed along with everything else, so
+the price is one element per note to resolve, which is nothing at the scale of a list someone
+scrolls through (<a href="../architecture/performance.html">What a frame costs</a> has the numbers).</p>
+<p>When nothing is open, the editor stays where it is on a desk but goes inert: <code>disable</code> makes it
+swallow presses, so <strong>delete</strong> cannot be pressed with nothing to delete, and <code>opacity</code> dims it.
+Both are inherited by everything under the <code>Stem</code>, so neither has to be said to the header, the
+button or the hint.</p>
+<h2 id="deleting"><a class="header" href="#deleting">Deleting</a></h2>
+<pre><code class="language-rust ignore">/// Takes the open note away: its row fades and the rows below it close the gap.
+fn delete(&amp;mut self, grove: &amp;mut Grove) {
+    let Some(n) = self.selected else {
+        return;
+    };
+    let note = self.notes.remove(n);
+    grove.prune(note.area);
+    let fading = grove.animate(
+        note.ground,
+        Motion::Opacity(0.0),
+        Timing::ms(180).ease(Ease::Accelerate),
+    );
+    self.leaving.push((note.ground, fading));
+    for (at, below) in self.notes.iter().enumerate().skip(n) {
+        grove.animate(
+            below.ground,
+            Motion::Location(row_at(at)),
+            Timing::ms(220).ease(Ease::Decelerate),
+        );
+    }
+    // The row it pointed at is gone, so there is nothing to put back.
+    self.selected = None;
+    // On a desk the next note opens; on a phone, deleting goes back to the list.
+    let next = match (self.notes.is_empty(), grove.layout() &lt; Layout::Md) {
+        (false, false) =&gt; Some(n.min(self.notes.len() - 1)),
+        _ =&gt; None,
+    };
+    self.select(grove, next);
+    self.counted(grove);
+}</code></pre>
+<p>The note leaves the model at once, and so does its area, which is never seen again. Its row stays
+in the tree while it fades, and the app keeps the motion’s <code>Tween</code> so that it knows when the fade
+is over:</p>
+<pre><code class="language-rust ignore">// A row that has faded out is taken down.
+self.leaving.retain(|&amp;(ground, fading)| {
+    let gone = pollen.finished(fading);
+    if gone {
+        grove.prune(ground);
+    }
+    !gone
+});</code></pre>
+<p>Pruning the ground takes its title with it: a prune withers everything grown under what it names.</p>
+<p>The rows below slide up with a <code>Location</code> motion to the place their new index gives them. The
+target is written at once, and both ends of the slide are re-read every frame, so if the window
+crosses a breakpoint in the middle of it, the rows still land exactly where <code>row_at</code> says. Nothing
+else needs to know that a row moved: a later <code>add</code> places the next row after the last one, which
+is where the list now ends.</p>
+<h2 id="one-chord-wherever-focus-is"><a class="header" href="#one-chord-wherever-focus-is">One chord, wherever focus is</a></h2>
+<p><code>Ctrl+N</code> should add a note whether the caret is in the editor, a row was just clicked, or nothing
+holds focus at all. A key goes to whatever held focus when it was pressed, or to the app itself
+when nothing did, so a chord about the whole app listens in all of those places:</p>
+<pre><code class="language-rust ignore">/// Whether a keystroke is the chord for a new note.
+fn chord(stroke: &amp;Keystroke) -&gt; bool {
+    stroke.modifiers.control &amp;&amp; matches!(stroke.key, Key::Typed('n' | 'N'))
+}</code></pre>
+<pre><code class="language-rust ignore">/// Whether the chord for a new note was pressed, wherever focus rested when it was.
+fn asked(&amp;self, pollen: &amp;Pollen) -&gt; bool {
+    let buttons = [self.new, self.theme, self.back, self.delete];
+    let notes = self.notes.iter().flat_map(|note| [note.ground, note.area]);
+    let heard = buttons
+        .into_iter()
+        .chain(notes)
+        .flat_map(|leaf| pollen.keys(leaf));
+    pollen.root_keys().iter().chain(heard).any(chord)
+}</code></pre>
+<p>Asking every element rather than only the one holding focus <em>now</em> matters for the same reason as
+the areas: focus may have moved between the key being pressed and the frame reporting it. A field
+reports every key it was sent, including ones it did nothing with, so <code>Ctrl+N</code> typed in an area
+changes nothing in the note and is still heard.</p>
+<p>Rows are among the elements asked because a tap on a row focuses it: <code>interactive</code> is what makes
+an element pressable, and it is also what focus rests on. The same is what makes the list usable from the
+keyboard with no code for it at all: <code>Tab</code> steps through the buttons and rows, and <code>activated</code>,
+which the app asks everywhere instead of <code>clicked</code>, counts <code>Enter</code> and space on a focused row as
+choosing it.</p>
+<h2 id="everything-else"><a class="header" href="#everything-else">Everything else</a></h2>
+<p>The rest of <code>frame</code> is one question per button:</p>
+<pre><code class="language-rust ignore">if pollen.activated(self.new) || self.asked(&amp;pollen) {
+    self.add(grove);
+}
+let chosen = self
+    .notes
+    .iter()
+    .position(|note| pollen.activated(note.ground));
+if let Some(n) = chosen {
+    self.select(grove, Some(n));
+}
+if pollen.activated(self.delete) {
+    self.delete(grove);
+}
+if pollen.activated(self.back) {
+    self.select(grove, None);
+}
+if pollen.activated(self.theme) {
+    self.dark = !self.dark;
+    grove.repaint(match self.dark {
+        true =&gt; Scheme::new(),
+        false =&gt; Scheme::light(),
+    });
+}</code></pre>
+<p><code>repaint</code> is the whole of the theme switch. Every fill in the app is a <code>Palette</code> role, so every
+element is re-read against the new scheme with nothing written to any of them.</p>
+<p><code>take_root</code> builds the two panes, then calls <code>select(grove, None)</code> and <code>counted</code>, so the first
+frame is drawn in the same state every later “nothing open” is: the rule is stated once.</p>
+<h2 id="the-whole-program"><a class="header" href="#the-whole-program">The whole program</a></h2>
+<pre><code class="language-rust no_run">use foliage::{
+    Area, Axes, Boxed, Divide, Ease, Foliage, FontSize, Grid, Grove, Grow, Key, Keystroke, Layout,
+    Leaf, Location, Motion, Palette, Panel, Place, Pollen, Root, Rounding, Sap, Scheme, ScrollTo,
+    Source, Stem, Text, TextArea, Timing, Tween, Vein, center_x, center_y, content, left, right,
+    top,
+};
+
+const HEADER: f32 = 56.0;
+const ROW: f32 = 44.0;
+/// How many characters of a note's first line its row shows.
+const TITLE: usize = 20;
+
+/// One note: its row in the list, and the area in the editor that holds what it says.
+struct Note {
+    ground: Leaf,
+    title: Leaf,
+    area: Leaf,
+}
+
+struct Notes {
+    list: Leaf,
+    column: Leaf,
+    editor: Leaf,
+    hint: Leaf,
+    count: Leaf,
+    new: Leaf,
+    theme: Leaf,
+    back: Leaf,
+    delete: Leaf,
+    notes: Vec&lt;Note&gt;,
+    selected: Option&lt;usize&gt;,
+    /// Rows fading out, and the motion that says when each is gone.
+    leaving: Vec&lt;(Leaf, Tween)&gt;,
+    dark: bool,
+}
+
+/// Where row `n` of the list stands.
+fn row_at(n: usize) -&gt; Location {
+    Location::new().xs(
+        left(8.px()).right(100.pct() - 8.px()),
+        top((8.0 + n as f32 * ROW).px()).height((ROW - 4.0).px()),
+    )
+}
+
+/// What a note is called in the list: its first line with anything on it, cut to fit a row.
+fn title_of(text: &amp;str) -&gt; String {
+    let line = text
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or("untitled");
+    match line.chars().count() &gt; TITLE {
+        true =&gt; format!("{}…", line.chars().take(TITLE - 1).collect::&lt;String&gt;()),
+        false =&gt; line.to_string(),
+    }
+}
+
+/// A pressable panel with a label on it, lettered in what reads on its fill.
+fn button(grove: &amp;mut Grove, under: Leaf, at: Location, fill: Palette, says: &amp;str) -&gt; Leaf {
+    let button = grove.branch(
+        under,
+        Panel::new()
+            .color(fill)
+            .rounding(Rounding::Sm)
+            .interactive()
+            .at(at),
+    );
+    grove.branch(
+        button,
+        Text::new(says)
+            .color(fill.on())
+            .font_size(FontSize::new().xs(13))
+            .intangible()
+            .at(Location::new().xs(
+                center_x(50.pct()).width(content()),
+                center_y(50.pct()).height(content()),
+            )),
+    );
+    button
+}
+
+/// A button's place in a header: `width` wide, its right edge `inset` from the header's.
+fn tail(inset: f32, width: f32) -&gt; Location {
+    Location::new().xs(
+        right(100.pct() - inset.px()).width(width.px()),
+        center_y(50.pct()).height(32.px()),
+    )
+}
+
+/// A raised strip across the top of a pane.
+fn header(grove: &amp;mut Grove, pane: Leaf) -&gt; Leaf {
+    grove.branch(
+        pane,
+        Panel::new().color(Palette::Raised).at(Location::new().xs(
+            left(0.px()).right(100.pct()),
+            top(0.px()).height(HEADER.px()),
+        )),
+    )
+}
+
+/// Whether a keystroke is the chord for a new note.
+fn chord(stroke: &amp;Keystroke) -&gt; bool {
+    stroke.modifiers.control &amp;&amp; matches!(stroke.key, Key::Typed('n' | 'N'))
+}
+
+impl Root for Notes {
+    fn take_root(grove: &amp;mut Grove) -&gt; Self {
+        let page = grove.plant(
+            Panel::new().grid(
+                Grid::new()
+                    .xs(1.columns(), 1.rows())
+                    .md(12.columns().gap(16.0), 1.rows()),
+            ),
+        );
+
+        // The list: the whole page on a phone, the first five columns on a desk.
+        let list = grove.branch(
+            page,
+            Stem::new().at(Location::new()
+                .xs(left(0.px()).right(100.pct()), top(0.px()).bottom(100.pct()))
+                .md(left(1.col()).right(5.col()), top(0.px()).bottom(100.pct()))),
+        );
+        let bar = header(grove, list);
+        let count = grove.branch(
+            bar,
+            Text::new("")
+                .font_size(FontSize::new().xs(16))
+                .intangible()
+                .at(Location::new().xs(
+                    left(16.px()).width(content()),
+                    center_y(50.pct()).height(content()),
+                )),
+        );
+        let theme = button(grove, bar, tail(68.0, 60.0), Palette::Muted, "theme");
+        let new = button(grove, bar, tail(8.0, 52.0), Palette::Accent, "new");
+        let column = grove.branch(
+            list,
+            Stem::new().scrolls(Axes::Vertical).at(Location::new().xs(
+                left(0.px()).right(100.pct()),
+                top(HEADER.px()).bottom(100.pct()),
+            )),
+        );
+
+        // The editor: the whole page on a phone, the other seven columns on a desk.
+        let editor = grove.branch(
+            page,
+            Stem::new().at(Location::new()
+                .xs(left(0.px()).right(100.pct()), top(0.px()).bottom(100.pct()))
+                .md(left(6.col()).right(12.col()), top(0.px()).bottom(100.pct()))),
+        );
+        let bar = header(grove, editor);
+        let back = button(
+            grove,
+            bar,
+            Location::new().xs(
+                left(8.px()).width(64.px()),
+                center_y(50.pct()).height(32.px()),
+            ),
+            Palette::Muted,
+            "back",
+        );
+        let delete = button(grove, bar, tail(8.0, 72.0), Palette::Danger, "delete");
+        let hint = grove.branch(
+            editor,
+            Text::new("nothing open")
+                .font_size(FontSize::new().xs(14))
+                .at(Location::new().xs(
+                    center_x(50.pct()).width(content()),
+                    center_y(50.pct()).height(content()),
+                )),
+        );
+
+        let mut notes = Notes {
+            list,
+            column,
+            editor,
+            hint,
+            count,
+            new,
+            theme,
+            back,
+            delete,
+            notes: Vec::new(),
+            selected: None,
+            leaving: Vec::new(),
+            dark: true,
+        };
+        notes.select(grove, None);
+        notes.counted(grove);
+        notes
+    }
+
+    fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
+        // A row's title follows the first line of its note.
+        for note in self.notes.iter().filter(|note| pollen.edited(note.area)) {
+            if let Some(Sap::Text(text)) = grove.tap(note.area, Vein::Text) {
+                grove.text(note.title, title_of(&amp;text));
+            }
+        }
+        if pollen.activated(self.new) || self.asked(&amp;pollen) {
+            self.add(grove);
+        }
+        let chosen = self
+            .notes
+            .iter()
+            .position(|note| pollen.activated(note.ground));
+        if let Some(n) = chosen {
+            self.select(grove, Some(n));
+        }
+        if pollen.activated(self.delete) {
+            self.delete(grove);
+        }
+        if pollen.activated(self.back) {
+            self.select(grove, None);
+        }
+        if pollen.activated(self.theme) {
+            self.dark = !self.dark;
+            grove.repaint(match self.dark {
+                true =&gt; Scheme::new(),
+                false =&gt; Scheme::light(),
+            });
+        }
+        if pollen.resized().is_some() {
+            self.panes(grove);
+        }
+        // A row that has faded out is taken down.
+        self.leaving.retain(|&amp;(ground, fading)| {
+            let gone = pollen.finished(fading);
+            if gone {
+                grove.prune(ground);
+            }
+            !gone
+        });
+    }
+}
+
+impl Notes {
+    /// A new, empty note at the end of the list, open, and ready to type into.
+    fn add(&amp;mut self, grove: &amp;mut Grove) {
+        let n = self.notes.len();
+        let ground = grove.branch(
+            self.column,
+            Panel::new()
+                .color(Palette::Raised)
+                .rounding(Rounding::Sm)
+                .interactive()
+                .at(row_at(n)),
+        );
+        let title = grove.branch(
+            ground,
+            Text::new(title_of(""))
+                .font_size(FontSize::new().xs(14))
+                .intangible()
+                .at(Location::new().xs(
+                    left(12.px()).right(100.pct() - 12.px()),
+                    center_y(50.pct()).height(1.letters()),
+                )),
+        );
+        let area = grove.branch(
+            self.editor,
+            TextArea::new()
+                .placeholder("write something")
+                .font_size(FontSize::new().xs(15))
+                .visible(false)
+                .at(Location::new().xs(
+                    left(16.px()).right(100.pct() - 16.px()),
+                    top((HEADER + 16.0).px()).bottom(100.pct() - 16.px()),
+                )),
+        );
+        self.notes.push(Note {
+            ground,
+            title,
+            area,
+        });
+        self.select(grove, Some(n));
+        grove.focus(area);
+        grove.scroll(self.column, ScrollTo::show(ground));
+        self.counted(grove);
+    }
+
+    /// Opens note `selected` in the editor, or nothing.
+    fn select(&amp;mut self, grove: &amp;mut Grove, selected: Option&lt;usize&gt;) {
+        if let Some(old) = self.selected.and_then(|n| self.notes.get(n)) {
+            grove.color(old.ground, Palette::Raised);
+            grove.visible(old.area, false);
+        }
+        self.selected = selected;
+        let open = selected.and_then(|n| self.notes.get(n));
+        if let Some(note) = open {
+            grove.color(note.ground, Palette::Raised.advance());
+            grove.visible(note.area, true);
+        }
+        // With nothing open the editor still stands, dimmed, and takes no presses.
+        grove.visible(self.hint, open.is_none());
+        match open {
+            Some(_) =&gt; grove.enable(self.editor),
+            None =&gt; grove.disable(self.editor),
+        }
+        grove.opacity(self.editor, if open.is_some() { 1.0 } else { 0.5 });
+        self.panes(grove);
+    }
+
+    /// Takes the open note away: its row fades and the rows below it close the gap.
+    fn delete(&amp;mut self, grove: &amp;mut Grove) {
+        let Some(n) = self.selected else {
+            return;
+        };
+        let note = self.notes.remove(n);
+        grove.prune(note.area);
+        let fading = grove.animate(
+            note.ground,
+            Motion::Opacity(0.0),
+            Timing::ms(180).ease(Ease::Accelerate),
+        );
+        self.leaving.push((note.ground, fading));
+        for (at, below) in self.notes.iter().enumerate().skip(n) {
+            grove.animate(
+                below.ground,
+                Motion::Location(row_at(at)),
+                Timing::ms(220).ease(Ease::Decelerate),
+            );
+        }
+        // The row it pointed at is gone, so there is nothing to put back.
+        self.selected = None;
+        // On a desk the next note opens; on a phone, deleting goes back to the list.
+        let next = match (self.notes.is_empty(), grove.layout() &lt; Layout::Md) {
+            (false, false) =&gt; Some(n.min(self.notes.len() - 1)),
+            _ =&gt; None,
+        };
+        self.select(grove, next);
+        self.counted(grove);
+    }
+
+    /// Which panes show: both on a desk, and on a phone the editor while a note is open.
+    fn panes(&amp;self, grove: &amp;mut Grove) {
+        let narrow = grove.layout() &lt; Layout::Md;
+        let open = self.selected.is_some();
+        grove.visible(self.list, !narrow || !open);
+        grove.visible(self.editor, !narrow || open);
+        grove.visible(self.back, narrow);
+    }
+
+    /// The list's title, which is how many notes there are.
+    fn counted(&amp;self, grove: &amp;mut Grove) {
+        let says = match self.notes.len() {
+            0 =&gt; "no notes".to_string(),
+            1 =&gt; "1 note".to_string(),
+            n =&gt; format!("{n} notes"),
+        };
+        grove.text(self.count, says);
+    }
+
+    /// Whether the chord for a new note was pressed, wherever focus rested when it was.
+    fn asked(&amp;self, pollen: &amp;Pollen) -&gt; bool {
+        let buttons = [self.new, self.theme, self.back, self.delete];
+        let notes = self.notes.iter().flat_map(|note| [note.ground, note.area]);
+        let heard = buttons
+            .into_iter()
+            .chain(notes)
+            .flat_map(|leaf| pollen.keys(leaf));
+        pollen.root_keys().iter().chain(heard).any(chord)
+    }
+}
+
+fn main() {
+    let mut foliage = Foliage::new();
+    foliage.title("notes");
+    foliage.app_id("notes");
+    foliage.desktop_size(Area::new(390.0, 640.0));
+    foliage.root::&lt;Notes&gt;();
+    foliage.photosynthesize();
+}</code></pre>
+<h2 id="where-to-take-it"><a class="header" href="#where-to-take-it">Where to take it</a></h2>
+<p>Each of these is a small change, and each exercises a chapter:</p>
+<ul>
+<li><strong>Keep the notes.</strong> Read every area’s text with <code>tap</code> when the app closes or on a timer, and
+write it to a file; read the file back in <code>take_root</code> and grow a note for each entry.
+<a href="off-frame.html">Work off the frame</a> covers doing the writing on a worker.</li>
+<li><strong>Search.</strong> A <code>TextInput</code> in the list’s header, and on <code>edited</code> hide the rows whose note does not
+match and re-place the rest with <code>row_at</code>, as <a href="fields.html">Text fields</a> does with its filter.</li>
+<li><strong>Reorder by dragging.</strong> Give rows <code>drags(Axes::Vertical)</code>, follow <code>pollen.dragged(row)</code>, and on
+<code>landed</code> move the note in the <code>Vec</code> and animate every row to its new index.
+<a href="input.html">Input and focus</a> has the drag.</li>
+<li><strong>Split it up.</strong> The list and the editor are each a struct with a <code>frame</code> of their own, and
+<a href="components.html">Composing parts</a> shows the shape.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/platforms.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../architecture/overview.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/platforms.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../architecture/overview.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

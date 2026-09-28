@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - foliage</title>
+        <title>The tree - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -177,72 +177,195 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
-ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
-<a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
-code runs on Linux, Windows, macOS, the web and Android.</p>
-<p>Everything that crosses the seam between an app and the engine is plain data:</p>
-<ul>
-<li><strong>ops in.</strong> An app never touches an element directly. It writes verbs (<code>plant</code>, <code>at</code>, <code>color</code>,
-<code>animate</code>) against a name, and each one is queued.</li>
-<li><strong>reports out.</strong> Once a frame, the engine hands the app a <code>Pollen</code>: what was clicked, what
-finished, what arrived, what withered.</li>
-<li><strong>reads beside.</strong> At any point in its frame an app can <code>tap</code> one property of one element and
-get a copy of it back.</li>
-</ul>
-<p>An app says what an element <em>is</em> (where it sits, what fills it, whether it takes a gesture) and
-then only writes verbs against the name it got back. There is no render call to make: the next
-frame is already different.</p>
-<h2 id="how-this-book-is-laid-out"><a class="header" href="#how-this-book-is-laid-out">How this book is laid out</a></h2>
-<p>It has two halves, and they can be read in either order.</p>
-<p><strong><a href="usage/first-app.html">Using foliage</a></strong> is a set of walkthroughs. Each chapter builds something
-small and runnable (a counter, a card that sizes to its text, a scrolling list with a pinned
-header, a field that filters it) and explains the part of the engine it leans on while it goes. The
-last chapter puts most of it together in one app.</p>
-<p><strong><a href="architecture/overview.html">How foliage works</a></strong> follows one frame through the engine, from the
-platform’s event loop to the pixels. Each chapter takes one subsystem: what it owns, what it reads,
-what it hands the next one, and why it is shaped that way. It names the module each piece lives in,
-because the modules carry their own reasoning in their comments, and this half is a guided route
-through them rather than a replacement for them.</p>
-<p>The two halves meet in the middle. The usage chapters say <em>what</em> happens when an app writes a
-verb. The architecture chapters say <em>where</em> in the frame it happens and <em>what it costs</em>, which is
-what explains the rules the usage chapters state.</p>
-<h2 id="conventions"><a class="header" href="#conventions">Conventions</a></h2>
-<ul>
-<li><strong>Every distance is in logical pixels</strong>, with the origin at the top-left and <code>y</code> growing
-downward. Device pixels exist only inside the render backend, and nothing an app writes or reads
-is in them.</li>
-<li><strong>Code samples compile.</strong> Each one is checked against the crate as it stands. Where a sample is a
-fragment, the lines that make it compile (imports, the function around it) are hidden; the
-button at the top right of a code block shows them. The architecture half also quotes the
-engine’s own source; those excerpts name the file they come from, are sometimes shortened, and
-are not compiled with the book.</li>
-<li><strong>“An app”</strong> is the value implementing <code>Root</code>, and the code written around it. “The engine” is
-everything behind <code>Foliage</code>.</li>
-<li>Names of subsystems are trees: <code>Fern</code> is the frame, <code>Rowan</code> resolves, <code>Elm</code> extracts, <code>Ash</code>
-renders. The <a href="appendix/lexicon.html">lexicon</a> lists all of them.</li>
-</ul>
-<h2 id="elsewhere"><a class="header" href="#elsewhere">Elsewhere</a></h2>
-<ul>
-<li>The <a href="https://eblack-leaf.github.io/foliage/api/foliage/">API reference</a> states every public type
-and method, and the crate root is a map of the whole surface.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/blob/main/USAGE.md"><code>USAGE.md</code></a> is the concept reference:
-shorter than this book, and organised as a lookup rather than as a walkthrough.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/examples"><code>foliage/examples</code></a> holds
-runnable examples, each doing one thing.</li>
-<li><a href="https://eblack-leaf.github.io/foliage/">The site</a> is itself a foliage app, built from
-<a href="https://github.com/eblack-leaf/foliage/tree/main/application"><code>application/</code></a> against nothing
-but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/foliage/tree/main/lichen"><code>lichen</code></a>.</li>
-</ul>
+                        <h1 id="the-tree"><a class="header" href="#the-tree">The tree</a></h1>
+<p>Every element is one entity in a <a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a> <code>World</code>, and
+<code>Tree</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/tree.rs"><code>tree.rs</code></a>) owns that
+world. It is the only place in the engine that touches <code>bevy_ecs</code> directly, and it touches very
+little of it: the world as a store of components, the parent and child relationship, and the entity
+allocator. There are no bevy systems and no schedules. The passes that run over the tree are plain
+functions called in a fixed order by <a href="frame.html">the frame</a>, which is the order the engine needs and
+not one a scheduler chose.</p>
+<h2 id="names"><a class="header" href="#names">Names</a></h2>
+<p>A <code>Leaf</code> is a bevy <code>Entity</code> and nothing else:</p>
+<pre><code class="language-rust ignore">// leaf.rs
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct Leaf(pub(crate) Entity);</code></pre>
+<p>It is handed out the moment <code>plant</code> or <code>branch</code> is called, before the element exists, and that is
+the property the rest of the design leans on. The name comes from the world’s own entity allocator,
+reached through a <code>RemoteAllocator</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/naming.rs"><code>naming.rs</code></a>)
+that can reserve an entity without touching the world. That is what lets a name be taken on a worker
+thread through a <code>Sprig</code> as readily as inside <code>frame</code>. The drain later spawns the element <em>at</em> that
+reserved entity.</p>
+<p>So a name’s state is read straight off the allocator:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>The entity is</th><th><code>Presence</code></th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td>reserved, not yet spawned</td><td><code>Planted</code></td><td>the op that grows it has not been drained yet</td></tr>
+<tr><td>spawned</td><td><code>Live</code></td><td>in the tree</td></tr>
+<tr><td>neither</td><td><code>Withered</code></td><td>pruned, or taken down with an ancestor</td></tr>
+</tbody>
+</table>
+</div>
+<p>A <code>Planted</code> name stays planted forever if the op that would have grown it was dropped (its trunk
+withered before the drain reached it). A withered entity’s index does go back to the allocator, but
+bevy’s generation tells the old name from the new one, so a stale <code>Leaf</code> never comes to address
+whatever grew after it.</p>
+<p>Each element also gets a <code>Growth</code>: a number from one atomic counter, taken with the name. It is the
+order <code>plant</code> and <code>branch</code> were <em>called</em> in, across every thread, rather than the order the drain
+reached them, and it is what settles ties: which of two equal-elevation elements is in front, and
+which of two elements in the same place comes first in focus order.</p>
+<p>Everything else the engine names comes from atomic counters beside it (motions, sequences, pictures,
+fonts, marks), each monotonic and never reused, so a stale handle of any kind is inert.</p>
+<h2 id="what-an-element-is-made-of"><a class="header" href="#what-an-element-is-made-of">What an element is made of</a></h2>
+<p>A seed (<code>Panel::new()...</code>) builds a <code>Bud</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/op.rs"><code>op.rs</code></a>):
+the element’s components, formed before the element exists. The queue carries it boxed, and
+<code>Tree::grow</code> inserts it. Every element gets the same core, so nothing that reads one of these has to
+ask whether the element is the kind that has it:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Component</th><th>Holds</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Grown</code></td><td>marks an element the app grew, as against a part an element grew under itself</td></tr>
+<tr><td><code>SpawnedAt</code></td><td>the source location of the <code>plant</code> or <code>branch</code> call, for error messages</td></tr>
+<tr><td><code>Growth</code></td><td>allocation order</td></tr>
+<tr><td><code>Chlorophyll</code></td><td>which renderer draws it: none, panel, text, polygon, line, icon or image</td></tr>
+<tr><td><code>Location</code></td><td>where it sits, at every breakpoint</td></tr>
+<tr><td><code>Grid</code></td><td>how it divides its box for its children</td></tr>
+<tr><td><code>Elevation</code></td><td>how far in front of its trunk it sits</td></tr>
+<tr><td><code>Gestures</code></td><td>whether it receives, whether it is intangible, which drags it takes, its hit shape</td></tr>
+<tr><td><code>Focusing</code></td><td>its focus order and whether it is a focus scope</td></tr>
+<tr><td><code>Visible</code>, <code>Opacity</code>, <code>Disabled</code></td><td>its own off-states, before its ancestry is taken into account</td></tr>
+<tr><td><code>Offset</code>, <code>Extent</code></td><td>where a region is scrolled to, and how far its content reaches</td></tr>
+</tbody>
+</table>
+</div>
+<p>And, only where they apply: the renderer’s <strong>pigment</strong> (<code>PanelPigment</code>, <code>TextPigment</code> and so on:
+fill, rounding, shape, mark, plate), <code>Lettering</code> for a run of text, <code>Tints</code>, <code>Scrolls</code>, <code>Pinned</code>,
+<code>Floats</code>, <code>Trace</code> and <code>Stroke</code> for a line, <code>Typeface</code> for an element that states a font or a size,
+<code>Anchored</code> for one with an anchor, and bevy’s <code>ChildOf</code> for one grown under another.</p>
+<p><code>Chlorophyll</code> deserves a word. It is set when the element is grown and there is no op that can
+change it: what an element draws is part of what it is, and an element that is to draw something
+else is a different element. It is also the <em>only</em> thing that says what an element is. Extraction
+walks the elements once and routes each on its chlorophyll, so a further renderer costs a variant
+rather than a pass, and a set of components that happens to look like a panel is not a panel.</p>
+<h2 id="the-hierarchy"><a class="header" href="#the-hierarchy">The hierarchy</a></h2>
+<p><code>branch</code> records the trunk with bevy’s <code>ChildOf</code>, and bevy keeps the reverse <code>Children</code> list. The
+tree reads both ways: <code>trunk(leaf)</code> for what an element hangs off, <code>branched(leaf)</code> for what hangs
+off it.</p>
+<p>Some children are not the app’s. A <code>TextInput</code> is one element to the app and seven in the tree:
+the field itself, and under it a run, a placeholder, a caret, and three panels for a selection that
+can span lines. <a href="fronds.html">Fronds</a> grow those parts as ordinary children. They are not marked <code>Grown</code>, so <code>branches</code> (and the <code>Vein::Branches</code> read) lists only what
+the app grew, while everything that resolves, draws and withers treats the parts like any other
+element.</p>
+<h2 id="declarations-and-resolved-values"><a class="header" href="#declarations-and-resolved-values">Declarations and resolved values</a></h2>
+<p>The world holds <strong>what was declared</strong>: what the app said about each element, plus the few values
+the engine keeps on its behalf and writes through the same setters (a region’s offset and extent, a
+field’s caret). It does not hold what resolution makes of them. Boxes, clips, ranks and the
+inherited off-states live in resolution’s own arrays, <code>Elements</code>, described in
+<a href="resolution.html">Resolution</a>, and are never written back into the world. The line is sharp: a value in
+the world is something an op can write, and a value in <code>Elements</code> is something only a pass can.</p>
+<p><code>Grove::tap</code> reads across both, and always returns a copy:</p>
+<pre><code class="language-rust ignore">// grove.rs, shortened
+pub fn tap(&amp;self, leaf: Leaf, vein: Vein) -&gt; Option&lt;Sap&gt; {
+    if !self.tree.is_live(leaf) {
+        return None;
+    }
+    Some(match vein {
+        Vein::Placed =&gt; Sap::Section(self.elements.placed(leaf)),   // resolved
+        Vein::Drawn =&gt; Sap::Section(self.elements.drawn(leaf)),     // resolved
+        Vein::Visible =&gt; Sap::Visible(self.tree.visible(leaf).0),   // declared
+        Vein::Text =&gt; Sap::Text(/* the run's lettering */),        // declared
+        // ...
+    })
+}</code></pre>
+<p>That is why <code>Vein::Visible</code> reads what the element itself declared rather than whether it is shown:
+the product over its ancestry is resolution’s, and the read answers the question the element can
+be asked.</p>
+<h2 id="recording-what-was-written"><a class="header" href="#recording-what-was-written">Recording what was written</a></h2>
+<p>The most important thing <code>Tree</code> does is not store components. It is to <strong>record every write, where
+the write happens</strong>, so that resolution can leave alone everything nothing wrote to:</p>
+<pre><code class="language-rust ignore">// tree.rs
+pub(crate) struct Tree {
+    world: World,
+    touched: Leaves,     // declarations resolution reads were written
+    restyled: Leaves,    // something about how it is drawn changed, and nothing about where
+    lettered: Leaves,    // its run was rewritten, or it was grown: R1 measures it again
+    reached: Leaves,     // what was under it went away: it measures again
+    restated: bool,      // some run stopped being stated: sweep the shaping cache
+    restructured: bool,  // an element or an edge came or went: build the order again
+    invalidated: bool,   // something every element reads changed: resolve everything
+    repainted: bool,     // something every element is drawn against changed: draw everything
+}</code></pre>
+<p>Every setter decides which of those it is, and <strong>compares before it records</strong>: writing an element
+back to what it already holds marks nothing, because resolving it again would produce the same
+answer and asking is the cost of the element and of everything resolved against it.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Write</th><th>Recorded as</th></tr>
+</thead>
+<tbody>
+<tr><td><code>at</code>, <code>trace</code>, <code>grid</code>, a caret moving</td><td><code>touched</code></td></tr>
+<tr><td><code>anchor</code></td><td><code>touched</code>, and <code>restructured</code>: an anchor is an edge of the graph</td></tr>
+<tr><td><code>text</code></td><td><code>touched</code>, <code>lettered</code>, and <code>restated</code></td></tr>
+<tr><td><code>color</code>, <code>round</code>, <code>tint</code>, <code>reshape</code>, <code>mark</code>, <code>depict</code>, <code>fit</code></td><td><code>restyled</code></td></tr>
+<tr><td><code>visible</code>, <code>opacity</code>, <code>disable</code>, <code>enable</code>, <code>elevate</code></td><td><code>restyled</code></td></tr>
+<tr><td>growing an element</td><td><code>touched</code>, <code>lettered</code>, <code>restructured</code></td></tr>
+<tr><td>pruning an element</td><td>its trunk <code>reached</code>, <code>restructured</code>, <code>restated</code></td></tr>
+<tr><td>a resize, a crossed breakpoint, a font arriving, a density change</td><td><code>invalidated</code></td></tr>
+<tr><td><code>repaint</code>, a picture or a mark arriving</td><td><code>repainted</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>The split between <code>touched</code> and <code>restyled</code> is where most of an ordinary frame’s savings come from.
+A fill, a rounding or a tint is read only by extraction. Whether an element is shown, how opaque it
+is, whether it is disabled and how far forward it sits are read by passes that run over every element
+anyway. None of them moves a box, so none of them is a reason to place anything again: such an
+element is read again and drawn again, and its subtree is left exactly where it was.</p>
+<p>Resolution borrows the record through <code>written()</code> and clears it with <code>taken()</code> <strong>the moment it has
+read it</strong>, not at the end of the frame. A write made by anything that runs after that point belongs
+to the next frame, which is the frame that would resolve it.</p>
+<h2 id="withering"><a class="header" href="#withering">Withering</a></h2>
+<p><code>prune</code> is the one write that removes. The drain calls <code>Tree::wither</code>, which gathers the element and
+everything under it (the app’s children and any parts a frond grew), despawns the element, and
+bevy despawns the rest through the parent relationship. Every name that went is reported three
+places: to the running motion, which drops anything moving on those elements; to the coasting
+scrolls, which drop any region that went; and to the drift, which becomes <code>withered</code> in the next
+frame’s <code>Pollen</code>.</p>
+<p>The trunk is recorded as needing to measure again. An element sized to its content has one fewer
+child to reach over, and the element that went is exactly the one that would have told it.</p>
+<h2 id="anchors-and-the-one-thing-that-panics"><a class="header" href="#anchors-and-the-one-thing-that-panics">Anchors, and the one thing that panics</a></h2>
+<p>An anchor is an edge in the dependency graph, and a cycle of anchors has no answer: A placed against
+B placed against A. Rather than detect it during resolution and invent a box, the drain refuses the
+anchor that would close the cycle, and refuses it loudly:</p>
+<pre><code class="language-text">anchor cycle: leaf 4294967290 cannot anchor to leaf 4294967292, which already reaches back to it
+  leaf 4294967290 was planted at src/main.rs:40:21
+  leaf 4294967292 was planted at src/main.rs:31:20
+  the anchor was written at src/main.rs:58:15
+</code></pre>
+<p>The locations are real because <code>plant</code>, <code>branch</code>, <code>anchored</code> and <code>anchor</code> are <code>#[track_caller]</code>: each
+records <code>core::panic::Location::caller()</code> into the bud or the op, and the element keeps it as
+<code>SpawnedAt</code>. The check is a walk along anchors (<code>Tree::reaches</code>), which always terminates because the
+tree it walks was acyclic before this write.</p>
+<p>Refusing at the write is what lets resolution order everything by dependency with no cycle handling
+of its own. Hiding the element instead would be absence with extra steps: a placement that cannot
+resolve has no box to fall back to, and swallowing the mistake would leave nothing correct to
+recover to.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/frame.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="usage/first-app.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../architecture/drain.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -252,8 +375,11 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/frame.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="usage/first-app.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../architecture/drain.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -273,13 +399,13 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

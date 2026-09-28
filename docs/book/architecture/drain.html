@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Ops and the drain - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,208 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="ops-and-the-drain"><a class="header" href="#ops-and-the-drain">Ops and the drain</a></h1>
+<p>Every change to the tree takes the same road: a verb builds an <code>Op</code>, the op waits in the queue, and
+the drain applies it. This chapter follows that road, from
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/verbs.rs"><code>verbs.rs</code></a> through
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/op.rs"><code>op.rs</code></a> to the drain in
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/fern.rs"><code>fern.rs</code></a>.</p>
+<h2 id="a-verb-is-an-op"><a class="header" href="#a-verb-is-an-op">A verb is an op</a></h2>
+<p><code>Grow</code> is the trait every write is a method of, and every method is the same three lines: take
+whatever names the op needs, build it, push it.</p>
+<pre><code class="language-rust ignore">// verbs.rs
+fn at(&amp;mut self, leaf: Leaf, location: Location) {
+    self.queue(Op::Place { leaf, location });
+}
+
+#[track_caller]
+fn branch(&amp;mut self, under: Leaf, seed: impl Seed) -&gt; Leaf {
+    let (leaf, growth) = self.allocate();
+    self.queue(Op::Branch {
+        leaf,
+        growth,
+        under,
+        bud: Box::new(seed.bud(core::panic::Location::caller())),
+    });
+    leaf
+}</code></pre>
+<p><code>Grow</code> is implemented for anything that implements a crate-private trait, <code>Queues</code>: something that
+can take an op and hand out names. The <code>Grove</code> and the <code>Sprig</code> are the two things that do, which is
+the whole of why a change reads identically wherever it is written. The trait is sealed, so it can
+be called and never implemented, and the set of things an app can ask for stays closed.</p>
+<p>No verb returns an error, and none can fail at the call. The only verbs that return anything return
+a name (<code>plant</code>, <code>branch</code>, <code>animate</code>, <code>tween</code>, <code>timer</code>, <code>sequence</code>, <code>plate</code>, <code>pixels</code>), because a name
+is the one thing a later write might need before the frame is over.</p>
+<h2 id="what-an-op-is"><a class="header" href="#what-an-op-is">What an op is</a></h2>
+<p><code>Op</code> is one enum of thirty-seven variants: growing and pruning, every declaration an element has,
+motion, focus, the scheme, the host’s clipboard and links, and the watches a <code>Sprig</code> sets up. Most
+name one element and carry one value.</p>
+<p>Ops are moved around a great deal (pushed, drained, matched), so they are kept small. Everything
+large an op can carry is behind a pointer: a whole element (<code>Box&lt;Bud&gt;</code>), a scheme (<code>Box&lt;Scheme&gt;</code>),
+and a placement at every breakpoint, which is one pointer wide. A test holds the line:</p>
+<pre><code class="language-rust ignore">// tests/frame.rs
+#[test]
+fn a_write_is_small_enough_to_carry() {
+    assert!(size_of::&lt;crate::op::Op&gt;() &lt;= 256, "{}", size_of::&lt;crate::op::Op&gt;());
+    assert_eq!(size_of::&lt;Location&gt;(), size_of::&lt;usize&gt;());
+    assert_eq!(size_of::&lt;crate::Trace&gt;(), size_of::&lt;usize&gt;());
+}</code></pre>
+<p>An op is 152 bytes today; before the large payloads were boxed it was over three thousand.</p>
+<p>Not every op comes from an app. Some are the engine’s own, queued so that they take their place in
+the same order as everything else:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Op</th><th>Queued by</th><th>Why it is an op</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Keyed</code></td><td>dispatch, for every key</td><td>so a key is applied behind anything queued before it and ahead of anything after</td></tr>
+<tr><td><code>Focus</code></td><td>dispatch, for <code>Tab</code> and <code>Escape</code></td><td>focus moves in the drain like the verb that moves it</td></tr>
+<tr><td><code>Pasted</code></td><td>a clipboard read finishing, or the web’s paste event</td><td>it lands at a moment nothing chose</td></tr>
+<tr><td><code>Arrived</code></td><td>a file read or a fetch finishing</td><td>the same</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="the-drain"><a class="header" href="#the-drain">The drain</a></h2>
+<p>Step 4 takes the whole queue at once and applies it in order:</p>
+<pre><code class="language-rust ignore">// fern.rs, shortened
+fn drain(grove: &amp;mut Grove) {
+    let ops = grove.queue.take();
+    let _step = trace_span!("drain", ops = ops.len()).entered();
+    for op in ops {
+        match op {
+            Op::Prune(leaf) =&gt; {
+                if !grove.tree.is_live(leaf) {
+                    dropped("prune", leaf, "not live");
+                    continue;
+                }
+                let gone = grove.tree.wither(leaf);
+                grove.aspen.wither(&amp;gone);
+                grove.coasting.wither(&amp;gone);
+                grove.drift.withered.extend(gone);
+            }
+            // ... one arm per op
+        }
+    }
+    focus::sweep(grove);
+    frond::settled(grove);
+}</code></pre>
+<p><code>take</code> swaps the queue’s vector out under its lock, so an op a worker pushes while the drain is
+running goes into the next frame’s queue rather than into this one’s half-read list.</p>
+<p>Three properties follow from the shape.</p>
+<p><strong>Order is only arrival.</strong> The drain does not group ops by kind, sort them, or apply one kind before
+another. A <code>grid</code> either side of an unrelated <code>at</code> lands in the order the two were written, and the
+same <code>anchor</code> lands or is dropped depending only on which side of a <code>prune</code> it arrived. The suite has
+a test for each; this is the smallest:</p>
+<pre><code class="language-rust ignore">// tests/frame.rs
+#[test]
+fn the_drain_is_fifo_within_one_frame() {
+    let mut grove = grove();
+    let trunk = grove.plant(Stem::new());
+    let first = grove.branch(trunk, Stem::new());
+    grove.prune(trunk);
+    let second = grove.branch(trunk, Stem::new());
+    tick(&amp;mut grove);
+
+    assert_eq!(grove.presence(trunk), Presence::Withered);
+    assert_eq!(grove.presence(first), Presence::Withered);
+    assert_eq!(grove.presence(second), Presence::Planted);
+}</code></pre>
+<p><code>first</code> was grown and then taken down with its trunk. <code>second</code> arrived after the prune, found no
+trunk, and was dropped, which leaves its name <code>Planted</code> for good.</p>
+<p><strong>Every op is checked where it is applied.</strong> Almost every arm begins with the same question, whether
+the element it names is live, and many ask a second: whether the element has the thing being
+written. A <code>text</code> on a panel, a <code>round</code> on a polygon, an <code>at</code> on a line placed by its ends. The tree’s
+setters answer that second question by returning whether they applied, so there is one place per
+property that knows which elements have it.</p>
+<p><strong>Nothing is refused.</strong> An op that does not apply is dropped: the drain writes one <code>debug</code> event
+naming the verb, the element and a fixed reason, and moves on. It never panics and never tells the
+call site, because the call site was a frame ago and has nothing it could do. What makes this safe
+rather than careless is that a dropped op changes nothing: the state is exactly what it would have
+been had the op not been written. <a href="../usage/debugging.html#why-did-nothing-happen">Debugging</a> lists the
+reasons.</p>
+<p>The exceptions are statements that cannot be true, and they panic rather than drop, because they
+are mistakes in the program rather than circumstances of the run. Two of them reach the drain: an
+anchor that would close a cycle (<a href="tree.html#anchors-and-the-one-thing-that-panics">The tree</a>), and
+pixels shorter than the size a <code>load</code> gave them. The rest (a proportional font handed over as
+bytes, a negative aspect ratio, a hue slot out of range) panic where they are written, before any op
+exists.</p>
+<h2 id="one-writer-per-property"><a class="header" href="#one-writer-per-property">One writer per property</a></h2>
+<p>A motion and a direct write can both want the same property. The drain settles it with one rule: a
+direct write <strong>cancels</strong> any motion running on the property it writes, before it writes.</p>
+<pre><code class="language-rust ignore">// fern.rs
+Op::Fade { leaf, opacity } =&gt; {
+    if !grove.tree.is_live(leaf) {
+        dropped("opacity", leaf, "not live");
+        continue;
+    }
+    cancel(grove, "opacity", leaf, Property::Opacity);
+    grove.tree.set_opacity(leaf, opacity);
+}</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Verb</th><th>Cancels a motion on</th></tr>
+</thead>
+<tbody>
+<tr><td><code>at</code>, <code>trace</code></td><td>where the element is: a box and two ends are two ways of saying it</td></tr>
+<tr><td><code>color</code></td><td>its fill</td></tr>
+<tr><td><code>opacity</code></td><td>its opacity</td></tr>
+<tr><td><code>reshape</code></td><td>its shape</td></tr>
+<tr><td><code>scroll</code></td><td>where the region is scrolled to, and any coast from the last release</td></tr>
+</tbody>
+</table>
+</div>
+<p>Because the drain is step 4 and motion is step 5, by the time a motion is advanced nothing has both
+a pending write and a running motion. An app never has to remember whether a property is animated
+somewhere before writing it: the write wins, and the element is at what was written.</p>
+<p>An <code>animate</code> on a property that is already moving is not a cancellation but a replacement. The new
+motion starts from wherever the element is at that moment, which is what <a href="motion.html">Motion</a>
+describes.</p>
+<h2 id="arms-worth-reading"><a class="header" href="#arms-worth-reading">Arms worth reading</a></h2>
+<p>Most arms are a liveness check and a setter. A few do more, and each is the engine keeping one of
+its promises:</p>
+<ul>
+<li><strong><code>Plant</code> and <code>Branch</code></strong> refuse an anchor cycle stated on the seed, grow the element at the name
+that was handed out, and then let a <a href="fronds.html">frond</a> grow its parts underneath it in the same
+step, so a field is whole in the frame it was planted.</li>
+<li><strong><code>Letter</code> and <code>Recolor</code></strong> check whether the element is a field. A field is one element to the app
+and seven in the tree, so text and fill written to it are redirected to the part that holds its
+value, and a <code>text</code> also moves the caret to the end of what was written.</li>
+<li><strong><code>Scroll</code></strong> checks that the destination can move the region at all, then records it in
+<code>grove.sought</code> rather than moving anything. It is answered in R4, against the extent R3 measures
+in this same frame, so scrolling to the end of a list grown in this frame lands at its new end.</li>
+<li><strong><code>Arrived</code></strong> fills a font, a mark or a picture the name for which was handed out earlier, and
+reports it <code>loaded</code> or <code>missing</code>. A font arriving is every run measured again, since every run
+composed in the fallback face while it was away.</li>
+<li><strong><code>Repaint</code></strong> replaces the scheme and marks every element to be drawn again, and nothing to be
+placed again: every role is resolved against the scheme at extraction.</li>
+<li><strong><code>Focus</code></strong> is answered here, against what has been declared so far in this drain. Whether an
+element can take focus is a walk up its ancestry asking whether anything is hidden or disabled,
+and that walk reads declarations rather than last frame’s resolution, so an app can show a drawer
+and focus into it in the same frame.</li>
+</ul>
+<h2 id="after-the-last-op"><a class="header" href="#after-the-last-op">After the last op</a></h2>
+<p>Two things run when the queue is empty.</p>
+<p><strong>Focus lets go of anything that can no longer hold it.</strong> Any op may have hidden, disabled or pruned
+whatever held focus, and none of them is obliged to think about focus. <code>focus::sweep</code> asks once, at
+the end, and reports <code>unfocused</code> if it had to let go.</p>
+<p><strong>The fronds put their parts in step.</strong> A field’s caret and selection are ordinary elements whose
+visibility and placement follow the field’s state. Once focus and every write are final, nothing
+can change what they read for the rest of the frame, so each field writes its parts once, as
+ordinary writes, and resolution places them like anything else. <a href="fronds.html">Fronds</a> describes it.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/tree.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../architecture/resolution.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +386,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/tree.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../architecture/resolution.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +410,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

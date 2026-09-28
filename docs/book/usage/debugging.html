@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Debugging - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,162 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="debugging"><a class="header" href="#debugging">Debugging</a></h1>
+<p>Most of what goes wrong in a foliage app goes wrong quietly by design. An op naming something it
+does not apply to is dropped rather than refused, a press eaten by decoration reaches nothing, and
+a read taken in the frame that wrote a value answers with the old one. Each of those is the right
+behaviour, and each has an answer somewhere to look. This chapter is where to look.</p>
+<h2 id="turning-the-trace-on"><a class="header" href="#turning-the-trace-on">Turning the trace on</a></h2>
+<p>foliage reports what it does through <a href="https://docs.rs/tracing"><code>tracing</code></a>, and <strong>installs no
+subscriber of its own</strong>. Where the output goes is the app’s decision, so nothing is printed until
+the app says where. On a desktop:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::Foliage;
+</span>fn trace() {
+    // `tracing-subscriber = { version = "0.3", features = ["env-filter"] }` in Cargo.toml.
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+}
+
+fn main() {
+    trace();
+    let mut foliage = Foliage::new();
+    // ...
+<span class="boring">  let _ = &amp;mut foliage;
+</span>}</code></pre>
+<p>A browser discards stderr and has no system clock to stamp lines with, so on the web the site
+writes to the console instead, through <a href="https://crates.io/crates/tracing-web"><code>tracing-web</code></a>. Its
+setup, for both, is in
+<a href="https://github.com/eblack-leaf/foliage/blob/main/application/src/lib.rs"><code>application/src/lib.rs</code></a>.</p>
+<p>Then <code>RUST_LOG</code> chooses how much to see:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Level</th><th>Carries</th><th>Turn on with</th></tr>
+</thead>
+<tbody>
+<tr><td><code>info</code></td><td>once per run: boot, the adapter and surface, each font, mark and picture registered</td><td>the default above</td></tr>
+<tr><td><code>debug</code></td><td>one event per thing that happened: planted, branched, pruned, resized, focus moved, <strong>an op dropped</strong></td><td><code>RUST_LOG=foliage=debug</code></td></tr>
+<tr><td><code>trace</code></td><td>a span for every frame and every step of it</td><td><code>RUST_LOG=foliage=trace</code></td></tr>
+<tr><td><code>warn</code></td><td>something an app should change: an asset missing, a clipboard write refused</td><td>always shown</td></tr>
+<tr><td><code>error</code></td><td>something foliage could not do: the glyph atlas full</td><td>always shown</td></tr>
+</tbody>
+</table>
+</div>
+<p>A frame that changes nothing emits nothing above <code>trace</code>, however large the tree, so <code>debug</code> is
+quiet on an idle app and loud only about what actually happened.</p>
+<h2 id="why-did-nothing-happen"><a class="header" href="#why-did-nothing-happen">Why did nothing happen?</a></h2>
+<p>An op that names something it does not apply to is <strong>dropped</strong>: a <code>text</code> written to a panel, a
+<code>round</code> on a polygon, an <code>at</code> on a line. So is any op naming an element that has withered, which
+is what makes a stale name harmless. Nothing panics and the call site cannot tell. The trace can:
+every drop is one <code>debug</code> event naming the verb, the element and the reason.</p>
+<pre><code class="language-text">DEBUG frame{n=42}:drain{ops=3}: foliage::fern: op dropped verb="text" leaf=4294967290 reason="says nothing to rewrite"
+</code></pre>
+<p>The reasons are fixed strings, so they can be searched for:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Reason</th><th>Means</th></tr>
+</thead>
+<tbody>
+<tr><td><code>not live</code></td><td>the element has withered, or has not been grown</td></tr>
+<tr><td><code>trunk is not live</code></td><td>a <code>branch</code> under something that has withered</td></tr>
+<tr><td><code>target is not live</code></td><td>an <code>anchor</code> to something that has withered</td></tr>
+<tr><td><code>is placed by its ends; use `between` </code></td><td><code>at</code> written to a line</td></tr>
+<tr><td><code>is placed by a box; use `at` </code></td><td><code>trace</code> written to anything but a line</td></tr>
+<tr><td><code>draws nothing to fill</code></td><td><code>color</code> written to a <code>Stem</code></td></tr>
+<tr><td><code>says nothing to rewrite</code></td><td><code>text</code> written to something that is not text or a field</td></tr>
+<tr><td><code>says nothing to tint</code></td><td><code>tint</code> written to something that is not text</td></tr>
+<tr><td><code>draws nothing to round</code></td><td><code>round</code> on anything but a panel or an image</td></tr>
+<tr><td><code>has no shape to reshape</code></td><td><code>reshape</code> on anything but a polygon</td></tr>
+<tr><td><code>is not an icon</code>, <code>is not an image</code></td><td><code>mark</code>, or <code>depict</code> and <code>fit</code>, on the wrong element</td></tr>
+<tr><td><code>does not scroll</code></td><td><code>scroll</code>, or a scroll motion, on something that does not scroll</td></tr>
+<tr><td><code>no axis to move; name one with `on` </code></td><td>a <code>ScrollTo::px</code> on a region that scrolls both ways</td></tr>
+<tr><td><code>shows an element not grown under it</code></td><td><code>ScrollTo::show</code> naming something outside the region</td></tr>
+<tr><td><code>has no such property to move</code></td><td><code>animate</code> with a motion the element cannot carry</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="reading-a-frames-report"><a class="header" href="#reading-a-frames-report">Reading a frame’s report</a></h2>
+<p><code>Pollen</code> implements <code>Debug</code>, which prints everything it holds:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Grove, Pollen};
+</span><span class="boring">fn frame(grove: &amp;mut Grove, pollen: Pollen) {
+</span>println!("{pollen:?}");
+<span class="boring">}</span></code></pre>
+<p>That is a print for a frame being investigated, not an API: <code>Pollen</code> offers no way to walk what it
+holds, on purpose. An app asks it about the elements it owns.</p>
+<h2 id="common-surprises"><a class="header" href="#common-surprises">Common surprises</a></h2>
+<p><strong>“no method named <code>plant</code>” (or <code>at</code>, or <code>px</code>).</strong> The verbs are trait methods, and the traits have
+to be in scope: <code>Grow</code> for every write, <code>Boxed</code> for <code>at</code>, <code>Place</code> for the rest of what a seed
+declares, <code>Source</code> for <code>px</code>, <code>pct</code>, <code>col</code>, <code>row</code> and <code>letters</code>, and <code>Divide</code> for <code>columns</code> and
+<code>rows</code>.</p>
+<p><strong>A press on a label does nothing.</strong> Something drawn over a receiving element is on top of it at
+those pixels, and an element on top that did not declare <code>interactive</code> eats the press. Mark the
+decoration <code>intangible</code>.</p>
+<p><strong>A tap is not reported as <code>clicked</code>.</strong> A gesture that travelled past the claim threshold became a
+drag, and one held still for half a second became a hold. Neither is ever a click. <code>activated</code>
+also counts <code>Enter</code> and space.</p>
+<p><strong>A write did not happen.</strong> It did, at the drain after <code>frame</code> returned. A read in the same frame
+answers with the state the frame started with, by design, so the write is visible from the next
+frame.</p>
+<p><strong>A box sized <code>height(content())</code> came out short.</strong> Only children that describe their own extent
+count toward it; one placed against its trunk’s height, a row of its trunk’s grid, or an anchor’s
+edge is left out, and so is padding below the last child. See <a href="placement.html#sizing-a-box-to-what-it-holds">Sizing a box to what it
+holds</a>.</p>
+<p><strong>A box sized <code>width(content())</code> came out zero.</strong> As a width, <code>content()</code> is only the element’s
+own text; a container does not take its width from its children. State the width in <code>letters</code> of
+the same font size instead.</p>
+<p><strong><code>letters</code> reads zero.</strong> The element states neither a font nor a size, so it has no cell. Give it a
+<code>font_size</code>.</p>
+<p><strong>Something the app animates by hand stops between frames.</strong> The engine idles when nothing it can
+see is running. Call <code>grove.again()</code> every frame the motion is running.</p>
+<p><strong>Text jumps once, shortly after starting.</strong> A font read from a path or a URL arrived: until then
+runs were measured in the bundled face. Hide the text until <code>pollen.loaded(font)</code> if that matters.</p>
+<p><strong>Characters stop drawing after a great many sizes.</strong> Every glyph is cut once per face, size and
+display density onto one texture, and nothing is ever evicted from it. When it fills, an <code>error</code>
+is written once and new characters stop drawing. A monospaced app addresses a small alphabet at a
+handful of sizes and is nowhere near this; animating a font size through every integer would be.</p>
+<h2 id="panics-and-what-they-mean"><a class="header" href="#panics-and-what-they-mean">Panics, and what they mean</a></h2>
+<p>foliage panics only where a program stated something that cannot be true. Most of these panic at
+the call that stated it; the anchor cycle and a picture’s pixels are checked when the op is
+applied, in the drain, and the anchor cycle names the calls involved for that reason:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Panic</th><th>Cause</th></tr>
+</thead>
+<tbody>
+<tr><td><code>anchor cycle: leaf … cannot anchor to leaf …</code></td><td>an anchor that would close a loop; names both elements, where each was planted, and where the anchor was written</td></tr>
+<tr><td><code>font is not monospaced: …</code></td><td>a proportional face handed over as bytes</td></tr>
+<tr><td><code>the font could not be parsed: …</code></td><td>bytes that are not a font, handed over as bytes</td></tr>
+<tr><td><code>an icon field is WxW texels of RGBA …</code></td><td>a field smaller than the side it was registered with</td></tr>
+<tr><td><code>a WxH picture is N bytes of RGBA …</code></td><td>pixels smaller than the size they were given with</td></tr>
+<tr><td><code>aspect ratio must be positive …</code></td><td><code>aspect(0.0)</code> or a negative ratio</td></tr>
+<tr><td><code>a hue slot is numbered below Palette::SLOTS</code></td><td><code>Palette::hue(n)</code> with <code>n</code> of 4 or more</td></tr>
+<tr><td><code>a spectrum is …</code></td><td>a spectrum numbered past <code>Scheme::SPECTRA</code>, or with fewer than two or more than eight stops</td></tr>
+</tbody>
+</table>
+</div>
+<p>The same bytes <em>read</em> from a path or a URL, or handed over through a <code>Sprig</code>, are reported as
+<code>missing</code> instead: what a file turned out to hold is not something the program stated.</p>
+<h2 id="measuring"><a class="header" href="#measuring">Measuring</a></h2>
+<p>The engine states every step of the frame as a span, so a profiler, or a subscriber that times
+spans, sees the frame broken into its phases without any instrumentation of the app’s own. The
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/examples/stress.rs"><code>stress</code></a> example
+does that under load and prints a table of what each phase cost, and
+<a href="../architecture/performance.html">What a frame costs</a> explains how to read one.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/host.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../usage/platforms.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +340,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/host.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../usage/platforms.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +364,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - foliage</title>
+        <title>Scrolling - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -177,72 +177,197 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
-ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
-<a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
-code runs on Linux, Windows, macOS, the web and Android.</p>
-<p>Everything that crosses the seam between an app and the engine is plain data:</p>
-<ul>
-<li><strong>ops in.</strong> An app never touches an element directly. It writes verbs (<code>plant</code>, <code>at</code>, <code>color</code>,
-<code>animate</code>) against a name, and each one is queued.</li>
-<li><strong>reports out.</strong> Once a frame, the engine hands the app a <code>Pollen</code>: what was clicked, what
-finished, what arrived, what withered.</li>
-<li><strong>reads beside.</strong> At any point in its frame an app can <code>tap</code> one property of one element and
-get a copy of it back.</li>
-</ul>
-<p>An app says what an element <em>is</em> (where it sits, what fills it, whether it takes a gesture) and
-then only writes verbs against the name it got back. There is no render call to make: the next
-frame is already different.</p>
-<h2 id="how-this-book-is-laid-out"><a class="header" href="#how-this-book-is-laid-out">How this book is laid out</a></h2>
-<p>It has two halves, and they can be read in either order.</p>
-<p><strong><a href="usage/first-app.html">Using foliage</a></strong> is a set of walkthroughs. Each chapter builds something
-small and runnable (a counter, a card that sizes to its text, a scrolling list with a pinned
-header, a field that filters it) and explains the part of the engine it leans on while it goes. The
-last chapter puts most of it together in one app.</p>
-<p><strong><a href="architecture/overview.html">How foliage works</a></strong> follows one frame through the engine, from the
-platform’s event loop to the pixels. Each chapter takes one subsystem: what it owns, what it reads,
-what it hands the next one, and why it is shaped that way. It names the module each piece lives in,
-because the modules carry their own reasoning in their comments, and this half is a guided route
-through them rather than a replacement for them.</p>
-<p>The two halves meet in the middle. The usage chapters say <em>what</em> happens when an app writes a
-verb. The architecture chapters say <em>where</em> in the frame it happens and <em>what it costs</em>, which is
-what explains the rules the usage chapters state.</p>
-<h2 id="conventions"><a class="header" href="#conventions">Conventions</a></h2>
-<ul>
-<li><strong>Every distance is in logical pixels</strong>, with the origin at the top-left and <code>y</code> growing
-downward. Device pixels exist only inside the render backend, and nothing an app writes or reads
-is in them.</li>
-<li><strong>Code samples compile.</strong> Each one is checked against the crate as it stands. Where a sample is a
-fragment, the lines that make it compile (imports, the function around it) are hidden; the
-button at the top right of a code block shows them. The architecture half also quotes the
-engine’s own source; those excerpts name the file they come from, are sometimes shortened, and
-are not compiled with the book.</li>
-<li><strong>“An app”</strong> is the value implementing <code>Root</code>, and the code written around it. “The engine” is
-everything behind <code>Foliage</code>.</li>
-<li>Names of subsystems are trees: <code>Fern</code> is the frame, <code>Rowan</code> resolves, <code>Elm</code> extracts, <code>Ash</code>
-renders. The <a href="appendix/lexicon.html">lexicon</a> lists all of them.</li>
-</ul>
-<h2 id="elsewhere"><a class="header" href="#elsewhere">Elsewhere</a></h2>
-<ul>
-<li>The <a href="https://eblack-leaf.github.io/foliage/api/foliage/">API reference</a> states every public type
-and method, and the crate root is a map of the whole surface.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/blob/main/USAGE.md"><code>USAGE.md</code></a> is the concept reference:
-shorter than this book, and organised as a lookup rather than as a walkthrough.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/examples"><code>foliage/examples</code></a> holds
-runnable examples, each doing one thing.</li>
-<li><a href="https://eblack-leaf.github.io/foliage/">The site</a> is itself a foliage app, built from
-<a href="https://github.com/eblack-leaf/foliage/tree/main/application"><code>application/</code></a> against nothing
-but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/foliage/tree/main/lichen"><code>lichen</code></a>.</li>
-</ul>
+                        <h1 id="scrolling"><a class="header" href="#scrolling">Scrolling</a></h1>
+<p>A scrolling region is an ordinary element that declared <code>scrolls</code>. Everything particular to it lives
+in <a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/view.rs"><code>view.rs</code></a>, and the passes
+that compute it are three of resolution’s: R3, R4 and R5.</p>
+<h2 id="an-element-scrolls-because-it-said-so"><a class="header" href="#an-element-scrolls-because-it-said-so">An element scrolls because it said so</a></h2>
+<pre><code class="language-rust ignore">// view.rs
+pub struct Scroll {
+    axes: Axes,              // which axes it scrolls
+    contains: Option&lt;Axes&gt;,  // which of those absorb a gesture at their end
+}</code></pre>
+<p>A grid divides a box and says nothing about scrolling, and content overflowing a box does not make it
+scroll. An axis that was not declared does not scroll, has no extent and cannot be moved. It is not a
+scrolling axis with a range of zero, which is a different and harder thing to reason about.</p>
+<p>The axes and what each does at its end are one value rather than two flags, because a policy for an
+axis the region does not scroll would describe nothing, and two declarations that could disagree
+about which axes are in play is exactly the failure the per-axis split exists to avoid.</p>
+<h2 id="three-values-three-passes"><a class="header" href="#three-values-three-passes">Three values, three passes</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Value</th><th>Written by</th><th>Holds</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Extent</code></td><td>R3, bottom-up</td><td>how far the region’s content reaches from its own near edges</td></tr>
+<tr><td><code>Offset</code></td><td>R4, top-down (and dispatch, under a drag)</td><td>how far the region has been moved, clamped to what it can reach</td></tr>
+<tr><td>clip</td><td>R5, top-down</td><td>the box the regions above an element leave visible</td></tr>
+</tbody>
+</table>
+</div>
+<p>The <strong>extent</strong> is measured from where the children were <em>placed</em>, never from what is drawn: content
+scrolled out of sight is exactly what an extent describes and has to stay reachable. It counts only
+declared axes, is measured outward from the region’s near edge (so content at a negative offset
+creates no room to scroll back into), and is never smaller than the region’s own box. A hidden child,
+a pinned one and a floating one are not content. <a href="resolution.html#r3-extent">Resolution</a> has the pass.</p>
+<p>The <strong>range</strong> a region can move is its extent less its own box, per axis, and never negative.</p>
+<p>The <strong>offset</strong> is in logical pixels, read and written, and positive means content moved toward the
+near edge, which is what a drag away from that edge produces. R4 clamps it against the extent R3 just
+measured, so a region whose content shrank under it comes back into range in the same frame.</p>
+<p><strong>Culling</strong> is not a state. R5 computes a rectangle, and extraction decides from it whether to draw
+an element. Nothing records “currently scrolled away”, so nothing (the extent least of all) can
+read it.</p>
+<h2 id="four-ways-to-move-a-region"><a class="header" href="#four-ways-to-move-a-region">Four ways to move a region</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Cause</th><th>Where it is decided</th><th>Where it lands</th></tr>
+</thead>
+<tbody>
+<tr><td>a drag, or a wheel</td><td>dispatch, against last frame’s extent</td><td>written to the offset at once</td></tr>
+<tr><td><code>scroll(region, ScrollTo)</code></td><td>the drain records it</td><td>answered in R4</td></tr>
+<tr><td><code>Motion::Scroll</code></td><td>the drain starts it</td><td>blended in R4</td></tr>
+<tr><td>a coast from a release</td><td>dispatch starts it</td><td>advanced in R4</td></tr>
+</tbody>
+</table>
+</div>
+<p>The three that land in R4 are answered there rather than where they were written, in one function,
+because all three need the extent, and the extent is R3’s, one pass earlier in the same frame:</p>
+<pre><code class="language-rust ignore">// view.rs
+pub(crate) fn asked(grove: &amp;mut Grove, elements: &amp;Elements) {
+    coast(grove, elements);
+    sought(grove, elements);
+    animated(grove, elements);
+}</code></pre>
+<p>So scrolling to the end of a list that grew this frame lands at the end of the list as it is <em>now</em>,
+with no settling frame.</p>
+<p>They never contend, because each ends the others where it starts: a <code>scroll</code> cancels any scroll motion
+on the region and stops its coast; starting a scroll motion stops the coast; and a drag halts the
+coast and cancels the motion. The person’s hand always wins, and the last thing written wins among the
+rest. That is F8, one writer per property, applied to a region’s position.</p>
+<h2 id="destinations"><a class="header" href="#destinations">Destinations</a></h2>
+<p>A <code>ScrollTo</code> names its unit at the call site:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>Lands at</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ScrollTo::px(n)</code></td><td><code>n</code> logical pixels from the content’s origin</td></tr>
+<tr><td><code>ScrollTo::fraction(f)</code></td><td><code>f</code> of the range, where 1.0 is as far as it goes</td></tr>
+<tr><td><code>ScrollTo::start()</code>, <code>end()</code></td><td>either end of the range</td></tr>
+<tr><td><code>ScrollTo::show(leaf)</code></td><td>the least movement that brings <code>leaf</code> into view, and none if it is already in view</td></tr>
+</tbody>
+</table>
+</div>
+<p>Every form but <code>px</code> is stated <strong>relative to the region’s own range</strong>, so it means the same thing on
+either axis and needs no axis named: the end is the end of each, and bringing an element into view is
+one place in two dimensions. <code>px</code> is the one absolute distance, and on a region that scrolls both ways
+two hundred pixels down and two hundred across are unrelated distances that happen to share a number,
+so it has to name an axis with <code>.on(..)</code>. The drain checks all of this when the op is applied (the
+region scrolls, the destination moves an axis it scrolls, the element <code>show</code> names is grown under the
+region) and drops the op with a reason if not.</p>
+<p><code>show</code> is a subtraction: the element’s placed box against the region’s, on each axis the destination
+covers, moved by the least that brings its near edge into view or its far edge in, clamped to the
+range.</p>
+<h2 id="coasting"><a class="header" href="#coasting">Coasting</a></h2>
+<p>A release hands the region that held the drag its velocity: the mean over the last 100 milliseconds
+of the gesture (<a href="interaction.html#a-gestures-life">Interaction</a>). If it is at least <code>Momentum::minimum</code>
+(40 logical pixels a second by default) and the half-life is not zero, the region <strong>coasts</strong>.</p>
+<p>A coast is deliberately not a motion. A motion interpolates between two known ends over a known
+duration; a coast has no target and no duration, and runs until it settles. It decays continuously:</p>
+<pre><code class="language-rust ignore">// view.rs
+pub(crate) fn coasted(velocity: f32, half_life: f32, elapsed: f32) -&gt; (f32, f32) {
+    if half_life &lt;= 0.0 {
+        return (0.0, 0.0);
+    }
+    if elapsed &lt;= 0.0 {
+        return (0.0, velocity);
+    }
+    let remaining = 0.5f32.powf(elapsed / half_life);
+    let travelled = velocity * half_life * (1.0 - remaining) / core::f32::consts::LN_2;
+    (travelled, velocity * remaining)
+}</code></pre>
+<p>The distance is the integral of the speed, not one frame’s speed times its duration, so a fling reaches
+the same place at thirty frames a second as at a hundred and twenty. Left to run out, a coast travels
+its release speed times the half-life divided by ln 2, about 1.44 times their product, less what the
+minimum speed cuts off at the tail.</p>
+<p>Like a motion, a coast’s first frame is not charged: it begins at the dispatch that released it, and
+that frame’s delta is the interval the drag was still being made in, which the drag already paid for.</p>
+<p>When a coast reaches the end of its range, it does what a drag would do at the same place: hands the
+remaining speed outward to the next region in the chain that scrolls on that axis, or, if the region
+contains that axis, stops there. Below the minimum speed it settles. A new press on a coasting region
+catches it: the coast stops, and the press is spent on the catch.</p>
+<p>Coasts are held beside the tree, keyed by region and axis, because the two axes reach their ends
+independently and each hands outward on its own. The loop owes frames for as long as any coast is
+running, since nothing on the app’s side is asking for them.</p>
+<h2 id="chaining-and-the-one-knob"><a class="header" href="#chaining-and-the-one-knob">Chaining, and the one knob</a></h2>
+<p>By default every axis <strong>chains</strong>: a region that can move no further in the direction asked hands the
+gesture outward, so a drag inside a list keeps moving the page once the list is done. <code>contain</code> on
+an axis makes the region absorb it instead, for a region that owns its gesture outright (a map, an
+editor, a pane in a fixed shell) where reaching the bottom and having the whole page lurch is a bug
+every time. The same question is asked for a drag, a wheel and a coast, of the same region at the
+same place in its range, because there is one answer to it:</p>
+<pre><code class="language-rust ignore">// interaction/mod.rs
+pub(crate) fn outward(grove: &amp;Grove, chain: &amp;[Leaf], index: usize, axis: Axis) -&gt; Option&lt;usize&gt; {
+    if grove.tree.scrolls(chain[index]).is_some_and(|scroll| scroll.absorbs(axis)) {
+        return None;
+    }
+    scrolling(grove, chain, index + 1, axis)
+}</code></pre>
+<p>Whether a region “can no longer consume” needs no flag either: a region at its end takes none of a
+delta going further out and all of one coming back, so the answer is about where the region sits,
+not about anything declared.</p>
+<h2 id="out-of-the-flow-pinned-and-floating"><a class="header" href="#out-of-the-flow-pinned-and-floating">Out of the flow: pinned and floating</a></h2>
+<p>Two declarations take an element partly out of its region, and each is <strong>one declaration with two
+consequences</strong>, because the two are one question asked twice and two flags could drift out of
+agreement:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>Moves with the content</th><th>Counts toward the extent</th><th>Clipped by the region</th></tr>
+</thead>
+<tbody>
+<tr><td>ordinary</td><td>yes</td><td>yes</td><td>yes</td></tr>
+<tr><td><code>pinned</code></td><td><strong>no</strong></td><td><strong>no</strong></td><td>yes</td></tr>
+<tr><td><code>floats(escape)</code></td><td>yes</td><td><strong>no</strong></td><td><strong>no</strong></td></tr>
+</tbody>
+</table>
+</div>
+<p>A <strong>pinned</strong> header stays at the top while content slides under it: it receives every scrolling
+offset except its own region’s, and it keeps its place in the tree, so the clip, the opacity product
+and the disable cascade still apply. A <strong>floating</strong> menu sits over its region rather than in it: it
+travels with the row that opened it, is not cut off at the region’s edge, and invents no room to
+scroll to.</p>
+<p>How far a floating element escapes is stated, because both answers are right somewhere. A menu on a
+row of a table inside a scrolling panel wants out of both; a tooltip on a file in a list inside a
+sidebar wants out of the list and not out of the sidebar, or it paints across the page beside it.
+<code>Escape::Region</code> leaves the region the element is in, <code>Escape::Surface</code> leaves every region, and
+<code>Escape::Within(leaf)</code> leaves every region up to a named one, which still holds it. Naming the
+element rather than counting regions is what survives a wrapper being added in between. A name that
+is not an ancestor falls back to <code>Region</code>, rather than escaping further than it was told to.</p>
+<h2 id="reading-a-region"><a class="header" href="#reading-a-region">Reading a region</a></h2>
+<p><code>tap</code> reads a region’s <code>Offset</code> and <code>Extent</code> directly, and <code>Progress</code> is derived on the spot: the
+offset over the range, per axis, in <code>0.0..=1.0</code>, which is what a scrollbar reads. A region with
+nowhere to go reads zero, which is the honest answer: there is no progress through a range of
+nothing. All three answer <code>None</code> on an element that does not scroll, which keeps “an axis that was not
+declared has no extent” true of the whole element as well as of one of its axes.</p>
+<h2 id="what-scrolling-costs"><a class="header" href="#what-scrolling-costs">What scrolling costs</a></h2>
+<p>A scroll moves the drawn box of everything inside the region, so every descendant is <code>moved</code> for
+every frame of a drag or a coast, and extraction revisits each of them. Most of them are usually
+outside the clip and culled. <a href="performance.html">What a frame costs</a> has the numbers and the candidate
+improvements.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/interaction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="usage/first-app.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../architecture/fronds.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -252,8 +377,11 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/interaction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="usage/first-app.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../architecture/fronds.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -273,13 +401,13 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Proving it - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,178 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="proving-it"><a class="header" href="#proving-it">Proving it</a></h1>
+<p>foliage is proven by a headless suite of a little under six hundred tests in
+<a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/src/tests"><code>foliage/src/tests/</code></a>, plus the
+crate’s doctests. This chapter is about what the suite is, why its evidence counts, and what it
+cannot reach.</p>
+<h2 id="the-frame-minus-the-rasteriser"><a class="header" href="#the-frame-minus-the-rasteriser">The frame, minus the rasteriser</a></h2>
+<p>The suite does not simulate the engine. It runs the engine: the same <code>fern::run</code> the platform loop
+calls, against a <code>Grove</code> with no surface, with the clock moved by hand.</p>
+<pre><code class="language-rust ignore">// tests/mod.rs
+fn grove() -&gt; Grove {
+    Grove::new(Area::new(400.0, 300.0))
+}
+
+/// One whole frame, with no app to run.
+fn tick(grove: &amp;mut Grove) {
+    fern::run(grove, None);
+}
+
+/// One whole frame, with `app` taking its turn in it.
+fn tick_with(grove: &amp;mut Grove, app: &amp;mut dyn Rooted) {
+    fern::run(grove, Some(app));
+}
+
+/// Moves the clock forward, to be taken up by the next frame.
+fn advance(grove: &amp;mut Grove, millis: u64) {
+    grove.clock.advance(Duration::from_millis(millis));
+}</code></pre>
+<p>A grove with no window is still a grove: the same type, the same verbs, the same reads, built the
+same way. That is not a convenience; it is what makes a test’s evidence worth anything. Every law in
+<a href="frame.html">The frame</a> holds under the suite for the simple reason that the suite runs the frame.</p>
+<p>Steps 1 to 8 all run. Step 9 does not, because there is no surface to draw to. Everything up to and
+including extraction’s batch (what would be sent to the GPU) is observable, and the renderer tests
+assert on that batch directly.</p>
+<h2 id="reaching-in-the-way-the-loop-does"><a class="header" href="#reaching-in-the-way-the-loop-does">Reaching in the way the loop does</a></h2>
+<p>The suite reaches the engine through the same doors the loop uses, rather than through anything a
+test gets that a platform does not:</p>
+<ul>
+<li><strong>Input</strong> is written as the same <code>Input</code> values the loop translates window events into, pushed
+onto the same queue. Past that point a scripted press and a real one take one path. The harness
+gives them names: <code>press</code>, <code>drag</code>, <code>release</code>, <code>wheel</code>, <code>key</code>, <code>typing</code>, <code>controlled</code>,
+<code>past_the_hold</code>.</li>
+<li><strong>Time</strong> enters through <code>Clock::advance</code>, which is the only way time enters the engine at all. The
+loop advances it by wall time (capped); the suite advances it exactly, so motion tests are
+arithmetic.</li>
+<li><strong>A resize</strong> is the same <code>pending_resize</code> the loop’s <code>reconfigure</code> sets.</li>
+<li><strong>The app</strong> is anything implementing the crate-private <code>Rooted</code> trait. <code>Observer</code> is one that only
+keeps each frame’s <code>Pollen</code>, so a test can ask what a frame reported.</li>
+</ul>
+<p>What the suite never opens are the platform edges. <code>Grove::attach</code>, which connects the clipboard, the
+soft keyboard and the URL handler, is called only by <code>photosynthesize</code>, so no test ever touches the
+clipboard, the keyboard or the browser of whoever runs it; the edges are tested at the seam, where
+what they would do is engine state.</p>
+<h2 id="what-a-test-looks-like"><a class="header" href="#what-a-test-looks-like">What a test looks like</a></h2>
+<p>Tests are named as the rule they hold, and most carry a comment saying why the rule exists:</p>
+<pre><code class="language-rust ignore">// tests/interaction.rs
+/// The mobile-correct default: a target holds a gesture only until it becomes a drag, and then
+/// yields -- so the list scrolls and the button it began on gets nothing.
+#[test]
+fn a_drag_on_a_button_scrolls_the_region_and_the_button_gets_no_tap() {
+    let mut grove = grove();
+    let (region, _) = column(&amp;mut grove);
+    let button = grove.branch(
+        region,
+        Panel::new().at(at(0.0, 0.0, 200.0, 50.0)).interactive(),
+    );
+    tick(&amp;mut grove);
+
+    press(&amp;mut grove, 50.0, 25.0);
+    let pressed = frame(&amp;mut grove);
+    assert!(pressed.engaged(button));
+
+    drag(&amp;mut grove, 50.0, -15.0);
+    release(&amp;mut grove, 50.0, -15.0);
+    let dragged = frame(&amp;mut grove);
+
+    assert_eq!(offset(&amp;grove, region).y, 40.0);
+    assert!(!dragged.clicked(button));
+    assert!(dragged.disengaged(button));
+    assert!(!dragged.drag_started(button));
+}</code></pre>
+<p>Read down a test file and the list of names is a specification of that subsystem:
+<code>the_claim_threshold_is_per_axis</code>, <code>a_drag_over_a_disabled_element_scrolls_its_region</code>,
+<code>asking_for_another_frame_lasts_exactly_one_frame</code>, <code>a_paste_is_answered_in_a_later_frame</code>,
+<code>a_read_only_cut_is_a_copy</code>.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Tests</th><th>Covers</th></tr>
+</thead>
+<tbody>
+<tr><td><code>frame.rs</code>, <code>root.rs</code>, <code>lifecycle.rs</code></td><td>41</td><td>the frame laws, taking root, planting and withering</td></tr>
+<tr><td><code>placement.rs</code>, <code>rowan.rs</code>, <code>elevation.rs</code></td><td>89</td><td>the placement algebra, resolution, the stack order</td></tr>
+<tr><td><code>text.rs</code>, <code>text_input.rs</code>, <code>text_area.rs</code></td><td>127</td><td>the cell, wrapping, <code>content()</code>, and editing</td></tr>
+<tr><td><code>interaction.rs</code>, <code>focus.rs</code>, <code>keys.rs</code></td><td>61</td><td>the box stack, claiming, holds, focus, keys</td></tr>
+<tr><td><code>views.rs</code></td><td>53</td><td>extent, pinning, chaining, <code>ScrollTo</code>, momentum</td></tr>
+<tr><td><code>aspen.rs</code></td><td>58</td><td>motion, channels, timers, sequences</td></tr>
+<tr><td><code>elm.rs</code>, <code>renderers.rs</code>, <code>palette.rs</code></td><td>78</td><td>extraction, every renderer, the scheme</td></tr>
+<tr><td><code>sprig.rs</code>, <code>assets.rs</code>, <code>platform.rs</code></td><td>55</td><td>off the frame, arriving bytes, the platform edges</td></tr>
+<tr><td><code>tracing.rs</code></td><td>3</td><td>what a quiet frame reports</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="pure-parts-are-tested-as-arithmetic"><a class="header" href="#pure-parts-are-tested-as-arithmetic">Pure parts are tested as arithmetic</a></h2>
+<p>Where the engine has a pure function at its core, the suite tests the function on its own, without a
+frame:</p>
+<ul>
+<li><strong>The resolver.</strong> <code>tests/placement.rs</code> tests the placement algebra “against the resolver alone”: a
+<code>Config</code> and a <code>Context</code> in, a <code>Span</code> out. That is possible only because the resolver touches no
+world.</li>
+<li><strong>Editing.</strong> <code>text_input::applied</code> takes a value, a caret, a key and a wrap, and says what the key
+does, so every editing rule is a one-line case in a table.</li>
+<li><strong>The scheme.</strong> The ramps a scheme derives from its seeds are checked as color arithmetic.</li>
+</ul>
+<h2 id="compile-fail-doctests"><a class="header" href="#compile-fail-doctests">Compile-fail doctests</a></h2>
+<p>Some rules are held by the type system, and a type-system rule is only proven by code that fails to
+compile. The placement grammar carries a set of <code>compile_fail</code> doctests, each <strong>pinned to an error
+code</strong> rather than to the compiler’s wording, which changes between releases:</p>
+<pre><code class="language-rust ignore">/// ```compile_fail,E0277
+/// use foliage::{Source, left};
+/// left(0.px()).width(2.row());
+/// ```</code></pre>
+<p>Each one holds a line of <a href="resolver.html#the-order-is-in-the-types">the grammar’s types</a>: no second
+extent on an axis, no vertical length in a horizontal role, no coordinate crossing axes, no adding two
+positions.</p>
+<h2 id="the-quiet-frame"><a class="header" href="#the-quiet-frame">The quiet frame</a></h2>
+<p><code>tests/tracing.rs</code> installs a subscriber and asserts that a frame which changes nothing, over a tree
+of five hundred elements, emits nothing above <code>trace</code>, and the same for a watch at rest and a focused
+field at rest. Spans are per frame and per phase and events are per thing that happened, so neither
+scales with the size of the tree. That is what keeps <code>debug</code> usable on a real app: quiet at rest, and
+loud only about what actually happened.</p>
+<h2 id="measuring-is-not-testing"><a class="header" href="#measuring-is-not-testing">Measuring is not testing</a></h2>
+<p><code>tests/bench.rs</code> is a harness rather than a test, <code>#[ignore]</code>d unless asked for. It builds a field of
+cells and runs loads that each write one kind of thing (layout, color, text, motion, churn, scroll,
+resize and others) at two sizes, timing the frame on the processor with no surface.
+<a href="performance.html">What a frame costs</a> is built on it.</p>
+<h2 id="ci"><a class="header" href="#ci">CI</a></h2>
+<p><a href="https://github.com/eblack-leaf/foliage/blob/main/.github/workflows/ci.yml"><code>ci.yml</code></a> runs on every
+push and pull request to <code>main</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Job</th><th>Runs</th></tr>
+</thead>
+<tbody>
+<tr><td>native, on Linux, macOS and Windows</td><td><code>cargo test --workspace</code> (the suite and every doctest), <code>cargo build --examples -p foliage</code>, <code>cargo check -p foliage --features origin-url</code>, <code>cargo check -p application</code></td></tr>
+<tr><td>web</td><td><code>cargo check -p foliage -p application --target wasm32-unknown-unknown</code></td></tr>
+<tr><td>Android</td><td><code>cargo ndk -t arm64-v8a check -p foliage -p application-android</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><code>cargo check -p application</code> is a gate on the public API rather than on the site: <code>application</code> is
+written against nothing but the public surfaces of foliage and lichen, so an API that cannot build a
+real page fails CI.</p>
+<h2 id="what-is-not-proven-here"><a class="header" href="#what-is-not-proven-here">What is not proven here</a></h2>
+<p>The translation from platform events into <code>Input</code> (the whole of <code>photosynthesize.rs</code>’s
+<code>window_event</code>), the surface, and the pixels. Those are answered for by the site running on the web,
+by the examples building on three desktops, by the Android build being checked and run on an
+emulator, and by the <code>stress</code> example under a real surface. None of that is a test in CI, which is
+why the translation layer is kept as thin as it is: everything past it is on the one path the suite
+does reach.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/sprig.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../architecture/performance.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +356,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/sprig.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../architecture/performance.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +380,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

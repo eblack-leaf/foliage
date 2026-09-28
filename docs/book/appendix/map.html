@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>Where to look - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,13 +177,107 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="where-to-look"><a class="header" href="#where-to-look">Where to look</a></h1>
+<p>Every module opens with a comment saying what it owns and why, so the fastest way into any part of
+foliage is to find the file and read its first screen. This page is the index. Paths are relative to
+<a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/src"><code>foliage/src</code></a>.</p>
+<h2 id="by-question"><a class="header" href="#by-question">By question</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>If the question is</th><th>Look in</th></tr>
+</thead>
+<tbody>
+<tr><td>what happens in a frame, and in what order</td><td><code>fern.rs</code> (<code>run</code>)</td></tr>
+<tr><td>whether a frame runs at all</td><td><code>photosynthesize.rs</code> (<code>owed</code>)</td></tr>
+<tr><td>how a window event becomes input</td><td><code>photosynthesize.rs</code> (<code>window_event</code>), <code>interaction/input.rs</code></td></tr>
+<tr><td>how the window is opened, and its size and density</td><td><code>willow.rs</code></td></tr>
+<tr><td>what a verb does</td><td><code>verbs.rs</code> (the verb), <code>op.rs</code> (the op), <code>fern.rs</code> (<code>drain</code>, its arm)</td></tr>
+<tr><td>why an op was dropped</td><td><code>fern.rs</code> (<code>drain</code>: every <code>dropped(..)</code> call names its reason)</td></tr>
+<tr><td>where names come from</td><td><code>naming.rs</code>, <code>leaf.rs</code></td></tr>
+<tr><td>how elements are stored, and what a write records</td><td><code>tree.rs</code></td></tr>
+<tr><td>what a seed carries</td><td><code>seed.rs</code>, <code>place.rs</code>, and each element’s own file</td></tr>
+<tr><td>how a placement is written</td><td><code>placement/role.rs</code>, <code>placement/source.rs</code>, <code>placement/basis.rs</code></td></tr>
+<tr><td>how a placement becomes a box</td><td><code>placement/resolve.rs</code></td></tr>
+<tr><td>breakpoints and grids</td><td><code>layout.rs</code>, <code>placement/breakpoints.rs</code>, <code>placement/grid.rs</code></td></tr>
+<tr><td>the resolution passes, and what is resolved again</td><td><code>rowan.rs</code></td></tr>
+<tr><td>fonts, the character cell, shaping and wrapping</td><td><code>text/font.rs</code>, <code>text/shape.rs</code></td></tr>
+<tr><td>text fields: editing, the caret, the selection</td><td><code>text_input.rs</code></td></tr>
+<tr><td>elements made of several elements</td><td><code>frond.rs</code></td></tr>
+<tr><td>motion, timers and sequences</td><td><code>aspen/mod.rs</code>, <code>aspen/ease.rs</code></td></tr>
+<tr><td>hit-testing, claiming, holds</td><td><code>interaction/stack.rs</code>, <code>interaction/mod.rs</code></td></tr>
+<tr><td>focus</td><td><code>interaction/focus.rs</code></td></tr>
+<tr><td>scrolling, coasting, pinning and floating</td><td><code>view.rs</code></td></tr>
+<tr><td>the three off-states</td><td><code>lifecycle.rs</code></td></tr>
+<tr><td>elevation and the stack order</td><td><code>elevation.rs</code></td></tr>
+<tr><td>colors, tones and schemes</td><td><code>color.rs</code>, <code>palette.rs</code></td></tr>
+<tr><td>what a frame reports</td><td><code>pollen.rs</code></td></tr>
+<tr><td>what can be read</td><td><code>vein.rs</code>, <code>grove.rs</code> (<code>tap</code>)</td></tr>
+<tr><td>fonts, marks and pictures arriving</td><td><code>asset.rs</code>, <code>icon.rs</code>, <code>image.rs</code></td></tr>
+<tr><td>the clipboard, links, the soft keyboard</td><td><code>clipboard.rs</code>, <code>link.rs</code>, <code>keyboard.rs</code></td></tr>
+<tr><td>the engine from another thread</td><td><code>sprig.rs</code></td></tr>
+<tr><td>extraction</td><td><code>elm.rs</code></td></tr>
+<tr><td>the renderers and the shared stack</td><td><code>ash/mod.rs</code>, <code>ash/quad.rs</code>, <code>ash/instances.rs</code>, <code>ash/text.rs</code></td></tr>
+<tr><td>glyphs, marks and pictures on the GPU</td><td><code>ash/atlas.rs</code>, <code>ash/sheet.rs</code>, <code>ash/picture.rs</code></td></tr>
+<tr><td>the shaders</td><td><code>ash/*.wgsl</code></td></tr>
+<tr><td>the device, the surface, the depth order</td><td><code>ginkgo/mod.rs</code>, <code>ginkgo/depth.rs</code>, <code>ginkgo/viewport.rs</code></td></tr>
+<tr><td>how something is proven</td><td><code>tests/</code>, one file per subsystem</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="by-subsystem"><a class="header" href="#by-subsystem">By subsystem</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Subsystem</th><th>Files</th><th>Chapter</th></tr>
+</thead>
+<tbody>
+<tr><td>the loop</td><td><code>photosynthesize.rs</code>, <code>willow.rs</code>, <code>foliage.rs</code>, <code>clock.rs</code>, <code>queue.rs</code> (<code>Wake</code>)</td><td><a href="../architecture/loop.html">The loop</a></td></tr>
+<tr><td><code>Fern</code></td><td><code>fern.rs</code>, <code>root.rs</code></td><td><a href="../architecture/frame.html">The frame</a></td></tr>
+<tr><td><code>Tree</code></td><td><code>tree.rs</code>, <code>leaf.rs</code>, <code>naming.rs</code>, <code>seed.rs</code>, <code>place.rs</code></td><td><a href="../architecture/tree.html">The tree</a></td></tr>
+<tr><td>ops</td><td><code>verbs.rs</code>, <code>op.rs</code>, <code>queue.rs</code></td><td><a href="../architecture/drain.html">Ops and the drain</a></td></tr>
+<tr><td><code>Rowan</code></td><td><code>rowan.rs</code>, <code>lifecycle.rs</code>, <code>elevation.rs</code></td><td><a href="../architecture/resolution.html">Resolution</a></td></tr>
+<tr><td>placement</td><td><code>placement/</code></td><td><a href="../architecture/resolver.html">The resolver</a></td></tr>
+<tr><td>text</td><td><code>text/</code>, <code>ash/atlas.rs</code>, <code>ash/text.rs</code></td><td><a href="../architecture/text.html">Text, shaped and cut</a></td></tr>
+<tr><td><code>Aspen</code></td><td><code>aspen/</code></td><td><a href="../architecture/motion.html">Motion</a></td></tr>
+<tr><td>interaction</td><td><code>interaction/</code></td><td><a href="../architecture/interaction.html">Interaction</a></td></tr>
+<tr><td>views</td><td><code>view.rs</code></td><td><a href="../architecture/views.html">Scrolling</a></td></tr>
+<tr><td>fronds</td><td><code>frond.rs</code>, <code>text_input.rs</code></td><td><a href="../architecture/fronds.html">Fronds</a></td></tr>
+<tr><td><code>Elm</code></td><td><code>elm.rs</code></td><td><a href="../architecture/extraction.html">Extraction</a></td></tr>
+<tr><td><code>Ash</code>, <code>Ginkgo</code></td><td><code>ash/</code>, <code>ginkgo/</code></td><td><a href="../architecture/backend.html">The backend</a></td></tr>
+<tr><td><code>Sprig</code></td><td><code>sprig.rs</code>, <code>asset.rs</code></td><td><a href="../architecture/sprig.html">Off the frame</a></td></tr>
+<tr><td>the suite</td><td><code>tests/</code></td><td><a href="../architecture/testing.html">Proving it</a></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="beyond-the-crate"><a class="header" href="#beyond-the-crate">Beyond the crate</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Where</th><th>What</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/blob/main/README.md"><code>README.md</code></a></td><td>Getting started, icons, Android, the repo layout and tasks</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/blob/main/USAGE.md"><code>USAGE.md</code></a></td><td>The concept reference: every rule, as a lookup</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/blob/main/OPTIMIZATION.md"><code>OPTIMIZATION.md</code></a></td><td>How to measure a frame, what it costs today, and the open candidates</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/blob/main/TODO.md"><code>TODO.md</code></a></td><td>Known gaps, each with where the change would go</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/examples"><code>foliage/examples</code></a></td><td>Runnable examples, and <code>stress</code>, which measures under a real surface</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/tree/main/lichen"><code>lichen</code></a></td><td>Opinionated parts built on the public API</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/tree/main/application"><code>application</code></a></td><td>The site, built on nothing but the public APIs</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage-icons"><code>foliage-icons</code></a></td><td>The icon baker</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage-android"><code>foliage-android</code></a></td><td>The Android project generator and build driver</td></tr>
+<tr><td><a href="https://github.com/eblack-leaf/foliage/tree/main/xtask"><code>xtask</code></a></td><td><code>cargo xtask site</code>, <code>book</code>, <code>api</code>, <code>docs</code>, <code>web</code></td></tr>
+</tbody>
+</table>
+</div>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../appendix/lexicon.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
 
                         <div style="clear: both"></div>
@@ -193,6 +286,9 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../appendix/lexicon.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
             </nav>
 
@@ -211,13 +307,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

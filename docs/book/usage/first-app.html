@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>A first app - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,230 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="a-first-app"><a class="header" href="#a-first-app">A first app</a></h1>
+<p>This chapter builds a counter: a button, and a label on it that says how many times it has been
+pressed. It is small, but every part of the way a foliage app is put together is in it.</p>
+<h2 id="setting-up"><a class="header" href="#setting-up">Setting up</a></h2>
+<p>foliage is a library crate. Add it to a binary:</p>
+<pre><code class="language-toml"># Cargo.toml
+[package]
+name = "counter"
+edition = "2024"
+
+[dependencies]
+foliage = { git = "https://github.com/eblack-leaf/foliage" }
+</code></pre>
+<p>It builds on a current stable toolchain. On Linux, winit and wgpu link against the windowing stack
+at compile time, so the development headers have to be present. On Debian or Ubuntu that is:</p>
+<pre><code class="language-sh">sudo apt-get install libx11-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+    libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+</code></pre>
+<p>macOS and Windows need nothing beyond Rust itself.</p>
+<h2 id="the-whole-program"><a class="header" href="#the-whole-program">The whole program</a></h2>
+<pre><code class="language-rust no_run">use foliage::{
+    Area, Boxed, Foliage, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place, Pollen,
+    Root, Rounding, Source, Text, center_x, center_y, content, left, top,
+};
+
+/// What the app keeps between frames. Nothing here is handed to the engine.
+struct Counter {
+    button: Leaf,
+    label: Leaf,
+    count: u32,
+}
+
+impl Root for Counter {
+    /// Runs once, inside the first frame.
+    fn take_root(grove: &amp;mut Grove) -&gt; Self {
+        let page = grove.plant(Panel::new().color(Palette::Surface));
+        let button = grove.branch(
+            page,
+            Panel::new()
+                .color(Palette::Accent)
+                .rounding(Rounding::Md)
+                .interactive()
+                .at(Location::new().xs(
+                    left(40.px()).width(160.px()),
+                    top(40.px()).height(48.px()),
+                )),
+        );
+        let label = grove.branch(
+            button,
+            Text::new("count 0")
+                .color(Palette::Accent.on())
+                .font_size(FontSize::new().xs(14))
+                .intangible()
+                .at(Location::new().xs(
+                    center_x(50.pct()).width(content()),
+                    center_y(50.pct()).height(content()),
+                )),
+        );
+        Counter {
+            button,
+            label,
+            count: 0,
+        }
+    }
+
+    /// Runs once per frame: what happened, and what to do about it.
+    fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
+        if pollen.clicked(self.button) {
+            self.count += 1;
+            grove.text(self.label, format!("count {}", self.count));
+        }
+    }
+}
+
+fn main() {
+    let mut foliage = Foliage::new();
+    foliage.title("counter");
+    foliage.app_id("counter");
+    foliage.desktop_size(Area::new(320.0, 240.0));
+    foliage.root::&lt;Counter&gt;();
+    foliage.photosynthesize();
+}</code></pre>
+<p>Run it with <code>cargo run</code>. A window opens with an accent-coloured button, and each press counts
+up. The rest of this chapter reads it from the bottom.</p>
+<h2 id="main-the-engine"><a class="header" href="#main-the-engine"><code>main</code>: the engine</a></h2>
+<p><code>Foliage</code> is the engine. <code>Foliage::new()</code> builds it without touching a window or a device; every
+platform resource is acquired later, when the platform hands one over. That is also why the same
+type can be built inside a test.</p>
+<p>Before it runs it is told three things about the window and one about the app:</p>
+<ul>
+<li><code>title</code> is the prose a window is labelled with.</li>
+<li><code>app_id</code> is how the desktop recognises the application, as against how it labels the window. A
+shell matches it against the entry that launched the program, and without it some desktops draw a
+second, generic icon beside the one that was clicked. Conventionally it is the binary’s name.</li>
+<li><code>desktop_size</code> is the size the window opens at, in logical pixels. The web and Android take
+their size from the surface they are given and ignore it.</li>
+<li><code>root::&lt;Counter&gt;()</code> names the app. The engine does not construct it yet; it calls
+<code>Counter::take_root</code> inside the first frame.</li>
+</ul>
+<p><code>photosynthesize()</code> runs the platform’s event loop and does not return. It consumes the engine,
+because from here on the loop belongs to the platform and everything that happens is a frame.</p>
+<h2 id="root-the-app"><a class="header" href="#root-the-app"><code>Root</code>: the app</a></h2>
+<p>An app is a value implementing <a href="https://eblack-leaf.github.io/foliage/api/foliage/trait.Root.html"><code>Root</code></a>.
+It has two methods:</p>
+<ul>
+<li><code>take_root</code> runs once, inside the first frame. It grows the starting tree and returns the app’s
+own value.</li>
+<li><code>frame</code> runs once per frame after that, and on the first frame too, straight after <code>take_root</code>.</li>
+</ul>
+<p>Whatever the app keeps (here, two names and a count) is its own. The engine has no way to reach
+it. The value is lent a <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Grove.html"><code>Grove</code></a>
+for the length of each call, and the grove is the whole of what an app can touch.</p>
+<h2 id="plant-and-branch-growing-elements"><a class="header" href="#plant-and-branch-growing-elements"><code>plant</code> and <code>branch</code>: growing elements</a></h2>
+<pre><code class="language-rust ignore">let page = grove.plant(Panel::new().color(Palette::Surface));
+let button = grove.branch(page, Panel::new() /* ... */);</code></pre>
+<p>A <code>Panel::new()</code> is a <em>seed</em>: an element described before it exists. <code>plant</code> grows one at the top
+level and <code>branch</code> grows one under another element, and both hand back a
+<a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Leaf.html"><code>Leaf</code></a>: the name of the new
+element.</p>
+<p>The name is usable the moment it is handed back, which is why <code>button</code> can be branched off <code>page</code>
+on the very next line. The element itself does not exist yet. <code>plant</code> and <code>branch</code> queue an op,
+and the queue is drained once the frame’s app code has returned. <a href="tree.html">The next
+chapter</a> says more about names and what they are good for.</p>
+<p>The page is a panel with no placement, so it fills its parent. It has no parent, so it fills the
+window. It is filled with <code>Palette::Surface</code>, the ordinary ground.</p>
+<h2 id="location-where-it-sits"><a class="header" href="#location-where-it-sits"><code>Location</code>: where it sits</a></h2>
+<pre><code class="language-rust ignore">.at(Location::new().xs(
+    left(40.px()).width(160.px()),
+    top(40.px()).height(48.px()),
+))</code></pre>
+<p>A location states one horizontal and one vertical placement. Each is a <em>role</em> (<code>left</code>, <code>width</code>,
+<code>top</code>, <code>height</code>) filled with a <em>source</em> (<code>40.px()</code>). The horizontal half comes first and the
+vertical half second, and the two are different types, so they cannot be swapped.</p>
+<p><code>xs</code> is the smallest breakpoint. A location can say something different at wider breakpoints, but
+<code>xs</code> alone is enough: every wider one falls back to it. <a href="placement.html">Placing elements</a> covers the
+grammar properly.</p>
+<p>The label is placed against its trunk, the button:</p>
+<pre><code class="language-rust ignore">.at(Location::new().xs(
+    center_x(50.pct()).width(content()),
+    center_y(50.pct()).height(content()),
+))</code></pre>
+<p><code>50.pct()</code> is half of the button’s width, measured from the button’s left edge, so the label is
+centred on it. <code>content()</code> is the label’s own measured size: as wide as its text, and as tall as
+the text turned out.</p>
+<h2 id="interactive-and-intangible-who-takes-the-press"><a class="header" href="#interactive-and-intangible-who-takes-the-press"><code>interactive</code> and <code>intangible</code>: who takes the press</a></h2>
+<p>A press goes to whatever is on top at that point. The label is on top of the button (it was grown
+under it, so it sits in front of it), which means that without anything said, a press on the
+label’s pixels would land on the label.</p>
+<p>Two declarations settle it:</p>
+<ul>
+<li><code>interactive()</code> on the button says it <strong>receives</strong> gestures. It is what <code>clicked</code> can report,
+and what focus can rest on.</li>
+<li><code>intangible()</code> on the label says a gesture over it <strong>passes through</strong> to whatever is beneath.</li>
+</ul>
+<p>An element on top that says neither <strong>eats</strong> the press: nothing receives it, and nothing behind it
+does either. That is the right answer for a backdrop or a sheet, and the wrong one for a label
+drawn over a button. Try deleting <code>.intangible()</code> and pressing the middle of the button: only the
+rim still counts.</p>
+<h2 id="frame-answering"><a class="header" href="#frame-answering"><code>frame</code>: answering</a></h2>
+<pre><code class="language-rust ignore">fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
+    if pollen.clicked(self.button) {
+        self.count += 1;
+        grove.text(self.label, format!("count {}", self.count));
+    }
+}</code></pre>
+<p><a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Pollen.html"><code>Pollen</code></a> is what the frame
+reported. It is a set to ask questions of, not a list to walk: <code>clicked(leaf)</code> answers whether that
+element was tapped, meaning a gesture began on it and ended without turning into a drag.</p>
+<p><code>grove.text(label, …)</code> rewrites what the label says. Like <code>plant</code>, it is queued and drained after
+<code>frame</code> returns, so reading the label back inside the same call still gives the old value. The
+label’s width is <code>content()</code>, so it re-measures itself to the new string in the same frame and
+stays centred on the button.</p>
+<h2 id="imports"><a class="header" href="#imports">Imports</a></h2>
+<p>The imports are part of the lesson:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Import</th><th>Is</th><th>Carries</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Grow</code></td><td>a trait</td><td>every write: <code>plant</code>, <code>branch</code>, <code>text</code>, <code>color</code> and the rest</td></tr>
+<tr><td><code>Place</code></td><td>a trait</td><td>the declarations every seed takes: <code>interactive</code>, <code>intangible</code>, <code>font_size</code> and the rest</td></tr>
+<tr><td><code>Boxed</code></td><td>a trait</td><td><code>at</code>, on every seed placed by a box</td></tr>
+<tr><td><code>Source</code></td><td>a trait</td><td><code>px</code>, <code>pct</code>, <code>col</code>, <code>row</code>, <code>letters</code> on plain numbers</td></tr>
+</tbody>
+</table>
+</div>
+<p>All four are sealed: they can be called and never implemented. A missing one shows up as “no
+method named <code>plant</code>”, or <code>px</code>, or <code>at</code>, and the fix is always the import.</p>
+<h2 id="what-happens-when-the-button-is-pressed"><a class="header" href="#what-happens-when-the-button-is-pressed">What happens when the button is pressed</a></h2>
+<p>The whole path, in the order the engine runs it:</p>
+<ol>
+<li>The platform reports the press and the release. They are queued as input.</li>
+<li>The next frame’s <strong>dispatch</strong> hit-tests the press against what was drawn last frame and finds
+the button. When the release arrives before the gesture has become a drag or a hold, it records
+a tap.</li>
+<li><code>frame</code> is called with a <code>Pollen</code> in which <code>clicked(button)</code> is true. It queues a <code>text</code> write.</li>
+<li>The <strong>drain</strong> applies the write.</li>
+<li><strong>Resolution</strong> measures the new string and re-centres the label.</li>
+<li><strong>Extraction</strong> notices that the label’s glyphs changed and sends only those to the GPU.</li>
+<li>The frame is drawn.</li>
+</ol>
+<p>All of that is one frame. There is no render call to make, and nothing to invalidate: an app
+states what is true and the next frame is already different. <a href="../architecture/frame.html">The frame</a>
+walks the same path from the inside.</p>
+<h2 id="the-engine-idles"><a class="header" href="#the-engine-idles">The engine idles</a></h2>
+<p>Nothing happens between presses. The engine runs a frame only when one is owed: input arrived, an
+op is waiting, an animation is running, a report has not been delivered yet. Otherwise the loop
+sleeps. An app that drives something itself from the clock, where the engine has nothing to
+notice, asks for the next frame with
+<a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Grove.html#method.again"><code>grove.again()</code></a>
+for as long as it is doing it.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../introduction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../usage/tree.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +408,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../introduction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../usage/tree.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +432,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

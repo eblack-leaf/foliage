@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>The shape of the engine - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,140 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="the-shape-of-the-engine"><a class="header" href="#the-shape-of-the-engine">The shape of the engine</a></h1>
+<p>This half follows a frame through foliage, from the platform’s event loop to the pixels. This
+chapter is the map: what the pieces are, where each lives, and the one idea they are all arranged
+around.</p>
+<h2 id="one-seam"><a class="header" href="#one-seam">One seam</a></h2>
+<p>An app and the engine meet at a seam, and only three things cross it:</p>
+<pre><code class="language-text">              app                      │                     engine
+                                       │
+  grove.at(card, ..)  ──── an Op ─────▶│──▶ the queue ──▶ the drain ──▶ the tree
+  sprig.color(row, ..) ─── an Op ─────▶│──▶ the queue
+                                       │
+  pollen.clicked(card) ◀── Pollen ─────│◀── the drift, sealed once a frame
+                                       │
+  grove.tap(card, Vein::Drawn) ◀─ Sap ─│◀── a copy of one property
+</code></pre>
+<ul>
+<li><strong>Ops in.</strong> Every write is a verb on the <a href="https://eblack-leaf.github.io/foliage/api/foliage/trait.Grow.html"><code>Grow</code></a>
+trait, and every verb does the same thing: build an <code>Op</code> and push it onto one queue. Nothing is
+applied where it is written.</li>
+<li><strong>Reports out.</strong> Everything the engine has to tell an app is collected in a <code>Drift</code> while the
+frame runs, sealed into a <code>Pollen</code> at one point in the next frame, and handed over by value.</li>
+<li><strong>Reads beside.</strong> <code>tap</code> copies one property out of the engine’s state and returns it. Nothing the
+app holds afterwards refers back into that state.</li>
+</ul>
+<p>No engine type is handed out and nothing an app holds borrows from the world. A
+<a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Leaf.html"><code>Leaf</code></a> is a name, eight bytes
+and <code>Copy</code>, and naming something that is gone is harmless: an op that names it is dropped, and a
+read of it answers <code>None</code>.</p>
+<p>That seam is why the rest of the engine can be arranged the way it is. Since nothing outside can
+touch the state, the engine decides exactly when every piece of it changes, and it chooses to change
+all of it at one place in the frame, in one order. <a href="frame.html">The frame</a> is that order.</p>
+<h2 id="the-parts"><a class="header" href="#the-parts">The parts</a></h2>
+<p>The names are trees, by one rule: <strong>structure words name what an app builds</strong> (<code>Leaf</code>, <code>Stem</code>,
+<code>branch</code>, <code>trunk</code>, <code>Root</code>), and <strong>species names name the machinery</strong>. Reading a name tells you which
+side it is on.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Part</th><th>Lives in</th><th>Owns</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Foliage</code></td><td><code>foliage.rs</code></td><td>The boot object: the grove, the app, the window, the device. Consumed by <code>photosynthesize</code></td></tr>
+<tr><td>the loop</td><td><code>photosynthesize.rs</code></td><td>The platform’s event loop: translation of events, whether a frame is owed, and drawing</td></tr>
+<tr><td><code>Willow</code></td><td><code>willow.rs</code></td><td>The window: what it is opened as, its size and density</td></tr>
+<tr><td><code>Fern</code></td><td><code>fern.rs</code></td><td>The frame: one function that runs every phase in order, and the drain</td></tr>
+<tr><td><code>Grove</code></td><td><code>grove.rs</code></td><td>All the state a frame touches, and the surface an app’s frame is lent</td></tr>
+<tr><td><code>Tree</code></td><td><code>tree.rs</code></td><td>The one door onto <code>bevy_ecs</code>: each element is an entity, and every declaration a component</td></tr>
+<tr><td><code>Rowan</code></td><td><code>rowan.rs</code>, <code>placement/</code></td><td>Resolution: declarations into boxes, extents, clips and ranks</td></tr>
+<tr><td><code>Aspen</code></td><td><code>aspen/</code></td><td>Motion: tweens, timers and sequences on the frame’s one clock</td></tr>
+<tr><td>interaction</td><td><code>interaction/</code></td><td>The box stack, gestures, and focus</td></tr>
+<tr><td>views</td><td><code>view.rs</code></td><td>Scrolling regions: offsets, coasting, and handing a scroll outward</td></tr>
+<tr><td>text</td><td><code>text/</code>, <code>text_input.rs</code></td><td>Fonts, shaping, wrapping, and the editable fields</td></tr>
+<tr><td><code>Frond</code></td><td><code>frond.rs</code></td><td>Elements that are several elements under one name</td></tr>
+<tr><td><code>Elm</code></td><td><code>elm.rs</code></td><td>Extraction: what changed, as render instances</td></tr>
+<tr><td><code>Ash</code></td><td><code>ash/</code></td><td>The render backend: one renderer per kind of element, and the draw</td></tr>
+<tr><td><code>Ginkgo</code></td><td><code>ginkgo/</code></td><td>The GPU: device, surface, and the density everything is scaled by</td></tr>
+<tr><td><code>Sprig</code></td><td><code>sprig.rs</code></td><td>The engine reached from off the frame</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>Fern</code> has no state. Everything a frame touches is a field of <code>Grove</code>: the tree, the queue, the
+clock, the running motion, the fonts and pictures, the focus, the box stack, the drift being
+collected. That is also why an app’s <code>frame</code> is handed a <code>&amp;mut Grove</code>: the surface an app writes
+through is the same value the engine keeps everything in, with every field private to the crate and
+only the verbs and reads public.</p>
+<h2 id="where-the-frame-runs"><a class="header" href="#where-the-frame-runs">Where the frame runs</a></h2>
+<pre><code class="language-text">photosynthesize ─ the platform's loop ─────────────────────────────────────────┐
+│                                                                              │
+│  window events ──▶ Incoming          about_to_wait: is a frame owed? (F9)    │
+│                                       └── yes: ask the platform to paint     │
+│  RedrawRequested ──▶ paint()                                                 │
+│       │                                                                      │
+│       ├── owed?  advance the clock, then                                     │
+│       │     fern::run ─ steps 1 to 8 ──────────────────────────────┐         │
+│       │     │  intake · dispatch · root · drain · aspen · rowan ·  │         │
+│       │     │  publish · elm                                       │         │
+│       │     └──────────────────────────────────────────────────────┘         │
+│       │     ash.absorb(the batch elm made)                                   │
+│       └── ash.draw ─ step 9                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<p>The split is deliberate. <a href="frame.html"><code>fern::run</code></a> is steps 1 to 8 and knows nothing about a window
+or a GPU, so the headless test suite calls exactly the same function the loop does. What only a
+platform can do (turning a window event into input, deciding whether a frame is owed, and drawing)
+is in <a href="loop.html">the loop</a>, and is the whole of what the suite cannot reach.</p>
+<h2 id="where-the-rest-of-the-workspace-sits"><a class="header" href="#where-the-rest-of-the-workspace-sits">Where the rest of the workspace sits</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Crate</th><th>Is</th></tr>
+</thead>
+<tbody>
+<tr><td><code>foliage</code></td><td>The engine. Everything this half describes</td></tr>
+<tr><td><code>lichen</code></td><td>Opinionated parts built on foliage’s public API: a look, chips, fields, the mosaic</td></tr>
+<tr><td><code>application</code></td><td>The site, written against nothing but the public APIs of foliage and lichen</td></tr>
+<tr><td><code>foliage-icons</code></td><td>The icon baker: an SVG in, a distance field out</td></tr>
+<tr><td><code>foliage-android</code></td><td>The Android tool: generates the Gradle project and drives the build</td></tr>
+<tr><td><code>xtask</code></td><td>Repo tasks: building the site, the book and the API reference</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>application</code> doubles as a gate: <code>cargo check -p application</code> fails if the public API cannot build a
+real page.</p>
+<h2 id="reading-the-source"><a class="header" href="#reading-the-source">Reading the source</a></h2>
+<p>Every module opens with a comment saying what it owns and why it is shaped that way, and most
+functions say why as well as what. This half is a route through those comments rather than a
+replacement for them. Excerpts of the engine’s source are marked with the file they come from and
+are sometimes shortened; they are not compiled with the book, and where one disagrees with the
+source, the source is right.</p>
+<p>The chapters follow the frame:</p>
+<ol>
+<li><a href="loop.html">The loop</a>: when a frame runs at all.</li>
+<li><a href="frame.html">The frame</a>: the nine steps and the laws that order them.</li>
+<li><a href="tree.html">The tree</a> and <a href="drain.html">Ops and the drain</a>: where elements live and how writes
+reach them.</li>
+<li><a href="resolution.html">Resolution</a> and <a href="resolver.html">the resolver</a>: from declarations to boxes.</li>
+<li><a href="text.html">Text</a>, <a href="motion.html">Motion</a>, <a href="interaction.html">Interaction</a>,
+<a href="views.html">Scrolling</a> and <a href="fronds.html">Fronds</a>: the subsystems resolution calls on or runs beside.</li>
+<li><a href="extraction.html">Extraction</a> and <a href="backend.html">the backend</a>: from boxes to pixels.</li>
+<li><a href="sprig.html">Off the frame</a>: the engine reached from a thread.</li>
+<li><a href="testing.html">Proving it</a> and <a href="performance.html">What a frame costs</a>.</li>
+</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/notes.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../architecture/loop.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +318,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/notes.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../architecture/loop.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +342,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

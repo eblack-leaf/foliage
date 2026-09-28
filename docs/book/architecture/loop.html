@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - foliage</title>
+        <title>The loop - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -177,72 +177,197 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
-ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
-<a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
-code runs on Linux, Windows, macOS, the web and Android.</p>
-<p>Everything that crosses the seam between an app and the engine is plain data:</p>
+                        <h1 id="the-loop"><a class="header" href="#the-loop">The loop</a></h1>
+<p><code>foliage.photosynthesize()</code> hands the engine to the platform and does not return. Everything in
+this chapter lives in <a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/photosynthesize.rs"><code>photosynthesize.rs</code></a>
+and <a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/willow.rs"><code>willow.rs</code></a>: the one
+part of the engine that knows a platform exists. Its jobs are to turn window events into input, to
+decide whether a frame is owed, and to draw.</p>
+<h2 id="before-the-first-frame"><a class="header" href="#before-the-first-frame">Before the first frame</a></h2>
+<p><code>Foliage::new()</code> touches no platform resource. It builds a <code>Grove</code> against a zero-sized viewport,
+and every call made before <code>photosynthesize</code> (<code>title</code>, <code>desktop_size</code>, <code>root</code>, <code>font</code>, <code>tune</code>) writes
+into the grove or into <code>Willow</code>’s description of the window it will open. That is what makes a
+<code>Foliage</code> constructible in a test.</p>
+<p><code>photosynthesize</code> then:</p>
+<ol>
+<li>builds winit’s event loop (on Android, with the activity the process was started for, because
+the activity is what the platform’s events arrive through);</li>
+<li>sets it to <code>ControlFlow::Wait</code>, so the loop <strong>sleeps until the platform has something to say</strong>;</li>
+<li>installs the <strong>wake</strong>, an <code>EventLoopProxy</code> that work finishing off the frame uses to rouse a
+sleeping loop;</li>
+<li>opens the platform edges (the clipboard, the hidden input a soft keyboard is raised through, the
+road a URL takes to the host), once the wake they report through exists;</li>
+<li>runs the app: <code>run_app</code> natively, <code>spawn_app</code> on the web, where the browser owns the loop.</li>
+</ol>
+<p>Nothing is opened until the platform says the app has <strong>resumed</strong>. Only then does <code>Willow</code> open the
+window, and the size the platform actually gave it is the first thing the tree is resolved
+against, whatever <code>desktop_size</code> asked for. The window can never be dragged below 290 by 290
+logical pixels, and a minimised window’s zero extent is read as one pixel, because a surface cannot
+be configured at zero and every placement would resolve against nothing.</p>
+<p>The GPU device is acquired against that window. Natively that blocks, briefly, on <code>pollster</code>. A
+browser hands over an adapter and a device only through promises, so on the web acquisition is
+spawned and the device is collected by the first paint after it lands. Until there is a device,
+nothing runs.</p>
+<h2 id="frames-happen-inside-paints"><a class="header" href="#frames-happen-inside-paints">Frames happen inside paints</a></h2>
+<p>A frame does not run on a timer. It runs inside <code>paint</code>, which is called when the platform delivers
+<code>RedrawRequested</code>:</p>
+<pre><code class="language-rust ignore">// photosynthesize.rs, shortened
+fn paint(&amp;mut self) {
+    if self.owed() {
+        self.advance();                       // move the clock by what elapsed
+        fern::run(&amp;mut self.grove, self.root.as_deref_mut());
+        ash.absorb(&amp;self.grove.elm, /* fonts, fields, plates */ ginkgo);
+    }
+    let clear = self.grove.scheme().color(Palette::Surface);
+    ash.draw(ginkgo, clear);
+    if self.grove.again {
+        self.willow.repaint();
+    }
+}</code></pre>
+<p>Two questions are kept apart here. <em>Is a frame owed?</em> is the engine’s: whether anything changed or
+could change. <em>Should the surface be painted?</em> is the platform’s, and it can ask for reasons of its
+own: a window exposed, a compositor redrawing. Painting again from what the renderers already hold is
+always possible and always correct, so a paint never forces a frame.</p>
+<p>The batch extraction produced is absorbed immediately after the frame that made it, inside the same
+branch. That is what makes it safe for <a href="extraction.html">extraction</a> to keep a cache of what the
+backend holds: every batch is applied exactly where it is made, and a paint that fails afterwards
+costs one picture rather than leaving the cache and the GPU disagreeing.</p>
+<p>Between events, <code>about_to_wait</code> asks the same question, and if a frame is owed it requests a paint.
+That is the loop’s only reason to keep running.</p>
+<h2 id="whether-a-frame-is-owed"><a class="header" href="#whether-a-frame-is-owed">Whether a frame is owed</a></h2>
+<p>The engine idles when there is nothing to do. The question is answered from state the engine
+already holds, in one place:</p>
+<pre><code class="language-rust ignore">// photosynthesize.rs
+fn owed(&amp;self) -&gt; bool {
+    self.grove.frames == 0                         // the tree has not been grown yet
+        || self.grove.again                        // the app asked for one
+        || self.grove.pending_resize.is_some()     // the window changed
+        || self.grove.wake.pending()               // something arrived from off the frame
+        || !self.grove.queue.is_empty()            // an op is waiting, from either side
+        || !self.grove.incoming.pending.is_empty() // input is waiting
+        || !self.grove.aspen.idle()                // a motion or timer is running
+        || self.grove.incoming.awaiting_hold()     // a still press may yet become a hold
+        || !self.grove.coasting.idle()             // a released scroll is still moving
+        || self.grove.drift.pending()              // a report is waiting to be delivered
+}</code></pre>
+<p>Each clause is there because something would otherwise stall:</p>
 <ul>
-<li><strong>ops in.</strong> An app never touches an element directly. It writes verbs (<code>plant</code>, <code>at</code>, <code>color</code>,
-<code>animate</code>) against a name, and each one is queued.</li>
-<li><strong>reports out.</strong> Once a frame, the engine hands the app a <code>Pollen</code>: what was clicked, what
-finished, what arrived, what withered.</li>
-<li><strong>reads beside.</strong> At any point in its frame an app can <code>tap</code> one property of one element and
-get a copy of it back.</li>
+<li><strong>A still press.</strong> A press that does not move becomes a hold after half a second with nothing
+arriving to say so. Idling under a finger is how that half second would pass unnoticed, so frames
+are owed until the gesture is past being able to become one.</li>
+<li><strong>A coast.</strong> A released scroll keeps moving, and it is not a tween and nothing on the app’s side
+asks for the frames it needs.</li>
+<li><strong>An undelivered report.</strong> Steps 4 to 7 of a frame emit into the drift, and it is step 3 of the
+<em>next</em> frame that hands the drift to the app. Without this clause the loop could go to sleep
+holding a report no frame would run to deliver.</li>
+<li><strong>A rouse.</strong> Usually what arrives from off the frame is an op, which the queue clause sees. A key
+the web’s hidden input captured is not: it waits in the keyboard until intake moves it. So a rouse
+is remembered as owing a frame on its own account.</li>
+<li><strong>The app asking.</strong> An app animating something the engine cannot see (a value it moves itself
+from <code>frame_time</code>) has no clause of its own. <code>grove.again()</code> is that clause, and it lasts for
+exactly one frame, so the loop runs for as long as the app keeps asking and not a frame longer.</li>
 </ul>
-<p>An app says what an element <em>is</em> (where it sits, what fills it, whether it takes a gesture) and
-then only writes verbs against the name it got back. There is no render call to make: the next
-frame is already different.</p>
-<h2 id="how-this-book-is-laid-out"><a class="header" href="#how-this-book-is-laid-out">How this book is laid out</a></h2>
-<p>It has two halves, and they can be read in either order.</p>
-<p><strong><a href="usage/first-app.html">Using foliage</a></strong> is a set of walkthroughs. Each chapter builds something
-small and runnable (a counter, a card that sizes to its text, a scrolling list with a pinned
-header, a field that filters it) and explains the part of the engine it leans on while it goes. The
-last chapter puts most of it together in one app.</p>
-<p><strong><a href="architecture/overview.html">How foliage works</a></strong> follows one frame through the engine, from the
-platform’s event loop to the pixels. Each chapter takes one subsystem: what it owns, what it reads,
-what it hands the next one, and why it is shaped that way. It names the module each piece lives in,
-because the modules carry their own reasoning in their comments, and this half is a guided route
-through them rather than a replacement for them.</p>
-<p>The two halves meet in the middle. The usage chapters say <em>what</em> happens when an app writes a
-verb. The architecture chapters say <em>where</em> in the frame it happens and <em>what it costs</em>, which is
-what explains the rules the usage chapters state.</p>
-<h2 id="conventions"><a class="header" href="#conventions">Conventions</a></h2>
+<p><strong>Skipping a frame cannot lose a change.</strong> A frame that does not run leaves every write in the
+queue and every report in the drift, and the next frame that runs takes them. Extraction compares
+against what the backend holds rather than consulting a flag that could be missed, so a change is
+deferred, never dropped.</p>
+<h2 id="time"><a class="header" href="#time">Time</a></h2>
+<p>The engine has one clock (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/clock.rs"><code>clock.rs</code></a>).
+Time enters it one way: <code>advance(delta)</code> adds to a pending amount, and <code>sample()</code> at the top of the
+next frame takes it. The loop advances it by the wall-clock time since the last frame; the test suite
+advances it by hand. Neither the frame nor anything in it can tell which.</p>
+<p>The loop caps what it advances by at <strong>100 milliseconds</strong> (<code>HITCH</code>). Real gaps between frames have
+nothing to do with the app: the machine slept, a tab was in the background, a breakpoint sat in the
+loop. Reported honestly, the frame after a two-second gap would hand every running motion two
+seconds at once, and what was on screen would jump to wherever wall time said it should be. Capped,
+the whole engine is deferred by the same amount instead: a motion resumes where it was and takes
+longer in wall time, and never arrives at its end without having been drawn on the way. Playing late
+is the better failure, and it is only available because the frame has one clock, so nothing can fall
+out of step with anything else.</p>
+<p>The cap belongs to the loop and not to the clock. The suite advances by hand and has to be exact:
+told to advance five seconds, it advances five.</p>
+<h2 id="input"><a class="header" href="#input">Input</a></h2>
+<p>Everything the platform says about input is translated into one small enum in
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/interaction/input.rs"><code>interaction/input.rs</code></a>
+and appended to <code>Incoming::pending</code>, in arrival order:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Platform event</th><th>Becomes</th></tr>
+</thead>
+<tbody>
+<tr><td>left button down or up, a touch starting or ending</td><td><code>Pressed(at)</code>, <code>Released(at)</code></td></tr>
+<tr><td>the pointer moving <strong>while held</strong></td><td><code>Moved(at)</code></td></tr>
+<tr><td>a touch cancelled, the pointer leaving, the window losing focus mid-press</td><td><code>Cancelled</code></td></tr>
+<tr><td>a wheel</td><td><code>Wheeled { at, delta }</code>, a notch counted as 48 logical pixels</td></tr>
+<tr><td>a key producing text</td><td>one <code>Keyed(Typed(c))</code> per character</td></tr>
+<tr><td>a key that means something</td><td><code>Keyed(Left)</code>, <code>Keyed(Enter)</code>, <code>Keyed(Tab)</code> and the others</td></tr>
+<tr><td>modifiers changing</td><td><code>Modifiers { shift, control }</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Positions are divided by the window’s scale factor on the way in, so nothing above this point ever
+sees a device pixel. A pointer moving with nothing held is not queued at all: the engine has no
+hover, so such a move says nothing and owes no frame. Modifiers travel as their own event in the
+same stream rather than as flags on each key, so what a key was pressed with is decided by the
+order the two arrived in, exactly as it happened.</p>
+<p>Nothing is decided here. Resolving a press against what is on screen is a frame phase (dispatch,
+<a href="interaction.html">Interaction</a>), and it happens in the frame the input arrived for. This translation
+is the whole of what the headless suite cannot reach: it writes the same <code>Input</code> values directly,
+and from there on a scripted press and a real one take one path.</p>
+<h2 id="resizes-and-density"><a class="header" href="#resizes-and-density">Resizes and density</a></h2>
+<p>A resize or a change of scale factor calls <code>reconfigure</code>. It resizes the surface, and records the
+new logical size as <code>pending_resize</code>, which the next frame’s intake takes: the viewport changes,
+the breakpoints are re-read, and every element is marked to be resolved again.</p>
+<p>A change of <strong>density</strong> needs one more thing. Extraction compares logical values, while the backend
+holds instances derived from them in device pixels: a glyph cut at a density, a stroke snapped to
+the device grid. When a window moves to a display with a different density, the logical values do
+not change at all, so the comparison would find nothing to redo and the backend would go on drawing
+for a density that is gone. So a changed scale factor also drops extraction’s cache (<code>recut</code>) and
+invalidates the tree, and everything is extracted again at the new density.</p>
+<p>On the web, <code>reconfigure</code> paints before it returns. Configuring the surface sets the canvas’s size,
+which clears it, and the resize arrives from a <code>ResizeObserver</code> after the browser’s animation
+callbacks have already run. A paint requested in the normal way would land in the next browser
+frame, and the one in between would be shown blank, once for every step of a dragged resize.</p>
+<h2 id="when-the-surface-goes-away"><a class="header" href="#when-the-surface-goes-away">When the surface goes away</a></h2>
+<p>On Android, an activity that leaves the foreground has its window destroyed, and everything built
+against it (the surface, the device’s swapchain, every renderer’s buffers) stops being valid then,
+not when the process ends. <code>suspended</code> drops all of it, innermost first, and <code>resumed</code> builds it
+again against whatever window comes back.</p>
+<p><strong>The tree is untouched.</strong> Nothing above <code>Ash</code> knows a surface exists, which is what makes a suspend
+cost a rebuild rather than a reload: the app comes back to the frame it left. Two things are reset
+with the backend:</p>
 <ul>
-<li><strong>Every distance is in logical pixels</strong>, with the origin at the top-left and <code>y</code> growing
-downward. Device pixels exist only inside the render backend, and nothing an app writes or reads
-is in them.</li>
-<li><strong>Code samples compile.</strong> Each one is checked against the crate as it stands. Where a sample is a
-fragment, the lines that make it compile (imports, the function around it) are hidden; the
-button at the top right of a code block shows them. The architecture half also quotes the
-engine’s own source; those excerpts name the file they come from, are sometimes shortened, and
-are not compiled with the book.</li>
-<li><strong>“An app”</strong> is the value implementing <code>Root</code>, and the code written around it. “The engine” is
-everything behind <code>Foliage</code>.</li>
-<li>Names of subsystems are trees: <code>Fern</code> is the frame, <code>Rowan</code> resolves, <code>Elm</code> extracts, <code>Ash</code>
-renders. The <a href="appendix/lexicon.html">lexicon</a> lists all of them.</li>
+<li><strong>Extraction’s cache</strong>, because it records what the <em>backend</em> holds, and a backend built fresh
+holds nothing. Kept, the next extraction would find nothing changed and paint an empty surface.</li>
+<li><strong>When the last frame was.</strong> Forgetting it makes the first frame back advance the clock by zero,
+which is the truth: no frame ran while the app was away. Without that, the cap would still hand
+the first frame back 100 milliseconds of motion for time the app was not running.</li>
 </ul>
-<h2 id="elsewhere"><a class="header" href="#elsewhere">Elsewhere</a></h2>
-<ul>
-<li>The <a href="https://eblack-leaf.github.io/foliage/api/foliage/">API reference</a> states every public type
-and method, and the crate root is a map of the whole surface.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/blob/main/USAGE.md"><code>USAGE.md</code></a> is the concept reference:
-shorter than this book, and organised as a lookup rather than as a walkthrough.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/examples"><code>foliage/examples</code></a> holds
-runnable examples, each doing one thing.</li>
-<li><a href="https://eblack-leaf.github.io/foliage/">The site</a> is itself a foliage app, built from
-<a href="https://github.com/eblack-leaf/foliage/tree/main/application"><code>application/</code></a> against nothing
-but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/foliage/tree/main/lichen"><code>lichen</code></a>.</li>
-</ul>
+<h2 id="the-wake"><a class="header" href="#the-wake">The wake</a></h2>
+<p>Work that finishes off the frame (a file read on a thread, a fetch’s promise, an op from a <code>Sprig</code>)
+pushes onto the shared queue, but a loop asleep in <code>ControlFlow::Wait</code> would never run the frame
+that drains it. So an arrival pushes first and then calls <code>Wake::rouse</code>
+(<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/queue.rs"><code>queue.rs</code></a>), which records
+that a frame is owed and then sends the loop a user event through the proxy.</p>
+<p>The order is what makes it race-free. The record is written before the loop is woken, so a loop that
+wakes and asks whether a frame is owed finds the answer already there; and whatever the caller put
+down, it put down before rousing, so the frame that answers finds it. Intake clears the record at the
+top of every frame, before anything a rouse could have announced is looked for, so a rouse after
+that point is owed the next frame.</p>
+<p>The wake is installed by <code>photosynthesize</code> and nowhere else. The test suite runs its frames by hand,
+and a frame it did not ask for is not one it could observe; it can still see that a rouse was
+recorded.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="usage/first-app.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../architecture/frame.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -252,8 +377,11 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="usage/first-app.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../architecture/frame.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -273,13 +401,13 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

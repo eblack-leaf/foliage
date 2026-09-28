@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - foliage</title>
+        <title>Motion - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -177,72 +177,186 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
-ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
-<a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
-code runs on Linux, Windows, macOS, the web and Android.</p>
-<p>Everything that crosses the seam between an app and the engine is plain data:</p>
+                        <h1 id="motion"><a class="header" href="#motion">Motion</a></h1>
+<p><code>Aspen</code> is the engine’s motion: every running motion, channel and timer, advanced once a frame on the
+frame’s one clock. It lives in
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/aspen/mod.rs"><code>aspen/mod.rs</code></a> and
+<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/aspen/ease.rs"><code>aspen/ease.rs</code></a>, and
+it is step 5 of the frame, between the drain that starts motions and the resolution that applies
+most of them.</p>
+<h2 id="the-hard-case"><a class="header" href="#the-hard-case">The hard case</a></h2>
+<p>Animating a color is easy: two colors and a number between them. Animating a <em>placement</em> is the case
+the engine was shaped around, because a <code>Location</code> is not a value. It is a function from a context
+(the breakpoint, the trunk’s box, the anchor’s box, a measured size) to a box, and the context can
+change while the motion runs. So “animate to this placement” cannot be answered once at the start:</p>
+<pre><code class="language-text">box(t) = blend( resolve(from, context now), resolve(to, context now), ease(t) )
+</code></pre>
+<p>Both ends are resolved again every frame, in that frame’s context. Nothing about the motion is
+cached, so nothing about it can go stale: a resize, a crossed breakpoint or a moved anchor reaches
+both ends at once, and the motion lands exactly on its target rather than near it. This is only
+possible because <a href="resolver.html">the resolver</a> is pure, and can be asked twice about one element on one
+axis in one frame.</p>
+<h2 id="the-target-is-written-at-once"><a class="header" href="#the-target-is-written-at-once">The target is written at once</a></h2>
+<p>Starting a motion (the drain applying <code>Op::Animate</code>) writes the <strong>target</strong> to the element
+immediately, and the motion carries what the element <strong>left</strong>. So from the moment it is told to
+move, an element declares where it is going, and three things follow with no code of their own:</p>
 <ul>
-<li><strong>ops in.</strong> An app never touches an element directly. It writes verbs (<code>plant</code>, <code>at</code>, <code>color</code>,
-<code>animate</code>) against a name, and each one is queued.</li>
-<li><strong>reports out.</strong> Once a frame, the engine hands the app a <code>Pollen</code>: what was clicked, what
-finished, what arrived, what withered.</li>
-<li><strong>reads beside.</strong> At any point in its frame an app can <code>tap</code> one property of one element and
-get a copy of it back.</li>
+<li><strong>Arriving changes nothing.</strong> The blend at the end is exactly the plain reading of the declaration,
+so there is no settling step that could land a pixel off.</li>
+<li><strong>Cancelling is a removal.</strong> A direct write replaces the declaration and drops the motion; the
+element is at what was written, and there is nothing left to reconcile.</li>
+<li><strong>Stopping early lands on the target.</strong> <code>stop</code> and <code>finish</code> give up the duration, not the
+destination, so an interrupted motion leaves the element where running it out would have.</li>
 </ul>
-<p>An app says what an element <em>is</em> (where it sits, what fills it, whether it takes a gesture) and
-then only writes verbs against the name it got back. There is no render call to make: the next
-frame is already different.</p>
-<h2 id="how-this-book-is-laid-out"><a class="header" href="#how-this-book-is-laid-out">How this book is laid out</a></h2>
-<p>It has two halves, and they can be read in either order.</p>
-<p><strong><a href="usage/first-app.html">Using foliage</a></strong> is a set of walkthroughs. Each chapter builds something
-small and runnable (a counter, a card that sizes to its text, a scrolling list with a pinned
-header, a field that filters it) and explains the part of the engine it leans on while it goes. The
-last chapter puts most of it together in one app.</p>
-<p><strong><a href="architecture/overview.html">How foliage works</a></strong> follows one frame through the engine, from the
-platform’s event loop to the pixels. Each chapter takes one subsystem: what it owns, what it reads,
-what it hands the next one, and why it is shaped that way. It names the module each piece lives in,
-because the modules carry their own reasoning in their comments, and this half is a guided route
-through them rather than a replacement for them.</p>
-<p>The two halves meet in the middle. The usage chapters say <em>what</em> happens when an app writes a
-verb. The architecture chapters say <em>where</em> in the frame it happens and <em>what it costs</em>, which is
-what explains the rules the usage chapters state.</p>
-<h2 id="conventions"><a class="header" href="#conventions">Conventions</a></h2>
+<p>What a motion departed from is one of two things:</p>
+<pre><code class="language-rust ignore">// aspen/mod.rs
+pub(crate) enum Departed&lt;D, S&gt; {
+    Declared(D),  // a value the app wrote: re-resolved every frame
+    Snapshot(S),  // where the element was when a second motion replaced the first
+}</code></pre>
+<p>A <strong>declared</strong> departure re-resolves every frame like the target does. A <strong>snapshot</strong> is what a
+retarget takes: when a second <code>animate</code> replaces a running one, the element is somewhere between two
+placements, which is a box and not a placement, so the new motion departs from that box. That is
+right rather than a compromise. A mid-motion blend never corresponded to any declared state, so there
+is nothing for it to be stale relative to; it is a starting pixel, and the target is still fully live.
+Starting the second motion from the first one’s origin instead would make the element jump back.</p>
+<h2 id="progress-and-who-applies-it"><a class="header" href="#progress-and-who-applies-it">Progress, and who applies it</a></h2>
+<p>Step 5 advances every motion against the clock and computes its eased progress once. It does <em>not</em>
+apply every motion itself. Which phase applies a motion follows from one rule:</p>
+<blockquote>
+<p>A blend of the same type as the declaration is written back over it here. A blend of a different
+type is left to the phase that reads the declaration.</p>
+</blockquote>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th><code>Motion</code></th><th>Blends to</th><th>Applied in</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Opacity</code></td><td>a number, like its declaration</td><td>step 5, written back through the tree</td></tr>
+<tr><td><code>Polygon</code></td><td>a shape, like its declaration</td><td>step 5, written back</td></tr>
+<tr><td><code>Location</code></td><td>a box, where the declaration is a placement</td><td>R2, when the element is resolved</td></tr>
+<tr><td><code>Trace</code></td><td>two ends, where the declaration is a trace</td><td>R2</td></tr>
+<tr><td><code>Scroll</code></td><td>an offset, where the target is a <code>ScrollTo</code></td><td>R4</td></tr>
+<tr><td><code>Color</code>, <code>Palette</code></td><td>a color, where the declaration is a fill</td><td>extraction</td></tr>
+</tbody>
+</table>
+</div>
+<p>The fill case is the one that needs saying. A fill is a <code>Palette</code> role or a literal color, and a blend
+of two fills is always a color, so not even two literals could be written back as a fill. The blend
+happens where a fill becomes a color, which is extraction, and extraction is also where the
+element’s opacity is folded in. Nothing then holds a second color that a repaint would have to find:
+a role at either end of a motion follows a repaint mid-motion, because both ends are read against
+the scheme every frame.</p>
+<p>A motion held beside the tree is invisible to the tree’s write records, so step 5 records one for
+it every frame it runs: a placement motion marks its element as written (so R2 resolves it again),
+and a fill motion marks it restyled (so extraction draws it again). An opacity or a shape is written
+through the tree’s own setters, which record themselves.</p>
+<pre><code class="language-rust ignore">// aspen/mod.rs
+fn stirred(tree: &amp;mut Tree, leaf: Leaf, moving: &amp;Moving) {
+    match moving {
+        Moving::Location(_) | Moving::Trace(_) =&gt; tree.declared(leaf),
+        Moving::Fill(_) =&gt; tree.restyled(leaf),
+        Moving::Opacity { .. } | Moving::Shape { .. } | Moving::Scroll { .. } =&gt; {}
+    }
+}</code></pre>
+<h2 id="where-the-motions-are-held"><a class="header" href="#where-the-motions-are-held">Where the motions are held</a></h2>
+<pre><code class="language-rust ignore">// aspen/mod.rs
+pub(crate) struct Aspen {
+    motions: Named&lt;Moves, Motioning&gt;,       // keyed by (element, property)
+    channels: HashMap&lt;Tween, Channel&gt;,      // tweens and timers
+    sequences: HashMap&lt;Sequence, usize&gt;,    // how many are still running in each group
+    finished: Vec&lt;Sequence&gt;,                // groups that emptied, to report
+}</code></pre>
+<p>Beside the tree rather than on the elements, because what is moving is a small set and almost never
+the tree. Step 5 walks what is running and nothing else, and the loop can ask whether anything is
+running (one of the clauses of <a href="loop.html#whether-a-frame-is-owed">whether a frame is owed</a>) without a
+pass over anything.</p>
+<p>A motion is keyed by its element and its <strong>property</strong>: location (which a box and a trace share),
+opacity, fill (which <code>Color</code> and <code>Palette</code> share), scroll and shape. That one key is what makes the
+rules cheap. A second motion on the same property replaces the first by being inserted under the same
+key. A direct write cancels a motion by removing that key. An element that withers has each of its
+five keys removed.</p>
+<h2 id="the-first-frame-is-not-charged"><a class="header" href="#the-first-frame-is-not-charged">The first frame is not charged</a></h2>
+<p>A motion started in the drain begins at this frame’s instant. The clock’s delta is how long the
+interval <em>ending</em> at that instant took, which is time that elapsed before the motion existed. So a
+motion’s first advance charges nothing, and the element does not move on the frame it was told to
+start from where it currently is:</p>
+<pre><code class="language-rust ignore">// aspen/mod.rs
+fn advance(&amp;mut self, delta: Duration) -&gt; f32 {
+    match self.charged {
+        true =&gt; self.elapsed += delta,
+        false =&gt; self.charged = true,
+    }
+    self.at = self.timing.at(self.elapsed);
+    self.at
+}</code></pre>
+<p>The eased progress is computed once, here, and held: R2 reads it once per axis, and a shaped ease is
+a curve solved for rather than a multiply.</p>
+<h2 id="landing-and-what-is-reported"><a class="header" href="#landing-and-what-is-reported">Landing, and what is reported</a></h2>
+<p>When a motion’s time is up, it is removed, and anything not already on the element is written out: an
+opacity’s or a shape’s end value, or a scroll’s destination (queued for R4 as though it had been
+written directly). A placement or a fill needs nothing written, since the element already declares
+it, but it is recorded, because the element was last resolved or drawn at the blend and the frame the
+motion goes has to resolve or draw it at its declaration.</p>
+<p>Three reports can come of it, each answering a different question, all delivered in the next frame’s
+<code>Pollen</code>:</p>
 <ul>
-<li><strong>Every distance is in logical pixels</strong>, with the origin at the top-left and <code>y</code> growing
-downward. Device pixels exist only inside the render backend, and nothing an app writes or reads
-is in them.</li>
-<li><strong>Code samples compile.</strong> Each one is checked against the crate as it stands. Where a sample is a
-fragment, the lines that make it compile (imports, the function around it) are hidden; the
-button at the top right of a code block shows them. The architecture half also quotes the
-engine’s own source; those excerpts name the file they come from, are sometimes shortened, and
-are not compiled with the book.</li>
-<li><strong>“An app”</strong> is the value implementing <code>Root</code>, and the code written around it. “The engine” is
-everything behind <code>Foliage</code>.</li>
-<li>Names of subsystems are trees: <code>Fern</code> is the frame, <code>Rowan</code> resolves, <code>Elm</code> extracts, <code>Ash</code>
-renders. The <a href="appendix/lexicon.html">lexicon</a> lists all of them.</li>
+<li><strong><code>landed(leaf)</code></strong>: the element settled. One report for the element, however many of its properties
+arrived together.</li>
+<li><strong><code>finished(tween)</code></strong>: this motion is the one that ended, on its target. Also reported by <code>finish</code>,
+and never by a motion that was stopped, cancelled, replaced or withered, which is what makes
+stopping a motion the way to break a chain waiting on it.</li>
+<li><strong><code>sequence_finished(sequence)</code></strong>: the last member of a group ended, however it ended.</li>
 </ul>
-<h2 id="elsewhere"><a class="header" href="#elsewhere">Elsewhere</a></h2>
-<ul>
-<li>The <a href="https://eblack-leaf.github.io/foliage/api/foliage/">API reference</a> states every public type
-and method, and the crate root is a map of the whole surface.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/blob/main/USAGE.md"><code>USAGE.md</code></a> is the concept reference:
-shorter than this book, and organised as a lookup rather than as a walkthrough.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/examples"><code>foliage/examples</code></a> holds
-runnable examples, each doing one thing.</li>
-<li><a href="https://eblack-leaf.github.io/foliage/">The site</a> is itself a foliage app, built from
-<a href="https://github.com/eblack-leaf/foliage/tree/main/application"><code>application/</code></a> against nothing
-but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/foliage/tree/main/lichen"><code>lichen</code></a>.</li>
-</ul>
+<h2 id="sequences"><a class="header" href="#sequences">Sequences</a></h2>
+<p>A sequence is a name and a count, nothing more. Anything that runs on the clock joins one through its
+<code>Timing</code> (<code>Timing::ms(200).within(intro)</code>), from any callsite, at any frame. The count goes up when a
+member starts and down however it ends (landing, stopped, cancelled, replaced, or taken down with its
+element), and the group is reported once, the frame it reaches zero. A group owns nothing that joined
+it: stopping one member is nothing to the others, because there is no list of them for it to be
+anything to.</p>
+<h2 id="channels-and-timers"><a class="header" href="#channels-and-timers">Channels and timers</a></h2>
+<p><code>tween(from, to, timing)</code> runs a number on the engine’s clock and easing and writes it nowhere; each
+frame’s value is reported as <code>pollen.tween(name)</code>, and the frame it ends reports its end value and
+<code>finished</code> together, so there is never an end value to infer from an absence. <code>timer(timing)</code> is a
+tween from 0 to 1 whose value nobody reads. This is the answer for everything <code>Motion</code> deliberately
+leaves out: a font size, a count, a value foliage has never heard of. <code>Motion</code> is closed because the
+engine’s obligations should be, not because an app’s are, and what is on the list is there because it
+<em>cannot</em> be animated from outside: nothing an app holds can resolve a placement, a role against the
+scheme in force, or a scroll destination against an extent the frame has not measured yet.</p>
+<h2 id="easing"><a class="header" href="#easing">Easing</a></h2>
+<p>Every shape is a cubic bezier through (0, 0) and (1, 1): <code>Linear</code>, <code>Decelerate</code>, <code>Accelerate</code>,
+<code>Emphasis</code>, or a <code>Curve</code> with two stated control points. A bezier is parametric, so the curve
+parameter for a given fraction of the duration has to be recovered before the progress can be read:
+Newton’s method for up to eight steps, then bisection for the shapes where the slope is too flat for
+it. Both are bounded, so it cannot fail to return and cannot be slow.</p>
+<p>Both ends are exact rather than close. <code>Ease::at</code> returns exactly 0 and 1 at the ends of the
+duration whatever the shape, and <code>blend</code> returns exactly <code>from</code> at 0 and exactly <code>to</code> at 1 rather
+than computing <code>from + (to - from) * 1.0</code>, which can land a rounding error short. A motion lands
+<em>on</em> its target, so no landing ever needs a correction after it. A curve whose control points
+overshoot is left to overshoot in the middle.</p>
+<p>Timing is milliseconds throughout. <code>after(n)</code> holds the motion where it was for <code>n</code> milliseconds
+rather than queuing it: the motion exists from the frame it was asked for, and a direct write cancels
+it whether or not it has begun to move.</p>
+<h2 id="one-clock-capped"><a class="header" href="#one-clock-capped">One clock, capped</a></h2>
+<p>Every motion reads the clock sampled at intake, so two motions started together stay together. The
+loop caps how far the clock may move in one frame at 100 milliseconds
+(<a href="loop.html#time">The loop</a>), so a stalled machine defers motion rather than skipping it: a motion
+resumes where it was and takes longer in wall time, and never reaches its end without having been
+drawn on the way.</p>
+<p>A test advances the clock by hand, exactly, and uncapped, so the suite’s motion tests are arithmetic:
+advance 120 milliseconds into a 240-millisecond linear motion and the element is exactly half way.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/text.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="usage/first-app.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../architecture/interaction.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -252,8 +366,11 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/text.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="usage/first-app.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../architecture/interaction.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -273,13 +390,13 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

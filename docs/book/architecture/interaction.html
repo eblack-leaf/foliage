@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - foliage</title>
+        <title>Interaction - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -177,72 +177,176 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
-ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
-<a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
-code runs on Linux, Windows, macOS, the web and Android.</p>
-<p>Everything that crosses the seam between an app and the engine is plain data:</p>
-<ul>
-<li><strong>ops in.</strong> An app never touches an element directly. It writes verbs (<code>plant</code>, <code>at</code>, <code>color</code>,
-<code>animate</code>) against a name, and each one is queued.</li>
-<li><strong>reports out.</strong> Once a frame, the engine hands the app a <code>Pollen</code>: what was clicked, what
-finished, what arrived, what withered.</li>
-<li><strong>reads beside.</strong> At any point in its frame an app can <code>tap</code> one property of one element and
-get a copy of it back.</li>
-</ul>
-<p>An app says what an element <em>is</em> (where it sits, what fills it, whether it takes a gesture) and
-then only writes verbs against the name it got back. There is no render call to make: the next
-frame is already different.</p>
-<h2 id="how-this-book-is-laid-out"><a class="header" href="#how-this-book-is-laid-out">How this book is laid out</a></h2>
-<p>It has two halves, and they can be read in either order.</p>
-<p><strong><a href="usage/first-app.html">Using foliage</a></strong> is a set of walkthroughs. Each chapter builds something
-small and runnable (a counter, a card that sizes to its text, a scrolling list with a pinned
-header, a field that filters it) and explains the part of the engine it leans on while it goes. The
-last chapter puts most of it together in one app.</p>
-<p><strong><a href="architecture/overview.html">How foliage works</a></strong> follows one frame through the engine, from the
-platform’s event loop to the pixels. Each chapter takes one subsystem: what it owns, what it reads,
-what it hands the next one, and why it is shaped that way. It names the module each piece lives in,
-because the modules carry their own reasoning in their comments, and this half is a guided route
-through them rather than a replacement for them.</p>
-<p>The two halves meet in the middle. The usage chapters say <em>what</em> happens when an app writes a
-verb. The architecture chapters say <em>where</em> in the frame it happens and <em>what it costs</em>, which is
-what explains the rules the usage chapters state.</p>
-<h2 id="conventions"><a class="header" href="#conventions">Conventions</a></h2>
-<ul>
-<li><strong>Every distance is in logical pixels</strong>, with the origin at the top-left and <code>y</code> growing
-downward. Device pixels exist only inside the render backend, and nothing an app writes or reads
-is in them.</li>
-<li><strong>Code samples compile.</strong> Each one is checked against the crate as it stands. Where a sample is a
-fragment, the lines that make it compile (imports, the function around it) are hidden; the
-button at the top right of a code block shows them. The architecture half also quotes the
-engine’s own source; those excerpts name the file they come from, are sometimes shortened, and
-are not compiled with the book.</li>
-<li><strong>“An app”</strong> is the value implementing <code>Root</code>, and the code written around it. “The engine” is
-everything behind <code>Foliage</code>.</li>
-<li>Names of subsystems are trees: <code>Fern</code> is the frame, <code>Rowan</code> resolves, <code>Elm</code> extracts, <code>Ash</code>
-renders. The <a href="appendix/lexicon.html">lexicon</a> lists all of them.</li>
-</ul>
-<h2 id="elsewhere"><a class="header" href="#elsewhere">Elsewhere</a></h2>
-<ul>
-<li>The <a href="https://eblack-leaf.github.io/foliage/api/foliage/">API reference</a> states every public type
-and method, and the crate root is a map of the whole surface.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/blob/main/USAGE.md"><code>USAGE.md</code></a> is the concept reference:
-shorter than this book, and organised as a lookup rather than as a walkthrough.</li>
-<li><a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/examples"><code>foliage/examples</code></a> holds
-runnable examples, each doing one thing.</li>
-<li><a href="https://eblack-leaf.github.io/foliage/">The site</a> is itself a foliage app, built from
-<a href="https://github.com/eblack-leaf/foliage/tree/main/application"><code>application/</code></a> against nothing
-but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/foliage/tree/main/lichen"><code>lichen</code></a>.</li>
-</ul>
+                        <h1 id="interaction"><a class="header" href="#interaction">Interaction</a></h1>
+<p>Step 2 of the frame turns what the platform said (a press here, a move there, a key) into what it
+meant: a tap on this element, a drag of that one, a scroll of the list behind them. It lives in
+<a href="https://github.com/eblack-leaf/foliage/tree/main/foliage/src/interaction"><code>interaction/</code></a>: the box
+stack in <code>stack.rs</code>, gestures in <code>mod.rs</code>, focus in <code>focus.rs</code>.</p>
+<h2 id="two-questions-not-one"><a class="header" href="#two-questions-not-one">Two questions, not one</a></h2>
+<ol>
+<li><strong>What is at this point?</strong> Geometry, answered for every element, always.</li>
+<li><strong>Who receives this gesture?</strong> Intent, answered only by elements that asked, with one bit:
+<code>interactive</code>.</li>
+</ol>
+<p>Engines that answer both with one mechanism get a familiar bug: a label drawn over a button steals
+the button’s taps, and the only way to stop it is to take the label out of the geometry, which is the
+same geometry a drag needs to find the list it should scroll. Keeping the questions apart is what
+lets a label be <code>intangible</code> (not something a press lands on) while still being inside the list a
+drag scrolls.</p>
+<h2 id="the-box-stack"><a class="header" href="#the-box-stack">The box stack</a></h2>
+<p>R8 builds the box stack at the end of every frame that changed it: every element that is present
+(visible, and not fully transparent) and not clipped away entirely, front-most first.</p>
+<pre><code class="language-rust ignore">// interaction/stack.rs
+pub(crate) struct Region {
+    pub(crate) leaf: Leaf,
+    pub(crate) section: Section,   // where it was drawn
+    pub(crate) clip: Section,      // what a scrolling ancestor left of it
+    pub(crate) shape: Shape,       // its box, or the ellipse inside it
+    pub(crate) tangible: bool,     // false for `intangible`
+    pub(crate) receives: bool,     // `interactive`
+    pub(crate) disabled: bool,     // in its own right or by an ancestor
+}</code></pre>
+<p><strong>Membership is universal.</strong> Nothing opts in: an element is in the stack because it is there. That
+makes occlusion per point and automatic. There is no such thing as an obscured element, only an
+element that is below another <em>at this point</em>, so a panel covering half a button is above it for
+those pixels and absent for the rest, with no special handling.</p>
+<p>The whole hit test is one read:</p>
+<pre><code class="language-rust ignore">// interaction/stack.rs
+pub(crate) fn top(&amp;self, point: Position) -&gt; Option&lt;Region&gt; {
+    self.regions
+        .iter()
+        .find(|region| region.tangible &amp;&amp; region.holds(point))
+        .copied()
+}</code></pre>
+<p>A gesture goes to the <strong>top</strong> of the stack: the front-most tangible element at the point, whatever it
+draws and whether or not it receives. <code>intangible</code> is what a gesture passes through, so the element
+beneath becomes the top. An element at the top that does not receive <strong>eats</strong> the gesture, which is
+what a backdrop, a sheet’s backing and a menu’s padding are, without any of them declaring anything.</p>
+<p>The read never searches downward for an element willing to take the gesture. A search would have to
+judge, at each element it passed, whether that element is <em>part of</em> what it covers or a <em>layer over</em>
+it, and at a single point those look identical, so it would be answering by inference. Inference is
+wrong silently, and here it would be wrong twice, because where a press lands is also where a drag
+that follows looks for its scrolling region.</p>
+<p>The stack is read at dispatch, which is step 2 of the <em>next</em> frame, before the drain. So a press is
+tested against the picture the person was looking at when they pressed (<a href="frame.html#f5-hit-testing-runs-against-what-was-drawn">F5</a>),
+even if this frame’s ops are about to move everything.</p>
+<h2 id="a-gestures-life"><a class="header" href="#a-gestures-life">A gesture’s life</a></h2>
+<p>Nothing at spawn time knows what a gesture will turn out to be. A press on a slider inside a
+scrolling column belongs to the slider if it moves along the slider and to the column if it moves
+down. So a gesture opens <strong>unclaimed</strong>, and is claimed when it becomes known what it is:</p>
+<pre><code class="language-text">opened ──▶ resolving ──▶ claimed ──▶ ended
+               └──────▶ held ──▶ claimed ──▶ ended
+</code></pre>
+<p><strong>The press</strong> reads the stack once. If the top receives, it becomes the gesture’s <strong>target</strong>, and is
+reported <code>engaged</code> (the hook for a pressed look). If the top is disabled, the press is swallowed.
+Either way the gesture records its <strong>chain</strong>: every scrolling ancestor of where it landed, innermost
+first, leaving out any that is disabled. The chain is fixed at the press, because where a gesture
+landed is where it looks for a region, whatever it passes over afterwards.</p>
+<p>If any region in the chain is still coasting from an earlier fling, the press <strong>catches</strong> it: the
+coast stops where the hand met it, and the press is spent on the catch, so stopping a moving list is
+not also a tap on whatever happened to be under the finger.</p>
+<p><strong>Moves</strong> accumulate travel from the press point. While the gesture is resolving, nothing is
+reported, and when the travel crosses a threshold the gesture is claimed:</p>
+<pre><code class="language-rust ignore">// interaction/mod.rs
+fn claimed(&amp;self, travel: Position) -&gt; Option&lt;Axis&gt; {
+    let (across, down) = (travel.x.abs(), travel.y.abs());
+    if down &gt;= self.vertical &amp;&amp; down &gt;= across {
+        return Some(Axis::Vertical);
+    }
+    if across &gt;= self.horizontal &amp;&amp; across &gt; down {
+        return Some(Axis::Horizontal);
+    }
+    None
+}</code></pre>
+<p>The two axes have different thresholds (16 logical pixels across, 8 down, by default, tunable once
+for the whole app with <code>Foliage::tune</code>), because they compete at different scales. On touch,
+scrolling down is the dominant gesture and wants an eager claim; a claim across contends with it and
+wants a larger one, or every attempt to scroll steals into a carousel. A tie goes down, because down
+is the gesture a hand makes without meaning anything by it.</p>
+<p><strong>The claim</strong> is settled once. If the target declared <code>drags</code> on that axis, it takes the drag and is
+told <code>drag_started</code>, and every move after is reported as <code>dragged</code>. Otherwise the target <strong>yields</strong>:
+it is told <code>disengaged</code> and hears nothing more, and the drag passes to the innermost region in the
+chain that scrolls on that axis. That is what makes a button inside a scrolling list behave: press it
+and it holds, drag and it lets go, so the list scrolls and the button gets no tap.</p>
+<p>Movement made while the gesture was still resolving is not paid out afterwards. The move that
+crosses the threshold is applied, and the ones before it are not, so nothing that claims a drag
+starts with a jump of everything it took to decide.</p>
+<p><strong>A region holding a drag</strong> consumes as much of each move as it can, and at its end hands the claim
+<em>outward</em> to the next region in the chain that scrolls on the axis, unless it declared <code>contain</code> on
+that axis, which is where the walk stops. The claim never travels back inward, or a drag would hand
+itself between regions every time it reversed. Moving a region is a write to its offset, made right
+here at dispatch, and like any write it cancels a scroll motion on that region and ends any coast.</p>
+<p><strong>The release</strong> is the last move, then the end. A gesture that ended while still resolving is a
+<strong>tap</strong>: the target is told <code>clicked</code>, at the point the press landed, and focus moves to it. A tap
+that landed on nothing that receives takes focus away. Nothing was reported early, so nothing is
+retracted: the threshold is not a rule about taking a click back, it is the point at which the
+kind of gesture becomes known.</p>
+<p>If a region was holding the drag, the release hands it a velocity, and the region may coast. The
+velocity is the mean over the last 100 milliseconds of the gesture, not over its last frame: a hand
+slows as it lifts, a mouse reports nothing in the frame the button came up, and a flick can put all
+of its movement into the frame before. Measured over one frame, all three read as a hand that
+stopped. A hand that genuinely rested before lifting still reads as stopped, because its resting
+frames are in the window. <a href="views.html">Scrolling</a> takes it from there.</p>
+<h2 id="a-press-that-was-held"><a class="header" href="#a-press-that-was-held">A press that was held</a></h2>
+<p>A distance cannot tell a gesture sitting still from one that has not moved yet, so resolving has a
+second way out: a press held for <code>Hold::after</code> (500 milliseconds by default) without becoming a drag
+is <strong>held</strong>. It is reported once, to the target, as <code>held</code>, at the point it landed.</p>
+<p>A hold is the one transition nothing arrives to cause, so it is checked at the top of every dispatch
+against the frame’s clock, and the loop owes frames for as long as a still press could still become
+one. After a hold, a release is not a tap, and the first movement is a drag that belongs to the
+target whatever its axis and however far it went: the hold already settled who is holding the
+gesture. That is how a text field scrolls under a plain drag but selects from a press that was held
+first, with one rule on touch and on a desktop.</p>
+<h2 id="the-wheel"><a class="header" href="#the-wheel">The wheel</a></h2>
+<p>A wheel notch is not a gesture. It has no lifecycle, no claim and no target: it reads the stack at
+the pointer, takes the dominant axis of its delta, and moves the innermost region under the pointer
+that scrolls on that axis, handing outward at an end exactly as a drag would.</p>
+<h2 id="keys"><a class="header" href="#keys">Keys</a></h2>
+<p><code>Tab</code>, <code>Shift+Tab</code> and <code>Escape</code> belong to focus, and dispatch answers them wherever focus is,
+including nowhere: each becomes a <code>Focus</code> op. Every other key becomes a <code>Keyed</code> op carrying whatever
+held focus at that moment, or nothing, and the drain applies it: it is reported to its target (or to
+the app, as a root key) and then handed to the element, which is how a field types. Because the key’s
+effect is an op, it lands behind anything queued before it and is reported in the next frame, a frame
+later than a tap. <a href="frame.html#f7-the-collection-window-is-since-your-last-frame">The frame</a> tabulates
+when each report arrives.</p>
+<p>Modifiers arrive as their own input, in the same stream as the keys, and dispatch keeps what is held
+as engine state. So what a key was pressed with is decided by the order the two arrived in, and the
+test suite reaches it by sending the same events a window does.</p>
+<h2 id="focus"><a class="header" href="#focus">Focus</a></h2>
+<p>Focus rests only on an element that declared <code>interactive</code>: the set that asked to receive input is
+the set a keyboard can reach, with no second declaration to keep in step. It moves in four ways (a
+tap, <code>Tab</code> and <code>Shift+Tab</code>, <code>Escape</code>, and the verbs) and every one of them goes through one function,
+<code>focus::moved</code>.</p>
+<p>Whether an element can take focus is answered by walking its ancestry asking whether anything is
+hidden or disabled. The walk reads <strong>declarations</strong>, not R7’s product from last frame, so it is
+current as of the moment in the drain it is asked. That is what lets an app show a drawer and focus
+into it in the same frame, and it means focus is final before resolution runs: a field’s caret, which
+shows only while it holds focus, is an ordinary <code>visible</code> write resolved like anything else.</p>
+<p>A focus op that names something that cannot take focus is dropped, and focus stays where it was
+rather than moving somewhere the app did not name. At the end of the drain, <code>focus::sweep</code> lets go of
+whatever holds focus if it has since been hidden, disabled or pruned.</p>
+<p><strong>Order</strong> is reading order: every focusable element, sorted by <code>focus_order</code> first, then by the top
+and then the left of where it was drawn, then by allocation order, so the sort is total and never
+arbitrary. <strong>Scopes</strong> trap: stepping is confined to the innermost <code>focus_scope</code> ancestor of whatever
+holds focus, so <code>Tab</code> inside a dialog cycles inside the dialog. A scope is read from where focus <em>is</em>,
+so a dialog that declares itself a scope while focus is elsewhere traps nothing until focus enters it.</p>
+<p>The engine draws nothing for focus. A focused element may be a <code>Stem</code> with nothing visible at all,
+so there is no mark the engine could draw that would be right.</p>
+<h2 id="what-the-fields-make-of-it"><a class="header" href="#what-the-fields-make-of-it">What the fields make of it</a></h2>
+<p>A text field is several elements under one name, and what a tap or a drag means to it (a caret
+placed, a selection extended) is its own business rather than dispatch’s. Dispatch reports taps,
+holds and drags like any other; straight after dispatch, before the app’s <code>frame</code>, each field reads
+what was reported about it and queues what that means. <a href="fronds.html">Fronds</a> covers it.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/motion.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
-                            <a rel="next prefetch" href="usage/first-app.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../architecture/views.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -252,8 +356,11 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/motion.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
-                    <a rel="next prefetch" href="usage/first-app.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../architecture/views.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -273,13 +380,13 @@ but the public surfaces of foliage and <a href="https://github.com/eblack-leaf/f
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

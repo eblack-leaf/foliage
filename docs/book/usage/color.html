@@ -1,0 +1,526 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Color - foliage</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-c59f2531.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">foliage</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="color"><a class="header" href="#color">Color</a></h1>
+<p>An element does not usually name a color. It names a <strong>tone</strong>, which is what the color is <em>for</em>,
+and a <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Scheme.html"><code>Scheme</code></a> decides
+what every tone resolves to. Changing the scheme changes every element carrying an affected tone,
+with one op. This chapter builds a page with a light/dark toggle and a pressed state, and covers
+tones, schemes and the difference between the two kinds of fill.</p>
+<h2 id="fills"><a class="header" href="#fills">Fills</a></h2>
+<p>Everything that can be filled takes a <a href="https://eblack-leaf.github.io/foliage/api/foliage/enum.Fill.html"><code>Fill</code></a>,
+which is one of two things:</p>
+<ul>
+<li>a <strong>tone</strong>, a <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Palette.html"><code>Palette</code></a>
+value such as <code>Palette::Accent</code>, resolved against whichever scheme is in force when it is drawn;</li>
+<li>a <strong>literal</strong>, a <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Color.html"><code>Color</code></a>
+stated outright, which no scheme moves.</li>
+</ul>
+<p>Both convert into a <code>Fill</code>, so every <code>color(..)</code> takes either:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Color, Palette, Panel};
+</span>Panel::new().color(Palette::Raised);             // part of the scheme
+Panel::new().color(Color::rgb(0.9, 0.35, 0.42)); // not</code></pre>
+<p>A literal is an element saying it is not part of the scheme, and it is meant to be visible as one.
+A picture of a swatch, a chart series coloured by data, a brand mark: those are literals. Anything
+that is surface, text, emphasis or state is a tone.</p>
+<h2 id="tones"><a class="header" href="#tones">Tones</a></h2>
+<p>A tone is a <strong>role</strong>, a <strong>form</strong>, and a <strong>step</strong>.</p>
+<h3 id="roles"><a class="header" href="#roles">Roles</a></h3>
+<p>Four roles are neutral:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Role</th><th>What it is for</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Surface</code></td><td>The ordinary fill, and what an element that says nothing takes. Also what the window is cleared to</td></tr>
+<tr><td><code>Raised</code></td><td>A surface in front of another: a card against the page</td></tr>
+<tr><td><code>Muted</code></td><td>A quieter fill, for a division or a rule</td></tr>
+<tr><td><code>Ink</code></td><td>What is read against a surface</td></tr>
+</tbody>
+</table>
+</div>
+<p>The rest are hues:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Role</th><th>What it is for</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Accent</code></td><td>The emphatic hue, and what the app’s own content is marked with</td></tr>
+<tr><td><code>Signal</code></td><td>The second hue: what reports the system’s own state rather than the app’s content</td></tr>
+<tr><td><code>Danger</code></td><td>What cannot be taken back, and what went wrong</td></tr>
+<tr><td><code>Caution</code></td><td>What wants care before it is done</td></tr>
+<tr><td><code>Positive</code></td><td>What went right, or was chosen</td></tr>
+<tr><td><code>Palette::hue(0..4)</code></td><td>Numbered slots, for an app to name for itself</td></tr>
+</tbody>
+</table>
+</div>
+<p>A slot is named once and used by name:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::Palette;
+</span>const MOSS: Palette = Palette::hue(0);</code></pre>
+<p>A slot no scheme has seeded answers as <code>Accent</code> does, so a forgotten one is plainly the accent
+rather than black.</p>
+<h3 id="forms"><a class="header" href="#forms">Forms</a></h3>
+<p>One color cannot do the three jobs a hue is given, so each hue is held in three forms:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Form</th><th>Written</th><th>What it is</th></tr>
+</thead>
+<tbody>
+<tr><td>ground</td><td><code>Palette::Accent</code></td><td>what is filled with the hue</td></tr>
+<tr><td>mark</td><td><code>Palette::Accent.mark()</code></td><td>the hue carried on a neutral ground: a word set apart, a rule, an icon</td></tr>
+<tr><td>on</td><td><code>Palette::Accent.on()</code></td><td>what is read on the ground form</td></tr>
+</tbody>
+</table>
+</div>
+<p>The neutrals answer the forms too. <code>Surface.on()</code> and <code>Surface.mark()</code> are <code>Ink</code>, and <code>Ink.on()</code>
+is <code>Surface</code>, so <code>on()</code> names the partner of anything. <code>Palette::Contrast</code> is <code>Accent.on()</code>, kept
+by an older name.</p>
+<h3 id="steps"><a class="header" href="#steps">Steps</a></h3>
+<p>Every form of every role is a ramp of five steps:
+<a href="https://eblack-leaf.github.io/foliage/api/foliage/enum.Step.html"><code>Step</code></a><code>::Farthest</code>, <code>Far</code>,
+<code>Base</code>, <code>Near</code> and <code>Nearest</code>. A role names its own base step, so <code>Palette::Accent</code> is a tone in its
+own right, and <code>at</code>, <code>recede</code> and <code>advance</code> move along the ramp:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Palette, Step};
+</span>Palette::Accent.at(Step::Near);
+Palette::Accent.advance(); // one step nearer: Base to Near
+Palette::Ink.recede();     // one step farther: Base to Far</code></pre>
+<p>A step is named for where it stands relative to the ground rather than for which way it moves in
+lightness. Against a dark ground, nearer is lighter; against a light one, nearer is darker. So a
+state written once as <code>advance()</code> is correct in both readings, and switching a scheme from dark to
+light needs no element to be written.</p>
+<p><strong>States are steps.</strong> Pressed, held, disabled, placeholding: each is a step on the tone’s own
+ramp rather than a color picked beside it, which is what lets it survive a repaint without being
+restated. There is no hover, because a pointer that is not pressed reports nothing to the engine.</p>
+<h2 id="a-page-with-a-theme-toggle"><a class="header" href="#a-page-with-a-theme-toggle">A page with a theme toggle</a></h2>
+<pre><code class="language-rust no_run">use foliage::{
+    Area, Boxed, Color, Foliage, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place,
+    Pollen, Polygon, Root, Rounding, Scheme, Source, Text, center_x, center_y, content, left, top,
+};
+
+struct Themes {
+    toggle: Leaf,
+    label: Leaf,
+    dark: bool,
+}
+
+impl Root for Themes {
+    fn take_root(grove: &amp;mut Grove) -&gt; Self {
+        let page = grove.plant(Panel::new());
+        let card = grove.branch(
+            page,
+            Panel::new()
+                .color(Palette::Raised)
+                .rounding(Rounding::Md)
+                .at(Location::new().xs(
+                    left(16.px()).right(100.pct() - 16.px()),
+                    top(16.px()).height(160.px()),
+                )),
+        );
+        grove.branch(
+            card,
+            Text::new("ink on a raised ground, and a word in the accent")
+                .font_size(FontSize::new().xs(14))
+                .tint(42..48, Palette::Accent.mark())
+                .at(Location::new().xs(
+                    left(16.px()).right(100.pct() - 16.px()),
+                    top(16.px()).height(content()),
+                )),
+        );
+        // A literal. It is the same color in every scheme.
+        grove.branch(
+            card,
+            Polygon::circle()
+                .color(Color::rgb(0.9, 0.35, 0.42))
+                .at(Location::new().xs(
+                    left(16.px()).width(24.px()),
+                    top(100.pct() - 40.px()).height(24.px()),
+                )),
+        );
+        let toggle = grove.branch(
+            page,
+            Panel::new()
+                .color(Palette::Accent)
+                .rounding(Rounding::Sm)
+                .interactive()
+                .at(Location::new().xs(
+                    left(16.px()).width(120.px()),
+                    top(192.px()).height(40.px()),
+                )),
+        );
+        let label = grove.branch(
+            toggle,
+            Text::new("light")
+                .color(Palette::Accent.on())
+                .font_size(FontSize::new().xs(14))
+                .intangible()
+                .at(Location::new().xs(
+                    center_x(50.pct()).width(content()),
+                    center_y(50.pct()).height(content()),
+                )),
+        );
+        Themes {
+            toggle,
+            label,
+            dark: true,
+        }
+    }
+
+    fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
+        // A pressed state is a step, so it is right in either scheme.
+        if pollen.engaged(self.toggle) {
+            grove.color(self.toggle, Palette::Accent.advance());
+        }
+        if pollen.disengaged(self.toggle) {
+            grove.color(self.toggle, Palette::Accent);
+        }
+        if pollen.clicked(self.toggle) {
+            self.dark = !self.dark;
+            let (scheme, next) = match self.dark {
+                true =&gt; (Scheme::new(), "light"),
+                false =&gt; (Scheme::light(), "dark"),
+            };
+            // One op, naming no element.
+            grove.repaint(scheme);
+            grove.text(self.label, next);
+        }
+    }
+}
+
+fn main() {
+    let mut foliage = Foliage::new();
+    foliage.title("themes");
+    foliage.desktop_size(Area::new(360.0, 260.0));
+    foliage.root::&lt;Themes&gt;();
+    foliage.photosynthesize();
+}</code></pre>
+<p>Press the toggle. The window’s ground, the card, the text, the accent word and the button all
+move to the light reading together. The red circle does not, because it was stated outright.</p>
+<p><code>engaged</code> and <code>disengaged</code> bracket every gesture on the button, so the pressed step goes on when a
+finger lands and comes off however the gesture ended: released, dragged away, or cancelled. A
+press and release inside one frame report all three of <code>engaged</code>, <code>clicked</code> and <code>disengaged</code>, and
+the writes land in the order they were made, so the button ends the frame at its base step.</p>
+<h2 id="schemes"><a class="header" href="#schemes">Schemes</a></h2>
+<p>A scheme holds a ramp for every form of every role. It is stated in very few colors:</p>
+<ul>
+<li><code>Scheme::new()</code> is a dark reading with a green accent, and <code>Scheme::light()</code> is a light one.</li>
+<li><code>set(tone, color)</code> at a tone’s base step <strong>seeds</strong> its ramp: the color is written at <code>Base</code>
+exactly, and the other four steps are derived from it in OKLab, holding its hue and chroma and
+moving only its lightness. A step that would leave sRGB has its chroma backed off until it fits.</li>
+<li>Seeding a hue’s <strong>ground</strong> also derives its mark (the hue at text lightness) and what is on it
+(near-black or near-white, whichever the ground is not, keeping a tint of the hue), unless either
+was seeded outright.</li>
+<li><code>set</code> at any other step replaces that one step and nothing else, which is the way out when a
+derived step is not the one wanted.</li>
+</ul>
+<p>So a theme is a handful of decisions:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Color, Palette, Scheme};
+</span>const MOSS: Palette = Palette::hue(0);
+
+let scheme = Scheme::new()
+    .set(Palette::Accent, Color::rgb(0.93, 0.52, 0.17))
+    // The derived mark is fine for most hues; this one wants to be warmer.
+    .set(Palette::Accent.mark(), Color::rgb(0.98, 0.66, 0.36))
+    .set(Palette::Positive, Color::rgb(0.14, 0.36, 0.17))
+    .set(MOSS, Color::rgb(0.45, 0.55, 0.30));</code></pre>
+<p>It takes effect when it is written with <code>grove.repaint(scheme)</code>, usually first thing in
+<code>take_root</code>. <code>repaint</code> is the one write that names no element, and like every write it lands at
+the drain: <code>grove.scheme()</code> answers what the frame was drawn in, not what a repaint queued this
+frame will make it.</p>
+<h2 id="grounds-and-what-is-read-on-them"><a class="header" href="#grounds-and-what-is-read-on-them">Grounds and what is read on them</a></h2>
+<p>A ramp reaches two notches either side of its seed. The distance from a fill to something legible
+on that fill is several times that, so <strong>every seed is either a ground or a mark, and no step moves
+one into the other</strong>. That is arithmetic rather than convention, and it is why the tones come in
+pairs:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Ground</th><th>Read against it</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Surface</code>, <code>Raised</code>, <code>Muted</code></td><td><code>Ink</code>, or any hue’s <code>mark()</code></td></tr>
+<tr><td>any hue</td><td>that hue’s <code>on()</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Nothing enforces this. A tone is an index into a table, and text lettered in <code>Muted</code> on a <code>Muted</code>
+panel draws exactly as asked, which is to say invisibly. The failure the pairs prevent is silent,
+because an illegible tone still renders.</p>
+<h2 id="colors-an-app-computes"><a class="header" href="#colors-an-app-computes">Colors an app computes</a></h2>
+<p>Some colors are not one tone: a gradient across a row of elements, a colour interpolated from a
+value. A scheme holds up to four numbered <strong>spectra</strong> for these, so that every color an app draws
+from is stated in one place:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Color, Scheme};
+</span>let scheme = Scheme::new().spectrum(
+    0,
+    &amp;[
+        Color::rgb(0.97, 0.76, 0.30),
+        Color::rgb(0.82, 0.28, 0.13),
+        Color::rgb(0.58, 0.12, 0.11),
+    ],
+);
+let stops = scheme.stops(0);
+// Half way along the first two stops, through OKLab rather than channel by channel.
+let middle = stops[0].toward(stops[1], 0.5);
+<span class="boring">let _ = middle;</span></code></pre>
+<p>Nothing in foliage reads a spectrum; they are for the app. A spectrum no one stated reads as the
+accent’s ramp, farthest to nearest.</p>
+<p>Colors computed this way are literals, so a repaint does not move them. <code>pollen.repainted()</code> says
+the scheme was replaced, which is the frame to compute them again from <code>grove.scheme()</code>:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Grove, Grow, Leaf, Pollen};
+</span><span class="boring">fn f(grove: &amp;mut Grove, pollen: &amp;Pollen, cells: &amp;[Leaf]) {
+</span>if pollen.repainted() {
+    let stops = grove.scheme().stops(0);
+    let last = (cells.len().max(2) - 1) as f32;
+    for (n, cell) in cells.iter().enumerate() {
+        grove.color(*cell, stops[0].toward(stops[stops.len() - 1], n as f32 / last));
+    }
+}
+<span class="boring">}</span></code></pre>
+<p><code>Color::toward</code> and <code>Color::lightened</code> both work in OKLab, so equal fractions read as equal
+distances and the middle of two saturated colors is not a grey between them.</p>
+<h2 id="animating-a-fill"><a class="header" href="#animating-a-fill">Animating a fill</a></h2>
+<p>Anything that can be filled can be animated to a fill, either kind:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Color, Grove, Grow, Leaf, Motion, Palette, Timing};
+</span><span class="boring">fn f(grove: &amp;mut Grove, card: Leaf) {
+</span>grove.animate(card, Motion::Palette(Palette::Raised.advance()), Timing::ms(180));
+grove.animate(card, Motion::Color(Color::rgb(0.2, 0.2, 0.25)), Timing::ms(180));
+<span class="boring">}</span></code></pre>
+<p>A motion toward a tone resolves the tone every frame, so a repaint in the middle of the motion
+moves the motion too. <a href="motion.html">Motion</a> covers the rest.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/responsive.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../usage/text.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/responsive.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../usage/text.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+
+    </div>
+    </body>
+</html>

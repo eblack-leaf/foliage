@@ -3,8 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Page not found - foliage</title>
-        <base href="/">
+        <title>The host - foliage</title>
 
 
         <!-- Custom HTML head -->
@@ -13,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="favicon-8114d1fc.png">
-        <link rel="stylesheet" href="css/variables-8adf115d.css">
-        <link rel="stylesheet" href="css/general-e96d0476.css">
-        <link rel="stylesheet" href="css/chrome-d279d366.css">
-        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "";
+            const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-73371751.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="../toc-c59f2531.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -106,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -141,7 +140,7 @@
                     <h1 class="menu-title">foliage</h1>
 
                     <div class="right-buttons">
-                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
                         <a href="https://github.com/eblack-leaf/foliage" title="Git repository" aria-label="Git repository">
@@ -178,14 +177,148 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
-<p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>
+                        <h1 id="the-host"><a class="header" href="#the-host">The host</a></h1>
+<p>Four things an app can ask for are things the engine cannot do itself: put text on the system
+clipboard, read it back, go to a URL, and save one. Each is a verb on <code>Grow</code> like any other write,
+and each is answered by whatever the platform offers.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Verb</th><th>Does</th></tr>
+</thead>
+<tbody>
+<tr><td><code>copy(text)</code></td><td>puts text on the system clipboard</td></tr>
+<tr><td><code>paste()</code></td><td>asks what the clipboard holds; the answer is <code>pollen.pasted()</code>, in a later frame</td></tr>
+<tr><td><code>navigate(url)</code></td><td>goes to a URL. <strong>On the web this replaces the page</strong>; elsewhere the desktop is asked to open it</td></tr>
+<tr><td><code>download(url)</code></td><td>asks the browser to save what is at a URL. The web’s only; elsewhere it is traced and nothing else</td></tr>
+</tbody>
+</table>
+</div>
+<p>A <code>TextInput</code> or <code>TextArea</code> answers <code>Ctrl+C</code>, <code>Ctrl+X</code> and <code>Ctrl+V</code> for itself and does not go
+through these. They are for everything that is not a field: a code block, a share link, a row of a
+table.</p>
+<h2 id="a-share-panel"><a class="header" href="#a-share-panel">A share panel</a></h2>
+<pre><code class="language-rust no_run">use foliage::{
+    Area, Boxed, Foliage, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place, Pollen,
+    Root, Rounding, Source, Text, center_x, center_y, content, left, top,
+};
+
+const LINK: &amp;str = "https://eblack-leaf.github.io/foliage/";
+
+struct Share {
+    copy: Leaf,
+    open: Leaf,
+    paste: Leaf,
+    shown: Leaf,
+}
+
+fn button(grove: &amp;mut Grove, under: Leaf, y: f32, says: &amp;str) -&gt; Leaf {
+    let button = grove.branch(
+        under,
+        Panel::new()
+            .color(Palette::Raised)
+            .rounding(Rounding::Sm)
+            .interactive()
+            .at(Location::new().xs(left(16.px()).width(160.px()), top(y.px()).height(36.px()))),
+    );
+    grove.branch(
+        button,
+        Text::new(says)
+            .font_size(FontSize::new().xs(14))
+            .intangible()
+            .at(Location::new().xs(
+                center_x(50.pct()).width(content()),
+                center_y(50.pct()).height(content()),
+            )),
+    );
+    button
+}
+
+impl Root for Share {
+    fn take_root(grove: &amp;mut Grove) -&gt; Self {
+        let page = grove.plant(Panel::new());
+        let copy = button(grove, page, 16.0, "copy the link");
+        let open = button(grove, page, 60.0, "open it");
+        let paste = button(grove, page, 104.0, "paste");
+        let shown = grove.branch(
+            page,
+            Text::new("")
+                .color(Palette::Ink.recede())
+                .font_size(FontSize::new().xs(13))
+                .at(Location::new().xs(
+                    left(16.px()).right(100.pct() - 16.px()),
+                    top(152.px()).height(content()),
+                )),
+        );
+        Share {
+            copy,
+            open,
+            paste,
+            shown,
+        }
+    }
+
+    fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
+        if pollen.clicked(self.copy) {
+            grove.copy(LINK);
+        }
+        if pollen.clicked(self.open) {
+            grove.navigate(LINK);
+        }
+        if pollen.clicked(self.paste) {
+            grove.paste();
+        }
+        // Never in the frame that asked.
+        if let Some(text) = pollen.pasted() {
+            grove.text(self.shown, format!("the clipboard held: {text}"));
+        }
+    }
+}
+
+fn main() {
+    let mut foliage = Foliage::new();
+    foliage.title("share");
+    foliage.desktop_size(Area::new(320.0, 240.0));
+    foliage.root::&lt;Share&gt;();
+    foliage.photosynthesize();
+}</code></pre>
+<h2 id="pasting-takes-a-round-trip"><a class="header" href="#pasting-takes-a-round-trip">Pasting takes a round trip</a></h2>
+<p>Reading a clipboard is not instant on any platform. On the web it is a promise, and on a desktop it
+is a round trip to whichever program owns the selection. So <code>paste</code> is a request, and what comes
+back arrives the way bytes from a path do: as an op, drained in a later frame and reported as
+<code>pollen.pasted()</code>.</p>
+<p>An empty answer is what an app gets for an empty clipboard, and also for one the host would not
+let it read: a browser asked outside a user gesture, or a desktop with no display server. There is
+one thing an app can do about either, so they are one outcome, and the reason is written to the
+trace.</p>
+<p>The engine keeps a mirror of what the app itself last copied, and the mirror answers wherever the
+host will not. So a copy and a paste inside the same app always round-trip, even on a host that
+refuses to be read. On Android the mirror is currently the whole clipboard: the system clipboard is
+not wired up there yet, so a copy reaches the app’s own pastes and no further.</p>
+<p>A field’s own <code>Ctrl+V</code> takes a different road on the web: the browser hands pasted text to the
+keystroke that pasted it and refuses the same read a moment later, so the engine takes the text
+from the paste event itself. Either way the field is written into and reports <code>edited</code>.</p>
+<h2 id="going-somewhere"><a class="header" href="#going-somewhere">Going somewhere</a></h2>
+<p><code>navigate</code> on the web sets the page’s location, which replaces the page. That is deliberate: a new
+tab is blocked outside a user gesture, and a frame is not one. Off the web, the desktop is asked to
+open the URL with whatever it opens URLs with; on Android that is an <code>ACTION_VIEW</code> intent.</p>
+<p><code>download</code> is the web’s alone, because a browser is what turns a URL into a file in someone’s
+downloads. Everywhere else it is traced and does nothing, so an app that offers a download writes
+it once and it means what it can on each platform.</p>
+<p>None of the four reaches the host under the headless test suite, which runs frames without ever
+opening the platform’s edges: a test never touches the clipboard or the browser of whoever runs it.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../usage/off-frame.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
 
+                            <a rel="next prefetch" href="../usage/debugging.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -193,7 +326,13 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../usage/off-frame.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
 
+                    <a rel="next prefetch" href="../usage/debugging.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>
@@ -211,13 +350,13 @@
         </script>
 
 
-        <script src="elasticlunr-ef4e11c1.min.js"></script>
-        <script src="mark-09e88c2c.min.js"></script>
-        <script src="searcher-09f2665d.js"></script>
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
-        <script src="clipboard-1626706a.min.js"></script>
-        <script src="highlight-abc7f01d.js"></script>
-        <script src="book-609e4cb8.js"></script>
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 
