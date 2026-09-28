@@ -135,10 +135,10 @@
 <a href=#135 id=135 data-nosnippet>135</a>    /// is a product of focus and is recomputed like every other product.
 <a href=#136 id=136 data-nosnippet>136</a>    ///
 <a href=#137 id=137 data-nosnippet>137</a>    /// What is *up* is compared, so the mode is written and the trace is made only where it moved.
-<a href=#138 id=138 data-nosnippet>138</a>    /// DOM focus is taken on the same change, and again after any press: the page can take focus
-<a href=#139 id=139 data-nosnippet>139</a>    /// off the hidden input without the engine hearing about it -- a press on the canvas does
-<a href=#140 id=140 data-nosnippet>140</a>    /// exactly that, and is how every tap from one field to another arrives -- so a press is what
-<a href=#141 id=141 data-nosnippet>141</a>    /// it is given back after.
+<a href=#138 id=138 data-nosnippet>138</a>    /// DOM focus is taken on the same change, and again after any press has ended: the page can
+<a href=#139 id=139 data-nosnippet>139</a>    /// take focus off the hidden input without the engine hearing about it -- a press on the canvas
+<a href=#140 id=140 data-nosnippet>140</a>    /// does exactly that, and is how every tap from one field to another arrives -- so a press is
+<a href=#141 id=141 data-nosnippet>141</a>    /// what it is given back after. After, and not during: see `web::Trigger::build`.
 <a href=#142 id=142 data-nosnippet>142</a>    ///
 <a href=#143 id=143 data-nosnippet>143</a>    /// And only then. A browser takes focus off the input for reasons of its own as well -- a
 <a href=#144 id=144 data-nosnippet>144</a>    /// phone's enter key, a back gesture, the keyboard's own dismiss -- and each of those is the
@@ -280,200 +280,209 @@
 <a href=#280 id=280 data-nosnippet>280</a>            <span class="kw">let </span>captured = Captured::default();
 <a href=#281 id=281 data-nosnippet>281</a>            listen(<span class="kw-2">&amp;</span>element, <span class="kw-2">&amp;</span>captured, <span class="kw-2">&amp;</span>wake);
 <a href=#282 id=282 data-nosnippet>282</a>            <span class="kw">let </span>pressed = Rc::new(Cell::new(<span class="bool-val">false</span>));
-<a href=#283 id=283 data-nosnippet>283</a>            <span class="comment">// On the document and while capturing, so it is heard before the press moves focus
-<a href=#284 id=284 data-nosnippet>284</a>            // anywhere and whatever the press lands on. Nothing is taken from the press: it goes on
-<a href=#285 id=285 data-nosnippet>285</a>            // to the canvas, and to winit, as it would have.
-<a href=#286 id=286 data-nosnippet>286</a>            </span>{
-<a href=#287 id=287 data-nosnippet>287</a>                <span class="kw">let </span>pressed = pressed.clone();
-<a href=#288 id=288 data-nosnippet>288</a>                <span class="kw">let </span>noted = Closure::wrap(Box::new(<span class="kw">move </span>|<span class="kw">_</span>: web_sys::Event| {
-<a href=#289 id=289 data-nosnippet>289</a>                    pressed.set(<span class="bool-val">true</span>);
-<a href=#290 id=290 data-nosnippet>290</a>                }) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>FnMut(<span class="kw">_</span>)&gt;);
-<a href=#291 id=291 data-nosnippet>291</a>                <span class="kw">let _ </span>= document.add_event_listener_with_callback_and_bool(
-<a href=#292 id=292 data-nosnippet>292</a>                    <span class="string">"pointerdown"</span>,
-<a href=#293 id=293 data-nosnippet>293</a>                    noted.as_ref().unchecked_ref(),
-<a href=#294 id=294 data-nosnippet>294</a>                    <span class="bool-val">true</span>,
-<a href=#295 id=295 data-nosnippet>295</a>                );
-<a href=#296 id=296 data-nosnippet>296</a>                <span class="comment">// For the life of the program, as the input's own listeners are.
-<a href=#297 id=297 data-nosnippet>297</a>                </span>noted.forget();
-<a href=#298 id=298 data-nosnippet>298</a>            }
-<a href=#299 id=299 data-nosnippet>299</a>            <span class="prelude-val">Some</span>(<span class="self">Self </span>{
-<a href=#300 id=300 data-nosnippet>300</a>                element,
-<a href=#301 id=301 data-nosnippet>301</a>                captured,
-<a href=#302 id=302 data-nosnippet>302</a>                pressed,
-<a href=#303 id=303 data-nosnippet>303</a>            })
-<a href=#304 id=304 data-nosnippet>304</a>        }
-<a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a>        <span class="doccomment">/// Says which keys to offer, before anything is offered.
-<a href=#307 id=307 data-nosnippet>307</a>        ///
-<a href=#308 id=308 data-nosnippet>308</a>        /// A mode written to an input that already holds focus changes nothing the person can see
-<a href=#309 id=309 data-nosnippet>309</a>        /// until the keyboard has been dismissed and raised again, so this is only ever written
-<a href=#310 id=310 data-nosnippet>310</a>        /// while the keyboard is down.
-<a href=#311 id=311 data-nosnippet>311</a>        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>mode(<span class="kw-2">&amp;</span><span class="self">self</span>, keypad: Keypad) {
-<a href=#312 id=312 data-nosnippet>312</a>            <span class="kw">let _ </span>= <span class="self">self</span>.element.set_attribute(<span class="string">"inputmode"</span>, keypad.mode());
+<a href=#283 id=283 data-nosnippet>283</a>            <span class="comment">// On the document and while capturing, so it is heard whatever the press lands on.
+<a href=#284 id=284 data-nosnippet>284</a>            // Nothing is taken from the press: it goes on to the canvas, and to winit, as it would
+<a href=#285 id=285 data-nosnippet>285</a>            // have.
+<a href=#286 id=286 data-nosnippet>286</a>            //
+<a href=#287 id=287 data-nosnippet>287</a>            // Noted when the press *ends*, never when it begins. Winit focuses the canvas on
+<a href=#288 id=288 data-nosnippet>288</a>            // `pointerdown`, so taking focus back is the canvas blurring -- which winit reports as
+<a href=#289 id=289 data-nosnippet>289</a>            // the window losing focus, and a window losing focus cancels whatever press is held. A
+<a href=#290 id=290 data-nosnippet>290</a>            // focus given back mid-press is every tap made while a field holds focus arriving as a
+<a href=#291 id=291 data-nosnippet>291</a>            // cancel: nothing on the page can be pressed until focus leaves the field some other
+<a href=#292 id=292 data-nosnippet>292</a>            // way.
+<a href=#293 id=293 data-nosnippet>293</a>            </span>{
+<a href=#294 id=294 data-nosnippet>294</a>                <span class="kw">let </span>pressed = pressed.clone();
+<a href=#295 id=295 data-nosnippet>295</a>                <span class="kw">let </span>noted = Closure::wrap(Box::new(<span class="kw">move </span>|<span class="kw">_</span>: web_sys::Event| {
+<a href=#296 id=296 data-nosnippet>296</a>                    pressed.set(<span class="bool-val">true</span>);
+<a href=#297 id=297 data-nosnippet>297</a>                }) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>FnMut(<span class="kw">_</span>)&gt;);
+<a href=#298 id=298 data-nosnippet>298</a>                <span class="kw">for </span>name <span class="kw">in </span>[<span class="string">"pointerup"</span>, <span class="string">"pointercancel"</span>] {
+<a href=#299 id=299 data-nosnippet>299</a>                    <span class="kw">let _ </span>= document.add_event_listener_with_callback_and_bool(
+<a href=#300 id=300 data-nosnippet>300</a>                        name,
+<a href=#301 id=301 data-nosnippet>301</a>                        noted.as_ref().unchecked_ref(),
+<a href=#302 id=302 data-nosnippet>302</a>                        <span class="bool-val">true</span>,
+<a href=#303 id=303 data-nosnippet>303</a>                    );
+<a href=#304 id=304 data-nosnippet>304</a>                }
+<a href=#305 id=305 data-nosnippet>305</a>                <span class="comment">// For the life of the program, as the input's own listeners are.
+<a href=#306 id=306 data-nosnippet>306</a>                </span>noted.forget();
+<a href=#307 id=307 data-nosnippet>307</a>            }
+<a href=#308 id=308 data-nosnippet>308</a>            <span class="prelude-val">Some</span>(<span class="self">Self </span>{
+<a href=#309 id=309 data-nosnippet>309</a>                element,
+<a href=#310 id=310 data-nosnippet>310</a>                captured,
+<a href=#311 id=311 data-nosnippet>311</a>                pressed,
+<a href=#312 id=312 data-nosnippet>312</a>            })
 <a href=#313 id=313 data-nosnippet>313</a>        }
 <a href=#314 id=314 data-nosnippet>314</a>
-<a href=#315 id=315 data-nosnippet>315</a>        <span class="doccomment">/// Gives the input DOM focus, which is the only thing a browser raises a keyboard for.
-<a href=#316 id=316 data-nosnippet>316</a>        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>focus(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#317 id=317 data-nosnippet>317</a>            <span class="kw">let _ </span>= <span class="self">self</span>.element.focus();
-<a href=#318 id=318 data-nosnippet>318</a>        }
-<a href=#319 id=319 data-nosnippet>319</a>
-<a href=#320 id=320 data-nosnippet>320</a>        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>blur(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-<a href=#321 id=321 data-nosnippet>321</a>            <span class="kw">let _ </span>= <span class="self">self</span>.element.blur();
+<a href=#315 id=315 data-nosnippet>315</a>        <span class="doccomment">/// Says which keys to offer, before anything is offered.
+<a href=#316 id=316 data-nosnippet>316</a>        ///
+<a href=#317 id=317 data-nosnippet>317</a>        /// A mode written to an input that already holds focus changes nothing the person can see
+<a href=#318 id=318 data-nosnippet>318</a>        /// until the keyboard has been dismissed and raised again, so this is only ever written
+<a href=#319 id=319 data-nosnippet>319</a>        /// while the keyboard is down.
+<a href=#320 id=320 data-nosnippet>320</a>        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>mode(<span class="kw-2">&amp;</span><span class="self">self</span>, keypad: Keypad) {
+<a href=#321 id=321 data-nosnippet>321</a>            <span class="kw">let _ </span>= <span class="self">self</span>.element.set_attribute(<span class="string">"inputmode"</span>, keypad.mode());
 <a href=#322 id=322 data-nosnippet>322</a>        }
 <a href=#323 id=323 data-nosnippet>323</a>
-<a href=#324 id=324 data-nosnippet>324</a>        <span class="doccomment">/// Whether the page has been pressed since this was last asked, which is the one way focus
-<a href=#325 id=325 data-nosnippet>325</a>        /// leaves the input that the engine takes it back after.
-<a href=#326 id=326 data-nosnippet>326</a>        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>pressed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#327 id=327 data-nosnippet>327</a>            <span class="self">self</span>.pressed.replace(<span class="bool-val">false</span>)
-<a href=#328 id=328 data-nosnippet>328</a>        }
-<a href=#329 id=329 data-nosnippet>329</a>
-<a href=#330 id=330 data-nosnippet>330</a>        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>captured(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Input&gt; {
-<a href=#331 id=331 data-nosnippet>331</a>            core::mem::take(<span class="kw-2">&amp;mut *</span><span class="self">self</span>.captured.<span class="number">0</span>.borrow_mut())
-<a href=#332 id=332 data-nosnippet>332</a>        }
-<a href=#333 id=333 data-nosnippet>333</a>    }
-<a href=#334 id=334 data-nosnippet>334</a>
-<a href=#335 id=335 data-nosnippet>335</a>    <span class="doccomment">/// Wires the three events a hidden input has to give back.
-<a href=#336 id=336 data-nosnippet>336</a>    ///
-<a href=#337 id=337 data-nosnippet>337</a>    /// `input` is what was composed -- a plain letter, a dead-key sequence, a whole word an IME
-<a href=#338 id=338 data-nosnippet>338</a>    /// committed -- and is the only one that answers for text, because the browser is what resolved
-<a href=#339 id=339 data-nosnippet>339</a>    /// the layout. `keydown` is for the keys that produce no text and would otherwise be spent on
-<a href=#340 id=340 data-nosnippet>340</a>    /// the input's own editing, and for a character held with a modifier, which produces no `input`
-<a href=#341 id=341 data-nosnippet>341</a>    /// event because it is a command rather than something to insert. `paste` carries what another
-<a href=#342 id=342 data-nosnippet>342</a>    /// program put on the clipboard, which is the only way this target ever sees it.
-<a href=#343 id=343 data-nosnippet>343</a>    </span><span class="kw">fn </span>listen(element: <span class="kw-2">&amp;</span>web_sys::HtmlInputElement, captured: <span class="kw-2">&amp;</span>Captured, wake: <span class="kw-2">&amp;</span>Wake) {
-<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw">let </span>composed = {
-<a href=#345 id=345 data-nosnippet>345</a>            <span class="kw">let </span>(captured, wake) = (captured.clone(), wake.clone());
-<a href=#346 id=346 data-nosnippet>346</a>            Closure::wrap(Box::new(<span class="kw">move </span>|event: web_sys::Event| {
-<a href=#347 id=347 data-nosnippet>347</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(input) = event
-<a href=#348 id=348 data-nosnippet>348</a>                    .target()
-<a href=#349 id=349 data-nosnippet>349</a>                    .and_then(|target| target.dyn_into::&lt;web_sys::HtmlInputElement&gt;().ok())
-<a href=#350 id=350 data-nosnippet>350</a>                <span class="kw">else </span>{
-<a href=#351 id=351 data-nosnippet>351</a>                    <span class="kw">return</span>;
-<a href=#352 id=352 data-nosnippet>352</a>                };
-<a href=#353 id=353 data-nosnippet>353</a>                <span class="kw">let </span>value = input.value();
-<a href=#354 id=354 data-nosnippet>354</a>                <span class="kw">if </span>value.is_empty() {
-<a href=#355 id=355 data-nosnippet>355</a>                    <span class="kw">return</span>;
-<a href=#356 id=356 data-nosnippet>356</a>                }
-<a href=#357 id=357 data-nosnippet>357</a>                <span class="comment">// Cleared at once. What was typed is carried as keystrokes from here on, and a
-<a href=#358 id=358 data-nosnippet>358</a>                // value left in the input would be composed against by whatever is typed next.
-<a href=#359 id=359 data-nosnippet>359</a>                </span>input.set_value(<span class="string">""</span>);
-<a href=#360 id=360 data-nosnippet>360</a>                captured.push(
-<a href=#361 id=361 data-nosnippet>361</a>                    value
-<a href=#362 id=362 data-nosnippet>362</a>                        .chars()
-<a href=#363 id=363 data-nosnippet>363</a>                        <span class="comment">// The rule `photosynthesize` reads a winit key by: a control character is
-<a href=#364 id=364 data-nosnippet>364</a>                        // what a key that means something produces where the platform hands text
-<a href=#365 id=365 data-nosnippet>365</a>                        // as well, and inserting one would put it in the value.
-<a href=#366 id=366 data-nosnippet>366</a>                        </span>.filter(|character| !character.is_control())
-<a href=#367 id=367 data-nosnippet>367</a>                        .map(|character| Input::Keyed(Key::Typed(character)))
-<a href=#368 id=368 data-nosnippet>368</a>                        .collect(),
-<a href=#369 id=369 data-nosnippet>369</a>                );
-<a href=#370 id=370 data-nosnippet>370</a>                wake.rouse();
-<a href=#371 id=371 data-nosnippet>371</a>            }) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>FnMut(<span class="kw">_</span>)&gt;)
-<a href=#372 id=372 data-nosnippet>372</a>        };
-<a href=#373 id=373 data-nosnippet>373</a>        <span class="kw">let </span>pressed = {
-<a href=#374 id=374 data-nosnippet>374</a>            <span class="kw">let </span>(captured, wake) = (captured.clone(), wake.clone());
-<a href=#375 id=375 data-nosnippet>375</a>            Closure::wrap(Box::new(<span class="kw">move </span>|event: web_sys::KeyboardEvent| {
-<a href=#376 id=376 data-nosnippet>376</a>                <span class="comment">// Read from this event rather than from what the engine last heard: the canvas
-<a href=#377 id=377 data-nosnippet>377</a>                // stopped receiving `ModifiersChanged` the moment this input took focus, so the
-<a href=#378 id=378 data-nosnippet>378</a>                // engine's own tracker is exactly as starved as the key events are.
-<a href=#379 id=379 data-nosnippet>379</a>                </span><span class="kw">let </span>modifiers = Modifiers {
-<a href=#380 id=380 data-nosnippet>380</a>                    shift: event.shift_key(),
-<a href=#381 id=381 data-nosnippet>381</a>                    control: event.ctrl_key() || event.meta_key(),
-<a href=#382 id=382 data-nosnippet>382</a>                };
-<a href=#383 id=383 data-nosnippet>383</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(key) = named(<span class="kw-2">&amp;</span>event.key(), modifiers) <span class="kw">else </span>{
-<a href=#384 id=384 data-nosnippet>384</a>                    <span class="kw">return</span>;
-<a href=#385 id=385 data-nosnippet>385</a>                };
-<a href=#386 id=386 data-nosnippet>386</a>                <span class="comment">// The input's own editing would otherwise spend the key -- a backspace deleting
-<a href=#387 id=387 data-nosnippet>387</a>                // from a value that is always empty, an arrow moving a caret nobody can see.
-<a href=#388 id=388 data-nosnippet>388</a>                </span>event.prevent_default();
-<a href=#389 id=389 data-nosnippet>389</a>                captured.push(<span class="macro">vec!</span>[
-<a href=#390 id=390 data-nosnippet>390</a>                    Input::Modifiers(modifiers),
-<a href=#391 id=391 data-nosnippet>391</a>                    Input::Keyed(key),
-<a href=#392 id=392 data-nosnippet>392</a>                    Input::Modifiers(Modifiers::default()),
-<a href=#393 id=393 data-nosnippet>393</a>                ]);
-<a href=#394 id=394 data-nosnippet>394</a>                wake.rouse();
-<a href=#395 id=395 data-nosnippet>395</a>            }) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>FnMut(<span class="kw">_</span>)&gt;)
-<a href=#396 id=396 data-nosnippet>396</a>        };
-<a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">let </span>pasted = {
-<a href=#398 id=398 data-nosnippet>398</a>            <span class="kw">let </span>(captured, wake) = (captured.clone(), wake.clone());
-<a href=#399 id=399 data-nosnippet>399</a>            Closure::wrap(Box::new(<span class="kw">move </span>|event: web_sys::ClipboardEvent| {
-<a href=#400 id=400 data-nosnippet>400</a>                <span class="comment">// Empty for a paste that is not text -- a picture, a file -- which the browser
-<a href=#401 id=401 data-nosnippet>401</a>                // fires this for all the same. Nothing was pasted as far as this engine is
-<a href=#402 id=402 data-nosnippet>402</a>                // concerned, and letting it through would be an edit that wrote nothing.
-<a href=#403 id=403 data-nosnippet>403</a>                </span><span class="kw">let </span><span class="prelude-val">Some</span>(text) = event
-<a href=#404 id=404 data-nosnippet>404</a>                    .clipboard_data()
-<a href=#405 id=405 data-nosnippet>405</a>                    .and_then(|data| data.get_data(<span class="string">"text/plain"</span>).ok())
-<a href=#406 id=406 data-nosnippet>406</a>                    .filter(|text| !text.is_empty())
-<a href=#407 id=407 data-nosnippet>407</a>                <span class="kw">else </span>{
-<a href=#408 id=408 data-nosnippet>408</a>                    <span class="kw">return</span>;
-<a href=#409 id=409 data-nosnippet>409</a>                };
-<a href=#410 id=410 data-nosnippet>410</a>                <span class="comment">// The value is where the browser would put this, and the `input` event that
-<a href=#411 id=411 data-nosnippet>411</a>                // followed would then insert it a character at a time as if it had been typed.
-<a href=#412 id=412 data-nosnippet>412</a>                </span>event.prevent_default();
-<a href=#413 id=413 data-nosnippet>413</a>                captured.push(<span class="macro">vec!</span>[Input::Pasted(text)]);
-<a href=#414 id=414 data-nosnippet>414</a>                wake.rouse();
-<a href=#415 id=415 data-nosnippet>415</a>            }) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>FnMut(<span class="kw">_</span>)&gt;)
-<a href=#416 id=416 data-nosnippet>416</a>        };
-<a href=#417 id=417 data-nosnippet>417</a>        <span class="kw">for </span>(name, callback) <span class="kw">in </span>[
-<a href=#418 id=418 data-nosnippet>418</a>            (<span class="string">"input"</span>, composed.as_ref()),
-<a href=#419 id=419 data-nosnippet>419</a>            (<span class="string">"keydown"</span>, pressed.as_ref()),
-<a href=#420 id=420 data-nosnippet>420</a>            (<span class="string">"paste"</span>, pasted.as_ref()),
-<a href=#421 id=421 data-nosnippet>421</a>        ] {
-<a href=#422 id=422 data-nosnippet>422</a>            <span class="kw">let _ </span>= element.add_event_listener_with_callback(name, callback.unchecked_ref());
-<a href=#423 id=423 data-nosnippet>423</a>        }
-<a href=#424 id=424 data-nosnippet>424</a>        <span class="comment">// The listeners outlive this call by exactly as long as the input does, which is the life
-<a href=#425 id=425 data-nosnippet>425</a>        // of the program: there is one hidden input and nothing ever takes it out of the page.
-<a href=#426 id=426 data-nosnippet>426</a>        </span>composed.forget();
-<a href=#427 id=427 data-nosnippet>427</a>        pressed.forget();
-<a href=#428 id=428 data-nosnippet>428</a>        pasted.forget();
-<a href=#429 id=429 data-nosnippet>429</a>    }
-<a href=#430 id=430 data-nosnippet>430</a>
-<a href=#431 id=431 data-nosnippet>431</a>    <span class="doccomment">/// Which engine key a browser's `KeyboardEvent.key` is, where it is one this path has to carry.
-<a href=#432 id=432 data-nosnippet>432</a>    ///
-<a href=#433 id=433 data-nosnippet>433</a>    /// Mirrors `photosynthesize`'s reading of a winit key, and for the same reason: a key that
-<a href=#434 id=434 data-nosnippet>434</a>    /// produced text is left to the `input` event that carries it, so the two paths do not both
-<a href=#435 id=435 data-nosnippet>435</a>    /// answer for the same press. `Ctrl+V` is the same rule reaching the third listener --
-<a href=#436 id=436 data-nosnippet>436</a>    /// answering it here would take the key, and taking the key is what stops the browser ever
-<a href=#437 id=437 data-nosnippet>437</a>    /// firing the `paste` that carries the text.
-<a href=#438 id=438 data-nosnippet>438</a>    ///
-<a href=#439 id=439 data-nosnippet>439</a>    /// Nothing is lost at the root by declining it: this listener hears a key only while the hidden
-<a href=#440 id=440 data-nosnippet>440</a>    /// input holds DOM focus, which is only ever while a field holds the engine's, and a chord
-<a href=#441 id=441 data-nosnippet>441</a>    /// pressed with focus nowhere reaches the canvas through winit like every other key.
-<a href=#442 id=442 data-nosnippet>442</a>    </span><span class="kw">fn </span>named(key: <span class="kw-2">&amp;</span>str, modifiers: Modifiers) -&gt; <span class="prelude-ty">Option</span>&lt;Key&gt; {
-<a href=#443 id=443 data-nosnippet>443</a>        <span class="comment">// A browser reports the letter of a chord in the case the shift key put it in.
-<a href=#444 id=444 data-nosnippet>444</a>        </span><span class="kw">if </span>modifiers.control &amp;&amp; key.eq_ignore_ascii_case(<span class="string">"v"</span>) {
-<a href=#445 id=445 data-nosnippet>445</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#446 id=446 data-nosnippet>446</a>        }
-<a href=#447 id=447 data-nosnippet>447</a>        <span class="kw">let </span>named = <span class="kw">match </span>key {
-<a href=#448 id=448 data-nosnippet>448</a>            <span class="string">"Backspace" </span>=&gt; Key::Backspace,
-<a href=#449 id=449 data-nosnippet>449</a>            <span class="string">"Delete" </span>=&gt; Key::Delete,
-<a href=#450 id=450 data-nosnippet>450</a>            <span class="string">"ArrowLeft" </span>=&gt; Key::Left,
-<a href=#451 id=451 data-nosnippet>451</a>            <span class="string">"ArrowRight" </span>=&gt; Key::Right,
-<a href=#452 id=452 data-nosnippet>452</a>            <span class="string">"ArrowUp" </span>=&gt; Key::Up,
-<a href=#453 id=453 data-nosnippet>453</a>            <span class="string">"ArrowDown" </span>=&gt; Key::Down,
-<a href=#454 id=454 data-nosnippet>454</a>            <span class="string">"Home" </span>=&gt; Key::Home,
-<a href=#455 id=455 data-nosnippet>455</a>            <span class="string">"End" </span>=&gt; Key::End,
-<a href=#456 id=456 data-nosnippet>456</a>            <span class="string">"Enter" </span>=&gt; Key::Enter,
-<a href=#457 id=457 data-nosnippet>457</a>            <span class="string">"Tab" </span>=&gt; Key::Tab,
-<a href=#458 id=458 data-nosnippet>458</a>            <span class="string">"Escape" </span>=&gt; Key::Escape,
-<a href=#459 id=459 data-nosnippet>459</a>            <span class="comment">// A character held with control is a command and produces no `input` event, so this is
-<a href=#460 id=460 data-nosnippet>460</a>            // the only path it has. A character held with nothing is text and already has one.
-<a href=#461 id=461 data-nosnippet>461</a>            </span><span class="kw">_ </span>=&gt; {
-<a href=#462 id=462 data-nosnippet>462</a>                <span class="kw">let </span><span class="kw-2">mut </span>characters = key.chars();
-<a href=#463 id=463 data-nosnippet>463</a>                <span class="kw">let </span>character = characters.next()<span class="question-mark">?</span>;
-<a href=#464 id=464 data-nosnippet>464</a>                <span class="kw">if </span>characters.next().is_some() || !modifiers.control {
-<a href=#465 id=465 data-nosnippet>465</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#466 id=466 data-nosnippet>466</a>                }
-<a href=#467 id=467 data-nosnippet>467</a>                Key::Typed(character)
-<a href=#468 id=468 data-nosnippet>468</a>            }
-<a href=#469 id=469 data-nosnippet>469</a>        };
-<a href=#470 id=470 data-nosnippet>470</a>        <span class="prelude-val">Some</span>(named)
-<a href=#471 id=471 data-nosnippet>471</a>    }
-<a href=#472 id=472 data-nosnippet>472</a>
-<a href=#473 id=473 data-nosnippet>473</a>    <span class="kw">impl </span>Captured {
-<a href=#474 id=474 data-nosnippet>474</a>        <span class="kw">fn </span>push(<span class="kw-2">&amp;</span><span class="self">self</span>, inputs: Vec&lt;Input&gt;) {
-<a href=#475 id=475 data-nosnippet>475</a>            <span class="self">self</span>.<span class="number">0</span>.borrow_mut().extend(inputs);
-<a href=#476 id=476 data-nosnippet>476</a>        }
-<a href=#477 id=477 data-nosnippet>477</a>    }
-<a href=#478 id=478 data-nosnippet>478</a>}
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="doccomment">/// Gives the input DOM focus, which is the only thing a browser raises a keyboard for.
+<a href=#325 id=325 data-nosnippet>325</a>        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>focus(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#326 id=326 data-nosnippet>326</a>            <span class="kw">let _ </span>= <span class="self">self</span>.element.focus();
+<a href=#327 id=327 data-nosnippet>327</a>        }
+<a href=#328 id=328 data-nosnippet>328</a>
+<a href=#329 id=329 data-nosnippet>329</a>        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>blur(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+<a href=#330 id=330 data-nosnippet>330</a>            <span class="kw">let _ </span>= <span class="self">self</span>.element.blur();
+<a href=#331 id=331 data-nosnippet>331</a>        }
+<a href=#332 id=332 data-nosnippet>332</a>
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="doccomment">/// Whether a press on the page has ended since this was last asked, which is the one way focus
+<a href=#334 id=334 data-nosnippet>334</a>        /// leaves the input that the engine takes it back after.
+<a href=#335 id=335 data-nosnippet>335</a>        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>pressed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#336 id=336 data-nosnippet>336</a>            <span class="self">self</span>.pressed.replace(<span class="bool-val">false</span>)
+<a href=#337 id=337 data-nosnippet>337</a>        }
+<a href=#338 id=338 data-nosnippet>338</a>
+<a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>captured(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Input&gt; {
+<a href=#340 id=340 data-nosnippet>340</a>            core::mem::take(<span class="kw-2">&amp;mut *</span><span class="self">self</span>.captured.<span class="number">0</span>.borrow_mut())
+<a href=#341 id=341 data-nosnippet>341</a>        }
+<a href=#342 id=342 data-nosnippet>342</a>    }
+<a href=#343 id=343 data-nosnippet>343</a>
+<a href=#344 id=344 data-nosnippet>344</a>    <span class="doccomment">/// Wires the three events a hidden input has to give back.
+<a href=#345 id=345 data-nosnippet>345</a>    ///
+<a href=#346 id=346 data-nosnippet>346</a>    /// `input` is what was composed -- a plain letter, a dead-key sequence, a whole word an IME
+<a href=#347 id=347 data-nosnippet>347</a>    /// committed -- and is the only one that answers for text, because the browser is what resolved
+<a href=#348 id=348 data-nosnippet>348</a>    /// the layout. `keydown` is for the keys that produce no text and would otherwise be spent on
+<a href=#349 id=349 data-nosnippet>349</a>    /// the input's own editing, and for a character held with a modifier, which produces no `input`
+<a href=#350 id=350 data-nosnippet>350</a>    /// event because it is a command rather than something to insert. `paste` carries what another
+<a href=#351 id=351 data-nosnippet>351</a>    /// program put on the clipboard, which is the only way this target ever sees it.
+<a href=#352 id=352 data-nosnippet>352</a>    </span><span class="kw">fn </span>listen(element: <span class="kw-2">&amp;</span>web_sys::HtmlInputElement, captured: <span class="kw-2">&amp;</span>Captured, wake: <span class="kw-2">&amp;</span>Wake) {
+<a href=#353 id=353 data-nosnippet>353</a>        <span class="kw">let </span>composed = {
+<a href=#354 id=354 data-nosnippet>354</a>            <span class="kw">let </span>(captured, wake) = (captured.clone(), wake.clone());
+<a href=#355 id=355 data-nosnippet>355</a>            Closure::wrap(Box::new(<span class="kw">move </span>|event: web_sys::Event| {
+<a href=#356 id=356 data-nosnippet>356</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(input) = event
+<a href=#357 id=357 data-nosnippet>357</a>                    .target()
+<a href=#358 id=358 data-nosnippet>358</a>                    .and_then(|target| target.dyn_into::&lt;web_sys::HtmlInputElement&gt;().ok())
+<a href=#359 id=359 data-nosnippet>359</a>                <span class="kw">else </span>{
+<a href=#360 id=360 data-nosnippet>360</a>                    <span class="kw">return</span>;
+<a href=#361 id=361 data-nosnippet>361</a>                };
+<a href=#362 id=362 data-nosnippet>362</a>                <span class="kw">let </span>value = input.value();
+<a href=#363 id=363 data-nosnippet>363</a>                <span class="kw">if </span>value.is_empty() {
+<a href=#364 id=364 data-nosnippet>364</a>                    <span class="kw">return</span>;
+<a href=#365 id=365 data-nosnippet>365</a>                }
+<a href=#366 id=366 data-nosnippet>366</a>                <span class="comment">// Cleared at once. What was typed is carried as keystrokes from here on, and a
+<a href=#367 id=367 data-nosnippet>367</a>                // value left in the input would be composed against by whatever is typed next.
+<a href=#368 id=368 data-nosnippet>368</a>                </span>input.set_value(<span class="string">""</span>);
+<a href=#369 id=369 data-nosnippet>369</a>                captured.push(
+<a href=#370 id=370 data-nosnippet>370</a>                    value
+<a href=#371 id=371 data-nosnippet>371</a>                        .chars()
+<a href=#372 id=372 data-nosnippet>372</a>                        <span class="comment">// The rule `photosynthesize` reads a winit key by: a control character is
+<a href=#373 id=373 data-nosnippet>373</a>                        // what a key that means something produces where the platform hands text
+<a href=#374 id=374 data-nosnippet>374</a>                        // as well, and inserting one would put it in the value.
+<a href=#375 id=375 data-nosnippet>375</a>                        </span>.filter(|character| !character.is_control())
+<a href=#376 id=376 data-nosnippet>376</a>                        .map(|character| Input::Keyed(Key::Typed(character)))
+<a href=#377 id=377 data-nosnippet>377</a>                        .collect(),
+<a href=#378 id=378 data-nosnippet>378</a>                );
+<a href=#379 id=379 data-nosnippet>379</a>                wake.rouse();
+<a href=#380 id=380 data-nosnippet>380</a>            }) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>FnMut(<span class="kw">_</span>)&gt;)
+<a href=#381 id=381 data-nosnippet>381</a>        };
+<a href=#382 id=382 data-nosnippet>382</a>        <span class="kw">let </span>pressed = {
+<a href=#383 id=383 data-nosnippet>383</a>            <span class="kw">let </span>(captured, wake) = (captured.clone(), wake.clone());
+<a href=#384 id=384 data-nosnippet>384</a>            Closure::wrap(Box::new(<span class="kw">move </span>|event: web_sys::KeyboardEvent| {
+<a href=#385 id=385 data-nosnippet>385</a>                <span class="comment">// Read from this event rather than from what the engine last heard: the canvas
+<a href=#386 id=386 data-nosnippet>386</a>                // stopped receiving `ModifiersChanged` the moment this input took focus, so the
+<a href=#387 id=387 data-nosnippet>387</a>                // engine's own tracker is exactly as starved as the key events are.
+<a href=#388 id=388 data-nosnippet>388</a>                </span><span class="kw">let </span>modifiers = Modifiers {
+<a href=#389 id=389 data-nosnippet>389</a>                    shift: event.shift_key(),
+<a href=#390 id=390 data-nosnippet>390</a>                    control: event.ctrl_key() || event.meta_key(),
+<a href=#391 id=391 data-nosnippet>391</a>                };
+<a href=#392 id=392 data-nosnippet>392</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(key) = named(<span class="kw-2">&amp;</span>event.key(), modifiers) <span class="kw">else </span>{
+<a href=#393 id=393 data-nosnippet>393</a>                    <span class="kw">return</span>;
+<a href=#394 id=394 data-nosnippet>394</a>                };
+<a href=#395 id=395 data-nosnippet>395</a>                <span class="comment">// The input's own editing would otherwise spend the key -- a backspace deleting
+<a href=#396 id=396 data-nosnippet>396</a>                // from a value that is always empty, an arrow moving a caret nobody can see.
+<a href=#397 id=397 data-nosnippet>397</a>                </span>event.prevent_default();
+<a href=#398 id=398 data-nosnippet>398</a>                captured.push(<span class="macro">vec!</span>[
+<a href=#399 id=399 data-nosnippet>399</a>                    Input::Modifiers(modifiers),
+<a href=#400 id=400 data-nosnippet>400</a>                    Input::Keyed(key),
+<a href=#401 id=401 data-nosnippet>401</a>                    Input::Modifiers(Modifiers::default()),
+<a href=#402 id=402 data-nosnippet>402</a>                ]);
+<a href=#403 id=403 data-nosnippet>403</a>                wake.rouse();
+<a href=#404 id=404 data-nosnippet>404</a>            }) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>FnMut(<span class="kw">_</span>)&gt;)
+<a href=#405 id=405 data-nosnippet>405</a>        };
+<a href=#406 id=406 data-nosnippet>406</a>        <span class="kw">let </span>pasted = {
+<a href=#407 id=407 data-nosnippet>407</a>            <span class="kw">let </span>(captured, wake) = (captured.clone(), wake.clone());
+<a href=#408 id=408 data-nosnippet>408</a>            Closure::wrap(Box::new(<span class="kw">move </span>|event: web_sys::ClipboardEvent| {
+<a href=#409 id=409 data-nosnippet>409</a>                <span class="comment">// Empty for a paste that is not text -- a picture, a file -- which the browser
+<a href=#410 id=410 data-nosnippet>410</a>                // fires this for all the same. Nothing was pasted as far as this engine is
+<a href=#411 id=411 data-nosnippet>411</a>                // concerned, and letting it through would be an edit that wrote nothing.
+<a href=#412 id=412 data-nosnippet>412</a>                </span><span class="kw">let </span><span class="prelude-val">Some</span>(text) = event
+<a href=#413 id=413 data-nosnippet>413</a>                    .clipboard_data()
+<a href=#414 id=414 data-nosnippet>414</a>                    .and_then(|data| data.get_data(<span class="string">"text/plain"</span>).ok())
+<a href=#415 id=415 data-nosnippet>415</a>                    .filter(|text| !text.is_empty())
+<a href=#416 id=416 data-nosnippet>416</a>                <span class="kw">else </span>{
+<a href=#417 id=417 data-nosnippet>417</a>                    <span class="kw">return</span>;
+<a href=#418 id=418 data-nosnippet>418</a>                };
+<a href=#419 id=419 data-nosnippet>419</a>                <span class="comment">// The value is where the browser would put this, and the `input` event that
+<a href=#420 id=420 data-nosnippet>420</a>                // followed would then insert it a character at a time as if it had been typed.
+<a href=#421 id=421 data-nosnippet>421</a>                </span>event.prevent_default();
+<a href=#422 id=422 data-nosnippet>422</a>                captured.push(<span class="macro">vec!</span>[Input::Pasted(text)]);
+<a href=#423 id=423 data-nosnippet>423</a>                wake.rouse();
+<a href=#424 id=424 data-nosnippet>424</a>            }) <span class="kw">as </span>Box&lt;<span class="kw">dyn </span>FnMut(<span class="kw">_</span>)&gt;)
+<a href=#425 id=425 data-nosnippet>425</a>        };
+<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">for </span>(name, callback) <span class="kw">in </span>[
+<a href=#427 id=427 data-nosnippet>427</a>            (<span class="string">"input"</span>, composed.as_ref()),
+<a href=#428 id=428 data-nosnippet>428</a>            (<span class="string">"keydown"</span>, pressed.as_ref()),
+<a href=#429 id=429 data-nosnippet>429</a>            (<span class="string">"paste"</span>, pasted.as_ref()),
+<a href=#430 id=430 data-nosnippet>430</a>        ] {
+<a href=#431 id=431 data-nosnippet>431</a>            <span class="kw">let _ </span>= element.add_event_listener_with_callback(name, callback.unchecked_ref());
+<a href=#432 id=432 data-nosnippet>432</a>        }
+<a href=#433 id=433 data-nosnippet>433</a>        <span class="comment">// The listeners outlive this call by exactly as long as the input does, which is the life
+<a href=#434 id=434 data-nosnippet>434</a>        // of the program: there is one hidden input and nothing ever takes it out of the page.
+<a href=#435 id=435 data-nosnippet>435</a>        </span>composed.forget();
+<a href=#436 id=436 data-nosnippet>436</a>        pressed.forget();
+<a href=#437 id=437 data-nosnippet>437</a>        pasted.forget();
+<a href=#438 id=438 data-nosnippet>438</a>    }
+<a href=#439 id=439 data-nosnippet>439</a>
+<a href=#440 id=440 data-nosnippet>440</a>    <span class="doccomment">/// Which engine key a browser's `KeyboardEvent.key` is, where it is one this path has to carry.
+<a href=#441 id=441 data-nosnippet>441</a>    ///
+<a href=#442 id=442 data-nosnippet>442</a>    /// Mirrors `photosynthesize`'s reading of a winit key, and for the same reason: a key that
+<a href=#443 id=443 data-nosnippet>443</a>    /// produced text is left to the `input` event that carries it, so the two paths do not both
+<a href=#444 id=444 data-nosnippet>444</a>    /// answer for the same press. `Ctrl+V` is the same rule reaching the third listener --
+<a href=#445 id=445 data-nosnippet>445</a>    /// answering it here would take the key, and taking the key is what stops the browser ever
+<a href=#446 id=446 data-nosnippet>446</a>    /// firing the `paste` that carries the text.
+<a href=#447 id=447 data-nosnippet>447</a>    ///
+<a href=#448 id=448 data-nosnippet>448</a>    /// Nothing is lost at the root by declining it: this listener hears a key only while the hidden
+<a href=#449 id=449 data-nosnippet>449</a>    /// input holds DOM focus, which is only ever while a field holds the engine's, and a chord
+<a href=#450 id=450 data-nosnippet>450</a>    /// pressed with focus nowhere reaches the canvas through winit like every other key.
+<a href=#451 id=451 data-nosnippet>451</a>    </span><span class="kw">fn </span>named(key: <span class="kw-2">&amp;</span>str, modifiers: Modifiers) -&gt; <span class="prelude-ty">Option</span>&lt;Key&gt; {
+<a href=#452 id=452 data-nosnippet>452</a>        <span class="comment">// A browser reports the letter of a chord in the case the shift key put it in.
+<a href=#453 id=453 data-nosnippet>453</a>        </span><span class="kw">if </span>modifiers.control &amp;&amp; key.eq_ignore_ascii_case(<span class="string">"v"</span>) {
+<a href=#454 id=454 data-nosnippet>454</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#455 id=455 data-nosnippet>455</a>        }
+<a href=#456 id=456 data-nosnippet>456</a>        <span class="kw">let </span>named = <span class="kw">match </span>key {
+<a href=#457 id=457 data-nosnippet>457</a>            <span class="string">"Backspace" </span>=&gt; Key::Backspace,
+<a href=#458 id=458 data-nosnippet>458</a>            <span class="string">"Delete" </span>=&gt; Key::Delete,
+<a href=#459 id=459 data-nosnippet>459</a>            <span class="string">"ArrowLeft" </span>=&gt; Key::Left,
+<a href=#460 id=460 data-nosnippet>460</a>            <span class="string">"ArrowRight" </span>=&gt; Key::Right,
+<a href=#461 id=461 data-nosnippet>461</a>            <span class="string">"ArrowUp" </span>=&gt; Key::Up,
+<a href=#462 id=462 data-nosnippet>462</a>            <span class="string">"ArrowDown" </span>=&gt; Key::Down,
+<a href=#463 id=463 data-nosnippet>463</a>            <span class="string">"Home" </span>=&gt; Key::Home,
+<a href=#464 id=464 data-nosnippet>464</a>            <span class="string">"End" </span>=&gt; Key::End,
+<a href=#465 id=465 data-nosnippet>465</a>            <span class="string">"Enter" </span>=&gt; Key::Enter,
+<a href=#466 id=466 data-nosnippet>466</a>            <span class="string">"Tab" </span>=&gt; Key::Tab,
+<a href=#467 id=467 data-nosnippet>467</a>            <span class="string">"Escape" </span>=&gt; Key::Escape,
+<a href=#468 id=468 data-nosnippet>468</a>            <span class="comment">// A character held with control is a command and produces no `input` event, so this is
+<a href=#469 id=469 data-nosnippet>469</a>            // the only path it has. A character held with nothing is text and already has one.
+<a href=#470 id=470 data-nosnippet>470</a>            </span><span class="kw">_ </span>=&gt; {
+<a href=#471 id=471 data-nosnippet>471</a>                <span class="kw">let </span><span class="kw-2">mut </span>characters = key.chars();
+<a href=#472 id=472 data-nosnippet>472</a>                <span class="kw">let </span>character = characters.next()<span class="question-mark">?</span>;
+<a href=#473 id=473 data-nosnippet>473</a>                <span class="kw">if </span>characters.next().is_some() || !modifiers.control {
+<a href=#474 id=474 data-nosnippet>474</a>                    <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#475 id=475 data-nosnippet>475</a>                }
+<a href=#476 id=476 data-nosnippet>476</a>                Key::Typed(character)
+<a href=#477 id=477 data-nosnippet>477</a>            }
+<a href=#478 id=478 data-nosnippet>478</a>        };
+<a href=#479 id=479 data-nosnippet>479</a>        <span class="prelude-val">Some</span>(named)
+<a href=#480 id=480 data-nosnippet>480</a>    }
+<a href=#481 id=481 data-nosnippet>481</a>
+<a href=#482 id=482 data-nosnippet>482</a>    <span class="kw">impl </span>Captured {
+<a href=#483 id=483 data-nosnippet>483</a>        <span class="kw">fn </span>push(<span class="kw-2">&amp;</span><span class="self">self</span>, inputs: Vec&lt;Input&gt;) {
+<a href=#484 id=484 data-nosnippet>484</a>            <span class="self">self</span>.<span class="number">0</span>.borrow_mut().extend(inputs);
+<a href=#485 id=485 data-nosnippet>485</a>        }
+<a href=#486 id=486 data-nosnippet>486</a>    }
+<a href=#487 id=487 data-nosnippet>487</a>}
 </code></pre></div></section></main></body></html>

@@ -135,10 +135,10 @@ impl Keyboard {
     /// is a product of focus and is recomputed like every other product.
     ///
     /// What is *up* is compared, so the mode is written and the trace is made only where it moved.
-    /// DOM focus is taken on the same change, and again after any press: the page can take focus
-    /// off the hidden input without the engine hearing about it -- a press on the canvas does
-    /// exactly that, and is how every tap from one field to another arrives -- so a press is what
-    /// it is given back after.
+    /// DOM focus is taken on the same change, and again after any press has ended: the page can
+    /// take focus off the hidden input without the engine hearing about it -- a press on the canvas
+    /// does exactly that, and is how every tap from one field to another arrives -- so a press is
+    /// what it is given back after. After, and not during: see `web::Trigger::build`.
     ///
     /// And only then. A browser takes focus off the input for reasons of its own as well -- a
     /// phone's enter key, a back gesture, the keyboard's own dismiss -- and each of those is the
@@ -280,19 +280,28 @@ mod web {
             let captured = Captured::default();
             listen(&element, &captured, &wake);
             let pressed = Rc::new(Cell::new(false));
-            // On the document and while capturing, so it is heard before the press moves focus
-            // anywhere and whatever the press lands on. Nothing is taken from the press: it goes on
-            // to the canvas, and to winit, as it would have.
+            // On the document and while capturing, so it is heard whatever the press lands on.
+            // Nothing is taken from the press: it goes on to the canvas, and to winit, as it would
+            // have.
+            //
+            // Noted when the press *ends*, never when it begins. Winit focuses the canvas on
+            // `pointerdown`, so taking focus back is the canvas blurring -- which winit reports as
+            // the window losing focus, and a window losing focus cancels whatever press is held. A
+            // focus given back mid-press is every tap made while a field holds focus arriving as a
+            // cancel: nothing on the page can be pressed until focus leaves the field some other
+            // way.
             {
                 let pressed = pressed.clone();
                 let noted = Closure::wrap(Box::new(move |_: web_sys::Event| {
                     pressed.set(true);
                 }) as Box<dyn FnMut(_)>);
-                let _ = document.add_event_listener_with_callback_and_bool(
-                    "pointerdown",
-                    noted.as_ref().unchecked_ref(),
-                    true,
-                );
+                for name in ["pointerup", "pointercancel"] {
+                    let _ = document.add_event_listener_with_callback_and_bool(
+                        name,
+                        noted.as_ref().unchecked_ref(),
+                        true,
+                    );
+                }
                 // For the life of the program, as the input's own listeners are.
                 noted.forget();
             }
@@ -321,7 +330,7 @@ mod web {
             let _ = self.element.blur();
         }
 
-        /// Whether the page has been pressed since this was last asked, which is the one way focus
+        /// Whether a press on the page has ended since this was last asked, which is the one way focus
         /// leaves the input that the engine takes it back after.
         pub(super) fn pressed(&self) -> bool {
             self.pressed.replace(false)
