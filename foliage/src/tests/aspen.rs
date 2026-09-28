@@ -650,6 +650,27 @@ fn a_delay_holds_the_element_where_it_was() {
     assert_eq!(opacity(&grove, leaf), 0.0);
 }
 
+/// A delay holds a motion of no length exactly as it holds any other: it waits where it was, and
+/// jumps when the delay is over. A duration of zero says how long the move takes, not when it
+/// starts.
+#[test]
+fn a_delay_holds_a_motion_of_no_length_too() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new());
+    tick(&mut grove);
+
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(0).after(100));
+    tick(&mut grove);
+    assert_eq!(opacity(&grove, leaf), 1.0);
+    advance(&mut grove, 16);
+    tick(&mut grove);
+    assert_eq!(opacity(&grove, leaf), 1.0);
+
+    advance(&mut grove, 84);
+    tick(&mut grove);
+    assert_eq!(opacity(&grove, leaf), 0.0);
+}
+
 /// Idle frames are not a source of drift. What a tween has done is a function of the clock, and the
 /// clock did not move.
 #[test]

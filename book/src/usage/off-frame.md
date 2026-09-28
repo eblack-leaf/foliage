@@ -185,15 +185,16 @@ std::thread::spawn(move || {
 ```
 
 `sprig.font`, `sprig.icon` and `sprig.image` are the grove's registrations for a thread. One
-difference is deliberate: **none of the three panics.** A face that turns out to be proportional,
-or a field smaller than it was said to be, is reported `missing`, because a worker holds bytes it
-built or was sent rather than bytes the program stated, and a panic on a thread ends the thread
-rather than naming a callsite.
+difference is deliberate: **nothing a worker hands over panics.** A face that turns out to be
+proportional, or a field smaller than it was said to be, is reported `missing`, because a worker
+holds bytes it built or was sent rather than bytes the program stated, and a panic on a thread ends
+the thread rather than stopping the program.
 
-`load` and `pixels` are different, because they are `Grow` verbs rather than registrations: they
-queue the pixels as an op, and the drain applies it. Pixels shorter than the size they were given
-with still panic, and the panic is in the drain, on the frame's thread. A worker that builds pixels
-should get the size right, as the `render` above does by construction.
+`load` and `pixels` follow the same rule, although they are `Grow` verbs the frame writes too. At
+the frame's call site, pixels shorter than the size they were given panic at that line; from a
+sprig, they are refused where they are written, the name keeps whatever it held, and the name is
+reported `missing` in the frame after the refusal is drained. A worker that builds pixels still
+does best to get the size right, as the `render` above does by construction.
 
 ## What not to do from a worker
 

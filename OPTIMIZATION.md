@@ -90,6 +90,14 @@ What was structural, and is now settled:
 - **R1 measures only what says something new**, and everything after it reads the run R1 left the
   element holding. The shaping cache is swept by what elements still hold, so nothing is shaped
   again to keep it alive.
+- **R2m asks only the children that moved.** How far each child reaches toward its trunk's measure
+  is held beside it (`Elements::reached`, `rowan.rs`) and found again only where the child is dirty,
+  so a container of thousands with one child written resolves one child to measure itself, not all
+  of them. At 4096 cells `reach` fell from 0.19ms a frame to 0.02ms under `layout/64`, which fell
+  from 0.66ms to 0.46ms (`text/64` 0.61ms to 0.42ms, `churn` 2.05ms to 1.77ms; medians, the two
+  builds alternated on one machine). `resolving_only_what_was_written_lands_where_resolving_everything_does`
+  (`tests/rowan.rs`) holds it, and incremental resolution as a whole, to what resolving every element
+  would have given.
 - **Extraction visits only what moved**, and lets go of what went explicitly: an element that moved
   and is no longer painted, and one that withered (reported when the order is built again). There is
   no per-frame sweep of everything held.
@@ -154,8 +162,8 @@ What is left of `layout`, `move` and `deep` is mostly the axes (`rowan.rs`, `axi
 over 8195 elements on two axes): one lookup of the element's placement per axis, and inside it,
 bevy's `get::<T>()` finding the component's id by `TypeId` before it finds the component. A query
 state kept on `Tree`, or component ids resolved once, would take the second part away; the first is
-the declaration itself and stays. `measure`, `reach`, and extraction's pigment reads are the same
-shape.
+the declaration itself and stays. `measure`, `reach` (for the children it asks), and extraction's
+pigment reads are the same shape.
 
 ## The shared walk is the stack's size
 

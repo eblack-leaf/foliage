@@ -685,6 +685,40 @@ fn loading_a_plate_again_reaches_every_element_drawing_it() {
     assert_eq!(picture(&grove, leaf).section.height(), 10.0);
 }
 
+/// New pixels at the same shape leave every instance drawing them exactly as it was, so nothing an
+/// instance says could tell the backend its texture is stale. The batch names the picture itself
+/// instead: once, however many times it was filled, and in the frame the pixels landed only.
+#[test]
+fn pixels_replaced_at_the_same_shape_are_named_in_the_batch() {
+    let mut grove = grove();
+    let plate = grove.pixels(vec![255; 2 * 2 * 4], Area::new(2.0, 2.0));
+    let leaf = grove.plant(Image::new(plate).at(square(40.0)));
+    tick(&mut grove);
+    let drawn = picture(&grove, leaf);
+
+    grove.load(plate, vec![0; 2 * 2 * 4], Area::new(2.0, 2.0));
+    grove.load(plate, vec![128; 2 * 2 * 4], Area::new(2.0, 2.0));
+    tick(&mut grove);
+    assert_eq!(picture(&grove, leaf), drawn);
+    assert!(grove.elm.images.written.is_empty());
+    assert_eq!(grove.elm.refilled, vec![plate]);
+    let held = grove.plates.picture(plate).expect("filled");
+    assert!(held.pixels.iter().all(|&channel| channel == 128));
+
+    tick(&mut grove);
+    assert!(grove.elm.refilled.is_empty());
+}
+
+/// Pixels smaller than the size they were given are a statement the program made, and stop it at
+/// the call that made it -- not in the drain of a later frame, which would name the engine's line
+/// rather than the app's. No frame runs here, so a panic can only have come from the call.
+#[test]
+#[should_panic(expected = "a 2x2 picture is 16 bytes of RGBA, and 4 were given")]
+fn pixels_smaller_than_their_size_panic_where_they_are_written() {
+    let mut grove = grove();
+    let _ = grove.pixels(vec![255; 4], Area::new(2.0, 2.0));
+}
+
 // -- Per-character tints ---------------------------------------------------------------------
 
 fn colors(grove: &Grove, leaf: Leaf) -> Vec<Color> {

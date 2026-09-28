@@ -58,6 +58,7 @@ pub(crate) struct Elements {
     pub(crate) standing: Vec<Standing>, // what each declared that the later passes read
     section: Vec<Section>,            // the placed box
     intrinsic: Vec<Area>,             // what content() reads
+    reached: Vec<Option<f32>>,        // how far each reaches toward its trunk's measure
     cell: Vec<Area>,                  // the character cell
     pub(crate) composed: Vec<Option<Arc<Shaped>>>, // the shaped run
     pub(crate) drawn: Vec<Section>,   // the placed box, moved by scrolling
@@ -180,6 +181,38 @@ travels toward the trunk and stops there, where a box travels away from it. An e
 to something new is marked dirty, and R2b's own closure (`dirty[at] |= dirty[trunk] || dirty[anchor]`
 at the top of each axis) spreads that to everything placed against it. That is why R2m sits between
 the axes and not after them.
+
+An element measuring again because one child moved does not ask the others. How far each child
+reaches is a column of its own, `reached`, written when the child is resolved in its trunk's reach
+and read back otherwise:
+
+```rust,ignore
+// rowan.rs
+fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
+    let mut reach: f32 = 0.0;
+    for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
+        let child_at = elements.children[index] as usize;
+        if elements.dirty[child_at] {
+            let child = elements.order[child_at];
+            let far = measurable(grove, child).then(|| {
+                let context = raised(elements, at, child_at);
+                geometry(grove, child, &context, Axis::Vertical).0.far
+            });
+            elements.reached[child_at] = far;
+        }
+        if let Some(far) = elements.reached[child_at] {
+            reach = reach.max(far);
+        }
+    }
+    reach
+}
+```
+
+It is the rule every other column keeps, applied to one more answer. What a child's reach reads is
+its own placement, the horizontal half of what it and its trunk and anchor resolved to, and its own
+measure; each of those that moves makes the child dirty, the last one here in R2m itself, before
+the walk reaches the trunk. So a container of thousands with one child written resolves one child
+to measure itself, and the column is never behind.
 
 **A motion in progress is resolved inside the same axis.** For an element with a `Location` motion
 running, R2 resolves the target *and* the placement it departed from, in the same context, and

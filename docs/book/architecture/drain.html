@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -298,11 +298,11 @@ rather than careless is that a dropped op changes nothing: the state is exactly 
 been had the op not been written. <a href="../usage/debugging.html#why-did-nothing-happen">Debugging</a> lists the
 reasons.</p>
 <p>The exceptions are statements that cannot be true, and they panic rather than drop, because they
-are mistakes in the program rather than circumstances of the run. Two of them reach the drain: an
-anchor that would close a cycle (<a href="tree.html#anchors-and-the-one-thing-that-panics">The tree</a>), and
-pixels shorter than the size a <code>load</code> gave them. The rest (a proportional font handed over as
-bytes, a negative aspect ratio, a hue slot out of range) panic where they are written, before any op
-exists.</p>
+are mistakes in the program rather than circumstances of the run. One of them reaches the drain: an
+anchor that would close a cycle (<a href="tree.html#anchors-and-the-one-thing-that-panics">The tree</a>), which
+takes the whole tree to see. The rest (a proportional font handed over as bytes, pixels shorter than
+the size a <code>load</code> gave them, a negative aspect ratio, a hue slot out of range) panic where they are
+written, before any op exists, so the panic names the app’s line rather than the drain’s.</p>
 <h2 id="one-writer-per-property"><a class="header" href="#one-writer-per-property">One writer per property</a></h2>
 <p>A motion and a direct write can both want the same property. The drain settles it with one rule: a
 direct write <strong>cancels</strong> any motion running on the property it writes, before it writes.</p>

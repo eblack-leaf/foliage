@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -325,14 +325,15 @@ std::thread::spawn(move || {
 });
 <span class="boring">}</span></code></pre>
 <p><code>sprig.font</code>, <code>sprig.icon</code> and <code>sprig.image</code> are the grove’s registrations for a thread. One
-difference is deliberate: <strong>none of the three panics.</strong> A face that turns out to be proportional,
-or a field smaller than it was said to be, is reported <code>missing</code>, because a worker holds bytes it
-built or was sent rather than bytes the program stated, and a panic on a thread ends the thread
-rather than naming a callsite.</p>
-<p><code>load</code> and <code>pixels</code> are different, because they are <code>Grow</code> verbs rather than registrations: they
-queue the pixels as an op, and the drain applies it. Pixels shorter than the size they were given
-with still panic, and the panic is in the drain, on the frame’s thread. A worker that builds pixels
-should get the size right, as the <code>render</code> above does by construction.</p>
+difference is deliberate: <strong>nothing a worker hands over panics.</strong> A face that turns out to be
+proportional, or a field smaller than it was said to be, is reported <code>missing</code>, because a worker
+holds bytes it built or was sent rather than bytes the program stated, and a panic on a thread ends
+the thread rather than stopping the program.</p>
+<p><code>load</code> and <code>pixels</code> follow the same rule, although they are <code>Grow</code> verbs the frame writes too. At
+the frame’s call site, pixels shorter than the size they were given panic at that line; from a
+sprig, they are refused where they are written, the name keeps whatever it held, and the name is
+reported <code>missing</code> in the frame after the refusal is drained. A worker that builds pixels still
+does best to get the size right, as the <code>render</code> above does by construction.</p>
 <h2 id="what-not-to-do-from-a-worker"><a class="header" href="#what-not-to-do-from-a-worker">What not to do from a worker</a></h2>
 <p>A sprig is a way to reach the tree, not a second frame. Two things follow.</p>
 <ul>

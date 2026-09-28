@@ -192,7 +192,8 @@ impl Foliage {
     ///
     /// # Panics
     ///
-    /// If `pixels` is smaller than `size` texels of RGBA.
+    /// If `pixels` is smaller than `size` texels of RGBA, at the line that wrote it.
+    #[track_caller]
     pub fn pixels(&mut self, pixels: impl Into<Vec<u8>>, size: Area) -> Plate {
         self.grove.pixels(pixels, size)
     }

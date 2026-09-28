@@ -421,9 +421,10 @@ be a drag.
 
 ### Focus and keys
 
-Focus rests only on something that declared `interactive`. It is not a byproduct of pressing
-anything: a press moves focus nowhere, and an app that wants a field focused when tapped writes that
-from `clicked`.
+Focus rests only on something that declared `interactive`. A tap moves it to what it landed on, if
+that element is interactive, and away from everything if not; a drag or a hold moves it nowhere. The
+tap settles focus at dispatch, before the app is handed its `clicked` in the same frame, so an app
+that wants focus somewhere else writes that from `clicked` and is simply the later write.
 
 `Grow::focus`, `Grow::unfocus`, `Grow::focus_next` and `Grow::focus_previous` move it;
 `Pollen::focused` and `Pollen::unfocused` report it; `Grove::focused` answers what holds it.
@@ -605,8 +606,13 @@ is cloneable and, where the platform has threads, `Send`. It carries `Grow` enti
 reads identically wherever it is issued**.
 
 An op from a `Sprig` lands in the drain of the frame that was running when it arrived, or the next
-one. That is the whole of the difference. Nothing about how an op is applied depends on which side
-it came from, and a `Leaf` that withered before the write reaches it drops the write as ever.
+one. That is the whole of the difference in how ops land. Nothing about how an op is applied depends
+on which side it came from, and a `Leaf` that withered before the write reaches it drops the write as
+ever.
+
+What does differ is what becomes of bytes that are not what they were said to be. A `Sprig` panics
+on none of them: a proportional face, or a field or pixels smaller than the size given, is refused
+and reported `Pollen::missing`, where the same line at the frame's callsite stops the program there.
 
 Reading is pushed rather than sampled, because a thread has no world to read:
 

@@ -14,9 +14,8 @@
 //! A gesture that became a drag was never a tap, so it moves focus nowhere.
 //!
 //! [`focus`](crate::Grow::focus) is the verb, and it keeps the last word without being protected: a
-//! tap settles focus at dispatch, the frame before an app is handed the
-//! [`clicked`](crate::Pollen::clicked) it produced, so an app writing focus elsewhere is simply the
-//! later write.
+//! tap settles focus at dispatch, before an app is handed the [`clicked`](crate::Pollen::clicked)
+//! it produced in the same frame, so an app writing focus elsewhere is simply the later write.
 //!
 //! # It settles where it is decided
 //!

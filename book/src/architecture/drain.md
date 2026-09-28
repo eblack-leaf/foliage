@@ -144,11 +144,11 @@ been had the op not been written. [Debugging](../usage/debugging.md#why-did-noth
 reasons.
 
 The exceptions are statements that cannot be true, and they panic rather than drop, because they
-are mistakes in the program rather than circumstances of the run. Two of them reach the drain: an
-anchor that would close a cycle ([The tree](tree.md#anchors-and-the-one-thing-that-panics)), and
-pixels shorter than the size a `load` gave them. The rest (a proportional font handed over as
-bytes, a negative aspect ratio, a hue slot out of range) panic where they are written, before any op
-exists.
+are mistakes in the program rather than circumstances of the run. One of them reaches the drain: an
+anchor that would close a cycle ([The tree](tree.md#anchors-and-the-one-thing-that-panics)), which
+takes the whole tree to see. The rest (a proportional font handed over as bytes, pixels shorter than
+the size a `load` gave them, a negative aspect ratio, a hue slot out of range) panic where they are
+written, before any op exists, so the panic names the app's line rather than the drain's.
 
 ## One writer per property
 

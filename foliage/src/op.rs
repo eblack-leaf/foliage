@@ -170,8 +170,9 @@ pub(crate) enum Op {
         tween: Tween,
         reported: bool,
     },
-    /// Where focus is to go. Applied here and answered at settle, against the geometry and the
-    /// inherited state this frame resolves.
+    /// Where focus is to go. Answered here, in the drain, against what has been declared so far and
+    /// the geometry the last frame drew -- so focus is final before resolution runs, and an element
+    /// shown by an earlier op in the same drain can take it.
     Focus(Intent),
     /// The one op that names no element: what every role resolves to, for the whole tree.
     Repaint(Box<Scheme>),

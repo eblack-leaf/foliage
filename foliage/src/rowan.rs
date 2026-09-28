@@ -54,7 +54,9 @@
 //! and everything above it, because
 //! what an element reaches over is what the elements under it resolved to -- a measure travels
 //! toward the trunk where a box travels away from it. A measure that moves under an element nothing
-//! wrote to makes that element resolve again, which is why R2m sits before R2b and not after it.
+//! wrote to makes that element resolve again, which is why R2m sits before R2b and not after it. And
+//! an element measuring again because one of its children moved asks that child alone: how far each
+//! of the others reaches is held from when it last resolved, which is the answer asking would give.
 //!
 //! # Every pass reads the order, not the world
 //!
@@ -235,6 +237,16 @@ pub(crate) struct Elements {
     /// the width -- max-content, free in a monospaced font -- and R2m the height it wrapped to at
     /// the width R2a gave it, which is the whole of width-down and height-up.
     intrinsic: Vec<Area>,
+    /// How far the element reaches below the top of what it is grown under, as R2m last found it
+    /// there, or `None` where its placement does not count toward that measure.
+    ///
+    /// What each element contributes to its trunk's [`reach`], held like any other answer so that a
+    /// trunk measuring again because one of its children moved asks the rest nothing. A child's
+    /// reach reads its own placement and the horizontal half of what it and its trunk and anchor
+    /// resolved to, and each of those that moves makes it dirty -- so an entry is found again
+    /// exactly where its element is, and a container of thousands with one child written pays for
+    /// one child.
+    reached: Vec<Option<f32>>,
     /// The element's own grid, divided at the breakpoint in force.
     tracks: Vec<Tracks>,
     /// The character cell the element's own font and size make, as R1 measured it. What
@@ -668,15 +680,24 @@ fn shaped(elements: &Elements) -> Vec<f32> {
 /// a percentage of this element, a row of its grid, an anchor's edge -- is asking how tall
 /// something else is, so it cannot be what decides how tall this is. See
 /// [`Config::measurable`](crate::placement::role::Config::measurable).
-fn reach(grove: &Grove, elements: &Elements, at: usize) -> f32 {
+///
+/// A child is asked only where it is dirty, and its answer kept. Every other child reaches exactly
+/// as far as it did when it last was, which is what [`reached`](Elements::reached) holds for it.
+fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
     let mut reach: f32 = 0.0;
-    for child_at in elements.children(at) {
-        let child = elements.order[child_at];
-        if !measurable(grove, child) {
-            continue;
+    for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
+        let child_at = elements.children[index] as usize;
+        if elements.dirty[child_at] {
+            let child = elements.order[child_at];
+            let far = measurable(grove, child).then(|| {
+                let context = raised(elements, at, child_at);
+                geometry(grove, child, &context, Axis::Vertical).0.far
+            });
+            elements.reached[child_at] = far;
         }
-        let context = raised(elements, at, child_at);
-        reach = reach.max(geometry(grove, child, &context, Axis::Vertical).0.far);
+        if let Some(far) = elements.reached[child_at] {
+            reach = reach.max(far);
+        }
     }
     reach
 }
@@ -1275,6 +1296,7 @@ fn structure(elements: &mut Elements, grove: &Grove) {
     );
     carry(&mut elements.section, &from, Section::default());
     carry(&mut elements.intrinsic, &from, Area::default());
+    carry(&mut elements.reached, &from, None);
     carry(&mut elements.cell, &from, Area::default());
     carry(&mut elements.composed, &from, None);
     carry(&mut elements.spanned, &from, None);

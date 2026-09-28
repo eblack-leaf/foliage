@@ -135,9 +135,9 @@ handful of sizes and is nowhere near this; animating a font size through every i
 
 ## Panics, and what they mean
 
-foliage panics only where a program stated something that cannot be true. Most of these panic at
-the call that stated it; the anchor cycle and a picture's pixels are checked when the op is
-applied, in the drain, and the anchor cycle names the calls involved for that reason:
+foliage panics only where a program stated something that cannot be true. All but one of these
+panic at the call that stated it. The anchor cycle is checked when the op is applied, in the drain,
+because it takes the whole tree to see, and it names the calls involved for that reason:
 
 | Panic | Cause |
 |---|---|

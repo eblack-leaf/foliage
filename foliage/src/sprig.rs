@@ -147,7 +147,9 @@ impl Sprig {
     ///
     /// [`Grove::image`] for a thread that cannot reach the registry: PNG or JPEG, decoded when it is
     /// drained. Pixels the worker made itself are [`pixels`](crate::Grow::pixels), which needs no
-    /// decode and states a size because there is nothing to read one from.
+    /// decode and states a size because there is nothing to read one from -- and which, here, refuses
+    /// pixels smaller than that size rather than panicking on them, reporting the name
+    /// [`missing`](crate::Pollen::missing) as it would an undecodable picture.
     pub fn image(&mut self, bytes: impl Into<Bytes>) -> Plate {
         let plate = self.0.naming.plate();
         self.supply(Destination::Picture(plate), bytes.into());
@@ -288,6 +290,15 @@ impl Queues for Sprig {
 
     fn picture(&mut self) -> Plate {
         self.0.naming.plate()
+    }
+
+    /// Refused as a picture that could not be decoded is: pushed as the arrival that failed, so it
+    /// is reported in the frame it reached, in its place among everything else this side wrote.
+    fn misfit(&mut self, plate: Plate, reason: String) {
+        self.queue(Op::Arrived {
+            destination: Destination::Picture(plate),
+            bytes: Err(reason),
+        });
     }
 }
 

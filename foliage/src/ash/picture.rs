@@ -53,9 +53,9 @@ impl Pictures {
 
     /// Uploads one picture, replacing whatever was held under that name.
     ///
-    /// Called for every plate the drain loaded, whether or not it was held before, which is what
-    /// makes writing the same name again -- a re-fetch at a higher resolution -- reach every element
-    /// drawing it.
+    /// Called the first time an instance wants a picture, and again for every held one whose name
+    /// the batch says was filled anew, which is what makes writing the same name again -- a
+    /// re-fetch at a higher resolution -- reach every element drawing it.
     pub(crate) fn upload(
         &mut self,
         ginkgo: &Ginkgo,

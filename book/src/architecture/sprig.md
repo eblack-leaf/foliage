@@ -97,11 +97,27 @@ browser, on the web), and when the bytes are in hand the thread pushes `Arrived`
 So a worker that *made* an asset and a thread that *read* one are the same case, and both are drained
 in the frame they reached.
 
-That is also why a worker's registrations never panic. Bytes handed to the grove at a call site are a
+That is also why nothing a worker hands over panics. Bytes handed to the grove at a call site are a
 statement the program made, and a proportional font there stops the program where it can be fixed.
 Bytes a worker built or was sent are not, and a panic on a worker would end the thread rather than
-name a call site, so they are refused and reported `missing` instead. (`load` and `pixels` are `Grow`
-verbs rather than registrations, so they keep their panic, and it happens in the drain.)
+stop the program, so they are refused and reported `missing` instead.
+
+`load` and `pixels` are `Grow` verbs rather than registrations, shared by both sides, so the rule is
+one method of the `Queues` trait both sides implement. The verb measures the pixels against their
+size where it is called, and hands a mismatch to `misfit`: the grove's panics at the caller's line
+(it is `#[track_caller]` all the way down), and the sprig's pushes the `Arrived` a failed decode would
+have pushed, so the refusal is reported `missing` in its place among everything else the worker
+wrote.
+
+```rust,ignore
+// sprig.rs
+fn misfit(&mut self, plate: Plate, reason: String) {
+    self.queue(Op::Arrived {
+        destination: Destination::Picture(plate),
+        bytes: Err(reason),
+    });
+}
+```
 
 ## Reading: pushed, not sampled
 

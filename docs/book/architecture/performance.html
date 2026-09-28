@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -206,30 +206,31 @@ present.</p>
 <p><strong>On the web.</strong> The same headless harness runs under <code>wasm-bindgen-test-runner</code>; it reads the same
 shape as native, 30 to 60 per cent slower.</p>
 <h2 id="where-a-frame-goes-today"><a class="header" href="#where-a-frame-goes-today">Where a frame goes today</a></h2>
-<p>Headless, release build, median of 120 frames, on a 4-core 2.1 GHz cloud VM with no GPU:</p>
+<p>Headless, release build, on a 4-core 2.1 GHz cloud VM with no GPU. Each reading is the median of
+120 frames, and the table holds the best of three runs, because wall-clock on a shared VM jitters:</p>
 <div class="table-wrapper">
 <table>
 <thead>
 <tr><th>Load</th><th>Writes each frame</th><th>512 cells</th><th>4096 cells</th></tr>
 </thead>
 <tbody>
-<tr><td><code>idle</code></td><td>nothing</td><td>0.034 ms</td><td>0.27 ms</td></tr>
-<tr><td><code>hover</code></td><td>one color motion on one cell</td><td>0.034 ms</td><td>0.27 ms</td></tr>
-<tr><td><code>scroll</code></td><td>a region holding every cell, wheeled</td><td>0.034 ms</td><td>0.53 ms</td></tr>
-<tr><td><code>color/64</code></td><td>a sixty-fourth of the fills</td><td>0.036 ms</td><td>0.28 ms</td></tr>
-<tr><td><code>color</code></td><td>every fill</td><td>0.11 ms</td><td>0.88 ms</td></tr>
-<tr><td><code>repaint</code></td><td>the scheme</td><td>0.089 ms</td><td>0.79 ms</td></tr>
-<tr><td><code>fade</code></td><td>one opacity motion on the container of every cell</td><td>0.10 ms</td><td>0.92 ms</td></tr>
-<tr><td><code>toggle</code></td><td>the whole field hidden and shown on alternate frames</td><td>0.12 ms</td><td>1.1 ms</td></tr>
-<tr><td><code>layout/64</code></td><td>a sixty-fourth of the placements</td><td>0.061 ms</td><td>0.66 ms</td></tr>
-<tr><td><code>text/64</code></td><td>a sixty-fourth of the labels</td><td>0.052 ms</td><td>0.61 ms</td></tr>
-<tr><td><code>churn</code></td><td>32 cells pruned and grown again</td><td>0.34 ms</td><td>1.9 ms</td></tr>
-<tr><td><code>layout</code></td><td>every placement</td><td>0.34 ms</td><td>3.3 ms</td></tr>
-<tr><td><code>move</code></td><td>a location motion on every cell</td><td>0.32 ms</td><td>3.2 ms</td></tr>
-<tr><td><code>deep</code></td><td>the root of a chain of stems nested as deep as there are cells</td><td>0.30 ms</td><td>3.2 ms</td></tr>
-<tr><td><code>resize</code></td><td>the viewport</td><td>0.36 ms</td><td>3.6 ms</td></tr>
-<tr><td><code>text</code></td><td>every label, with strings never shaped before</td><td>0.41 ms</td><td>4.4 ms</td></tr>
-<tr><td><code>type</code></td><td>a character typed and taken back, in an area of that many words</td><td>0.11 ms</td><td>0.86 ms</td></tr>
+<tr><td><code>idle</code></td><td>nothing</td><td>0.034 ms</td><td>0.285 ms</td></tr>
+<tr><td><code>hover</code></td><td>one color motion on one cell</td><td>0.034 ms</td><td>0.270 ms</td></tr>
+<tr><td><code>scroll</code></td><td>a region holding every cell, wheeled</td><td>0.034 ms</td><td>0.543 ms</td></tr>
+<tr><td><code>color/64</code></td><td>a sixty-fourth of the fills</td><td>0.035 ms</td><td>0.281 ms</td></tr>
+<tr><td><code>color</code></td><td>every fill</td><td>0.115 ms</td><td>0.951 ms</td></tr>
+<tr><td><code>repaint</code></td><td>the scheme</td><td>0.092 ms</td><td>0.825 ms</td></tr>
+<tr><td><code>fade</code></td><td>one opacity motion on the container of every cell</td><td>0.107 ms</td><td>0.992 ms</td></tr>
+<tr><td><code>toggle</code></td><td>the whole field hidden and shown on alternate frames</td><td>0.119 ms</td><td>1.208 ms</td></tr>
+<tr><td><code>layout/64</code></td><td>a sixty-fourth of the placements</td><td>0.053 ms</td><td>0.486 ms</td></tr>
+<tr><td><code>text/64</code></td><td>a sixty-fourth of the labels</td><td>0.045 ms</td><td>0.445 ms</td></tr>
+<tr><td><code>churn</code></td><td>32 cells pruned and grown again</td><td>0.342 ms</td><td>1.772 ms</td></tr>
+<tr><td><code>layout</code></td><td>every placement</td><td>0.331 ms</td><td>3.304 ms</td></tr>
+<tr><td><code>move</code></td><td>a location motion on every cell</td><td>0.316 ms</td><td>3.145 ms</td></tr>
+<tr><td><code>deep</code></td><td>the root of a chain of stems nested as deep as there are cells</td><td>0.294 ms</td><td>3.189 ms</td></tr>
+<tr><td><code>resize</code></td><td>the viewport</td><td>0.376 ms</td><td>3.757 ms</td></tr>
+<tr><td><code>text</code></td><td>every label, with strings never shaped before</td><td>0.414 ms</td><td>4.483 ms</td></tr>
+<tr><td><code>type</code></td><td>a character typed and taken back, in an area of that many words</td><td>0.108 ms</td><td>0.845 ms</td></tr>
 </tbody>
 </table>
 </div>
@@ -245,34 +246,36 @@ scroll, clip, inherit), each about 0.05 ms. They run over every element because 
 position to start from; they skip nothing but also do nothing expensive per element. Extraction on an
 idle frame visits nothing that moved and costs a hundredth of a millisecond.</p>
 <p><strong>A write that moves nothing places nothing.</strong> <code>color</code>, <code>repaint</code>, <code>fade</code> and <code>hover</code> rewrite what
-elements look like, and none of them runs the axes: <code>color</code> at 0.88 ms is re-reading each restyled
-element’s standing (0.32 ms), extraction resolving and comparing fills (0.24 ms), and the drain
-applying eight thousand ops (0.21 ms). One motion on one cell (<code>hover</code>) is indistinguishable from
+elements look like, and none of them runs the axes: <code>color</code> at 0.95 ms is re-reading each restyled
+element’s standing (0.34 ms), extraction resolving and comparing fills (0.23 ms), and the drain
+applying eight thousand ops (0.19 ms). One motion on one cell (<code>hover</code>) is indistinguishable from
 idle.</p>
 <p><strong>A write that moves a box costs the box, and what depends on it.</strong> <code>layout</code> at 3.3 ms is mostly the
-two axes (1.1 ms) and the measure pass (0.43 ms), then the drain and extraction. <code>layout/64</code> shows the
-incremental resolution working: a sixty-fourth of the writes costs a fifth of the frame. What is left
-is worth reading: most of <code>layout/64</code>’s resolution is R2m’s <code>reach</code> (0.19 ms), because every element
-written marks its ancestors to measure again, and the container over the field measures by reaching
-over all four thousand of its children. A write under a very wide container pays for the container’s
-children.</p>
-<p><strong>New text pays for shaping.</strong> <code>text</code> at 4.4 ms is <code>measure</code> shaping eight thousand strings it has
-never seen (1.5 ms) and <code>wrap</code> wrapping them (0.83 ms). A string that has been shaped before, at that
+two axes (1.3 ms) and the measure pass (0.50 ms), then the drain and extraction (about 0.6 ms each).
+<code>layout/64</code> shows the incremental resolution working: a sixty-fourth of the writes costs a seventh of
+the frame. What is left of it is mostly the accumulations every frame pays, and the box stack built
+again (0.10 ms) because the cells that moved moved in it. The measure is hardly in it: every element
+written still marks its ancestors to measure again, and the container over the field still measures,
+but it asks only the sixty-four children that moved and reads what the other four thousand reached
+from when they last did (<a href="resolution.html#r2-the-two-axes-and-the-measure-between-them">Resolution</a>).
+Before that, asking all of them was 0.19 ms of this load on its own, and <code>layout/64</code> was 0.66 ms.</p>
+<p><strong>New text pays for shaping.</strong> <code>text</code> at 4.5 ms is <code>measure</code> shaping four thousand strings it has
+never seen (1.7 ms) and <code>wrap</code> wrapping them (0.76 ms). A string that has been shaped before, at that
 font and size, is a cache lookup. The same labels rewritten to strings already on screen would cost
 little more than <code>layout</code>.</p>
-<p><strong>Changing the tree’s shape rebuilds its order.</strong> <code>churn</code> regrows only 32 cells, yet costs 1.9 ms, and
-0.79 ms of it is <code>structure</code>: the dependency order rebuilt over all eight thousand elements, which any
+<p><strong>Changing the tree’s shape rebuilds its order.</strong> <code>churn</code> regrows only 32 cells, yet costs 1.8 ms, and
+0.83 ms of it is <code>structure</code>: the dependency order rebuilt over all eight thousand elements, which any
 grow or prune triggers. Another 0.36 ms is the box stack sorted again. Hiding and showing the entire
-field (<code>toggle</code>, 1.1 ms) is cheaper than regrowing 32 cells of it.</p>
+field (<code>toggle</code>, 1.2 ms) is cheaper than regrowing 32 cells of it.</p>
 <p><strong>A resize is everything.</strong> The viewport, the breakpoint and the short reading are read by every
-placement, so <code>resize</code> is every element resolved and every run measured again (3.6 ms). Dragging a
+placement, so <code>resize</code> is every element resolved and every run measured again (3.8 ms). Dragging a
 window’s edge does this every frame of the drag, which is why it is the most expensive thing that
 routinely happens.</p>
 <p><strong>Scrolling moves what is inside.</strong> <code>scroll</code> resolves no more than idle does, but R4 moves the drawn
 box of everything in the region, so every descendant is <code>moved</code> and extraction revisits all of it
-(0.20 ms), most of it only to find it culled.</p>
+(0.23 ms), most of it only to find it culled.</p>
 <p><strong>Typing into a long run is linear in the run.</strong> The <code>type</code> load is a character typed into an area
-holding four thousand words, and it costs 0.86 ms per keystroke: the run is shaped, wrapped and drawn
+holding four thousand words, and it costs 0.85 ms per keystroke: the run is shaped, wrapped and drawn
 whole, and placing the caret and selection reads character positions that each walk the run from its
 start.</p>
 <h2 id="what-an-app-can-do-with-this"><a class="header" href="#what-an-app-can-do-with-this">What an app can do with this</a></h2>
@@ -281,8 +284,9 @@ one is, the table suggests where to look:</p>
 <ul>
 <li><strong>Prefer writes that do not move boxes.</strong> Color, opacity, visibility, elevation and rounding changes
 are drawn again without being placed again.</li>
-<li><strong>Keep content-sized containers narrow.</strong> A container whose children number in the thousands is
-measured over all of them whenever any one of them is written.</li>
+<li><strong>Write the child, not the container.</strong> A container sized to what it holds measures again when
+anything under it moves, and asks only what moved, so rewriting one row of a long list costs the
+row. Rewriting the container itself resolves everything under it.</li>
 <li><strong>Hide rather than regrow</strong> things that come and go every frame: a grow or a prune rebuilds the
 order of the whole tree. (The reverse holds for something parked for good: a hidden subtree is still
 resolved whenever everything is, on a resize for instance.)</li>

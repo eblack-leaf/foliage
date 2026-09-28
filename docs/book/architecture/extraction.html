@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -250,6 +250,12 @@ reads state (the extent, above all) can ever see “currently culled”.</p>
 <p>Two more things are not drawn yet rather than not drawn: an icon whose distance field has not arrived
 and an image whose pixels have not. Each occupies its box, is absent from the batch rather than held
 as blank, and appears on the frame its asset lands, with nothing to undo.</p>
+<p>One change reaches the backend without any instance saying so. An image’s instance <em>names</em> its
+picture rather than holding it, so new pixels loaded under the same name, at the same shape, leave
+every instance drawing them exactly as it was, and every comparison equal. So the batch carries one
+more list beside the instances, <code>refilled</code>: every picture name filled since the last batch, sorted
+and each once, taken from the registry where the drain noted it. The backend uploads each one it
+already holds again, and leaves the rest for the first instance that wants them.</p>
 <h2 id="what-is-stated"><a class="header" href="#what-is-stated">What is stated</a></h2>
 <p>For each painted element, extraction builds what its renderer needs, entirely in logical pixels:</p>
 <div class="table-wrapper">

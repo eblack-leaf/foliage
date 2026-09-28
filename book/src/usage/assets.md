@@ -67,11 +67,12 @@ picture in a format foliage does not decode, a font that turned out to be propor
 one thing an app can do about any of them, so they are one report, and the reason is written to
 the trace.
 
-Bytes given outright that are wrong are a different matter. A proportional font or an icon field
-too small for the size it was said to be, stated in the program's own source, panics at the call:
-that is a mistake in the program and worth stopping for where it can be fixed. The same bytes read
-from a path or a URL are reported `missing` instead, because what a file turned out to hold is not
-something the program stated.
+Bytes given outright that are wrong are a different matter. A proportional font, or an icon field
+or [pixels](#pixels-an-app-makes) too small for the size they were said to be, stated in the
+program's own source, panics at the call: that is a mistake in the program and worth stopping for
+where it can be fixed. The same bytes read from a path or a URL are reported `missing` instead,
+because what a file turned out to hold is not something the program stated, and so are bytes handed
+over by a worker ([Off the frame](off-frame.md#pictures-and-fonts-from-a-worker)).
 
 **A font is the one worth waiting for.** A run composed in a face that has not arrived is measured
 in the bundled face, so a page laid out in `letters` is laid out sensibly from the first frame. When
@@ -112,7 +113,7 @@ of everything above it) still applies.
 row-major, `size` texels across.
 
 ```rust
-# use foliage::{Area, Boxed, Fit, Grove, Grow, Image, Leaf, Location, Pollen, Source, left, top};
+# use foliage::{Area, Boxed, Fit, Grove, Grow, Image, Leaf, Location, Plate, Pollen, Source, left, top};
 /// A one-pixel-tall strip of the scheme's first spectrum.
 fn strip(grove: &Grove) -> (Vec<u8>, Area) {
     let stops = grove.scheme().stops(0);
@@ -127,30 +128,34 @@ fn strip(grove: &Grove) -> (Vec<u8>, Area) {
     (rgba, Area::new(width as f32, 1.0))
 }
 
-# fn grow(grove: &mut Grove, page: Leaf) -> Leaf {
+# fn grow(grove: &mut Grove, page: Leaf) -> Plate {
 let (rgba, size) = strip(grove);
 let gradient = grove.pixels(rgba, size);
-let bar = grove.branch(
+grove.branch(
     page,
     Image::new(gradient)
         .fit(Fit::Stretch)
         .at(Location::new().xs(left(16.px()).right(100.pct() - 16.px()), top(16.px()).height(8.px()))),
 );
-# bar
+# gradient
 # }
-# fn frame(grove: &mut Grove, pollen: &Pollen, bar: Leaf) {
-// The strip depends on the scheme, so a new scheme is a new picture, drawn by the same element.
+# fn frame(grove: &mut Grove, pollen: &Pollen, gradient: Plate) {
+// The strip depends on the scheme, so a new scheme is new pixels under the same name.
 if pollen.repainted() {
     let (rgba, size) = strip(grove);
-    let gradient = grove.pixels(rgba, size);
-    grove.depict(bar, gradient);
+    grove.load(gradient, rgba, size);
 }
 # }
 ```
 
-`grove.plate()` hands out a name with nothing behind it yet, and `grove.load(plate, rgba, size)`
-fills it in a later frame, which is the shape of a picture decoded or rendered somewhere else: the
-element is grown against the name now, occupies its box, and appears on the frame the pixels land.
+`grove.load(plate, rgba, size)` fills a name, and writing one that already holds a picture replaces
+it: every element drawing it follows, and none of them is written to. That is the right shape for a
+picture that is redrawn, like the strip above, rather than a new name each time, because a picture
+once drawn stays on the GPU for as long as the app runs.
+
+`grove.plate()` hands out a name with nothing behind it yet, for `load` to fill in a later frame,
+which is the shape of a picture decoded or rendered somewhere else: the element is grown against the
+name now, occupies its box, and appears on the frame the pixels land.
 
 ## Marks
 

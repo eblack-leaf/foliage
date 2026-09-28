@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-73371751.js";
+            window.path_to_searchindex_js = "searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c59f2531.js"></script>
@@ -3117,11 +3117,12 @@ handed to the grove directly are registered in the call itself, and there is not
 picture in a format foliage does not decode, a font that turned out to be proportional. There is
 one thing an app can do about any of them, so they are one report, and the reason is written to
 the trace.</p>
-<p>Bytes given outright that are wrong are a different matter. A proportional font or an icon field
-too small for the size it was said to be, stated in the program’s own source, panics at the call:
-that is a mistake in the program and worth stopping for where it can be fixed. The same bytes read
-from a path or a URL are reported <code>missing</code> instead, because what a file turned out to hold is not
-something the program stated.</p>
+<p>Bytes given outright that are wrong are a different matter. A proportional font, or an icon field
+or <a href="#pixels-an-app-makes">pixels</a> too small for the size they were said to be, stated in the
+program’s own source, panics at the call: that is a mistake in the program and worth stopping for
+where it can be fixed. The same bytes read from a path or a URL are reported <code>missing</code> instead,
+because what a file turned out to hold is not something the program stated, and so are bytes handed
+over by a worker (<a href="#pictures-and-fonts-from-a-worker">Off the frame</a>).</p>
 <p><strong>A font is the one worth waiting for.</strong> A run composed in a face that has not arrived is measured
 in the bundled face, so a page laid out in <code>letters</code> is laid out sensibly from the first frame. When
 the real face lands, every run is measured again and the page reflows on that frame. An app that
@@ -3156,7 +3157,7 @@ of everything above it) still applies.</p>
 <h3 id="pixels-an-app-makes"><a class="header" href="#pixels-an-app-makes">Pixels an app makes</a></h3>
 <p><code>grove.pixels(rgba, size)</code> registers pixels the app computed: RGBA, one byte per channel,
 row-major, <code>size</code> texels across.</p>
-<pre><code class="language-rust"><span class="boring">use foliage::{Area, Boxed, Fit, Grove, Grow, Image, Leaf, Location, Pollen, Source, left, top};
+<pre><code class="language-rust"><span class="boring">use foliage::{Area, Boxed, Fit, Grove, Grow, Image, Leaf, Location, Plate, Pollen, Source, left, top};
 </span>/// A one-pixel-tall strip of the scheme's first spectrum.
 fn strip(grove: &amp;Grove) -&gt; (Vec&lt;u8&gt;, Area) {
     let stops = grove.scheme().stops(0);
@@ -3171,28 +3172,31 @@ fn strip(grove: &amp;Grove) -&gt; (Vec&lt;u8&gt;, Area) {
     (rgba, Area::new(width as f32, 1.0))
 }
 
-<span class="boring">fn grow(grove: &amp;mut Grove, page: Leaf) -&gt; Leaf {
+<span class="boring">fn grow(grove: &amp;mut Grove, page: Leaf) -&gt; Plate {
 </span>let (rgba, size) = strip(grove);
 let gradient = grove.pixels(rgba, size);
-let bar = grove.branch(
+grove.branch(
     page,
     Image::new(gradient)
         .fit(Fit::Stretch)
         .at(Location::new().xs(left(16.px()).right(100.pct() - 16.px()), top(16.px()).height(8.px()))),
 );
-<span class="boring">bar
+<span class="boring">gradient
 </span><span class="boring">}
-</span><span class="boring">fn frame(grove: &amp;mut Grove, pollen: &amp;Pollen, bar: Leaf) {
-</span>// The strip depends on the scheme, so a new scheme is a new picture, drawn by the same element.
+</span><span class="boring">fn frame(grove: &amp;mut Grove, pollen: &amp;Pollen, gradient: Plate) {
+</span>// The strip depends on the scheme, so a new scheme is new pixels under the same name.
 if pollen.repainted() {
     let (rgba, size) = strip(grove);
-    let gradient = grove.pixels(rgba, size);
-    grove.depict(bar, gradient);
+    grove.load(gradient, rgba, size);
 }
 <span class="boring">}</span></code></pre>
-<p><code>grove.plate()</code> hands out a name with nothing behind it yet, and <code>grove.load(plate, rgba, size)</code>
-fills it in a later frame, which is the shape of a picture decoded or rendered somewhere else: the
-element is grown against the name now, occupies its box, and appears on the frame the pixels land.</p>
+<p><code>grove.load(plate, rgba, size)</code> fills a name, and writing one that already holds a picture replaces
+it: every element drawing it follows, and none of them is written to. That is the right shape for a
+picture that is redrawn, like the strip above, rather than a new name each time, because a picture
+once drawn stays on the GPU for as long as the app runs.</p>
+<p><code>grove.plate()</code> hands out a name with nothing behind it yet, for <code>load</code> to fill in a later frame,
+which is the shape of a picture decoded or rendered somewhere else: the element is grown against the
+name now, occupies its box, and appears on the frame the pixels land.</p>
 <h2 id="marks"><a class="header" href="#marks">Marks</a></h2>
 <p>An icon is not a bitmap. A mark has no size of its own (the same artwork is a 16-pixel affordance
 and a 96-pixel empty state), so it is stored as a <strong>multi-channel signed distance field</strong>: a small
@@ -3681,14 +3685,15 @@ std::thread::spawn(move || {
 });
 <span class="boring">}</span></code></pre>
 <p><code>sprig.font</code>, <code>sprig.icon</code> and <code>sprig.image</code> are the grove’s registrations for a thread. One
-difference is deliberate: <strong>none of the three panics.</strong> A face that turns out to be proportional,
-or a field smaller than it was said to be, is reported <code>missing</code>, because a worker holds bytes it
-built or was sent rather than bytes the program stated, and a panic on a thread ends the thread
-rather than naming a callsite.</p>
-<p><code>load</code> and <code>pixels</code> are different, because they are <code>Grow</code> verbs rather than registrations: they
-queue the pixels as an op, and the drain applies it. Pixels shorter than the size they were given
-with still panic, and the panic is in the drain, on the frame’s thread. A worker that builds pixels
-should get the size right, as the <code>render</code> above does by construction.</p>
+difference is deliberate: <strong>nothing a worker hands over panics.</strong> A face that turns out to be
+proportional, or a field smaller than it was said to be, is reported <code>missing</code>, because a worker
+holds bytes it built or was sent rather than bytes the program stated, and a panic on a thread ends
+the thread rather than stopping the program.</p>
+<p><code>load</code> and <code>pixels</code> follow the same rule, although they are <code>Grow</code> verbs the frame writes too. At
+the frame’s call site, pixels shorter than the size they were given panic at that line; from a
+sprig, they are refused where they are written, the name keeps whatever it held, and the name is
+reported <code>missing</code> in the frame after the refusal is drained. A worker that builds pixels still
+does best to get the size right, as the <code>render</code> above does by construction.</p>
 <h2 id="what-not-to-do-from-a-worker"><a class="header" href="#what-not-to-do-from-a-worker">What not to do from a worker</a></h2>
 <p>A sprig is a way to reach the tree, not a second frame. Two things follow.</p>
 <ul>
@@ -3946,9 +3951,9 @@ display density onto one texture, and nothing is ever evicted from it. When it f
 is written once and new characters stop drawing. A monospaced app addresses a small alphabet at a
 handful of sizes and is nowhere near this; animating a font size through every integer would be.</p>
 <h2 id="panics-and-what-they-mean"><a class="header" href="#panics-and-what-they-mean">Panics, and what they mean</a></h2>
-<p>foliage panics only where a program stated something that cannot be true. Most of these panic at
-the call that stated it; the anchor cycle and a picture’s pixels are checked when the op is
-applied, in the drain, and the anchor cycle names the calls involved for that reason:</p>
+<p>foliage panics only where a program stated something that cannot be true. All but one of these
+panic at the call that stated it. The anchor cycle is checked when the op is applied, in the drain,
+because it takes the whole tree to see, and it names the calls involved for that reason:</p>
 <div class="table-wrapper">
 <table>
 <thead>
@@ -5660,11 +5665,11 @@ rather than careless is that a dropped op changes nothing: the state is exactly 
 been had the op not been written. <a href="#why-did-nothing-happen">Debugging</a> lists the
 reasons.</p>
 <p>The exceptions are statements that cannot be true, and they panic rather than drop, because they
-are mistakes in the program rather than circumstances of the run. Two of them reach the drain: an
-anchor that would close a cycle (<a href="#anchors-and-the-one-thing-that-panics">The tree</a>), and
-pixels shorter than the size a <code>load</code> gave them. The rest (a proportional font handed over as
-bytes, a negative aspect ratio, a hue slot out of range) panic where they are written, before any op
-exists.</p>
+are mistakes in the program rather than circumstances of the run. One of them reaches the drain: an
+anchor that would close a cycle (<a href="#anchors-and-the-one-thing-that-panics">The tree</a>), which
+takes the whole tree to see. The rest (a proportional font handed over as bytes, pixels shorter than
+the size a <code>load</code> gave them, a negative aspect ratio, a hue slot out of range) panic where they are
+written, before any op exists, so the panic names the app’s line rather than the drain’s.</p>
 <h2 id="one-writer-per-property"><a class="header" href="#one-writer-per-property">One writer per property</a></h2>
 <p>A motion and a direct write can both want the same property. The drain settles it with one rule: a
 direct write <strong>cancels</strong> any motion running on the property it writes, before it writes.</p>
@@ -5786,6 +5791,7 @@ pub(crate) struct Elements {
     pub(crate) standing: Vec&lt;Standing&gt;, // what each declared that the later passes read
     section: Vec&lt;Section&gt;,            // the placed box
     intrinsic: Vec&lt;Area&gt;,             // what content() reads
+    reached: Vec&lt;Option&lt;f32&gt;&gt;,        // how far each reaches toward its trunk's measure
     cell: Vec&lt;Area&gt;,                  // the character cell
     pub(crate) composed: Vec&lt;Option&lt;Arc&lt;Shaped&gt;&gt;&gt;, // the shaped run
     pub(crate) drawn: Vec&lt;Section&gt;,   // the placed box, moved by scrolling
@@ -5889,6 +5895,33 @@ travels toward the trunk and stops there, where a box travels away from it. An e
 to something new is marked dirty, and R2b’s own closure (<code>dirty[at] |= dirty[trunk] || dirty[anchor]</code>
 at the top of each axis) spreads that to everything placed against it. That is why R2m sits between
 the axes and not after them.</p>
+<p>An element measuring again because one child moved does not ask the others. How far each child
+reaches is a column of its own, <code>reached</code>, written when the child is resolved in its trunk’s reach
+and read back otherwise:</p>
+<pre><code class="language-rust ignore">// rowan.rs
+fn reach(grove: &amp;Grove, elements: &amp;mut Elements, at: usize) -&gt; f32 {
+    let mut reach: f32 = 0.0;
+    for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
+        let child_at = elements.children[index] as usize;
+        if elements.dirty[child_at] {
+            let child = elements.order[child_at];
+            let far = measurable(grove, child).then(|| {
+                let context = raised(elements, at, child_at);
+                geometry(grove, child, &amp;context, Axis::Vertical).0.far
+            });
+            elements.reached[child_at] = far;
+        }
+        if let Some(far) = elements.reached[child_at] {
+            reach = reach.max(far);
+        }
+    }
+    reach
+}</code></pre>
+<p>It is the rule every other column keeps, applied to one more answer. What a child’s reach reads is
+its own placement, the horizontal half of what it and its trunk and anchor resolved to, and its own
+measure; each of those that moves makes the child dirty, the last one here in R2m itself, before
+the walk reaches the trunk. So a container of thousands with one child written resolves one child
+to measure itself, and the column is never behind.</p>
 <p><strong>A motion in progress is resolved inside the same axis.</strong> For an element with a <code>Location</code> motion
 running, R2 resolves the target <em>and</em> the placement it departed from, in the same context, and
 blends the two. Both ends are answered against this frame’s trunks and anchors, so a resize or a
@@ -6536,7 +6569,9 @@ than computing <code>from + (to - from) * 1.0</code>, which can land a rounding 
 overshoot is left to overshoot in the middle.</p>
 <p>Timing is milliseconds throughout. <code>after(n)</code> holds the motion where it was for <code>n</code> milliseconds
 rather than queuing it: the motion exists from the frame it was asked for, and a direct write cancels
-it whether or not it has begun to move.</p>
+it whether or not it has begun to move. A motion of no length holds for its delay like any other and
+then lands in one step, because <code>Timing::at</code> asks whether the delay has passed before it asks whether
+there is a duration to be a fraction of.</p>
 <h2 id="one-clock-capped"><a class="header" href="#one-clock-capped">One clock, capped</a></h2>
 <p>Every motion reads the clock sampled at intake, so two motions started together stay together. The
 loop caps how far the clock may move in one frame at 100 milliseconds
@@ -7109,6 +7144,12 @@ reads state (the extent, above all) can ever see “currently culled”.</p>
 <p>Two more things are not drawn yet rather than not drawn: an icon whose distance field has not arrived
 and an image whose pixels have not. Each occupies its box, is absent from the batch rather than held
 as blank, and appears on the frame its asset lands, with nothing to undo.</p>
+<p>One change reaches the backend without any instance saying so. An image’s instance <em>names</em> its
+picture rather than holding it, so new pixels loaded under the same name, at the same shape, leave
+every instance drawing them exactly as it was, and every comparison equal. So the batch carries one
+more list beside the instances, <code>refilled</code>: every picture name filled since the last batch, sorted
+and each once, taken from the registry where the drain noted it. The backend uploads each one it
+already holds again, and leaves the rest for the first instance that wants them.</p>
 <h2 id="what-is-stated"><a class="header" href="#what-is-stated">What is stated</a></h2>
 <p>For each painted element, extraction builds what its renderer needs, entirely in logical pixels:</p>
 <div class="table-wrapper">
@@ -7235,7 +7276,8 @@ renderer. This is where everything that depends on the display’s density is de
 ramp sized for the density;</li>
 <li>an <strong>icon</strong>’s mark is packed onto the sheet the first time any instance draws it, and its distance
 range is converted into one on screen;</li>
-<li>an <strong>image</strong>’s picture is uploaded the first time an instance draws it, as a texture of its own;</li>
+<li>an <strong>image</strong>’s picture is uploaded the first time an instance draws it, as a texture of its own,
+and uploaded again whenever the batch says its name was filled anew while it is held (see below);</li>
 <li>a <strong>run</strong>’s glyphs are cut through the atlas at the density, and snapped to the device grid.</li>
 </ul>
 <p>Then each renderer flushes to the GPU. An instance buffer is kept in rank order, so what a flush costs
@@ -7431,11 +7473,23 @@ font is megabytes, and the thread that asked is the one drawing), a URL is fetch
 browser, on the web), and when the bytes are in hand the thread pushes <code>Arrived</code> and rouses the loop.
 So a worker that <em>made</em> an asset and a thread that <em>read</em> one are the same case, and both are drained
 in the frame they reached.</p>
-<p>That is also why a worker’s registrations never panic. Bytes handed to the grove at a call site are a
+<p>That is also why nothing a worker hands over panics. Bytes handed to the grove at a call site are a
 statement the program made, and a proportional font there stops the program where it can be fixed.
 Bytes a worker built or was sent are not, and a panic on a worker would end the thread rather than
-name a call site, so they are refused and reported <code>missing</code> instead. (<code>load</code> and <code>pixels</code> are <code>Grow</code>
-verbs rather than registrations, so they keep their panic, and it happens in the drain.)</p>
+stop the program, so they are refused and reported <code>missing</code> instead.</p>
+<p><code>load</code> and <code>pixels</code> are <code>Grow</code> verbs rather than registrations, shared by both sides, so the rule is
+one method of the <code>Queues</code> trait both sides implement. The verb measures the pixels against their
+size where it is called, and hands a mismatch to <code>misfit</code>: the grove’s panics at the caller’s line
+(it is <code>#[track_caller]</code> all the way down), and the sprig’s pushes the <code>Arrived</code> a failed decode would
+have pushed, so the refusal is reported <code>missing</code> in its place among everything else the worker
+wrote.</p>
+<pre><code class="language-rust ignore">// sprig.rs
+fn misfit(&amp;mut self, plate: Plate, reason: String) {
+    self.queue(Op::Arrived {
+        destination: Destination::Picture(plate),
+        bytes: Err(reason),
+    });
+}</code></pre>
 <h2 id="reading-pushed-not-sampled"><a class="header" href="#reading-pushed-not-sampled">Reading: pushed, not sampled</a></h2>
 <p>A worker cannot sample the tree. A read needs the world, and the world belongs to the frame. So the
 reads a worker needs are <strong>pushed</strong> to it, at one point in the frame, by <code>sprig::publish</code>:</p>
@@ -7567,13 +7621,13 @@ fn a_drag_on_a_button_scrolls_the_region_and_the_button_gets_no_tap() {
 </thead>
 <tbody>
 <tr><td><code>frame.rs</code>, <code>root.rs</code>, <code>lifecycle.rs</code></td><td>41</td><td>the frame laws, taking root, planting and withering</td></tr>
-<tr><td><code>placement.rs</code>, <code>rowan.rs</code>, <code>elevation.rs</code></td><td>89</td><td>the placement algebra, resolution, the stack order</td></tr>
+<tr><td><code>placement.rs</code>, <code>rowan.rs</code>, <code>elevation.rs</code></td><td>90</td><td>the placement algebra, resolution, the stack order</td></tr>
 <tr><td><code>text.rs</code>, <code>text_input.rs</code>, <code>text_area.rs</code></td><td>127</td><td>the cell, wrapping, <code>content()</code>, and editing</td></tr>
 <tr><td><code>interaction.rs</code>, <code>focus.rs</code>, <code>keys.rs</code></td><td>61</td><td>the box stack, claiming, holds, focus, keys</td></tr>
 <tr><td><code>views.rs</code></td><td>53</td><td>extent, pinning, chaining, <code>ScrollTo</code>, momentum</td></tr>
-<tr><td><code>aspen.rs</code></td><td>58</td><td>motion, channels, timers, sequences</td></tr>
-<tr><td><code>elm.rs</code>, <code>renderers.rs</code>, <code>palette.rs</code></td><td>78</td><td>extraction, every renderer, the scheme</td></tr>
-<tr><td><code>sprig.rs</code>, <code>assets.rs</code>, <code>platform.rs</code></td><td>55</td><td>off the frame, arriving bytes, the platform edges</td></tr>
+<tr><td><code>aspen.rs</code></td><td>59</td><td>motion, channels, timers, sequences</td></tr>
+<tr><td><code>elm.rs</code>, <code>renderers.rs</code>, <code>palette.rs</code></td><td>80</td><td>extraction, every renderer, the scheme</td></tr>
+<tr><td><code>sprig.rs</code>, <code>assets.rs</code>, <code>platform.rs</code></td><td>56</td><td>off the frame, arriving bytes, the platform edges</td></tr>
 <tr><td><code>tracing.rs</code></td><td>3</td><td>what a quiet frame reports</td></tr>
 </tbody>
 </table>
@@ -7600,6 +7654,18 @@ code</strong> rather than to the compiler’s wording, which changes between rel
 <p>Each one holds a line of <a href="#the-order-is-in-the-types">the grammar’s types</a>: no second
 extent on an axis, no vertical length in a horizontal role, no coordinate crossing axes, no adding two
 positions.</p>
+<h2 id="resolving-less-lands-where-resolving-everything-does"><a class="header" href="#resolving-less-lands-where-resolving-everything-does">Resolving less lands where resolving everything does</a></h2>
+<p>Resolution leaves alone whatever nothing it reads was written to, and keeps the answers it already
+has in its columns (<a href="#resolution">Resolution</a>). The claim that makes that safe, that the answer
+kept is the answer resolving again would give, is tested directly rather than case by case:
+<code>resolving_only_what_was_written_lands_where_resolving_everything_does</code> (<code>tests/rowan.rs</code>) runs one
+seeded, wandering script on two groves (rows grown, moved, set in motion, hidden and pruned under
+columns sized to what they hold, labels rewritten, columns narrowed) for four hundred frames. One
+grove is made to resolve every element every frame, and after each frame every element has to be
+where the other one put it.</p>
+<p>A test like that is only worth what it can catch, so it was checked by breaking the thing it
+guards: with R2m made to trust a child’s held reach where the child had only just measured to
+something new, it fails on its third frame.</p>
 <h2 id="the-quiet-frame"><a class="header" href="#the-quiet-frame">The quiet frame</a></h2>
 <p><code>tests/tracing.rs</code> installs a subscriber and asserts that a frame which changes nothing, over a tree
 of five hundred elements, emits nothing above <code>trace</code>, and the same for a watch at rest and a focused
@@ -7666,30 +7732,31 @@ present.</p>
 <p><strong>On the web.</strong> The same headless harness runs under <code>wasm-bindgen-test-runner</code>; it reads the same
 shape as native, 30 to 60 per cent slower.</p>
 <h2 id="where-a-frame-goes-today"><a class="header" href="#where-a-frame-goes-today">Where a frame goes today</a></h2>
-<p>Headless, release build, median of 120 frames, on a 4-core 2.1 GHz cloud VM with no GPU:</p>
+<p>Headless, release build, on a 4-core 2.1 GHz cloud VM with no GPU. Each reading is the median of
+120 frames, and the table holds the best of three runs, because wall-clock on a shared VM jitters:</p>
 <div class="table-wrapper">
 <table>
 <thead>
 <tr><th>Load</th><th>Writes each frame</th><th>512 cells</th><th>4096 cells</th></tr>
 </thead>
 <tbody>
-<tr><td><code>idle</code></td><td>nothing</td><td>0.034 ms</td><td>0.27 ms</td></tr>
-<tr><td><code>hover</code></td><td>one color motion on one cell</td><td>0.034 ms</td><td>0.27 ms</td></tr>
-<tr><td><code>scroll</code></td><td>a region holding every cell, wheeled</td><td>0.034 ms</td><td>0.53 ms</td></tr>
-<tr><td><code>color/64</code></td><td>a sixty-fourth of the fills</td><td>0.036 ms</td><td>0.28 ms</td></tr>
-<tr><td><code>color</code></td><td>every fill</td><td>0.11 ms</td><td>0.88 ms</td></tr>
-<tr><td><code>repaint</code></td><td>the scheme</td><td>0.089 ms</td><td>0.79 ms</td></tr>
-<tr><td><code>fade</code></td><td>one opacity motion on the container of every cell</td><td>0.10 ms</td><td>0.92 ms</td></tr>
-<tr><td><code>toggle</code></td><td>the whole field hidden and shown on alternate frames</td><td>0.12 ms</td><td>1.1 ms</td></tr>
-<tr><td><code>layout/64</code></td><td>a sixty-fourth of the placements</td><td>0.061 ms</td><td>0.66 ms</td></tr>
-<tr><td><code>text/64</code></td><td>a sixty-fourth of the labels</td><td>0.052 ms</td><td>0.61 ms</td></tr>
-<tr><td><code>churn</code></td><td>32 cells pruned and grown again</td><td>0.34 ms</td><td>1.9 ms</td></tr>
-<tr><td><code>layout</code></td><td>every placement</td><td>0.34 ms</td><td>3.3 ms</td></tr>
-<tr><td><code>move</code></td><td>a location motion on every cell</td><td>0.32 ms</td><td>3.2 ms</td></tr>
-<tr><td><code>deep</code></td><td>the root of a chain of stems nested as deep as there are cells</td><td>0.30 ms</td><td>3.2 ms</td></tr>
-<tr><td><code>resize</code></td><td>the viewport</td><td>0.36 ms</td><td>3.6 ms</td></tr>
-<tr><td><code>text</code></td><td>every label, with strings never shaped before</td><td>0.41 ms</td><td>4.4 ms</td></tr>
-<tr><td><code>type</code></td><td>a character typed and taken back, in an area of that many words</td><td>0.11 ms</td><td>0.86 ms</td></tr>
+<tr><td><code>idle</code></td><td>nothing</td><td>0.034 ms</td><td>0.285 ms</td></tr>
+<tr><td><code>hover</code></td><td>one color motion on one cell</td><td>0.034 ms</td><td>0.270 ms</td></tr>
+<tr><td><code>scroll</code></td><td>a region holding every cell, wheeled</td><td>0.034 ms</td><td>0.543 ms</td></tr>
+<tr><td><code>color/64</code></td><td>a sixty-fourth of the fills</td><td>0.035 ms</td><td>0.281 ms</td></tr>
+<tr><td><code>color</code></td><td>every fill</td><td>0.115 ms</td><td>0.951 ms</td></tr>
+<tr><td><code>repaint</code></td><td>the scheme</td><td>0.092 ms</td><td>0.825 ms</td></tr>
+<tr><td><code>fade</code></td><td>one opacity motion on the container of every cell</td><td>0.107 ms</td><td>0.992 ms</td></tr>
+<tr><td><code>toggle</code></td><td>the whole field hidden and shown on alternate frames</td><td>0.119 ms</td><td>1.208 ms</td></tr>
+<tr><td><code>layout/64</code></td><td>a sixty-fourth of the placements</td><td>0.053 ms</td><td>0.486 ms</td></tr>
+<tr><td><code>text/64</code></td><td>a sixty-fourth of the labels</td><td>0.045 ms</td><td>0.445 ms</td></tr>
+<tr><td><code>churn</code></td><td>32 cells pruned and grown again</td><td>0.342 ms</td><td>1.772 ms</td></tr>
+<tr><td><code>layout</code></td><td>every placement</td><td>0.331 ms</td><td>3.304 ms</td></tr>
+<tr><td><code>move</code></td><td>a location motion on every cell</td><td>0.316 ms</td><td>3.145 ms</td></tr>
+<tr><td><code>deep</code></td><td>the root of a chain of stems nested as deep as there are cells</td><td>0.294 ms</td><td>3.189 ms</td></tr>
+<tr><td><code>resize</code></td><td>the viewport</td><td>0.376 ms</td><td>3.757 ms</td></tr>
+<tr><td><code>text</code></td><td>every label, with strings never shaped before</td><td>0.414 ms</td><td>4.483 ms</td></tr>
+<tr><td><code>type</code></td><td>a character typed and taken back, in an area of that many words</td><td>0.108 ms</td><td>0.845 ms</td></tr>
 </tbody>
 </table>
 </div>
@@ -7705,34 +7772,36 @@ scroll, clip, inherit), each about 0.05 ms. They run over every element because 
 position to start from; they skip nothing but also do nothing expensive per element. Extraction on an
 idle frame visits nothing that moved and costs a hundredth of a millisecond.</p>
 <p><strong>A write that moves nothing places nothing.</strong> <code>color</code>, <code>repaint</code>, <code>fade</code> and <code>hover</code> rewrite what
-elements look like, and none of them runs the axes: <code>color</code> at 0.88 ms is re-reading each restyled
-element’s standing (0.32 ms), extraction resolving and comparing fills (0.24 ms), and the drain
-applying eight thousand ops (0.21 ms). One motion on one cell (<code>hover</code>) is indistinguishable from
+elements look like, and none of them runs the axes: <code>color</code> at 0.95 ms is re-reading each restyled
+element’s standing (0.34 ms), extraction resolving and comparing fills (0.23 ms), and the drain
+applying eight thousand ops (0.19 ms). One motion on one cell (<code>hover</code>) is indistinguishable from
 idle.</p>
 <p><strong>A write that moves a box costs the box, and what depends on it.</strong> <code>layout</code> at 3.3 ms is mostly the
-two axes (1.1 ms) and the measure pass (0.43 ms), then the drain and extraction. <code>layout/64</code> shows the
-incremental resolution working: a sixty-fourth of the writes costs a fifth of the frame. What is left
-is worth reading: most of <code>layout/64</code>’s resolution is R2m’s <code>reach</code> (0.19 ms), because every element
-written marks its ancestors to measure again, and the container over the field measures by reaching
-over all four thousand of its children. A write under a very wide container pays for the container’s
-children.</p>
-<p><strong>New text pays for shaping.</strong> <code>text</code> at 4.4 ms is <code>measure</code> shaping eight thousand strings it has
-never seen (1.5 ms) and <code>wrap</code> wrapping them (0.83 ms). A string that has been shaped before, at that
+two axes (1.3 ms) and the measure pass (0.50 ms), then the drain and extraction (about 0.6 ms each).
+<code>layout/64</code> shows the incremental resolution working: a sixty-fourth of the writes costs a seventh of
+the frame. What is left of it is mostly the accumulations every frame pays, and the box stack built
+again (0.10 ms) because the cells that moved moved in it. The measure is hardly in it: every element
+written still marks its ancestors to measure again, and the container over the field still measures,
+but it asks only the sixty-four children that moved and reads what the other four thousand reached
+from when they last did (<a href="#r2-the-two-axes-and-the-measure-between-them">Resolution</a>).
+Before that, asking all of them was 0.19 ms of this load on its own, and <code>layout/64</code> was 0.66 ms.</p>
+<p><strong>New text pays for shaping.</strong> <code>text</code> at 4.5 ms is <code>measure</code> shaping four thousand strings it has
+never seen (1.7 ms) and <code>wrap</code> wrapping them (0.76 ms). A string that has been shaped before, at that
 font and size, is a cache lookup. The same labels rewritten to strings already on screen would cost
 little more than <code>layout</code>.</p>
-<p><strong>Changing the tree’s shape rebuilds its order.</strong> <code>churn</code> regrows only 32 cells, yet costs 1.9 ms, and
-0.79 ms of it is <code>structure</code>: the dependency order rebuilt over all eight thousand elements, which any
+<p><strong>Changing the tree’s shape rebuilds its order.</strong> <code>churn</code> regrows only 32 cells, yet costs 1.8 ms, and
+0.83 ms of it is <code>structure</code>: the dependency order rebuilt over all eight thousand elements, which any
 grow or prune triggers. Another 0.36 ms is the box stack sorted again. Hiding and showing the entire
-field (<code>toggle</code>, 1.1 ms) is cheaper than regrowing 32 cells of it.</p>
+field (<code>toggle</code>, 1.2 ms) is cheaper than regrowing 32 cells of it.</p>
 <p><strong>A resize is everything.</strong> The viewport, the breakpoint and the short reading are read by every
-placement, so <code>resize</code> is every element resolved and every run measured again (3.6 ms). Dragging a
+placement, so <code>resize</code> is every element resolved and every run measured again (3.8 ms). Dragging a
 window’s edge does this every frame of the drag, which is why it is the most expensive thing that
 routinely happens.</p>
 <p><strong>Scrolling moves what is inside.</strong> <code>scroll</code> resolves no more than idle does, but R4 moves the drawn
 box of everything in the region, so every descendant is <code>moved</code> and extraction revisits all of it
-(0.20 ms), most of it only to find it culled.</p>
+(0.23 ms), most of it only to find it culled.</p>
 <p><strong>Typing into a long run is linear in the run.</strong> The <code>type</code> load is a character typed into an area
-holding four thousand words, and it costs 0.86 ms per keystroke: the run is shaped, wrapped and drawn
+holding four thousand words, and it costs 0.85 ms per keystroke: the run is shaped, wrapped and drawn
 whole, and placing the caret and selection reads character positions that each walk the run from its
 start.</p>
 <h2 id="what-an-app-can-do-with-this"><a class="header" href="#what-an-app-can-do-with-this">What an app can do with this</a></h2>
@@ -7741,8 +7810,9 @@ one is, the table suggests where to look:</p>
 <ul>
 <li><strong>Prefer writes that do not move boxes.</strong> Color, opacity, visibility, elevation and rounding changes
 are drawn again without being placed again.</li>
-<li><strong>Keep content-sized containers narrow.</strong> A container whose children number in the thousands is
-measured over all of them whenever any one of them is written.</li>
+<li><strong>Write the child, not the container.</strong> A container sized to what it holds measures again when
+anything under it moves, and asks only what moved, so rewriting one row of a long list costs the
+row. Rewriting the container itself resolves everything under it.</li>
 <li><strong>Hide rather than regrow</strong> things that come and go every frame: a grow or a prune rebuilds the
 order of the whole tree. (The reverse holds for something parked for good: a hidden subtree is still
 resolved whenever everything is, on a resize for instance.)</li>

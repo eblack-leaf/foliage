@@ -408,4 +408,9 @@ impl Queues for Grove {
     fn picture(&mut self) -> Plate {
         self.naming.plate()
     }
+
+    #[track_caller]
+    fn misfit(&mut self, _plate: Plate, reason: String) {
+        panic!("{reason}");
+    }
 }

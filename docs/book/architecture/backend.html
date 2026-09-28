@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -212,7 +212,8 @@ renderer. This is where everything that depends on the display’s density is de
 ramp sized for the density;</li>
 <li>an <strong>icon</strong>’s mark is packed onto the sheet the first time any instance draws it, and its distance
 range is converted into one on screen;</li>
-<li>an <strong>image</strong>’s picture is uploaded the first time an instance draws it, as a texture of its own;</li>
+<li>an <strong>image</strong>’s picture is uploaded the first time an instance draws it, as a texture of its own,
+and uploaded again whenever the batch says its name was filled anew while it is held (see below);</li>
 <li>a <strong>run</strong>’s glyphs are cut through the atlas at the density, and snapped to the device grid.</li>
 </ul>
 <p>Then each renderer flushes to the GPU. An instance buffer is kept in rank order, so what a flush costs

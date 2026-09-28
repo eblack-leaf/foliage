@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-73371751.js";
+            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -238,11 +238,12 @@ handed to the grove directly are registered in the call itself, and there is not
 picture in a format foliage does not decode, a font that turned out to be proportional. There is
 one thing an app can do about any of them, so they are one report, and the reason is written to
 the trace.</p>
-<p>Bytes given outright that are wrong are a different matter. A proportional font or an icon field
-too small for the size it was said to be, stated in the program’s own source, panics at the call:
-that is a mistake in the program and worth stopping for where it can be fixed. The same bytes read
-from a path or a URL are reported <code>missing</code> instead, because what a file turned out to hold is not
-something the program stated.</p>
+<p>Bytes given outright that are wrong are a different matter. A proportional font, or an icon field
+or <a href="#pixels-an-app-makes">pixels</a> too small for the size they were said to be, stated in the
+program’s own source, panics at the call: that is a mistake in the program and worth stopping for
+where it can be fixed. The same bytes read from a path or a URL are reported <code>missing</code> instead,
+because what a file turned out to hold is not something the program stated, and so are bytes handed
+over by a worker (<a href="off-frame.html#pictures-and-fonts-from-a-worker">Off the frame</a>).</p>
 <p><strong>A font is the one worth waiting for.</strong> A run composed in a face that has not arrived is measured
 in the bundled face, so a page laid out in <code>letters</code> is laid out sensibly from the first frame. When
 the real face lands, every run is measured again and the page reflows on that frame. An app that
@@ -277,7 +278,7 @@ of everything above it) still applies.</p>
 <h3 id="pixels-an-app-makes"><a class="header" href="#pixels-an-app-makes">Pixels an app makes</a></h3>
 <p><code>grove.pixels(rgba, size)</code> registers pixels the app computed: RGBA, one byte per channel,
 row-major, <code>size</code> texels across.</p>
-<pre><code class="language-rust"><span class="boring">use foliage::{Area, Boxed, Fit, Grove, Grow, Image, Leaf, Location, Pollen, Source, left, top};
+<pre><code class="language-rust"><span class="boring">use foliage::{Area, Boxed, Fit, Grove, Grow, Image, Leaf, Location, Plate, Pollen, Source, left, top};
 </span>/// A one-pixel-tall strip of the scheme's first spectrum.
 fn strip(grove: &amp;Grove) -&gt; (Vec&lt;u8&gt;, Area) {
     let stops = grove.scheme().stops(0);
@@ -292,28 +293,31 @@ fn strip(grove: &amp;Grove) -&gt; (Vec&lt;u8&gt;, Area) {
     (rgba, Area::new(width as f32, 1.0))
 }
 
-<span class="boring">fn grow(grove: &amp;mut Grove, page: Leaf) -&gt; Leaf {
+<span class="boring">fn grow(grove: &amp;mut Grove, page: Leaf) -&gt; Plate {
 </span>let (rgba, size) = strip(grove);
 let gradient = grove.pixels(rgba, size);
-let bar = grove.branch(
+grove.branch(
     page,
     Image::new(gradient)
         .fit(Fit::Stretch)
         .at(Location::new().xs(left(16.px()).right(100.pct() - 16.px()), top(16.px()).height(8.px()))),
 );
-<span class="boring">bar
+<span class="boring">gradient
 </span><span class="boring">}
-</span><span class="boring">fn frame(grove: &amp;mut Grove, pollen: &amp;Pollen, bar: Leaf) {
-</span>// The strip depends on the scheme, so a new scheme is a new picture, drawn by the same element.
+</span><span class="boring">fn frame(grove: &amp;mut Grove, pollen: &amp;Pollen, gradient: Plate) {
+</span>// The strip depends on the scheme, so a new scheme is new pixels under the same name.
 if pollen.repainted() {
     let (rgba, size) = strip(grove);
-    let gradient = grove.pixels(rgba, size);
-    grove.depict(bar, gradient);
+    grove.load(gradient, rgba, size);
 }
 <span class="boring">}</span></code></pre>
-<p><code>grove.plate()</code> hands out a name with nothing behind it yet, and <code>grove.load(plate, rgba, size)</code>
-fills it in a later frame, which is the shape of a picture decoded or rendered somewhere else: the
-element is grown against the name now, occupies its box, and appears on the frame the pixels land.</p>
+<p><code>grove.load(plate, rgba, size)</code> fills a name, and writing one that already holds a picture replaces
+it: every element drawing it follows, and none of them is written to. That is the right shape for a
+picture that is redrawn, like the strip above, rather than a new name each time, because a picture
+once drawn stays on the GPU for as long as the app runs.</p>
+<p><code>grove.plate()</code> hands out a name with nothing behind it yet, for <code>load</code> to fill in a later frame,
+which is the shape of a picture decoded or rendered somewhere else: the element is grown against the
+name now, occupies its box, and appears on the frame the pixels land.</p>
 <h2 id="marks"><a class="header" href="#marks">Marks</a></h2>
 <p>An icon is not a bitmap. A mark has no size of its own (the same artwork is a 16-pixel affordance
 and a 96-pixel empty state), so it is stored as a <strong>multi-channel signed distance field</strong>: a small

@@ -149,10 +149,16 @@ pub(crate) struct ImageInstance {
 ///
 /// Held on the engine rather than in the backend for the same reason a font's bytes are: a picture
 /// may be registered before there is a device to upload it to. The backend takes what is here the
-/// first time it draws one.
+/// first time it draws one, and again whenever a name it holds is filled anew.
 #[derive(Default)]
 pub(crate) struct Plates {
     pictures: Vec<Option<Picture>>,
+    /// Every name filled since extraction last took them, which it hands the backend in the batch.
+    ///
+    /// Kept because an instance names a picture rather than holding it: pixels replaced under the
+    /// same name can leave every instance drawing it exactly as it was, and then nothing an instance
+    /// says would tell the backend its texture is stale.
+    pub(crate) refilled: Vec<Plate>,
 }
 
 /// One registered picture.
@@ -168,29 +174,14 @@ impl Plates {
     /// Replaces whatever was there, which is what makes a picture swappable: an app that re-fetches
     /// at a higher resolution writes the same name again and every element drawing it follows.
     ///
-    /// # Panics
-    ///
-    /// If `pixels` is smaller than `size` texels of RGBA, which is a statement the program made
-    /// about pixels it holds.
-    pub(crate) fn load(&mut self, plate: Plate, pixels: &[u8], size: Area) {
-        let texels = (size.width.max(0.0) as usize) * (size.height.max(0.0) as usize) * 4;
-        assert!(
-            texels > 0 && pixels.len() >= texels,
-            "a {}x{} picture is {texels} bytes of RGBA, and {} were given",
-            size.width,
-            size.height,
-            pixels.len(),
+    /// The pixels were measured against `size` where they were handed over, by [`misfit`], so
+    /// nothing reaches here that is smaller than it was said to be.
+    pub(crate) fn load(&mut self, plate: Plate, pixels: Vec<u8>, size: Area) {
+        debug_assert!(
+            misfit(&pixels, size).is_none(),
+            "checked where it was written"
         );
-        *self.slot(plate) = Some(Picture {
-            pixels: pixels.to_vec(),
-            size,
-        });
-        info!(
-            plate = plate.0,
-            width = size.width,
-            height = size.height,
-            "image loaded"
-        );
+        self.fill(plate, Picture { pixels, size });
     }
 
     /// Fills a name from encoded bytes, reporting why it could not be where it could not.
@@ -199,14 +190,21 @@ impl Plates {
     /// URL rather than from something the program stated.
     pub(crate) fn decoded(&mut self, plate: Plate, bytes: &[u8]) -> Result<(), String> {
         let (pixels, size) = decode(bytes)?;
-        *self.slot(plate) = Some(Picture { pixels, size });
+        self.fill(plate, Picture { pixels, size });
+        Ok(())
+    }
+
+    /// Puts a picture under a name, replacing whatever was there, and notes the name for the
+    /// backend. The one way a slot is filled, so no way of filling one can miss the note.
+    fn fill(&mut self, plate: Plate, picture: Picture) {
         info!(
             plate = plate.0,
-            width = size.width,
-            height = size.height,
+            width = picture.size.width,
+            height = picture.size.height,
             "image loaded"
         );
-        Ok(())
+        *self.slot(plate) = Some(picture);
+        self.refilled.push(plate);
     }
 
     /// Where `plate`'s pixels go, growing to reach it.
@@ -232,6 +230,24 @@ impl Plates {
     pub(crate) fn size(&self, plate: Plate) -> Option<Area> {
         Some(self.picture(plate)?.size)
     }
+}
+
+/// Why `pixels` cannot be a picture `size` texels across, or `None` if they can.
+///
+/// Asked where pixels are handed over rather than where they are applied, because what is to be
+/// done about a mistake depends on who made it: the frame's callsite stops on it, naming the line
+/// that wrote it, and a worker's is refused and reported. Either way the drain is only ever handed
+/// pixels that fit.
+pub(crate) fn misfit(pixels: &[u8], size: Area) -> Option<String> {
+    let texels = (size.width.max(0.0) as usize) * (size.height.max(0.0) as usize) * 4;
+    (texels == 0 || pixels.len() < texels).then(|| {
+        format!(
+            "a {}x{} picture is {texels} bytes of RGBA, and {} were given",
+            size.width,
+            size.height,
+            pixels.len(),
+        )
+    })
 }
 
 /// PNG or JPEG bytes as RGBA and the size they turned out to be.
