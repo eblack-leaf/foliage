@@ -338,15 +338,14 @@ impl ApplicationHandler for Foliage {
     /// process ends. So all of it is dropped here, innermost first, and [`resumed`] builds it again
     /// against whatever window comes back.
     ///
-    /// The tree is untouched. Nothing above [`Ash`] knows a surface exists, which is what makes a
+    /// The tree is untouched. Nothing above `Ash` knows a surface exists, which is what makes a
     /// suspend cost a rebuild rather than a reload -- an app comes back to the frame it left.
     ///
-    /// What the rebuild does cost is the comparison: [`Elm`](crate::elm) caches what the *backend*
-    /// holds, and a backend built fresh holds nothing, so the cache is dropped with it or the next
-    /// extraction would upload nothing and paint an empty surface.
+    /// What the rebuild does cost is the comparison: `Elm` caches what the *backend* holds, and a
+    /// backend built fresh holds nothing, so the cache is dropped with it or the next extraction
+    /// would upload nothing and paint an empty surface.
     ///
     /// [`resumed`]: ApplicationHandler::resumed
-    /// [`Ash`]: crate::ash::Ash
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
         if !self.willow.connected() {
             return;
