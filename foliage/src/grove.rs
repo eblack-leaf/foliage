@@ -146,8 +146,8 @@ impl Grove {
         Some(match vein {
             Vein::Branches => Sap::Leaves(self.tree.branches(leaf)),
             Vein::Trunk => Sap::Leaf(self.tree.trunk(leaf)),
-            Vein::Placed => Sap::Section(self.tree.placed(leaf)),
-            Vein::Drawn => Sap::Section(self.tree.drawn(leaf)),
+            Vein::Placed => Sap::Section(self.elements.placed(leaf)),
+            Vein::Drawn => Sap::Section(self.elements.drawn(leaf)),
             Vein::Anchor => Sap::Leaf(self.tree.anchor(leaf)),
             Vein::Elevation => Sap::Elevation(self.tree.elevation(leaf)),
             // A field is filled as its value is, since a fill written to it goes to the run.
@@ -157,7 +157,7 @@ impl Grove {
             }),
             Vein::Rounding => Sap::Rounding(self.tree.rounding(leaf)?),
             Vein::Ends => {
-                let stretched = self.tree.stretched(leaf)?;
+                let stretched = self.elements.stretched(leaf)?;
                 Sap::Ends(stretched.from, stretched.to)
             }
             Vein::Weight => Sap::Weight(self.tree.stroke(leaf)?.weight),
@@ -193,7 +193,7 @@ impl Grove {
             Vein::Progress => {
                 self.tree.scrolls(leaf)?;
                 let (offset, extent) = (self.tree.offset(leaf), self.tree.extent(leaf));
-                let own = self.tree.placed(leaf).area;
+                let own = self.elements.placed(leaf).area;
                 Sap::Progress(Position::new(
                     progress(offset, extent, own, Axis::Horizontal),
                     progress(offset, extent, own, Axis::Vertical),

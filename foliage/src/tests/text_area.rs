@@ -217,7 +217,7 @@ fn tail(grove: &Grove, leaf: Leaf) -> Leaf {
 }
 
 fn shown(grove: &Grove, leaf: Leaf) -> bool {
-    grove.tree.inherited(leaf).visible
+    grove.elements.inherited(leaf).visible
 }
 
 /// Whether a piece of the selection puts anything on the surface: shown, and with a box that has

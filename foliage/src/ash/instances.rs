@@ -1,6 +1,6 @@
 //! The instances one renderer is holding, on the GPU.
 
-use std::collections::HashMap;
+use core::ops::Range;
 
 use bytemuck::Pod;
 use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferSlice, BufferUsages, Device, Queue};
@@ -8,6 +8,7 @@ use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferSlice, BufferUsages, D
 use crate::coordinate::Section;
 use crate::elevation::ResolvedElevation;
 use crate::elm::Key;
+use crate::leaf::Named;
 
 /// One renderer's instance buffers, kept in rank order.
 ///
@@ -29,7 +30,7 @@ use crate::elm::Key;
 /// walk of the whole stack meets them in slot order, and reports the rank and clip of each so that
 /// walk has something to sort and cut on.
 pub(crate) struct Instances<I: Pod> {
-    held: HashMap<Key, Held<I>>,
+    held: Named<Key, Held<I>>,
     /// The renderer's data, in slot order.
     data: Vec<I>,
     /// One depth per slot, written by `Ash` from the whole stack's order.
@@ -69,7 +70,7 @@ impl<I: Pod> Instances<I> {
     pub(crate) fn new(device: &Device, label: &'static str, capacity: u32) -> Self {
         let capacity = capacity.max(1);
         Self {
-            held: HashMap::new(),
+            held: Named::default(),
             data: Vec::new(),
             depths: Vec::new(),
             ranks: Vec::new(),
@@ -149,22 +150,23 @@ impl<I: Pod> Instances<I> {
     /// A batch that added, removed, or moved anything through the stack rewrites the instance
     /// buffer, because a slot is a position in one order and every position after the change has
     /// moved. A batch that only rewrote values already in the order writes those slots and nothing
-    /// else. A frame with no batch at all does nothing here.
+    /// else -- as runs of neighbouring slots, one write each, since a write costs something of its
+    /// own whatever it carries and a frame that refilled part of a page touched a stretch of it. A
+    /// frame with no batch at all does nothing here.
     pub(crate) fn flush(&mut self, device: &Device, queue: &Queue) {
         if self.resort {
             self.reorder(device, queue);
             return;
         }
-        self.touched.sort_unstable();
-        self.touched.dedup();
-        for slot in self.touched.drain(..) {
-            let stride = size_of::<I>() as BufferAddress;
+        let stride = size_of::<I>() as BufferAddress;
+        for run in runs(&mut self.touched) {
             queue.write_buffer(
                 &self.buffer,
-                slot as BufferAddress * stride,
-                bytemuck::bytes_of(&self.data[slot as usize]),
+                run.start as BufferAddress * stride,
+                bytemuck::cast_slice(&self.data[run]),
             );
         }
+        self.touched.clear();
     }
 
     /// Rebuilds the order back to front and rewrites the instance buffer.
@@ -248,6 +250,29 @@ impl<I: Pod> Instances<I> {
     pub(crate) fn depths(&self) -> BufferSlice<'_> {
         self.depth.slice(..)
     }
+}
+
+/// How many untouched slots a write reaches across rather than being cut in two. Rewriting a slot
+/// with what it already holds is harmless, and cheaper than a write of its own.
+const BRIDGE: u32 = 16;
+
+/// The touched slots as runs to write, in order: neighbours, and slots no further apart than
+/// [`BRIDGE`], are one run.
+pub(crate) fn runs(touched: &mut [u32]) -> impl Iterator<Item = Range<usize>> + '_ {
+    touched.sort_unstable();
+    let mut at = 0;
+    core::iter::from_fn(move || {
+        let start = *touched.get(at)?;
+        let mut end = start;
+        while let Some(&next) = touched.get(at) {
+            if next > end + BRIDGE {
+                break;
+            }
+            end = end.max(next);
+            at += 1;
+        }
+        Some(start as usize..end as usize + 1)
+    })
 }
 
 fn buffer(device: &Device, label: &'static str, size: u32) -> Buffer {

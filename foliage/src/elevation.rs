@@ -52,7 +52,7 @@ impl Elevation {
 /// It is deliberately not a dense rank. An accumulated elevation changes only when the element's own
 /// declaration or an ancestor's does, so growing an element leaves every other element's value
 /// alone -- and extraction, which compares values, therefore has nothing to send for any of them.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct ResolvedElevation {
     pub(crate) stack: i32,
     pub(crate) growth: u64,

@@ -29,9 +29,14 @@
 //!
 //! So extraction is written in logical pixels throughout and compares logical values, and the
 //! derivation happens once per written instance rather than once per frame.
-
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
+//!
+//! # What is not looked at
+//!
+//! An element resolution did not move is not visited: what the backend holds for it is what it
+//! should go on holding. So what the backend is told to let go of is said outright, and there are
+//! exactly two ways to earn it -- an element that moved and is not painted any more (hidden, culled,
+//! or drawing an asset that has not arrived), and an element that withered, which resolution
+//! reports when it builds the order again. A frame that moves nothing does nothing here.
 
 use bevy_ecs::component::Component;
 use tracing::field::Empty;
@@ -44,12 +49,13 @@ use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
 use crate::icon::{IconInstance, IconPigment};
 use crate::image::{Fit, ImageInstance, ImagePigment};
-use crate::leaf::Leaf;
+use crate::leaf::{Leaf, Named};
 use crate::line::{LineInstance, LinePigment};
 use crate::palette::Fill;
 use crate::panel::PanelInstance;
 use crate::polygon::{PolygonInstance, PolygonPigment};
 use crate::rounding::Corners;
+use crate::rowan::Elements;
 use crate::text::TextPigment;
 use crate::text::font::Font;
 
@@ -144,6 +150,40 @@ impl Elm {
         (written, withdrawn)
     }
 
+    /// Opens an extraction on every renderer, dropping what the last one reported.
+    fn open(&mut self) {
+        self.panels.open();
+        self.polygons.open();
+        self.lines.open();
+        self.icons.open();
+        self.images.open();
+        self.texts.open();
+    }
+
+    /// Closes an extraction on every renderer.
+    fn close(&mut self) {
+        self.panels.close();
+        self.polygons.close();
+        self.lines.close();
+        self.icons.close();
+        self.images.close();
+        self.texts.close();
+    }
+
+    /// Lets go of whatever the backend holds for `leaf`, in the renderer it draws with.
+    fn withdraw(&mut self, chlorophyll: Chlorophyll, leaf: Leaf) {
+        let key = Key::from(leaf);
+        match chlorophyll {
+            Chlorophyll::None => {}
+            Chlorophyll::Panel => self.panels.withdraw(key),
+            Chlorophyll::Polygon => self.polygons.withdraw(key),
+            Chlorophyll::Line => self.lines.withdraw(key),
+            Chlorophyll::Icon => self.icons.withdraw(key),
+            Chlorophyll::Image => self.images.withdraw(key),
+            Chlorophyll::Text => self.texts.withdraw(key),
+        }
+    }
+
     /// Drops everything the backend is held to, so the next extraction writes the tree entire.
     ///
     /// Two things invalidate a comparison against what the backend holds, and both are facts about
@@ -200,15 +240,13 @@ pub(crate) struct Glyph {
 /// together, and finding which of them changed would cost more than rewriting the run.
 #[derive(Default)]
 pub(crate) struct Runs {
-    held: HashMap<Key, Run>,
+    held: Named<Key, Run>,
     /// Runs the backend holds at something other than what is now wanted, or does not hold at all.
     /// Keys rather than values: what the backend is to apply is what is held for them, which it
     /// reads back at [`run`](Runs::run).
     pub(crate) written: Vec<Key>,
     /// Runs the backend holds and should not, in a stable order.
     pub(crate) withdrawn: Vec<Key>,
-    /// Which extraction is running. An entry left at an older one is no longer wanted.
-    pass: u64,
 }
 
 /// One run, as the backend is to hold it.
@@ -221,7 +259,6 @@ pub(crate) struct Run {
     pub(crate) size: u32,
     pub(crate) rank: ResolvedElevation,
     pub(crate) clip: Section,
-    seen: u64,
 }
 
 impl Runs {
@@ -242,11 +279,8 @@ impl Runs {
         size: u32,
         glyphs: &[Glyph],
     ) {
-        let pass = self.pass;
-        match self.held.entry(key) {
-            Entry::Occupied(mut held) => {
-                let held = held.get_mut();
-                held.seen = pass;
+        match self.held.get_mut(&key) {
+            Some(held) => {
                 if held.font == font
                     && held.size == size
                     && held.rank == rank
@@ -263,47 +297,33 @@ impl Runs {
                 held.glyphs.clear();
                 held.glyphs.extend_from_slice(glyphs);
             }
-            Entry::Vacant(slot) => {
-                slot.insert(Run {
-                    glyphs: glyphs.to_vec(),
-                    font,
-                    size,
-                    rank,
-                    clip,
-                    seen: pass,
-                });
+            None => {
+                self.held.insert(
+                    key,
+                    Run {
+                        glyphs: glyphs.to_vec(),
+                        font,
+                        size,
+                        rank,
+                        clip,
+                    },
+                );
             }
         }
         self.written.push(key);
     }
 
-    /// Says a run is still wanted, unchanged, without stating it again.
-    ///
-    /// What the backend holds for an element whose resolved state did not move is what it should go
-    /// on holding, and rebuilding it to find that out is the work this is here to avoid. It still has
-    /// to be said, because what is not said is withdrawn.
-    fn keep(&mut self, key: impl Into<Key>) {
-        let pass = self.pass;
-        if let Some(held) = self.held.get_mut(&key.into()) {
-            held.seen = pass;
+    /// Lets go of a run, if the backend is holding one.
+    fn withdraw(&mut self, key: Key) {
+        if self.held.remove(&key).is_some() {
+            self.withdrawn.push(key);
         }
     }
 
-    /// Closes the extraction: what nothing wanted this frame is withdrawn.
-    fn extract(&mut self) {
-        let pass = self.pass;
-        let withdrawn = &mut self.withdrawn;
-        self.held.retain(|key, held| {
-            if held.seen == pass {
-                return true;
-            }
-            withdrawn.push(*key);
-            false
-        });
-        // Nothing may depend on the order a map iterates, and two identical runs have to extract
-        // identically.
-        withdrawn.sort();
-        self.pass += 1;
+    /// Closes the extraction.
+    fn close(&mut self) {
+        // Two identical runs have to extract identically, whatever order what went was found in.
+        self.withdrawn.sort();
     }
 
     /// Drops what the backend is held to. See [`Elm::recut`].
@@ -343,19 +363,11 @@ impl From<Leaf> for Key {
 /// the one the resolver produced. Keeping it out is also what leaves an instance free to be
 /// exactly the bytes a vertex buffer takes, for the renderers whose instance is those bytes.
 pub(crate) struct Instances<I> {
-    held: HashMap<Key, Held<I>>,
-    /// What should be drawn this frame, gathered before it is compared. Kept between frames for its
-    /// capacity: a frame that changes nothing must not allocate.
-    wanted: Vec<Stacked<I>>,
-    /// What is still wanted at exactly what the backend already holds, so it is said rather than
-    /// stated. Kept between frames for its capacity, like `wanted`.
-    kept: Vec<Key>,
+    held: Named<Key, Held<I>>,
     /// Instances the backend does not hold, or holds at a different value or rank.
     pub(crate) written: Vec<Stacked<I>>,
     /// Instances the backend holds and should not, in a stable order.
     pub(crate) withdrawn: Vec<Key>,
-    /// Which extraction is running. An entry left at an older one is no longer wanted.
-    pass: u64,
 }
 
 /// One instance, where in the one stack it is to be drawn, and what it is clipped to.
@@ -371,103 +383,76 @@ pub(crate) struct Stacked<I> {
     pub(crate) instance: I,
 }
 
-/// One instance the backend holds, and the extraction that last asked for it.
+/// One instance the backend holds.
 struct Held<I> {
     instance: I,
     rank: ResolvedElevation,
     clip: Section,
-    seen: u64,
 }
 
 impl<I> Default for Instances<I> {
     fn default() -> Self {
         Self {
-            held: HashMap::new(),
-            wanted: Vec::new(),
-            kept: Vec::new(),
+            held: Named::default(),
             written: Vec::new(),
             withdrawn: Vec::new(),
-            pass: 0,
         }
     }
 }
 
 impl<I: Copy + PartialEq> Instances<I> {
-    /// Adds one instance to what should be drawn this frame, at the rank it resolved to and inside
-    /// the clip it resolved under.
+    /// Opens an extraction, dropping what the last one reported.
+    fn open(&mut self) {
+        self.written.clear();
+        self.withdrawn.clear();
+    }
+
+    /// States one instance as it now stands -- at the rank it resolved to and inside the clip it
+    /// resolved under -- and reports it written if the backend is holding it otherwise.
+    ///
+    /// The holding is updated in place, so a frame that rewrites an instance allocates nothing, and
+    /// one that states it at what is already held writes nothing.
     fn want(&mut self, key: impl Into<Key>, rank: ResolvedElevation, clip: Section, instance: I) {
-        self.wanted.push(Stacked {
-            key: key.into(),
+        let key = key.into();
+        match self.held.get_mut(&key) {
+            Some(held) => {
+                if held.instance == instance && held.rank == rank && held.clip == clip {
+                    return;
+                }
+                held.instance = instance;
+                held.rank = rank;
+                held.clip = clip;
+            }
+            None => {
+                self.held.insert(
+                    key,
+                    Held {
+                        instance,
+                        rank,
+                        clip,
+                    },
+                );
+            }
+        }
+        self.written.push(Stacked {
+            key,
             rank,
             clip,
             instance,
         });
     }
 
-    /// Says an instance is still wanted, unchanged, without stating it again.
-    ///
-    /// What the backend holds for an element whose resolved state did not move is what it should go
-    /// on holding, and rebuilding it to find that out is the work this is here to avoid. It still has
-    /// to be said, because what is not said is withdrawn.
-    fn keep(&mut self, key: impl Into<Key>) {
-        self.kept.push(key.into());
+    /// Lets go of an instance, if the backend is holding one.
+    fn withdraw(&mut self, key: Key) {
+        if self.held.remove(&key).is_some() {
+            self.withdrawn.push(key);
+        }
     }
 
-    /// Diffs what should be drawn against what the backend holds, and takes the result as the new
-    /// holding.
-    ///
-    /// The holding is updated in place. Rebuilding it would allocate a map per renderer per frame,
-    /// which is a cost on every frame including the ones with nothing in them -- and an unchanged
-    /// frame costing nothing is the whole claim of this phase.
-    fn extract(&mut self) {
-        self.written.clear();
-        self.withdrawn.clear();
-        self.pass += 1;
-        let pass = self.pass;
-        for index in 0..self.wanted.len() {
-            let wanted = self.wanted[index];
-            match self.held.entry(wanted.key) {
-                Entry::Occupied(mut held) => {
-                    let held = held.get_mut();
-                    if held.instance != wanted.instance
-                        || held.rank != wanted.rank
-                        || held.clip != wanted.clip
-                    {
-                        held.instance = wanted.instance;
-                        held.rank = wanted.rank;
-                        held.clip = wanted.clip;
-                        self.written.push(wanted);
-                    }
-                    held.seen = pass;
-                }
-                Entry::Vacant(slot) => {
-                    slot.insert(Held {
-                        instance: wanted.instance,
-                        rank: wanted.rank,
-                        clip: wanted.clip,
-                        seen: pass,
-                    });
-                    self.written.push(wanted);
-                }
-            }
-        }
-        self.wanted.clear();
-        for key in self.kept.drain(..) {
-            if let Some(held) = self.held.get_mut(&key) {
-                held.seen = pass;
-            }
-        }
-        let withdrawn = &mut self.withdrawn;
-        self.held.retain(|key, held| {
-            if held.seen == pass {
-                return true;
-            }
-            withdrawn.push(*key);
-            false
-        });
-        // Nothing may depend on the order a map iterates, and two identical runs have to extract
-        // identically.
-        withdrawn.sort();
+    /// Closes the extraction.
+    fn close(&mut self) {
+        // Two identical runs have to extract identically, whatever order what went was found in.
+        self.withdrawn.sort();
     }
 
     /// Drops what the backend is held to. See [`Elm::recut`].
@@ -488,24 +473,6 @@ impl<I: Copy + PartialEq> Instances<I> {
     }
 }
 
-impl Elm {
-    /// Says the element is still drawn exactly as the backend holds it.
-    ///
-    /// One dispatch on what it draws, and nothing else read: the whole point is that the frame
-    /// already knows nothing about it moved.
-    fn keep(&mut self, chlorophyll: Chlorophyll, leaf: Leaf) {
-        match chlorophyll {
-            Chlorophyll::None => {}
-            Chlorophyll::Panel => self.panels.keep(leaf),
-            Chlorophyll::Polygon => self.polygons.keep(leaf),
-            Chlorophyll::Line => self.lines.keep(leaf),
-            Chlorophyll::Icon => self.icons.keep(leaf),
-            Chlorophyll::Image => self.images.keep(leaf),
-            Chlorophyll::Text => self.texts.keep(leaf),
-        }
-    }
-}
-
 /// Step 8. Resolved state becomes instances, and only where it differs from what is already drawn.
 pub(crate) fn run(grove: &mut Grove) {
     let step = trace_span!(
@@ -516,187 +483,226 @@ pub(crate) fn run(grove: &mut Grove) {
         kept = Empty
     );
     let _entered = step.enter();
-    grove.elm.texts.open();
+    grove.elm.open();
     // Detached for the walk so that gathering a run's glyphs -- which reads the shaping cache -- and
     // handing them over -- which writes what is held -- are not the same borrow. It goes back below,
     // with whatever capacity the widest run this frame gave it.
     let mut glyphs = core::mem::take(&mut grove.elm.glyphs);
     // Taken off the grove for the walk, and put back below. Resolution left it holding the order it
-    // used and what moved in it, which is what decides how much of this there is to do.
+    // used, what each element settled at, and what moved, which is what decides how much of this
+    // there is to do.
     let elements = core::mem::take(&mut grove.elements);
     let mut total = 0;
     let mut kept = 0;
     // Nothing is held to compare against, so nothing can be said to be unchanged.
     let recut = core::mem::take(&mut grove.elm.recut);
-    for (leaf, chlorophyll, moved) in elements.drawing() {
+    // Whatever the backend held for an element that withered, it holds for nothing now.
+    for &(leaf, chlorophyll) in &elements.gone {
+        grove.elm.withdraw(chlorophyll, leaf);
+    }
+    let surface = Section::new(Position::default(), grove.viewport);
+    for at in 0..elements.len() {
+        let chlorophyll = elements.standing[at].chlorophyll;
+        // Carrying no renderer is the whole of what makes an element a stem.
         if chlorophyll == Chlorophyll::None {
             continue;
         }
         // Nothing extraction reads about it moved, so what the backend holds for it is what it
-        // should go on holding. Said rather than stated, because what is not said is withdrawn.
-        if !(moved || recut) {
-            grove.elm.keep(chlorophyll, leaf);
+        // should go on holding, and there is nothing to say.
+        if !(elements.moved[at] || recut) {
             kept += 1;
             continue;
         }
-        let Some(painted) = painted(grove, leaf) else {
-            continue;
+        let stated = match painted(&elements, at, surface) {
+            Some(painted) => {
+                let drawing = Drawing {
+                    elements: &elements,
+                    at,
+                    painted,
+                };
+                state(grove, &mut glyphs, drawing, chlorophyll, &mut total)
+            }
+            None => false,
         };
-        let rank = grove.tree.rank(leaf);
-        match chlorophyll {
-            // Answered above: carrying no renderer is the whole of what makes an element a stem.
-            Chlorophyll::None => {}
-            Chlorophyll::Panel => {
-                // Grown together and by nothing else, so a panel always has one.
-                let Some(pigment) = grove.tree.panel_pigment(leaf) else {
-                    continue;
-                };
-                let instance = PanelInstance::new(
-                    painted.section,
-                    tint(grove, leaf, pigment.fill).faded(painted.opacity),
-                    pigment.rounding,
-                );
-                grove.elm.panels.want(leaf, rank, painted.clip, instance);
-            }
-            Chlorophyll::Polygon => {
-                let Some(pigment) = grove.tree.polygon_pigment(leaf) else {
-                    continue;
-                };
-                // The shape is read plainly, with no blend applied here: a shape blends to a shape,
-                // so a motion moving one writes it back over the declaration every frame and what
-                // the element holds is already where the motion has reached.
-                let instance = PolygonInstance::new(
-                    painted.section,
-                    tint(grove, leaf, pigment.fill).faded(painted.opacity),
-                    pigment.shape,
-                );
-                grove.elm.polygons.want(leaf, rank, painted.clip, instance);
-            }
-            // A stroke's ends are resolved geometry in their own right, settled beside the box the
-            // way [`Drawn`](crate::rowan::Drawn) is: the box is the rectangle around them grown by
-            // half the weight, and which of its two diagonals the stroke runs along is not
-            // something a rectangle can say.
-            Chlorophyll::Line => {
-                let (Some(pigment), Some(stretched), Some(stroke)) = (
-                    grove.tree.line_pigment(leaf),
-                    grove.tree.stretched(leaf),
-                    grove.tree.stroke(leaf),
-                ) else {
-                    continue;
-                };
-                let instance = LineInstance {
-                    from: stretched.from,
-                    to: stretched.to,
-                    color: tint(grove, leaf, pigment.fill).faded(painted.opacity),
-                    weight: stroke.weight,
-                    cap: pigment.cap,
-                };
-                grove.elm.lines.want(leaf, rank, painted.clip, instance);
-            }
-            Chlorophyll::Icon => {
-                let Some(pigment) = grove.tree.icon_pigment(leaf) else {
-                    continue;
-                };
-                // A field that has not arrived draws nothing and occupies its box, exactly as a
-                // picture with no pixels does. Absent from the batch rather than held as blank: the
-                // sheet cuts a mark when the batch names one, so an instance written before the
-                // field landed would be a mark nothing ever asked the sheet for again.
-                if grove.fields.mark(pigment.field).is_none() {
-                    continue;
-                }
-                let instance = IconInstance {
-                    // Square, because a distance field is: the mark sits in the largest square its
-                    // box holds rather than stretching to the box's own ratio.
-                    section: squared(painted.section),
-                    color: tint(grove, leaf, pigment.fill).faded(painted.opacity),
-                    field: pigment.field,
-                };
-                grove.elm.icons.want(leaf, rank, painted.clip, instance);
-            }
-            Chlorophyll::Image => {
-                let Some(pigment) = grove.tree.image_pigment(leaf) else {
-                    continue;
-                };
-                // A plate whose pixels have not arrived draws nothing and occupies its box. It is
-                // absent from the batch rather than held as blank, so the frame the pixels land is
-                // the frame it appears, with nothing to undo.
-                let Some(picture) = grove.plates.size(pigment.plate) else {
-                    continue;
-                };
-                let (section, crop) = fitted(painted.section, picture, pigment.fit);
-                let instance = ImageInstance {
-                    section,
-                    crop,
-                    radii: pigment.rounding.radii(section),
-                    opacity: painted.opacity,
-                    plate: pigment.plate,
-                };
-                grove.elm.images.want(leaf, rank, painted.clip, instance);
-            }
-            // A run's box, fill, rank and clip resolve exactly as a panel's do. What is different is
-            // that it draws *many* things at one rank: it is one entry in the one stack, and its
-            // renderer holds its glyphs under its own numbering -- which is what a [`Key`] is a
-            // number rather than a [`Leaf`] for.
-            Chlorophyll::Text => {
-                // Grown together and by nothing else, so a run always has both.
-                let (Some(pigment), Some(typeface)) =
-                    (grove.tree.text_pigment(leaf), grove.tree.typeface(leaf))
-                else {
-                    continue;
-                };
-                let color = tint(grove, leaf, pigment.fill).faded(painted.opacity);
-                let size = typeface.size.at(grove.layout, grove.short);
-                let Some(value) = grove.tree.lettering(leaf) else {
-                    continue;
-                };
-                // R1 shapes every run that is measured at all, so one that is not held is one
-                // nothing is laying out. Extraction reads that cache and never adds to it.
-                let Some(shaped) = grove.shaping.shaped(typeface.font, size, value) else {
-                    continue;
-                };
-                let tints = grove.tree.tints(leaf);
-                let origin = painted.section.position;
-                let cell = shaped.cell();
-                glyphs.clear();
-                // Wrapped at the width the run resolved to, which is the width it was measured at.
-                shaped.place(painted.section.width(), |character, index, at| {
-                    glyphs.push(Glyph {
-                        cell: Section::new(origin.moved(at), cell),
-                        character,
-                        // The run's own fill, unless a tint claims this character. Resolved here
-                        // because this is where a fill becomes a colour, which is the same reason
-                        // the run's own is.
-                        color: match tints.and_then(|tints| tints.over(index)) {
-                            Some(fill) => fill.color(&grove.scheme).faded(painted.opacity),
-                            None => color,
-                        },
-                    });
-                });
-                total += glyphs.len();
-                grove.elm.texts.want(
-                    leaf.into(),
-                    rank,
-                    painted.clip,
-                    typeface.font,
-                    size,
-                    &glyphs,
-                );
-            }
+        // Moved, and not drawn: hidden, culled, or drawing something that has not arrived. What
+        // the backend was holding for it has to go.
+        if !stated {
+            grove.elm.withdraw(chlorophyll, elements.order[at]);
         }
     }
     grove.elm.glyphs = glyphs;
     grove.elements = elements;
     step.record("kept", kept);
-    grove.elm.panels.extract();
-    grove.elm.polygons.extract();
-    grove.elm.lines.extract();
-    grove.elm.icons.extract();
-    grove.elm.images.extract();
-    grove.elm.texts.extract();
+    grove.elm.close();
     let (written, withdrawn) = grove.elm.moved();
     step.record("written", written);
     step.record("withdrawn", withdrawn);
     step.record("glyphs", total);
+}
+
+/// One element being drawn: where it sits in the order resolution left, and what of it is painted.
+struct Drawing<'a> {
+    elements: &'a Elements,
+    at: usize,
+    painted: Painted,
+}
+
+/// States what one element draws, reporting whether it draws anything at all.
+///
+/// `false` for an element whose renderer has nothing to draw yet -- a mark whose field has not
+/// arrived, a picture whose pixels have not -- which is absent from the batch rather than held as
+/// blank.
+fn state(
+    grove: &mut Grove,
+    glyphs: &mut Vec<Glyph>,
+    drawing: Drawing,
+    chlorophyll: Chlorophyll,
+    total: &mut usize,
+) -> bool {
+    let Drawing {
+        elements,
+        at,
+        painted,
+    } = drawing;
+    let leaf = elements.order[at];
+    let rank = elements.rank[at];
+    match chlorophyll {
+        // Answered by the caller: carrying no renderer is the whole of what makes an element a stem.
+        Chlorophyll::None => false,
+        Chlorophyll::Panel => {
+            // Grown together and by nothing else, so a panel always has one.
+            let Some(pigment) = grove.tree.panel_pigment(leaf) else {
+                return false;
+            };
+            let instance = PanelInstance::new(
+                painted.section,
+                tint(grove, leaf, pigment.fill).faded(painted.opacity),
+                pigment.rounding,
+            );
+            grove.elm.panels.want(leaf, rank, painted.clip, instance);
+            true
+        }
+        Chlorophyll::Polygon => {
+            let Some(pigment) = grove.tree.polygon_pigment(leaf) else {
+                return false;
+            };
+            // The shape is read plainly, with no blend applied here: a shape blends to a shape,
+            // so a motion moving one writes it back over the declaration every frame and what
+            // the element holds is already where the motion has reached.
+            let instance = PolygonInstance::new(
+                painted.section,
+                tint(grove, leaf, pigment.fill).faded(painted.opacity),
+                pigment.shape,
+            );
+            grove.elm.polygons.want(leaf, rank, painted.clip, instance);
+            true
+        }
+        // A stroke's ends are resolved geometry in their own right, settled beside the box the way
+        // the drawn box is: the box is the rectangle around them grown by half the weight, and
+        // which of its two diagonals the stroke runs along is not something a rectangle can say.
+        Chlorophyll::Line => {
+            let (Some(pigment), Some(stretched), Some(stroke)) = (
+                grove.tree.line_pigment(leaf),
+                elements.stretched[at],
+                grove.tree.stroke(leaf),
+            ) else {
+                return false;
+            };
+            let instance = LineInstance {
+                from: stretched.from,
+                to: stretched.to,
+                color: tint(grove, leaf, pigment.fill).faded(painted.opacity),
+                weight: stroke.weight,
+                cap: pigment.cap,
+            };
+            grove.elm.lines.want(leaf, rank, painted.clip, instance);
+            true
+        }
+        Chlorophyll::Icon => {
+            let Some(pigment) = grove.tree.icon_pigment(leaf) else {
+                return false;
+            };
+            // A field that has not arrived draws nothing and occupies its box, exactly as a
+            // picture with no pixels does. Absent from the batch rather than held as blank: the
+            // sheet cuts a mark when the batch names one, so an instance written before the
+            // field landed would be a mark nothing ever asked the sheet for again.
+            if grove.fields.mark(pigment.field).is_none() {
+                return false;
+            }
+            let instance = IconInstance {
+                // Square, because a distance field is: the mark sits in the largest square its
+                // box holds rather than stretching to the box's own ratio.
+                section: squared(painted.section),
+                color: tint(grove, leaf, pigment.fill).faded(painted.opacity),
+                field: pigment.field,
+            };
+            grove.elm.icons.want(leaf, rank, painted.clip, instance);
+            true
+        }
+        Chlorophyll::Image => {
+            let Some(pigment) = grove.tree.image_pigment(leaf) else {
+                return false;
+            };
+            // A plate whose pixels have not arrived draws nothing and occupies its box. It is
+            // absent from the batch rather than held as blank, so the frame the pixels land is
+            // the frame it appears, with nothing to undo.
+            let Some(picture) = grove.plates.size(pigment.plate) else {
+                return false;
+            };
+            let (section, crop) = fitted(painted.section, picture, pigment.fit);
+            let instance = ImageInstance {
+                section,
+                crop,
+                radii: pigment.rounding.radii(section),
+                opacity: painted.opacity,
+                plate: pigment.plate,
+            };
+            grove.elm.images.want(leaf, rank, painted.clip, instance);
+            true
+        }
+        // A run's box, fill, rank and clip resolve exactly as a panel's do. What is different is
+        // that it draws *many* things at one rank: it is one entry in the one stack, and its
+        // renderer holds its glyphs under its own numbering -- which is what a [`Key`] is a
+        // number rather than a [`Leaf`] for.
+        Chlorophyll::Text => {
+            // Grown together and by nothing else, so a run always has both.
+            let (Some(pigment), Some(typeface)) =
+                (grove.tree.text_pigment(leaf), grove.tree.typeface(leaf))
+            else {
+                return false;
+            };
+            let color = tint(grove, leaf, pigment.fill).faded(painted.opacity);
+            let size = typeface.size.at(grove.layout, grove.short);
+            // The run R1 left the element holding, which is what it was measured and wrapped as.
+            let Some(shaped) = elements.composed[at].as_deref() else {
+                return false;
+            };
+            let tints = grove.tree.tints(leaf);
+            let origin = painted.section.position;
+            let cell = shaped.cell();
+            glyphs.clear();
+            // Wrapped at the width the run resolved to, which is the width it was measured at.
+            shaped.place(painted.section.width(), |character, index, at| {
+                glyphs.push(Glyph {
+                    cell: Section::new(origin.moved(at), cell),
+                    character,
+                    // The run's own fill, unless a tint claims this character. Resolved here
+                    // because this is where a fill becomes a colour, which is the same reason
+                    // the run's own is.
+                    color: match tints.and_then(|tints| tints.over(index)) {
+                        Some(fill) => fill.color(&grove.scheme).faded(painted.opacity),
+                        None => color,
+                    },
+                });
+            });
+            *total += glyphs.len();
+            grove
+                .elm
+                .texts
+                .want(leaf.into(), rank, painted.clip, typeface.font, size, glyphs);
+            true
+        }
+    }
 }
 
 /// Where an element is painted, and inside what.
@@ -706,21 +712,18 @@ struct Painted {
     opacity: f32,
 }
 
-/// What is painted of `leaf`, or `None` if nothing is.
+/// What is painted of the element at `at`, or `None` if nothing is.
 ///
 /// Hidden is the app's intent and culled is this pass's decision, taken here from the clip rect and
 /// recorded nowhere: an element scrolled out of its region is absent from the batch and unchanged in
 /// every other respect, so scrolling back to it needs nothing to be undone.
-fn painted(grove: &Grove, leaf: Leaf) -> Option<Painted> {
-    let inherited = grove.tree.inherited(leaf);
-    let section = grove.tree.drawn(leaf);
+fn painted(elements: &Elements, at: usize, surface: Section) -> Option<Painted> {
+    let inherited = elements.inherited[at];
+    let section = elements.drawn[at];
     // What a scrolling ancestor leaves visible, never wider than the surface: a clip is what the
     // backend scissors the pass to, and nothing outside the surface is painted whatever the rect
     // says.
-    let clip = grove
-        .tree
-        .clip(leaf)
-        .intersect(Section::new(Position::default(), grove.viewport));
+    let clip = elements.clip[at].intersect(surface);
     if !inherited.visible || section.intersect(clip).is_empty() {
         return None;
     }

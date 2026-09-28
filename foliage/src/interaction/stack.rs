@@ -28,7 +28,6 @@
 //! wrong element scrolls the wrong region.
 
 use crate::coordinate::{Position, Section};
-use crate::elevation::ResolvedElevation;
 use crate::interaction::Shape;
 use crate::leaf::Leaf;
 
@@ -85,15 +84,10 @@ pub(crate) struct Stack {
 }
 
 impl Stack {
-    /// Takes this frame's regions, ordering them front-most first.
-    ///
-    /// The order is total -- a resolved elevation carries allocation order as its tie-break -- so
-    /// two identical runs read the same element at the same point.
-    pub(crate) fn settle(&mut self, mut ranked: Vec<(ResolvedElevation, Region)>) {
-        ranked.sort_by(|left, right| right.0.cmp(&left.0));
+    /// Takes this frame's regions, already ordered front-most first.
+    pub(crate) fn settle(&mut self, regions: impl Iterator<Item = Region>) {
         self.regions.clear();
-        self.regions
-            .extend(ranked.into_iter().map(|(_, region)| region));
+        self.regions.extend(regions);
     }
 
     /// The top of the stack at `point`: the front-most tangible element there.

@@ -69,6 +69,7 @@
 
 pub(crate) mod ease;
 
+use core::hash::{Hash, Hasher};
 use std::collections::HashMap;
 
 use core::time::Duration;
@@ -77,7 +78,7 @@ use tracing::{debug, trace_span};
 use crate::color::Color;
 use crate::coordinate::{Position, Section};
 use crate::grove::Grove;
-use crate::leaf::Leaf;
+use crate::leaf::{Leaf, Named};
 use crate::line::Stretched;
 use crate::palette::{Fill, Palette, Scheme};
 use crate::placement::location::Location;
@@ -362,6 +363,20 @@ struct Channel {
     within: Option<Sequence>,
 }
 
+/// What a motion is held under: the element it moves, and the property it moves.
+///
+/// Hashed as one number rather than as a pair, which is what lets it be hashed as a name is. An
+/// element's name keeps its index in its low half and its generation in its high one, so the
+/// property goes in at the top, out of the index's way.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+struct Moves(Leaf, Property);
+
+impl Hash for Moves {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.0.id() ^ ((self.1 as u64) << 59));
+    }
+}
+
 /// Every running tween.
 ///
 /// Held beside the tree rather than on the elements, because what is moving is a small set and
@@ -369,7 +384,7 @@ struct Channel {
 /// is (F9) without a pass over anything.
 #[derive(Default)]
 pub(crate) struct Aspen {
-    motions: HashMap<(Leaf, Property), Motioning>,
+    motions: Named<Moves, Motioning>,
     channels: HashMap<Tween, Channel>,
     /// How many tweens are still running under each named group. An entry exists only while the
     /// group has something in it, so a group that is over holds nothing and a name that is used
@@ -442,7 +457,7 @@ impl Aspen {
     pub(crate) fn scrolling(&self) -> Vec<(Leaf, Position, ScrollTo, f32)> {
         self.motions
             .iter()
-            .filter_map(|((leaf, _), motioning)| match &motioning.moving {
+            .filter_map(|(Moves(leaf, _), motioning)| match &motioning.moving {
                 Moving::Scroll { from, to } => Some((*leaf, *from, *to, motioning.progress.at())),
                 _ => None,
             })
@@ -462,7 +477,7 @@ impl Aspen {
         if self.motions.is_empty() {
             return None;
         }
-        self.motions.get(&(leaf, property))
+        self.motions.get(&Moves(leaf, property))
     }
 
     /// Drops the motion on one property, reporting whether one was running.
@@ -470,7 +485,7 @@ impl Aspen {
     /// F8: this is what a direct write does before it lands, so no property ever reaches its
     /// applying phase with both a pending write and a running tween.
     pub(crate) fn cancel(&mut self, leaf: Leaf, property: Property) -> bool {
-        let Some(motioning) = self.motions.remove(&(leaf, property)) else {
+        let Some(motioning) = self.motions.remove(&Moves(leaf, property)) else {
             return false;
         };
         self.release(motioning.within);
@@ -484,7 +499,7 @@ impl Aspen {
         }
         for leaf in gone {
             for property in Property::ALL {
-                if let Some(motioning) = self.motions.remove(&(*leaf, property)) {
+                if let Some(motioning) = self.motions.remove(&Moves(*leaf, property)) {
                     self.release(motioning.within);
                 }
             }
@@ -526,16 +541,17 @@ pub(crate) fn animate(
     let scheme = grove.scheme;
     let Grove {
         tree,
+        elements,
         aspen,
         coasting,
         ..
     } = grove;
     let (property, moving) = match motion {
         Motion::Location(to) => {
-            let departed = match aspen.motions.contains_key(&(leaf, Property::Location)) {
+            let departed = match aspen.motions.contains_key(&Moves(leaf, Property::Location)) {
                 // Where the element is now, which is a box between two placements rather than a
                 // placement of its own.
-                true => Departed::Snapshot(tree.placed(leaf)),
+                true => Departed::Snapshot(elements.placed(leaf)),
                 false => Departed::Declared(tree.location(leaf).cloned().unwrap_or_default()),
             };
             // A stroke has no box to write a placement to, and refuses it. Refused here too, rather
@@ -546,10 +562,10 @@ pub(crate) fn animate(
             (Property::Location, Moving::Location(departed))
         }
         Motion::Trace(to) => {
-            let departed = match aspen.motions.contains_key(&(leaf, Property::Location)) {
+            let departed = match aspen.motions.contains_key(&Moves(leaf, Property::Location)) {
                 // Where the two ends are now, which is a pair between two traces rather than a
                 // trace of its own.
-                true => Departed::Snapshot(tree.spanned(leaf).unwrap_or_default()),
+                true => Departed::Snapshot(elements.spanned(leaf).unwrap_or_default()),
                 false => Departed::Declared(tree.trace(leaf).cloned().unwrap_or_default()),
             };
             // A box has no ends to write a trace to. The same refusal as above, the other way round.
@@ -602,7 +618,7 @@ pub(crate) fn animate(
     let within = timing.sequence();
     aspen.enroll(within);
     if let Some(replaced) = aspen.motions.insert(
-        (leaf, property),
+        Moves(leaf, property),
         Motioning {
             moving,
             progress: Progress::new(timing),
@@ -653,7 +669,7 @@ pub(crate) fn stop(grove: &mut Grove, tween: Tween, reported: bool) -> bool {
     // indexed, because what is moving is a handful and a second map would have to be kept in step
     // with this one through every way a motion ends.
     let mut stopped = None;
-    aspen.motions.retain(|(leaf, _), motioning| {
+    aspen.motions.retain(|Moves(leaf, _), motioning| {
         if motioning.tween != tween {
             return true;
         }
@@ -674,17 +690,33 @@ pub(crate) fn stop(grove: &mut Grove, tween: Tween, reported: bool) -> bool {
     true
 }
 
+/// Records that a running motion moved its element this frame, as the kind of write it is.
+///
+/// A placement is blended where it is resolved, so the element is placed again. A fill is blended
+/// where it is drawn, so the element is drawn again and placed where it was. An opacity and a shape
+/// are written back through the tree's own setters, which record themselves; and an offset is
+/// answered by R4 every frame whatever was written, and moves whatever it moves from there.
+fn stirred(tree: &mut Tree, leaf: Leaf, moving: &Moving) {
+    match moving {
+        Moving::Location(_) | Moving::Trace(_) => tree.declared(leaf),
+        Moving::Fill(_) => tree.restyled(leaf),
+        Moving::Opacity { .. } | Moving::Shape { .. } | Moving::Scroll { .. } => {}
+    }
+}
+
 /// Puts an element where its motion was taking it, for both ways a motion ends on its target:
 /// running out, and being stopped.
 ///
-/// Nothing to state where the element's own declaration is the target -- a placement and a fill are
-/// written when the motion starts, so arriving is a removal. What is blended back over its
-/// declaration holds where the motion reached rather than where it was going, and an offset is not a
-/// declaration at all, so those are written out here. A region's is written as though it had been
-/// written directly, which is what makes the frame after a landing identical to the one it landed in.
+/// Nothing to write where the element's own declaration is the target -- a placement and a fill are
+/// written when the motion starts, so arriving is a removal. It is still recorded, because what the
+/// element was last resolved and drawn at is the blend, and the frame the motion goes has to resolve
+/// or draw it at its declaration instead. What is blended back over its declaration holds where the
+/// motion reached rather than where it was going, and an offset is not a declaration at all, so
+/// those are written out here. A region's is written as though it had been written directly, which
+/// is what makes the frame after a landing identical to the one it landed in.
 fn land(tree: &mut Tree, sought: &mut Vec<(Leaf, ScrollTo)>, leaf: Leaf, moving: &Moving) {
     match moving {
-        Moving::Location(_) | Moving::Trace(_) | Moving::Fill(_) => {}
+        Moving::Location(_) | Moving::Trace(_) | Moving::Fill(_) => stirred(tree, leaf, moving),
         Moving::Opacity { to, .. } => tree.set_opacity(leaf, *to),
         Moving::Shape { to, .. } => {
             tree.set_shape(leaf, *to);
@@ -708,7 +740,7 @@ fn filling(
     to: Fill,
 ) -> Option<Moving> {
     let declared = tree.fill(leaf)?;
-    let departed = match aspen.motions.get(&(leaf, Property::Fill)) {
+    let departed = match aspen.motions.get(&Moves(leaf, Property::Fill)) {
         Some(motioning) => Departed::Snapshot(motioning.tint(scheme, declared)),
         None => Departed::Declared(declared),
     };
@@ -762,12 +794,12 @@ fn motions(grove: &mut Grove, delta: Duration) {
         ..
     } = grove;
     let mut ended = Vec::new();
-    aspen.motions.retain(|(leaf, _), motioning| {
+    aspen.motions.retain(|Moves(leaf, _), motioning| {
         let at = motioning.progress.advance(delta);
         // A motion is held here rather than written to the tree until it lands, so nothing else
         // would record that the element is resolving to something new this frame. It is: the blend
         // moved, and on the frame it ends the blend gives way to the declaration underneath it.
-        tree.declared(*leaf);
+        stirred(tree, *leaf, &motioning.moving);
         // How far it has come, for the app holding its name. The eased progress and not the fraction
         // of the duration, because what a motion is a fraction of the way through is what it looks
         // like, and the two differ under every shape but `Linear`.

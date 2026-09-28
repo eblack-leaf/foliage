@@ -154,25 +154,17 @@ impl Buds for Line {
     }
 }
 
-/// Where the layout put a stroke's two ends, in the space [`Placed`](crate::rowan::Placed) is in.
+/// A stroke's two ends, as resolution settled them.
 ///
-/// Settled by R2b beside the box, and on the same terms: what R2b answered, before any scrolling
-/// ancestor moves it. A stroke in motion is settled at the blend, so this is also what a retarget
-/// snapshots -- a box in motion offers `Placed` for the same purpose.
+/// Held twice for every stroke, in resolution's own columns: where the layout put them, and where
+/// they landed once every scrolling ancestor's offset was taken off -- the second is what drawing
+/// and [`Vein::Ends`](crate::Vein::Ends) read, and a region scrolling under a stroke nothing wrote
+/// to moves its ends exactly as it moves its box.
 ///
-/// The box cannot stand in for it. A box is the rectangle around the two ends grown by half the
+/// The box cannot stand in for them. A box is the rectangle around the two ends grown by half the
 /// weight, and a rectangle has two diagonals: which of them the stroke runs along is a fact about
-/// the ends that the rectangle does not carry, and it depends on where the ends resolved rather
-/// than on how they were written.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
-pub(crate) struct Spanned(pub(crate) Stretched);
-
-/// Where a stroke's two ends actually landed, in the space [`Drawn`](crate::rowan::Drawn) is in.
-///
-/// [`Spanned`] less every scrolling ancestor's accumulated offset, written by R4 beside `Drawn` for
-/// every stroke on every frame -- a region scrolling under a stroke nothing wrote to moves its ends
-/// exactly as it moves its box. What drawing and [`Vein::Ends`](crate::Vein::Ends) read.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+/// the ends that the rectangle does not carry.
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Stretched {
     pub(crate) from: Position,
     pub(crate) to: Position,

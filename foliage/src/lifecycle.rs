@@ -61,8 +61,8 @@ pub(crate) struct Disabled(pub(crate) bool);
 ///
 /// R7's one output, and what the box stack and extraction read. Nothing reads the declarations
 /// directly, so there is no path by which an element could act on its own value while ignoring the
-/// subtree it sits in.
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+/// subtree it sits in. Held in resolution's own columns rather than on the element.
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct Inherited {
     pub(crate) visible: bool,
     pub(crate) opacity: f32,
@@ -71,16 +71,11 @@ pub(crate) struct Inherited {
 
 impl Inherited {
     /// This element's own declarations resolved against what its trunk resolved to.
-    pub(crate) fn under(
-        trunk: Inherited,
-        visible: Visible,
-        opacity: Opacity,
-        disabled: Disabled,
-    ) -> Self {
+    pub(crate) fn under(trunk: Inherited, visible: bool, opacity: f32, disabled: bool) -> Self {
         Self {
-            visible: trunk.visible && visible.0,
-            opacity: trunk.opacity * opacity.0,
-            disabled: trunk.disabled || disabled.0,
+            visible: trunk.visible && visible,
+            opacity: trunk.opacity * opacity,
+            disabled: trunk.disabled || disabled,
         }
     }
 

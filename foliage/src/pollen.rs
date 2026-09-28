@@ -3,7 +3,8 @@ use crate::asset::Arrival;
 use crate::coordinate::{Area, Position};
 use crate::interaction::Drag;
 use crate::interaction::input::{Key, Keystroke};
-use crate::leaf::Leaf;
+use crate::leaf::{Leaf, Leaves, Named};
+use bevy_ecs::entity::EntityHash;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
@@ -338,9 +339,9 @@ pub(crate) struct Drift {
     pub(crate) submitted: HashSet<Leaf>,
     pub(crate) focused: HashSet<Leaf>,
     pub(crate) unfocused: HashSet<Leaf>,
-    pub(crate) landed: HashSet<Leaf>,
-    pub(crate) tweens: HashMap<Tween, f32>,
-    pub(crate) finished: HashSet<Tween>,
+    pub(crate) landed: Leaves,
+    pub(crate) tweens: Named<Tween, f32>,
+    pub(crate) finished: HashSet<Tween, EntityHash>,
     pub(crate) sequences: HashSet<Sequence>,
 }
 

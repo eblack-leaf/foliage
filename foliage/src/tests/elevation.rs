@@ -5,7 +5,7 @@ use crate::tests::{grove, tick};
 use crate::{Elevation, Grow, Place, Sap, Stem, Vein};
 
 fn rank(grove: &crate::Grove, leaf: crate::Leaf) -> ResolvedElevation {
-    grove.tree.rank(leaf)
+    grove.elements.rank(leaf)
 }
 
 #[test]

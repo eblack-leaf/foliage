@@ -54,7 +54,7 @@ fn state(grove: &Grove, leaves: &[Leaf]) -> Vec<(Presence, Option<Sap>, Option<S
 }
 
 fn rank(grove: &Grove, leaf: Leaf) -> ResolvedElevation {
-    grove.tree.rank(leaf)
+    grove.elements.rank(leaf)
 }
 
 /// F1's proof obligation: for any op sequence, the resulting state is identical whether it was

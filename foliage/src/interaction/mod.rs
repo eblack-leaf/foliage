@@ -60,6 +60,7 @@ use crate::interaction::focus::Intent;
 use crate::interaction::input::{Input, Key, Keystroke};
 use crate::leaf::Leaf;
 use crate::op::Op;
+use crate::rowan::Elements;
 use crate::view::{self, consumable, range};
 
 /// What an element declared about gestures.
@@ -462,7 +463,7 @@ fn pressed(grove: &mut Grove, at: Position) {
         // A disabled element still blocks what is behind it, and its chain holds only the regions
         // above it that are not disabled themselves -- so a drag over a disabled control scrolls
         // the list it sits in, and a disabled region does not scroll.
-        gesture.chain = chain(grove, region.leaf);
+        gesture.chain = chain(grove, &grove.elements, region.leaf);
         // Taking hold of something still coasting stops it where the hand met it. A coast is the
         // reader's own last gesture carrying on, so catching it is how it is meant to end.
         let caught = gesture.chain.iter().fold(false, |caught, &region| {
@@ -693,7 +694,7 @@ fn wheeled(grove: &mut Grove, at: Position, delta: Position) {
     } else {
         Axis::Vertical
     };
-    let chain = chain(grove, region.leaf);
+    let chain = chain(grove, &grove.elements, region.leaf);
     let wanted = -delta.along(axis);
     let mut next = scrolling(grove, &chain, 0, axis);
     while let Some(index) = next {
@@ -722,12 +723,14 @@ pub(crate) fn dragging(grove: &Grove, leaf: Leaf) -> Option<Position> {
 /// nothing. So scrolling is structural, and it is not the reason anything opts in.
 ///
 /// A disabled region is left out: it does not scroll, but what it sits in still does. Disabled is
-/// inherited, so what is left out is always the innermost part of the walk.
-pub(crate) fn chain(grove: &Grove, from: Leaf) -> Vec<Leaf> {
+/// inherited, so what is left out is always the innermost part of the walk -- read off what
+/// resolution last settled, which is handed in because a coast asks this in the middle of
+/// resolution, while what it settled is out of the grove.
+pub(crate) fn chain(grove: &Grove, elements: &Elements, from: Leaf) -> Vec<Leaf> {
     let mut chain = Vec::new();
     let mut step = Some(from);
     while let Some(leaf) = step {
-        if grove.tree.scrolls(leaf).is_some() && !grove.tree.inherited(leaf).disabled {
+        if grove.tree.scrolls(leaf).is_some() && !elements.inherited(leaf).disabled {
             chain.push(leaf);
         }
         step = grove.tree.trunk(leaf);
@@ -773,7 +776,11 @@ pub(crate) fn outward(grove: &Grove, chain: &[Leaf], index: usize, axis: Axis) -
 
 /// Moves a region by as much of `wanted` as it can still take, and reports how much that was.
 fn scroll(grove: &mut Grove, leaf: Leaf, axis: Axis, wanted: f32) -> f32 {
-    let range = range(grove.tree.extent(leaf), grove.tree.placed(leaf).area, axis);
+    let range = range(
+        grove.tree.extent(leaf),
+        grove.elements.placed(leaf).area,
+        axis,
+    );
     let offset = grove.tree.offset(leaf);
     let taken = consumable(offset.along(axis), range, wanted);
     if taken == 0.0 {

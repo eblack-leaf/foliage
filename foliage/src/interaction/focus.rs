@@ -181,7 +181,7 @@ fn order(grove: &Grove, scope: Option<Leaf>) -> Vec<Leaf> {
         .filter(|leaf| scope.is_none_or(|scope| within(grove, *leaf, scope)))
         .collect::<Vec<_>>();
     order.sort_by(|left, right| {
-        let (left_box, right_box) = (grove.tree.drawn(*left), grove.tree.drawn(*right));
+        let (left_box, right_box) = (grove.elements.drawn(*left), grove.elements.drawn(*right));
         grove
             .tree
             .focus_order(*left)

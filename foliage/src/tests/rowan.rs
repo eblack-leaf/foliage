@@ -412,7 +412,7 @@ fn an_unscrolled_element_is_on_screen_where_the_layout_put_it() {
                 Location::new().xs(left(12.px()).width(34.px()), top(56.px()).height(78.px())),
             ));
     tick(&mut grove);
-    assert_eq!(grove.tree.drawn(leaf), grove.tree.placed(leaf));
+    assert_eq!(grove.elements.drawn(leaf), grove.elements.placed(leaf));
 }
 
 /// R4 accumulates down the tree, so an element inside two moved regions is drawn where the layout
@@ -446,7 +446,7 @@ fn nested_regions_accumulate_offsets() {
     assert_eq!(section(&grove, deep).top(), -50.0);
     // And the layout is where it always was, which is what the inner region's children resolved
     // against.
-    assert_eq!(grove.tree.placed(deep).top(), 20.0);
+    assert_eq!(grove.elements.placed(deep).top(), 20.0);
 }
 
 /// R5 intersects each element's clip with its ancestors', so an element several regions deep sees
@@ -478,12 +478,12 @@ fn clip_rects_intersect_through_several_levels() {
     // Each level narrows what the one below it may show: the middle one is cut off at the outer
     // one's bottom, and the inner one is cut off at the middle one's right.
     assert_eq!(
-        grove.tree.clip(deep),
+        grove.elements.clip(deep),
         Section::from_edges(20.0, 40.0, 180.0, 120.0)
     );
     // A region does not clip itself, only what is grown inside it.
     assert_eq!(
-        grove.tree.clip(middle),
+        grove.elements.clip(middle),
         Section::from_edges(0.0, 0.0, 200.0, 200.0)
     );
 }

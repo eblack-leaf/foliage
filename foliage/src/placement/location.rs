@@ -65,8 +65,12 @@ use crate::placement::source::Source;
 ///
 /// The order is visible in the types: a [`VerticalLength`](crate::VerticalLength) is refused by a
 /// horizontal role, because the horizontal pass runs first and cannot read a height.
+///
+/// Held behind one pointer. Every breakpoint's placement is a slot whether it is stated or not, so
+/// the whole of it is large, and it is carried a great deal -- in every write that moves an element,
+/// in every motion, in the row the element is held in -- where a pointer is all any of those needs.
 #[derive(Component, Clone, Debug, PartialEq)]
-pub struct Location(pub(crate) Breakpoints<Axes>);
+pub struct Location(pub(crate) Box<Breakpoints<Axes>>);
 
 impl Location {
     /// An empty placement: the whole of the parent's box, at every breakpoint.
@@ -74,7 +78,7 @@ impl Location {
     /// Each of [`xs`](Location::xs) upward states one breakpoint's placement, and a breakpoint
     /// with none of its own takes the nearest smaller one that has.
     pub fn new() -> Self {
-        Self(Breakpoints::new())
+        Self(Box::new(Breakpoints::new()))
     }
 
     /// States the placement from the smallest breakpoint up, which is to say everywhere that a

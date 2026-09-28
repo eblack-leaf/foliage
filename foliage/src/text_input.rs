@@ -1003,7 +1003,7 @@ fn value(grove: &Grove, parts: Parts) -> String {
 /// same drain and R1 has not seen it yet -- two keystrokes in one frame are the ordinary case. The
 /// cell is the run's as R1 last measured it, which changes only with the font.
 fn shaped(grove: &Grove, parts: Parts, value: &str) -> Shaped {
-    shape(value, grove.tree.cell(parts.run))
+    shape(value, grove.elements.cell(parts.run))
 }
 
 /// How many cells across the field's run wraps at, as it was last drawn.
@@ -1013,7 +1013,7 @@ fn shaped(grove: &Grove, parts: Parts, value: &str) -> Shaped {
 fn columns(grove: &Grove, parts: Parts, shaped: &Shaped) -> usize {
     parts
         .lines
-        .columns(shaped, grove.tree.drawn(parts.run).width())
+        .columns(shaped, grove.elements.drawn(parts.run).width())
 }
 
 /// Puts a new value and caret on a field, however it was arrived at.
@@ -1210,7 +1210,7 @@ pub(crate) fn lettered(grove: &mut Grove, field: Leaf, parts: Parts, value: Stri
 /// other, and the field has nowhere to go for it -- and a pointer beside an area is on the line it
 /// is level with.
 fn beyond(grove: &Grove, field: Leaf, parts: Parts, at: Position) -> bool {
-    let box_of = grove.tree.drawn(field);
+    let box_of = grove.elements.drawn(field);
     match parts.lines {
         Lines::One => at.x < box_of.left() || at.x > box_of.right(),
         Lines::Many => at.y < box_of.top() || at.y > box_of.bottom(),
@@ -1224,11 +1224,11 @@ fn beyond(grove: &Grove, field: Leaf, parts: Parts, at: Position) -> bool {
 /// because a hand is on the line it is on. Which index that cell is, on a run that wraps, is the
 /// wrap's to say.
 fn index_at(grove: &Grove, parts: Parts, at: Position) -> usize {
-    let cell = grove.tree.cell(parts.run);
+    let cell = grove.elements.cell(parts.run);
     if cell.width <= 0.0 || cell.height <= 0.0 {
         return 0;
     }
-    let drawn = grove.tree.drawn(parts.run);
+    let drawn = grove.elements.drawn(parts.run);
     let column = ((at.x - drawn.left()) / cell.width).round().max(0.0) as usize;
     let line = ((at.y - drawn.top()) / cell.height).floor().max(0.0) as usize;
     let value = value(grove, parts);

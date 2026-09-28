@@ -88,6 +88,6 @@ impl Point {
     /// a box, asked of a vertex: a point that reads a vertical extent is asking how tall something
     /// else is, and cannot be what decides how tall this is.
     pub(crate) fn measurable(&self) -> bool {
-        self.y.origin != Origin::Anchor && self.y.expr.terms.iter().all(|term| known(term.kind))
+        self.y.origin != Origin::Anchor && self.y.expr.terms().iter().all(|term| known(term.kind))
     }
 }
