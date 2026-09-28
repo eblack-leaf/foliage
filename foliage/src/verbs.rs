@@ -3,7 +3,8 @@ use core::ops::Range;
 use crate::aspen::{Motion, Sequence, Timing, Tween};
 use crate::coordinate::Area;
 use crate::elevation::Elevation;
-use crate::image::Plate;
+use crate::icon::Field;
+use crate::image::{Fit, Plate};
 use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
 use crate::op::Op;
@@ -256,6 +257,34 @@ pub trait Grow: Queues {
         self.queue(Op::Reshape { leaf, shape });
     }
 
+    /// Swaps which registered mark an icon draws.
+    ///
+    /// The fill stays, so a toggle that trades one mark for another keeps its colour. A mark that
+    /// has yet to arrive draws nothing until it does, as it would have when planted.
+    ///
+    /// Dropped if the element is not an [`Icon`](crate::Icon).
+    fn mark(&mut self, leaf: Leaf, field: Field) {
+        self.queue(Op::Mark { leaf, field });
+    }
+
+    /// Swaps which registered picture an image draws.
+    ///
+    /// Its fit and its corners stay, so the new picture is framed the way the old one was. A
+    /// picture whose pixels have yet to arrive draws nothing until they do, as it would have when
+    /// planted.
+    ///
+    /// Dropped if the element is not an [`Image`](crate::Image).
+    fn depict(&mut self, leaf: Leaf, plate: Plate) {
+        self.queue(Op::Depict { leaf, plate });
+    }
+
+    /// Changes how an image's pixels are fitted into its box.
+    ///
+    /// Dropped if the element is not an [`Image`](crate::Image).
+    fn fit(&mut self, leaf: Leaf, fit: Fit) {
+        self.queue(Op::Fit { leaf, fit });
+    }
+
     /// Registers a picture and hands back the name elements draw it by.
     ///
     /// `pixels` is RGBA, one byte per channel, row-major, `size` texels across -- pixels the app
@@ -331,7 +360,9 @@ pub trait Grow: Queues {
     ///
     /// It still draws -- a greyed control is still a control -- and it still occupies the box
     /// stack, so it **swallows**: a press on it reaches neither the element itself nor anything
-    /// behind it, and a drag over it scrolls nothing. That is the whole difference between disabled
+    /// behind it. Scrolling is not swallowed -- a drag or a wheel over it moves the regions it sits
+    /// in, as long as they are not disabled themselves -- but a disabled region does not scroll.
+    /// That is the whole difference between disabled
     /// and decoration, and it is what makes disabling a page enough on its own when a drawer opens
     /// over it: the page goes inert without a scrim to arrange.
     ///

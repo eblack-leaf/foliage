@@ -56,7 +56,10 @@ impl Silhouette {
             (a.0 + (b.0 - a.0) * at, a.1 + (b.1 - a.1) * at)
         };
         let mut kept = Vec::with_capacity(self.outline.len() + 2);
-        let mut previous = *self.outline.last().expect("an outline has vertices");
+        // Cutting what a cut already emptied keeps it empty.
+        let Some(&(mut previous)) = self.outline.last() else {
+            return self.clone();
+        };
         for &point in &self.outline {
             match (inside(previous), inside(point)) {
                 (true, true) => kept.push(point),

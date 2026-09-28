@@ -54,6 +54,17 @@ fn a_line_that_misses_the_shape_crosses_nothing() {
 }
 
 #[test]
+fn a_cut_that_keeps_the_far_side_of_nothing_is_empty() {
+    let shape = square();
+    assert!(!shape.is_empty());
+    // The line is left of the square and the keep point further left: nothing of it is kept.
+    let none = shape.cut(Cut::new((0.1, 0.0), (0.1, 1.0), (0.05, 0.5)));
+    assert!(none.is_empty());
+    // And cutting that again is still nothing, rather than a panic.
+    assert!(none.cut(Cut::new((0.5, 0.0), (0.5, 1.0), (0.3, 0.5))).is_empty());
+}
+
+#[test]
 fn a_chain_arms_its_first_undone_step_and_holds_the_rest() {
     let wears: Vec<Press> = gate(&[true, true, false, false]).collect();
     assert_eq!(

@@ -459,28 +459,28 @@ fn pressed(grove: &mut Grove, at: Position) {
     // release inside one frame and that movement has to land somewhere.
     gesture.open(grove.clock.delta());
     if let Some(region) = grove.stack.top(at) {
-        if region.disabled {
-            // Swallowed. A disabled element is present and inert: it takes nothing itself, and it
-            // does not pass the gesture on to what is behind it or to a region containing it.
-            debug!(leaf = region.leaf.id(), "gesture swallowed");
-        } else {
-            gesture.chain = chain(grove, region.leaf);
-            // Taking hold of something still coasting stops it where the hand met it. A coast is
-            // the reader's own last gesture carrying on, so catching it is how it is meant to end.
-            let caught = gesture.chain.iter().fold(false, |caught, &region| {
-                grove.coasting.stop(region) || caught
-            });
-            if caught {
-                // And the press is spent on the catch. What is under the hand hears nothing of it,
-                // or stopping a moving list would also be a press on whatever it happened to stop
-                // over -- which is the one thing a reader reaching for it did not mean. The gesture
-                // stays open and keeps its chain, so a drag out of the catch scrolls as any other.
-                debug!(leaf = region.leaf.id(), "coast caught");
-            } else if region.receives {
-                gesture.target = Some(region.leaf);
-                grove.drift.engaged.insert(region.leaf);
-                debug!(leaf = region.leaf.id(), "engaged");
-            }
+        // A disabled element still blocks what is behind it, and its chain holds only the regions
+        // above it that are not disabled themselves -- so a drag over a disabled control scrolls
+        // the list it sits in, and a disabled region does not scroll.
+        gesture.chain = chain(grove, region.leaf);
+        // Taking hold of something still coasting stops it where the hand met it. A coast is the
+        // reader's own last gesture carrying on, so catching it is how it is meant to end.
+        let caught = gesture.chain.iter().fold(false, |caught, &region| {
+            grove.coasting.stop(region) || caught
+        });
+        if caught {
+            // And the press is spent on the catch. What is under the hand hears nothing of it, or
+            // stopping a moving list would also be a press on whatever it happened to stop over --
+            // which is the one thing a reader reaching for it did not mean. The gesture stays open
+            // and keeps its chain, so a drag out of the catch scrolls as any other.
+            debug!(leaf = region.leaf.id(), "coast caught");
+        } else if region.disabled {
+            // Inert: it takes nothing itself, and a tap on it reaches nothing behind it.
+            debug!(leaf = region.leaf.id(), "press swallowed");
+        } else if region.receives {
+            gesture.target = Some(region.leaf);
+            grove.drift.engaged.insert(region.leaf);
+            debug!(leaf = region.leaf.id(), "engaged");
         }
     }
     grove.incoming.gesture = Some(gesture);
@@ -688,9 +688,6 @@ fn wheeled(grove: &mut Grove, at: Position, delta: Position) {
     let Some(region) = grove.stack.top(at) else {
         return;
     };
-    if region.disabled {
-        return;
-    }
     let axis = if delta.x.abs() > delta.y.abs() {
         Axis::Horizontal
     } else {
@@ -723,11 +720,14 @@ pub(crate) fn dragging(grove: &Grove, leaf: Leaf) -> Option<Position> {
 /// Targethood is not consulted. A drag anywhere inside a region must scroll it -- on touch that is
 /// the only way to scroll at all -- and that has to work on plain decoration, which asked for
 /// nothing. So scrolling is structural, and it is not the reason anything opts in.
+///
+/// A disabled region is left out: it does not scroll, but what it sits in still does. Disabled is
+/// inherited, so what is left out is always the innermost part of the walk.
 pub(crate) fn chain(grove: &Grove, from: Leaf) -> Vec<Leaf> {
     let mut chain = Vec::new();
     let mut step = Some(from);
     while let Some(leaf) = step {
-        if grove.tree.scrolls(leaf).is_some() {
+        if grove.tree.scrolls(leaf).is_some() && !grove.tree.inherited(leaf).disabled {
             chain.push(leaf);
         }
         step = grove.tree.trunk(leaf);

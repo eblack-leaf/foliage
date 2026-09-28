@@ -26,9 +26,9 @@
 //! wrap rather than off where the caret was last seen.
 //!
 //! A selection is the span between two of those. On one line it is one box; across lines it is
-//! three -- the rest of the first line, every whole line between, and the start of the last -- and
-//! which of the three are drawn is the one thing decided here rather than by the layout, against the
-//! width the run was last drawn at.
+//! three -- the rest of the first line, every whole line between, and the start of the last. All
+//! three are always placed, and the ones a span does not need resolve to nothing, so which lines its
+//! ends fell on is the layout's to read off the wrap exactly as a caret's line is.
 //!
 //! The run is drawn in front of all of them. A caret sits on the boundary between two character
 //! cells and is as wide as it needs to be seen, so a caret drawn over the run would take a bite out
@@ -770,7 +770,7 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
     // to it: the caret is rewritten by `refresh` whenever it moves, and the selection by `settled`
     // every frame it is drawn.
     let against = |elevation: i32, visible: bool| Placement {
-        location: Some(head_at(0, Some(0))),
+        location: Some(head_at(0, 0)),
         anchor: Some(Anchored { to: run, at }),
         elevation: Some(Elevation::up(elevation)),
         manner: Manner {
@@ -861,18 +861,16 @@ fn caret_at(index: usize) -> Location {
 
 /// The selection on the line character `from` is on: to character `to` where it is on the same
 /// line, and to the run's right edge where it is not.
-fn head_at(from: usize, to: Option<usize>) -> Location {
-    let across = left(anchor().left() + anchor().character(from));
+fn head_at(from: usize, to: usize) -> Location {
     Location::new().xs(
-        match to {
-            Some(to) => across.right(anchor().left() + anchor().character(to)),
-            None => across.right(anchor().right()),
-        },
+        left(anchor().left() + anchor().character(from))
+            .right(anchor().left() + anchor().stops(from, to)),
         top(anchor().top() + anchor().character(from)).height(anchor().letters(1.0)),
     )
 }
 
-/// Every whole line between the one character `from` is on and the one character `to` is on.
+/// Every whole line between the one character `from` is on and the one character `to` is on --
+/// no height at all where there is no line between them.
 fn body_at(from: usize, to: usize) -> Location {
     Location::new().xs(
         left(anchor().left()).right(anchor().right()),
@@ -881,10 +879,12 @@ fn body_at(from: usize, to: usize) -> Location {
     )
 }
 
-/// The line character `to` is on, from the run's left edge up to it.
-fn tail_at(to: usize) -> Location {
+/// The line character `to` is on, from the run's left edge up to it -- no width at all where
+/// `from` is on that line too, because the head has already drawn it.
+fn tail_at(from: usize, to: usize) -> Location {
     Location::new().xs(
-        left(anchor().left()).right(anchor().left() + anchor().character(to)),
+        left(anchor().left() + anchor().resumes(from, to))
+            .right(anchor().left() + anchor().character(to)),
         top(anchor().top() + anchor().character(to)).height(anchor().letters(1.0)),
     )
 }
@@ -1117,12 +1117,12 @@ fn gestured(grove: &mut Grove) {
 /// stepped away from and back into is as it was left -- while a *tap* back into it collapses the
 /// selection, because a tap says where the caret goes.
 ///
-/// The selection is placed here as well as shown, every frame it is drawn. Its geometry is the
-/// layout's, read off the wrap by the same [`character`](crate::Anchor::character) the caret is --
-/// but *how many boxes* it takes is a fact about which lines its two ends fell on, and that is read
-/// here against the width the run was last drawn at. A frame that changes the wrap under a
-/// selection is answered on the frame after, which is the one frame the drawn and the declared can
-/// disagree.
+/// The selection is placed here as well as shown, every frame it is drawn, and all of it is the
+/// layout's. Which lines its two ends fell on is read off the wrap by the same resolution the caret
+/// is, so its three boxes are always shown and the ones a span does not need resolve to nothing:
+/// the head stops at the far end where both ends share a line, the tail then has no width, and the
+/// body has no height unless there are whole lines between. A frame that changes the wrap under a
+/// selection draws it divided by that wrap, because nothing about it was decided here.
 ///
 /// The soft keyboard is settled here too, and it is the same statement the caret is: a platform's
 /// own keyboard is raised for the field that holds focus and lowered for everything else, so
@@ -1143,23 +1143,13 @@ fn settled(grove: &mut Grove) {
             }
             continue;
         }
-        let value = value(grove, parts);
-        let shaped = shaped(grove, parts, &value);
-        let wrap = shaped.wrap(columns(grove, parts, &shaped));
-        let (_, first) = wrap.cell_of(selected.start);
-        let (_, last) = wrap.cell_of(selected.end);
-        let same = first == last;
-        grove.tree.set_location(
-            parts.head,
-            head_at(selected.start, same.then_some(selected.end)),
-        );
-        grove.tree.set_visible(parts.head, true);
-        grove
-            .tree
-            .set_location(parts.body, body_at(selected.start, selected.end));
-        grove.tree.set_visible(parts.body, last > first + 1);
-        grove.tree.set_location(parts.tail, tail_at(selected.end));
-        grove.tree.set_visible(parts.tail, !same);
+        let (from, to) = (selected.start, selected.end);
+        grove.tree.set_location(parts.head, head_at(from, to));
+        grove.tree.set_location(parts.body, body_at(from, to));
+        grove.tree.set_location(parts.tail, tail_at(from, to));
+        for mark in [parts.head, parts.body, parts.tail] {
+            grove.tree.set_visible(mark, true);
+        }
     }
     // Nothing is raised to type into a field that takes no typing.
     let wanted = focused

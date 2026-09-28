@@ -66,7 +66,7 @@ pub(crate) fn known(kind: Kind) -> bool {
         Kind::Letters { .. } => true,
         // A line of a run is read off the width the run resolved to, which the horizontal axis has
         // settled, and off the run itself, which R1 shaped -- so it is as known as a count of cells.
-        Kind::Character { .. } => true,
+        Kind::Character { .. } | Kind::Span { .. } => true,
         Kind::Content { against } => against == Against::Own,
         // The horizontal axis resolved before any of this, so a height stated in one is known.
         Kind::Extent { axis, .. } | Kind::Cell { axis, .. } => axis == Axis::Horizontal,

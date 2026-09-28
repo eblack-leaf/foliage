@@ -5,7 +5,7 @@
 //! | | Draws | In the box stack | Receives input |
 //! |---|---|---|---|
 //! | `visible(false)` | no | no | no |
-//! | `disable` | yes | **yes** | no -- and swallows |
+//! | `disable` | yes | **yes** | no -- swallows presses, passes scrolling on |
 //! | `opacity(0.0)` | nothing to see | no | no |
 //!
 //! A disabled element still draws and still blocks, which is what makes it different from

@@ -68,10 +68,31 @@ pub(crate) enum Kind {
     /// resolved to: its column on the horizontal axis and its line on the vertical one, each as a
     /// count of that element's cells.
     Character { index: usize, against: Against },
+    /// Where a span of the named element's run, from one character to another, starts or stops on
+    /// one of its lines, as the run wrapped at the width it resolved to.
+    Span {
+        from: usize,
+        to: usize,
+        end: SpanEnd,
+        against: Against,
+    },
     /// A measured intrinsic extent on the resolving axis.
     Content { against: Against },
     /// One edge of a box. Already a position on the surface, so it is measured from nothing.
     Edge { edge: Edge, against: Against },
+}
+
+/// Which end of a span across a wrapped run a [`Kind::Span`] reads.
+///
+/// Horizontally, a span whose two ends share a line is one stretch, and both read where it stops.
+/// Across lines they part: the first line runs on to the run's far edge and the last one starts
+/// from its near edge. Vertically, each is the line of the character it names.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SpanEnd {
+    /// Where the span stops on the line its first character is on.
+    Stops,
+    /// Where the span starts again on the line its last character is on.
+    Resumes,
 }
 
 /// Which edge of a box a term reads.

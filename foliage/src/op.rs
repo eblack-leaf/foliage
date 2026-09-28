@@ -4,7 +4,7 @@ use crate::coordinate::Area;
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, Pigment};
 use crate::frond::Sprouts;
-use crate::image::Plate;
+use crate::image::{Fit, Plate};
 use crate::interaction::focus::Intent;
 use crate::interaction::input::Keystroke;
 use crate::leaf::{Growth, Leaf};
@@ -101,6 +101,21 @@ pub(crate) enum Op {
     Reshape {
         leaf: Leaf,
         shape: crate::polygon::Shape,
+    },
+    /// Swaps which registered mark an icon draws.
+    Mark {
+        leaf: Leaf,
+        field: crate::icon::Field,
+    },
+    /// Swaps which registered picture an image draws.
+    Depict {
+        leaf: Leaf,
+        plate: Plate,
+    },
+    /// Changes how an image's pixels are fitted into its box.
+    Fit {
+        leaf: Leaf,
+        fit: Fit,
     },
     /// Fills a registered picture's name with pixels.
     ///

@@ -10,7 +10,8 @@
 
 use crate::coordinate::Axis;
 use crate::placement::source::{
-    Against, Edge, HorizontalCoordinate, Kind, Length, Origin, VerticalCoordinate, VerticalLength,
+    Against, Edge, HorizontalCoordinate, Kind, Length, Origin, SpanEnd, VerticalCoordinate,
+    VerticalLength,
 };
 
 /// The element this one was grown under.
@@ -175,3 +176,35 @@ macro_rules! basis {
 
 basis!(Trunk, Against::Trunk, Origin::Trunk);
 basis!(Anchor, Against::Anchor, Origin::Anchor);
+
+/// The two readings a selection is drawn by, and nothing else is.
+///
+/// On the anchor alone and not in the shared vocabulary, because the one reader is a field's
+/// selection, which anchors to the field's run.
+impl Anchor {
+    /// Where the span from character `from` to character `to` stops on the line `from` is on: at
+    /// `to` where it is on that line too, and at the run's right edge where it is not.
+    ///
+    /// Read off the run as it wrapped, like [`character`](Self::character), so a selection is
+    /// divided into lines by the wrap this frame lays out rather than the one it last drew.
+    pub(crate) fn stops(self, from: usize, to: usize) -> Length {
+        Length::of(Kind::Span {
+            from,
+            to,
+            end: SpanEnd::Stops,
+            against: Against::Anchor,
+        })
+    }
+
+    /// Where the span from character `from` to character `to` starts again on the line `to` is
+    /// on: at the run's left edge where `from` is on an earlier line, and at `to` itself where it
+    /// is not -- where there is nothing left of the span to draw.
+    pub(crate) fn resumes(self, from: usize, to: usize) -> Length {
+        Length::of(Kind::Span {
+            from,
+            to,
+            end: SpanEnd::Resumes,
+            against: Against::Anchor,
+        })
+    }
+}

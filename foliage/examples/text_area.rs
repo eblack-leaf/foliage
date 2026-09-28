@@ -1,6 +1,6 @@
 use foliage::{
-    Area, Boxed, Foliage, Grove, Grow, Leaf, Location, Palette, Panel, Pollen, Root, Source,
-    TextArea, left, top,
+    Area, Boxed, Foliage, Grove, Grow, Location, Palette, Panel, Pollen, Root, Source, TextArea,
+    left, top,
 };
 
 fn main() {
@@ -11,24 +11,19 @@ fn main() {
     foliage.root::<Example>();
     foliage.photosynthesize();
 }
-struct Example {
-    backdrop: Leaf,
-    area: Leaf,
-}
+struct Example;
 impl Root for Example {
     fn take_root(grove: &mut Grove) -> Self {
-        let backdrop = grove.plant(Panel::new().color(Palette::Raised).at(Location::new().xs(
+        grove.plant(Panel::new().color(Palette::Raised).at(Location::new().xs(
             left(8.px()).right(100.pct() - 8.px()),
             top(16.px()).bottom(100.pct() - 16.px()),
         )));
-        let area = grove.plant(TextArea::new().at(Location::new().xs(
+        grove.plant(TextArea::new().at(Location::new().xs(
             left(16.px()).right(100.pct() - 16.px()),
             top(24.px()).bottom(100.pct() - 24.px()),
         )));
-        Self { backdrop, area }
+        Self
     }
 
-    fn frame(&mut self, grove: &mut Grove, pollen: Pollen) {
-        // ...
-    }
+    fn frame(&mut self, _grove: &mut Grove, _pollen: Pollen) {}
 }

@@ -732,10 +732,39 @@ fn a_disabled_element_swallows_the_gesture() {
     assert!(!pollen.engaged(button));
 }
 
-/// Swallowing covers every kind of input uniformly. A disabled region does not scroll, and the
-/// gesture does not pass outward to one that would.
+/// A disabled element swallows presses, not scrolling. A drag over a disabled control still scrolls
+/// the region it sits in, or every greyed row of a list would be a dead spot for the hand.
 #[test]
-fn a_disabled_region_neither_scrolls_nor_hands_outward() {
+fn a_drag_over_a_disabled_element_scrolls_its_region() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    grove.branch(region, Panel::new().at(at(0.0, 0.0, 200.0, 400.0)));
+    let button = grove.branch(
+        region,
+        Panel::new().at(at(0.0, 0.0, 200.0, 50.0)).interactive(),
+    );
+    grove.disable(button);
+    tick(&mut grove);
+
+    wheel(&mut grove, (50.0, 25.0), (0.0, -10.0));
+    tick(&mut grove);
+    assert_eq!(offset(&grove, region).y, 10.0);
+
+    press(&mut grove, 50.0, 25.0);
+    drag(&mut grove, 50.0, -25.0);
+    let pollen = frame(&mut grove);
+
+    assert!(!pollen.engaged(button));
+    assert_eq!(offset(&grove, region).y, 60.0);
+}
+
+/// A disabled region does not scroll, but the gesture still passes outward to the region it sits in.
+#[test]
+fn a_disabled_region_does_not_scroll_but_hands_outward() {
     let mut grove = grove();
     let outer = grove.plant(
         Stem::new()
@@ -758,7 +787,7 @@ fn a_disabled_region_neither_scrolls_nor_hands_outward() {
     tick(&mut grove);
 
     assert_eq!(offset(&grove, inner).y, 0.0);
-    assert_eq!(offset(&grove, outer).y, 0.0);
+    assert_eq!(offset(&grove, outer).y, 100.0);
 }
 
 /// What extraction hands the backend to scissor with. An element inside a region is clipped to it;

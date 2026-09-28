@@ -8,8 +8,8 @@ use bevy_ecs::world::World;
 use crate::coordinate::{Area, Position, Section};
 use crate::elevation::{Elevation, ResolvedElevation};
 use crate::elm::{Chlorophyll, PanelPigment, Pigment};
-use crate::icon::IconPigment;
-use crate::image::ImagePigment;
+use crate::icon::{Field, IconPigment};
+use crate::image::{Fit, ImagePigment, Plate};
 use crate::interaction::Gestures;
 use crate::keyboard::Keypad;
 use crate::leaf::{Grown, Growth, Leaf, Presence, SpawnedAt};
@@ -714,6 +714,45 @@ impl Tree {
             return false;
         };
         pigment.shape = shape;
+        self.declared(leaf);
+        true
+    }
+
+    /// Swaps the mark `leaf` draws, reporting whether it is an icon at all.
+    pub(crate) fn set_mark(&mut self, leaf: Leaf, field: Field) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut pigment) = entity.get_mut::<IconPigment>() else {
+            return false;
+        };
+        pigment.field = field;
+        self.declared(leaf);
+        true
+    }
+
+    /// Swaps the picture `leaf` draws, reporting whether it is an image at all.
+    pub(crate) fn set_plate(&mut self, leaf: Leaf, plate: Plate) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut pigment) = entity.get_mut::<ImagePigment>() else {
+            return false;
+        };
+        pigment.plate = plate;
+        self.declared(leaf);
+        true
+    }
+
+    /// Changes how `leaf`'s pixels are fitted into its box, reporting whether it is an image at all.
+    pub(crate) fn set_fit(&mut self, leaf: Leaf, fit: Fit) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut pigment) = entity.get_mut::<ImagePigment>() else {
+            return false;
+        };
+        pigment.fit = fit;
         self.declared(leaf);
         true
     }

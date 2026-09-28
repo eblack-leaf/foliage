@@ -17,7 +17,7 @@ use crate::coordinate::{Area, Axis, Section};
 use crate::placement::grid::Tracks;
 use crate::placement::point::Point;
 use crate::placement::role::{Config, Form};
-use crate::placement::source::{Against, Coord, Edge, Expr, Kind, Origin};
+use crate::placement::source::{Against, Coord, Edge, Expr, Kind, Origin, SpanEnd};
 use crate::text::shape::Shaped;
 
 /// Everything one element offers a placement that reads it.
@@ -223,6 +223,12 @@ fn source(kind: Kind, role: Role, context: &Context) -> f32 {
         Kind::Character { index, against } => {
             character(index, context.basis(against), context.axis)
         }
+        Kind::Span {
+            from,
+            to,
+            end,
+            against,
+        } => span(from, to, end, context.basis(against), context.axis),
         Kind::Content { against } => extent_of_area(context.basis(against).intrinsic, context.axis),
         Kind::Edge { edge, against } => {
             let section = context.basis(against).section;
@@ -276,6 +282,31 @@ fn character(index: usize, basis: &Basis, axis: Axis) -> f32 {
     match axis {
         Axis::Horizontal => column as f32 * basis.cell.width,
         Axis::Vertical => line as f32 * basis.cell.height,
+    }
+}
+
+/// Where the span from character `from` to character `to` of `basis`'s run starts or stops on a
+/// line, in logical pixels from the run's own corner -- see [`SpanEnd`].
+///
+/// Against the same wrap [`character`] reads, so whether the two ends share a line is decided by
+/// the width this frame resolved to and never by one a frame before it.
+fn span(from: usize, to: usize, end: SpanEnd, basis: &Basis, axis: Axis) -> f32 {
+    let Some(run) = basis.run else {
+        return 0.0;
+    };
+    let wrap = run.wrap(run.columns(basis.section.width()));
+    let (_, first) = wrap.cell_of(from);
+    let (column, last) = wrap.cell_of(to);
+    match axis {
+        Axis::Vertical => match end {
+            SpanEnd::Stops => first as f32 * basis.cell.height,
+            SpanEnd::Resumes => last as f32 * basis.cell.height,
+        },
+        Axis::Horizontal => match (first == last, end) {
+            (true, _) => column as f32 * basis.cell.width,
+            (false, SpanEnd::Stops) => basis.section.width(),
+            (false, SpanEnd::Resumes) => 0.0,
+        },
     }
 }
 

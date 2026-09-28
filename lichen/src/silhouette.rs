@@ -182,6 +182,13 @@ impl Silhouette {
         )
     }
 
+    /// Whether it encloses nothing: fewer than three points, which is what a [`cut`](Self::cut)
+    /// whose kept side misses the shape leaves. A part like that holds no tile, so a crop to it
+    /// takes the whole mosaic away.
+    pub fn is_empty(&self) -> bool {
+        self.outline.len() < 3
+    }
+
     /// How tall it is per unit of width.
     pub fn aspect(&self) -> f32 {
         self.height
@@ -367,7 +374,10 @@ impl Silhouette {
     /// Whether the outline holds `point`, by counting the crossings of a ray cast from it.
     fn contains(&self, (x, y): (f32, f32)) -> bool {
         let mut inside = false;
-        let mut previous = *self.outline.last().expect("the outline has vertices");
+        // An empty part -- a cut that kept none of the shape -- holds nothing.
+        let Some(&(mut previous)) = self.outline.last() else {
+            return false;
+        };
         for &vertex in &self.outline {
             let ((x0, y0), (x1, y1)) = (previous, vertex);
             if (y0 > y) != (y1 > y) && x < (x1 - x0) * (y - y0) / (y1 - y0) + x0 {

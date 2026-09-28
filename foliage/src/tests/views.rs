@@ -3,7 +3,7 @@
 //! What a region *does* with a gesture was proven in `interaction` when the structure landed --
 //! that a drag anywhere inside a region scrolls it, that a region at its end hands a continuing
 //! drag outward, that nested regions hand off in order, that a hidden child leaves the extent, and
-//! that a disabled region neither scrolls nor chains. Those stay where they are, because they are
+//! that a disabled region does not scroll but still chains outward. Those stay where they are, because they are
 //! statements about the gesture. What is here is everything about the region itself.
 
 use crate::coordinate::{Area, Axes, Position, Section};

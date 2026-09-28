@@ -331,6 +331,39 @@ fn drain(grove: &mut Grove) {
                     dropped("reshape", leaf, "has no shape to reshape");
                 }
             }
+            Op::Mark { leaf, field } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("mark", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_mark(leaf, field) {
+                    debug!(leaf = leaf.id(), mark = field.0, "marked");
+                } else {
+                    dropped("mark", leaf, "is not an icon");
+                }
+            }
+            Op::Depict { leaf, plate } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("depict", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_plate(leaf, plate) {
+                    debug!(leaf = leaf.id(), plate = plate.0, "depicted");
+                } else {
+                    dropped("depict", leaf, "is not an image");
+                }
+            }
+            Op::Fit { leaf, fit } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("fit", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_fit(leaf, fit) {
+                    debug!(leaf = leaf.id(), ?fit, "fitted");
+                } else {
+                    dropped("fit", leaf, "is not an image");
+                }
+            }
             // Names no element, like a repaint: a picture belongs to the program rather than to any
             // of the elements drawing it, and every one of them follows when it arrives.
             Op::Load {

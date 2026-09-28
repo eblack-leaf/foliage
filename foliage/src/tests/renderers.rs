@@ -510,6 +510,32 @@ fn a_mark_is_filled_like_anything_else() {
     assert_eq!(mark(&grove, leaf).color, Color::rgb(1.0, 0.0, 0.0));
 }
 
+/// Which mark an icon draws is written like any other property, and keeps the fill it had -- so a
+/// toggle trading one mark for another does not lose its colour.
+#[test]
+fn a_mark_is_swapped_in_place() {
+    let mut grove = grove();
+    let first = field(&mut grove);
+    let second = field(&mut grove);
+    let leaf = grove.plant(
+        crate::Icon::new(first)
+            .color(Palette::Accent)
+            .at(square(24.0)),
+    );
+    let panel = grove.plant(Panel::new().at(square(24.0)));
+    tick(&mut grove);
+    grove.mark(leaf, second);
+    grove.mark(panel, second);
+    tick(&mut grove);
+    assert_eq!(grove.tap(leaf, Vein::Mark), Some(Sap::Mark(second)));
+    assert_eq!(mark(&grove, leaf).field, second);
+    assert_eq!(
+        grove.tap(leaf, Vein::Color),
+        Some(Sap::Color(Fill::Role(Palette::Accent)))
+    );
+    assert_eq!(grove.tap(panel, Vein::Mark), None);
+}
+
 // -- Images ----------------------------------------------------------------------------------
 
 /// Four texels of RGBA, two by two.
@@ -539,6 +565,25 @@ fn a_plate_is_usable_in_the_frame_it_is_named() {
         Section::from_edges(0.0, 0.0, 40.0, 40.0)
     );
     assert_eq!(grove.tap(leaf, Vein::Picture), Some(Sap::Picture(plate)));
+}
+
+/// Which picture an image draws is written like any other property, and keeps its fit -- so the
+/// new picture is framed the way the old one was.
+#[test]
+fn a_picture_is_swapped_in_place() {
+    let mut grove = grove();
+    let first = grove.pixels(pixels(), Area::new(2.0, 2.0));
+    let second = grove.pixels(pixels(), Area::new(2.0, 2.0));
+    let leaf = grove.plant(Image::new(first).fit(Fit::Crop).at(square(40.0)));
+    let panel = grove.plant(Panel::new().at(square(40.0)));
+    tick(&mut grove);
+    grove.depict(leaf, second);
+    grove.depict(panel, second);
+    tick(&mut grove);
+    assert_eq!(grove.tap(leaf, Vein::Picture), Some(Sap::Picture(second)));
+    assert_eq!(picture(&grove, leaf).plate, second);
+    assert_eq!(grove.tap(leaf, Vein::Fit), Some(Sap::Fit(Fit::Crop)));
+    assert_eq!(grove.tap(panel, Vein::Picture), None);
 }
 
 /// A picture with nothing behind it yet occupies its box and draws nothing. Absent from the batch
@@ -586,6 +631,26 @@ fn a_fit_moves_the_box_or_the_crop_and_never_both() {
         Section::from_edges(0.0, 0.0, 40.0, 40.0)
     );
     assert_eq!(picture(&grove, stretched).crop, [0.0, 0.0, 1.0, 1.0]);
+}
+
+/// A fit written after planting reframes the picture exactly as one declared at planting would.
+#[test]
+fn a_fit_is_rewritten_in_place() {
+    let mut grove = grove();
+    let wide = grove.pixels(vec![255; 4 * 1 * 4], Area::new(4.0, 1.0));
+    let leaf = grove.plant(Image::new(wide).fit(Fit::Aspect).at(square(40.0)));
+    let panel = grove.plant(Panel::new().at(square(40.0)));
+    tick(&mut grove);
+    grove.fit(leaf, Fit::Crop);
+    grove.fit(panel, Fit::Crop);
+    tick(&mut grove);
+    assert_eq!(grove.tap(leaf, Vein::Fit), Some(Sap::Fit(Fit::Crop)));
+    assert_eq!(
+        picture(&grove, leaf).section,
+        Section::from_edges(0.0, 0.0, 40.0, 40.0)
+    );
+    assert_eq!(picture(&grove, leaf).crop, [0.375, 0.0, 0.25, 1.0]);
+    assert_eq!(grove.tap(panel, Vein::Fit), None);
 }
 
 /// The radii are measured against the box the pixels are actually drawn into, which under

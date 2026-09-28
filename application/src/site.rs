@@ -5,10 +5,9 @@
 //! a section: where else foliage is written down, what it builds, and how it builds it.
 
 use foliage::{
-    Axes, Boxed, Elevation, Grove, Grow, Layout, Location, Palette, Panel, Place, Pollen, Root,
-    ScrollTo, Stem,
+    Axes, Boxed, Elevation, Grove, Grow, Location, Palette, Panel, Place, Pollen, Root, ScrollTo,
+    Stem,
 };
-use lichen::Density;
 use tracing::info;
 
 use crate::icons::Icons;
@@ -37,11 +36,6 @@ pub(crate) struct Site {
 
 impl Root for Site {
     fn take_root(grove: &mut Grove) -> Self {
-        // A phone's window is a hand's width, and every part is grown a step smaller on one --
-        // chosen once, before anything is grown, as lichen asks.
-        if grove.viewport().width < Layout::MD {
-            lichen::density(Density::Compact);
-        }
         let scheme = theme::scheme();
         grove.repaint(scheme);
         let icons = grove.marks::<Icons>();

@@ -220,6 +220,13 @@ fn shown(grove: &Grove, leaf: Leaf) -> bool {
     grove.tree.inherited(leaf).visible
 }
 
+/// Whether a piece of the selection puts anything on the surface: shown, and with a box that has
+/// both a width and a height. A piece a span does not need is still shown and resolves to nothing.
+fn drawn(grove: &Grove, leaf: Leaf) -> bool {
+    let area = section(grove, leaf).area;
+    shown(grove, leaf) && area.width > 0.0 && area.height > 0.0
+}
+
 /// The same six elements a field is, under one name, and the value it says is read the same way.
 #[test]
 fn an_area_is_a_field_that_holds_newlines() {
@@ -349,9 +356,9 @@ fn a_selection_across_two_lines_is_drawn_in_two_pieces() {
     let first = section(&grove, head(&grove, leaf));
     assert_eq!((first.left(), first.right()), (1.0 * CELL, 3.0 * CELL));
     assert_eq!(first.top(), 0.0);
-    assert!(shown(&grove, head(&grove, leaf)));
-    assert!(!shown(&grove, body(&grove, leaf)));
-    assert!(!shown(&grove, tail(&grove, leaf)));
+    assert!(drawn(&grove, head(&grove, leaf)));
+    assert!(!drawn(&grove, body(&grove, leaf)));
+    assert!(!drawn(&grove, tail(&grove, leaf)));
 
     grove.select(leaf, 2..8);
     tick(&mut grove);
@@ -361,9 +368,9 @@ fn a_selection_across_two_lines_is_drawn_in_two_pieces() {
     let last = section(&grove, tail(&grove, leaf));
     assert_eq!((last.left(), last.right()), (0.0, 2.0 * CELL));
     assert_eq!(last.top(), LINE);
-    assert!(shown(&grove, head(&grove, leaf)));
-    assert!(!shown(&grove, body(&grove, leaf)));
-    assert!(shown(&grove, tail(&grove, leaf)));
+    assert!(drawn(&grove, head(&grove, leaf)));
+    assert!(!drawn(&grove, body(&grove, leaf)));
+    assert!(drawn(&grove, tail(&grove, leaf)));
 }
 
 /// Across more than two lines, every whole line between the ends is one box the width of the run.
@@ -377,7 +384,7 @@ fn a_selection_across_many_lines_fills_the_lines_between() {
     grove.select(leaf, 1..16);
     tick(&mut grove);
     let middle = section(&grove, body(&grove, leaf));
-    assert!(shown(&grove, body(&grove, leaf)));
+    assert!(drawn(&grove, body(&grove, leaf)));
     assert_eq!((middle.left(), middle.right()), (0.0, 5.0 * CELL));
     // Placed against the run, which has scrolled up under the caret: two whole lines, starting one
     // line under the head.
@@ -387,6 +394,38 @@ fn a_selection_across_many_lines_fills_the_lines_between() {
     let last = section(&grove, tail(&grove, leaf));
     assert_eq!(last.top(), middle.bottom());
     assert_eq!((last.left(), last.right()), (0.0, 1.0 * CELL));
+}
+
+/// A selection is divided into lines by the wrap the frame lays out, not the one it last drew: a
+/// box that narrows under a selection on one line draws it across two in the same frame. Nothing
+/// is owed the frame after, so a frame behind would be a selection left wrong until the next input.
+#[test]
+fn a_selection_follows_a_wrap_that_moved_under_it_in_the_same_frame() {
+    let mut grove = grove();
+    let leaf = grove.plant(TextArea::new().at(Location::new().xs(
+        left(0.px()).right(100.pct()),
+        top(0.px()).height((4.0 * LINE).px()),
+    )));
+    tick(&mut grove);
+    grove.focus(leaf);
+    grove.text(leaf, "hello world");
+    tick(&mut grove);
+    grove.select(leaf, 2..8);
+    tick(&mut grove);
+    // Forty cells across: one line, and the head is the whole of it.
+    let first = section(&grove, head(&grove, leaf));
+    assert_eq!((first.left(), first.right()), (2.0 * CELL, 8.0 * CELL));
+    assert!(!drawn(&grove, tail(&grove, leaf)));
+
+    resize(&mut grove, Area::new(5.0 * CELL, 300.0));
+    tick(&mut grove);
+    let first = section(&grove, head(&grove, leaf));
+    assert_eq!((first.left(), first.right()), (2.0 * CELL, 5.0 * CELL));
+    let last = section(&grove, tail(&grove, leaf));
+    assert_eq!((last.left(), last.right()), (0.0, 2.0 * CELL));
+    assert_eq!(last.top(), LINE);
+    assert!(drawn(&grove, tail(&grove, leaf)));
+    assert!(!drawn(&grove, body(&grove, leaf)));
 }
 
 /// A drag out of a hold that runs below the box keeps scrolling, because down is the axis an area
