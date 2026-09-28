@@ -11,7 +11,7 @@ use crate::tests::{
     Observer, controlled, drag, grove, key, past_the_hold, press, release, section, shifted,
     stroke, tick, tick_with, typing, with_control, with_shift,
 };
-use crate::text_input::{Applied, Editing, applied, held};
+use crate::text_input::{Applied, Editing, applied, dots, held, hidden};
 use crate::{
     Boxed, Grove, Grow, Leaf, Location, Palette, Place, Sap, Source, Stem, TextInput, Vein, left,
     top,
@@ -1060,4 +1060,58 @@ fn read_only_is_undone_by_the_same_write() {
     typing(&mut grove, "ok");
     tick(&mut grove);
     assert_eq!(value(&grove, leaf), "ok");
+}
+
+// Masked.
+
+/// A masked field refuses the copying keystrokes and nothing else: a copy and a cut are nothing, and
+/// typing, deleting and pasting go ahead.
+#[test]
+fn a_masked_field_keeps_its_value_off_the_clipboard() {
+    let copied = hidden(applied("abc", selecting(0, 2), with_control(Key::Typed('c')), None));
+    assert!(matches!(copied, Applied::Nothing));
+    let cut = hidden(applied("abc", selecting(0, 2), with_control(Key::Typed('x')), None));
+    assert!(matches!(cut, Applied::Nothing));
+    let typed = hidden(applied("abc", at(1), stroke(Key::Typed('X')), None));
+    assert!(matches!(typed, Applied::Wrote(written, _) if written == "aXbc"));
+    let pasting = hidden(applied("abc", at(1), with_control(Key::Typed('v')), None));
+    assert!(matches!(pasting, Applied::Pasting));
+}
+
+/// A dot to a character, whatever the character; a newline kept, so an area wraps as it would.
+#[test]
+fn dots_are_one_to_a_character() {
+    assert_eq!(dots("pässwörd"), "\u{2022}".repeat(8));
+    assert_eq!(dots("ab\nc"), "\u{2022}\u{2022}\n\u{2022}");
+    assert_eq!(dots(""), "");
+}
+
+/// What is typed into a masked field is its value, and what is drawn is dots, one to a character --
+/// until it is shown, when the same run is drawn as what it says, and hidden again after.
+#[test]
+fn a_masked_field_draws_dots_and_holds_the_value() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        TextInput::new()
+            .masked(true)
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(32.px()))),
+    );
+    tick(&mut grove);
+    grove.focus(leaf);
+    tick(&mut grove);
+    typing(&mut grove, "hunter2");
+    tick(&mut grove);
+    let run = parts(&grove, leaf)[3];
+    assert_eq!(value(&grove, leaf), "hunter2");
+    assert_eq!(grove.elements.shaped_text(run).unwrap(), "\u{2022}".repeat(7));
+    // The caret stands after the seventh cell, as it would over the characters themselves.
+    assert_eq!(selection(&grove, leaf), 7..7);
+
+    grove.masked(leaf, false);
+    tick(&mut grove);
+    assert_eq!(grove.elements.shaped_text(run).unwrap(), "hunter2");
+    grove.masked(leaf, true);
+    tick(&mut grove);
+    assert_eq!(grove.elements.shaped_text(run).unwrap(), "\u{2022}".repeat(7));
+    assert_eq!(value(&grove, leaf), "hunter2");
 }

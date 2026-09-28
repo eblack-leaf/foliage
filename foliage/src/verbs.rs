@@ -243,6 +243,15 @@ pub trait Grow: Queues {
         self.queue(Op::ReadOnly { leaf, read_only });
     }
 
+    /// Masks a [`TextInput`](crate::TextInput) or a [`TextArea`](crate::TextArea), or shows its
+    /// value again: see [`masked`](crate::TextInput::masked) for what that draws and what it
+    /// refuses. The value, the caret and what is selected are left as they are.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is not a field.
+    fn masked(&mut self, leaf: Leaf, masked: bool) {
+        self.queue(Op::Masked { leaf, masked });
+    }
+
     /// Rounds an element's corners, per corner or all at once.
     ///
     /// Dropped, like any op naming something it does not apply to, unless the element is a

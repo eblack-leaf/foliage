@@ -200,6 +200,7 @@ TextInput::new()
     .selection(Palette::Muted)        // what is drawn behind a selected span
     .keypad(Keypad::Number)           // which soft keyboard to raise
     .read_only(false)
+    .masked(false)                    // a dot for each character, for a passphrase
     .font_size(FontSize::new().xs(15));
 ```
 
@@ -270,6 +271,20 @@ pasting do nothing, a cut is only a copy, no caret is drawn, and no soft keyboar
 That is the answer for a value that must be readable but not editable. Disabling the field would
 refuse far more: a disabled region takes no gesture, so a long value could not even be scrolled
 to be read.
+
+## Masked
+
+`TextInput::masked(true)`, or `grove.masked(field, true)` later, draws the value as a dot for each
+of its characters. Only the drawing changes: the value is held and read exactly as it would be,
+what is typed is reported as `edited`, and since a dot takes a character's cell the caret, the
+selection and a tap land where they would. A newline stays a newline, so a masked `TextArea` wraps
+as it would.
+
+What is hidden from the screen does not leave by the clipboard either: `Ctrl+C` copies nothing
+and `Ctrl+X` cuts nothing. A paste goes in as ever. `grove.masked(field, false)` shows the value,
+and `true` hides it again -- which is how a password's "show" is built.
+
+The run is shaped as its dots, so the value itself is never a key in the shaping cache.
 
 ## Soft keyboards
 

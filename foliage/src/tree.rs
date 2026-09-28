@@ -24,7 +24,7 @@ use crate::rounding::Corners;
 use crate::rowan::Standing;
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
-use crate::text_input::{Editing, Parts, ReadOnly};
+use crate::text_input::{Editing, Masked, Parts, ReadOnly};
 use crate::view::{Extent, Floats, Offset, Pinned, Scroll, Scrolls};
 
 /// The tree itself, seen from the inside.
@@ -498,6 +498,30 @@ impl Tree {
         if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
             entity.insert(ReadOnly(read_only));
         }
+    }
+
+    /// Whether `leaf` is a run drawn as dots. `false` for everything but a masked field's run.
+    pub(crate) fn masked(&self, leaf: Leaf) -> bool {
+        self.read::<Masked>(leaf).is_some_and(|masked| masked.0)
+    }
+
+    /// Masks a run or shows it, and has it shaped again if that changed what it draws -- which is
+    /// the same statement a new value is, so it is marked the way [`set_lettering`](Self::set_lettering)
+    /// marks one.
+    pub(crate) fn set_masked(&mut self, leaf: Leaf, masked: bool) {
+        if self.masked(leaf) == masked {
+            if let Ok(mut entity) = self.world.get_entity_mut(leaf.0) {
+                entity.insert(Masked(masked));
+            }
+            return;
+        }
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return;
+        };
+        entity.insert(Masked(masked));
+        self.declared(leaf);
+        self.lettered.insert(leaf);
+        self.restated = true;
     }
 
     /// Where `leaf`'s caret is and what it has selected.

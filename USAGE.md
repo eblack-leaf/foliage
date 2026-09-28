@@ -368,6 +368,11 @@ and pasting do nothing, a cut is only a copy, no caret is drawn and no keyboard 
 what a value that must be readable but not editable wants, where disabling the field would stop
 it being scrolled at all.
 
+`TextInput::masked` -- or `Grow::masked`, to show and hide it later -- draws the value as a dot for
+each of its characters and keeps it off the clipboard. The value is held and read as ever, and the
+caret, the selection and a tap land where they would, since a dot takes a character's cell. `Ctrl+C`
+and `Ctrl+X` do nothing; a paste goes in. It is what a passphrase wants.
+
 `TextArea` is the same with as many lines as its value wraps to. It wraps at its box and scrolls
 down rather than across; `Enter` puts a newline in the value and `Ctrl+Enter` is what submits;
 `Up` and `Down` move by a line and `Home` and `End` go to the ends of the line the caret is on, as

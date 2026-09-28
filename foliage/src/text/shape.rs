@@ -41,6 +41,12 @@ pub(crate) struct Shaped {
 }
 
 impl Shaped {
+    /// The characters, as a string again.
+    #[cfg(test)]
+    pub(crate) fn text(&self) -> String {
+        self.characters.iter().collect()
+    }
+
     /// The widest the run would like to be, unwrapped: its longest hard line.
     ///
     /// Free, and exact. In a monospaced font this is a character count times a cell, so it needs no

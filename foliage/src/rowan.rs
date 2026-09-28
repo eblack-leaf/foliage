@@ -347,6 +347,15 @@ impl Elements {
             .unwrap_or_default()
     }
 
+    /// What R1 shaped `leaf`'s run as, character for character: what is drawn, which a masked
+    /// field's value is not.
+    #[cfg(test)]
+    pub(crate) fn shaped_text(&self, leaf: Leaf) -> Option<String> {
+        self.composed[self.at(leaf)?]
+            .as_ref()
+            .map(|shaped| shaped.text())
+    }
+
     /// The character cell of `leaf`'s own font, at its own size, as R1 measured it.
     ///
     /// Per element rather than per engine: an app registers as many fonts as it likes and each
@@ -438,9 +447,15 @@ fn measure(grove: &mut Grove, elements: &mut Elements) {
         let cell = fonts.cell(typeface.font, size);
         // The run, shaped, is kept beside the cell: it is what a placement reading a character of
         // this element resolves against, and this is the one pass that shapes.
-        let composed = tree
-            .lettering(leaf)
-            .map(|value| shaping.shape(fonts, typeface.font, size, value).clone());
+        // A masked run is shaped as its dots, so the value itself is never a key in the shaping
+        // cache, and nothing drawn from here can say it.
+        let masked = tree.masked(leaf);
+        let composed = tree.lettering(leaf).map(|value| match masked {
+            true => shaping
+                .shape(fonts, typeface.font, size, &crate::text_input::dots(value))
+                .clone(),
+            false => shaping.shape(fonts, typeface.font, size, value).clone(),
+        });
         let width = composed
             .as_ref()
             .map(|shaped| shaped.max_content())

@@ -88,6 +88,8 @@ pub(crate) enum Op {
     },
     /// Makes a field read-only, or editable again.
     ReadOnly { leaf: Leaf, read_only: bool },
+    /// Masks a field, or shows its value again.
+    Masked { leaf: Leaf, masked: bool },
     /// Refills part of a run, over a range of its own index space.
     Tint {
         leaf: Leaf,

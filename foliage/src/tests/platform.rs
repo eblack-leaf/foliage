@@ -394,3 +394,37 @@ fn no_keyboard_is_raised_for_a_read_only_field() {
     tick(&mut grove);
     assert_eq!(grove.keyboard.raised(), Some(Keypad::Text));
 }
+
+// Masked.
+
+/// Nothing of a masked field reaches the clipboard: a copy puts nothing there, and a cut takes
+/// nothing out of the value either.
+#[test]
+fn a_masked_field_copies_nothing() {
+    let mut grove = grove();
+    grove.copy("before");
+    let leaf = focused(&mut grove, TextInput::new().masked(true));
+    grove.text(leaf, "secret");
+    tick(&mut grove);
+    grove.select(leaf, 0..6);
+    tick(&mut grove);
+    controlled(&mut grove, Key::Typed('c'));
+    tick(&mut grove);
+    controlled(&mut grove, Key::Typed('x'));
+    tick(&mut grove);
+    assert_eq!(value(&grove, leaf), "secret");
+    assert_eq!(taken(&mut grove), "before");
+}
+
+/// A paste goes into a masked field as into any other.
+#[test]
+fn a_masked_field_takes_a_paste() {
+    let mut grove = grove();
+    grove.copy("pasted");
+    let leaf = focused(&mut grove, TextInput::new().masked(true));
+    controlled(&mut grove, Key::Typed('v'));
+    tick(&mut grove);
+    tick(&mut grove);
+    tick(&mut grove);
+    assert_eq!(value(&grove, leaf), "pasted");
+}

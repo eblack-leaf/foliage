@@ -239,6 +239,7 @@ Most things a seed declares can be written again afterwards, by a verb on
 | `Icon::new(field)` | `Grow::mark` |
 | `Image::new(plate)`, `Image::fit` | `Grow::depict`, `Grow::fit` |
 | a field's `read_only` | `Grow::read_only` |
+| a field's `masked` | `Grow::masked` |
 | `visible` | `Grow::visible` |
 | `opacity` | `Grow::opacity` |
 | (nothing) | `Grow::disable`, `Grow::enable` |

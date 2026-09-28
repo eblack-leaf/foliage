@@ -146,6 +146,7 @@ pub struct TextInput {
     pub(crate) selection: Fill,
     pub(crate) keypad: Keypad,
     pub(crate) read_only: bool,
+    pub(crate) masked: bool,
 }
 
 /// An editable run of glyphs that wraps.
@@ -186,6 +187,7 @@ pub struct TextArea {
     pub(crate) selection: Fill,
     pub(crate) keypad: Keypad,
     pub(crate) read_only: bool,
+    pub(crate) masked: bool,
 }
 
 /// The builders a field and an area share, which are all of them: the two are the same thing to
@@ -211,6 +213,7 @@ macro_rules! field {
                     selection: Fill::Role(Palette::Muted),
                     keypad: Keypad::Text,
                     read_only: false,
+                    masked: false,
                 }
             }
 
@@ -277,6 +280,22 @@ macro_rules! field {
                 self.read_only = read_only;
                 self
             }
+
+            /// Whether the value is drawn as a dot for each of its characters.
+            ///
+            /// For a passphrase. The value is held and read exactly as it would be -- what
+            /// [`Vein::Text`](crate::Vein::Text) reads and what is reported as
+            /// [`edited`](crate::Pollen::edited) are the characters typed -- and only the drawing
+            /// is dots: one to a character, so the caret, the selection and a tap all land where
+            /// they would. A newline stays a newline, so an area wraps as it would. The copying
+            /// keystrokes do nothing: `Ctrl+C` copies nothing and `Ctrl+X` cuts nothing, since
+            /// what is hidden from the screen should not leave by the clipboard either. A paste
+            /// goes in as ever. Changed later with [`masked`](crate::Grow::masked), which is how
+            /// a value is shown and hidden again.
+            pub fn masked(mut self, masked: bool) -> Self {
+                self.masked = masked;
+                self
+            }
         }
 
         impl Places for $seed {
@@ -319,6 +338,7 @@ macro_rules! field {
                         selection: self.selection,
                         keypad: self.keypad,
                         read_only: self.read_only,
+                        masked: self.masked,
                         lines,
                     })),
                     at,
@@ -378,6 +398,7 @@ pub(crate) struct Sprout {
     pub(crate) selection: Fill,
     pub(crate) keypad: Keypad,
     pub(crate) read_only: bool,
+    pub(crate) masked: bool,
     pub(crate) lines: Lines,
 }
 
@@ -387,6 +408,25 @@ pub(crate) struct Sprout {
 /// the whole of read-only is that those writes do not happen.
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ReadOnly(pub(crate) bool);
+
+/// Whether a run is drawn as dots.
+///
+/// Carried on the field's run rather than on the field, because the run is what R1 shapes and it
+/// shapes nothing else: a masked run is shaped as a dot for each character it holds, and that is
+/// the whole of what masking changes about the drawing.
+#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Masked(pub(crate) bool);
+
+/// What a masked run is drawn as: a dot for every character but a newline.
+pub(crate) fn dots(value: &str) -> String {
+    value
+        .chars()
+        .map(|character| match character {
+            '\n' => '\n',
+            _ => '\u{2022}',
+        })
+        .collect()
+}
 
 /// The six elements a field is made of, and how many lines it has.
 ///
@@ -590,6 +630,17 @@ pub(crate) fn applied(
 /// change the value. A write is nothing, a paste is not asked for, and a cut is the copy it
 /// contains -- the person asked for the span, and taking it out is the part refused. Moving,
 /// selecting, copying and submitting are reading, and go through.
+/// What a masked field makes of a keystroke: the copying ones do nothing, and the rest go ahead.
+///
+/// A cut is not reduced to its write, as a read-only one is reduced to its copy: what is hidden
+/// from the screen does not leave by the clipboard, and a cut that only deleted would surprise.
+pub(crate) fn hidden(applied: Applied) -> Applied {
+    match applied {
+        Applied::Copied(_) | Applied::Cut { .. } => Applied::Nothing,
+        applied => applied,
+    }
+}
+
 pub(crate) fn held(applied: Applied) -> Applied {
     match applied {
         Applied::Wrote(..) | Applied::Pasting => Applied::Nothing,
@@ -847,6 +898,7 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
     grove.tree.set_editing(field, Editing::default());
     grove.tree.set_keypad(field, sprout.keypad);
     grove.tree.set_read_only(field, sprout.read_only);
+    grove.tree.set_masked(run, sprout.masked);
     refresh(grove, field);
     debug!(leaf = field.id(), "field sprouted");
 }
@@ -932,6 +984,9 @@ pub(crate) fn typed(grove: &mut Grove, field: Leaf, stroke: Keystroke) {
     let mut applied = applied(&value, grove.tree.editing(field), stroke, wrap);
     if grove.tree.read_only(field) {
         applied = held(applied);
+    }
+    if grove.tree.masked(parts.run) {
+        applied = hidden(applied);
     }
     match applied {
         Applied::Wrote(written, editing) => wrote(grove, field, parts, written, editing),
@@ -1162,6 +1217,18 @@ fn settled(grove: &mut Grove) {
 ///
 /// Dropped, like any op naming something it does not apply to, if the element is not a field. The
 /// caret and the soft keyboard follow at the end of the drain, where focus is settled.
+/// Masks a field, or shows its value again.
+///
+/// Dropped, like any op naming something it does not apply to, if the element is not a field. The
+/// run is shaped again in this frame's R1, as it would be for a new value.
+pub(crate) fn masked(grove: &mut Grove, field: Leaf, masked: bool) {
+    let Some(parts) = grove.tree.parts(field) else {
+        debug!(leaf = field.id(), "masked dropped: not a field");
+        return;
+    };
+    grove.tree.set_masked(parts.run, masked);
+}
+
 pub(crate) fn read_only(grove: &mut Grove, field: Leaf, read_only: bool) {
     if grove.tree.parts(field).is_none() {
         debug!(leaf = field.id(), "read-only dropped: not a field");
