@@ -31,6 +31,15 @@ pub(crate) trait Queues {
     /// A name for a picture whose pixels are on their way. Taken here rather than at the drain so
     /// that an element can be grown against it in the frame it was asked for.
     fn picture(&mut self) -> Plate;
+    /// What becomes of pixels that are smaller than the picture they were said to be.
+    ///
+    /// The one verb whose mistake is answered differently on the two sides, for the reason the
+    /// registrations are: pixels written at the frame's callsite are a statement the program made,
+    /// and stop it at the line that made it; a worker's are refused and reported
+    /// [`missing`](crate::Pollen::missing), because a panic on its thread would end the thread and
+    /// take the report with it.
+    #[track_caller]
+    fn misfit(&mut self, plate: Plate, reason: String);
 }
 
 /// Everything an app can ask the engine to do.
@@ -294,6 +303,13 @@ pub trait Grow: Queues {
     /// Usable at any frame. A name taken here is valid immediately -- elements can be grown against
     /// it in the same frame -- and writing the same name again replaces what it holds, so a picture
     /// re-rendered at a higher resolution reaches every element drawing it with one write.
+    ///
+    /// # Panics
+    ///
+    /// If `pixels` is smaller than `size` texels of RGBA, at the line that wrote it. Through a
+    /// [`Sprig`](crate::Sprig) they are refused instead and the name is reported
+    /// [`missing`](crate::Pollen::missing), as [`load`](Grow::load) says.
+    #[track_caller]
     fn pixels(&mut self, pixels: impl Into<Vec<u8>>, size: Area) -> Plate {
         let plate = self.plate();
         self.load(plate, pixels, size);
@@ -322,13 +338,24 @@ pub trait Grow: Queues {
     ///
     /// # Panics
     ///
-    /// If `pixels` is smaller than `size` texels of RGBA.
+    /// If `pixels` is smaller than `size` texels of RGBA, at the line that wrote it: the size is a
+    /// statement the program made about pixels it holds.
+    ///
+    /// Not through a [`Sprig`](crate::Sprig). A worker's pixels are ones it built or was sent, and a
+    /// panic there would end its thread rather than stop the program, so they are refused: the name
+    /// keeps whatever it held and is reported [`missing`](crate::Pollen::missing), as a picture that
+    /// could not be decoded is.
+    #[track_caller]
     fn load(&mut self, plate: Plate, pixels: impl Into<Vec<u8>>, size: Area) {
-        self.queue(Op::Load {
-            plate,
-            pixels: pixels.into(),
-            size,
-        });
+        let pixels = pixels.into();
+        match crate::image::misfit(&pixels, size) {
+            Some(reason) => self.misfit(plate, reason),
+            None => self.queue(Op::Load {
+                plate,
+                pixels,
+                size,
+            }),
+        }
     }
 
     /// Moves a scrolling region to a stated place.
@@ -579,9 +606,11 @@ pub trait Grow: Queues {
 
     /// Moves focus to an element.
     ///
-    /// The ordinary way focus moves. It is not a byproduct of pressing anything: a press moves
-    /// focus nowhere, so an app that wants a field focused when it is tapped writes that from
-    /// [`clicked`](crate::Pollen::clicked), and the engine never guesses.
+    /// The way an app moves focus. A tap moves it too: to what it landed on, where that is
+    /// [`interactive`](crate::Place::interactive), and away from everything where it is not. The
+    /// tap settles it at dispatch, before the app is handed the [`clicked`](crate::Pollen::clicked)
+    /// it produced in the same frame, so focus written here from a `clicked` is simply the later
+    /// write. A gesture that became a drag moves focus nowhere.
     ///
     /// Dropped if the element cannot take focus -- it is not
     /// [`interactive`](crate::Place::interactive), or it is hidden or disabled. Focus stays where

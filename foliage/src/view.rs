@@ -291,8 +291,9 @@ pub struct Momentum {
     ///
     /// Stated as a half-life because that is the one form of it a person can read and predict: a
     /// coast at half speed after this long, a quarter after twice as long, and travelling in total
-    /// a little under its release speed times this. The decay is continuous, so the ground a fling
-    /// covers does not depend on how often frames happen to run.
+    /// its release speed times this over ln 2 -- nearly one and a half times the two multiplied --
+    /// less the little it would have covered below [`minimum`](Momentum::minimum). The decay is
+    /// continuous, so the ground a fling covers does not depend on how often frames happen to run.
     ///
     /// Zero is no coast at all: a release stops the region where it was.
     pub half_life: Duration,

@@ -198,11 +198,17 @@ impl Timing {
 
     /// The progress a motion `elapsed` into this timing has made.
     pub(crate) fn at(&self, elapsed: Duration) -> f32 {
-        let running = elapsed.saturating_sub(self.delay);
+        // Holding where it was until the delay has passed, whatever the duration. Asked first, so a
+        // zero-length motion with a delay waits and then jumps, rather than jumping at once and
+        // waiting only to report that it had.
+        if elapsed < self.delay {
+            return 0.0;
+        }
         // Nothing to be a fraction of. A zero-duration motion is at its end from its first instant.
         if self.duration.is_zero() {
             return 1.0;
         }
+        let running = elapsed - self.delay;
         let fraction = running.as_nanos() as f64 / self.duration.as_nanos() as f64;
         self.ease.at(fraction.clamp(0.0, 1.0) as f32)
     }

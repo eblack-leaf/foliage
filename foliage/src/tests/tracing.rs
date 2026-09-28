@@ -86,7 +86,7 @@ fn a_watch_at_rest_emits_nothing_above_trace() {
     });
 }
 
-/// A field costs nothing while nothing is happening to it. It is four elements, a caret that is
+/// A field costs nothing while nothing is happening to it. It is six elements, a caret that is
 /// re-placed on every edit and a region that is asked to keep showing one -- none of which is a
 /// reason for a frame that took no keystroke to say anything.
 #[test]

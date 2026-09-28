@@ -238,7 +238,7 @@ fn drain(grove: &mut Grove) {
                     dropped("text", leaf, "not live");
                     continue;
                 }
-                // A field is addressed as one element and made of four, so a write reaching one
+                // A field is addressed as one element and made of six, so a write reaching one
                 // goes to the run that holds its value and takes the caret to the end of what it
                 // wrote. Anything else is the run itself.
                 match grove.tree.parts(leaf) {
@@ -379,7 +379,7 @@ fn drain(grove: &mut Grove) {
                 pixels,
                 size,
             } => {
-                grove.plates.load(plate, &pixels, size);
+                grove.plates.load(plate, pixels, size);
                 // Names no element, so nothing was written to any of the ones drawing it.
                 grove.tree.repaint();
                 debug!(plate = plate.0, "loaded");
@@ -626,17 +626,17 @@ fn reaches(grove: &Grove, verb: &'static str, leaf: Leaf, to: &ScrollTo) -> bool
     }
 }
 
-/// F8. A direct write cancels any motion on the property it writes.
-///
-/// The drain runs before `animate`, so by the time a tween would be advanced no property has both a
-/// pending write and a running one. That is what makes the old advisory rule -- "if a property is
-/// animated anywhere, animate it everywhere" -- structural, and gone.
 /// The element a fill addressed to `leaf` is written to: the run holding its value, for a field,
 /// and `leaf` itself for anything else.
 fn valued(grove: &Grove, leaf: Leaf) -> Leaf {
     grove.tree.parts(leaf).map_or(leaf, |parts| parts.run)
 }
 
+/// F8. A direct write cancels any motion on the property it writes.
+///
+/// The drain runs before `animate`, so by the time a tween would be advanced no property has both a
+/// pending write and a running one. That is what makes the old advisory rule -- "if a property is
+/// animated anywhere, animate it everywhere" -- structural, and gone.
 fn cancel(grove: &mut Grove, verb: &'static str, leaf: Leaf, property: Property) {
     if grove.aspen.cancel(leaf, property) {
         debug!(verb, leaf = leaf.id(), "tween cancelled");

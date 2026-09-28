@@ -55,7 +55,7 @@ use crate::elm::Elm;
 use crate::ginkgo::Ginkgo;
 use crate::ginkgo::depth::Depth;
 use crate::icon::Fields;
-use crate::image::{ImageInstance, Plates};
+use crate::image::{Plate, Plates};
 use crate::panel::PanelInstance;
 use crate::polygon::PolygonInstance;
 use crate::text::font::Fonts;
@@ -274,8 +274,18 @@ impl Ash {
         for key in &elm.icons.withdrawn {
             self.icons.instances.withdraw(*key);
         }
+        // New pixels under a name already held. Every instance drawing it may be exactly what it
+        // was -- the same box, the same crop -- so nothing below would reach it, and the texture is
+        // replaced here or never. One that is not held is left for the first instance to want it.
+        for &plate in &elm.refilled {
+            if self.pictures.binding(plate).is_some() {
+                self.upload(plates, ginkgo, plate);
+            }
+        }
         for wanted in &elm.images.written {
-            self.upload(plates, ginkgo, wanted.instance);
+            if self.pictures.binding(wanted.instance.plate).is_none() {
+                self.upload(plates, ginkgo, wanted.instance.plate);
+            }
             self.images.instances.write(
                 wanted.key,
                 wanted.rank,
@@ -329,18 +339,16 @@ impl Ash {
         }
     }
 
-    /// Puts a picture on the GPU if this is the first instance to want it, or if its pixels were
-    /// written again.
-    fn upload(&mut self, plates: &Plates, ginkgo: &Ginkgo, instance: ImageInstance) {
-        if self.pictures.binding(instance.plate).is_some() {
-            return;
-        }
-        let Some(picture) = plates.picture(instance.plate) else {
+    /// Puts a picture's pixels on the GPU as they now stand, replacing whatever was held under its
+    /// name. Called the first time an instance wants a picture, and again whenever its pixels are
+    /// replaced while it is held.
+    fn upload(&mut self, plates: &Plates, ginkgo: &Ginkgo, plate: Plate) {
+        let Some(picture) = plates.picture(plate) else {
             return;
         };
         self.pictures.upload(
             ginkgo,
-            instance.plate,
+            plate,
             &picture.pixels,
             (picture.size.width as u32, picture.size.height as u32),
         );

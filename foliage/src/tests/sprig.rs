@@ -300,6 +300,34 @@ fn a_mark_registered_off_the_frame_draws() {
     assert_eq!(grove.tap(leaf, Vein::Mark), Some(Sap::Mark(field)));
 }
 
+/// Pixels a worker holds that are smaller than it said are refused as every worker's bytes are,
+/// where the same call at the frame's callsite would have stopped the program: the worker's thread
+/// goes on, the name keeps what it held, and the name is reported missing.
+#[test]
+fn pixels_a_worker_holds_are_refused_rather_than_panicked_on() {
+    let mut grove = grove();
+    let mut sprig = grove.sprig();
+    let held = sprig.pixels(vec![255; 2 * 2 * 4], Area::new(2.0, 2.0));
+    tick(&mut grove);
+
+    let mut worker = sprig.clone();
+    let refused = std::thread::spawn(move || {
+        worker.load(held, vec![0; 4], Area::new(2.0, 2.0));
+        worker.pixels(vec![0; 4], Area::new(2.0, 2.0))
+    })
+    .join()
+    .expect("the worker's thread goes on");
+    // Refused in the drain, and reported in the frame after it, as every drain report is.
+    tick(&mut grove);
+    let heard = frame(&mut grove);
+
+    assert!(heard.missing(held));
+    assert!(heard.missing(refused));
+    let kept = grove.plates.picture(held).expect("still filled");
+    assert!(kept.pixels.iter().all(|&channel| channel == 255));
+    assert_eq!(grove.plates.size(refused), None);
+}
+
 /// An encoded picture is decoded where every arrival is decoded, so a worker that fetched or built
 /// one hands over the bytes rather than the pixels.
 #[test]

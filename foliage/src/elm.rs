@@ -48,7 +48,7 @@ use crate::coordinate::{Area, Position, Section};
 use crate::elevation::ResolvedElevation;
 use crate::grove::Grove;
 use crate::icon::{IconInstance, IconPigment};
-use crate::image::{Fit, ImageInstance, ImagePigment};
+use crate::image::{Fit, ImageInstance, ImagePigment, Plate};
 use crate::leaf::{Leaf, Named};
 use crate::line::{LineInstance, LinePigment};
 use crate::palette::Fill;
@@ -121,6 +121,13 @@ pub(crate) struct Elm {
     pub(crate) lines: Instances<LineInstance>,
     pub(crate) icons: Instances<IconInstance>,
     pub(crate) images: Instances<ImageInstance>,
+    /// Pictures whose pixels were replaced since the last batch, in name order and each once.
+    ///
+    /// The one change to what is drawn that no instance can state: an image's instance names its
+    /// picture rather than holding it, so new pixels under the same name, at the same shape, leave
+    /// every instance drawing them exactly as it was. Said here instead, so the backend replaces
+    /// whatever it holds under the name.
+    pub(crate) refilled: Vec<Plate>,
     pub(crate) texts: Runs,
     /// Where one run's glyphs are gathered before they are compared against what is held. Kept
     /// between frames for its capacity, and reused by every run in turn: a frame that changes
@@ -484,6 +491,13 @@ pub(crate) fn run(grove: &mut Grove) {
     );
     let _entered = step.enter();
     grove.elm.open();
+    // Every name filled since the last batch, handed over whether or not anything draws it: the
+    // backend knows which it holds, and this does not. Swapped rather than moved, so both lists keep
+    // their capacity.
+    core::mem::swap(&mut grove.elm.refilled, &mut grove.plates.refilled);
+    grove.plates.refilled.clear();
+    grove.elm.refilled.sort_unstable();
+    grove.elm.refilled.dedup();
     // Detached for the walk so that gathering a run's glyphs -- which reads the shaping cache -- and
     // handing them over -- which writes what is held -- are not the same borrow. It goes back below,
     // with whatever capacity the widest run this frame gave it.

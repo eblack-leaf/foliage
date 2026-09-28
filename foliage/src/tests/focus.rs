@@ -107,7 +107,7 @@ fn a_tap_on_nothing_takes_focus_away() {
 }
 
 /// And an app that wants focus somewhere else writes it from `clicked` and wins, because the tap
-/// settled focus before the frame the app reads it in.
+/// settled focus at dispatch, before the app was handed the click in that same frame.
 #[test]
 fn an_app_moves_focus_from_a_tap_itself() {
     let mut grove = grove();
