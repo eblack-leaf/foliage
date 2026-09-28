@@ -53,9 +53,9 @@
 <a href=#53 id=53 data-nosnippet>53</a>
 <a href=#54 id=54 data-nosnippet>54</a>    <span class="doccomment">/// Uploads one picture, replacing whatever was held under that name.
 <a href=#55 id=55 data-nosnippet>55</a>    ///
-<a href=#56 id=56 data-nosnippet>56</a>    /// Called for every plate the drain loaded, whether or not it was held before, which is what
-<a href=#57 id=57 data-nosnippet>57</a>    /// makes writing the same name again -- a re-fetch at a higher resolution -- reach every element
-<a href=#58 id=58 data-nosnippet>58</a>    /// drawing it.
+<a href=#56 id=56 data-nosnippet>56</a>    /// Called the first time an instance wants a picture, and again for every held one whose name
+<a href=#57 id=57 data-nosnippet>57</a>    /// the batch says was filled anew, which is what makes writing the same name again -- a
+<a href=#58 id=58 data-nosnippet>58</a>    /// re-fetch at a higher resolution -- reach every element drawing it.
 <a href=#59 id=59 data-nosnippet>59</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>upload(
 <a href=#60 id=60 data-nosnippet>60</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#61 id=61 data-nosnippet>61</a>        ginkgo: <span class="kw-2">&amp;</span>Ginkgo,

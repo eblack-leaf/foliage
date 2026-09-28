@@ -147,240 +147,251 @@
 <a href=#147 id=147 data-nosnippet>147</a>    ///
 <a href=#148 id=148 data-nosnippet>148</a>    /// [`Grove::image`] for a thread that cannot reach the registry: PNG or JPEG, decoded when it is
 <a href=#149 id=149 data-nosnippet>149</a>    /// drained. Pixels the worker made itself are [`pixels`](crate::Grow::pixels), which needs no
-<a href=#150 id=150 data-nosnippet>150</a>    /// decode and states a size because there is nothing to read one from.
-<a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">pub fn </span>image(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw">impl </span>Into&lt;Bytes&gt;) -&gt; Plate {
-<a href=#152 id=152 data-nosnippet>152</a>        <span class="kw">let </span>plate = <span class="self">self</span>.<span class="number">0</span>.naming.plate();
-<a href=#153 id=153 data-nosnippet>153</a>        <span class="self">self</span>.supply(Destination::Picture(plate), bytes.into());
-<a href=#154 id=154 data-nosnippet>154</a>        plate
-<a href=#155 id=155 data-nosnippet>155</a>    }
-<a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a>    <span class="doccomment">/// One road for both ways bytes are given.
-<a href=#158 id=158 data-nosnippet>158</a>    ///
-<a href=#159 id=159 data-nosnippet>159</a>    /// Bytes a worker holds arrive as the op a read would have pushed, and an
-<a href=#160 id=160 data-nosnippet>160</a>    /// [`Origin`](crate::Origin) is read exactly as the frame reads one -- a retrieval needs the
-<a href=#161 id=161 data-nosnippet>161</a>    /// queue and the wake, and this holds both. So a registration is drained in the frame it
-<a href=#162 id=162 data-nosnippet>162</a>    /// reached, whichever way it was supplied, and a worker that fetches writes the same line as one
-<a href=#163 id=163 data-nosnippet>163</a>    /// that already has the bytes.
-<a href=#164 id=164 data-nosnippet>164</a>    </span><span class="kw">fn </span>supply(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: Destination, bytes: Bytes) {
-<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">match </span>bytes.<span class="number">0 </span>{
-<a href=#166 id=166 data-nosnippet>166</a>            Supply::Held(bytes) =&gt; <span class="self">self</span>.queue(Op::Arrived {
-<a href=#167 id=167 data-nosnippet>167</a>                destination,
-<a href=#168 id=168 data-nosnippet>168</a>                bytes: <span class="prelude-val">Ok</span>(bytes),
-<a href=#169 id=169 data-nosnippet>169</a>            }),
-<a href=#170 id=170 data-nosnippet>170</a>            Supply::At(origin) =&gt; retrieve(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.queue, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.wake, destination, origin),
-<a href=#171 id=171 data-nosnippet>171</a>        }
-<a href=#172 id=172 data-nosnippet>172</a>    }
-<a href=#173 id=173 data-nosnippet>173</a>
-<a href=#174 id=174 data-nosnippet>174</a>    <span class="doccomment">/// What is true of the tree as a whole, as of the last frame, or `None` before the first one has
-<a href=#175 id=175 data-nosnippet>175</a>    /// run.
-<a href=#176 id=176 data-nosnippet>176</a>    ///
-<a href=#177 id=177 data-nosnippet>177</a>    /// The reads that need no watching: not per-element and not large, so the frame publishes them
-<a href=#178 id=178 data-nosnippet>178</a>    /// outright. Taken together from one frame, so the viewport and the breakpoint in hand always
-<a href=#179 id=179 data-nosnippet>179</a>    /// agree with each other.
-<a href=#180 id=180 data-nosnippet>180</a>    </span><span class="kw">pub fn </span>conditions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Conditions&gt; {
-<a href=#181 id=181 data-nosnippet>181</a>        <span class="kw-2">*</span><span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.conditions)
-<a href=#182 id=182 data-nosnippet>182</a>    }
-<a href=#183 id=183 data-nosnippet>183</a>
-<a href=#184 id=184 data-nosnippet>184</a>    <span class="doccomment">/// Asks to be told what one property of an element is, and told again whenever it changes.
-<a href=#185 id=185 data-nosnippet>185</a>    ///
-<a href=#186 id=186 data-nosnippet>186</a>    /// The read path for a thread that cannot sample: the value is pushed rather than asked for, so
-<a href=#187 id=187 data-nosnippet>187</a>    /// nothing here borrows the world or waits on a frame. Read it with [`tap`](Sprig::tap).
-<a href=#188 id=188 data-nosnippet>188</a>    ///
-<a href=#189 id=189 data-nosnippet>189</a>    /// The first reading is taken at the end of the frame this is drained in, with the value as it
-<a href=#190 id=190 data-nosnippet>190</a>    /// already stands -- so a watch does not have to be seeded by waiting for something to move.
-<a href=#191 id=191 data-nosnippet>191</a>    /// Watching the same property twice is one watch, and it ends when the element withers or
-<a href=#192 id=192 data-nosnippet>192</a>    /// [`unwatch`](Sprig::unwatch) says so.
-<a href=#193 id=193 data-nosnippet>193</a>    </span><span class="kw">pub fn </span>watch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, leaf: Leaf, vein: Vein) {
-<a href=#194 id=194 data-nosnippet>194</a>        <span class="self">self</span>.queue(Op::Watch { leaf, vein });
-<a href=#195 id=195 data-nosnippet>195</a>    }
-<a href=#196 id=196 data-nosnippet>196</a>
-<a href=#197 id=197 data-nosnippet>197</a>    <span class="doccomment">/// Ends a [`watch`](Sprig::watch). Unwatching what was never watched does nothing.
-<a href=#198 id=198 data-nosnippet>198</a>    ///
-<a href=#199 id=199 data-nosnippet>199</a>    /// The reading goes with it: [`tap`](Sprig::tap) answers `None` from the frame this is drained
-<a href=#200 id=200 data-nosnippet>200</a>    /// in, rather than going on answering with a value nothing is keeping current.
-<a href=#201 id=201 data-nosnippet>201</a>    </span><span class="kw">pub fn </span>unwatch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, leaf: Leaf, vein: Vein) {
-<a href=#202 id=202 data-nosnippet>202</a>        <span class="self">self</span>.queue(Op::Unwatch { leaf, vein });
-<a href=#203 id=203 data-nosnippet>203</a>    }
-<a href=#204 id=204 data-nosnippet>204</a>
-<a href=#205 id=205 data-nosnippet>205</a>    <span class="doccomment">/// What a watched property last read, or `None` if it is not watched, has not been read yet, or
-<a href=#206 id=206 data-nosnippet>206</a>    /// the element does not carry it.
-<a href=#207 id=207 data-nosnippet>207</a>    ///
-<a href=#208 id=208 data-nosnippet>208</a>    /// [`Grove::tap`] for a thread with no world to read: the same question, answered from what the
-<a href=#209 id=209 data-nosnippet>209</a>    /// last frame published rather than from the tree. Everything read here comes from a single
-<a href=#210 id=210 data-nosnippet>210</a>    /// frame, so two readings never disagree about which frame they are from.
-<a href=#211 id=211 data-nosnippet>211</a>    ///
-<a href=#212 id=212 data-nosnippet>212</a>    /// A property an element does not carry reads `None` exactly as it does at the frame's own
-<a href=#213 id=213 data-nosnippet>213</a>    /// callsite. A watch that has never been drained reads `None` too, which is the ordinary state
-<a href=#214 id=214 data-nosnippet>214</a>    /// for the moment between asking and the frame that answers.
-<a href=#215 id=215 data-nosnippet>215</a>    </span><span class="kw">pub fn </span>tap(<span class="kw-2">&amp;</span><span class="self">self</span>, leaf: Leaf, vein: Vein) -&gt; <span class="prelude-ty">Option</span>&lt;Sap&gt; {
-<a href=#216 id=216 data-nosnippet>216</a>        <span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.readings).get(<span class="kw-2">&amp;</span>(leaf, vein)).cloned()
-<a href=#217 id=217 data-nosnippet>217</a>    }
-<a href=#218 id=218 data-nosnippet>218</a>
-<a href=#219 id=219 data-nosnippet>219</a>    <span class="doccomment">/// Every frame's report since this was last called, oldest first.
-<a href=#220 id=220 data-nosnippet>220</a>    ///
-<a href=#221 id=221 data-nosnippet>221</a>    /// The same [`Pollen`] the [`Root`](crate::Root) is handed, delivered as each frame hands it
-<a href=#222 id=222 data-nosnippet>222</a>    /// over -- so a worker hears about a gesture on an element it grew without the app having to
-<a href=#223 id=223 data-nosnippet>223</a>    /// relay it, and reads on its own schedule rather than the engine's.
-<a href=#224 id=224 data-nosnippet>224</a>    ///
-<a href=#225 id=225 data-nosnippet>225</a>    /// **Nothing is collected until the first call**, which is what arms delivery: a handle that
-<a href=#226 id=226 data-nosnippet>226</a>    /// only writes never accumulates a report. So the first call answers with nothing, whatever has
-<a href=#227 id=227 data-nosnippet>227</a>    /// happened, and every call after it answers with the frames since.
-<a href=#228 id=228 data-nosnippet>228</a>    ///
-<a href=#229 id=229 data-nosnippet>229</a>    /// What is reported and what [`tap`](Sprig::tap) reads are the two halves of one frame, arriving
-<a href=#230 id=230 data-nosnippet>230</a>    /// together as they do at the frame's own callsite. A reading is never older than the last
-<a href=#231 id=231 data-nosnippet>231</a>    /// report and may be one frame newer, which is the ordinary condition of reading a running
-<a href=#232 id=232 data-nosnippet>232</a>    /// engine from beside it.
-<a href=#233 id=233 data-nosnippet>233</a>    </span><span class="kw">pub fn </span>pollen(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Pollen&gt; {
-<a href=#234 id=234 data-nosnippet>234</a>        <span class="self">self</span>.<span class="number">0</span>.listening.store(<span class="bool-val">true</span>, Ordering::Relaxed);
-<a href=#235 id=235 data-nosnippet>235</a>        core::mem::take(<span class="kw-2">&amp;mut *</span><span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.inbox))
-<a href=#236 id=236 data-nosnippet>236</a>    }
-<a href=#237 id=237 data-nosnippet>237</a>
-<a href=#238 id=238 data-nosnippet>238</a>    <span class="doccomment">/// Hands this frame's ambient state over.
-<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ambient(<span class="kw-2">&amp;</span><span class="self">self</span>, conditions: Conditions) {
-<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw-2">*</span><span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.conditions) = <span class="prelude-val">Some</span>(conditions);
-<a href=#241 id=241 data-nosnippet>241</a>    }
-<a href=#242 id=242 data-nosnippet>242</a>
-<a href=#243 id=243 data-nosnippet>243</a>    <span class="doccomment">/// Where the watched readings are kept, for the frame to bring up to date.
-<a href=#244 id=244 data-nosnippet>244</a>    </span><span class="kw">fn </span>readings(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MutexGuard&lt;<span class="lifetime">'_</span>, HashMap&lt;(Leaf, Vein), Sap&gt;&gt; {
-<a href=#245 id=245 data-nosnippet>245</a>        <span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.readings)
-<a href=#246 id=246 data-nosnippet>246</a>    }
-<a href=#247 id=247 data-nosnippet>247</a>
-<a href=#248 id=248 data-nosnippet>248</a>    <span class="doccomment">/// Drops a reading whose watch has ended.
-<a href=#249 id=249 data-nosnippet>249</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>forget(<span class="kw-2">&amp;</span><span class="self">self</span>, leaf: Leaf, vein: Vein) {
-<a href=#250 id=250 data-nosnippet>250</a>        <span class="self">self</span>.readings().remove(<span class="kw-2">&amp;</span>(leaf, vein));
-<a href=#251 id=251 data-nosnippet>251</a>    }
-<a href=#252 id=252 data-nosnippet>252</a>
-<a href=#253 id=253 data-nosnippet>253</a>    <span class="doccomment">/// Hands this frame's report to whoever is listening. Costs a clone only once someone is.
-<a href=#254 id=254 data-nosnippet>254</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>deliver(<span class="kw-2">&amp;</span><span class="self">self</span>, pollen: <span class="kw-2">&amp;</span>Pollen) {
-<a href=#255 id=255 data-nosnippet>255</a>        <span class="kw">if </span>!<span class="self">self</span>.<span class="number">0</span>.listening.load(Ordering::Relaxed) {
-<a href=#256 id=256 data-nosnippet>256</a>            <span class="kw">return</span>;
-<a href=#257 id=257 data-nosnippet>257</a>        }
-<a href=#258 id=258 data-nosnippet>258</a>        <span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.inbox).push(pollen.clone());
-<a href=#259 id=259 data-nosnippet>259</a>    }
-<a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a>    <span class="doccomment">/// A poisoned lock means another thread panicked while holding it. What is behind these is a
-<a href=#262 id=262 data-nosnippet>262</a>    /// value written whole rather than a structure kept in step across calls, so it is well-formed
-<a href=#263 id=263 data-nosnippet>263</a>    /// either way and going on with it is better than propagating the panic into the event loop.
-<a href=#264 id=264 data-nosnippet>264</a>    </span><span class="kw">fn </span>lock&lt;<span class="lifetime">'a</span>, T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, held: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Mutex&lt;T&gt;) -&gt; MutexGuard&lt;<span class="lifetime">'a</span>, T&gt; {
-<a href=#265 id=265 data-nosnippet>265</a>        held.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
-<a href=#266 id=266 data-nosnippet>266</a>    }
-<a href=#267 id=267 data-nosnippet>267</a>}
-<a href=#268 id=268 data-nosnippet>268</a>
-<a href=#269 id=269 data-nosnippet>269</a><span class="kw">impl </span>Queues <span class="kw">for </span>Sprig {
-<a href=#270 id=270 data-nosnippet>270</a>    <span class="kw">fn </span>queue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: Op) {
-<a href=#271 id=271 data-nosnippet>271</a>        <span class="self">self</span>.<span class="number">0</span>.queue.push(op);
-<a href=#272 id=272 data-nosnippet>272</a>        <span class="comment">// The frame that will drain it. An op arriving from off the frame is the one kind nothing
-<a href=#273 id=273 data-nosnippet>273</a>        // else announces: the loop is asleep, and the platform has nothing to say about it.
-<a href=#274 id=274 data-nosnippet>274</a>        </span><span class="self">self</span>.<span class="number">0</span>.wake.rouse();
-<a href=#275 id=275 data-nosnippet>275</a>    }
-<a href=#276 id=276 data-nosnippet>276</a>
-<a href=#277 id=277 data-nosnippet>277</a>    <span class="kw">fn </span>allocate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Leaf, Growth) {
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="self">self</span>.<span class="number">0</span>.naming.leaf()
-<a href=#279 id=279 data-nosnippet>279</a>    }
-<a href=#280 id=280 data-nosnippet>280</a>
-<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Tween {
-<a href=#282 id=282 data-nosnippet>282</a>        <span class="self">self</span>.<span class="number">0</span>.naming.tween()
-<a href=#283 id=283 data-nosnippet>283</a>    }
-<a href=#284 id=284 data-nosnippet>284</a>
-<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">fn </span>group(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Sequence {
-<a href=#286 id=286 data-nosnippet>286</a>        <span class="self">self</span>.<span class="number">0</span>.naming.sequence()
-<a href=#287 id=287 data-nosnippet>287</a>    }
-<a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">fn </span>picture(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Plate {
-<a href=#290 id=290 data-nosnippet>290</a>        <span class="self">self</span>.<span class="number">0</span>.naming.plate()
-<a href=#291 id=291 data-nosnippet>291</a>    }
-<a href=#292 id=292 data-nosnippet>292</a>}
-<a href=#293 id=293 data-nosnippet>293</a>
-<a href=#294 id=294 data-nosnippet>294</a><span class="doccomment">/// What is true of the tree as a whole.
-<a href=#295 id=295 data-nosnippet>295</a>///
-<a href=#296 id=296 data-nosnippet>296</a>/// Exactly what [`Grove`] answers about the frame rather than about an element, for a thread that
-<a href=#297 id=297 data-nosnippet>297</a>/// cannot ask it: what a worker positioning anything needs before it can state a location in
-<a href=#298 id=298 data-nosnippet>298</a>/// something other than hardcoded pixels.
-<a href=#299 id=299 data-nosnippet>299</a></span><span class="attr">#[derive(Copy, Clone, PartialEq, Debug)]
-<a href=#300 id=300 data-nosnippet>300</a>#[non_exhaustive]
-<a href=#301 id=301 data-nosnippet>301</a></span><span class="kw">pub struct </span>Conditions {
-<a href=#302 id=302 data-nosnippet>302</a>    <span class="doccomment">/// The visible area.
-<a href=#303 id=303 data-nosnippet>303</a>    </span><span class="kw">pub </span>viewport: Area,
-<a href=#304 id=304 data-nosnippet>304</a>    <span class="doccomment">/// The width breakpoint in force, which every placement is read against.
-<a href=#305 id=305 data-nosnippet>305</a>    </span><span class="kw">pub </span>layout: Layout,
-<a href=#306 id=306 data-nosnippet>306</a>    <span class="doccomment">/// Whether the viewport is vertically cramped.
-<a href=#307 id=307 data-nosnippet>307</a>    </span><span class="kw">pub </span>short: Short,
-<a href=#308 id=308 data-nosnippet>308</a>    <span class="doccomment">/// What every [`Palette`](crate::Palette) role currently resolves to.
-<a href=#309 id=309 data-nosnippet>309</a>    </span><span class="kw">pub </span>scheme: Scheme,
-<a href=#310 id=310 data-nosnippet>310</a>    <span class="doccomment">/// What holds focus, if anything does.
-<a href=#311 id=311 data-nosnippet>311</a>    </span><span class="kw">pub </span>focused: <span class="prelude-ty">Option</span>&lt;Leaf&gt;,
-<a href=#312 id=312 data-nosnippet>312</a>    <span class="doccomment">/// How long the last frame took.
-<a href=#313 id=313 data-nosnippet>313</a>    </span><span class="kw">pub </span>frame_time: Duration,
-<a href=#314 id=314 data-nosnippet>314</a>    <span class="doccomment">/// Time since the engine was built.
-<a href=#315 id=315 data-nosnippet>315</a>    </span><span class="kw">pub </span>elapsed: Duration,
-<a href=#316 id=316 data-nosnippet>316</a>}
-<a href=#317 id=317 data-nosnippet>317</a>
-<a href=#318 id=318 data-nosnippet>318</a><span class="doccomment">/// Every standing watch, as the frame holds them.
-<a href=#319 id=319 data-nosnippet>319</a>///
-<a href=#320 id=320 data-nosnippet>320</a>/// Engine-side and not shared: what is asked for crosses the boundary as an op and what is read
-<a href=#321 id=321 data-nosnippet>321</a>/// crosses back as a reading, so the set itself never has to be locked.
-<a href=#322 id=322 data-nosnippet>322</a></span><span class="attr">#[derive(Default)]
-<a href=#323 id=323 data-nosnippet>323</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Watches(HashSet&lt;(Leaf, Vein)&gt;);
-<a href=#324 id=324 data-nosnippet>324</a>
-<a href=#325 id=325 data-nosnippet>325</a><span class="kw">impl </span>Watches {
-<a href=#326 id=326 data-nosnippet>326</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>watch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, leaf: Leaf, vein: Vein) -&gt; bool {
-<a href=#327 id=327 data-nosnippet>327</a>        <span class="self">self</span>.<span class="number">0</span>.insert((leaf, vein))
-<a href=#328 id=328 data-nosnippet>328</a>    }
-<a href=#329 id=329 data-nosnippet>329</a>
-<a href=#330 id=330 data-nosnippet>330</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwatch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, leaf: Leaf, vein: Vein) -&gt; bool {
-<a href=#331 id=331 data-nosnippet>331</a>        <span class="self">self</span>.<span class="number">0</span>.remove(<span class="kw-2">&amp;</span>(leaf, vein))
-<a href=#332 id=332 data-nosnippet>332</a>    }
-<a href=#333 id=333 data-nosnippet>333</a>
-<a href=#334 id=334 data-nosnippet>334</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#335 id=335 data-nosnippet>335</a>        <span class="self">self</span>.<span class="number">0</span>.is_empty()
-<a href=#336 id=336 data-nosnippet>336</a>    }
-<a href=#337 id=337 data-nosnippet>337</a>}
-<a href=#338 id=338 data-nosnippet>338</a>
-<a href=#339 id=339 data-nosnippet>339</a><span class="doccomment">/// Publishes what a thread with no world to read would otherwise have to ask for.
-<a href=#340 id=340 data-nosnippet>340</a>///
-<a href=#341 id=341 data-nosnippet>341</a>/// After settle, so what is published is what the frame ended at rather than what it passed
-<a href=#342 id=342 data-nosnippet>342</a>/// through, and before extraction, which is the backend's business and not the boundary's.
-<a href=#343 id=343 data-nosnippet>343</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>publish(grove: <span class="kw-2">&amp;mut </span>Grove) {
-<a href=#344 id=344 data-nosnippet>344</a>    <span class="kw">let </span>_step = <span class="macro">trace_span!</span>(<span class="string">"publish"</span>, watched = grove.watched.<span class="number">0</span>.len()).entered();
-<a href=#345 id=345 data-nosnippet>345</a>    grove.sprig.ambient(Conditions {
-<a href=#346 id=346 data-nosnippet>346</a>        viewport: grove.viewport,
-<a href=#347 id=347 data-nosnippet>347</a>        layout: grove.layout,
-<a href=#348 id=348 data-nosnippet>348</a>        short: grove.short,
-<a href=#349 id=349 data-nosnippet>349</a>        scheme: grove.scheme,
-<a href=#350 id=350 data-nosnippet>350</a>        focused: grove.focus.held(),
-<a href=#351 id=351 data-nosnippet>351</a>        frame_time: grove.clock.delta(),
-<a href=#352 id=352 data-nosnippet>352</a>        elapsed: grove.clock.elapsed(),
-<a href=#353 id=353 data-nosnippet>353</a>    });
-<a href=#354 id=354 data-nosnippet>354</a>    <span class="kw">if </span>grove.watched.is_empty() {
-<a href=#355 id=355 data-nosnippet>355</a>        <span class="kw">return</span>;
-<a href=#356 id=356 data-nosnippet>356</a>    }
-<a href=#357 id=357 data-nosnippet>357</a>    <span class="comment">// Taken out so the withered ones can be dropped while the rest are read. Put back whole below,
-<a href=#358 id=358 data-nosnippet>358</a>    // so a frame that drops none allocates nothing here.
-<a href=#359 id=359 data-nosnippet>359</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>watched = core::mem::take(<span class="kw-2">&amp;mut </span>grove.watched);
-<a href=#360 id=360 data-nosnippet>360</a>    {
-<a href=#361 id=361 data-nosnippet>361</a>        <span class="kw">let </span><span class="kw-2">mut </span>readings = grove.sprig.readings();
-<a href=#362 id=362 data-nosnippet>362</a>        watched.<span class="number">0</span>.retain(|<span class="kw-2">&amp;</span>(leaf, vein)| {
-<a href=#363 id=363 data-nosnippet>363</a>            <span class="comment">// A name is never handed out twice, so a watch on something that has withered is one
-<a href=#364 id=364 data-nosnippet>364</a>            // nothing can ever answer again.
-<a href=#365 id=365 data-nosnippet>365</a>            </span><span class="kw">if </span>!grove.tree.is_live(leaf) {
-<a href=#366 id=366 data-nosnippet>366</a>                readings.remove(<span class="kw-2">&amp;</span>(leaf, vein));
-<a href=#367 id=367 data-nosnippet>367</a>                <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#368 id=368 data-nosnippet>368</a>            }
-<a href=#369 id=369 data-nosnippet>369</a>            <span class="kw">match </span>grove.tap(leaf, vein) {
-<a href=#370 id=370 data-nosnippet>370</a>                <span class="prelude-val">Some</span>(sap) <span class="kw">if </span>readings.get(<span class="kw-2">&amp;</span>(leaf, vein)) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>sap) =&gt; {
-<a href=#371 id=371 data-nosnippet>371</a>                    <span class="macro">trace!</span>(leaf = leaf.id(), vein = <span class="question-mark">?</span>vein, <span class="string">"read"</span>);
-<a href=#372 id=372 data-nosnippet>372</a>                    readings.insert((leaf, vein), sap);
-<a href=#373 id=373 data-nosnippet>373</a>                }
-<a href=#374 id=374 data-nosnippet>374</a>                <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; {}
-<a href=#375 id=375 data-nosnippet>375</a>                <span class="comment">// Live, and not carrying the property. The watch stands -- it ends where every other
-<a href=#376 id=376 data-nosnippet>376</a>                // one does, with the element or with `unwatch` -- and there is nothing to publish.
-<a href=#377 id=377 data-nosnippet>377</a>                </span><span class="prelude-val">None </span>=&gt; {
-<a href=#378 id=378 data-nosnippet>378</a>                    readings.remove(<span class="kw-2">&amp;</span>(leaf, vein));
-<a href=#379 id=379 data-nosnippet>379</a>                }
-<a href=#380 id=380 data-nosnippet>380</a>            }
-<a href=#381 id=381 data-nosnippet>381</a>            <span class="bool-val">true
-<a href=#382 id=382 data-nosnippet>382</a>        </span>});
-<a href=#383 id=383 data-nosnippet>383</a>    }
-<a href=#384 id=384 data-nosnippet>384</a>    grove.watched = watched;
-<a href=#385 id=385 data-nosnippet>385</a>}
+<a href=#150 id=150 data-nosnippet>150</a>    /// decode and states a size because there is nothing to read one from -- and which, here, refuses
+<a href=#151 id=151 data-nosnippet>151</a>    /// pixels smaller than that size rather than panicking on them, reporting the name
+<a href=#152 id=152 data-nosnippet>152</a>    /// [`missing`](crate::Pollen::missing) as it would an undecodable picture.
+<a href=#153 id=153 data-nosnippet>153</a>    </span><span class="kw">pub fn </span>image(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw">impl </span>Into&lt;Bytes&gt;) -&gt; Plate {
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="kw">let </span>plate = <span class="self">self</span>.<span class="number">0</span>.naming.plate();
+<a href=#155 id=155 data-nosnippet>155</a>        <span class="self">self</span>.supply(Destination::Picture(plate), bytes.into());
+<a href=#156 id=156 data-nosnippet>156</a>        plate
+<a href=#157 id=157 data-nosnippet>157</a>    }
+<a href=#158 id=158 data-nosnippet>158</a>
+<a href=#159 id=159 data-nosnippet>159</a>    <span class="doccomment">/// One road for both ways bytes are given.
+<a href=#160 id=160 data-nosnippet>160</a>    ///
+<a href=#161 id=161 data-nosnippet>161</a>    /// Bytes a worker holds arrive as the op a read would have pushed, and an
+<a href=#162 id=162 data-nosnippet>162</a>    /// [`Origin`](crate::Origin) is read exactly as the frame reads one -- a retrieval needs the
+<a href=#163 id=163 data-nosnippet>163</a>    /// queue and the wake, and this holds both. So a registration is drained in the frame it
+<a href=#164 id=164 data-nosnippet>164</a>    /// reached, whichever way it was supplied, and a worker that fetches writes the same line as one
+<a href=#165 id=165 data-nosnippet>165</a>    /// that already has the bytes.
+<a href=#166 id=166 data-nosnippet>166</a>    </span><span class="kw">fn </span>supply(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: Destination, bytes: Bytes) {
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="kw">match </span>bytes.<span class="number">0 </span>{
+<a href=#168 id=168 data-nosnippet>168</a>            Supply::Held(bytes) =&gt; <span class="self">self</span>.queue(Op::Arrived {
+<a href=#169 id=169 data-nosnippet>169</a>                destination,
+<a href=#170 id=170 data-nosnippet>170</a>                bytes: <span class="prelude-val">Ok</span>(bytes),
+<a href=#171 id=171 data-nosnippet>171</a>            }),
+<a href=#172 id=172 data-nosnippet>172</a>            Supply::At(origin) =&gt; retrieve(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.queue, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.wake, destination, origin),
+<a href=#173 id=173 data-nosnippet>173</a>        }
+<a href=#174 id=174 data-nosnippet>174</a>    }
+<a href=#175 id=175 data-nosnippet>175</a>
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="doccomment">/// What is true of the tree as a whole, as of the last frame, or `None` before the first one has
+<a href=#177 id=177 data-nosnippet>177</a>    /// run.
+<a href=#178 id=178 data-nosnippet>178</a>    ///
+<a href=#179 id=179 data-nosnippet>179</a>    /// The reads that need no watching: not per-element and not large, so the frame publishes them
+<a href=#180 id=180 data-nosnippet>180</a>    /// outright. Taken together from one frame, so the viewport and the breakpoint in hand always
+<a href=#181 id=181 data-nosnippet>181</a>    /// agree with each other.
+<a href=#182 id=182 data-nosnippet>182</a>    </span><span class="kw">pub fn </span>conditions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Conditions&gt; {
+<a href=#183 id=183 data-nosnippet>183</a>        <span class="kw-2">*</span><span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.conditions)
+<a href=#184 id=184 data-nosnippet>184</a>    }
+<a href=#185 id=185 data-nosnippet>185</a>
+<a href=#186 id=186 data-nosnippet>186</a>    <span class="doccomment">/// Asks to be told what one property of an element is, and told again whenever it changes.
+<a href=#187 id=187 data-nosnippet>187</a>    ///
+<a href=#188 id=188 data-nosnippet>188</a>    /// The read path for a thread that cannot sample: the value is pushed rather than asked for, so
+<a href=#189 id=189 data-nosnippet>189</a>    /// nothing here borrows the world or waits on a frame. Read it with [`tap`](Sprig::tap).
+<a href=#190 id=190 data-nosnippet>190</a>    ///
+<a href=#191 id=191 data-nosnippet>191</a>    /// The first reading is taken at the end of the frame this is drained in, with the value as it
+<a href=#192 id=192 data-nosnippet>192</a>    /// already stands -- so a watch does not have to be seeded by waiting for something to move.
+<a href=#193 id=193 data-nosnippet>193</a>    /// Watching the same property twice is one watch, and it ends when the element withers or
+<a href=#194 id=194 data-nosnippet>194</a>    /// [`unwatch`](Sprig::unwatch) says so.
+<a href=#195 id=195 data-nosnippet>195</a>    </span><span class="kw">pub fn </span>watch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, leaf: Leaf, vein: Vein) {
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="self">self</span>.queue(Op::Watch { leaf, vein });
+<a href=#197 id=197 data-nosnippet>197</a>    }
+<a href=#198 id=198 data-nosnippet>198</a>
+<a href=#199 id=199 data-nosnippet>199</a>    <span class="doccomment">/// Ends a [`watch`](Sprig::watch). Unwatching what was never watched does nothing.
+<a href=#200 id=200 data-nosnippet>200</a>    ///
+<a href=#201 id=201 data-nosnippet>201</a>    /// The reading goes with it: [`tap`](Sprig::tap) answers `None` from the frame this is drained
+<a href=#202 id=202 data-nosnippet>202</a>    /// in, rather than going on answering with a value nothing is keeping current.
+<a href=#203 id=203 data-nosnippet>203</a>    </span><span class="kw">pub fn </span>unwatch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, leaf: Leaf, vein: Vein) {
+<a href=#204 id=204 data-nosnippet>204</a>        <span class="self">self</span>.queue(Op::Unwatch { leaf, vein });
+<a href=#205 id=205 data-nosnippet>205</a>    }
+<a href=#206 id=206 data-nosnippet>206</a>
+<a href=#207 id=207 data-nosnippet>207</a>    <span class="doccomment">/// What a watched property last read, or `None` if it is not watched, has not been read yet, or
+<a href=#208 id=208 data-nosnippet>208</a>    /// the element does not carry it.
+<a href=#209 id=209 data-nosnippet>209</a>    ///
+<a href=#210 id=210 data-nosnippet>210</a>    /// [`Grove::tap`] for a thread with no world to read: the same question, answered from what the
+<a href=#211 id=211 data-nosnippet>211</a>    /// last frame published rather than from the tree. Everything read here comes from a single
+<a href=#212 id=212 data-nosnippet>212</a>    /// frame, so two readings never disagree about which frame they are from.
+<a href=#213 id=213 data-nosnippet>213</a>    ///
+<a href=#214 id=214 data-nosnippet>214</a>    /// A property an element does not carry reads `None` exactly as it does at the frame's own
+<a href=#215 id=215 data-nosnippet>215</a>    /// callsite. A watch that has never been drained reads `None` too, which is the ordinary state
+<a href=#216 id=216 data-nosnippet>216</a>    /// for the moment between asking and the frame that answers.
+<a href=#217 id=217 data-nosnippet>217</a>    </span><span class="kw">pub fn </span>tap(<span class="kw-2">&amp;</span><span class="self">self</span>, leaf: Leaf, vein: Vein) -&gt; <span class="prelude-ty">Option</span>&lt;Sap&gt; {
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.readings).get(<span class="kw-2">&amp;</span>(leaf, vein)).cloned()
+<a href=#219 id=219 data-nosnippet>219</a>    }
+<a href=#220 id=220 data-nosnippet>220</a>
+<a href=#221 id=221 data-nosnippet>221</a>    <span class="doccomment">/// Every frame's report since this was last called, oldest first.
+<a href=#222 id=222 data-nosnippet>222</a>    ///
+<a href=#223 id=223 data-nosnippet>223</a>    /// The same [`Pollen`] the [`Root`](crate::Root) is handed, delivered as each frame hands it
+<a href=#224 id=224 data-nosnippet>224</a>    /// over -- so a worker hears about a gesture on an element it grew without the app having to
+<a href=#225 id=225 data-nosnippet>225</a>    /// relay it, and reads on its own schedule rather than the engine's.
+<a href=#226 id=226 data-nosnippet>226</a>    ///
+<a href=#227 id=227 data-nosnippet>227</a>    /// **Nothing is collected until the first call**, which is what arms delivery: a handle that
+<a href=#228 id=228 data-nosnippet>228</a>    /// only writes never accumulates a report. So the first call answers with nothing, whatever has
+<a href=#229 id=229 data-nosnippet>229</a>    /// happened, and every call after it answers with the frames since.
+<a href=#230 id=230 data-nosnippet>230</a>    ///
+<a href=#231 id=231 data-nosnippet>231</a>    /// What is reported and what [`tap`](Sprig::tap) reads are the two halves of one frame, arriving
+<a href=#232 id=232 data-nosnippet>232</a>    /// together as they do at the frame's own callsite. A reading is never older than the last
+<a href=#233 id=233 data-nosnippet>233</a>    /// report and may be one frame newer, which is the ordinary condition of reading a running
+<a href=#234 id=234 data-nosnippet>234</a>    /// engine from beside it.
+<a href=#235 id=235 data-nosnippet>235</a>    </span><span class="kw">pub fn </span>pollen(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Pollen&gt; {
+<a href=#236 id=236 data-nosnippet>236</a>        <span class="self">self</span>.<span class="number">0</span>.listening.store(<span class="bool-val">true</span>, Ordering::Relaxed);
+<a href=#237 id=237 data-nosnippet>237</a>        core::mem::take(<span class="kw-2">&amp;mut *</span><span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.inbox))
+<a href=#238 id=238 data-nosnippet>238</a>    }
+<a href=#239 id=239 data-nosnippet>239</a>
+<a href=#240 id=240 data-nosnippet>240</a>    <span class="doccomment">/// Hands this frame's ambient state over.
+<a href=#241 id=241 data-nosnippet>241</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ambient(<span class="kw-2">&amp;</span><span class="self">self</span>, conditions: Conditions) {
+<a href=#242 id=242 data-nosnippet>242</a>        <span class="kw-2">*</span><span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.conditions) = <span class="prelude-val">Some</span>(conditions);
+<a href=#243 id=243 data-nosnippet>243</a>    }
+<a href=#244 id=244 data-nosnippet>244</a>
+<a href=#245 id=245 data-nosnippet>245</a>    <span class="doccomment">/// Where the watched readings are kept, for the frame to bring up to date.
+<a href=#246 id=246 data-nosnippet>246</a>    </span><span class="kw">fn </span>readings(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; MutexGuard&lt;<span class="lifetime">'_</span>, HashMap&lt;(Leaf, Vein), Sap&gt;&gt; {
+<a href=#247 id=247 data-nosnippet>247</a>        <span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.readings)
+<a href=#248 id=248 data-nosnippet>248</a>    }
+<a href=#249 id=249 data-nosnippet>249</a>
+<a href=#250 id=250 data-nosnippet>250</a>    <span class="doccomment">/// Drops a reading whose watch has ended.
+<a href=#251 id=251 data-nosnippet>251</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>forget(<span class="kw-2">&amp;</span><span class="self">self</span>, leaf: Leaf, vein: Vein) {
+<a href=#252 id=252 data-nosnippet>252</a>        <span class="self">self</span>.readings().remove(<span class="kw-2">&amp;</span>(leaf, vein));
+<a href=#253 id=253 data-nosnippet>253</a>    }
+<a href=#254 id=254 data-nosnippet>254</a>
+<a href=#255 id=255 data-nosnippet>255</a>    <span class="doccomment">/// Hands this frame's report to whoever is listening. Costs a clone only once someone is.
+<a href=#256 id=256 data-nosnippet>256</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>deliver(<span class="kw-2">&amp;</span><span class="self">self</span>, pollen: <span class="kw-2">&amp;</span>Pollen) {
+<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">if </span>!<span class="self">self</span>.<span class="number">0</span>.listening.load(Ordering::Relaxed) {
+<a href=#258 id=258 data-nosnippet>258</a>            <span class="kw">return</span>;
+<a href=#259 id=259 data-nosnippet>259</a>        }
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="self">self</span>.lock(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.inbox).push(pollen.clone());
+<a href=#261 id=261 data-nosnippet>261</a>    }
+<a href=#262 id=262 data-nosnippet>262</a>
+<a href=#263 id=263 data-nosnippet>263</a>    <span class="doccomment">/// A poisoned lock means another thread panicked while holding it. What is behind these is a
+<a href=#264 id=264 data-nosnippet>264</a>    /// value written whole rather than a structure kept in step across calls, so it is well-formed
+<a href=#265 id=265 data-nosnippet>265</a>    /// either way and going on with it is better than propagating the panic into the event loop.
+<a href=#266 id=266 data-nosnippet>266</a>    </span><span class="kw">fn </span>lock&lt;<span class="lifetime">'a</span>, T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, held: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Mutex&lt;T&gt;) -&gt; MutexGuard&lt;<span class="lifetime">'a</span>, T&gt; {
+<a href=#267 id=267 data-nosnippet>267</a>        held.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+<a href=#268 id=268 data-nosnippet>268</a>    }
+<a href=#269 id=269 data-nosnippet>269</a>}
+<a href=#270 id=270 data-nosnippet>270</a>
+<a href=#271 id=271 data-nosnippet>271</a><span class="kw">impl </span>Queues <span class="kw">for </span>Sprig {
+<a href=#272 id=272 data-nosnippet>272</a>    <span class="kw">fn </span>queue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: Op) {
+<a href=#273 id=273 data-nosnippet>273</a>        <span class="self">self</span>.<span class="number">0</span>.queue.push(op);
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="comment">// The frame that will drain it. An op arriving from off the frame is the one kind nothing
+<a href=#275 id=275 data-nosnippet>275</a>        // else announces: the loop is asleep, and the platform has nothing to say about it.
+<a href=#276 id=276 data-nosnippet>276</a>        </span><span class="self">self</span>.<span class="number">0</span>.wake.rouse();
+<a href=#277 id=277 data-nosnippet>277</a>    }
+<a href=#278 id=278 data-nosnippet>278</a>
+<a href=#279 id=279 data-nosnippet>279</a>    <span class="kw">fn </span>allocate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Leaf, Growth) {
+<a href=#280 id=280 data-nosnippet>280</a>        <span class="self">self</span>.<span class="number">0</span>.naming.leaf()
+<a href=#281 id=281 data-nosnippet>281</a>    }
+<a href=#282 id=282 data-nosnippet>282</a>
+<a href=#283 id=283 data-nosnippet>283</a>    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Tween {
+<a href=#284 id=284 data-nosnippet>284</a>        <span class="self">self</span>.<span class="number">0</span>.naming.tween()
+<a href=#285 id=285 data-nosnippet>285</a>    }
+<a href=#286 id=286 data-nosnippet>286</a>
+<a href=#287 id=287 data-nosnippet>287</a>    <span class="kw">fn </span>group(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Sequence {
+<a href=#288 id=288 data-nosnippet>288</a>        <span class="self">self</span>.<span class="number">0</span>.naming.sequence()
+<a href=#289 id=289 data-nosnippet>289</a>    }
+<a href=#290 id=290 data-nosnippet>290</a>
+<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">fn </span>picture(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Plate {
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="self">self</span>.<span class="number">0</span>.naming.plate()
+<a href=#293 id=293 data-nosnippet>293</a>    }
+<a href=#294 id=294 data-nosnippet>294</a>
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="doccomment">/// Refused as a picture that could not be decoded is: pushed as the arrival that failed, so it
+<a href=#296 id=296 data-nosnippet>296</a>    /// is reported in the frame it reached, in its place among everything else this side wrote.
+<a href=#297 id=297 data-nosnippet>297</a>    </span><span class="kw">fn </span>misfit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plate: Plate, reason: String) {
+<a href=#298 id=298 data-nosnippet>298</a>        <span class="self">self</span>.queue(Op::Arrived {
+<a href=#299 id=299 data-nosnippet>299</a>            destination: Destination::Picture(plate),
+<a href=#300 id=300 data-nosnippet>300</a>            bytes: <span class="prelude-val">Err</span>(reason),
+<a href=#301 id=301 data-nosnippet>301</a>        });
+<a href=#302 id=302 data-nosnippet>302</a>    }
+<a href=#303 id=303 data-nosnippet>303</a>}
+<a href=#304 id=304 data-nosnippet>304</a>
+<a href=#305 id=305 data-nosnippet>305</a><span class="doccomment">/// What is true of the tree as a whole.
+<a href=#306 id=306 data-nosnippet>306</a>///
+<a href=#307 id=307 data-nosnippet>307</a>/// Exactly what [`Grove`] answers about the frame rather than about an element, for a thread that
+<a href=#308 id=308 data-nosnippet>308</a>/// cannot ask it: what a worker positioning anything needs before it can state a location in
+<a href=#309 id=309 data-nosnippet>309</a>/// something other than hardcoded pixels.
+<a href=#310 id=310 data-nosnippet>310</a></span><span class="attr">#[derive(Copy, Clone, PartialEq, Debug)]
+<a href=#311 id=311 data-nosnippet>311</a>#[non_exhaustive]
+<a href=#312 id=312 data-nosnippet>312</a></span><span class="kw">pub struct </span>Conditions {
+<a href=#313 id=313 data-nosnippet>313</a>    <span class="doccomment">/// The visible area.
+<a href=#314 id=314 data-nosnippet>314</a>    </span><span class="kw">pub </span>viewport: Area,
+<a href=#315 id=315 data-nosnippet>315</a>    <span class="doccomment">/// The width breakpoint in force, which every placement is read against.
+<a href=#316 id=316 data-nosnippet>316</a>    </span><span class="kw">pub </span>layout: Layout,
+<a href=#317 id=317 data-nosnippet>317</a>    <span class="doccomment">/// Whether the viewport is vertically cramped.
+<a href=#318 id=318 data-nosnippet>318</a>    </span><span class="kw">pub </span>short: Short,
+<a href=#319 id=319 data-nosnippet>319</a>    <span class="doccomment">/// What every [`Palette`](crate::Palette) role currently resolves to.
+<a href=#320 id=320 data-nosnippet>320</a>    </span><span class="kw">pub </span>scheme: Scheme,
+<a href=#321 id=321 data-nosnippet>321</a>    <span class="doccomment">/// What holds focus, if anything does.
+<a href=#322 id=322 data-nosnippet>322</a>    </span><span class="kw">pub </span>focused: <span class="prelude-ty">Option</span>&lt;Leaf&gt;,
+<a href=#323 id=323 data-nosnippet>323</a>    <span class="doccomment">/// How long the last frame took.
+<a href=#324 id=324 data-nosnippet>324</a>    </span><span class="kw">pub </span>frame_time: Duration,
+<a href=#325 id=325 data-nosnippet>325</a>    <span class="doccomment">/// Time since the engine was built.
+<a href=#326 id=326 data-nosnippet>326</a>    </span><span class="kw">pub </span>elapsed: Duration,
+<a href=#327 id=327 data-nosnippet>327</a>}
+<a href=#328 id=328 data-nosnippet>328</a>
+<a href=#329 id=329 data-nosnippet>329</a><span class="doccomment">/// Every standing watch, as the frame holds them.
+<a href=#330 id=330 data-nosnippet>330</a>///
+<a href=#331 id=331 data-nosnippet>331</a>/// Engine-side and not shared: what is asked for crosses the boundary as an op and what is read
+<a href=#332 id=332 data-nosnippet>332</a>/// crosses back as a reading, so the set itself never has to be locked.
+<a href=#333 id=333 data-nosnippet>333</a></span><span class="attr">#[derive(Default)]
+<a href=#334 id=334 data-nosnippet>334</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Watches(HashSet&lt;(Leaf, Vein)&gt;);
+<a href=#335 id=335 data-nosnippet>335</a>
+<a href=#336 id=336 data-nosnippet>336</a><span class="kw">impl </span>Watches {
+<a href=#337 id=337 data-nosnippet>337</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>watch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, leaf: Leaf, vein: Vein) -&gt; bool {
+<a href=#338 id=338 data-nosnippet>338</a>        <span class="self">self</span>.<span class="number">0</span>.insert((leaf, vein))
+<a href=#339 id=339 data-nosnippet>339</a>    }
+<a href=#340 id=340 data-nosnippet>340</a>
+<a href=#341 id=341 data-nosnippet>341</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwatch(<span class="kw-2">&amp;mut </span><span class="self">self</span>, leaf: Leaf, vein: Vein) -&gt; bool {
+<a href=#342 id=342 data-nosnippet>342</a>        <span class="self">self</span>.<span class="number">0</span>.remove(<span class="kw-2">&amp;</span>(leaf, vein))
+<a href=#343 id=343 data-nosnippet>343</a>    }
+<a href=#344 id=344 data-nosnippet>344</a>
+<a href=#345 id=345 data-nosnippet>345</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#346 id=346 data-nosnippet>346</a>        <span class="self">self</span>.<span class="number">0</span>.is_empty()
+<a href=#347 id=347 data-nosnippet>347</a>    }
+<a href=#348 id=348 data-nosnippet>348</a>}
+<a href=#349 id=349 data-nosnippet>349</a>
+<a href=#350 id=350 data-nosnippet>350</a><span class="doccomment">/// Publishes what a thread with no world to read would otherwise have to ask for.
+<a href=#351 id=351 data-nosnippet>351</a>///
+<a href=#352 id=352 data-nosnippet>352</a>/// After settle, so what is published is what the frame ended at rather than what it passed
+<a href=#353 id=353 data-nosnippet>353</a>/// through, and before extraction, which is the backend's business and not the boundary's.
+<a href=#354 id=354 data-nosnippet>354</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>publish(grove: <span class="kw-2">&amp;mut </span>Grove) {
+<a href=#355 id=355 data-nosnippet>355</a>    <span class="kw">let </span>_step = <span class="macro">trace_span!</span>(<span class="string">"publish"</span>, watched = grove.watched.<span class="number">0</span>.len()).entered();
+<a href=#356 id=356 data-nosnippet>356</a>    grove.sprig.ambient(Conditions {
+<a href=#357 id=357 data-nosnippet>357</a>        viewport: grove.viewport,
+<a href=#358 id=358 data-nosnippet>358</a>        layout: grove.layout,
+<a href=#359 id=359 data-nosnippet>359</a>        short: grove.short,
+<a href=#360 id=360 data-nosnippet>360</a>        scheme: grove.scheme,
+<a href=#361 id=361 data-nosnippet>361</a>        focused: grove.focus.held(),
+<a href=#362 id=362 data-nosnippet>362</a>        frame_time: grove.clock.delta(),
+<a href=#363 id=363 data-nosnippet>363</a>        elapsed: grove.clock.elapsed(),
+<a href=#364 id=364 data-nosnippet>364</a>    });
+<a href=#365 id=365 data-nosnippet>365</a>    <span class="kw">if </span>grove.watched.is_empty() {
+<a href=#366 id=366 data-nosnippet>366</a>        <span class="kw">return</span>;
+<a href=#367 id=367 data-nosnippet>367</a>    }
+<a href=#368 id=368 data-nosnippet>368</a>    <span class="comment">// Taken out so the withered ones can be dropped while the rest are read. Put back whole below,
+<a href=#369 id=369 data-nosnippet>369</a>    // so a frame that drops none allocates nothing here.
+<a href=#370 id=370 data-nosnippet>370</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>watched = core::mem::take(<span class="kw-2">&amp;mut </span>grove.watched);
+<a href=#371 id=371 data-nosnippet>371</a>    {
+<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">let </span><span class="kw-2">mut </span>readings = grove.sprig.readings();
+<a href=#373 id=373 data-nosnippet>373</a>        watched.<span class="number">0</span>.retain(|<span class="kw-2">&amp;</span>(leaf, vein)| {
+<a href=#374 id=374 data-nosnippet>374</a>            <span class="comment">// A name is never handed out twice, so a watch on something that has withered is one
+<a href=#375 id=375 data-nosnippet>375</a>            // nothing can ever answer again.
+<a href=#376 id=376 data-nosnippet>376</a>            </span><span class="kw">if </span>!grove.tree.is_live(leaf) {
+<a href=#377 id=377 data-nosnippet>377</a>                readings.remove(<span class="kw-2">&amp;</span>(leaf, vein));
+<a href=#378 id=378 data-nosnippet>378</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#379 id=379 data-nosnippet>379</a>            }
+<a href=#380 id=380 data-nosnippet>380</a>            <span class="kw">match </span>grove.tap(leaf, vein) {
+<a href=#381 id=381 data-nosnippet>381</a>                <span class="prelude-val">Some</span>(sap) <span class="kw">if </span>readings.get(<span class="kw-2">&amp;</span>(leaf, vein)) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>sap) =&gt; {
+<a href=#382 id=382 data-nosnippet>382</a>                    <span class="macro">trace!</span>(leaf = leaf.id(), vein = <span class="question-mark">?</span>vein, <span class="string">"read"</span>);
+<a href=#383 id=383 data-nosnippet>383</a>                    readings.insert((leaf, vein), sap);
+<a href=#384 id=384 data-nosnippet>384</a>                }
+<a href=#385 id=385 data-nosnippet>385</a>                <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; {}
+<a href=#386 id=386 data-nosnippet>386</a>                <span class="comment">// Live, and not carrying the property. The watch stands -- it ends where every other
+<a href=#387 id=387 data-nosnippet>387</a>                // one does, with the element or with `unwatch` -- and there is nothing to publish.
+<a href=#388 id=388 data-nosnippet>388</a>                </span><span class="prelude-val">None </span>=&gt; {
+<a href=#389 id=389 data-nosnippet>389</a>                    readings.remove(<span class="kw-2">&amp;</span>(leaf, vein));
+<a href=#390 id=390 data-nosnippet>390</a>                }
+<a href=#391 id=391 data-nosnippet>391</a>            }
+<a href=#392 id=392 data-nosnippet>392</a>            <span class="bool-val">true
+<a href=#393 id=393 data-nosnippet>393</a>        </span>});
+<a href=#394 id=394 data-nosnippet>394</a>    }
+<a href=#395 id=395 data-nosnippet>395</a>    grove.watched = watched;
+<a href=#396 id=396 data-nosnippet>396</a>}
 </code></pre></div></section></main></body></html>

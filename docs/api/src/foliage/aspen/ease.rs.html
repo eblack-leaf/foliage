@@ -198,18 +198,24 @@
 <a href=#198 id=198 data-nosnippet>198</a>
 <a href=#199 id=199 data-nosnippet>199</a>    <span class="doccomment">/// The progress a motion `elapsed` into this timing has made.
 <a href=#200 id=200 data-nosnippet>200</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>at(<span class="kw-2">&amp;</span><span class="self">self</span>, elapsed: Duration) -&gt; f32 {
-<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">let </span>running = elapsed.saturating_sub(<span class="self">self</span>.delay);
-<a href=#202 id=202 data-nosnippet>202</a>        <span class="comment">// Nothing to be a fraction of. A zero-duration motion is at its end from its first instant.
-<a href=#203 id=203 data-nosnippet>203</a>        </span><span class="kw">if </span><span class="self">self</span>.duration.is_zero() {
-<a href=#204 id=204 data-nosnippet>204</a>            <span class="kw">return </span><span class="number">1.0</span>;
-<a href=#205 id=205 data-nosnippet>205</a>        }
-<a href=#206 id=206 data-nosnippet>206</a>        <span class="kw">let </span>fraction = running.as_nanos() <span class="kw">as </span>f64 / <span class="self">self</span>.duration.as_nanos() <span class="kw">as </span>f64;
-<a href=#207 id=207 data-nosnippet>207</a>        <span class="self">self</span>.ease.at(fraction.clamp(<span class="number">0.0</span>, <span class="number">1.0</span>) <span class="kw">as </span>f32)
-<a href=#208 id=208 data-nosnippet>208</a>    }
-<a href=#209 id=209 data-nosnippet>209</a>
-<a href=#210 id=210 data-nosnippet>210</a>    <span class="doccomment">/// Whether a motion `elapsed` into this timing has reached its end.
-<a href=#211 id=211 data-nosnippet>211</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>done(<span class="kw-2">&amp;</span><span class="self">self</span>, elapsed: Duration) -&gt; bool {
-<a href=#212 id=212 data-nosnippet>212</a>        elapsed &gt;= <span class="self">self</span>.delay + <span class="self">self</span>.duration
-<a href=#213 id=213 data-nosnippet>213</a>    }
-<a href=#214 id=214 data-nosnippet>214</a>}
+<a href=#201 id=201 data-nosnippet>201</a>        <span class="comment">// Holding where it was until the delay has passed, whatever the duration. Asked first, so a
+<a href=#202 id=202 data-nosnippet>202</a>        // zero-length motion with a delay waits and then jumps, rather than jumping at once and
+<a href=#203 id=203 data-nosnippet>203</a>        // waiting only to report that it had.
+<a href=#204 id=204 data-nosnippet>204</a>        </span><span class="kw">if </span>elapsed &lt; <span class="self">self</span>.delay {
+<a href=#205 id=205 data-nosnippet>205</a>            <span class="kw">return </span><span class="number">0.0</span>;
+<a href=#206 id=206 data-nosnippet>206</a>        }
+<a href=#207 id=207 data-nosnippet>207</a>        <span class="comment">// Nothing to be a fraction of. A zero-duration motion is at its end from its first instant.
+<a href=#208 id=208 data-nosnippet>208</a>        </span><span class="kw">if </span><span class="self">self</span>.duration.is_zero() {
+<a href=#209 id=209 data-nosnippet>209</a>            <span class="kw">return </span><span class="number">1.0</span>;
+<a href=#210 id=210 data-nosnippet>210</a>        }
+<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">let </span>running = elapsed - <span class="self">self</span>.delay;
+<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">let </span>fraction = running.as_nanos() <span class="kw">as </span>f64 / <span class="self">self</span>.duration.as_nanos() <span class="kw">as </span>f64;
+<a href=#213 id=213 data-nosnippet>213</a>        <span class="self">self</span>.ease.at(fraction.clamp(<span class="number">0.0</span>, <span class="number">1.0</span>) <span class="kw">as </span>f32)
+<a href=#214 id=214 data-nosnippet>214</a>    }
+<a href=#215 id=215 data-nosnippet>215</a>
+<a href=#216 id=216 data-nosnippet>216</a>    <span class="doccomment">/// Whether a motion `elapsed` into this timing has reached its end.
+<a href=#217 id=217 data-nosnippet>217</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>done(<span class="kw-2">&amp;</span><span class="self">self</span>, elapsed: Duration) -&gt; bool {
+<a href=#218 id=218 data-nosnippet>218</a>        elapsed &gt;= <span class="self">self</span>.delay + <span class="self">self</span>.duration
+<a href=#219 id=219 data-nosnippet>219</a>    }
+<a href=#220 id=220 data-nosnippet>220</a>}
 </code></pre></div></section></main></body></html>

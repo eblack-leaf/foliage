@@ -149,102 +149,118 @@
 <a href=#149 id=149 data-nosnippet>149</a>///
 <a href=#150 id=150 data-nosnippet>150</a>/// Held on the engine rather than in the backend for the same reason a font's bytes are: a picture
 <a href=#151 id=151 data-nosnippet>151</a>/// may be registered before there is a device to upload it to. The backend takes what is here the
-<a href=#152 id=152 data-nosnippet>152</a>/// first time it draws one.
+<a href=#152 id=152 data-nosnippet>152</a>/// first time it draws one, and again whenever a name it holds is filled anew.
 <a href=#153 id=153 data-nosnippet>153</a></span><span class="attr">#[derive(Default)]
 <a href=#154 id=154 data-nosnippet>154</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Plates {
 <a href=#155 id=155 data-nosnippet>155</a>    pictures: Vec&lt;<span class="prelude-ty">Option</span>&lt;Picture&gt;&gt;,
-<a href=#156 id=156 data-nosnippet>156</a>}
-<a href=#157 id=157 data-nosnippet>157</a>
-<a href=#158 id=158 data-nosnippet>158</a><span class="doccomment">/// One registered picture.
-<a href=#159 id=159 data-nosnippet>159</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Picture {
-<a href=#160 id=160 data-nosnippet>160</a>    <span class="doccomment">/// The pixels, `size.width` by `size.height` texels of RGBA, row-major.
-<a href=#161 id=161 data-nosnippet>161</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) pixels: Vec&lt;u8&gt;,
-<a href=#162 id=162 data-nosnippet>162</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) size: Area,
-<a href=#163 id=163 data-nosnippet>163</a>}
-<a href=#164 id=164 data-nosnippet>164</a>
-<a href=#165 id=165 data-nosnippet>165</a><span class="kw">impl </span>Plates {
-<a href=#166 id=166 data-nosnippet>166</a>    <span class="doccomment">/// Fills a name with pixels.
-<a href=#167 id=167 data-nosnippet>167</a>    ///
-<a href=#168 id=168 data-nosnippet>168</a>    /// Replaces whatever was there, which is what makes a picture swappable: an app that re-fetches
-<a href=#169 id=169 data-nosnippet>169</a>    /// at a higher resolution writes the same name again and every element drawing it follows.
-<a href=#170 id=170 data-nosnippet>170</a>    ///
-<a href=#171 id=171 data-nosnippet>171</a>    /// # Panics
-<a href=#172 id=172 data-nosnippet>172</a>    ///
-<a href=#173 id=173 data-nosnippet>173</a>    /// If `pixels` is smaller than `size` texels of RGBA, which is a statement the program made
-<a href=#174 id=174 data-nosnippet>174</a>    /// about pixels it holds.
-<a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plate: Plate, pixels: <span class="kw-2">&amp;</span>[u8], size: Area) {
-<a href=#176 id=176 data-nosnippet>176</a>        <span class="kw">let </span>texels = (size.width.max(<span class="number">0.0</span>) <span class="kw">as </span>usize) * (size.height.max(<span class="number">0.0</span>) <span class="kw">as </span>usize) * <span class="number">4</span>;
-<a href=#177 id=177 data-nosnippet>177</a>        <span class="macro">assert!</span>(
-<a href=#178 id=178 data-nosnippet>178</a>            texels &gt; <span class="number">0 </span>&amp;&amp; pixels.len() &gt;= texels,
-<a href=#179 id=179 data-nosnippet>179</a>            <span class="string">"a {}x{} picture is {texels} bytes of RGBA, and {} were given"</span>,
-<a href=#180 id=180 data-nosnippet>180</a>            size.width,
-<a href=#181 id=181 data-nosnippet>181</a>            size.height,
-<a href=#182 id=182 data-nosnippet>182</a>            pixels.len(),
-<a href=#183 id=183 data-nosnippet>183</a>        );
-<a href=#184 id=184 data-nosnippet>184</a>        <span class="kw-2">*</span><span class="self">self</span>.slot(plate) = <span class="prelude-val">Some</span>(Picture {
-<a href=#185 id=185 data-nosnippet>185</a>            pixels: pixels.to_vec(),
-<a href=#186 id=186 data-nosnippet>186</a>            size,
-<a href=#187 id=187 data-nosnippet>187</a>        });
-<a href=#188 id=188 data-nosnippet>188</a>        <span class="macro">info!</span>(
-<a href=#189 id=189 data-nosnippet>189</a>            plate = plate.<span class="number">0</span>,
-<a href=#190 id=190 data-nosnippet>190</a>            width = size.width,
-<a href=#191 id=191 data-nosnippet>191</a>            height = size.height,
-<a href=#192 id=192 data-nosnippet>192</a>            <span class="string">"image loaded"
-<a href=#193 id=193 data-nosnippet>193</a>        </span>);
-<a href=#194 id=194 data-nosnippet>194</a>    }
-<a href=#195 id=195 data-nosnippet>195</a>
-<a href=#196 id=196 data-nosnippet>196</a>    <span class="doccomment">/// Fills a name from encoded bytes, reporting why it could not be where it could not.
-<a href=#197 id=197 data-nosnippet>197</a>    ///
-<a href=#198 id=198 data-nosnippet>198</a>    /// The refusing counterpart to [`load`](Plates::load), for pixels that arrived from a path or a
-<a href=#199 id=199 data-nosnippet>199</a>    /// URL rather than from something the program stated.
-<a href=#200 id=200 data-nosnippet>200</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decoded(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plate: Plate, bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-<a href=#201 id=201 data-nosnippet>201</a>        <span class="kw">let </span>(pixels, size) = decode(bytes)<span class="question-mark">?</span>;
-<a href=#202 id=202 data-nosnippet>202</a>        <span class="kw-2">*</span><span class="self">self</span>.slot(plate) = <span class="prelude-val">Some</span>(Picture { pixels, size });
-<a href=#203 id=203 data-nosnippet>203</a>        <span class="macro">info!</span>(
-<a href=#204 id=204 data-nosnippet>204</a>            plate = plate.<span class="number">0</span>,
-<a href=#205 id=205 data-nosnippet>205</a>            width = size.width,
-<a href=#206 id=206 data-nosnippet>206</a>            height = size.height,
-<a href=#207 id=207 data-nosnippet>207</a>            <span class="string">"image loaded"
-<a href=#208 id=208 data-nosnippet>208</a>        </span>);
-<a href=#209 id=209 data-nosnippet>209</a>        <span class="prelude-val">Ok</span>(())
-<a href=#210 id=210 data-nosnippet>210</a>    }
-<a href=#211 id=211 data-nosnippet>211</a>
-<a href=#212 id=212 data-nosnippet>212</a>    <span class="doccomment">/// Where `plate`'s pixels go, growing to reach it.
-<a href=#213 id=213 data-nosnippet>213</a>    ///
-<a href=#214 id=214 data-nosnippet>214</a>    /// Names come from [`Naming`](crate::naming::Naming) rather than from this registry, so that one
-<a href=#215 id=215 data-nosnippet>215</a>    /// can be taken where the registry is out of reach -- a decode finishing on another thread. The
-<a href=#216 id=216 data-nosnippet>216</a>    /// slots between are empty and read as a picture that has yet to arrive, which is what any
-<a href=#217 id=217 data-nosnippet>217</a>    /// unfilled name reads as.
-<a href=#218 id=218 data-nosnippet>218</a>    </span><span class="kw">fn </span>slot(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plate: Plate) -&gt; <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;Picture&gt; {
-<a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span>index = plate.<span class="number">0 </span><span class="kw">as </span>usize;
-<a href=#220 id=220 data-nosnippet>220</a>        <span class="kw">if </span>index &gt;= <span class="self">self</span>.pictures.len() {
-<a href=#221 id=221 data-nosnippet>221</a>            <span class="self">self</span>.pictures.resize_with(index + <span class="number">1</span>, || <span class="prelude-val">None</span>);
-<a href=#222 id=222 data-nosnippet>222</a>        }
-<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.pictures[index]
-<a href=#224 id=224 data-nosnippet>224</a>    }
-<a href=#225 id=225 data-nosnippet>225</a>
-<a href=#226 id=226 data-nosnippet>226</a>    <span class="doccomment">/// The picture `plate` names, or `None` while its pixels have yet to arrive.
-<a href=#227 id=227 data-nosnippet>227</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>picture(<span class="kw-2">&amp;</span><span class="self">self</span>, plate: Plate) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Picture&gt; {
-<a href=#228 id=228 data-nosnippet>228</a>        <span class="self">self</span>.pictures.get(plate.<span class="number">0 </span><span class="kw">as </span>usize)<span class="question-mark">?</span>.as_ref()
-<a href=#229 id=229 data-nosnippet>229</a>    }
-<a href=#230 id=230 data-nosnippet>230</a>
-<a href=#231 id=231 data-nosnippet>231</a>    <span class="doccomment">/// How large `plate` is, or `None` while its pixels have yet to arrive.
-<a href=#232 id=232 data-nosnippet>232</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>size(<span class="kw-2">&amp;</span><span class="self">self</span>, plate: Plate) -&gt; <span class="prelude-ty">Option</span>&lt;Area&gt; {
-<a href=#233 id=233 data-nosnippet>233</a>        <span class="prelude-val">Some</span>(<span class="self">self</span>.picture(plate)<span class="question-mark">?</span>.size)
-<a href=#234 id=234 data-nosnippet>234</a>    }
-<a href=#235 id=235 data-nosnippet>235</a>}
-<a href=#236 id=236 data-nosnippet>236</a>
-<a href=#237 id=237 data-nosnippet>237</a><span class="doccomment">/// PNG or JPEG bytes as RGBA and the size they turned out to be.
-<a href=#238 id=238 data-nosnippet>238</a>///
-<a href=#239 id=239 data-nosnippet>239</a>/// The format is read from the bytes rather than declared, because a name and a path are both things
-<a href=#240 id=240 data-nosnippet>240</a>/// that can be wrong about what a file holds, and the file cannot be. A picture states no size
-<a href=#241 id=241 data-nosnippet>241</a>/// coming this way for the same reason: it has one, and asking an app to repeat it is asking for a
-<a href=#242 id=242 data-nosnippet>242</a>/// second answer that can disagree.
-<a href=#243 id=243 data-nosnippet>243</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decode(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;u8&gt;, Area), String&gt; {
-<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">let </span>decoded = image::load_from_memory(bytes)
-<a href=#245 id=245 data-nosnippet>245</a>        .map_err(|failed| <span class="macro">format!</span>(<span class="string">"the picture could not be decoded: {failed}"</span>))<span class="question-mark">?
-<a href=#246 id=246 data-nosnippet>246</a>        </span>.to_rgba8();
-<a href=#247 id=247 data-nosnippet>247</a>    <span class="kw">let </span>size = Area::new(decoded.width() <span class="kw">as </span>f32, decoded.height() <span class="kw">as </span>f32);
-<a href=#248 id=248 data-nosnippet>248</a>    <span class="prelude-val">Ok</span>((decoded.into_raw(), size))
-<a href=#249 id=249 data-nosnippet>249</a>}
+<a href=#156 id=156 data-nosnippet>156</a>    <span class="doccomment">/// Every name filled since extraction last took them, which it hands the backend in the batch.
+<a href=#157 id=157 data-nosnippet>157</a>    ///
+<a href=#158 id=158 data-nosnippet>158</a>    /// Kept because an instance names a picture rather than holding it: pixels replaced under the
+<a href=#159 id=159 data-nosnippet>159</a>    /// same name can leave every instance drawing it exactly as it was, and then nothing an instance
+<a href=#160 id=160 data-nosnippet>160</a>    /// says would tell the backend its texture is stale.
+<a href=#161 id=161 data-nosnippet>161</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) refilled: Vec&lt;Plate&gt;,
+<a href=#162 id=162 data-nosnippet>162</a>}
+<a href=#163 id=163 data-nosnippet>163</a>
+<a href=#164 id=164 data-nosnippet>164</a><span class="doccomment">/// One registered picture.
+<a href=#165 id=165 data-nosnippet>165</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Picture {
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="doccomment">/// The pixels, `size.width` by `size.height` texels of RGBA, row-major.
+<a href=#167 id=167 data-nosnippet>167</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) pixels: Vec&lt;u8&gt;,
+<a href=#168 id=168 data-nosnippet>168</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) size: Area,
+<a href=#169 id=169 data-nosnippet>169</a>}
+<a href=#170 id=170 data-nosnippet>170</a>
+<a href=#171 id=171 data-nosnippet>171</a><span class="kw">impl </span>Plates {
+<a href=#172 id=172 data-nosnippet>172</a>    <span class="doccomment">/// Fills a name with pixels.
+<a href=#173 id=173 data-nosnippet>173</a>    ///
+<a href=#174 id=174 data-nosnippet>174</a>    /// Replaces whatever was there, which is what makes a picture swappable: an app that re-fetches
+<a href=#175 id=175 data-nosnippet>175</a>    /// at a higher resolution writes the same name again and every element drawing it follows.
+<a href=#176 id=176 data-nosnippet>176</a>    ///
+<a href=#177 id=177 data-nosnippet>177</a>    /// The pixels were measured against `size` where they were handed over, by [`misfit`], so
+<a href=#178 id=178 data-nosnippet>178</a>    /// nothing reaches here that is smaller than it was said to be.
+<a href=#179 id=179 data-nosnippet>179</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plate: Plate, pixels: Vec&lt;u8&gt;, size: Area) {
+<a href=#180 id=180 data-nosnippet>180</a>        <span class="macro">debug_assert!</span>(
+<a href=#181 id=181 data-nosnippet>181</a>            misfit(<span class="kw-2">&amp;</span>pixels, size).is_none(),
+<a href=#182 id=182 data-nosnippet>182</a>            <span class="string">"checked where it was written"
+<a href=#183 id=183 data-nosnippet>183</a>        </span>);
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="self">self</span>.fill(plate, Picture { pixels, size });
+<a href=#185 id=185 data-nosnippet>185</a>    }
+<a href=#186 id=186 data-nosnippet>186</a>
+<a href=#187 id=187 data-nosnippet>187</a>    <span class="doccomment">/// Fills a name from encoded bytes, reporting why it could not be where it could not.
+<a href=#188 id=188 data-nosnippet>188</a>    ///
+<a href=#189 id=189 data-nosnippet>189</a>    /// The refusing counterpart to [`load`](Plates::load), for pixels that arrived from a path or a
+<a href=#190 id=190 data-nosnippet>190</a>    /// URL rather than from something the program stated.
+<a href=#191 id=191 data-nosnippet>191</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decoded(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plate: Plate, bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">let </span>(pixels, size) = decode(bytes)<span class="question-mark">?</span>;
+<a href=#193 id=193 data-nosnippet>193</a>        <span class="self">self</span>.fill(plate, Picture { pixels, size });
+<a href=#194 id=194 data-nosnippet>194</a>        <span class="prelude-val">Ok</span>(())
+<a href=#195 id=195 data-nosnippet>195</a>    }
+<a href=#196 id=196 data-nosnippet>196</a>
+<a href=#197 id=197 data-nosnippet>197</a>    <span class="doccomment">/// Puts a picture under a name, replacing whatever was there, and notes the name for the
+<a href=#198 id=198 data-nosnippet>198</a>    /// backend. The one way a slot is filled, so no way of filling one can miss the note.
+<a href=#199 id=199 data-nosnippet>199</a>    </span><span class="kw">fn </span>fill(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plate: Plate, picture: Picture) {
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="macro">info!</span>(
+<a href=#201 id=201 data-nosnippet>201</a>            plate = plate.<span class="number">0</span>,
+<a href=#202 id=202 data-nosnippet>202</a>            width = picture.size.width,
+<a href=#203 id=203 data-nosnippet>203</a>            height = picture.size.height,
+<a href=#204 id=204 data-nosnippet>204</a>            <span class="string">"image loaded"
+<a href=#205 id=205 data-nosnippet>205</a>        </span>);
+<a href=#206 id=206 data-nosnippet>206</a>        <span class="kw-2">*</span><span class="self">self</span>.slot(plate) = <span class="prelude-val">Some</span>(picture);
+<a href=#207 id=207 data-nosnippet>207</a>        <span class="self">self</span>.refilled.push(plate);
+<a href=#208 id=208 data-nosnippet>208</a>    }
+<a href=#209 id=209 data-nosnippet>209</a>
+<a href=#210 id=210 data-nosnippet>210</a>    <span class="doccomment">/// Where `plate`'s pixels go, growing to reach it.
+<a href=#211 id=211 data-nosnippet>211</a>    ///
+<a href=#212 id=212 data-nosnippet>212</a>    /// Names come from [`Naming`](crate::naming::Naming) rather than from this registry, so that one
+<a href=#213 id=213 data-nosnippet>213</a>    /// can be taken where the registry is out of reach -- a decode finishing on another thread. The
+<a href=#214 id=214 data-nosnippet>214</a>    /// slots between are empty and read as a picture that has yet to arrive, which is what any
+<a href=#215 id=215 data-nosnippet>215</a>    /// unfilled name reads as.
+<a href=#216 id=216 data-nosnippet>216</a>    </span><span class="kw">fn </span>slot(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plate: Plate) -&gt; <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;Picture&gt; {
+<a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">let </span>index = plate.<span class="number">0 </span><span class="kw">as </span>usize;
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">if </span>index &gt;= <span class="self">self</span>.pictures.len() {
+<a href=#219 id=219 data-nosnippet>219</a>            <span class="self">self</span>.pictures.resize_with(index + <span class="number">1</span>, || <span class="prelude-val">None</span>);
+<a href=#220 id=220 data-nosnippet>220</a>        }
+<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.pictures[index]
+<a href=#222 id=222 data-nosnippet>222</a>    }
+<a href=#223 id=223 data-nosnippet>223</a>
+<a href=#224 id=224 data-nosnippet>224</a>    <span class="doccomment">/// The picture `plate` names, or `None` while its pixels have yet to arrive.
+<a href=#225 id=225 data-nosnippet>225</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>picture(<span class="kw-2">&amp;</span><span class="self">self</span>, plate: Plate) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Picture&gt; {
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="self">self</span>.pictures.get(plate.<span class="number">0 </span><span class="kw">as </span>usize)<span class="question-mark">?</span>.as_ref()
+<a href=#227 id=227 data-nosnippet>227</a>    }
+<a href=#228 id=228 data-nosnippet>228</a>
+<a href=#229 id=229 data-nosnippet>229</a>    <span class="doccomment">/// How large `plate` is, or `None` while its pixels have yet to arrive.
+<a href=#230 id=230 data-nosnippet>230</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>size(<span class="kw-2">&amp;</span><span class="self">self</span>, plate: Plate) -&gt; <span class="prelude-ty">Option</span>&lt;Area&gt; {
+<a href=#231 id=231 data-nosnippet>231</a>        <span class="prelude-val">Some</span>(<span class="self">self</span>.picture(plate)<span class="question-mark">?</span>.size)
+<a href=#232 id=232 data-nosnippet>232</a>    }
+<a href=#233 id=233 data-nosnippet>233</a>}
+<a href=#234 id=234 data-nosnippet>234</a>
+<a href=#235 id=235 data-nosnippet>235</a><span class="doccomment">/// Why `pixels` cannot be a picture `size` texels across, or `None` if they can.
+<a href=#236 id=236 data-nosnippet>236</a>///
+<a href=#237 id=237 data-nosnippet>237</a>/// Asked where pixels are handed over rather than where they are applied, because what is to be
+<a href=#238 id=238 data-nosnippet>238</a>/// done about a mistake depends on who made it: the frame's callsite stops on it, naming the line
+<a href=#239 id=239 data-nosnippet>239</a>/// that wrote it, and a worker's is refused and reported. Either way the drain is only ever handed
+<a href=#240 id=240 data-nosnippet>240</a>/// pixels that fit.
+<a href=#241 id=241 data-nosnippet>241</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>misfit(pixels: <span class="kw-2">&amp;</span>[u8], size: Area) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+<a href=#242 id=242 data-nosnippet>242</a>    <span class="kw">let </span>texels = (size.width.max(<span class="number">0.0</span>) <span class="kw">as </span>usize) * (size.height.max(<span class="number">0.0</span>) <span class="kw">as </span>usize) * <span class="number">4</span>;
+<a href=#243 id=243 data-nosnippet>243</a>    (texels == <span class="number">0 </span>|| pixels.len() &lt; texels).then(|| {
+<a href=#244 id=244 data-nosnippet>244</a>        <span class="macro">format!</span>(
+<a href=#245 id=245 data-nosnippet>245</a>            <span class="string">"a {}x{} picture is {texels} bytes of RGBA, and {} were given"</span>,
+<a href=#246 id=246 data-nosnippet>246</a>            size.width,
+<a href=#247 id=247 data-nosnippet>247</a>            size.height,
+<a href=#248 id=248 data-nosnippet>248</a>            pixels.len(),
+<a href=#249 id=249 data-nosnippet>249</a>        )
+<a href=#250 id=250 data-nosnippet>250</a>    })
+<a href=#251 id=251 data-nosnippet>251</a>}
+<a href=#252 id=252 data-nosnippet>252</a>
+<a href=#253 id=253 data-nosnippet>253</a><span class="doccomment">/// PNG or JPEG bytes as RGBA and the size they turned out to be.
+<a href=#254 id=254 data-nosnippet>254</a>///
+<a href=#255 id=255 data-nosnippet>255</a>/// The format is read from the bytes rather than declared, because a name and a path are both things
+<a href=#256 id=256 data-nosnippet>256</a>/// that can be wrong about what a file holds, and the file cannot be. A picture states no size
+<a href=#257 id=257 data-nosnippet>257</a>/// coming this way for the same reason: it has one, and asking an app to repeat it is asking for a
+<a href=#258 id=258 data-nosnippet>258</a>/// second answer that can disagree.
+<a href=#259 id=259 data-nosnippet>259</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>decode(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;(Vec&lt;u8&gt;, Area), String&gt; {
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="kw">let </span>decoded = image::load_from_memory(bytes)
+<a href=#261 id=261 data-nosnippet>261</a>        .map_err(|failed| <span class="macro">format!</span>(<span class="string">"the picture could not be decoded: {failed}"</span>))<span class="question-mark">?
+<a href=#262 id=262 data-nosnippet>262</a>        </span>.to_rgba8();
+<a href=#263 id=263 data-nosnippet>263</a>    <span class="kw">let </span>size = Area::new(decoded.width() <span class="kw">as </span>f32, decoded.height() <span class="kw">as </span>f32);
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="prelude-val">Ok</span>((decoded.into_raw(), size))
+<a href=#265 id=265 data-nosnippet>265</a>}
 </code></pre></div></section></main></body></html>
