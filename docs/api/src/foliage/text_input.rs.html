@@ -1003,7 +1003,7 @@
 <a href=#1003 id=1003 data-nosnippet>1003</a>/// same drain and R1 has not seen it yet -- two keystrokes in one frame are the ordinary case. The
 <a href=#1004 id=1004 data-nosnippet>1004</a>/// cell is the run's as R1 last measured it, which changes only with the font.
 <a href=#1005 id=1005 data-nosnippet>1005</a></span><span class="kw">fn </span>shaped(grove: <span class="kw-2">&amp;</span>Grove, parts: Parts, value: <span class="kw-2">&amp;</span>str) -&gt; Shaped {
-<a href=#1006 id=1006 data-nosnippet>1006</a>    shape(value, grove.tree.cell(parts.run))
+<a href=#1006 id=1006 data-nosnippet>1006</a>    shape(value, grove.elements.cell(parts.run))
 <a href=#1007 id=1007 data-nosnippet>1007</a>}
 <a href=#1008 id=1008 data-nosnippet>1008</a>
 <a href=#1009 id=1009 data-nosnippet>1009</a><span class="doccomment">/// How many cells across the field's run wraps at, as it was last drawn.
@@ -1013,7 +1013,7 @@
 <a href=#1013 id=1013 data-nosnippet>1013</a></span><span class="kw">fn </span>columns(grove: <span class="kw-2">&amp;</span>Grove, parts: Parts, shaped: <span class="kw-2">&amp;</span>Shaped) -&gt; usize {
 <a href=#1014 id=1014 data-nosnippet>1014</a>    parts
 <a href=#1015 id=1015 data-nosnippet>1015</a>        .lines
-<a href=#1016 id=1016 data-nosnippet>1016</a>        .columns(shaped, grove.tree.drawn(parts.run).width())
+<a href=#1016 id=1016 data-nosnippet>1016</a>        .columns(shaped, grove.elements.drawn(parts.run).width())
 <a href=#1017 id=1017 data-nosnippet>1017</a>}
 <a href=#1018 id=1018 data-nosnippet>1018</a>
 <a href=#1019 id=1019 data-nosnippet>1019</a><span class="doccomment">/// Puts a new value and caret on a field, however it was arrived at.
@@ -1210,7 +1210,7 @@
 <a href=#1210 id=1210 data-nosnippet>1210</a>/// other, and the field has nowhere to go for it -- and a pointer beside an area is on the line it
 <a href=#1211 id=1211 data-nosnippet>1211</a>/// is level with.
 <a href=#1212 id=1212 data-nosnippet>1212</a></span><span class="kw">fn </span>beyond(grove: <span class="kw-2">&amp;</span>Grove, field: Leaf, parts: Parts, at: Position) -&gt; bool {
-<a href=#1213 id=1213 data-nosnippet>1213</a>    <span class="kw">let </span>box_of = grove.tree.drawn(field);
+<a href=#1213 id=1213 data-nosnippet>1213</a>    <span class="kw">let </span>box_of = grove.elements.drawn(field);
 <a href=#1214 id=1214 data-nosnippet>1214</a>    <span class="kw">match </span>parts.lines {
 <a href=#1215 id=1215 data-nosnippet>1215</a>        Lines::One =&gt; at.x &lt; box_of.left() || at.x &gt; box_of.right(),
 <a href=#1216 id=1216 data-nosnippet>1216</a>        Lines::Many =&gt; at.y &lt; box_of.top() || at.y &gt; box_of.bottom(),
@@ -1224,11 +1224,11 @@
 <a href=#1224 id=1224 data-nosnippet>1224</a>/// because a hand is on the line it is on. Which index that cell is, on a run that wraps, is the
 <a href=#1225 id=1225 data-nosnippet>1225</a>/// wrap's to say.
 <a href=#1226 id=1226 data-nosnippet>1226</a></span><span class="kw">fn </span>index_at(grove: <span class="kw-2">&amp;</span>Grove, parts: Parts, at: Position) -&gt; usize {
-<a href=#1227 id=1227 data-nosnippet>1227</a>    <span class="kw">let </span>cell = grove.tree.cell(parts.run);
+<a href=#1227 id=1227 data-nosnippet>1227</a>    <span class="kw">let </span>cell = grove.elements.cell(parts.run);
 <a href=#1228 id=1228 data-nosnippet>1228</a>    <span class="kw">if </span>cell.width &lt;= <span class="number">0.0 </span>|| cell.height &lt;= <span class="number">0.0 </span>{
 <a href=#1229 id=1229 data-nosnippet>1229</a>        <span class="kw">return </span><span class="number">0</span>;
 <a href=#1230 id=1230 data-nosnippet>1230</a>    }
-<a href=#1231 id=1231 data-nosnippet>1231</a>    <span class="kw">let </span>drawn = grove.tree.drawn(parts.run);
+<a href=#1231 id=1231 data-nosnippet>1231</a>    <span class="kw">let </span>drawn = grove.elements.drawn(parts.run);
 <a href=#1232 id=1232 data-nosnippet>1232</a>    <span class="kw">let </span>column = ((at.x - drawn.left()) / cell.width).round().max(<span class="number">0.0</span>) <span class="kw">as </span>usize;
 <a href=#1233 id=1233 data-nosnippet>1233</a>    <span class="kw">let </span>line = ((at.y - drawn.top()) / cell.height).floor().max(<span class="number">0.0</span>) <span class="kw">as </span>usize;
 <a href=#1234 id=1234 data-nosnippet>1234</a>    <span class="kw">let </span>value = value(grove, parts);

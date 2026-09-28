@@ -88,7 +88,7 @@
 <a href=#88 id=88 data-nosnippet>88</a>    /// a box, asked of a vertex: a point that reads a vertical extent is asking how tall something
 <a href=#89 id=89 data-nosnippet>89</a>    /// else is, and cannot be what decides how tall this is.
 <a href=#90 id=90 data-nosnippet>90</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>measurable(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#91 id=91 data-nosnippet>91</a>        <span class="self">self</span>.y.origin != Origin::Anchor &amp;&amp; <span class="self">self</span>.y.expr.terms.iter().all(|term| known(term.kind))
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="self">self</span>.y.origin != Origin::Anchor &amp;&amp; <span class="self">self</span>.y.expr.terms().iter().all(|term| known(term.kind))
 <a href=#92 id=92 data-nosnippet>92</a>    }
 <a href=#93 id=93 data-nosnippet>93</a>}
 </code></pre></div></section></main></body></html>

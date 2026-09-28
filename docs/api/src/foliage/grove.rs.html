@@ -146,8 +146,8 @@
 <a href=#146 id=146 data-nosnippet>146</a>        <span class="prelude-val">Some</span>(<span class="kw">match </span>vein {
 <a href=#147 id=147 data-nosnippet>147</a>            Vein::Branches =&gt; Sap::Leaves(<span class="self">self</span>.tree.branches(leaf)),
 <a href=#148 id=148 data-nosnippet>148</a>            Vein::Trunk =&gt; Sap::Leaf(<span class="self">self</span>.tree.trunk(leaf)),
-<a href=#149 id=149 data-nosnippet>149</a>            Vein::Placed =&gt; Sap::Section(<span class="self">self</span>.tree.placed(leaf)),
-<a href=#150 id=150 data-nosnippet>150</a>            Vein::Drawn =&gt; Sap::Section(<span class="self">self</span>.tree.drawn(leaf)),
+<a href=#149 id=149 data-nosnippet>149</a>            Vein::Placed =&gt; Sap::Section(<span class="self">self</span>.elements.placed(leaf)),
+<a href=#150 id=150 data-nosnippet>150</a>            Vein::Drawn =&gt; Sap::Section(<span class="self">self</span>.elements.drawn(leaf)),
 <a href=#151 id=151 data-nosnippet>151</a>            Vein::Anchor =&gt; Sap::Leaf(<span class="self">self</span>.tree.anchor(leaf)),
 <a href=#152 id=152 data-nosnippet>152</a>            Vein::Elevation =&gt; Sap::Elevation(<span class="self">self</span>.tree.elevation(leaf)),
 <a href=#153 id=153 data-nosnippet>153</a>            <span class="comment">// A field is filled as its value is, since a fill written to it goes to the run.
@@ -157,7 +157,7 @@
 <a href=#157 id=157 data-nosnippet>157</a>            }),
 <a href=#158 id=158 data-nosnippet>158</a>            Vein::Rounding =&gt; Sap::Rounding(<span class="self">self</span>.tree.rounding(leaf)<span class="question-mark">?</span>),
 <a href=#159 id=159 data-nosnippet>159</a>            Vein::Ends =&gt; {
-<a href=#160 id=160 data-nosnippet>160</a>                <span class="kw">let </span>stretched = <span class="self">self</span>.tree.stretched(leaf)<span class="question-mark">?</span>;
+<a href=#160 id=160 data-nosnippet>160</a>                <span class="kw">let </span>stretched = <span class="self">self</span>.elements.stretched(leaf)<span class="question-mark">?</span>;
 <a href=#161 id=161 data-nosnippet>161</a>                Sap::Ends(stretched.from, stretched.to)
 <a href=#162 id=162 data-nosnippet>162</a>            }
 <a href=#163 id=163 data-nosnippet>163</a>            Vein::Weight =&gt; Sap::Weight(<span class="self">self</span>.tree.stroke(leaf)<span class="question-mark">?</span>.weight),
@@ -193,7 +193,7 @@
 <a href=#193 id=193 data-nosnippet>193</a>            Vein::Progress =&gt; {
 <a href=#194 id=194 data-nosnippet>194</a>                <span class="self">self</span>.tree.scrolls(leaf)<span class="question-mark">?</span>;
 <a href=#195 id=195 data-nosnippet>195</a>                <span class="kw">let </span>(offset, extent) = (<span class="self">self</span>.tree.offset(leaf), <span class="self">self</span>.tree.extent(leaf));
-<a href=#196 id=196 data-nosnippet>196</a>                <span class="kw">let </span>own = <span class="self">self</span>.tree.placed(leaf).area;
+<a href=#196 id=196 data-nosnippet>196</a>                <span class="kw">let </span>own = <span class="self">self</span>.elements.placed(leaf).area;
 <a href=#197 id=197 data-nosnippet>197</a>                Sap::Progress(Position::new(
 <a href=#198 id=198 data-nosnippet>198</a>                    progress(offset, extent, own, Axis::Horizontal),
 <a href=#199 id=199 data-nosnippet>199</a>                    progress(offset, extent, own, Axis::Vertical),

@@ -23,13 +23,13 @@
 <a href=#23 id=23 data-nosnippet>23</a>    Plant {
 <a href=#24 id=24 data-nosnippet>24</a>        leaf: Leaf,
 <a href=#25 id=25 data-nosnippet>25</a>        growth: Growth,
-<a href=#26 id=26 data-nosnippet>26</a>        bud: Bud,
+<a href=#26 id=26 data-nosnippet>26</a>        bud: Box&lt;Bud&gt;,
 <a href=#27 id=27 data-nosnippet>27</a>    },
 <a href=#28 id=28 data-nosnippet>28</a>    Branch {
 <a href=#29 id=29 data-nosnippet>29</a>        leaf: Leaf,
 <a href=#30 id=30 data-nosnippet>30</a>        growth: Growth,
 <a href=#31 id=31 data-nosnippet>31</a>        under: Leaf,
-<a href=#32 id=32 data-nosnippet>32</a>        bud: Bud,
+<a href=#32 id=32 data-nosnippet>32</a>        bud: Box&lt;Bud&gt;,
 <a href=#33 id=33 data-nosnippet>33</a>    },
 <a href=#34 id=34 data-nosnippet>34</a>    Prune(Leaf),
 <a href=#35 id=35 data-nosnippet>35</a>    Place {
@@ -174,7 +174,7 @@
 <a href=#174 id=174 data-nosnippet>174</a>    /// inherited state this frame resolves.
 <a href=#175 id=175 data-nosnippet>175</a>    </span>Focus(Intent),
 <a href=#176 id=176 data-nosnippet>176</a>    <span class="doccomment">/// The one op that names no element: what every role resolves to, for the whole tree.
-<a href=#177 id=177 data-nosnippet>177</a>    </span>Repaint(Scheme),
+<a href=#177 id=177 data-nosnippet>177</a>    </span>Repaint(Box&lt;Scheme&gt;),
 <a href=#178 id=178 data-nosnippet>178</a>    <span class="doccomment">/// Bytes that were read from somewhere outside the frame, and the name they were read for.
 <a href=#179 id=179 data-nosnippet>179</a>    ///
 <a href=#180 id=180 data-nosnippet>180</a>    /// Pushed by whatever finished the retrieval rather than by an app, which is the whole reason it
