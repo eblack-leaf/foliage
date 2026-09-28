@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `foliage/src/interaction/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="foliage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.1 (8bab26f4f 2026-07-14)" data-channel="1.97.1" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">foliage/interaction/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Interaction -- hit-testing, gestures, and focus.
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `foliage/src/interaction/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="foliage" data-themes="" data-resource-suffix="" data-rustdoc-version="1.96.0 (ac68faa20 2026-05-25)" data-channel="1.96.0" data-search-js="search-b5634cc7.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5013f961.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">foliage/interaction/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Interaction -- hit-testing, gestures, and focus.
 <a href=#2 id=2 data-nosnippet>2</a>//!
 <a href=#3 id=3 data-nosnippet>3</a>//! # Two questions, not one
 <a href=#4 id=4 data-nosnippet>4</a>//!
@@ -459,28 +459,28 @@
 <a href=#459 id=459 data-nosnippet>459</a>    // release inside one frame and that movement has to land somewhere.
 <a href=#460 id=460 data-nosnippet>460</a>    </span>gesture.open(grove.clock.delta());
 <a href=#461 id=461 data-nosnippet>461</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>(region) = grove.stack.top(at) {
-<a href=#462 id=462 data-nosnippet>462</a>        <span class="kw">if </span>region.disabled {
-<a href=#463 id=463 data-nosnippet>463</a>            <span class="comment">// Swallowed. A disabled element is present and inert: it takes nothing itself, and it
-<a href=#464 id=464 data-nosnippet>464</a>            // does not pass the gesture on to what is behind it or to a region containing it.
-<a href=#465 id=465 data-nosnippet>465</a>            </span><span class="macro">debug!</span>(leaf = region.leaf.id(), <span class="string">"gesture swallowed"</span>);
-<a href=#466 id=466 data-nosnippet>466</a>        } <span class="kw">else </span>{
-<a href=#467 id=467 data-nosnippet>467</a>            gesture.chain = chain(grove, region.leaf);
-<a href=#468 id=468 data-nosnippet>468</a>            <span class="comment">// Taking hold of something still coasting stops it where the hand met it. A coast is
-<a href=#469 id=469 data-nosnippet>469</a>            // the reader's own last gesture carrying on, so catching it is how it is meant to end.
-<a href=#470 id=470 data-nosnippet>470</a>            </span><span class="kw">let </span>caught = gesture.chain.iter().fold(<span class="bool-val">false</span>, |caught, <span class="kw-2">&amp;</span>region| {
-<a href=#471 id=471 data-nosnippet>471</a>                grove.coasting.stop(region) || caught
-<a href=#472 id=472 data-nosnippet>472</a>            });
-<a href=#473 id=473 data-nosnippet>473</a>            <span class="kw">if </span>caught {
-<a href=#474 id=474 data-nosnippet>474</a>                <span class="comment">// And the press is spent on the catch. What is under the hand hears nothing of it,
-<a href=#475 id=475 data-nosnippet>475</a>                // or stopping a moving list would also be a press on whatever it happened to stop
-<a href=#476 id=476 data-nosnippet>476</a>                // over -- which is the one thing a reader reaching for it did not mean. The gesture
-<a href=#477 id=477 data-nosnippet>477</a>                // stays open and keeps its chain, so a drag out of the catch scrolls as any other.
-<a href=#478 id=478 data-nosnippet>478</a>                </span><span class="macro">debug!</span>(leaf = region.leaf.id(), <span class="string">"coast caught"</span>);
-<a href=#479 id=479 data-nosnippet>479</a>            } <span class="kw">else if </span>region.receives {
-<a href=#480 id=480 data-nosnippet>480</a>                gesture.target = <span class="prelude-val">Some</span>(region.leaf);
-<a href=#481 id=481 data-nosnippet>481</a>                grove.drift.engaged.insert(region.leaf);
-<a href=#482 id=482 data-nosnippet>482</a>                <span class="macro">debug!</span>(leaf = region.leaf.id(), <span class="string">"engaged"</span>);
-<a href=#483 id=483 data-nosnippet>483</a>            }
+<a href=#462 id=462 data-nosnippet>462</a>        <span class="comment">// A disabled element still blocks what is behind it, and its chain holds only the regions
+<a href=#463 id=463 data-nosnippet>463</a>        // above it that are not disabled themselves -- so a drag over a disabled control scrolls
+<a href=#464 id=464 data-nosnippet>464</a>        // the list it sits in, and a disabled region does not scroll.
+<a href=#465 id=465 data-nosnippet>465</a>        </span>gesture.chain = chain(grove, region.leaf);
+<a href=#466 id=466 data-nosnippet>466</a>        <span class="comment">// Taking hold of something still coasting stops it where the hand met it. A coast is the
+<a href=#467 id=467 data-nosnippet>467</a>        // reader's own last gesture carrying on, so catching it is how it is meant to end.
+<a href=#468 id=468 data-nosnippet>468</a>        </span><span class="kw">let </span>caught = gesture.chain.iter().fold(<span class="bool-val">false</span>, |caught, <span class="kw-2">&amp;</span>region| {
+<a href=#469 id=469 data-nosnippet>469</a>            grove.coasting.stop(region) || caught
+<a href=#470 id=470 data-nosnippet>470</a>        });
+<a href=#471 id=471 data-nosnippet>471</a>        <span class="kw">if </span>caught {
+<a href=#472 id=472 data-nosnippet>472</a>            <span class="comment">// And the press is spent on the catch. What is under the hand hears nothing of it, or
+<a href=#473 id=473 data-nosnippet>473</a>            // stopping a moving list would also be a press on whatever it happened to stop over --
+<a href=#474 id=474 data-nosnippet>474</a>            // which is the one thing a reader reaching for it did not mean. The gesture stays open
+<a href=#475 id=475 data-nosnippet>475</a>            // and keeps its chain, so a drag out of the catch scrolls as any other.
+<a href=#476 id=476 data-nosnippet>476</a>            </span><span class="macro">debug!</span>(leaf = region.leaf.id(), <span class="string">"coast caught"</span>);
+<a href=#477 id=477 data-nosnippet>477</a>        } <span class="kw">else if </span>region.disabled {
+<a href=#478 id=478 data-nosnippet>478</a>            <span class="comment">// Inert: it takes nothing itself, and a tap on it reaches nothing behind it.
+<a href=#479 id=479 data-nosnippet>479</a>            </span><span class="macro">debug!</span>(leaf = region.leaf.id(), <span class="string">"press swallowed"</span>);
+<a href=#480 id=480 data-nosnippet>480</a>        } <span class="kw">else if </span>region.receives {
+<a href=#481 id=481 data-nosnippet>481</a>            gesture.target = <span class="prelude-val">Some</span>(region.leaf);
+<a href=#482 id=482 data-nosnippet>482</a>            grove.drift.engaged.insert(region.leaf);
+<a href=#483 id=483 data-nosnippet>483</a>            <span class="macro">debug!</span>(leaf = region.leaf.id(), <span class="string">"engaged"</span>);
 <a href=#484 id=484 data-nosnippet>484</a>        }
 <a href=#485 id=485 data-nosnippet>485</a>    }
 <a href=#486 id=486 data-nosnippet>486</a>    grove.incoming.gesture = <span class="prelude-val">Some</span>(gesture);
@@ -688,46 +688,46 @@
 <a href=#688 id=688 data-nosnippet>688</a>    <span class="kw">let </span><span class="prelude-val">Some</span>(region) = grove.stack.top(at) <span class="kw">else </span>{
 <a href=#689 id=689 data-nosnippet>689</a>        <span class="kw">return</span>;
 <a href=#690 id=690 data-nosnippet>690</a>    };
-<a href=#691 id=691 data-nosnippet>691</a>    <span class="kw">if </span>region.disabled {
-<a href=#692 id=692 data-nosnippet>692</a>        <span class="kw">return</span>;
-<a href=#693 id=693 data-nosnippet>693</a>    }
-<a href=#694 id=694 data-nosnippet>694</a>    <span class="kw">let </span>axis = <span class="kw">if </span>delta.x.abs() &gt; delta.y.abs() {
-<a href=#695 id=695 data-nosnippet>695</a>        Axis::Horizontal
-<a href=#696 id=696 data-nosnippet>696</a>    } <span class="kw">else </span>{
-<a href=#697 id=697 data-nosnippet>697</a>        Axis::Vertical
-<a href=#698 id=698 data-nosnippet>698</a>    };
-<a href=#699 id=699 data-nosnippet>699</a>    <span class="kw">let </span>chain = chain(grove, region.leaf);
-<a href=#700 id=700 data-nosnippet>700</a>    <span class="kw">let </span>wanted = -delta.along(axis);
-<a href=#701 id=701 data-nosnippet>701</a>    <span class="kw">let </span><span class="kw-2">mut </span>next = scrolling(grove, <span class="kw-2">&amp;</span>chain, <span class="number">0</span>, axis);
-<a href=#702 id=702 data-nosnippet>702</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(index) = next {
-<a href=#703 id=703 data-nosnippet>703</a>        <span class="kw">if </span>scroll(grove, chain[index], axis, wanted) != <span class="number">0.0 </span>{
-<a href=#704 id=704 data-nosnippet>704</a>            <span class="kw">break</span>;
-<a href=#705 id=705 data-nosnippet>705</a>        }
-<a href=#706 id=706 data-nosnippet>706</a>        next = outward(grove, <span class="kw-2">&amp;</span>chain, index, axis);
-<a href=#707 id=707 data-nosnippet>707</a>    }
-<a href=#708 id=708 data-nosnippet>708</a>}
-<a href=#709 id=709 data-nosnippet>709</a>
-<a href=#710 id=710 data-nosnippet>710</a><span class="doccomment">/// Where the pointer is, while `leaf` is the one holding the open drag.
-<a href=#711 id=711 data-nosnippet>711</a>///
-<a href=#712 id=712 data-nosnippet>712</a>/// The gesture itself rather than the moves it reported. A pointer held still produces no event at
-<a href=#713 id=713 data-nosnippet>713</a>/// all, so an element with something to do for as long as a drag is *somewhere* -- selecting toward
-<a href=#714 id=714 data-nosnippet>714</a>/// a point past its own edge -- has nothing to read in a frame that reported nothing. This is what
-<a href=#715 id=715 data-nosnippet>715</a>/// it reads instead, and it is the same answer in a frame that moved.
-<a href=#716 id=716 data-nosnippet>716</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dragging(grove: <span class="kw-2">&amp;</span>Grove, leaf: Leaf) -&gt; <span class="prelude-ty">Option</span>&lt;Position&gt; {
-<a href=#717 id=717 data-nosnippet>717</a>    <span class="kw">let </span>gesture = grove.incoming.gesture.as_ref()<span class="question-mark">?</span>;
-<a href=#718 id=718 data-nosnippet>718</a>    (gesture.target == <span class="prelude-val">Some</span>(leaf) &amp;&amp; <span class="macro">matches!</span>(gesture.stage, Stage::Target)).then_some(gesture.to)
-<a href=#719 id=719 data-nosnippet>719</a>}
-<a href=#720 id=720 data-nosnippet>720</a>
-<a href=#721 id=721 data-nosnippet>721</a><span class="doccomment">/// The scrolling ancestors of `from`, itself included, innermost first.
-<a href=#722 id=722 data-nosnippet>722</a>///
-<a href=#723 id=723 data-nosnippet>723</a>/// Targethood is not consulted. A drag anywhere inside a region must scroll it -- on touch that is
-<a href=#724 id=724 data-nosnippet>724</a>/// the only way to scroll at all -- and that has to work on plain decoration, which asked for
-<a href=#725 id=725 data-nosnippet>725</a>/// nothing. So scrolling is structural, and it is not the reason anything opts in.
+<a href=#691 id=691 data-nosnippet>691</a>    <span class="kw">let </span>axis = <span class="kw">if </span>delta.x.abs() &gt; delta.y.abs() {
+<a href=#692 id=692 data-nosnippet>692</a>        Axis::Horizontal
+<a href=#693 id=693 data-nosnippet>693</a>    } <span class="kw">else </span>{
+<a href=#694 id=694 data-nosnippet>694</a>        Axis::Vertical
+<a href=#695 id=695 data-nosnippet>695</a>    };
+<a href=#696 id=696 data-nosnippet>696</a>    <span class="kw">let </span>chain = chain(grove, region.leaf);
+<a href=#697 id=697 data-nosnippet>697</a>    <span class="kw">let </span>wanted = -delta.along(axis);
+<a href=#698 id=698 data-nosnippet>698</a>    <span class="kw">let </span><span class="kw-2">mut </span>next = scrolling(grove, <span class="kw-2">&amp;</span>chain, <span class="number">0</span>, axis);
+<a href=#699 id=699 data-nosnippet>699</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(index) = next {
+<a href=#700 id=700 data-nosnippet>700</a>        <span class="kw">if </span>scroll(grove, chain[index], axis, wanted) != <span class="number">0.0 </span>{
+<a href=#701 id=701 data-nosnippet>701</a>            <span class="kw">break</span>;
+<a href=#702 id=702 data-nosnippet>702</a>        }
+<a href=#703 id=703 data-nosnippet>703</a>        next = outward(grove, <span class="kw-2">&amp;</span>chain, index, axis);
+<a href=#704 id=704 data-nosnippet>704</a>    }
+<a href=#705 id=705 data-nosnippet>705</a>}
+<a href=#706 id=706 data-nosnippet>706</a>
+<a href=#707 id=707 data-nosnippet>707</a><span class="doccomment">/// Where the pointer is, while `leaf` is the one holding the open drag.
+<a href=#708 id=708 data-nosnippet>708</a>///
+<a href=#709 id=709 data-nosnippet>709</a>/// The gesture itself rather than the moves it reported. A pointer held still produces no event at
+<a href=#710 id=710 data-nosnippet>710</a>/// all, so an element with something to do for as long as a drag is *somewhere* -- selecting toward
+<a href=#711 id=711 data-nosnippet>711</a>/// a point past its own edge -- has nothing to read in a frame that reported nothing. This is what
+<a href=#712 id=712 data-nosnippet>712</a>/// it reads instead, and it is the same answer in a frame that moved.
+<a href=#713 id=713 data-nosnippet>713</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dragging(grove: <span class="kw-2">&amp;</span>Grove, leaf: Leaf) -&gt; <span class="prelude-ty">Option</span>&lt;Position&gt; {
+<a href=#714 id=714 data-nosnippet>714</a>    <span class="kw">let </span>gesture = grove.incoming.gesture.as_ref()<span class="question-mark">?</span>;
+<a href=#715 id=715 data-nosnippet>715</a>    (gesture.target == <span class="prelude-val">Some</span>(leaf) &amp;&amp; <span class="macro">matches!</span>(gesture.stage, Stage::Target)).then_some(gesture.to)
+<a href=#716 id=716 data-nosnippet>716</a>}
+<a href=#717 id=717 data-nosnippet>717</a>
+<a href=#718 id=718 data-nosnippet>718</a><span class="doccomment">/// The scrolling ancestors of `from`, itself included, innermost first.
+<a href=#719 id=719 data-nosnippet>719</a>///
+<a href=#720 id=720 data-nosnippet>720</a>/// Targethood is not consulted. A drag anywhere inside a region must scroll it -- on touch that is
+<a href=#721 id=721 data-nosnippet>721</a>/// the only way to scroll at all -- and that has to work on plain decoration, which asked for
+<a href=#722 id=722 data-nosnippet>722</a>/// nothing. So scrolling is structural, and it is not the reason anything opts in.
+<a href=#723 id=723 data-nosnippet>723</a>///
+<a href=#724 id=724 data-nosnippet>724</a>/// A disabled region is left out: it does not scroll, but what it sits in still does. Disabled is
+<a href=#725 id=725 data-nosnippet>725</a>/// inherited, so what is left out is always the innermost part of the walk.
 <a href=#726 id=726 data-nosnippet>726</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>chain(grove: <span class="kw-2">&amp;</span>Grove, from: Leaf) -&gt; Vec&lt;Leaf&gt; {
 <a href=#727 id=727 data-nosnippet>727</a>    <span class="kw">let </span><span class="kw-2">mut </span>chain = Vec::new();
 <a href=#728 id=728 data-nosnippet>728</a>    <span class="kw">let </span><span class="kw-2">mut </span>step = <span class="prelude-val">Some</span>(from);
 <a href=#729 id=729 data-nosnippet>729</a>    <span class="kw">while let </span><span class="prelude-val">Some</span>(leaf) = step {
-<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">if </span>grove.tree.scrolls(leaf).is_some() {
+<a href=#730 id=730 data-nosnippet>730</a>        <span class="kw">if </span>grove.tree.scrolls(leaf).is_some() &amp;&amp; !grove.tree.inherited(leaf).disabled {
 <a href=#731 id=731 data-nosnippet>731</a>            chain.push(leaf);
 <a href=#732 id=732 data-nosnippet>732</a>        }
 <a href=#733 id=733 data-nosnippet>733</a>        step = grove.tree.trunk(leaf);

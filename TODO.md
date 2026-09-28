@@ -42,6 +42,46 @@ handles it, so fields take no typing on Android.
   arrive twice.
 - The `keyboard.rs` module docs ("what is typed arrives as ordinary key events") are wrong; fix them.
 
+## `content()` width from children
+
+`content()` differs by axis. As a height, it is the greater of the element's wrapped run and the
+furthest any child reaches down (R2m: `wrap` → `reach` in `foliage/src/rowan.rs`). As a width, it
+is the run's max-content only (R1: `measure` in `rowan.rs` writes `Area::new(width, 0.0)`), so a
+container sized `width(content())` comes out 0 whatever it holds. That rules out a button or chip
+that hugs a separate label child.
+
+- Mirror R2m horizontally: a bottom-up measure before R2a, where each element's intrinsic width is
+  the max of its run and the furthest right any child reaches.
+- Same exclusion rule as vertical: a child whose horizontal placement reads the trunk's width
+  (`pct`, `col`, trunk or anchor edges) is left out of the measure, so nothing is circular. The
+  vertical version of that rule is `measurable` / `known` in `placement/role.rs`, and a horizontal
+  twin goes beside it.
+- Dirtying: `wrap` marks `measuring` up the trunk chain and sets `dirty` when a measure moves. The
+  horizontal pass needs the same thing.
+- Update the `content()` docs in `placement/source.rs`, which currently describe width as the
+  element's own max-content only.
+
+## Outline on a panel
+
+A border drawn around a panel: text field borders, cards, focus rings, outlined buttons. Stacking
+a panel inside a larger one fakes it only when the inside is filled; a border around a transparent
+inside cannot be done today.
+
+- Shader: `foliage/src/ash/panel.wgsl` already computes `d = sd_rounded_box(...)` per fragment.
+  An outline of width `w` is coverage of `d` inside the ring `-w..0`: `sd_coverage(d)` minus
+  `sd_coverage(d + w)`, or `abs(d + w/2) - w/2` as the ring's distance. Fill and outline are
+  composited in the same fragment, so there is no second draw.
+- Data path: `PanelPigment` (`elm.rs`: `fill`, `rounding`) → `PanelInstance::new` (`panel.rs`:
+  `section`, `color`, `radii`) → the vertex layout (`@location(1..4)`). Add an outline width and an
+  outline colour at each step, with new vertex attributes after `depth`.
+- Draw it inside the box, as CSS `box-sizing: border-box` does. That is the natural answer with an
+  SDF, and it keeps the outline out of layout entirely.
+- Decide: whether the outline colour is a `Fill` that animates with `Motion::Color` the way a
+  panel's fill does (see how `color`/`Op::Recolor` reaches `PanelPigment.fill`), or fixed at
+  planting for now.
+- Builder on `Panel` (`foliage/src/panel.rs`), e.g. `.outline(width, fill)`. An op to change it
+  after planting only if focus rings need it — a focus ring is exactly that case.
+
 ## Glyph atlas
 
 `foliage/src/ash/atlas.rs`: a fixed 2048² sheet keyed by `Cut { font, size, density, character }`.

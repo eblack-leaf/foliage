@@ -10,6 +10,13 @@ and read-only taps taken at the app's own callsite. An app declares what an elem
 it sits, what fills it, whether it takes a gesture — and then only writes verbs against the name
 it got back. There is no render call to make; the next frame is already different.
 
+[![The foliage site: a leaf of scattered polygons in a gradient, inside a dashed outline, with chips
+linking to each section](site.png)](https://eblack-leaf.github.io/foliage/)
+
+The [site](https://eblack-leaf.github.io/foliage/) is itself a foliage app, built from
+[`application/`](application) against nothing but the public surfaces of foliage and
+[`lichen`](lichen).
+
 ## Getting started
 
 ```toml
