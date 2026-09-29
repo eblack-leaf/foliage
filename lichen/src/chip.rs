@@ -141,6 +141,12 @@ impl Chip {
         (measure().height + 1.0).px() + (name.chars().count() as f32 + 2.0).letters()
     }
 
+    /// How wide a chip that is its mark alone is: its cell, which is square. See
+    /// [`mark`](Self::mark).
+    pub fn square() -> Length {
+        measure().height.px()
+    }
+
     /// The chip itself, to anchor to or to hang more on.
     pub fn leaf(&self) -> Leaf {
         self.chip

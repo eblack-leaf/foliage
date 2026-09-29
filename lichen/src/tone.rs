@@ -47,8 +47,8 @@ pub enum Press {
     Inert,
     /// The one of a set that is chosen: filled with the positive hue.
     Chosen,
-    /// A press that cannot be taken back: filled with the danger hue. Told from the accent by its
-    /// colour, never by a shape.
+    /// A press that cannot be taken back, once asked for: filled with the danger hue. Told from the
+    /// accent by its colour, never by a shape. See [`Confirm`](crate::Confirm).
     Danger,
 }
 

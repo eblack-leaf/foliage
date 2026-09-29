@@ -5,9 +5,14 @@
 //! the same place is therefore the abort, and the only press that goes through is one the person
 //! had to move to make.
 //!
-//! The ask and the commit wear the danger hue while the ask can be made, and the ask is inert
-//! while it cannot; abort is at rest. Anything that moves the page under an arming should put it
-//! back -- [`disarm`](Confirm::disarm) -- so an arming never outlives the moment it was made in.
+//! The ask is at rest while it can be made, like any press, and inert while it cannot; abort is at
+//! rest. Only the commit wears the danger hue, and it stands only once the ask was made: a press
+//! that cannot be taken back is not the one to make, so nothing reads as the press to make until
+//! the person has said they mean it. Where it is off the path a person takes, it can be tucked
+//! behind a mark -- [`marks`](Confirm::marks) -- so all that stands of it at rest is a glyph.
+//!
+//! Anything that moves the page under an arming should put it back --
+//! [`disarm`](Confirm::disarm) -- so an arming never outlives the moment it was made in.
 
 use foliage::{Elevation, Field, Grove, Grow, Leaf, Location, Pollen};
 
@@ -51,9 +56,33 @@ impl Confirm {
         abort: (Field, &str),
         commit: (Field, &str),
     ) -> Self {
-        let mut ask = Chip::grow(grove, under, here.clone(), Elevation::up(1), ask.0, ask.1);
-        let mut abort = Chip::grow(grove, under, here, Elevation::up(2), abort.0, abort.1);
-        let mut commit = Chip::grow(grove, under, there, Elevation::up(2), commit.0, commit.1);
+        let ask = Chip::grow(grove, under, here.clone(), Elevation::up(1), ask.0, ask.1);
+        let abort = Chip::grow(grove, under, here, Elevation::up(2), abort.0, abort.1);
+        let commit = Chip::grow(grove, under, there, Elevation::up(2), commit.0, commit.1);
+        Self::stood(grove, ask, abort, commit)
+    }
+
+    /// Grows a confirm tucked behind a mark: the ask and abort each a mark alone, a
+    /// [`Chip::square`] at `here`, and the commit a mark and a name at `there`. For a press off
+    /// the path a person takes -- a delete at the foot of a record -- so what stands of it at
+    /// rest is a glyph, and its name is said only once it was asked for.
+    pub fn marks(
+        grove: &mut Grove,
+        under: Leaf,
+        here: Location,
+        there: Location,
+        ask: Field,
+        abort: Field,
+        commit: (Field, &str),
+    ) -> Self {
+        let ask = Chip::mark(grove, under, here.clone(), Elevation::up(1), ask);
+        let abort = Chip::mark(grove, under, here, Elevation::up(2), abort);
+        let commit = Chip::grow(grove, under, there, Elevation::up(2), commit.0, commit.1);
+        Self::stood(grove, ask, abort, commit)
+    }
+
+    /// The three, dressed and put back: closed, and unarmed.
+    fn stood(grove: &mut Grove, mut ask: Chip, mut abort: Chip, mut commit: Chip) -> Self {
         ask.arm(grove, Press::Inert);
         abort.arm(grove, Press::Rest);
         commit.arm(grove, Press::Danger);
@@ -88,14 +117,13 @@ impl Confirm {
         self.armed
     }
 
-    /// Opens the ask to a press, dressed in the danger hue, or closes it, inert. Closing it
-    /// disarms it.
+    /// Opens the ask to a press, at rest, or closes it, inert. Closing it disarms it.
     pub fn open(&mut self, grove: &mut Grove, open: bool) {
         self.open = open;
         self.ask.arm(
             grove,
             match open {
-                true => Press::Danger,
+                true => Press::Rest,
                 false => Press::Inert,
             },
         );

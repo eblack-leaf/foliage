@@ -88,6 +88,23 @@ impl Color {
         self.oklab().0
     }
 
+    /// The opaque color at OKLCH `lightness`, `chroma` and `hue` (in degrees): lightness and hue
+    /// held, and chroma backed off where sRGB cannot carry it.
+    ///
+    /// What a set of hues evenly apart is stated in. OKLCH's hue is perceptual, so equal turns of it
+    /// read as equal distances apart and two hues at one lightness and chroma read as equally loud,
+    /// which an HSL hue does neither of.
+    pub fn oklch(lightness: f32, chroma: f32, hue: f32) -> Self {
+        let turn = hue.to_radians();
+        Self::from_oklab(
+            lightness.clamp(0.0, 1.0),
+            chroma * turn.cos(),
+            chroma * turn.sin(),
+            1.0,
+        )
+        .0
+    }
+
     /// This color at a fraction of its own alpha.
     ///
     /// What an element's resolved opacity does to what it is painted in. Taken at extraction rather
