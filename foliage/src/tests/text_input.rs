@@ -987,7 +987,12 @@ fn read_only_keeps_the_reading_and_refuses_the_writing() {
     assert!(matches!(deleted, Applied::Nothing));
     let pasted = held(applied("abc", at(1), with_control(Key::Typed('v')), None));
     assert!(matches!(pasted, Applied::Nothing));
-    match held(applied("abc", selecting(0, 2), with_control(Key::Typed('x')), None)) {
+    match held(applied(
+        "abc",
+        selecting(0, 2),
+        with_control(Key::Typed('x')),
+        None,
+    )) {
         Applied::Copied(text) => assert_eq!(text, "ab"),
         _ => panic!("a cut on a read-only field is its copy"),
     }
@@ -1068,9 +1073,19 @@ fn read_only_is_undone_by_the_same_write() {
 /// typing, deleting and pasting go ahead.
 #[test]
 fn a_masked_field_keeps_its_value_off_the_clipboard() {
-    let copied = hidden(applied("abc", selecting(0, 2), with_control(Key::Typed('c')), None));
+    let copied = hidden(applied(
+        "abc",
+        selecting(0, 2),
+        with_control(Key::Typed('c')),
+        None,
+    ));
     assert!(matches!(copied, Applied::Nothing));
-    let cut = hidden(applied("abc", selecting(0, 2), with_control(Key::Typed('x')), None));
+    let cut = hidden(applied(
+        "abc",
+        selecting(0, 2),
+        with_control(Key::Typed('x')),
+        None,
+    ));
     assert!(matches!(cut, Applied::Nothing));
     let typed = hidden(applied("abc", at(1), stroke(Key::Typed('X')), None));
     assert!(matches!(typed, Applied::Wrote(written, _) if written == "aXbc"));
@@ -1103,7 +1118,10 @@ fn a_masked_field_draws_dots_and_holds_the_value() {
     tick(&mut grove);
     let run = parts(&grove, leaf)[3];
     assert_eq!(value(&grove, leaf), "hunter2");
-    assert_eq!(grove.elements.shaped_text(run).unwrap(), "\u{2022}".repeat(7));
+    assert_eq!(
+        grove.elements.shaped_text(run).unwrap(),
+        "\u{2022}".repeat(7)
+    );
     // The caret stands after the seventh cell, as it would over the characters themselves.
     assert_eq!(selection(&grove, leaf), 7..7);
 
@@ -1112,6 +1130,9 @@ fn a_masked_field_draws_dots_and_holds_the_value() {
     assert_eq!(grove.elements.shaped_text(run).unwrap(), "hunter2");
     grove.masked(leaf, true);
     tick(&mut grove);
-    assert_eq!(grove.elements.shaped_text(run).unwrap(), "\u{2022}".repeat(7));
+    assert_eq!(
+        grove.elements.shaped_text(run).unwrap(),
+        "\u{2022}".repeat(7)
+    );
     assert_eq!(value(&grove, leaf), "hunter2");
 }

@@ -491,7 +491,8 @@ impl Tree {
     /// Whether `leaf` is a field that refuses the keystrokes that would change its value. `false`
     /// for everything that is not a field, which has no value to keep.
     pub(crate) fn read_only(&self, leaf: Leaf) -> bool {
-        self.read::<ReadOnly>(leaf).is_some_and(|read_only| read_only.0)
+        self.read::<ReadOnly>(leaf)
+            .is_some_and(|read_only| read_only.0)
     }
 
     pub(crate) fn set_read_only(&mut self, leaf: Leaf, read_only: bool) {

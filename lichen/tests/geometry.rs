@@ -61,7 +61,10 @@ fn a_cut_that_keeps_the_far_side_of_nothing_is_empty() {
     let none = shape.cut(Cut::new((0.1, 0.0), (0.1, 1.0), (0.05, 0.5)));
     assert!(none.is_empty());
     // And cutting that again is still nothing, rather than a panic.
-    assert!(none.cut(Cut::new((0.5, 0.0), (0.5, 1.0), (0.3, 0.5))).is_empty());
+    assert!(
+        none.cut(Cut::new((0.5, 0.0), (0.5, 1.0), (0.3, 0.5)))
+            .is_empty()
+    );
 }
 
 #[test]
