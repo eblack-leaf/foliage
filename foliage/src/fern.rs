@@ -323,6 +323,13 @@ fn drain(grove: &mut Grove) {
                 }
                 text_input::masked(grove, leaf, masked);
             }
+            Op::Hint { leaf, value } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("hint", leaf, "not live");
+                    continue;
+                }
+                text_input::hint(grove, leaf, value);
+            }
             Op::Tint { leaf, tints } => {
                 if !grove.tree.is_live(leaf) {
                     dropped("tint", leaf, "not live");

@@ -96,6 +96,11 @@ pub(crate) enum Op {
         leaf: Leaf,
         masked: bool,
     },
+    /// Rewrites a field's placeholder.
+    Hint {
+        leaf: Leaf,
+        value: String,
+    },
     /// Refills part of a run, over a range of its own index space.
     Tint {
         leaf: Leaf,

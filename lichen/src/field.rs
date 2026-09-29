@@ -142,6 +142,12 @@ impl Field {
         }
     }
 
+    /// Says what goes in the field, in the grey between, for as long as it is empty: a way in for
+    /// a field whose words have a shape of their own, a day or a time.
+    pub fn hint(&self, grove: &mut Grove, words: &str) {
+        grove.hint(self.input, words);
+    }
+
     /// Says the field holds a record rather than a draft, which is which way round it reads where
     /// its words came from. Said where it is grown, before anything is put in it.
     pub fn holds(&mut self, holds: Holds) {

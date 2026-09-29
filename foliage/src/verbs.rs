@@ -252,6 +252,18 @@ pub trait Grow: Queues {
         self.queue(Op::Masked { leaf, masked });
     }
 
+    /// Rewrites what a [`TextInput`](crate::TextInput) or a [`TextArea`](crate::TextArea) shows
+    /// while its value is empty: see [`placeholder`](crate::TextInput::placeholder). The value is
+    /// left as it is, and so is whether the placeholder shows.
+    ///
+    /// Dropped, like any op naming something it does not apply to, if the element is not a field.
+    fn hint(&mut self, leaf: Leaf, value: impl Into<String>) {
+        self.queue(Op::Hint {
+            leaf,
+            value: value.into(),
+        });
+    }
+
     /// Rounds an element's corners, per corner or all at once.
     ///
     /// Dropped, like any op naming something it does not apply to, unless the element is a

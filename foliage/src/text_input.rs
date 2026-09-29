@@ -1229,6 +1229,18 @@ pub(crate) fn masked(grove: &mut Grove, field: Leaf, masked: bool) {
     grove.tree.set_masked(parts.run, masked);
 }
 
+/// Rewrites a field's placeholder: the run drawn in its hint's fill while the value is empty.
+///
+/// Dropped, like any op naming something it does not apply to, if the element is not a field.
+/// Whether it shows is the value's to say, and is left as it is.
+pub(crate) fn hint(grove: &mut Grove, field: Leaf, value: String) {
+    let Some(parts) = grove.tree.parts(field) else {
+        debug!(leaf = field.id(), "hint dropped: not a field");
+        return;
+    };
+    grove.tree.set_lettering(parts.hint, value);
+}
+
 pub(crate) fn read_only(grove: &mut Grove, field: Leaf, read_only: bool) {
     if grove.tree.parts(field).is_none() {
         debug!(leaf = field.id(), "read-only dropped: not a field");
