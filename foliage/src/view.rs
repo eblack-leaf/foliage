@@ -643,7 +643,7 @@ fn handed(grove: &Grove, elements: &Elements, leaf: Leaf, axis: Axis) -> Option<
     if chain.first() != Some(&leaf) {
         return None;
     }
-    interaction::outward(grove, &chain, 0, axis).map(|index| chain[index])
+    interaction::outward(grove, elements, &chain, 0, axis).map(|index| chain[index])
 }
 
 /// The one-shot destinations written this frame.

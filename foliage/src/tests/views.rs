@@ -414,6 +414,39 @@ fn a_contained_region_absorbs_a_wheel_notch_too() {
     assert_eq!(offset(&grove, outer).y, 0.0);
 }
 
+/// A contained region with nothing to scroll -- a notes field whose words all fit -- owns no
+/// gesture: it has no end to reach, so a wheel notch or a drag over it moves what it sits in.
+#[test]
+fn a_contained_region_with_nothing_to_scroll_hands_outward() {
+    let mut grove = grove();
+    let outer = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 200.0))
+            .scrolls(Axes::Vertical),
+    );
+    grove.branch(outer, Panel::new().at(at(0.0, 0.0, 200.0, 600.0)));
+    let inner = grove.branch(
+        outer,
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Scroll::new(Axes::Vertical).contain(Axes::Vertical)),
+    );
+    grove.branch(inner, Panel::new().at(at(0.0, 0.0, 200.0, 60.0)));
+    tick(&mut grove);
+
+    wheel(&mut grove, (50.0, 50.0), (0.0, -40.0));
+    tick(&mut grove);
+    assert_eq!(offset(&grove, inner).y, 0.0);
+    assert_eq!(offset(&grove, outer).y, 40.0);
+
+    // Over what is still the inner region, scrolled up by those 40.
+    press(&mut grove, 50.0, 30.0);
+    drag(&mut grove, 50.0, 0.0);
+    tick(&mut grove);
+    assert_eq!(offset(&grove, inner).y, 0.0);
+    assert_eq!(offset(&grove, outer).y, 70.0);
+}
+
 /// The policy is per axis, so containing one leaves the other chaining. The two axes almost never
 /// want the same answer, which is the whole reason the split is there.
 #[test]

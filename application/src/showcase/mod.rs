@@ -15,6 +15,8 @@ mod dashboard;
 mod settings;
 mod storefront;
 
+use std::rc::Rc;
+
 use foliage::{Boxed, Elevation, Font, Grove, Grow, Leaf, Location, Place, Pollen, Stem};
 use lichen::{Chip, Press};
 
@@ -63,7 +65,7 @@ impl Theme {
 
 /// The showcase tip, grown, and which theme is showing.
 pub(crate) struct Showcase {
-    icons: Icons,
+    icons: Rc<Icons>,
     italic: Font,
     details: Leaf,
     tabs: Vec<Chip>,
@@ -77,7 +79,7 @@ impl Showcase {
         grove: &mut Grove,
         controls: Leaf,
         details: Leaf,
-        icons: Icons,
+        icons: Rc<Icons>,
         italic: Font,
     ) -> Self {
         let marks = [

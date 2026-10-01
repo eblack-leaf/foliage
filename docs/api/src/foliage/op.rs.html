@@ -87,179 +87,192 @@
 <a href=#87 id=87 data-nosnippet>87</a>        range: core::ops::Range&lt;usize&gt;,
 <a href=#88 id=88 data-nosnippet>88</a>    },
 <a href=#89 id=89 data-nosnippet>89</a>    <span class="doccomment">/// Makes a field read-only, or editable again.
-<a href=#90 id=90 data-nosnippet>90</a>    </span>ReadOnly { leaf: Leaf, read_only: bool },
-<a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// Refills part of a run, over a range of its own index space.
-<a href=#92 id=92 data-nosnippet>92</a>    </span>Tint {
-<a href=#93 id=93 data-nosnippet>93</a>        leaf: Leaf,
-<a href=#94 id=94 data-nosnippet>94</a>        tints: Tints,
-<a href=#95 id=95 data-nosnippet>95</a>    },
-<a href=#96 id=96 data-nosnippet>96</a>    Round {
-<a href=#97 id=97 data-nosnippet>97</a>        leaf: Leaf,
-<a href=#98 id=98 data-nosnippet>98</a>        rounding: Corners,
-<a href=#99 id=99 data-nosnippet>99</a>    },
-<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// Reshapes a regular polygon: how many sides, how round, how far turned.
-<a href=#101 id=101 data-nosnippet>101</a>    </span>Reshape {
-<a href=#102 id=102 data-nosnippet>102</a>        leaf: Leaf,
-<a href=#103 id=103 data-nosnippet>103</a>        shape: <span class="kw">crate</span>::polygon::Shape,
-<a href=#104 id=104 data-nosnippet>104</a>    },
-<a href=#105 id=105 data-nosnippet>105</a>    <span class="doccomment">/// Swaps which registered mark an icon draws.
-<a href=#106 id=106 data-nosnippet>106</a>    </span>Mark {
-<a href=#107 id=107 data-nosnippet>107</a>        leaf: Leaf,
-<a href=#108 id=108 data-nosnippet>108</a>        field: <span class="kw">crate</span>::icon::Field,
-<a href=#109 id=109 data-nosnippet>109</a>    },
-<a href=#110 id=110 data-nosnippet>110</a>    <span class="doccomment">/// Swaps which registered picture an image draws.
-<a href=#111 id=111 data-nosnippet>111</a>    </span>Depict {
-<a href=#112 id=112 data-nosnippet>112</a>        leaf: Leaf,
-<a href=#113 id=113 data-nosnippet>113</a>        plate: Plate,
-<a href=#114 id=114 data-nosnippet>114</a>    },
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Changes how an image's pixels are fitted into its box.
-<a href=#116 id=116 data-nosnippet>116</a>    </span>Fit {
-<a href=#117 id=117 data-nosnippet>117</a>        leaf: Leaf,
-<a href=#118 id=118 data-nosnippet>118</a>        fit: Fit,
-<a href=#119 id=119 data-nosnippet>119</a>    },
-<a href=#120 id=120 data-nosnippet>120</a>    <span class="doccomment">/// Fills a registered picture's name with pixels.
-<a href=#121 id=121 data-nosnippet>121</a>    ///
-<a href=#122 id=122 data-nosnippet>122</a>    /// An op like any other, rather than a call on the engine, because a picture may arrive at any
-<a href=#123 id=123 data-nosnippet>123</a>    /// frame -- from a fetch, a decode on another thread, a re-render at a higher resolution -- and
-<a href=#124 id=124 data-nosnippet>124</a>    /// arriving is a change to the tree's contents in exactly the way a rewritten run is.
-<a href=#125 id=125 data-nosnippet>125</a>    </span>Load {
+<a href=#90 id=90 data-nosnippet>90</a>    </span>ReadOnly {
+<a href=#91 id=91 data-nosnippet>91</a>        leaf: Leaf,
+<a href=#92 id=92 data-nosnippet>92</a>        read_only: bool,
+<a href=#93 id=93 data-nosnippet>93</a>    },
+<a href=#94 id=94 data-nosnippet>94</a>    <span class="doccomment">/// Masks a field, or shows its value again.
+<a href=#95 id=95 data-nosnippet>95</a>    </span>Masked {
+<a href=#96 id=96 data-nosnippet>96</a>        leaf: Leaf,
+<a href=#97 id=97 data-nosnippet>97</a>        masked: bool,
+<a href=#98 id=98 data-nosnippet>98</a>    },
+<a href=#99 id=99 data-nosnippet>99</a>    <span class="doccomment">/// Rewrites a field's placeholder.
+<a href=#100 id=100 data-nosnippet>100</a>    </span>Hint {
+<a href=#101 id=101 data-nosnippet>101</a>        leaf: Leaf,
+<a href=#102 id=102 data-nosnippet>102</a>        value: String,
+<a href=#103 id=103 data-nosnippet>103</a>    },
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// Refills part of a run, over a range of its own index space.
+<a href=#105 id=105 data-nosnippet>105</a>    </span>Tint {
+<a href=#106 id=106 data-nosnippet>106</a>        leaf: Leaf,
+<a href=#107 id=107 data-nosnippet>107</a>        tints: Tints,
+<a href=#108 id=108 data-nosnippet>108</a>    },
+<a href=#109 id=109 data-nosnippet>109</a>    Round {
+<a href=#110 id=110 data-nosnippet>110</a>        leaf: Leaf,
+<a href=#111 id=111 data-nosnippet>111</a>        rounding: Corners,
+<a href=#112 id=112 data-nosnippet>112</a>    },
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="doccomment">/// Reshapes a regular polygon: how many sides, how round, how far turned.
+<a href=#114 id=114 data-nosnippet>114</a>    </span>Reshape {
+<a href=#115 id=115 data-nosnippet>115</a>        leaf: Leaf,
+<a href=#116 id=116 data-nosnippet>116</a>        shape: <span class="kw">crate</span>::polygon::Shape,
+<a href=#117 id=117 data-nosnippet>117</a>    },
+<a href=#118 id=118 data-nosnippet>118</a>    <span class="doccomment">/// Swaps which registered mark an icon draws.
+<a href=#119 id=119 data-nosnippet>119</a>    </span>Mark {
+<a href=#120 id=120 data-nosnippet>120</a>        leaf: Leaf,
+<a href=#121 id=121 data-nosnippet>121</a>        field: <span class="kw">crate</span>::icon::Field,
+<a href=#122 id=122 data-nosnippet>122</a>    },
+<a href=#123 id=123 data-nosnippet>123</a>    <span class="doccomment">/// Swaps which registered picture an image draws.
+<a href=#124 id=124 data-nosnippet>124</a>    </span>Depict {
+<a href=#125 id=125 data-nosnippet>125</a>        leaf: Leaf,
 <a href=#126 id=126 data-nosnippet>126</a>        plate: Plate,
-<a href=#127 id=127 data-nosnippet>127</a>        pixels: Vec&lt;u8&gt;,
-<a href=#128 id=128 data-nosnippet>128</a>        size: Area,
-<a href=#129 id=129 data-nosnippet>129</a>    },
-<a href=#130 id=130 data-nosnippet>130</a>    <span class="doccomment">/// Moves a region. Recorded here and answered in R4, which is the one place that has both this
-<a href=#131 id=131 data-nosnippet>131</a>    /// frame's extent and the offset it clamps.
-<a href=#132 id=132 data-nosnippet>132</a>    </span>Scroll {
-<a href=#133 id=133 data-nosnippet>133</a>        leaf: Leaf,
-<a href=#134 id=134 data-nosnippet>134</a>        to: ScrollTo,
-<a href=#135 id=135 data-nosnippet>135</a>    },
-<a href=#136 id=136 data-nosnippet>136</a>    Disable {
-<a href=#137 id=137 data-nosnippet>137</a>        leaf: Leaf,
-<a href=#138 id=138 data-nosnippet>138</a>        disabled: bool,
-<a href=#139 id=139 data-nosnippet>139</a>    },
-<a href=#140 id=140 data-nosnippet>140</a>    Reveal {
-<a href=#141 id=141 data-nosnippet>141</a>        leaf: Leaf,
-<a href=#142 id=142 data-nosnippet>142</a>        visible: bool,
-<a href=#143 id=143 data-nosnippet>143</a>    },
-<a href=#144 id=144 data-nosnippet>144</a>    Fade {
-<a href=#145 id=145 data-nosnippet>145</a>        leaf: Leaf,
-<a href=#146 id=146 data-nosnippet>146</a>        opacity: f32,
-<a href=#147 id=147 data-nosnippet>147</a>    },
-<a href=#148 id=148 data-nosnippet>148</a>    <span class="doccomment">/// Moves a property over time. Applied here, which is what makes a write to the same property
-<a href=#149 id=149 data-nosnippet>149</a>    /// earlier in the same drain cancel it, and one later replace it.
-<a href=#150 id=150 data-nosnippet>150</a>    </span>Animate {
-<a href=#151 id=151 data-nosnippet>151</a>        leaf: Leaf,
-<a href=#152 id=152 data-nosnippet>152</a>        motion: Motion,
-<a href=#153 id=153 data-nosnippet>153</a>        timing: Timing,
-<a href=#154 id=154 data-nosnippet>154</a>        <span class="doccomment">/// What its progress is reported under and its ending is reported by. Named at the callsite
-<a href=#155 id=155 data-nosnippet>155</a>        /// like a channel's, so the name is in hand before the frame that starts the motion.
-<a href=#156 id=156 data-nosnippet>156</a>        </span>tween: Tween,
-<a href=#157 id=157 data-nosnippet>157</a>    },
-<a href=#158 id=158 data-nosnippet>158</a>    <span class="doccomment">/// A scalar channel, reported outward every frame and written nowhere.
-<a href=#159 id=159 data-nosnippet>159</a>    </span>Channel {
-<a href=#160 id=160 data-nosnippet>160</a>        tween: Tween,
-<a href=#161 id=161 data-nosnippet>161</a>        from: f32,
-<a href=#162 id=162 data-nosnippet>162</a>        to: f32,
-<a href=#163 id=163 data-nosnippet>163</a>        timing: Timing,
-<a href=#164 id=164 data-nosnippet>164</a>    },
-<a href=#165 id=165 data-nosnippet>165</a>    <span class="doccomment">/// Ends a tween before it has run out, on the end it was going to.
-<a href=#166 id=166 data-nosnippet>166</a>    ///
-<a href=#167 id=167 data-nosnippet>167</a>    /// `reported` is the whole difference between the two verbs that push this: `finish` ends it as
-<a href=#168 id=168 data-nosnippet>168</a>    /// an arrival and a chain waiting on it runs, `stop` ends it in silence and the chain does not.
-<a href=#169 id=169 data-nosnippet>169</a>    </span>Stop {
-<a href=#170 id=170 data-nosnippet>170</a>        tween: Tween,
-<a href=#171 id=171 data-nosnippet>171</a>        reported: bool,
-<a href=#172 id=172 data-nosnippet>172</a>    },
-<a href=#173 id=173 data-nosnippet>173</a>    <span class="doccomment">/// Where focus is to go. Answered here, in the drain, against what has been declared so far and
-<a href=#174 id=174 data-nosnippet>174</a>    /// the geometry the last frame drew -- so focus is final before resolution runs, and an element
-<a href=#175 id=175 data-nosnippet>175</a>    /// shown by an earlier op in the same drain can take it.
-<a href=#176 id=176 data-nosnippet>176</a>    </span>Focus(Intent),
-<a href=#177 id=177 data-nosnippet>177</a>    <span class="doccomment">/// The one op that names no element: what every role resolves to, for the whole tree.
-<a href=#178 id=178 data-nosnippet>178</a>    </span>Repaint(Box&lt;Scheme&gt;),
-<a href=#179 id=179 data-nosnippet>179</a>    <span class="doccomment">/// Bytes that were read from somewhere outside the frame, and the name they were read for.
-<a href=#180 id=180 data-nosnippet>180</a>    ///
-<a href=#181 id=181 data-nosnippet>181</a>    /// Pushed by whatever finished the retrieval rather than by an app, which is the whole reason it
-<a href=#182 id=182 data-nosnippet>182</a>    /// is an op: it arrives at a moment nothing chose, and the queue is what gives it a place in the
-<a href=#183 id=183 data-nosnippet>183</a>    /// order anyway.
-<a href=#184 id=184 data-nosnippet>184</a>    </span>Arrived {
-<a href=#185 id=185 data-nosnippet>185</a>        destination: Destination,
-<a href=#186 id=186 data-nosnippet>186</a>        bytes: Retrieved,
-<a href=#187 id=187 data-nosnippet>187</a>    },
-<a href=#188 id=188 data-nosnippet>188</a>    <span class="doccomment">/// Text to put on the clipboard.
-<a href=#189 id=189 data-nosnippet>189</a>    </span>Copy(String),
-<a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// A request for what the clipboard holds, and who it is for: the field that was asked to paste
-<a href=#191 id=191 data-nosnippet>191</a>    /// into itself, or the app where it asked for itself.
-<a href=#192 id=192 data-nosnippet>192</a>    ///
-<a href=#193 id=193 data-nosnippet>193</a>    /// Separate from the answer because reading a clipboard is not instant on either target -- a
-<a href=#194 id=194 data-nosnippet>194</a>    /// promise on the web, a round trip to whoever owns the selection off it.
-<a href=#195 id=195 data-nosnippet>195</a>    </span>Paste {
-<a href=#196 id=196 data-nosnippet>196</a>        into: <span class="prelude-ty">Option</span>&lt;Leaf&gt;,
-<a href=#197 id=197 data-nosnippet>197</a>    },
-<a href=#198 id=198 data-nosnippet>198</a>    <span class="doccomment">/// What the clipboard turned out to hold, and who asked for it.
-<a href=#199 id=199 data-nosnippet>199</a>    ///
-<a href=#200 id=200 data-nosnippet>200</a>    /// Pushed by whatever finished the read rather than by an app, which is what makes it an op for
-<a href=#201 id=201 data-nosnippet>201</a>    /// the reason [`Arrived`](Op::Arrived) is one: it lands at a moment nothing chose, and the queue
-<a href=#202 id=202 data-nosnippet>202</a>    /// is what gives it a place in the order anyway.
-<a href=#203 id=203 data-nosnippet>203</a>    </span>Pasted {
-<a href=#204 id=204 data-nosnippet>204</a>        into: <span class="prelude-ty">Option</span>&lt;Leaf&gt;,
-<a href=#205 id=205 data-nosnippet>205</a>        text: String,
-<a href=#206 id=206 data-nosnippet>206</a>    },
-<a href=#207 id=207 data-nosnippet>207</a>    <span class="doccomment">/// A URL to go to.
-<a href=#208 id=208 data-nosnippet>208</a>    </span>Navigate(String),
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="doccomment">/// A URL to hand the host to save.
-<a href=#210 id=210 data-nosnippet>210</a>    </span>Download(String),
-<a href=#211 id=211 data-nosnippet>211</a>    <span class="doccomment">/// One property of one element, to be read at the end of every frame from here on and published
-<a href=#212 id=212 data-nosnippet>212</a>    /// for a [`Sprig`](crate::Sprig) to read.
-<a href=#213 id=213 data-nosnippet>213</a>    ///
-<a href=#214 id=214 data-nosnippet>214</a>    /// An op rather than a call, because a standing read has a place in the order like anything
-<a href=#215 id=215 data-nosnippet>215</a>    /// else: watching an element in the same breath as growing it is one sequence, and it works for
-<a href=#216 id=216 data-nosnippet>216</a>    /// the reason a write to a leaf planted a line earlier works.
-<a href=#217 id=217 data-nosnippet>217</a>    </span>Watch {
-<a href=#218 id=218 data-nosnippet>218</a>        leaf: Leaf,
-<a href=#219 id=219 data-nosnippet>219</a>        vein: Vein,
-<a href=#220 id=220 data-nosnippet>220</a>    },
-<a href=#221 id=221 data-nosnippet>221</a>    <span class="doccomment">/// Ends a [`Watch`](Op::Watch).
-<a href=#222 id=222 data-nosnippet>222</a>    </span>Unwatch {
-<a href=#223 id=223 data-nosnippet>223</a>        leaf: Leaf,
-<a href=#224 id=224 data-nosnippet>224</a>        vein: Vein,
-<a href=#225 id=225 data-nosnippet>225</a>    },
-<a href=#226 id=226 data-nosnippet>226</a>}
-<a href=#227 id=227 data-nosnippet>227</a>
-<a href=#228 id=228 data-nosnippet>228</a><span class="doccomment">/// An element formed and not yet open: what the queue carries between the call that described it
-<a href=#229 id=229 data-nosnippet>229</a>/// and the drain that grows it.
-<a href=#230 id=230 data-nosnippet>230</a>///
-<a href=#231 id=231 data-nosnippet>231</a>/// It carries the components the element will hold rather than a second enum describing them: a bud
-<a href=#232 id=232 data-nosnippet>232</a>/// is the element before it exists, not an account of one. The pigment is present exactly when the
-<a href=#233 id=233 data-nosnippet>233</a>/// chlorophyll is a renderer that has one, and the lettering exactly when there is a run to read.
-<a href=#234 id=234 data-nosnippet>234</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Bud {
-<a href=#235 id=235 data-nosnippet>235</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) chlorophyll: Chlorophyll,
-<a href=#236 id=236 data-nosnippet>236</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) pigment: <span class="prelude-ty">Option</span>&lt;Pigment&gt;,
-<a href=#237 id=237 data-nosnippet>237</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) lettering: <span class="prelude-ty">Option</span>&lt;Lettering&gt;,
-<a href=#238 id=238 data-nosnippet>238</a>    <span class="doccomment">/// Present only where part of a run is filled differently from the rest of it.
-<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) tints: <span class="prelude-ty">Option</span>&lt;Tints&gt;,
-<a href=#240 id=240 data-nosnippet>240</a>    <span class="doccomment">/// Present only on a [`Frond`](crate::frond) -- a leaf that is divided. The drain takes this and
-<a href=#241 id=241 data-nosnippet>241</a>    /// grows the leaflets underneath what it just grew.
-<a href=#242 id=242 data-nosnippet>242</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) sprout: <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>Sprouts&gt;&gt;,
-<a href=#243 id=243 data-nosnippet>243</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) placement: Placement,
-<a href=#244 id=244 data-nosnippet>244</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) at: Caller,
-<a href=#245 id=245 data-nosnippet>245</a>}
-<a href=#246 id=246 data-nosnippet>246</a>
-<a href=#247 id=247 data-nosnippet>247</a><span class="kw">impl </span>Bud {
-<a href=#248 id=248 data-nosnippet>248</a>    <span class="doccomment">/// An element carrying nothing but a placement: no renderer and nothing to read.
-<a href=#249 id=249 data-nosnippet>249</a>    ///
-<a href=#250 id=250 data-nosnippet>250</a>    /// What every seed fills in from, so a seed states what it *is* rather than restating what it
-<a href=#251 id=251 data-nosnippet>251</a>    /// is not.
-<a href=#252 id=252 data-nosnippet>252</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bare() -&gt; <span class="self">Self </span>{
-<a href=#253 id=253 data-nosnippet>253</a>        <span class="self">Self </span>{
-<a href=#254 id=254 data-nosnippet>254</a>            chlorophyll: Chlorophyll::None,
-<a href=#255 id=255 data-nosnippet>255</a>            pigment: <span class="prelude-val">None</span>,
-<a href=#256 id=256 data-nosnippet>256</a>            lettering: <span class="prelude-val">None</span>,
-<a href=#257 id=257 data-nosnippet>257</a>            tints: <span class="prelude-val">None</span>,
-<a href=#258 id=258 data-nosnippet>258</a>            sprout: <span class="prelude-val">None</span>,
-<a href=#259 id=259 data-nosnippet>259</a>            placement: Placement::default(),
-<a href=#260 id=260 data-nosnippet>260</a>            <span class="comment">// Overwritten by every real callsite, which takes the caller's own.
-<a href=#261 id=261 data-nosnippet>261</a>            </span>at: core::panic::Location::caller(),
-<a href=#262 id=262 data-nosnippet>262</a>        }
-<a href=#263 id=263 data-nosnippet>263</a>    }
-<a href=#264 id=264 data-nosnippet>264</a>}
+<a href=#127 id=127 data-nosnippet>127</a>    },
+<a href=#128 id=128 data-nosnippet>128</a>    <span class="doccomment">/// Changes how an image's pixels are fitted into its box.
+<a href=#129 id=129 data-nosnippet>129</a>    </span>Fit {
+<a href=#130 id=130 data-nosnippet>130</a>        leaf: Leaf,
+<a href=#131 id=131 data-nosnippet>131</a>        fit: Fit,
+<a href=#132 id=132 data-nosnippet>132</a>    },
+<a href=#133 id=133 data-nosnippet>133</a>    <span class="doccomment">/// Fills a registered picture's name with pixels.
+<a href=#134 id=134 data-nosnippet>134</a>    ///
+<a href=#135 id=135 data-nosnippet>135</a>    /// An op like any other, rather than a call on the engine, because a picture may arrive at any
+<a href=#136 id=136 data-nosnippet>136</a>    /// frame -- from a fetch, a decode on another thread, a re-render at a higher resolution -- and
+<a href=#137 id=137 data-nosnippet>137</a>    /// arriving is a change to the tree's contents in exactly the way a rewritten run is.
+<a href=#138 id=138 data-nosnippet>138</a>    </span>Load {
+<a href=#139 id=139 data-nosnippet>139</a>        plate: Plate,
+<a href=#140 id=140 data-nosnippet>140</a>        pixels: Vec&lt;u8&gt;,
+<a href=#141 id=141 data-nosnippet>141</a>        size: Area,
+<a href=#142 id=142 data-nosnippet>142</a>    },
+<a href=#143 id=143 data-nosnippet>143</a>    <span class="doccomment">/// Moves a region. Recorded here and answered in R4, which is the one place that has both this
+<a href=#144 id=144 data-nosnippet>144</a>    /// frame's extent and the offset it clamps.
+<a href=#145 id=145 data-nosnippet>145</a>    </span>Scroll {
+<a href=#146 id=146 data-nosnippet>146</a>        leaf: Leaf,
+<a href=#147 id=147 data-nosnippet>147</a>        to: ScrollTo,
+<a href=#148 id=148 data-nosnippet>148</a>    },
+<a href=#149 id=149 data-nosnippet>149</a>    Disable {
+<a href=#150 id=150 data-nosnippet>150</a>        leaf: Leaf,
+<a href=#151 id=151 data-nosnippet>151</a>        disabled: bool,
+<a href=#152 id=152 data-nosnippet>152</a>    },
+<a href=#153 id=153 data-nosnippet>153</a>    Reveal {
+<a href=#154 id=154 data-nosnippet>154</a>        leaf: Leaf,
+<a href=#155 id=155 data-nosnippet>155</a>        visible: bool,
+<a href=#156 id=156 data-nosnippet>156</a>    },
+<a href=#157 id=157 data-nosnippet>157</a>    Fade {
+<a href=#158 id=158 data-nosnippet>158</a>        leaf: Leaf,
+<a href=#159 id=159 data-nosnippet>159</a>        opacity: f32,
+<a href=#160 id=160 data-nosnippet>160</a>    },
+<a href=#161 id=161 data-nosnippet>161</a>    <span class="doccomment">/// Moves a property over time. Applied here, which is what makes a write to the same property
+<a href=#162 id=162 data-nosnippet>162</a>    /// earlier in the same drain cancel it, and one later replace it.
+<a href=#163 id=163 data-nosnippet>163</a>    </span>Animate {
+<a href=#164 id=164 data-nosnippet>164</a>        leaf: Leaf,
+<a href=#165 id=165 data-nosnippet>165</a>        motion: Motion,
+<a href=#166 id=166 data-nosnippet>166</a>        timing: Timing,
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="doccomment">/// What its progress is reported under and its ending is reported by. Named at the callsite
+<a href=#168 id=168 data-nosnippet>168</a>        /// like a channel's, so the name is in hand before the frame that starts the motion.
+<a href=#169 id=169 data-nosnippet>169</a>        </span>tween: Tween,
+<a href=#170 id=170 data-nosnippet>170</a>    },
+<a href=#171 id=171 data-nosnippet>171</a>    <span class="doccomment">/// A scalar channel, reported outward every frame and written nowhere.
+<a href=#172 id=172 data-nosnippet>172</a>    </span>Channel {
+<a href=#173 id=173 data-nosnippet>173</a>        tween: Tween,
+<a href=#174 id=174 data-nosnippet>174</a>        from: f32,
+<a href=#175 id=175 data-nosnippet>175</a>        to: f32,
+<a href=#176 id=176 data-nosnippet>176</a>        timing: Timing,
+<a href=#177 id=177 data-nosnippet>177</a>    },
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="doccomment">/// Ends a tween before it has run out, on the end it was going to.
+<a href=#179 id=179 data-nosnippet>179</a>    ///
+<a href=#180 id=180 data-nosnippet>180</a>    /// `reported` is the whole difference between the two verbs that push this: `finish` ends it as
+<a href=#181 id=181 data-nosnippet>181</a>    /// an arrival and a chain waiting on it runs, `stop` ends it in silence and the chain does not.
+<a href=#182 id=182 data-nosnippet>182</a>    </span>Stop {
+<a href=#183 id=183 data-nosnippet>183</a>        tween: Tween,
+<a href=#184 id=184 data-nosnippet>184</a>        reported: bool,
+<a href=#185 id=185 data-nosnippet>185</a>    },
+<a href=#186 id=186 data-nosnippet>186</a>    <span class="doccomment">/// Where focus is to go. Answered here, in the drain, against what has been declared so far and
+<a href=#187 id=187 data-nosnippet>187</a>    /// the geometry the last frame drew -- so focus is final before resolution runs, and an element
+<a href=#188 id=188 data-nosnippet>188</a>    /// shown by an earlier op in the same drain can take it.
+<a href=#189 id=189 data-nosnippet>189</a>    </span>Focus(Intent),
+<a href=#190 id=190 data-nosnippet>190</a>    <span class="doccomment">/// The one op that names no element: what every role resolves to, for the whole tree.
+<a href=#191 id=191 data-nosnippet>191</a>    </span>Repaint(Box&lt;Scheme&gt;),
+<a href=#192 id=192 data-nosnippet>192</a>    <span class="doccomment">/// Bytes that were read from somewhere outside the frame, and the name they were read for.
+<a href=#193 id=193 data-nosnippet>193</a>    ///
+<a href=#194 id=194 data-nosnippet>194</a>    /// Pushed by whatever finished the retrieval rather than by an app, which is the whole reason it
+<a href=#195 id=195 data-nosnippet>195</a>    /// is an op: it arrives at a moment nothing chose, and the queue is what gives it a place in the
+<a href=#196 id=196 data-nosnippet>196</a>    /// order anyway.
+<a href=#197 id=197 data-nosnippet>197</a>    </span>Arrived {
+<a href=#198 id=198 data-nosnippet>198</a>        destination: Destination,
+<a href=#199 id=199 data-nosnippet>199</a>        bytes: Retrieved,
+<a href=#200 id=200 data-nosnippet>200</a>    },
+<a href=#201 id=201 data-nosnippet>201</a>    <span class="doccomment">/// Text to put on the clipboard.
+<a href=#202 id=202 data-nosnippet>202</a>    </span>Copy(String),
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="doccomment">/// A request for what the clipboard holds, and who it is for: the field that was asked to paste
+<a href=#204 id=204 data-nosnippet>204</a>    /// into itself, or the app where it asked for itself.
+<a href=#205 id=205 data-nosnippet>205</a>    ///
+<a href=#206 id=206 data-nosnippet>206</a>    /// Separate from the answer because reading a clipboard is not instant on either target -- a
+<a href=#207 id=207 data-nosnippet>207</a>    /// promise on the web, a round trip to whoever owns the selection off it.
+<a href=#208 id=208 data-nosnippet>208</a>    </span>Paste {
+<a href=#209 id=209 data-nosnippet>209</a>        into: <span class="prelude-ty">Option</span>&lt;Leaf&gt;,
+<a href=#210 id=210 data-nosnippet>210</a>    },
+<a href=#211 id=211 data-nosnippet>211</a>    <span class="doccomment">/// What the clipboard turned out to hold, and who asked for it.
+<a href=#212 id=212 data-nosnippet>212</a>    ///
+<a href=#213 id=213 data-nosnippet>213</a>    /// Pushed by whatever finished the read rather than by an app, which is what makes it an op for
+<a href=#214 id=214 data-nosnippet>214</a>    /// the reason [`Arrived`](Op::Arrived) is one: it lands at a moment nothing chose, and the queue
+<a href=#215 id=215 data-nosnippet>215</a>    /// is what gives it a place in the order anyway.
+<a href=#216 id=216 data-nosnippet>216</a>    </span>Pasted {
+<a href=#217 id=217 data-nosnippet>217</a>        into: <span class="prelude-ty">Option</span>&lt;Leaf&gt;,
+<a href=#218 id=218 data-nosnippet>218</a>        text: String,
+<a href=#219 id=219 data-nosnippet>219</a>    },
+<a href=#220 id=220 data-nosnippet>220</a>    <span class="doccomment">/// A URL to go to.
+<a href=#221 id=221 data-nosnippet>221</a>    </span>Navigate(String),
+<a href=#222 id=222 data-nosnippet>222</a>    <span class="doccomment">/// A URL to hand the host to save.
+<a href=#223 id=223 data-nosnippet>223</a>    </span>Download(String),
+<a href=#224 id=224 data-nosnippet>224</a>    <span class="doccomment">/// One property of one element, to be read at the end of every frame from here on and published
+<a href=#225 id=225 data-nosnippet>225</a>    /// for a [`Sprig`](crate::Sprig) to read.
+<a href=#226 id=226 data-nosnippet>226</a>    ///
+<a href=#227 id=227 data-nosnippet>227</a>    /// An op rather than a call, because a standing read has a place in the order like anything
+<a href=#228 id=228 data-nosnippet>228</a>    /// else: watching an element in the same breath as growing it is one sequence, and it works for
+<a href=#229 id=229 data-nosnippet>229</a>    /// the reason a write to a leaf planted a line earlier works.
+<a href=#230 id=230 data-nosnippet>230</a>    </span>Watch {
+<a href=#231 id=231 data-nosnippet>231</a>        leaf: Leaf,
+<a href=#232 id=232 data-nosnippet>232</a>        vein: Vein,
+<a href=#233 id=233 data-nosnippet>233</a>    },
+<a href=#234 id=234 data-nosnippet>234</a>    <span class="doccomment">/// Ends a [`Watch`](Op::Watch).
+<a href=#235 id=235 data-nosnippet>235</a>    </span>Unwatch {
+<a href=#236 id=236 data-nosnippet>236</a>        leaf: Leaf,
+<a href=#237 id=237 data-nosnippet>237</a>        vein: Vein,
+<a href=#238 id=238 data-nosnippet>238</a>    },
+<a href=#239 id=239 data-nosnippet>239</a>}
+<a href=#240 id=240 data-nosnippet>240</a>
+<a href=#241 id=241 data-nosnippet>241</a><span class="doccomment">/// An element formed and not yet open: what the queue carries between the call that described it
+<a href=#242 id=242 data-nosnippet>242</a>/// and the drain that grows it.
+<a href=#243 id=243 data-nosnippet>243</a>///
+<a href=#244 id=244 data-nosnippet>244</a>/// It carries the components the element will hold rather than a second enum describing them: a bud
+<a href=#245 id=245 data-nosnippet>245</a>/// is the element before it exists, not an account of one. The pigment is present exactly when the
+<a href=#246 id=246 data-nosnippet>246</a>/// chlorophyll is a renderer that has one, and the lettering exactly when there is a run to read.
+<a href=#247 id=247 data-nosnippet>247</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Bud {
+<a href=#248 id=248 data-nosnippet>248</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) chlorophyll: Chlorophyll,
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) pigment: <span class="prelude-ty">Option</span>&lt;Pigment&gt;,
+<a href=#250 id=250 data-nosnippet>250</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) lettering: <span class="prelude-ty">Option</span>&lt;Lettering&gt;,
+<a href=#251 id=251 data-nosnippet>251</a>    <span class="doccomment">/// Present only where part of a run is filled differently from the rest of it.
+<a href=#252 id=252 data-nosnippet>252</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) tints: <span class="prelude-ty">Option</span>&lt;Tints&gt;,
+<a href=#253 id=253 data-nosnippet>253</a>    <span class="doccomment">/// Present only on a [`Frond`](crate::frond) -- a leaf that is divided. The drain takes this and
+<a href=#254 id=254 data-nosnippet>254</a>    /// grows the leaflets underneath what it just grew.
+<a href=#255 id=255 data-nosnippet>255</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) sprout: <span class="prelude-ty">Option</span>&lt;Box&lt;<span class="kw">dyn </span>Sprouts&gt;&gt;,
+<a href=#256 id=256 data-nosnippet>256</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) placement: Placement,
+<a href=#257 id=257 data-nosnippet>257</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) at: Caller,
+<a href=#258 id=258 data-nosnippet>258</a>}
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a><span class="kw">impl </span>Bud {
+<a href=#261 id=261 data-nosnippet>261</a>    <span class="doccomment">/// An element carrying nothing but a placement: no renderer and nothing to read.
+<a href=#262 id=262 data-nosnippet>262</a>    ///
+<a href=#263 id=263 data-nosnippet>263</a>    /// What every seed fills in from, so a seed states what it *is* rather than restating what it
+<a href=#264 id=264 data-nosnippet>264</a>    /// is not.
+<a href=#265 id=265 data-nosnippet>265</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bare() -&gt; <span class="self">Self </span>{
+<a href=#266 id=266 data-nosnippet>266</a>        <span class="self">Self </span>{
+<a href=#267 id=267 data-nosnippet>267</a>            chlorophyll: Chlorophyll::None,
+<a href=#268 id=268 data-nosnippet>268</a>            pigment: <span class="prelude-val">None</span>,
+<a href=#269 id=269 data-nosnippet>269</a>            lettering: <span class="prelude-val">None</span>,
+<a href=#270 id=270 data-nosnippet>270</a>            tints: <span class="prelude-val">None</span>,
+<a href=#271 id=271 data-nosnippet>271</a>            sprout: <span class="prelude-val">None</span>,
+<a href=#272 id=272 data-nosnippet>272</a>            placement: Placement::default(),
+<a href=#273 id=273 data-nosnippet>273</a>            <span class="comment">// Overwritten by every real callsite, which takes the caller's own.
+<a href=#274 id=274 data-nosnippet>274</a>            </span>at: core::panic::Location::caller(),
+<a href=#275 id=275 data-nosnippet>275</a>        }
+<a href=#276 id=276 data-nosnippet>276</a>    }
+<a href=#277 id=277 data-nosnippet>277</a>}
 </code></pre></div></section></main></body></html>

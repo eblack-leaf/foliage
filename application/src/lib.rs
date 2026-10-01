@@ -8,9 +8,9 @@
 //! What goes in [`site`] and the sections it opens is written by hand, and what it costs to write
 //! is the reading.
 
+mod herbarium;
 #[path = "../assets/gen/icons.rs"]
 mod icons;
-mod internals;
 mod leaf;
 mod links;
 mod parts;
@@ -38,9 +38,9 @@ pub fn run(mut foliage: Foliage) {
 
 /// Sends the engine's own trace somewhere it can be read, at whatever `RUST_LOG` asks for.
 ///
-/// `info` by default: boot, the adapter and the surface. `RUST_LOG=foliage=debug` adds every
-/// structural change and every dropped op, which is the only account there is of an op that named
-/// something no longer live.
+/// Nothing by default. `RUST_LOG=info` reports boot, the adapter and the surface;
+/// `RUST_LOG=foliage=debug` adds every structural change and every dropped op, which is the only
+/// account there is of an op that named something no longer live.
 ///
 /// Where it goes differs per platform, because what a platform offers to be written to differs. A
 /// desktop has a stderr and a clock. A browser discards the first and does not answer the second at
@@ -48,7 +48,7 @@ pub fn run(mut foliage: Foliage) {
 /// would print rather than obey.
 fn trace() {
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("off"));
     #[cfg(not(target_family = "wasm"))]
     tracing_subscriber::fmt().with_env_filter(filter).init();
     #[cfg(target_family = "wasm")]

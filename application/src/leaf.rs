@@ -112,7 +112,7 @@ pub(crate) struct Tip {
     pub(crate) controls: ((f32, f32), (f32, f32)),
 }
 
-/// The three tips, in the order the site names them: links, showcase, internals.
+/// The three tips, in the order the site names them: links, showcase, herbarium.
 ///
 /// Each stands where one of the three prongs the leaf used to link from stood, and each cut keeps
 /// the lobe its tip is on and empties the rest for the controls:
@@ -121,9 +121,10 @@ pub(crate) struct Tip {
 ///   in the body of the blade below.
 /// - showcase keeps the right lobe, right of a line leaning down through the middle, and its
 ///   controls stand in the left half of the body.
-/// - internals keeps the left lobe's foot and the stem, below a line from the left edge down to
-///   the right of the stem's foot, and its controls stand across the middle of the blade. The stem
-///   is the internals', because what holds a leaf up is what the engine is to a page.
+/// - herbarium keeps the left lobe's foot and the stem, below a line from the left edge down to
+///   the right of the stem's foot. It opens no section beside the leaf -- the cut is the way into
+///   the herbarium's page -- so its controls' box holds nothing, and stands across the middle of
+///   the blade like the others'.
 pub(crate) const TIPS: [Tip; 3] = [
     Tip {
         at: (0.232, 0.404),

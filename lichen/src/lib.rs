@@ -17,6 +17,9 @@
 //! spectrum, ideally -- and jittered by a [`Scatter`] the caller holds, so two of anything grown
 //! from the same scatter come out as two drawings.
 //!
+//! A [`Specimen`] is all of that put to work: a traced shape with tips on it, each cutting the
+//! shape to open a section, as a [`Sketch`] states it.
+//!
 //! # Presses, and what they wear
 //!
 //! A [`Chip`] -- a mark in a cell, a bar, a name, or the cell alone -- is the one shape a press is
@@ -54,6 +57,7 @@ mod ramp;
 mod say;
 mod scatter;
 mod silhouette;
+mod specimen;
 mod switch;
 mod tone;
 mod trail;
@@ -72,6 +76,7 @@ pub use ramp::{Ramp, Rgb, fill, rgb, shifted};
 pub use say::{Say, Voice};
 pub use scatter::Scatter;
 pub use silhouette::{Region, Silhouette, Turn};
+pub use specimen::{BLIP, COLUMN, Placement, STANDOFF, Sketch, Specimen, Tip};
 pub use switch::Switch;
 pub use tone::{
     BAR, CHANGED, HINT, INERT, LIT, Press, REST, Reach, Tone, WELL, corner, engage, gate, timing,

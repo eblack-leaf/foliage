@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-bd94bc61.js";
+            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -366,6 +366,7 @@ lands last.</p>
     .selection(Palette::Muted)        // what is drawn behind a selected span
     .keypad(Keypad::Number)           // which soft keyboard to raise
     .read_only(false)
+    .masked(false)                    // a dot for each character, for a passphrase
     .font_size(FontSize::new().xs(15));</code></pre>
 <p>Those are the defaults, apart from the placeholder, the keypad and the size.</p>
 <p>A field is a scrolling region along the axis its value grows on, which is what clips a value longer
@@ -429,6 +430,16 @@ pasting do nothing, a cut is only a copy, no caret is drawn, and no soft keyboar
 <p>That is the answer for a value that must be readable but not editable. Disabling the field would
 refuse far more: a disabled region takes no gesture, so a long value could not even be scrolled
 to be read.</p>
+<h2 id="masked"><a class="header" href="#masked">Masked</a></h2>
+<p><code>TextInput::masked(true)</code>, or <code>grove.masked(field, true)</code> later, draws the value as a dot for each
+of its characters. Only the drawing changes: the value is held and read exactly as it would be,
+what is typed is reported as <code>edited</code>, and since a dot takes a character’s cell the caret, the
+selection and a tap land where they would. A newline stays a newline, so a masked <code>TextArea</code> wraps
+as it would.</p>
+<p>What is hidden from the screen does not leave by the clipboard either: <code>Ctrl+C</code> copies nothing
+and <code>Ctrl+X</code> cuts nothing. A paste goes in as ever. <code>grove.masked(field, false)</code> shows the value,
+and <code>true</code> hides it again – which is how a password’s “show” is built.</p>
+<p>The run is shaped as its dots, so the value itself is never a key in the shaping cache.</p>
 <h2 id="soft-keyboards"><a class="header" href="#soft-keyboards">Soft keyboards</a></h2>
 <p>On a platform with a keyboard of its own to raise, a field raises one while it holds focus and
 lowers it when it lets go. Nothing is declared for this beyond being a field. <code>keypad</code> says which

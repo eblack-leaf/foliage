@@ -18,6 +18,8 @@ pub struct Icons {
     pub activity: Field,
     /// The `alert-triangle` mark.
     pub alert_triangle: Field,
+    /// The `arrow-left` mark.
+    pub arrow_left: Field,
     /// The `arrow-right` mark.
     pub arrow_right: Field,
     /// The `book-open` mark.
@@ -28,36 +30,30 @@ pub struct Icons {
     pub r#box: Field,
     /// The `check` mark.
     pub check: Field,
-    /// The `code` mark.
-    pub code: Field,
-    /// The `cpu` mark.
-    pub cpu: Field,
+    /// The `copy` mark.
+    pub copy: Field,
     /// The `credit-card` mark.
     pub credit_card: Field,
     /// The `feather` mark.
     pub feather: Field,
     /// The `file-text` mark.
     pub file_text: Field,
-    /// The `filter` mark.
-    pub filter: Field,
     /// The `git-branch` mark.
     pub git_branch: Field,
     /// The `github` mark.
     pub github: Field,
     /// The `heart` mark.
     pub heart: Field,
-    /// The `image` mark.
-    pub image: Field,
     /// The `key` mark.
     pub key: Field,
     /// The `layers` mark.
     pub layers: Field,
-    /// The `layout` mark.
-    pub layout: Field,
     /// The `link` mark.
     pub link: Field,
     /// The `list` mark.
     pub list: Field,
+    /// The `lock` mark.
+    pub lock: Field,
     /// The `log-out` mark.
     pub log_out: Field,
     /// The `mail` mark.
@@ -66,10 +62,6 @@ pub struct Icons {
     pub message_square: Field,
     /// The `minus` mark.
     pub minus: Field,
-    /// The `monitor` mark.
-    pub monitor: Field,
-    /// The `mouse-pointer` mark.
-    pub mouse_pointer: Field,
     /// The `package` mark.
     pub package: Field,
     /// The `paperclip` mark.
@@ -106,10 +98,10 @@ pub struct Icons {
     pub trending_up: Field,
     /// The `truck` mark.
     pub truck: Field,
+    /// The `unlock` mark.
+    pub unlock: Field,
     /// The `user` mark.
     pub user: Field,
-    /// The `wind` mark.
-    pub wind: Field,
     /// The `x` mark.
     pub x: Field,
     /// The `zap` mark.
@@ -121,32 +113,28 @@ impl Marks for Icons {
         Self {
             activity: grove.icon(include_bytes!("activity.icon"), SIDE, RANGE),
             alert_triangle: grove.icon(include_bytes!("alert-triangle.icon"), SIDE, RANGE),
+            arrow_left: grove.icon(include_bytes!("arrow-left.icon"), SIDE, RANGE),
             arrow_right: grove.icon(include_bytes!("arrow-right.icon"), SIDE, RANGE),
             book_open: grove.icon(include_bytes!("book-open.icon"), SIDE, RANGE),
             bookmark: grove.icon(include_bytes!("bookmark.icon"), SIDE, RANGE),
             r#box: grove.icon(include_bytes!("box.icon"), SIDE, RANGE),
             check: grove.icon(include_bytes!("check.icon"), SIDE, RANGE),
-            code: grove.icon(include_bytes!("code.icon"), SIDE, RANGE),
-            cpu: grove.icon(include_bytes!("cpu.icon"), SIDE, RANGE),
+            copy: grove.icon(include_bytes!("copy.icon"), SIDE, RANGE),
             credit_card: grove.icon(include_bytes!("credit-card.icon"), SIDE, RANGE),
             feather: grove.icon(include_bytes!("feather.icon"), SIDE, RANGE),
             file_text: grove.icon(include_bytes!("file-text.icon"), SIDE, RANGE),
-            filter: grove.icon(include_bytes!("filter.icon"), SIDE, RANGE),
             git_branch: grove.icon(include_bytes!("git-branch.icon"), SIDE, RANGE),
             github: grove.icon(include_bytes!("github.icon"), SIDE, RANGE),
             heart: grove.icon(include_bytes!("heart.icon"), SIDE, RANGE),
-            image: grove.icon(include_bytes!("image.icon"), SIDE, RANGE),
             key: grove.icon(include_bytes!("key.icon"), SIDE, RANGE),
             layers: grove.icon(include_bytes!("layers.icon"), SIDE, RANGE),
-            layout: grove.icon(include_bytes!("layout.icon"), SIDE, RANGE),
             link: grove.icon(include_bytes!("link.icon"), SIDE, RANGE),
             list: grove.icon(include_bytes!("list.icon"), SIDE, RANGE),
+            lock: grove.icon(include_bytes!("lock.icon"), SIDE, RANGE),
             log_out: grove.icon(include_bytes!("log-out.icon"), SIDE, RANGE),
             mail: grove.icon(include_bytes!("mail.icon"), SIDE, RANGE),
             message_square: grove.icon(include_bytes!("message-square.icon"), SIDE, RANGE),
             minus: grove.icon(include_bytes!("minus.icon"), SIDE, RANGE),
-            monitor: grove.icon(include_bytes!("monitor.icon"), SIDE, RANGE),
-            mouse_pointer: grove.icon(include_bytes!("mouse-pointer.icon"), SIDE, RANGE),
             package: grove.icon(include_bytes!("package.icon"), SIDE, RANGE),
             paperclip: grove.icon(include_bytes!("paperclip.icon"), SIDE, RANGE),
             plus: grove.icon(include_bytes!("plus.icon"), SIDE, RANGE),
@@ -165,8 +153,8 @@ impl Marks for Icons {
             trash_2: grove.icon(include_bytes!("trash-2.icon"), SIDE, RANGE),
             trending_up: grove.icon(include_bytes!("trending-up.icon"), SIDE, RANGE),
             truck: grove.icon(include_bytes!("truck.icon"), SIDE, RANGE),
+            unlock: grove.icon(include_bytes!("unlock.icon"), SIDE, RANGE),
             user: grove.icon(include_bytes!("user.icon"), SIDE, RANGE),
-            wind: grove.icon(include_bytes!("wind.icon"), SIDE, RANGE),
             x: grove.icon(include_bytes!("x.icon"), SIDE, RANGE),
             zap: grove.icon(include_bytes!("zap.icon"), SIDE, RANGE),
         }

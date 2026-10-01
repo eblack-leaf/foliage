@@ -132,11 +132,6 @@ impl Stack {
         Self { under, last: None }
     }
 
-    /// Whatever was placed last, to anchor more under.
-    pub(crate) fn last(&self) -> Option<Leaf> {
-        self.last
-    }
-
     /// Places `seed` under whatever was placed last, `gap` below it, `across` as stated and
     /// `height` tall.
     pub(crate) fn place<S: Seed + Place + Boxed>(

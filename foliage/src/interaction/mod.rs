@@ -597,7 +597,7 @@ fn apply(grove: &mut Grove, gesture: &mut Gesture, delta: Position) {
                 // This one can no longer consume, so it yields and the claim passes outward. The
                 // outermost region keeps it and moves nothing: a claim never travels back inward,
                 // or a drag would hand itself between regions every time it reversed.
-                match outward(grove, &gesture.chain, index, axis) {
+                match outward(grove, &grove.elements, &gesture.chain, index, axis) {
                     Some(outward) => {
                         debug!(
                             from = gesture.chain[index].id(),
@@ -701,7 +701,7 @@ fn wheeled(grove: &mut Grove, at: Position, delta: Position) {
         if scroll(grove, chain[index], axis, wanted) != 0.0 {
             break;
         }
-        next = outward(grove, &chain, index, axis);
+        next = outward(grove, &grove.elements, &chain, index, axis);
     }
 }
 
@@ -761,14 +761,27 @@ fn scrolling(grove: &Grove, chain: &[Leaf], from: usize, axis: Axis) -> Option<u
 /// gesture outright and is where the walk ends -- reaching its bottom and having the whole page
 /// lurch is the bug the declaration exists to prevent.
 ///
+/// A contained region only owns a gesture it could have moved by: one with nothing to scroll along
+/// the axis -- a notes field whose words all fit -- has no end to reach and nothing to lurch past,
+/// so it hands outward like any other. Otherwise a short field in a long form would stop every
+/// wheel notch and drag that happened to start over it.
+///
 /// The same question for a drag and for a coast, asked of the same region at the same place in its
-/// own extent, because there is only one answer to it.
-pub(crate) fn outward(grove: &Grove, chain: &[Leaf], index: usize, axis: Axis) -> Option<usize> {
-    if grove
+/// own extent, because there is only one answer to it. What resolution last settled is handed in,
+/// as for [`chain`].
+pub(crate) fn outward(
+    grove: &Grove,
+    elements: &Elements,
+    chain: &[Leaf],
+    index: usize,
+    axis: Axis,
+) -> Option<usize> {
+    let leaf = chain[index];
+    let contained = grove
         .tree
-        .scrolls(chain[index])
-        .is_some_and(|scroll| scroll.absorbs(axis))
-    {
+        .scrolls(leaf)
+        .is_some_and(|scroll| scroll.absorbs(axis));
+    if contained && view::range(grove.tree.extent(leaf), elements.placed(leaf).area, axis) > 0.0 {
         return None;
     }
     scrolling(grove, chain, index + 1, axis)

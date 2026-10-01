@@ -597,7 +597,7 @@
 <a href=#597 id=597 data-nosnippet>597</a>                <span class="comment">// This one can no longer consume, so it yields and the claim passes outward. The
 <a href=#598 id=598 data-nosnippet>598</a>                // outermost region keeps it and moves nothing: a claim never travels back inward,
 <a href=#599 id=599 data-nosnippet>599</a>                // or a drag would hand itself between regions every time it reversed.
-<a href=#600 id=600 data-nosnippet>600</a>                </span><span class="kw">match </span>outward(grove, <span class="kw-2">&amp;</span>gesture.chain, index, axis) {
+<a href=#600 id=600 data-nosnippet>600</a>                </span><span class="kw">match </span>outward(grove, <span class="kw-2">&amp;</span>grove.elements, <span class="kw-2">&amp;</span>gesture.chain, index, axis) {
 <a href=#601 id=601 data-nosnippet>601</a>                    <span class="prelude-val">Some</span>(outward) =&gt; {
 <a href=#602 id=602 data-nosnippet>602</a>                        <span class="macro">debug!</span>(
 <a href=#603 id=603 data-nosnippet>603</a>                            from = gesture.chain[index].id(),
@@ -701,7 +701,7 @@
 <a href=#701 id=701 data-nosnippet>701</a>        <span class="kw">if </span>scroll(grove, chain[index], axis, wanted) != <span class="number">0.0 </span>{
 <a href=#702 id=702 data-nosnippet>702</a>            <span class="kw">break</span>;
 <a href=#703 id=703 data-nosnippet>703</a>        }
-<a href=#704 id=704 data-nosnippet>704</a>        next = outward(grove, <span class="kw-2">&amp;</span>chain, index, axis);
+<a href=#704 id=704 data-nosnippet>704</a>        next = outward(grove, <span class="kw-2">&amp;</span>grove.elements, <span class="kw-2">&amp;</span>chain, index, axis);
 <a href=#705 id=705 data-nosnippet>705</a>    }
 <a href=#706 id=706 data-nosnippet>706</a>}
 <a href=#707 id=707 data-nosnippet>707</a>
@@ -761,40 +761,53 @@
 <a href=#761 id=761 data-nosnippet>761</a>/// gesture outright and is where the walk ends -- reaching its bottom and having the whole page
 <a href=#762 id=762 data-nosnippet>762</a>/// lurch is the bug the declaration exists to prevent.
 <a href=#763 id=763 data-nosnippet>763</a>///
-<a href=#764 id=764 data-nosnippet>764</a>/// The same question for a drag and for a coast, asked of the same region at the same place in its
-<a href=#765 id=765 data-nosnippet>765</a>/// own extent, because there is only one answer to it.
-<a href=#766 id=766 data-nosnippet>766</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>outward(grove: <span class="kw-2">&amp;</span>Grove, chain: <span class="kw-2">&amp;</span>[Leaf], index: usize, axis: Axis) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
-<a href=#767 id=767 data-nosnippet>767</a>    <span class="kw">if </span>grove
-<a href=#768 id=768 data-nosnippet>768</a>        .tree
-<a href=#769 id=769 data-nosnippet>769</a>        .scrolls(chain[index])
-<a href=#770 id=770 data-nosnippet>770</a>        .is_some_and(|scroll| scroll.absorbs(axis))
-<a href=#771 id=771 data-nosnippet>771</a>    {
-<a href=#772 id=772 data-nosnippet>772</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#773 id=773 data-nosnippet>773</a>    }
-<a href=#774 id=774 data-nosnippet>774</a>    scrolling(grove, chain, index + <span class="number">1</span>, axis)
-<a href=#775 id=775 data-nosnippet>775</a>}
-<a href=#776 id=776 data-nosnippet>776</a>
-<a href=#777 id=777 data-nosnippet>777</a><span class="doccomment">/// Moves a region by as much of `wanted` as it can still take, and reports how much that was.
-<a href=#778 id=778 data-nosnippet>778</a></span><span class="kw">fn </span>scroll(grove: <span class="kw-2">&amp;mut </span>Grove, leaf: Leaf, axis: Axis, wanted: f32) -&gt; f32 {
-<a href=#779 id=779 data-nosnippet>779</a>    <span class="kw">let </span>range = range(
-<a href=#780 id=780 data-nosnippet>780</a>        grove.tree.extent(leaf),
-<a href=#781 id=781 data-nosnippet>781</a>        grove.elements.placed(leaf).area,
-<a href=#782 id=782 data-nosnippet>782</a>        axis,
-<a href=#783 id=783 data-nosnippet>783</a>    );
-<a href=#784 id=784 data-nosnippet>784</a>    <span class="kw">let </span>offset = grove.tree.offset(leaf);
-<a href=#785 id=785 data-nosnippet>785</a>    <span class="kw">let </span>taken = consumable(offset.along(axis), range, wanted);
-<a href=#786 id=786 data-nosnippet>786</a>    <span class="kw">if </span>taken == <span class="number">0.0 </span>{
-<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">return </span><span class="number">0.0</span>;
-<a href=#788 id=788 data-nosnippet>788</a>    }
-<a href=#789 id=789 data-nosnippet>789</a>    <span class="comment">// The region moved, which makes this a write to where it sits: it ends a coast still running on
-<a href=#790 id=790 data-nosnippet>790</a>    // this axis, and cancels a motion moving the same region (F8). The reader wins over both.
-<a href=#791 id=791 data-nosnippet>791</a>    </span>grove.coasting.halt(leaf, axis);
-<a href=#792 id=792 data-nosnippet>792</a>    <span class="kw">if </span>grove.aspen.cancel(leaf, Property::Scroll) {
-<a href=#793 id=793 data-nosnippet>793</a>        <span class="macro">debug!</span>(leaf = leaf.id(), <span class="string">"tween cancelled"</span>);
-<a href=#794 id=794 data-nosnippet>794</a>    }
-<a href=#795 id=795 data-nosnippet>795</a>    grove
-<a href=#796 id=796 data-nosnippet>796</a>        .tree
-<a href=#797 id=797 data-nosnippet>797</a>        .set_offset(leaf, offset.set(axis, offset.along(axis) + taken));
-<a href=#798 id=798 data-nosnippet>798</a>    taken
-<a href=#799 id=799 data-nosnippet>799</a>}
+<a href=#764 id=764 data-nosnippet>764</a>/// A contained region only owns a gesture it could have moved by: one with nothing to scroll along
+<a href=#765 id=765 data-nosnippet>765</a>/// the axis -- a notes field whose words all fit -- has no end to reach and nothing to lurch past,
+<a href=#766 id=766 data-nosnippet>766</a>/// so it hands outward like any other. Otherwise a short field in a long form would stop every
+<a href=#767 id=767 data-nosnippet>767</a>/// wheel notch and drag that happened to start over it.
+<a href=#768 id=768 data-nosnippet>768</a>///
+<a href=#769 id=769 data-nosnippet>769</a>/// The same question for a drag and for a coast, asked of the same region at the same place in its
+<a href=#770 id=770 data-nosnippet>770</a>/// own extent, because there is only one answer to it. What resolution last settled is handed in,
+<a href=#771 id=771 data-nosnippet>771</a>/// as for [`chain`].
+<a href=#772 id=772 data-nosnippet>772</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>outward(
+<a href=#773 id=773 data-nosnippet>773</a>    grove: <span class="kw-2">&amp;</span>Grove,
+<a href=#774 id=774 data-nosnippet>774</a>    elements: <span class="kw-2">&amp;</span>Elements,
+<a href=#775 id=775 data-nosnippet>775</a>    chain: <span class="kw-2">&amp;</span>[Leaf],
+<a href=#776 id=776 data-nosnippet>776</a>    index: usize,
+<a href=#777 id=777 data-nosnippet>777</a>    axis: Axis,
+<a href=#778 id=778 data-nosnippet>778</a>) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+<a href=#779 id=779 data-nosnippet>779</a>    <span class="kw">let </span>leaf = chain[index];
+<a href=#780 id=780 data-nosnippet>780</a>    <span class="kw">let </span>contained = grove
+<a href=#781 id=781 data-nosnippet>781</a>        .tree
+<a href=#782 id=782 data-nosnippet>782</a>        .scrolls(leaf)
+<a href=#783 id=783 data-nosnippet>783</a>        .is_some_and(|scroll| scroll.absorbs(axis));
+<a href=#784 id=784 data-nosnippet>784</a>    <span class="kw">if </span>contained &amp;&amp; view::range(grove.tree.extent(leaf), elements.placed(leaf).area, axis) &gt; <span class="number">0.0 </span>{
+<a href=#785 id=785 data-nosnippet>785</a>        <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#786 id=786 data-nosnippet>786</a>    }
+<a href=#787 id=787 data-nosnippet>787</a>    scrolling(grove, chain, index + <span class="number">1</span>, axis)
+<a href=#788 id=788 data-nosnippet>788</a>}
+<a href=#789 id=789 data-nosnippet>789</a>
+<a href=#790 id=790 data-nosnippet>790</a><span class="doccomment">/// Moves a region by as much of `wanted` as it can still take, and reports how much that was.
+<a href=#791 id=791 data-nosnippet>791</a></span><span class="kw">fn </span>scroll(grove: <span class="kw-2">&amp;mut </span>Grove, leaf: Leaf, axis: Axis, wanted: f32) -&gt; f32 {
+<a href=#792 id=792 data-nosnippet>792</a>    <span class="kw">let </span>range = range(
+<a href=#793 id=793 data-nosnippet>793</a>        grove.tree.extent(leaf),
+<a href=#794 id=794 data-nosnippet>794</a>        grove.elements.placed(leaf).area,
+<a href=#795 id=795 data-nosnippet>795</a>        axis,
+<a href=#796 id=796 data-nosnippet>796</a>    );
+<a href=#797 id=797 data-nosnippet>797</a>    <span class="kw">let </span>offset = grove.tree.offset(leaf);
+<a href=#798 id=798 data-nosnippet>798</a>    <span class="kw">let </span>taken = consumable(offset.along(axis), range, wanted);
+<a href=#799 id=799 data-nosnippet>799</a>    <span class="kw">if </span>taken == <span class="number">0.0 </span>{
+<a href=#800 id=800 data-nosnippet>800</a>        <span class="kw">return </span><span class="number">0.0</span>;
+<a href=#801 id=801 data-nosnippet>801</a>    }
+<a href=#802 id=802 data-nosnippet>802</a>    <span class="comment">// The region moved, which makes this a write to where it sits: it ends a coast still running on
+<a href=#803 id=803 data-nosnippet>803</a>    // this axis, and cancels a motion moving the same region (F8). The reader wins over both.
+<a href=#804 id=804 data-nosnippet>804</a>    </span>grove.coasting.halt(leaf, axis);
+<a href=#805 id=805 data-nosnippet>805</a>    <span class="kw">if </span>grove.aspen.cancel(leaf, Property::Scroll) {
+<a href=#806 id=806 data-nosnippet>806</a>        <span class="macro">debug!</span>(leaf = leaf.id(), <span class="string">"tween cancelled"</span>);
+<a href=#807 id=807 data-nosnippet>807</a>    }
+<a href=#808 id=808 data-nosnippet>808</a>    grove
+<a href=#809 id=809 data-nosnippet>809</a>        .tree
+<a href=#810 id=810 data-nosnippet>810</a>        .set_offset(leaf, offset.set(axis, offset.along(axis) + taken));
+<a href=#811 id=811 data-nosnippet>811</a>    taken
+<a href=#812 id=812 data-nosnippet>812</a>}
 </code></pre></div></section></main></body></html>
