@@ -12,8 +12,9 @@ use foliage::{
     Boxed, Elevation, Font, Grove, Grow, Leaf, Location, Motion, Place, Pollen, Source, Stem,
     Timing, anchor, bottom, center_x, left, right, top,
 };
-use lichen::{Chip, Field, Press, STANDOFF, Say, Specimen, Voice, measure};
+use lichen::{Chip, Field, Press, Say, Specimen, Voice, measure};
 
+use super::layout::STANDOFF;
 use super::vault::PASSPHRASE;
 use crate::icons::Icons;
 

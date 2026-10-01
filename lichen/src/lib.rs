@@ -76,7 +76,7 @@ pub use ramp::{Ramp, Rgb, fill, rgb, shifted};
 pub use say::{Say, Voice};
 pub use scatter::Scatter;
 pub use silhouette::{Region, Silhouette, Turn};
-pub use specimen::{BLIP, COLUMN, Placement, STANDOFF, Sketch, Specimen, Tip};
+pub use specimen::{BLIP, Cleared, Sketch, Specimen, Tip};
 pub use switch::Switch;
 pub use tone::{
     BAR, CHANGED, HINT, INERT, LIT, Press, REST, Reach, Tone, WELL, corner, engage, gate, timing,

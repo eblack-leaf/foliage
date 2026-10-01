@@ -3,6 +3,8 @@
 
 use lichen::{Cut, Silhouette, Turn};
 
+use crate::theme;
+
 /// The page the outline was traced on.
 const PAGE: (f32, f32) = (2000.0, 1500.0);
 
@@ -142,6 +144,23 @@ pub(crate) const TIPS: [Tip; 3] = [
         controls: ((0.16, 0.22), (0.58, 0.46)),
     },
 ];
+
+/// The leaf as lichen's specimen draws it, with `tips` -- this sketch's, brought into unit space --
+/// on it.
+pub(crate) fn sketch(tips: &[lichen::Tip]) -> lichen::Sketch<'_> {
+    lichen::Sketch {
+        outline: &OUTLINE,
+        page: PAGE,
+        turn: Turn::Quarter,
+        // Mostly down the leaf, a little across it: gold at the tip, deepening toward the stem,
+        // and the across term is what keeps the bands from reading as stripes.
+        along: (0.25, 0.75),
+        edge: Some(theme::EDGE),
+        pitch: PITCH,
+        tip: SQUARE,
+        tips,
+    }
+}
 
 /// The leaf, brought into unit space: `x` over `0.0..1.0`, `y` over `0.0..` its aspect, standing
 /// with its tip at the top and its stem at the bottom.

@@ -12,19 +12,17 @@
 //! The outline is the app's own, in the page's fractions, as the cuts are. Where the tips stand is in the shape's unit space, which is
 //! the key's width across and about two and a third of them down.
 
-use lichen::{Cut, Placement, Region, Sketch, Tip, Turn};
+use lichen::{Cut, Region, Sketch, Tip, Turn};
 
 /// The key, as the specimen draws it.
-pub(crate) const KEY: Sketch = Sketch {
+pub(crate) const KEY: Sketch<'static> = Sketch {
     outline: &OUTLINE,
     page: PAGE,
     turn: Turn::None,
     along: (0.25, 1.0),
+    edge: None,
     pitch: PITCH,
     tip: TIP,
-    share: SHARE,
-    margin: MARGIN,
-    placement: Placement::Centred,
     tips: &TIPS,
 };
 
@@ -83,18 +81,23 @@ const TIPS: [Tip; 3] = [
     Tip {
         at: Region::Point((0.54, 0.13)),
         cut: Cut::new((0.300, 0.135), (0.580, 0.105), (0.440, 0.040)),
-        controls: ((0.0, 0.34), (1.0, 0.36)),
     },
     Tip {
         at: Region::Point((0.43, 0.65)),
         cut: Cut::new((0.333, 0.396), (0.560, 0.378), (0.440, 0.100)),
-        controls: ((0.0, 0.99), (1.0, 0.52)),
     },
     Tip {
         at: Region::Point((0.56, 1.12)),
         cut: Cut::new((0.324, 0.524), (0.565, 0.540), (0.438, 0.100)),
-        controls: ((0.0, 1.34), (1.0, 0.3)),
     },
+];
+
+/// Where each tip's controls stand, in the order of the tips: a box on the ground its cut clears,
+/// just under the line and the key's width -- its top-left corner and its size, in unit space.
+pub(crate) const CONTROLS: [((f32, f32), (f32, f32)); 3] = [
+    ((0.0, 0.34), (1.0, 0.36)),
+    ((0.0, 0.99), (1.0, 0.52)),
+    ((0.0, 1.34), (1.0, 0.3)),
 ];
 
 /// How large a tip's square is, as a fraction of the key's width.
@@ -105,7 +108,7 @@ const TIP: f32 = 0.16;
 const PITCH: f32 = 0.04;
 
 /// How much of the room's height the key takes: most of it, so the key is what the page opens on.
-const SHARE: f32 = 0.8;
+pub(crate) const SHARE: f32 = 0.8;
 
 #[cfg(test)]
 mod tests {
@@ -140,7 +143,7 @@ mod tests {
         let shape = shape();
         for (n, tip) in KEY.tips.iter().enumerate() {
             let (a, b) = shape.crossings(tip.cut).expect("crosses");
-            let ((x, y), (w, h)) = tip.controls;
+            let ((x, y), (w, h)) = CONTROLS[n];
             assert!(
                 y > a.1.max(b.1),
                 "tip {n}'s controls start under its line: {y} against {a:?} {b:?}"

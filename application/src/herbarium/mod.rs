@@ -14,6 +14,7 @@
 mod browse;
 mod intake;
 mod key;
+mod layout;
 mod lock;
 mod readout;
 mod theme;
@@ -26,11 +27,12 @@ use foliage::{
     Area, Boxed, Ease, Elevation, Font, Grove, Grow, Leaf, Location, Motion, Palette, Panel, Place,
     Pollen, Source, Stem, Text, Timing, Tween, anchor, bottom, center_y, left, top,
 };
-use lichen::{Chip, Ramp, Specimen, measure};
+use lichen::{Chip, Ramp, Silhouette, Specimen, measure};
 
 use crate::icons::Icons;
 use browse::Browse;
 use intake::Intake;
+use layout::Sections;
 use lock::Lock;
 use readout::{Asked, Readout};
 use vault::Vault;
@@ -223,6 +225,8 @@ impl Herbarium {
 /// The toy credentials app: the key, the lock over it, its three sections, and the vault.
 struct Credentials {
     key: Specimen,
+    /// Where the key stands, and what each of its tips opens.
+    sections: Sections,
     lock: Lock,
     browse: Browse,
     intake: Intake,
@@ -236,12 +240,14 @@ impl Credentials {
     fn grow(grove: &mut Grove, room: Leaf, size: Area, icons: &Icons, italic: Font) -> Self {
         let scheme = theme::scheme();
         let ramp = Ramp::of(&scheme.stops(theme::SPECIMEN));
+        let page = Sections::page(grove, room);
+        let shape = Silhouette::traced(key::KEY.outline, key::KEY.page, key::KEY.turn);
         let mut key = Specimen::grow(
             grove,
-            room,
-            key::KEY,
+            page,
+            Sections::shape(size, &shape),
+            &key::KEY,
             ramp,
-            size,
             &[
                 (icons.list, "browse"),
                 (icons.plus, "intake"),
@@ -250,25 +256,26 @@ impl Credentials {
         );
         // Shut until the passphrase opens it: the tips wait on the lock, not only on the shape.
         key.withhold(grove, true);
+        let sections = Sections::grow(grove, page, &key, size);
         let lock = Lock::grow(grove, &key, icons, italic);
         let browse = Browse::grow(
             grove,
-            key.controls(BROWSE),
-            key.details(BROWSE),
+            sections.controls(BROWSE),
+            sections.details(BROWSE),
             icons,
             italic,
         );
         let intake = Intake::grow(
             grove,
-            key.controls(INTAKE),
-            key.details(INTAKE),
+            sections.controls(INTAKE),
+            sections.details(INTAKE),
             icons,
             italic,
         );
         let readout = Readout::grow(
             grove,
-            key.controls(READOUT),
-            key.details(READOUT),
+            sections.controls(READOUT),
+            sections.details(READOUT),
             icons,
             italic,
         );
@@ -277,6 +284,7 @@ impl Credentials {
         vault.stir(grove.elapsed().as_nanos() as u64);
         let mut app = Self {
             key,
+            sections,
             lock,
             browse,
             intake,
@@ -297,7 +305,7 @@ impl Credentials {
 
     /// The room is now `room` in size.
     fn fit(&mut self, grove: &mut Grove, room: Area) {
-        self.key.fit(grove, room);
+        self.sections.fit(grove, &self.key, room);
     }
 
     /// Shuts the vault: the tips held back, the lock put back, and every section lets go of
@@ -308,6 +316,7 @@ impl Credentials {
         }
         self.unlocked = false;
         self.key.withhold(grove, true);
+        self.sections.show(grove, None);
         self.lock.locked(grove);
         self.browse.lock(grove, &self.vault);
         self.intake.lock(grove);
@@ -323,7 +332,9 @@ impl Credentials {
         if self.key.dismissed(pollen) {
             self.key.choose(grove, None);
         }
+        self.sections.show(grove, self.key.chosen());
         self.key.frame(grove, pollen);
+        self.sections.frame(grove, pollen);
         if self.lock.frame(grove, pollen) {
             self.unlocked = true;
             self.key.withhold(grove, false);

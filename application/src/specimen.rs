@@ -9,6 +9,9 @@
 //! section's. Its controls stand in the box the sketch drew for that tip, on the leaf, and what
 //! they open stands beside it.
 //!
+//! The leaf itself -- its tips, the cutting, the coming back -- is lichen's specimen. What is here
+//! is the site's: where it stands the leaf, and where what each tip opens stands.
+//!
 //! The leaf does not move to make room, and the page is the one thing that scrolls. The leaf is
 //! pinned to it, and what a tip opens is its content. On a window wide enough the leaf stands left of
 //! centre and what a tip opens runs down the window to its right, scrolling past the leaf. Anywhere
@@ -21,28 +24,21 @@
 //! so the leaf carries which tip was last open, and then slowly the rest of the way.
 
 use foliage::{
-    Area, Boxed, Corners, Ease, Elevation, Escape, Field, FontSize, Grove, Grow, Key, Leaf,
-    Location, Motion, Palette, Panel, Place, Pollen, Rounding, Scheme, ScrollTo, Side, Source,
-    Stem, Text, Timing, Tween, anchor, center_x, center_y, content, left, right, top,
+    Area, Boxed, Corners, Ease, Elevation, Escape, Field, FontSize, Grove, Grow, Leaf, Location,
+    Motion, Palette, Panel, Place, Pollen, Rounding, Scheme, ScrollTo, Side, Source, Stem, Text,
+    Timing, Tween, anchor, center_x, center_y, content, left, right, top,
 };
-use lichen::{Chip, Mosaic, Press, Ramp, Region, Scatter, Section, Silhouette, measure, rgb};
+use lichen::{Chip, Ramp, Region, measure};
 
 use crate::leaf;
 use crate::theme::{self, MARGIN, STANDOFF};
-
-/// How far through its crop the leaf is put back to when a tip is let go: `0.0` the whole leaf,
-/// `1.0` none of it. Part way, it is the crop's own going held still.
-const HELD: f32 = 0.45;
 
 /// How long the leaf then takes to come the rest of the way back to whole, in milliseconds. A
 /// settling pace, well off the scale anything else on the page moves at -- and shorter than an
 /// app's, since a page is looked at for less time than a tool is kept open.
 const RESTORE: u64 = 12_000;
 
-/// How wide the blip behind a chosen tip's chip is, as a fraction of the leaf's width.
-const BLIP: f32 = 0.11;
-
-/// How long a tip takes to go, and to come back.
+/// How long what a tip opens takes to come in, and to go.
 const TIP_MS: u64 = 260;
 
 /// How wide a window has to be for what a tip opens to stand beside the leaf rather than under it.
@@ -75,33 +71,23 @@ const OVER: i32 = 12;
 /// where it costs the shape nothing.
 const NOTCH: (f32, f32) = (0.28, 0.14);
 
-/// The leaf, grown, and which of its tips is chosen.
+/// The leaf, grown: lichen's specimen, and where the site stands it and what its tips open.
 pub(crate) struct Specimen {
-    mosaic: Mosaic,
+    /// The leaf, its tips, and the cutting: lichen's.
+    shape: lichen::Specimen,
     aspect: f32,
     /// What everything is grown on: the window, as the one page that scrolls.
     page: Leaf,
-    /// What the whole leaf is branched from: the box it is fitted into.
-    root: Leaf,
     wordmark: Leaf,
-    /// What each choosing is roughened by, carried on, so no two are drawn alike.
-    scatter: Scatter,
+    /// Whether the wordmark has been let in, once the leaf arrived.
+    marked: bool,
     tips: Vec<Grown>,
-    chosen: Option<usize>,
     /// Whether what a tip opens stands under the leaf rather than beside it.
     stacked: bool,
-    /// Whether the leaf has arrived and the tips been let in. They wait on the mosaic: a tip to
-    /// press on a leaf still forming is a press on nothing.
-    open: bool,
 }
 
-/// One tip, grown: its square, the part it cuts to, its line, its chip, and its section's place.
+/// What one tip opens, grown.
 struct Grown {
-    /// The region itself, which is what goes and comes back with everything hung on it.
-    square: Leaf,
-    part: Silhouette,
-    section: Section,
-    chip: Chip,
     /// What the controls stand on, on the leaf, and what what they open stands on, on the page:
     /// both hidden except while the tip is chosen -- hidden rather than only transparent, so the
     /// page does not scroll to room nothing is in.
@@ -135,53 +121,34 @@ impl Specimen {
             leaf::TIPS.len(),
             "a column of controls for every tip"
         );
-        let shape = leaf::shape();
-        let aspect = shape.aspect();
+        let traced = leaf::shape();
+        let aspect = traced.aspect();
         let arranged = Arranged::of(aspect, grove.viewport());
-        let ramp = Ramp::of(&scheme.stops(theme::SPECIMEN));
-        // Mostly down the leaf, a little across it: gold at the tip, deepening toward the stem,
-        // and the across term is what keeps the bands from reading as stripes.
-        let mut mosaic = Mosaic::new(shape.clone(), ramp)
-            .along((0.25, 0.75))
-            .edge(theme::EDGE)
-            .pitch(leaf::PITCH)
-            .square(leaf::SQUARE);
         // Pinned, so the leaf stays where it is while the page scrolls past it, and counts for
         // nothing in how far it scrolls. Intangible, so its box takes no press meant for anything
         // on the page beside it.
         let holder = grove.branch(page, Stem::new().at(Location::new()).pinned().intangible());
-        let root = mosaic.grow(grove, holder, arranged.leaf.clone(), &mut Scatter::new());
-        let regions: Vec<Region> = leaf::TIPS
+        let tips: Vec<lichen::Tip> = leaf::TIPS
             .iter()
-            .map(|tip| Region::Point(shape.at(tip.at)))
+            .map(|tip| lichen::Tip {
+                at: Region::Point(traced.at(tip.at)),
+                cut: tip.cut,
+            })
             .collect();
-        let squares = mosaic.regions(grove, &regions);
-        let widest = chips
+        let mut shape = lichen::Specimen::grow(
+            grove,
+            holder,
+            arranged.leaf.clone(),
+            &leaf::sketch(&tips),
+            Ramp::of(&scheme.stops(theme::SPECIMEN)),
+            chips,
+        );
+        shape.restore(RESTORE);
+        let root = shape.root();
+        let grown = leaf::TIPS
             .iter()
-            .map(|(_, name)| *name)
-            .max_by_key(|name| name.len())
-            .unwrap_or_default();
-        let height = measure().height;
-        let tips = leaf::TIPS
-            .iter()
-            .zip(squares)
-            .zip(chips)
             .zip(columns)
-            .map(|(((tip, square), &(mark, name)), column)| {
-                let chip = Chip::grow(
-                    grove,
-                    square,
-                    Location::new().xs(
-                        center_x(50.pct()).width(Chip::width(widest)),
-                        center_y(50.pct()).height(height.px()),
-                    ),
-                    Elevation::up(3),
-                    mark,
-                    name,
-                );
-                // Out of sight and out of reach until the leaf has arrived.
-                grove.opacity(square, 0.0);
-                grove.disable(square);
+            .map(|(tip, column)| {
                 // The box the sketch drew for the controls, on the leaf, and intangible, so a box
                 // over the leaf that is merely there does not eat every press meant for it.
                 let place = grove.branch(
@@ -235,10 +202,6 @@ impl Specimen {
                         )),
                 );
                 Grown {
-                    square,
-                    part: shape.cut(tip.cut),
-                    section: Section::grow(grove, root, &shape, tip.cut),
-                    chip,
                     sheet,
                     controls,
                     details,
@@ -262,18 +225,14 @@ impl Specimen {
                     center_y(anchor().top() + anchor().height() * NOTCH.1).height(content()),
                 )),
         );
-        mosaic.form(grove);
         Self {
-            mosaic,
+            shape,
             aspect,
             page,
-            root,
             wordmark,
-            scatter: Scatter::new(),
-            tips,
-            chosen: None,
+            marked: false,
+            tips: grown,
             stacked: arranged.stacked,
-            open: false,
         }
     }
 
@@ -290,22 +249,18 @@ impl Specimen {
 
     /// Which tip is chosen, if any.
     pub(crate) fn chosen(&self) -> Option<usize> {
-        self.chosen
+        self.shape.chosen()
     }
 
     /// Which tip the frame reports a press on, if any.
     pub(crate) fn pressed(&self, pollen: &Pollen) -> Option<usize> {
-        self.tips.iter().position(|tip| tip.chip.pressed(pollen))
+        self.shape.pressed(pollen)
     }
 
     /// Whether the frame asks for whatever is chosen to be let go: `Escape`, with nothing holding
     /// focus that would have taken it.
     pub(crate) fn dismissed(&self, pollen: &Pollen) -> bool {
-        self.chosen.is_some()
-            && pollen
-                .root_keys()
-                .iter()
-                .any(|stroke| stroke.key == Key::Escape)
+        self.shape.dismissed(pollen)
     }
 
     /// Scrolls the page to bring `to` into view, where what a tip opens stands beside the leaf --
@@ -318,24 +273,21 @@ impl Specimen {
         }
     }
 
-    /// Carries the leaf: its arrival, the tips and the wordmark being let in once it has arrived,
-    /// its fit to the window, and what a tip that was let go opened being hidden once it has gone. Call
-    /// once a frame.
+    /// Carries the leaf: its arrival, the wordmark being let in once it has arrived, its fit to the
+    /// window, and what a tip that was let go opened being hidden once it has gone. Call once a
+    /// frame.
     pub(crate) fn frame(&mut self, grove: &mut Grove, pollen: &Pollen) {
         if let Some(viewport) = pollen.resized() {
             let arranged = Arranged::of(self.aspect, viewport);
-            grove.at(self.root, arranged.leaf);
+            grove.at(self.shape.root(), arranged.leaf);
             for tip in &self.tips {
                 grove.at(tip.details, arranged.details.clone());
             }
             self.stacked = arranged.stacked;
         }
-        self.mosaic.frame(grove, pollen);
-        if !self.open && self.mosaic.formed(pollen) {
-            self.open = true;
-            for tip in &self.tips {
-                let_in(grove, tip.square);
-            }
+        self.shape.frame(grove, pollen);
+        if !self.marked && self.shape.arrived() {
+            self.marked = true;
             grove.animate(
                 self.wordmark,
                 Motion::Opacity(1.0),
@@ -356,36 +308,16 @@ impl Specimen {
 
     /// Chooses tip `chosen`, or nothing.
     ///
-    /// Three things move, and they are one decision. The leaf is cut down to the tip's part, drawn
-    /// in toward the tip, and the section line drawn; or the whole comes back out from the tip that
-    /// was chosen and its line goes. The other tips go, and the wordmark with them. And the chosen
-    /// tip's sheet comes in, once the leaf has gathered, so its controls stand on ground and not
-    /// on tiles still going; and any other's goes at once.
+    /// The leaf is cut down to the tip's part, or comes back out from the tip that was chosen, and
+    /// the other tips go or come back, as lichen's specimen does it; the wordmark goes with them.
+    /// And the chosen tip's sheet comes in, once the leaf has gathered, so its controls stand on
+    /// ground and not on tiles still going; and any other's goes at once.
     pub(crate) fn choose(&mut self, grove: &mut Grove, chosen: Option<usize>) {
-        if chosen == self.chosen || !self.open {
+        let was = self.shape.chosen();
+        if chosen == was || !self.shape.arrived() {
             return;
         }
-        let scheme = grove.scheme();
-        let ground = rgb(scheme.color(Palette::Surface));
-        let green = Ramp::of(&scheme.stops(theme::BLIP));
-        let middle = |tip: usize| self.mosaic.middle_of(tip).unwrap_or((0.5, 0.5));
-        match chosen {
-            Some(tip) => self.mosaic.crop(
-                grove,
-                &self.tips[tip].part,
-                middle(tip),
-                ground,
-                Some((middle(tip), BLIP, &green)),
-                &mut self.scatter,
-            ),
-            None => self.mosaic.uncrop(
-                grove,
-                middle(self.chosen.unwrap_or(0)),
-                ground,
-                HELD,
-                Some(RESTORE),
-            ),
-        }
+        self.shape.choose(grove, chosen);
         grove.animate(
             self.wordmark,
             Motion::Opacity(chosen.is_none() as u8 as f32),
@@ -395,21 +327,7 @@ impl Specimen {
             grove.scroll(self.page, ScrollTo::start());
         }
         for (n, tip) in self.tips.iter_mut().enumerate() {
-            let this = chosen == Some(n);
-            tip.section.draw(grove, this);
-            match chosen.is_none() || this {
-                true => let_in(grove, tip.square),
-                false => take_out(grove, tip.square),
-            }
-            // The chosen chip wears the green of the blip behind it, so the two read as one thing.
-            tip.chip.arm(
-                grove,
-                match this {
-                    true => Press::Chosen,
-                    false => Press::Rest,
-                },
-            );
-            match (this, self.chosen == Some(n)) {
+            match (chosen == Some(n), was == Some(n)) {
                 (true, _) => {
                     tip.going = None;
                     for leaf in [tip.sheet, tip.details] {
@@ -418,7 +336,7 @@ impl Specimen {
                             leaf,
                             Motion::Opacity(1.0),
                             Timing::ms(TIP_MS)
-                                .after(Mosaic::CHANGE_MS)
+                                .after(lichen::Specimen::GATHERED)
                                 .ease(Ease::Decelerate),
                         );
                     }
@@ -436,7 +354,6 @@ impl Specimen {
                 (false, false) => {}
             }
         }
-        self.chosen = chosen;
     }
 }
 
@@ -469,26 +386,6 @@ fn held(
             .height((height / aspect * 100.0).pct())
             .at_least(tall.px()),
     )
-}
-
-/// Puts a tip in reach and brings it in.
-fn let_in(grove: &mut Grove, tip: Leaf) {
-    grove.enable(tip);
-    grove.animate(
-        tip,
-        Motion::Opacity(1.0),
-        Timing::ms(TIP_MS).ease(Ease::Decelerate),
-    );
-}
-
-/// Takes a tip out of reach and away.
-fn take_out(grove: &mut Grove, tip: Leaf) {
-    grove.disable(tip);
-    grove.animate(
-        tip,
-        Motion::Opacity(0.0),
-        Timing::ms(TIP_MS).ease(Ease::Accelerate),
-    );
 }
 
 /// Where the leaf and what its tips open stand, for one size of window.
