@@ -38,22 +38,9 @@ const LEAST: f32 = 0.015;
 const DASH: f32 = 0.026;
 const GAP: f32 = 0.010;
 
-/// How far a region is pulled off the vertex it is named for, toward the middle of the shape. A
-/// region centred on the vertex itself would hang half of itself outside the outline.
-const INSET: f32 = 0.28;
-
 /// How much of the room between the two closest regions is left showing between them, so that
 /// regions sized by that pair are neighbours rather than neighbours that touch.
 const APART: f32 = 0.08;
-
-/// Clockwise quarter turns of the sketch, applied before it is scaled to unit width.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Turn {
-    None,
-    Quarter,
-    Half,
-    ThreeQuarter,
-}
 
 /// A place on a shape, in its unit space: `x` over `0.0..1.0`, `y` over `0.0..` its
 /// [`aspect`](Silhouette::aspect).
@@ -61,12 +48,7 @@ pub enum Turn {
 /// What a [`Mosaic`](crate::Mosaic) stands something on, and recolours when it is emphasized.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Region {
-    /// A square standing on vertex `n` of the outline, pulled in toward the middle of the shape
-    /// until it sits over the vertex, and nudged by as much again on each axis -- for a vertex that
-    /// is the corner of its feature rather than the middle of it. The shape's points, its tips and
-    /// lobes, are these.
-    Vertex(usize, (f32, f32)),
-    /// A square centred at a point. Sized with the vertex squares, all alike.
+    /// A square centred at a point. Every square is sized alike.
     Point((f32, f32)),
     /// A box: its top-left corner, and its width and height. Sized as stated.
     Box((f32, f32), (f32, f32)),
@@ -86,14 +68,6 @@ pub struct Silhouette {
     pub(crate) outline: Vec<(f32, f32)>,
     /// How tall it is per unit of width.
     pub(crate) height: f32,
-    /// How a point of the sketch is brought into unit space: the page it was traced on, how it
-    /// was turned, where the turned sketch's near corner landed, and what its width was divided
-    /// by. Kept so that another outline traced on the same page can be brought into the same
-    /// space after the fact, which is what a [`part`](Self::part) is.
-    page: (f32, f32),
-    turn: Turn,
-    origin: (f32, f32),
-    scale: f32,
 }
 
 /// One cell of the grid a mosaic is laid on: where its tile sits, how large it is, what shape it
@@ -122,46 +96,34 @@ pub(crate) struct Cell {
 }
 
 impl Silhouette {
-    /// `outline` as fractions of `page`, turned, then scaled so its width is 1.
+    /// `outline`, in its own unit space: its leftmost point at `x = 0`, its topmost at `y = 0`, and
+    /// its width 1, with `y` in the same units as `x` so the shape keeps the proportions it was
+    /// drawn in. The height falls out of that rather than being stated.
     ///
-    /// The page is kept only long enough to make the two axes comparable: an outline traced on a
-    /// 2000×1500 page has its x in `0..2000` and its y in `0..1500`, and only by multiplying each
-    /// by its own side are they the same kind of number. The height falls out of that rather than
-    /// being stated, which is what keeps the shape the proportions it was drawn in.
-    pub fn traced(outline: &[(f32, f32)], page: (f32, f32), turn: Turn) -> Self {
+    /// An outline already in its own space -- what Paper writes -- comes through as it is, and
+    /// everything stated against it (cuts, regions, boxes) means what it says.
+    pub fn new(outline: &[(f32, f32)]) -> Self {
         assert!(outline.len() >= 3, "an outline is three or more points");
-        let turned: Vec<(f32, f32)> = outline
-            .iter()
-            .map(|&(x, y)| turned((x * page.0, y * page.1), turn))
-            .collect();
         let reach = |axis: fn(&(f32, f32)) -> f32| {
-            let low = turned.iter().map(axis).fold(f32::MAX, f32::min);
-            let high = turned.iter().map(axis).fold(f32::MIN, f32::max);
+            let low = outline.iter().map(axis).fold(f32::MAX, f32::min);
+            let high = outline.iter().map(axis).fold(f32::MIN, f32::max);
             (low, high - low)
         };
         let ((left, width), (top, tall)) = (reach(|point| point.0), reach(|point| point.1));
         Self {
-            outline: turned
+            outline: outline
                 .iter()
                 .map(|&(x, y)| ((x - left) / width, (y - top) / width))
                 .collect(),
             height: tall / width,
-            page,
-            turn,
-            origin: (left, top),
-            scale: width,
         }
     }
 
-    /// Another outline traced on the same page, in this shape's own unit space: the same box,
-    /// the same height, so it can be laid over a mosaic of this. For a piece of the shape, drawn
-    /// over it.
+    /// Another outline in this shape's unit space -- a piece of the shape, drawn over it -- with
+    /// the same box and the same height, so it can be laid over a mosaic of this.
     pub fn part(&self, outline: &[(f32, f32)]) -> Self {
         assert!(outline.len() >= 3, "an outline is three or more points");
-        Self {
-            outline: outline.iter().map(|&point| self.at(point)).collect(),
-            ..self.clone()
-        }
+        self.outlined(outline.to_vec())
     }
 
     /// The same shape's space, holding `outline` -- already in unit space -- instead.
@@ -192,15 +154,6 @@ impl Silhouette {
     /// How tall it is per unit of width.
     pub fn aspect(&self) -> f32 {
         self.height
-    }
-
-    /// A point of the sketch this was traced from, in unit space.
-    pub fn at(&self, point: (f32, f32)) -> (f32, f32) {
-        let (x, y) = turned((point.0 * self.page.0, point.1 * self.page.1), self.turn);
-        (
-            (x - self.origin.0) / self.scale,
-            (y - self.origin.1) / self.scale,
-        )
     }
 
     /// How large a tile centred at `center` may be for the outline to hold it whole, or `None`
@@ -299,26 +252,19 @@ impl Silhouette {
 
     /// Where each of `at` sits, and how far it reaches either way from its middle.
     ///
-    /// A square -- on a vertex, or at a point -- is pulled off a vertex toward the middle of the
-    /// shape so that it sits over the vertex rather than half outside it. Every square is the same
-    /// size: `size` where one is stated, else the most the closest pair of them leaves -- two equal
-    /// squares centred at `a` and `b` clear each other exactly when their side is no longer than
-    /// the greater of `|dx|` and `|dy|`, so the least of those over every pair is what every square
-    /// gets, and one square alone gets the largest the shape's box holds.
+    /// Every square is the same size: `size` where one is stated, else the most the closest pair
+    /// of them leaves -- two equal squares centred at `a` and `b` clear each other exactly when
+    /// their side is no longer than the greater of `|dx|` and `|dy|`, so the least of those over
+    /// every pair is what every square gets, and one square alone gets the largest the shape's box
+    /// holds.
     ///
-    /// Held inside the shape's own box, because a vertex on its edge would have a square hanging
-    /// over the side. Sized again afterwards, since holding a square in moves it toward the
-    /// others, and then nudged by whatever it asks for, in unit space on each axis. A box is where
-    /// it was stated and nothing else.
+    /// Held inside the shape's own box, because a point near its edge would have a square hanging
+    /// over the side, and sized again afterwards, since holding a square in moves it toward the
+    /// others. A box is where it was stated and nothing else.
     pub(crate) fn regions(&self, at: &[Region], size: Option<f32>) -> Vec<Area> {
-        let middle = self.middle();
         let squares: Vec<(f32, f32)> = at
             .iter()
             .filter_map(|region| match *region {
-                Region::Vertex(vertex, _) => {
-                    let (x, y) = self.outline[vertex];
-                    Some((x + (middle.0 - x) * INSET, y + (middle.1 - y) * INSET))
-                }
                 Region::Point(center) => Some(center),
                 Region::Box(..) => None,
             })
@@ -339,17 +285,9 @@ impl Silhouette {
             .map(|&(x, y)| (x.clamp(half, 1.0 - half), y.clamp(half, self.height - half)))
             .collect();
         let half = size.unwrap_or_else(|| room(&held) * (1.0 - APART)) / 2.0;
-        // Nudged last, so that a square asking to sit elsewhere moves only itself.
         let mut held = held.into_iter();
         at.iter()
             .map(|region| match *region {
-                Region::Vertex(_, (dx, dy)) => {
-                    let (x, y) = held.next().expect("a square for every square");
-                    Area {
-                        center: (x + dx, y + dy),
-                        half: (half, half),
-                    }
-                }
                 Region::Point(_) => Area {
                     center: held.next().expect("a square for every square"),
                     half: (half, half),
@@ -360,15 +298,6 @@ impl Silhouette {
                 },
             })
             .collect()
-    }
-
-    /// The middle of the shape, as the average of the outline's vertices. What a region is pulled
-    /// toward, which asks only for somewhere inside the shape and away from every vertex.
-    fn middle(&self) -> (f32, f32) {
-        let count = self.outline.len() as f32;
-        self.outline.iter().fold((0.0, 0.0), |(x, y), vertex| {
-            (x + vertex.0 / count, y + vertex.1 / count)
-        })
     }
 
     /// Whether the outline holds `point`, by counting the crossings of a ray cast from it.
@@ -448,16 +377,6 @@ impl Silhouette {
             .zip(self.outline.iter().cycle().skip(1))
             .take(self.outline.len())
             .map(|(from, to)| (*from, *to))
-    }
-}
-
-/// A point of the sketch, turned.
-fn turned((x, y): (f32, f32), turn: Turn) -> (f32, f32) {
-    match turn {
-        Turn::None => (x, y),
-        Turn::Quarter => (-y, x),
-        Turn::Half => (-x, -y),
-        Turn::ThreeQuarter => (y, -x),
     }
 }
 

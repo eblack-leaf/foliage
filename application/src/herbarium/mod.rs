@@ -241,7 +241,7 @@ impl Credentials {
         let scheme = theme::scheme();
         let ramp = Ramp::of(&scheme.stops(theme::SPECIMEN));
         let page = Sections::page(grove, room);
-        let shape = Silhouette::traced(key::KEY.outline, key::KEY.page, key::KEY.turn);
+        let shape = Silhouette::new(key::KEY.outline);
         let mut key = Specimen::grow(
             grove,
             page,

@@ -1,10 +1,9 @@
 //! Cutting a shape: a straight line across it, the part on one side, and the line drawn.
 //!
-//! A [`Cut`] is stated in the terms the outline was traced in -- fractions of the page -- because
-//! it is drawn on the same sketch. [`Silhouette::cut`] keeps one side of it, [`Silhouette::crossings`]
-//! says where the line enters and leaves the outline, and [`Silhouette::facing`] which way the side
-//! it cut away lies. A [`Section`] is the line itself, dashed across the shape, drawn and taken
-//! away.
+//! A [`Cut`] is stated in the shape's own unit space, as everything placed on the shape is.
+//! [`Silhouette::cut`] keeps one side of it, [`Silhouette::crossings`] says where the line enters
+//! and leaves the outline, and [`Silhouette::facing`] which way the side it cut away lies. A
+//! [`Section`] is the line itself, dashed across the shape, drawn and taken away.
 
 use foliage::{
     Cap, Ease, Elevation, Grove, Grow, HAIRLINE, Leaf, Line, Motion, Palette, Place, Point, Source,
@@ -24,8 +23,8 @@ const OVER: f32 = 0.05;
 const DASH_MS: u64 = 200;
 const SWEEP: f32 = 320.0;
 
-/// A straight line across a shape, and a point on the side of it to keep: three points of the
-/// sketch, as fractions of the page it was traced on.
+/// A straight line across a shape, and a point on the side of it to keep: three points in the
+/// shape's unit space.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Cut {
     pub from: (f32, f32),
@@ -45,7 +44,7 @@ impl Silhouette {
     /// off, and what crosses the line cut to it. One edge of the clip at a time, which is all a
     /// straight cut is.
     pub fn cut(&self, cut: Cut) -> Silhouette {
-        let (from, to, keep) = (self.at(cut.from), self.at(cut.to), self.at(cut.keep));
+        let (from, to, keep) = (cut.from, cut.to, cut.keep);
         let side =
             |(x, y): (f32, f32)| (to.0 - from.0) * (y - from.1) - (to.1 - from.1) * (x - from.0);
         let sign = side(keep).signum();
@@ -78,7 +77,7 @@ impl Silhouette {
     /// Where `cut`'s line enters the outline and where it last leaves it, in unit space: the two
     /// crossings furthest apart along the line. `None` for a line that misses it.
     pub fn crossings(&self, cut: Cut) -> Option<((f32, f32), (f32, f32))> {
-        let (from, to) = (self.at(cut.from), self.at(cut.to));
+        let (from, to) = (cut.from, cut.to);
         let side =
             |(x, y): (f32, f32)| (to.0 - from.0) * (y - from.1) - (to.1 - from.1) * (x - from.0);
         let along =
@@ -111,7 +110,7 @@ impl Silhouette {
     /// line's perpendicular, turned away from what it keeps. What is laid off the shape beyond a
     /// cut -- the room the cut made -- is laid this way.
     pub fn facing(&self, cut: Cut) -> (f32, f32) {
-        let (from, to, keep) = (self.at(cut.from), self.at(cut.to), self.at(cut.keep));
+        let (from, to, keep) = (cut.from, cut.to, cut.keep);
         let (nx, ny) = (from.1 - to.1, to.0 - from.0);
         let (nx, ny) = match nx * (keep.0 - from.0) + ny * (keep.1 - from.1) > 0.0 {
             true => (-nx, -ny),

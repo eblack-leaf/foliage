@@ -75,7 +75,7 @@ pub use ping::Ping;
 pub use ramp::{Ramp, Rgb, fill, rgb, shifted};
 pub use say::{Say, Voice};
 pub use scatter::Scatter;
-pub use silhouette::{Region, Silhouette, Turn};
+pub use silhouette::{Region, Silhouette};
 pub use specimen::{BLIP, Cleared, Sketch, Specimen, Tip};
 pub use switch::Switch;
 pub use tone::{

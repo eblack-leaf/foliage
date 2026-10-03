@@ -1,18 +1,27 @@
 //! The arithmetic under the look: cuts, crossings, facing, and what a chain wears.
 
-use lichen::{Cut, Press, Silhouette, Turn, gate, words};
+use lichen::{Cut, Press, Silhouette, gate, words};
 
-/// A square page with a square traced on it, corner to corner of its middle half.
+/// A square, filling its own unit space.
 fn square() -> Silhouette {
-    Silhouette::traced(
-        &[(0.25, 0.25), (0.75, 0.25), (0.75, 0.75), (0.25, 0.75)],
-        (100.0, 100.0),
-        Turn::None,
-    )
+    Silhouette::new(&[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)])
 }
 
 fn close(a: (f32, f32), b: (f32, f32)) -> bool {
     (a.0 - b.0).abs() < 1e-4 && (a.1 - b.1).abs() < 1e-4
+}
+
+#[test]
+fn an_outline_is_brought_into_its_own_space() {
+    // Twice as wide as it is tall, and nowhere near the origin: it comes out a unit wide, half a
+    // unit tall, and a cut through its own middle crosses it there.
+    let shape = Silhouette::new(&[(3.0, 5.0), (7.0, 5.0), (7.0, 7.0), (3.0, 7.0)]);
+    assert!((shape.aspect() - 0.5).abs() < 1e-6);
+    let (a, b) = shape
+        .crossings(Cut::new((0.5, -1.0), (0.5, 2.0), (0.2, 0.25)))
+        .expect("the line crosses it");
+    assert!(close(a, (0.5, 0.0)) || close(a, (0.5, 0.5)), "{a:?}");
+    assert!(close(b, (0.5, 0.0)) || close(b, (0.5, 0.5)), "{b:?}");
 }
 
 #[test]
@@ -48,7 +57,7 @@ fn a_line_that_misses_the_shape_crosses_nothing() {
     let shape = square();
     assert!(
         shape
-            .crossings(Cut::new((0.9, 0.0), (0.9, 1.0), (0.5, 0.5)))
+            .crossings(Cut::new((1.3, 0.0), (1.3, 1.0), (0.5, 0.5)))
             .is_none()
     );
 }
@@ -58,7 +67,7 @@ fn a_cut_that_keeps_the_far_side_of_nothing_is_empty() {
     let shape = square();
     assert!(!shape.is_empty());
     // The line is left of the square and the keep point further left: nothing of it is kept.
-    let none = shape.cut(Cut::new((0.1, 0.0), (0.1, 1.0), (0.05, 0.5)));
+    let none = shape.cut(Cut::new((-0.3, 0.0), (-0.3, 1.0), (-0.4, 0.5)));
     assert!(none.is_empty());
     // And cutting that again is still nothing, rather than a panic.
     assert!(

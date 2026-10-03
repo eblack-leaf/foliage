@@ -1,97 +1,37 @@
 //! The leaf the site was sketched as: its outline, and where its three tips stand and what each
 //! cuts. What a leaf does with that is [`Specimen`](crate::specimen::Specimen)'s.
 
-use lichen::{Cut, Silhouette, Turn};
+use lichen::{Cut, Silhouette};
 
 use crate::theme;
 
-/// The page the outline was traced on.
-const PAGE: (f32, f32) = (2000.0, 1500.0);
-
-/// The outline, clockwise from the tip, as fractions of the page it was traced on.
+/// The outline, clockwise from the tip, in the leaf's own unit space, standing: its tip at the
+/// top and its stem at the bottom. It was drawn lying on its side, stem out to the right, and
+/// stood up a quarter turn.
 ///
 /// Closed implicitly: the last vertex joins the first. The stem is part of it rather than a second
 /// shape, so it is dashed, filled and measured with everything else.
-///
-/// Stated exactly as it was drawn -- lying on its side, stem out to the right -- and stood up by
-/// [`Turn::Quarter`], so what was traced and which way it faces stay separable.
 #[rustfmt::skip]
 const OUTLINE: [(f32, f32); 75] = [
-    (0.480, 0.073),
-    (0.520, 0.115),
-    (0.560, 0.175),
-    (0.600, 0.245),
-    (0.630, 0.290),
-    (0.645, 0.310),
-    (0.652, 0.345),
-    (0.663, 0.315),
-    (0.684, 0.312),
-    (0.700, 0.360),
-    (0.712, 0.405),
-    (0.722, 0.455),
-    (0.730, 0.500),
-    (0.735, 0.535),
-    (0.800, 0.552),
-    (0.870, 0.578),
-    (0.925, 0.615),
-    (0.958, 0.660),
-    (0.966, 0.690),
-    (0.950, 0.700),
-    (0.930, 0.665),
-    (0.890, 0.625),
-    (0.820, 0.595),
-    (0.750, 0.575),
-    (0.737, 0.572),
-    (0.728, 0.620),
-    (0.716, 0.670),
-    (0.700, 0.718),
-    (0.686, 0.752),
-    (0.660, 0.762),
-    (0.640, 0.745),
-    (0.618, 0.782),
-    (0.590, 0.800),
-    (0.552, 0.833),
-    (0.512, 0.862),
-    (0.480, 0.882),
-    (0.448, 0.887),
-    (0.410, 0.878),
-    (0.372, 0.872),
-    (0.352, 0.862),
-    (0.358, 0.815),
-    (0.362, 0.772),
-    (0.356, 0.735),
-    (0.366, 0.700),
-    (0.340, 0.676),
-    (0.300, 0.665),
-    (0.262, 0.650),
-    (0.222, 0.632),
-    (0.180, 0.612),
-    (0.140, 0.592),
-    (0.100, 0.570),
-    (0.072, 0.553),
-    (0.052, 0.532),
-    (0.048, 0.492),
-    (0.056, 0.455),
-    (0.072, 0.432),
-    (0.092, 0.412),
-    (0.100, 0.385),
-    (0.118, 0.352),
-    (0.142, 0.330),
-    (0.178, 0.310),
-    (0.215, 0.283),
-    (0.246, 0.256),
-    (0.262, 0.238),
-    (0.300, 0.248),
-    (0.345, 0.262),
-    (0.388, 0.283),
-    (0.380, 0.230),
-    (0.383, 0.185),
-    (0.396, 0.140),
-    (0.412, 0.152),
-    (0.424, 0.120),
-    (0.440, 0.135),
-    (0.452, 0.105),
-    (0.466, 0.090),
+    (1.000, 0.708), (0.948, 0.773), (0.875, 0.839), (0.789, 0.904),
+    (0.733, 0.953), (0.709, 0.978), (0.666, 0.989), (0.703, 1.007),
+    (0.706, 1.042), (0.647, 1.068), (0.592, 1.088), (0.531, 1.104),
+    (0.475, 1.117), (0.432, 1.125), (0.412, 1.232), (0.380, 1.346),
+    (0.334, 1.437), (0.279, 1.491), (0.242, 1.504), (0.230, 1.477),
+    (0.273, 1.445), (0.322, 1.379), (0.359, 1.265), (0.383, 1.150),
+    (0.387, 1.129), (0.328, 1.114), (0.267, 1.094), (0.208, 1.068),
+    (0.166, 1.045), (0.154, 1.002), (0.174, 0.970), (0.129, 0.934),
+    (0.107, 0.888), (0.066, 0.826), (0.031, 0.760), (0.006, 0.708),
+    (0.000, 0.655), (0.011, 0.593), (0.018, 0.531), (0.031, 0.498),
+    (0.088, 0.508), (0.141, 0.514), (0.187, 0.505), (0.230, 0.521),
+    (0.259, 0.478), (0.273, 0.413), (0.291, 0.351), (0.313, 0.285),
+    (0.338, 0.216), (0.362, 0.151), (0.389, 0.085), (0.410, 0.039),
+    (0.436, 0.007), (0.485, 0.000), (0.531, 0.013), (0.559, 0.039),
+    (0.584, 0.072), (0.617, 0.085), (0.657, 0.115), (0.684, 0.154),
+    (0.709, 0.213), (0.742, 0.274), (0.775, 0.324), (0.797, 0.351),
+    (0.785, 0.413), (0.768, 0.486), (0.742, 0.557), (0.807, 0.544),
+    (0.862, 0.549), (0.918, 0.570), (0.903, 0.596), (0.942, 0.616),
+    (0.924, 0.642), (0.961, 0.662), (0.979, 0.685),
 ];
 
 /// How far apart tile centres sit, as a fraction of the leaf's width. Fine enough that a tip's
@@ -104,7 +44,7 @@ pub(crate) const SQUARE: f32 = 0.16;
 
 /// One tip, as the sketch drew it.
 pub(crate) struct Tip {
-    /// Where on the leaf it stands, as a point of the page the outline was traced on.
+    /// Where on the leaf it stands, in its unit space.
     pub(crate) at: (f32, f32),
     /// What choosing it cuts the leaf to: the line, and the tip's own side of it -- which is the
     /// tip itself.
@@ -129,18 +69,18 @@ pub(crate) struct Tip {
 ///   the blade like the others'.
 pub(crate) const TIPS: [Tip; 3] = [
     Tip {
-        at: (0.232, 0.404),
-        cut: Cut::new((0.353, 0.887), (0.292, 0.073), (0.232, 0.404)),
+        at: (0.593, 0.301),
+        cut: Cut::new((0.000, 0.500), (1.000, 0.400), (0.593, 0.301)),
         controls: ((0.12, 0.58), (0.60, 0.40)),
     },
     Tip {
-        at: (0.480, 0.260),
-        cut: Cut::new((0.304, 0.333), (0.658, 0.480), (0.480, 0.260)),
+        at: (0.770, 0.708),
+        cut: Cut::new((0.681, 0.419), (0.500, 0.999), (0.770, 0.708)),
         controls: ((0.04, 0.50), (0.44, 0.50)),
     },
     Tip {
-        at: (0.610, 0.630),
-        cut: Cut::new((0.475, 0.887), (0.671, 0.277), (0.610, 0.630)),
+        at: (0.316, 0.921),
+        cut: Cut::new((0.000, 0.699), (0.749, 1.020), (0.316, 0.921)),
         controls: ((0.16, 0.22), (0.58, 0.46)),
     },
 ];
@@ -150,8 +90,6 @@ pub(crate) const TIPS: [Tip; 3] = [
 pub(crate) fn sketch(tips: &[lichen::Tip]) -> lichen::Sketch<'_> {
     lichen::Sketch {
         outline: &OUTLINE,
-        page: PAGE,
-        turn: Turn::Quarter,
         // Mostly down the leaf, a little across it: gold at the tip, deepening toward the stem,
         // and the across term is what keeps the bands from reading as stripes.
         along: (0.25, 0.75),
@@ -165,29 +103,18 @@ pub(crate) fn sketch(tips: &[lichen::Tip]) -> lichen::Sketch<'_> {
 /// The leaf, brought into unit space: `x` over `0.0..1.0`, `y` over `0.0..` its aspect, standing
 /// with its tip at the top and its stem at the bottom.
 pub(crate) fn shape() -> Silhouette {
-    Silhouette::traced(&OUTLINE, PAGE, Turn::Quarter)
+    Silhouette::new(&OUTLINE)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The quarter turn lichen applies is the one the site's own tracing used to: a point `(x, y)`
-    /// of the page stood up as `(-y, x)`, both axes scaled by the page first. Traced that way by
-    /// hand, the leaf is as tall per unit of width as lichen makes it.
+    /// Standing: half again as tall as it is wide.
     #[test]
-    fn stands_as_it_used_to() {
-        let turned: Vec<(f32, f32)> = OUTLINE
-            .iter()
-            .map(|&(x, y)| (-y * PAGE.1, x * PAGE.0))
-            .collect();
-        let span = |axis: fn(&(f32, f32)) -> f32| {
-            let low = turned.iter().map(axis).fold(f32::MAX, f32::min);
-            let high = turned.iter().map(axis).fold(f32::MIN, f32::max);
-            high - low
-        };
-        let aspect = span(|point| point.1) / span(|point| point.0);
-        assert!((shape().aspect() - aspect).abs() < 1e-4);
+    fn stands() {
+        let aspect = shape().aspect();
+        assert!((1.45..1.55).contains(&aspect), "{aspect}");
     }
 
     /// Every tip stands on the leaf, and every cut crosses it and keeps its own tip.
@@ -195,14 +122,14 @@ mod tests {
     fn every_cut_keeps_its_tip() {
         let shape = shape();
         for tip in &TIPS {
-            let (x, y) = shape.at(tip.at);
+            let (x, y) = tip.at;
             assert!((0.0..=1.0).contains(&x) && (0.0..=shape.aspect()).contains(&y));
             assert!(
                 shape.crossings(tip.cut).is_some(),
                 "the cut misses the leaf"
             );
             // The tip is on the side the cut keeps, and the side it cuts away faces from it.
-            let (from, to) = (shape.at(tip.cut.from), shape.at(tip.cut.to));
+            let (from, to) = (tip.cut.from, tip.cut.to);
             let side = (to.0 - from.0) * (y - from.1) - (to.1 - from.1) * (x - from.0);
             assert!(side.abs() > 0.05, "the tip sits on its own cut");
             let (nx, ny) = shape.facing(tip.cut);

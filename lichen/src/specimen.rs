@@ -21,7 +21,7 @@ use foliage::{
 };
 
 use crate::{
-    Chip, Cut, Mosaic, Press, Ramp, Region, Rgb, Scatter, Section, Silhouette, Turn, measure, rgb,
+    Chip, Cut, Mosaic, Press, Ramp, Region, Rgb, Scatter, Section, Silhouette, measure, rgb,
 };
 
 /// The spectrum of the scheme in force the blip behind a chosen tip is drawn from: palest at its
@@ -58,12 +58,9 @@ pub struct Tip {
 /// A specimen, as the app sketched it: the shape and its tips. Nothing about where it stands.
 #[derive(Clone, Debug)]
 pub struct Sketch<'a> {
-    /// The outline, as fractions of the page it was traced on, in order round it. Closed
-    /// implicitly.
+    /// The outline, in its own unit space, in order round it. Closed implicitly. Its tips and
+    /// their cuts are in the same space.
     pub outline: &'a [(f32, f32)],
-    /// The page it was traced on, and how it is turned.
-    pub page: (f32, f32),
-    pub turn: Turn,
     /// Which way the ramp runs across it, and what its outline is dashed in: the ramp's middle
     /// unless stated.
     pub along: (f32, f32),
@@ -137,7 +134,7 @@ impl Specimen {
         chips: &[(Field, &str)],
     ) -> Self {
         assert_eq!(chips.len(), sketch.tips.len(), "a chip for every tip");
-        let shape = Silhouette::traced(sketch.outline, sketch.page, sketch.turn);
+        let shape = Silhouette::new(sketch.outline);
         let mut mosaic = Mosaic::new(shape.clone(), ramp)
             .along(sketch.along)
             .pitch(sketch.pitch)
@@ -161,8 +158,7 @@ impl Specimen {
                 assert!(
                     !part.is_empty(),
                     "the {name} tip's cut keeps none of the outline: its keep point is outside the \
-                     shape or on the far side of its line -- a cut is in page fractions, as the \
-                     outline is, not in unit space"
+                     shape or on the far side of its line"
                 );
                 let (from, to) = shape
                     .crossings(tip.cut)

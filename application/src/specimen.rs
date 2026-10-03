@@ -131,7 +131,7 @@ impl Specimen {
         let tips: Vec<lichen::Tip> = leaf::TIPS
             .iter()
             .map(|tip| lichen::Tip {
-                at: Region::Point(traced.at(tip.at)),
+                at: Region::Point(tip.at),
                 cut: tip.cut,
             })
             .collect();

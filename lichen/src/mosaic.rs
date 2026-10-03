@@ -65,9 +65,9 @@ const LOBES: (f32, f32) = (0.16, 0.10);
 /// back out from one, the arrival run backwards and forwards.
 ///
 /// [`regions`](Self::regions) stands a [`Region`] on the shape for each the caller names -- a
-/// square on a vertex or at a point, or a box -- and hands back a stem over each to hang something
-/// off. [`emphasize`](Self::emphasize) recolours the tiles under
-/// one of those onto another ramp until [`unemphasize`](Self::unemphasize) puts them back.
+/// square at a point, or a box -- and hands back a stem over each to hang something off.
+/// [`emphasize`](Self::emphasize) recolours the tiles under one of those onto another ramp until
+/// [`unemphasize`](Self::unemphasize) puts them back.
 ///
 /// [`crop`](Self::crop) cuts the mosaic down to a part of its shape, in place -- what is outside
 /// goes, what crosses the edge is cut to it, what is inside is recoloured over the part -- until
