@@ -63,6 +63,9 @@ fn intake(grove: &mut Grove) {
     // This frame answers every rouse made before it. Before anything a rouse could have announced
     // is taken, so what arrived is found by this frame and what arrives after is owed the next.
     grove.wake.answer();
+    // What the hand did since the last frame, handed over whole. Last frame's are dropped here
+    // whether or not anything arrived, so an app never reads the same event twice.
+    grove.pointer = core::mem::take(&mut grove.incoming.raw);
     // Keys the soft keyboard took while it held the page's own focus. They enter the stream exactly
     // where a translated window event enters it, because that is what they are -- the platform's,
     // reaching the engine by the one road it has for keys.

@@ -20,7 +20,7 @@ use crate::coordinate::Position;
 use crate::fern;
 use crate::foliage::Foliage;
 use crate::ginkgo::Ginkgo;
-use crate::interaction::input::{Input, Key, Modifiers};
+use crate::interaction::input::{Device, Input, Key, Modifiers, Phase};
 use crate::palette::Palette;
 
 /// The most time one frame is allowed to be told has passed.
@@ -178,6 +178,12 @@ impl Foliage {
     /// past this call there is one path, and a scripted press and a real one are the same event.
     fn input(&mut self, input: Input) {
         self.grove.incoming.take(input);
+    }
+
+    /// One pointer event as it arrived, for [`Grove::pointer`](crate::Grove::pointer). Always beside
+    /// an [`input`](Self::input), which is what owes the frame that hands it over.
+    fn contact(&mut self, phase: Phase, at: Position, id: u64, device: Device) {
+        self.grove.incoming.contact(phase, at, id, device);
     }
 
     /// Where the platform's physical coordinates land in logical ones.
@@ -377,11 +383,17 @@ impl ApplicationHandler for Foliage {
                 // With no hover to report, a move with nothing held says nothing and owes no
                 // frame. Where the pointer is still matters, because a press names no position.
                 if self.held {
+                    self.contact(Phase::Moved, self.cursor, 0, Device::Mouse);
                     self.input(Input::Moved(self.cursor));
                 }
             }
             WindowEvent::MouseInput { state, button, .. } if button == MouseButton::Left => {
                 self.held = state == ElementState::Pressed;
+                let phase = match self.held {
+                    true => Phase::Down,
+                    false => Phase::Up,
+                };
+                self.contact(phase, self.cursor, 0, Device::Mouse);
                 self.input(match self.held {
                     true => Input::Pressed(self.cursor),
                     false => Input::Released(self.cursor),
@@ -402,6 +414,15 @@ impl ApplicationHandler for Foliage {
             WindowEvent::Touch(touch) => {
                 let at = self.at(touch.location.x, touch.location.y);
                 self.cursor = at;
+                // Every touch as it came, its own id kept, before it is folded into the one pointer
+                // below.
+                let phase = match touch.phase {
+                    TouchPhase::Started => Phase::Down,
+                    TouchPhase::Moved => Phase::Moved,
+                    TouchPhase::Ended => Phase::Up,
+                    TouchPhase::Cancelled => Phase::Cancelled,
+                };
+                self.contact(phase, at, touch.id, Device::Touch);
                 // One pointer. A second finger is not a second gesture, and until there is a
                 // gesture that needs one it is not one at all.
                 self.input(match touch.phase {
@@ -428,6 +449,7 @@ impl ApplicationHandler for Foliage {
             WindowEvent::CursorLeft { .. } | WindowEvent::Focused(false) => {
                 if self.held {
                     self.held = false;
+                    self.contact(Phase::Cancelled, self.cursor, 0, Device::Mouse);
                     self.input(Input::Cancelled);
                 }
             }

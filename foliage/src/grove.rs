@@ -9,7 +9,7 @@ use crate::elm::Elm;
 use crate::icon::{Field, Fields, Marks};
 use crate::image::{Plate, Plates};
 use crate::interaction::focus::Focus;
-use crate::interaction::input::Incoming;
+use crate::interaction::input::{Incoming, Pointer};
 use crate::interaction::stack::Stack;
 use crate::interaction::{Claim, Hold};
 use crate::keyboard::Keyboard;
@@ -66,6 +66,8 @@ pub struct Grove {
     pub(crate) scheme: Scheme,
     /// What arrived from the platform, and the gesture it is making.
     pub(crate) incoming: Incoming,
+    /// The pointer events this frame was run for, as they arrived. See [`Grove::pointer`].
+    pub(crate) pointer: Vec<Pointer>,
     /// The system clipboard, and what this program last put on it.
     pub(crate) clipboard: Clipboard,
     /// The soft keyboard, and which one is up.
@@ -117,6 +119,7 @@ impl Grove {
             short: Short::No.next(viewport),
             scheme: Scheme::default(),
             incoming: Incoming::default(),
+            pointer: Vec::new(),
             clipboard: Clipboard::default(),
             keyboard: Keyboard::default(),
             links: Links::default(),
@@ -376,6 +379,17 @@ impl Grove {
     /// Time since the engine was built.
     pub fn elapsed(&self) -> Duration {
         self.clock.elapsed()
+    }
+
+    /// Every pointer event that arrived since the last frame, in order and unmerged.
+    ///
+    /// The hand itself rather than the gesture made of it: each press, move and release with where
+    /// it was, which pointer, and when it arrived. Nothing reads the tree to produce it, so an app
+    /// finds which of them fell on an element of its own by where that element is.
+    ///
+    /// Empty in a frame nothing touched the window. Each frame's are gone by the next.
+    pub fn pointer(&self) -> &[Pointer] {
+        &self.pointer
     }
 
     /// Asks for another frame after this one.

@@ -8,6 +8,10 @@
 //! the headless suite writes these directly -- which is what makes the two paths the same path, and
 //! what keeps the winit translation layer the only part of input the suite cannot reach.
 
+use core::time::Duration;
+
+use web_time::Instant;
+
 use crate::coordinate::Position;
 
 /// One input event, as the platform reported it.
@@ -116,6 +120,57 @@ pub struct Modifiers {
     pub control: bool,
 }
 
+/// One pointer event as the platform reported it, before any gesture was made of it.
+///
+/// What [`Grove::pointer`](crate::Grove::pointer) hands an app: every one that arrived since the
+/// last frame, in order and unmerged. A [`Drag`](crate::Drag) is what a gesture *did*, one per
+/// frame and with the travel spent claiming it left out; this is what the hand did, which is what
+/// something tracing the hand itself -- a pen, a signature -- needs instead.
+///
+/// It is a second view of the same events, not a second road for them. Every one of these also
+/// went to dispatch as an ordinary press, move or release, and gestures resolve exactly as if
+/// nothing were reading here.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Pointer {
+    /// What the pointer did.
+    pub phase: Phase,
+    /// Where, in logical pixels.
+    pub at: Position,
+    /// Which pointer, as the platform numbers them. A mouse is always 0; each touch keeps its own
+    /// id from down to up, so a palm resting beside a pen is told apart from it here even though
+    /// dispatch takes both as the one pointer.
+    pub id: u64,
+    /// What kind of device it came from, as far as the platform says.
+    pub device: Device,
+    /// When the window received it, from the first pointer event the engine saw.
+    ///
+    /// Arrival rather than the moment the device sampled it, which the platform layer does not
+    /// pass on. Events arriving in a burst carry times close together.
+    pub time: Duration,
+}
+
+/// What a [`Pointer`] did.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Phase {
+    /// It went down.
+    Down,
+    /// It moved while down.
+    Moved,
+    /// It came up.
+    Up,
+    /// It was taken away rather than lifted -- focus lost, a touch cancelled by the system.
+    Cancelled,
+}
+
+/// What a [`Pointer`] came from.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Device {
+    /// A mouse, or anything the platform presents as one.
+    Mouse,
+    /// A touch screen: a finger, or a pen the platform presents as a touch.
+    Touch,
+}
+
 /// Everything input has arrived with and everything it has built up: what is waiting for the next
 /// frame, the gesture in progress, and what the keyboard is holding.
 ///
@@ -133,6 +188,10 @@ pub(crate) struct Incoming {
     /// Engine state rather than the platform's, so the headless suite reaches it by writing the
     /// same event a window does and there is no second path for a test to miss.
     pub(crate) modifiers: Modifiers,
+    /// Pointer events as they arrived, waiting for the next frame to hand them to the app.
+    pub(crate) raw: Vec<Pointer>,
+    /// The first pointer event's arrival, which every [`Pointer::time`] is measured from.
+    origin: Option<Instant>,
 }
 
 impl Incoming {
@@ -140,6 +199,21 @@ impl Incoming {
     /// input that arrived between frames is handled in the frame it arrived in.
     pub(crate) fn take(&mut self, input: Input) {
         self.pending.push(input);
+    }
+
+    /// Keeps a pointer event as it arrived, stamped now.
+    ///
+    /// Called at the platform edge beside [`take`](Incoming::take), never instead of it.
+    pub(crate) fn contact(&mut self, phase: Phase, at: Position, id: u64, device: Device) {
+        let now = Instant::now();
+        let origin = *self.origin.get_or_insert(now);
+        self.raw.push(Pointer {
+            phase,
+            at,
+            id,
+            device,
+            time: now.saturating_duration_since(origin),
+        });
     }
 
     /// Whether the open gesture could still become a hold, which is a frame the loop owes (F9).

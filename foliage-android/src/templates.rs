@@ -53,10 +53,20 @@ pub fn app_build_gradle(
     )
 }
 
-pub fn android_manifest(app_name: &str, lib_name: &str) -> String {
+pub fn android_manifest(app_name: &str, lib_name: &str, permissions: &[String]) -> String {
+    let permissions: String = permissions
+        .iter()
+        .map(|name| {
+            format!("    <uses-permission android:name=\"android.permission.{name}\" />\n")
+        })
+        .collect();
     fill(
         ANDROID_MANIFEST,
-        &[("APP_NAME", app_name), ("LIB_NAME", lib_name)],
+        &[
+            ("APP_NAME", app_name),
+            ("LIB_NAME", lib_name),
+            ("PERMISSIONS", &permissions),
+        ],
     )
 }
 
@@ -248,7 +258,7 @@ dependencies {
 const ANDROID_MANIFEST: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <application
+{{PERMISSIONS}}    <application
         android:icon="@android:drawable/sym_def_app_icon"
         android:label="{{APP_NAME}}"
         android:supportsRtl="true"

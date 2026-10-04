@@ -114,7 +114,7 @@ pub use foliage::Foliage;
 pub use grove::Grove;
 pub use icon::{Field, Icon, Marks};
 pub use image::{Fit, Image, Plate};
-pub use interaction::input::{Key, Keystroke, Modifiers};
+pub use interaction::input::{Device, Key, Keystroke, Modifiers, Phase, Pointer};
 pub use interaction::{Claim, Drag, Hold};
 pub use keyboard::Keypad;
 pub use layout::{Layout, Short};

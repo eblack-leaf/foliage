@@ -61,6 +61,9 @@ pub struct Project {
     /// recent one. It is pinned only because `android sdk install` takes an exact version and there
     /// is no spelling for "the current one".
     pub ndk: String,
+    /// Android permissions the manifest asks for, by their short name: `INTERNET` is
+    /// `android.permission.INTERNET`. None by default -- an app that reaches the network says so.
+    pub permissions: Vec<String>,
 }
 
 /// The `androidx.games:games-activity` release matching `android-activity 0.6`, which is what winit
@@ -153,6 +156,15 @@ impl Project {
             agp: string("agp")?,
             gradle: string("gradle")?,
             ndk: string("ndk")?,
+            // Optional, so a file written before it existed still loads.
+            permissions: string("permissions")
+                .map(|list| {
+                    list.split(',')
+                        .map(|name| name.trim().to_string())
+                        .filter(|name| !name.is_empty())
+                        .collect()
+                })
+                .unwrap_or_default(),
         })
     }
 
@@ -178,8 +190,14 @@ impl Project {
             agp,
             gradle,
             ndk,
+            permissions,
             ..
         } = self;
+        let permissions = permissions
+            .iter()
+            .map(|name| format!("\"{name}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
         let text = format!(
             "\
 # Written by `foliage-android init` and read by every other command. Edit it and rerun `init` to
@@ -219,6 +237,10 @@ gradle = \"{gradle}\"
 # Build-tools are deliberately absent: the Android Gradle Plugin resolves and installs the version
 # it needs itself, so naming one here would only pin something nothing reads.
 ndk = \"{ndk}\"
+
+# Android permissions the manifest asks for, short names: [\"INTERNET\"] for anything that reaches the
+# network. Rerun `init` after changing it.
+permissions = [{permissions}]
 "
         );
         let path = root.join(FILE);

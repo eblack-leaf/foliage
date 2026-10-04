@@ -257,6 +257,10 @@ fn init(
         ndk: existing
             .as_ref()
             .map_or_else(|| project::NDK.to_string(), |p| p.ndk.clone()),
+        permissions: existing
+            .as_ref()
+            .map(|p| p.permissions.clone())
+            .unwrap_or_default(),
     };
     for abi in &project.abis {
         environment::rust_target(abi)?;
@@ -290,7 +294,7 @@ fn init(
     )?;
     write(
         &out.join("app/src/main/AndroidManifest.xml"),
-        &templates::android_manifest(&project.app_name, &lib_name),
+        &templates::android_manifest(&project.app_name, &lib_name, &project.permissions),
     )?;
     write(
         &out.join("app/src/main/res/values/themes.xml"),
