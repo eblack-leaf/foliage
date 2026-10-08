@@ -5,6 +5,7 @@
 
 mod aspen;
 mod assets;
+mod atlas;
 mod bench;
 mod elevation;
 mod elm;
@@ -80,6 +81,13 @@ fn past_the_hold(grove: &mut Grove) {
     advance(grove, after);
 }
 
+/// Moves the clock past the window a tap has to land in to follow the one before it, so the next
+/// tap is one on its own.
+fn past_the_taps(grove: &mut Grove) {
+    let within = grove.taps.within.as_millis() as u64;
+    advance(grove, within + 1);
+}
+
 /// Resizes the surface, taking effect at the next frame.
 fn resize(grove: &mut Grove, viewport: Area) {
     grove.pending_resize = Some(viewport);
@@ -142,6 +150,17 @@ fn with_control(key: Key) -> Keystroke {
         modifiers: Modifiers {
             control: true,
             ..Modifiers::default()
+        },
+    }
+}
+
+/// The same with control and shift held together: a command that extends a selection.
+fn with_control_and_shift(key: Key) -> Keystroke {
+    Keystroke {
+        key,
+        modifiers: Modifiers {
+            shift: true,
+            control: true,
         },
     }
 }

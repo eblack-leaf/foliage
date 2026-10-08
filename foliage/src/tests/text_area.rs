@@ -13,20 +13,49 @@ use crate::tests::{
     tick, typing, with_control, with_shift,
 };
 use crate::text::shape::shape;
-use crate::text_input::{Applied, Editing, Lines, applied, inserted};
+use crate::text_input::{Applied, Editing, Lines, applied, inserted, word_at};
 use crate::{Boxed, Grove, Grow, Leaf, Location, Sap, Source, TextArea, Vein, left, top};
 
 // Editing, against a wrap.
 
 /// Applies a key against `value` wrapped at `columns`, and reports what the value and the caret
 /// became.
+///
+/// The caret is reported as where it stands and what it selects. The column a line move carries is
+/// left out, because what it is for is the move after -- which is [`moves`]'s to show.
 fn edit(value: &str, columns: usize, editing: Editing, stroke: Keystroke) -> (String, Editing) {
     let shaped = shape(value, Area::new(10.0, 22.0));
-    match applied(value, editing, stroke, Some(shaped.wrap(columns))) {
-        Applied::Wrote(written, editing) => (written, editing),
-        Applied::Moved(editing) => (value.to_string(), editing),
+    let placed = |editing: Editing| Editing {
+        goal: None,
+        ..editing
+    };
+    match applied(value, editing, stroke, shaped.wrap(columns), Lines::Many) {
+        Applied::Wrote(written, editing) => (written, placed(editing)),
+        Applied::Moved(editing) => (value.to_string(), placed(editing)),
         _ => panic!("expected a write or a move"),
     }
+}
+
+/// Applies keys one after another against `value` wrapped at `columns`, each from wherever the last
+/// left the caret -- the column it carries included -- and reports where they left it.
+fn moves(value: &str, columns: usize, from: Editing, strokes: &[Keystroke]) -> Editing {
+    let shaped = shape(value, Area::new(10.0, 22.0));
+    let ended = strokes.iter().fold(from, |editing, stroke| {
+        match applied(value, editing, *stroke, shaped.wrap(columns), Lines::Many) {
+            Applied::Moved(editing) => editing,
+            _ => panic!("expected a move"),
+        }
+    });
+    Editing {
+        goal: None,
+        ..ended
+    }
+}
+
+/// Applies a key to a field of one line.
+fn one(value: &str, editing: Editing, stroke: Keystroke) -> Applied {
+    let shaped = shape(value, Area::new(10.0, 22.0));
+    applied(value, editing, stroke, shaped.wrap(usize::MAX), Lines::One)
 }
 
 fn at(index: usize) -> Editing {
@@ -34,7 +63,11 @@ fn at(index: usize) -> Editing {
 }
 
 fn selecting(anchor: usize, caret: usize) -> Editing {
-    Editing { anchor, caret }
+    Editing {
+        anchor,
+        caret,
+        goal: None,
+    }
 }
 
 /// `Enter` is the one character a key cannot otherwise put in the value, so on an area it is that
@@ -52,12 +85,18 @@ fn enter_writes_a_newline_and_control_enter_submits() {
     );
     let shaped = shape("ab", Area::new(10.0, 22.0));
     assert!(matches!(
-        applied("ab", at(1), with_control(Key::Enter), Some(shaped.wrap(20))),
+        applied(
+            "ab",
+            at(1),
+            with_control(Key::Enter),
+            shaped.wrap(20),
+            Lines::Many
+        ),
         Applied::Submitted
     ));
     // And the chord means the same thing on a field, so it is one chord wherever it is pressed.
     assert!(matches!(
-        applied("ab", at(1), with_control(Key::Enter), None),
+        one("ab", at(1), with_control(Key::Enter)),
         Applied::Submitted
     ));
 }
@@ -81,18 +120,66 @@ fn up_and_down_stop_at_the_ends_of_the_value() {
     assert_eq!(edit("hello world", 5, at(8), stroke(Key::Down)).1, at(11));
 }
 
-/// A column past the end of a shorter line is that line's end. The caret keeps the line and not the
-/// column, because the column is not somewhere it can stand.
+/// A column past the end of a shorter line is that line's end, because the column is not somewhere
+/// the caret can stand there -- and the line after it has the caret back at the column it set out
+/// from, because a run of line moves keeps the column the first of them left.
 #[test]
-fn a_column_past_a_shorter_line_lands_at_its_end() {
+fn a_shorter_line_passed_through_keeps_the_column() {
+    let (up, down) = (stroke(Key::Up), stroke(Key::Down));
+    // "hello" over "hi" over "world", setting out from after "hell".
+    assert_eq!(moves("hello\nhi\nworld", 20, at(4), &[down]), at(8));
+    assert_eq!(moves("hello\nhi\nworld", 20, at(4), &[down, down]), at(13));
+    assert_eq!(moves("hello\nhi\nworld", 20, at(13), &[up]), at(8));
+    assert_eq!(moves("hello\nhi\nworld", 20, at(13), &[up, up]), at(4));
+    // And back down from the top again: going past the ends of the value is still a line move.
     assert_eq!(
-        edit("hello\nhi\nworld", 20, at(4), stroke(Key::Down)).1,
-        at(8)
+        moves("hello\nhi\nworld", 20, at(4), &[up, down, down]),
+        at(13)
     );
+}
+
+/// Any other move is a new place to set out from: the column a horizontal move leaves is the one
+/// the next line move keeps.
+#[test]
+fn any_other_move_sets_out_from_where_it_left_the_caret() {
+    let (down, left) = (stroke(Key::Down), stroke(Key::Left));
     assert_eq!(
-        edit("hello\nhi\nworld", 20, at(13), stroke(Key::Up)).1,
-        at(8)
+        moves("hello\nhi\nworld", 20, at(4), &[down, left, down]),
+        at(10)
     );
+    // Shift keeps the column as it keeps the anchor.
+    let held = with_shift(Key::Down);
+    assert_eq!(
+        moves("hello\nhi\nworld", 20, at(4), &[held, held]),
+        selecting(4, 13)
+    );
+}
+
+/// A word move is not about lines: a newline is space like any other, so the caret goes on across
+/// the end of a line to the word beyond it.
+#[test]
+fn a_word_move_crosses_the_end_of_a_line() {
+    let (back, on) = (with_control(Key::Left), with_control(Key::Right));
+    assert_eq!(edit("ab\ncd", 20, at(5), back).1, at(3));
+    assert_eq!(edit("ab\ncd", 20, at(3), back).1, at(0));
+    assert_eq!(edit("ab\ncd", 20, at(2), on).1, at(5));
+}
+
+/// A word is chosen within its own line. A tap past the end of a line, wrapped or broken, means the
+/// last word on it, and a line with nothing on it has no word.
+#[test]
+fn a_word_under_a_tap_is_read_off_the_wrap() {
+    let shaped = shape("hello world", Area::new(10.0, 22.0));
+    let run = shaped.wrap(5);
+    // The space the wrap carried to the end of the first line is past its last word.
+    assert_eq!(word_at(run, 5), 0..5);
+    assert_eq!(word_at(run, 11), 6..11);
+    let shaped = shape("ab  \n\ncd", Area::new(10.0, 22.0));
+    let run = shaped.wrap(20);
+    // Space at the end of a line is a word of its own, and does not take the newline with it.
+    assert_eq!(word_at(run, 3), 2..4);
+    assert_eq!(word_at(run, 4), 0..2);
+    assert_eq!(word_at(run, 5), 5..5);
 }
 
 /// Shift holds the anchor, so a line-wise move is a line-wise selection.
@@ -126,11 +213,11 @@ fn home_and_end_go_to_the_ends_of_the_wrapped_line() {
 #[test]
 fn a_field_of_one_line_still_has_no_line_to_move_to() {
     assert!(matches!(
-        applied("hello", at(2), stroke(Key::Up), None),
+        one("hello", at(2), stroke(Key::Up)),
         Applied::Nothing
     ));
     assert!(matches!(
-        applied("hello", at(2), stroke(Key::Enter), None),
+        one("hello", at(2), stroke(Key::Enter)),
         Applied::Submitted
     ));
 }
@@ -457,6 +544,36 @@ fn a_drag_held_below_the_area_keeps_scrolling() {
     assert!(offset(&grove, leaf) > moved, "it kept going");
     assert!(selection(&grove, leaf).end > selected.end);
     assert_eq!(selection(&grove, leaf).start, 1);
+}
+
+/// A press is a new place to set out from: the line move after it keeps the column the press left
+/// the caret at, not the one the moves before it were keeping.
+#[test]
+fn a_press_sets_out_afresh() {
+    let mut grove = grove();
+    let leaf = grove.plant(TextArea::new().at(Location::new().xs(
+        left(0.px()).width((20.0 * CELL).px()),
+        top(0.px()).height((4.0 * LINE).px()),
+    )));
+    tick(&mut grove);
+    grove.focus(leaf);
+    grove.text(leaf, "hello\nhi\nworld");
+    grove.select(leaf, 4..4);
+    tick(&mut grove);
+
+    key(&mut grove, Key::Down);
+    key(&mut grove, Key::Down);
+    tick(&mut grove);
+    assert_eq!(selection(&grove, leaf), 13..13);
+
+    // After the 'h' of "hi", on the line between.
+    press(&mut grove, 1.0 * CELL, 1.5 * LINE);
+    release(&mut grove, 1.0 * CELL, 1.5 * LINE);
+    tick(&mut grove);
+    assert_eq!(selection(&grove, leaf), 7..7);
+    key(&mut grove, Key::Down);
+    tick(&mut grove);
+    assert_eq!(selection(&grove, leaf), 10..10);
 }
 
 /// `Ctrl+A` and the clipboard chords are a field's, whichever kind it is.

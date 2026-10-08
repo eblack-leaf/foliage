@@ -60,7 +60,7 @@ use crate::panel::PanelInstance;
 use crate::polygon::PolygonInstance;
 use crate::text::font::Fonts;
 
-mod atlas;
+pub(crate) mod atlas;
 mod instances;
 mod line;
 mod picture;
@@ -304,17 +304,9 @@ impl Ash {
         for key in &elm.images.withdrawn {
             self.images.instances.withdraw(*key);
         }
-        for key in &elm.texts.written {
-            // Written means the backend is not holding it as it now stands, so what is held for it
-            // is what it should hold. A key with nothing behind it cannot happen and is not covered
-            // for: the batch and the holding are produced by the one extraction.
-            if let Some(run) = elm.texts.run(*key) {
-                self.texts.write(*key, run, fonts, ginkgo);
-            }
-        }
-        for key in &elm.texts.withdrawn {
-            self.texts.withdraw(*key);
-        }
+        // Taken whole rather than a run at a time, because a sheet that runs out of room is cut again
+        // from every run the frame draws -- which is more than this batch names.
+        self.texts.absorb(&elm.texts, fonts, ginkgo);
         let device = ginkgo.device();
         let queue = ginkgo.queue();
         self.panels.instances.flush(device, queue);
@@ -337,6 +329,26 @@ impl Ash {
         if disturbed.into_iter().any(|moved| moved) {
             self.restack(ginkgo);
         }
+    }
+
+    /// Lets go of everything the renderers hold, for the next batch to state all of it again.
+    ///
+    /// This side of [`Elm::recut`](crate::elm::Elm::recut), for a backend that is kept rather than
+    /// built again -- which is a display whose density changed. That drops the cache of what is
+    /// held here, so the next extraction states every element it finds drawn, and names nothing to
+    /// be let go of: an element that stopped being drawn in the same frame has nothing held for it
+    /// there to withdraw. So what is held here goes too, and the next batch is the whole of what is
+    /// drawn.
+    ///
+    /// And the glyph atlas with it, because every cut on it was rasterised at the density that went.
+    /// A mark's field and a picture's pixels are stated in their own texels and are kept.
+    pub(crate) fn recut(&mut self) {
+        self.panels.instances.forget();
+        self.polygons.instances.forget();
+        self.lines.instances.forget();
+        self.icons.instances.forget();
+        self.images.instances.forget();
+        self.texts.forget();
     }
 
     /// Puts a picture's pixels on the GPU as they now stand, replacing whatever was held under its
@@ -503,8 +515,17 @@ impl Ash {
 
 /// Each renderer's instance attributes, from shader location 1 upward. The depth follows at the
 /// location named in each [`Recipe`], and is its own buffer.
-const PANEL: [wgpu::VertexAttribute; 3] =
-    wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x4];
+///
+/// A panel's outline came later than its depth and is numbered after it, so the depth stays where
+/// every renderer has it: the outline's colour at 5 and its width at 6, beside the rest of the
+/// instance in the one buffer.
+const PANEL: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+    1 => Float32x4,
+    2 => Float32x4,
+    3 => Float32x4,
+    5 => Float32x4,
+    6 => Float32,
+];
 const POLYGON: [wgpu::VertexAttribute; 3] =
     wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x3];
 const LINE: [wgpu::VertexAttribute; 3] =

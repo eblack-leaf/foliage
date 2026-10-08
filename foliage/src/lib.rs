@@ -15,11 +15,13 @@
 //!   grammar the first of those is said in. [`Trace`] is the same grammar read as two [`Point`]s,
 //!   for a [`Line`] that has ends rather than a box.
 //! - [`Panel`] is a filled rectangle; [`Fill`] is what fills it -- a [`Palette`] role or a [`Color`]
-//!   stated outright -- and [`Corners`] is how it is rounded.
+//!   stated outright -- [`Corners`] is how it is rounded, and an [`outline`](Panel::outline) is a
+//!   line drawn around the inside of it.
 //! - A gesture goes to the top of the box stack: [`interactive`](Place::interactive) says who
 //!   receives one, [`intangible`](Place::intangible) says who it passes through, and
 //!   [`Drag`] is what one reports while it is held. A press that stayed still for [`Hold`]'s
-//!   duration is [`held`](Pollen::held) rather than a tap that might still be coming.
+//!   duration is [`held`](Pollen::held) rather than a tap that might still be coming, and a tap
+//!   close enough behind another, by [`Taps`], is counted with it in [`taps`](Pollen::taps).
 //! - [`Font`], [`Field`] and [`Plate`] are registered from bytes an app holds or from an [`Origin`]
 //!   to read them at, and [`loaded`](Pollen::loaded) says when one arrived. [`Marks`] is every
 //!   field an app draws, registered at once and named by the app.
@@ -115,7 +117,7 @@ pub use grove::Grove;
 pub use icon::{Field, Icon, Marks};
 pub use image::{Fit, Image, Plate};
 pub use interaction::input::{Device, Key, Keystroke, Modifiers, Phase, Pointer};
-pub use interaction::{Claim, Drag, Hold};
+pub use interaction::{Claim, Drag, Hold, Taps};
 pub use keyboard::Keypad;
 pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};

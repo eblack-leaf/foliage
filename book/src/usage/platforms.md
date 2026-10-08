@@ -75,6 +75,13 @@ generic icon beside the one that was clicked.
 Building on Linux needs the windowing headers (see [A first app](first-app.md#setting-up)).
 Nothing else needs anything beyond Rust.
 
+**An input method composes into a field.** While a field that takes typing holds focus, the window
+allows the desktop's input method, so a word of Japanese or a letter begun with a dead key is
+committed into the field as the text it composed. What the method shows while composing is not drawn
+inline: the field hears the commit. A key the method does not take arrives as itself, so nothing
+arrives twice. A masked field allows none, because a method composes what it is shown, and one that
+predicts would learn the passphrase.
+
 ## Web
 
 The app compiles to `wasm32-unknown-unknown` unchanged and is served by
@@ -152,8 +159,10 @@ What is different on Android:
   When it comes back they are built again. **The tree is untouched**, so an app returns to exactly
   the frame it left, and the first frame back is not told about the time it was away.
 - **Typing into fields is not wired up yet.** A focused field raises the soft keyboard, with the
-  field's `Keypad`, but Android delivers what is typed on it through the input method (IME), and
-  the engine does not handle IME commits yet. A hardware keyboard works.
+  field's `Keypad`, but Android delivers what is typed on it through the input method (IME), into
+  the text state the activity keeps, and winit 0.30's Android backend drops that rather than
+  reporting it -- so nothing typed on the soft keyboard reaches the engine yet. A hardware keyboard
+  works.
 - **The clipboard is the engine's own.** The system clipboard is not reached yet, so a copy
   round-trips inside the app and no further.
 - **`navigate` opens the URL** with an `ACTION_VIEW` intent.

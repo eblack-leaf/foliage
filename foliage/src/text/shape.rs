@@ -241,6 +241,14 @@ pub(crate) struct Wrap<'a> {
 }
 
 impl Wrap<'_> {
+    /// The run's characters, as they are drawn.
+    ///
+    /// What a word is read off, because where one word ends and the next begins is something a
+    /// reader sees -- and a masked run, drawn as a dot for each character, shows nowhere.
+    pub(crate) fn characters(&self) -> &[char] {
+        &self.shaped.characters
+    }
+
     /// The cell a caret before character `index` stands in, as a column and a line.
     ///
     /// An index past the end is the place after the last character, which is where a caret stands

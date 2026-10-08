@@ -19,14 +19,31 @@
 //! entering [`Incoming`](crate::interaction::input::Incoming) exactly where a translated winit
 //! event enters it.
 //!
-//! # Android raises one and keeps the keys
+//! # Android raises one, and does not yet hand back what is typed on it
 //!
-//! The other platform with a keyboard of its own, and the easier half: the activity raises and
-//! lowers it directly, and what is typed arrives as ordinary key events on the same road a physical
-//! keyboard's would. So there is nothing to hand back and no hidden element to hold -- only the
-//! activity handle, which is the one thing the engine cannot reach for itself.
+//! The other platform with a keyboard of its own. The activity raises and lowers it directly, so
+//! there is no hidden element to hold -- only the activity handle, which is the one thing the engine
+//! cannot reach for itself.
+//!
+//! What is typed on it does not come back as key events. A soft keyboard types through the input
+//! method, into the text state the activity keeps for it, and winit 0.30's Android backend reads
+//! that state and drops it rather than reporting it. So a field on Android raises its keyboard and
+//! hears nothing typed on it; a hardware keyboard's keys arrive as ordinary key events and work.
+//!
+//! # A desktop's input method composes into the window
+//!
+//! A desktop has no keyboard to raise, but it may have an input method: what turns keys into a word
+//! of Japanese, or a dead key and a letter into one accented letter. The window allows one only
+//! while a field that takes typing holds focus, and what it commits arrives as text and is typed in
+//! a character at a time, the way the web's hidden input hands back what it composed. A key the
+//! method does not take arrives as itself, and one it does is the method's -- so nothing arrives
+//! twice. A masked field allows none: a method composes what it is shown, and one that predicts
+//! would learn the passphrase.
 //!
 //! Nothing is raised anywhere else, because nothing else has one.
+
+#[cfg(not(any(target_family = "wasm", target_os = "android", target_os = "ios")))]
+use std::sync::Arc;
 
 use tracing::debug;
 
@@ -85,6 +102,12 @@ impl Keypad {
 pub(crate) struct Keyboard {
     /// What is up, if anything is. Kept so the platform is asked only when the answer changes.
     raised: Option<Keypad>,
+    /// Whether an input method may compose into the window, which is what the window was last told.
+    composing: bool,
+    /// The window an input method composes into. Absent until [`window`](Keyboard::window), and
+    /// absent for good under the headless suite.
+    #[cfg(not(any(target_family = "wasm", target_os = "android", target_os = "ios")))]
+    window: Option<Arc<winit::window::Window>>,
     /// The hidden input the browser raises its keyboard for. Absent until
     /// [`attach`](Keyboard::attach), and absent for good under the headless suite.
     #[cfg(target_family = "wasm")]
@@ -129,7 +152,25 @@ impl Keyboard {
         self.activity = Some(activity);
     }
 
-    /// Raises the keyboard `wanted` asks for, or lowers whatever is up.
+    /// What an input method is allowed to do, as the suite reads it. See
+    /// [`raised`](Keyboard::raised).
+    #[cfg(test)]
+    pub(crate) fn composing(&self) -> bool {
+        self.composing
+    }
+
+    /// Takes the window an input method composes into, once the loop has opened one.
+    ///
+    /// A window just opened allows no input method, whatever the last one was told, so it is told
+    /// what is allowed now rather than left waiting for focus to move.
+    #[cfg(not(any(target_family = "wasm", target_os = "android", target_os = "ios")))]
+    pub(crate) fn window(&mut self, window: Arc<winit::window::Window>) {
+        window.set_ime_allowed(self.composing);
+        self.window = Some(window);
+    }
+
+    /// Raises the keyboard `wanted` asks for, or lowers whatever is up, and lets an input method
+    /// compose into the window where `composing` says it may.
     ///
     /// Called every frame with the whole answer rather than told about changes, because the answer
     /// is a product of focus and is recomputed like every other product.
@@ -146,11 +187,22 @@ impl Keyboard {
     /// again, the viewport resizes under it, the resize is a frame, the frame takes focus back,
     /// and the page and the engine trade the keyboard back and forth for as long as there are
     /// frames to trade it on. Left down, it stays down until the field is pressed again.
-    pub(crate) fn raise(&mut self, wanted: Option<Keypad>) {
+    pub(crate) fn raise(&mut self, wanted: Option<Keypad>, composing: bool) {
         let moved = wanted != self.raised;
         if moved {
             self.raised = wanted;
             debug!(keypad = ?wanted, "keyboard");
+        }
+        if composing != self.composing {
+            self.composing = composing;
+            debug!(composing, "input method");
+            // A desktop's alone. The web composes into its hidden input and Android into its
+            // activity, and both of those are raised below; on either, as on iOS, allowing an input
+            // method is raising a keyboard, which is not this question.
+            #[cfg(not(any(target_family = "wasm", target_os = "android", target_os = "ios")))]
+            if let Some(window) = &self.window {
+                window.set_ime_allowed(composing);
+            }
         }
         #[cfg(target_family = "wasm")]
         if let Some(trigger) = &self.trigger {

@@ -138,6 +138,16 @@ impl<I: Pod> Instances<I> {
         }
     }
 
+    /// Lets go of everything held, so the next batch states every instance there is.
+    ///
+    /// The GPU's buffers are kept for their room. What is in them is rewritten in full by the next
+    /// flush, because the order has to be built again from whatever the batch holds.
+    pub(crate) fn forget(&mut self) {
+        self.held.clear();
+        self.touched.clear();
+        self.resort = true;
+    }
+
     /// Drops one instance from what is held.
     pub(crate) fn withdraw(&mut self, key: Key) {
         if self.held.remove(&key).is_some() {

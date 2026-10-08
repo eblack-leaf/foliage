@@ -2,7 +2,7 @@ use crate::aspen::{Motion, Timing, Tween};
 use crate::asset::{Destination, Retrieved};
 use crate::coordinate::Area;
 use crate::elevation::Elevation;
-use crate::elm::{Chlorophyll, Pigment};
+use crate::elm::{Chlorophyll, Outline, Pigment};
 use crate::frond::Sprouts;
 use crate::image::{Fit, Plate};
 use crate::interaction::focus::Intent;
@@ -109,6 +109,11 @@ pub(crate) enum Op {
     Round {
         leaf: Leaf,
         rounding: Corners,
+    },
+    /// Draws a line around the inside of a panel, or takes it away at a width of zero.
+    Outline {
+        leaf: Leaf,
+        outline: Outline,
     },
     /// Reshapes a regular polygon: how many sides, how round, how far turned.
     Reshape {

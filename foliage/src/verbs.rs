@@ -3,6 +3,7 @@ use core::ops::Range;
 use crate::aspen::{Motion, Sequence, Timing, Tween};
 use crate::coordinate::Area;
 use crate::elevation::Elevation;
+use crate::elm::Outline;
 use crate::icon::Field;
 use crate::image::{Fit, Plate};
 use crate::interaction::focus::Intent;
@@ -274,6 +275,22 @@ pub trait Grow: Queues {
         self.queue(Op::Round {
             leaf,
             rounding: rounding.into(),
+        });
+    }
+
+    /// Draws a line `width` logical pixels wide around the inside of a panel, filled with `fill`
+    /// -- or takes it away again, at a width of zero.
+    ///
+    /// What a focus ring is: written from [`focused`](crate::Pollen::focused) and
+    /// [`unfocused`](crate::Pollen::unfocused), it is drawn again and nothing is placed again, so
+    /// it moves nothing around it. See [`Panel::outline`](crate::Panel::outline) for how it is drawn.
+    ///
+    /// Dropped, like any op naming something it does not apply to, unless the element is a
+    /// [`Panel`](crate::Panel).
+    fn outline(&mut self, leaf: Leaf, width: f32, fill: impl Into<Fill>) {
+        self.queue(Op::Outline {
+            leaf,
+            outline: Outline::new(width, fill.into()),
         });
     }
 

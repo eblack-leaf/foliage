@@ -15,6 +15,7 @@
 use core::ops::Range;
 
 use bytemuck::{Pod, Zeroable};
+use tracing::debug;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use wgpu::{
     Buffer, BufferAddress, BufferDescriptor, BufferSize, BufferUsages, Device,
@@ -28,7 +29,7 @@ use crate::ash::instances::runs;
 use crate::color::Color;
 use crate::coordinate::{Position, Section};
 use crate::elevation::ResolvedElevation;
-use crate::elm::{Key, Run};
+use crate::elm::{Key, Run, Runs};
 use crate::ginkgo::Ginkgo;
 use crate::leaf::Named;
 use crate::text::font::Fonts;
@@ -169,12 +170,65 @@ impl Texts {
         }
     }
 
+    /// Takes this frame's batch of runs: lets go of what went, and holds what was written.
+    ///
+    /// Where the sheet ran out of room partway through, it is cut again from every run the frame
+    /// draws before any of it reaches the GPU -- see [`recut`](Texts::recut).
+    pub(crate) fn absorb(&mut self, runs: &Runs, fonts: &Fonts, ginkgo: &Ginkgo) {
+        for key in &runs.withdrawn {
+            self.withdraw(*key);
+        }
+        for key in &runs.written {
+            // Written means the backend is not holding it as it now stands, so what is held for it
+            // is what it should hold. A key with nothing behind it cannot happen and is not covered
+            // for: the batch and the holding are produced by the one extraction.
+            if let Some(run) = runs.run(*key) {
+                self.write(*key, run, fonts, ginkgo);
+            }
+        }
+        if self.atlas.overflowed() {
+            self.recut(runs, fonts, ginkgo);
+        }
+    }
+
+    /// Cuts the sheet again from the runs the frame draws, and nothing else.
+    ///
+    /// The runs held here are exactly the runs `runs` holds -- a batch is a contract -- so those are
+    /// every run the frame draws, whether this batch wrote it or the backend has held it for a
+    /// thousand frames. Each is written again, so no glyph is left pointing at where a cut was
+    /// before the sheet was cleared; and all of it before [`flush`](Texts::flush), so the GPU is
+    /// never handed glyphs and a sheet that disagree.
+    ///
+    /// In key order, so two identical frames cut identical sheets.
+    fn recut(&mut self, runs: &Runs, fonts: &Fonts, ginkgo: &Ginkgo) {
+        let mut keys = runs.keys().collect::<Vec<_>>();
+        keys.sort_unstable();
+        debug!(runs = keys.len(), "glyph atlas cut again");
+        self.atlas.clear();
+        for key in keys {
+            if let Some(run) = runs.run(key) {
+                self.write(key, run, fonts, ginkgo);
+            }
+        }
+        self.atlas.settle();
+    }
+
+    /// Lets go of every run and every cut, so the next batch states each run there is and cuts it
+    /// again -- which is what a density that changed asks for, since every cut was made at the one
+    /// that went.
+    pub(crate) fn forget(&mut self) {
+        self.held.clear();
+        self.touched.clear();
+        self.resort = true;
+        self.atlas.forget();
+    }
+
     /// Takes one run: cuts whatever of it has not been cut, and holds the quads it turned out to be.
     ///
     /// A run that kept its glyph count and its rank is written where it already sits, which is the
     /// ordinary case -- a run that moved, scrolled or was refilled has as many characters as it had.
     /// A run whose length changed moves every run after it, so the order is built again.
-    pub(crate) fn write(&mut self, key: Key, run: &Run, fonts: &Fonts, ginkgo: &Ginkgo) {
+    fn write(&mut self, key: Key, run: &Run, fonts: &Fonts, ginkgo: &Ginkgo) {
         let mut scratch = core::mem::take(&mut self.scratch);
         scratch.clear();
         for glyph in &run.glyphs {

@@ -183,6 +183,8 @@ pub(crate) struct Incoming {
     pub(crate) pending: Vec<Input>,
     /// The gesture that is open, from the press that opened it until it ends.
     pub(crate) gesture: Option<super::Gesture>,
+    /// The last tap, for as long as the next one could still follow it.
+    pub(crate) tapped: Option<super::Tapped>,
     /// What is held down as of the last [`Input::Modifiers`] dispatch reached.
     ///
     /// Engine state rather than the platform's, so the headless suite reaches it by writing the

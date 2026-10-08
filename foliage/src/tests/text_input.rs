@@ -5,13 +5,15 @@
 //! whole frame, and is where the caret becomes a box, focus decides whether it is drawn, and a
 //! gesture reaches a character.
 
+use crate::coordinate::Area;
 use crate::elevation::ResolvedElevation;
 use crate::interaction::input::{Key, Keystroke};
 use crate::tests::{
-    Observer, controlled, drag, grove, key, past_the_hold, press, release, section, shifted,
-    stroke, tick, tick_with, typing, with_control, with_shift,
+    Observer, controlled, drag, grove, key, past_the_hold, past_the_taps, press, release, section,
+    shifted, stroke, tick, tick_with, typing, with_control, with_control_and_shift, with_shift,
 };
-use crate::text_input::{Applied, Editing, applied, dots, held, hidden};
+use crate::text::shape::shape;
+use crate::text_input::{Applied, Editing, Lines, applied, dots, held, hidden, word_at};
 use crate::{
     Boxed, Grove, Grow, Leaf, Location, Palette, Place, Sap, Source, Stem, TextInput, Vein, left,
     top,
@@ -19,9 +21,15 @@ use crate::{
 
 // Editing, as arithmetic over character indices.
 
+/// Applies a key to a field of one line, whose run is as wide as its value and never wraps.
+fn apply(value: &str, editing: Editing, stroke: Keystroke) -> Applied {
+    let shaped = shape(value, Area::new(10.0, 22.0));
+    applied(value, editing, stroke, shaped.wrap(usize::MAX), Lines::One)
+}
+
 /// Applies a key and reports what the value and the caret became, for the cases where both matter.
 fn edit(value: &str, editing: Editing, stroke: Keystroke) -> (String, Editing) {
-    match applied(value, editing, stroke, None) {
+    match apply(value, editing, stroke) {
         Applied::Wrote(written, editing) => (written, editing),
         Applied::Moved(editing) => (value.to_string(), editing),
         other => panic!(
@@ -39,7 +47,11 @@ fn at(index: usize) -> Editing {
 }
 
 fn selecting(anchor: usize, caret: usize) -> Editing {
-    Editing { anchor, caret }
+    Editing {
+        anchor,
+        caret,
+        goal: None,
+    }
 }
 
 #[test]
@@ -88,7 +100,7 @@ fn backspace_takes_the_selection_where_there_is_one() {
 #[test]
 fn backspace_at_the_start_does_nothing() {
     assert!(matches!(
-        applied("hello", at(0), stroke(Key::Backspace), None),
+        apply("hello", at(0), stroke(Key::Backspace)),
         Applied::Nothing
     ));
 }
@@ -100,7 +112,7 @@ fn delete_takes_the_character_after_the_caret() {
         ("ello".to_string(), at(0))
     );
     assert!(matches!(
-        applied("hello", at(5), stroke(Key::Delete), None),
+        apply("hello", at(5), stroke(Key::Delete)),
         Applied::Nothing
     ));
 }
@@ -150,7 +162,7 @@ fn an_arrow_collapses_a_selection_to_the_edge_it_points_at() {
 #[test]
 fn enter_is_a_submission_and_changes_nothing() {
     assert!(matches!(
-        applied("hello", at(2), stroke(Key::Enter), None),
+        apply("hello", at(2), stroke(Key::Enter)),
         Applied::Submitted
     ));
 }
@@ -164,6 +176,119 @@ fn a_caret_past_the_value_is_held_inside_it() {
         edit("hi", at(9), stroke(Key::Typed('!'))),
         ("hi!".to_string(), at(3))
     );
+}
+
+// A word at a time.
+
+/// `Ctrl+Left` and `Ctrl+Right` go over a word: past any space, then over one run of letters and
+/// digits or of anything else that is drawn -- so the caret stops at the start of a word going back
+/// and at its end going on.
+#[test]
+fn control_and_an_arrow_move_over_a_word() {
+    let (back, on) = (with_control(Key::Left), with_control(Key::Right));
+    assert_eq!(edit("foo bar", at(7), back).1, at(4));
+    assert_eq!(edit("foo bar", at(4), back).1, at(0));
+    assert_eq!(edit("foo bar", at(5), back).1, at(4));
+    assert_eq!(edit("foo bar", at(0), on).1, at(3));
+    assert_eq!(edit("foo bar", at(3), on).1, at(7));
+    // Nowhere further to go at either end.
+    assert_eq!(edit("foo", at(0), back).1, at(0));
+    assert_eq!(edit("foo", at(3), on).1, at(3));
+}
+
+/// Letters and digits are one kind of word and every other drawn character is another, so a path
+/// stops at each part of it; a run of space is skipped whole, however long.
+#[test]
+fn punctuation_is_a_word_and_space_is_not() {
+    let (back, on) = (with_control(Key::Left), with_control(Key::Right));
+    assert_eq!(edit("src/main.rs", at(0), on).1, at(3));
+    assert_eq!(edit("src/main.rs", at(3), on).1, at(4));
+    assert_eq!(edit("src/main.rs", at(4), on).1, at(8));
+    assert_eq!(edit("x2y3 -- z", at(0), on).1, at(4));
+    assert_eq!(edit("x2y3 -- z", at(4), on).1, at(7));
+    assert_eq!(edit("a    b", at(6), back).1, at(5));
+    assert_eq!(edit("a    b", at(5), back).1, at(0));
+}
+
+/// Shift holds the anchor, so a word move is a word-wise selection; without it, a word move against
+/// a selection goes on from the edge it points at, the way a bare arrow collapses to that edge.
+#[test]
+fn a_word_move_selects_with_shift_and_leaves_a_selection_from_its_edge() {
+    let chord = with_control_and_shift;
+    assert_eq!(edit("foo bar", at(7), chord(Key::Left)).1, selecting(7, 4));
+    assert_eq!(
+        edit("foo bar", selecting(7, 4), chord(Key::Left)).1,
+        selecting(7, 0)
+    );
+    assert_eq!(edit("foo bar", at(0), chord(Key::Right)).1, selecting(0, 3));
+    // "bar" selected: back goes on from its start, and on from its end.
+    let bar = selecting(4, 7);
+    assert_eq!(edit("foo bar baz", bar, with_control(Key::Left)).1, at(0));
+    assert_eq!(edit("foo bar baz", bar, with_control(Key::Right)).1, at(11));
+}
+
+/// `Ctrl+Backspace` takes the word before the caret and `Ctrl+Delete` the word after it -- the span
+/// the matching word move would have crossed. A selection is taken instead where there is one,
+/// exactly as by the bare key.
+#[test]
+fn control_and_a_deletion_takes_a_word() {
+    let (back, on) = (with_control(Key::Backspace), with_control(Key::Delete));
+    assert_eq!(edit("foo bar", at(7), back), ("foo ".to_string(), at(4)));
+    assert_eq!(edit("foo bar", at(4), back), ("bar".to_string(), at(0)));
+    assert_eq!(edit("foo bar", at(0), on), (" bar".to_string(), at(0)));
+    assert_eq!(edit("foo bar", at(3), on), ("foo".to_string(), at(3)));
+    assert_eq!(
+        edit("foo bar", selecting(1, 5), back),
+        ("far".to_string(), at(1))
+    );
+    assert!(matches!(apply("foo", at(0), back), Applied::Nothing));
+    assert!(matches!(apply("foo", at(3), on), Applied::Nothing));
+    // Still a write, so a read-only field refuses it like any other.
+    assert!(matches!(
+        held(apply("foo bar", at(7), back)),
+        Applied::Nothing
+    ));
+}
+
+/// A masked field is drawn as dots, and a word is read off what is drawn: where its own words break
+/// is hidden with the rest of it. So a word move goes to the end, and a held deletion takes
+/// everything on its side of the caret.
+#[test]
+fn a_masked_value_is_one_word() {
+    let value = "open sesame";
+    let drawn = shape(&dots(value), Area::new(10.0, 22.0));
+    let masked = |editing: Editing, stroke: Keystroke| {
+        applied(value, editing, stroke, drawn.wrap(usize::MAX), Lines::One)
+    };
+    assert!(matches!(
+        masked(at(11), with_control(Key::Left)),
+        Applied::Moved(editing) if editing == at(0)
+    ));
+    assert!(matches!(
+        masked(at(2), with_control(Key::Right)),
+        Applied::Moved(editing) if editing == at(11)
+    ));
+    assert!(matches!(
+        masked(at(7), with_control(Key::Backspace)),
+        Applied::Wrote(written, editing) if written == "same" && editing == at(0)
+    ));
+}
+
+/// What a double tap selects: the run of one kind under it. A tap past the end of the value means
+/// its last word, and a value with nothing in it has none to select.
+#[test]
+fn a_word_is_the_run_of_its_kind() {
+    let shaped = shape("foo bar.baz", Area::new(10.0, 22.0));
+    let run = shaped.wrap(usize::MAX);
+    assert_eq!(word_at(run, 0), 0..3);
+    assert_eq!(word_at(run, 2), 0..3);
+    // A run of space is a word to select as much as a run of letters is.
+    assert_eq!(word_at(run, 3), 3..4);
+    assert_eq!(word_at(run, 5), 4..7);
+    assert_eq!(word_at(run, 7), 7..8);
+    assert_eq!(word_at(run, 11), 8..11);
+    let empty = shape("", Area::new(10.0, 22.0));
+    assert_eq!(word_at(empty.wrap(usize::MAX), 0), 0..0);
 }
 
 // Through the frame.
@@ -565,10 +690,82 @@ fn a_press_puts_the_caret_where_it_landed() {
     tick(&mut grove);
     assert_eq!(selection(&grove, leaf), 2..2);
 
+    // A while later, so the second press is a tap of its own rather than the second of a double.
+    past_the_taps(&mut grove);
     press(&mut grove, 3.0 * CELL + 6.0, 16.0);
     release(&mut grove, 3.0 * CELL + 6.0, 16.0);
     tick(&mut grove);
     assert_eq!(selection(&grove, leaf), 4..4);
+}
+
+/// One tap, released where it was pressed, and the frame that answers it.
+fn tap(grove: &mut Grove, x: f32) {
+    press(grove, x, 16.0);
+    release(grove, x, 16.0);
+    tick(grove);
+}
+
+/// A second tap in a row selects the word under it, whole. The word is the one the hand is on: the
+/// far half of a word's first letter is that word, where a caret there would round to after it.
+#[test]
+fn a_double_tap_selects_the_word_under_it() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove);
+    typing(&mut grove, "foo bar.baz");
+    tick(&mut grove);
+
+    tap(&mut grove, 4.0 * CELL + 7.0);
+    assert_eq!(selection(&grove, leaf), 5..5);
+    tap(&mut grove, 4.0 * CELL + 7.0);
+    assert_eq!(selection(&grove, leaf), 4..7);
+    // A third keeps the word the second selected, rather than collapsing it.
+    tap(&mut grove, 4.0 * CELL + 7.0);
+    assert_eq!(selection(&grove, leaf), 4..7);
+
+    // Past the end of the value is its last word.
+    past_the_taps(&mut grove);
+    tap(&mut grove, 18.0 * CELL);
+    tap(&mut grove, 18.0 * CELL);
+    assert_eq!(selection(&grove, leaf), 8..11);
+}
+
+/// Two taps follow each other only when they are close together. One too late, or too far from the
+/// first, is a tap on its own and puts the caret where it landed.
+#[test]
+fn taps_apart_are_each_a_tap() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove);
+    typing(&mut grove, "foo bar baz");
+    tick(&mut grove);
+
+    tap(&mut grove, 5.0 * CELL);
+    past_the_taps(&mut grove);
+    tap(&mut grove, 5.0 * CELL);
+    assert_eq!(selection(&grove, leaf), 5..5);
+
+    past_the_taps(&mut grove);
+    tap(&mut grove, 1.0 * CELL);
+    tap(&mut grove, 9.0 * CELL);
+    assert_eq!(selection(&grove, leaf), 9..9);
+}
+
+/// A double tap on a masked field selects the whole of it: a word is read off what is drawn, and
+/// what is drawn is a dot for every character.
+#[test]
+fn a_double_tap_on_a_masked_field_selects_all_of_it() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        TextInput::new()
+            .masked(true)
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(32.px()))),
+    );
+    tick(&mut grove);
+    grove.text(leaf, "open sesame");
+    tick(&mut grove);
+
+    tap(&mut grove, 2.0 * CELL);
+    tap(&mut grove, 2.0 * CELL);
+    assert_eq!(selection(&grove, leaf), 0..11);
 }
 
 /// A drag across a field scrolls its value and selects nothing. The field declares no drags, so the
@@ -855,7 +1052,7 @@ fn control_and_a_selects_the_whole_value() {
     // And a control chord a field has no answer for is nothing a field does, rather than a
     // character it inserts.
     assert!(matches!(
-        applied("hello", at(2), with_control(Key::Typed('q')), None),
+        apply("hello", at(2), with_control(Key::Typed('q'))),
         Applied::Nothing
     ));
 }
@@ -981,24 +1178,19 @@ fn the_run_is_drawn_in_front_of_the_caret_and_the_selection() {
 /// value: a write is nothing, a paste is not asked for, and a cut is only its copy.
 #[test]
 fn read_only_keeps_the_reading_and_refuses_the_writing() {
-    let typed = held(applied("abc", at(1), stroke(Key::Typed('X')), None));
+    let typed = held(apply("abc", at(1), stroke(Key::Typed('X'))));
     assert!(matches!(typed, Applied::Nothing));
-    let deleted = held(applied("abc", at(1), stroke(Key::Backspace), None));
+    let deleted = held(apply("abc", at(1), stroke(Key::Backspace)));
     assert!(matches!(deleted, Applied::Nothing));
-    let pasted = held(applied("abc", at(1), with_control(Key::Typed('v')), None));
+    let pasted = held(apply("abc", at(1), with_control(Key::Typed('v'))));
     assert!(matches!(pasted, Applied::Nothing));
-    match held(applied(
-        "abc",
-        selecting(0, 2),
-        with_control(Key::Typed('x')),
-        None,
-    )) {
+    match held(apply("abc", selecting(0, 2), with_control(Key::Typed('x')))) {
         Applied::Copied(text) => assert_eq!(text, "ab"),
         _ => panic!("a cut on a read-only field is its copy"),
     }
-    let moved = held(applied("abc", at(1), stroke(Key::Right), None));
+    let moved = held(apply("abc", at(1), stroke(Key::Right)));
     assert!(matches!(moved, Applied::Moved(editing) if editing == at(2)));
-    let submitted = held(applied("abc", at(1), stroke(Key::Enter), None));
+    let submitted = held(apply("abc", at(1), stroke(Key::Enter)));
     assert!(matches!(submitted, Applied::Submitted));
 }
 
@@ -1073,23 +1265,13 @@ fn read_only_is_undone_by_the_same_write() {
 /// typing, deleting and pasting go ahead.
 #[test]
 fn a_masked_field_keeps_its_value_off_the_clipboard() {
-    let copied = hidden(applied(
-        "abc",
-        selecting(0, 2),
-        with_control(Key::Typed('c')),
-        None,
-    ));
+    let copied = hidden(apply("abc", selecting(0, 2), with_control(Key::Typed('c'))));
     assert!(matches!(copied, Applied::Nothing));
-    let cut = hidden(applied(
-        "abc",
-        selecting(0, 2),
-        with_control(Key::Typed('x')),
-        None,
-    ));
+    let cut = hidden(apply("abc", selecting(0, 2), with_control(Key::Typed('x'))));
     assert!(matches!(cut, Applied::Nothing));
-    let typed = hidden(applied("abc", at(1), stroke(Key::Typed('X')), None));
+    let typed = hidden(apply("abc", at(1), stroke(Key::Typed('X'))));
     assert!(matches!(typed, Applied::Wrote(written, _) if written == "aXbc"));
-    let pasting = hidden(applied("abc", at(1), with_control(Key::Typed('v')), None));
+    let pasting = hidden(apply("abc", at(1), with_control(Key::Typed('v'))));
     assert!(matches!(pasting, Applied::Pasting));
 }
 

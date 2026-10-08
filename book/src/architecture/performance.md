@@ -91,7 +91,7 @@ the frame. What is left of it is mostly the accumulations every frame pays, and 
 again (0.10 ms) because the cells that moved moved in it. The measure is hardly in it: every element
 written still marks its ancestors to measure again, and the container over the field still measures,
 but it asks only the sixty-four children that moved and reads what the other four thousand reached
-from when they last did ([Resolution](resolution.md#r2-the-two-axes-and-the-measure-between-them)).
+from when they last did ([Resolution](resolution.md#r1m-and-r2-the-two-axes-and-a-measure-before-each)).
 Before that, asking all of them was 0.19 ms of this load on its own, and `layout/64` was 0.66 ms.
 
 **New text pays for shaping.** `text` at 4.5 ms is `measure` shaping four thousand strings it has

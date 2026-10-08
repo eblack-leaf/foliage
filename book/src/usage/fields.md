@@ -129,16 +129,28 @@ A field answers the keyboard and the pointer without any app code:
 | typing | inserts at the caret, replacing any selection |
 | `Backspace`, `Delete` | removes the selection, or the character before or after the caret |
 | `Left`, `Right`, `Home`, `End` | moves the caret; with `Shift`, extends the selection |
+| `Ctrl+Left`, `Ctrl+Right` | moves the caret over a word; with `Shift`, extends the selection |
+| `Ctrl+Backspace`, `Ctrl+Delete` | removes the selection, or the word before or after the caret |
 | `Ctrl+A` | selects everything |
 | `Ctrl+C`, `Ctrl+X` | copies or cuts the selection to the system clipboard |
 | `Ctrl+V` | asks the clipboard, and inserts what it holds when it answers |
 | `Enter` | reports `submitted` |
 | a tap | puts the caret where it landed and takes focus |
+| a second tap | selects the word under it |
 | a drag | scrolls the value inside the field |
 | a hold, then a drag | selects from where the hold landed |
 
 An unshifted arrow against a selection collapses it to the edge it points at rather than stepping
-from the caret, which is what every editor does.
+from the caret, which is what every editor does. A word move does the same and goes on by a word
+from that edge.
+
+A **word** is a run of one kind of character: letters and digits, any other mark that is drawn, or
+space. A word move skips any space and then crosses one word, so the caret stops at the start of a
+word going back and at its end going on; `foo.bar` is three words to step over, and a newline is
+space like any other, so a word move goes on across the end of a line. A second tap selects the
+word the hand is on, whole, and past the end of a line it selects the last word on that line. A
+tap counts as a second one when it lands on the same field within [`Taps`](input.md#feel) of the
+first.
 
 Dragging to scroll and dragging to select are the same motion, and the only thing that separates
 them is time: a field takes no drags, so a plain drag is the field's scrolling, and a press held
@@ -213,8 +225,11 @@ the frame that typed past the edge is the frame that scrolls.
 **It draws no border and no ground.** A field is a run and a caret inside whatever box an app puts
 it in, and a chrome the engine drew would be one more thing to talk an app out of. It draws no
 focus ring either: the caret and the selection are shown only while it holds focus, and that is
-the only change focus makes to it. An app that wants a ring watches `focused` and `unfocused`, as
-the slider in the last chapter does.
+the only change focus makes to it. A border is a panel behind the field with an
+[`outline`](https://eblack-leaf.github.io/foliage/api/foliage/struct.Panel.html#method.outline),
+and a ring follows focus the way the slider's in the last chapter does, written from `focused` and
+`unfocused`: `grove.outline` draws one and a width of zero takes it away, and since an outline is
+drawn inside its panel's box, neither moves anything.
 
 ## Many lines
 
@@ -227,6 +242,10 @@ and four keys change meaning because a line means something:
 | `Ctrl+Enter` | reports `submitted` |
 | `Up`, `Down` | move the caret a line, to the same column or the end of a shorter line |
 | `Home`, `End` | go to the ends of the line the caret is on, as it wrapped |
+
+A run of `Up`s and `Down`s keeps the column the first of them set out from, so a shorter line
+passed through puts the caret at its end and the next line has it back where it was. Any other key
+or a tap is a new place to set out from.
 
 A newline that arrives on the clipboard is kept, where a one-line field drops it.
 
@@ -281,8 +300,11 @@ selection and a tap land where they would. A newline stays a newline, so a maske
 as it would.
 
 What is hidden from the screen does not leave by the clipboard either: `Ctrl+C` copies nothing
-and `Ctrl+X` cuts nothing. A paste goes in as ever. `grove.masked(field, false)` shows the value,
-and `true` hides it again -- which is how a password's "show" is built.
+and `Ctrl+X` cuts nothing. A paste goes in as ever. Where its words break is hidden with the rest,
+so a word move goes to the end of the line and a second tap selects all of it; and no desktop input
+method composes into it, since one that predicts would learn the passphrase.
+`grove.masked(field, false)` shows the value, and `true` hides it again -- which is how a password's
+"show" is built.
 
 The run is shaped as its dots, so the value itself is never a key in the shaping cache.
 

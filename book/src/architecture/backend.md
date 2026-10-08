@@ -169,7 +169,7 @@ A few decisions in `Ginkgo::acquire` are worth knowing about:
 
 | | Held on | Freed |
 |---|---|---|
-| glyphs | one 2048 by 2048 single-channel atlas | never ([Text](text.md#the-cut)) |
+| glyphs | one 2048 by 2048 single-channel atlas | all at once: cut again from what the frame draws when it runs out, and cleared when the density changes ([Text](text.md#the-cut)) |
 | marks | one sheet of distance fields, three channels | never: a set an app names once |
 | pictures | a texture each | not today |
 | instances | one pair of buffers per renderer, grown to the next power of two | with the backend |

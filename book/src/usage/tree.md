@@ -11,7 +11,7 @@ A seed describes an element before it exists. The set is closed:
 | Seed | What it is | Draws |
 |---|---|---|
 | `Stem` | Structure: a box that holds children and takes hits | nothing |
-| `Panel` | A filled rectangle with rounded corners | yes |
+| `Panel` | A filled rectangle with rounded corners, and a line around its inside if it says so | yes |
 | `Text` | A run of monospaced glyphs | yes |
 | `Icon` | A vector mark, from a registered distance field | yes |
 | `Image` | A registered picture, fitted into its box | yes |

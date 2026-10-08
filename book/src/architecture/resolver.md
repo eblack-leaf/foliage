@@ -152,7 +152,7 @@ a role names it.
 | `pct` | a fraction of the basis's extent on the resolving axis |
 | `col`, `row` | a track of the basis's grid: its near edge in a near role, its far edge in a far role, its middle in a centre role, and `n` tracks with the gaps between them in a size role |
 | `letters` | a count of the basis's character cells on the resolving axis |
-| `content()` | the basis's measured extent on the resolving axis: max-content width, or wrapped height |
+| `content()` | the basis's measured extent on the resolving axis: the wider of its max-content width and how far right its children reach, or the taller of its wrapped height and how far down they reach |
 | `anchor().width()`, `.height()` | the anchor's extent on the named axis, whichever axis is resolving |
 | edges | a position on the surface |
 | `anchor().character(n)` | where character `n` of the anchor's run stands, as it wrapped at the anchor's width: its column times the cell width, or its line times the cell height |
@@ -241,27 +241,31 @@ left(0.px()).width(2.row());
 
 ## Measurable, stated once
 
-R2m needs to know which children describe their own height (see
-[Resolution](resolution.md#r2-the-two-axes-and-the-measure-between-them)). That question is answered
-next to the grammar, term by term:
+R1m and R2m need to know which children describe their own extent on the axis they measure (see
+[Resolution](resolution.md#r1m-and-r2-the-two-axes-and-a-measure-before-each)). That question is
+answered next to the grammar, term by term, for the axis being measured:
 
 ```rust,ignore
 // placement/role.rs
-pub(crate) fn known(kind: Kind) -> bool {
+pub(crate) fn known(kind: Kind, axis: Axis) -> bool {
     match kind {
         Kind::Px(_) => true,
         Kind::Letters { .. } => true,
-        Kind::Character { .. } | Kind::Span { .. } => true,
+        Kind::Character { .. } | Kind::Span { .. } => axis == Axis::Vertical,
         Kind::Content { against } => against == Against::Own,
-        Kind::Extent { axis, .. } | Kind::Cell { axis, .. } => axis == Axis::Horizontal,
+        Kind::Extent { axis: read, .. } | Kind::Cell { axis: read, .. } => {
+            axis == Axis::Vertical && read == Axis::Horizontal
+        }
         Kind::Pct { .. } => false,
         Kind::Edge { .. } => false,
     }
 }
 ```
 
-A vertical placement is measurable if every term in it is known and it is not measured from an
-anchor's edge. Everything else waits for R2b.
+A placement is measurable on an axis if every term in it is known and it is not measured from an
+anchor's edge. Across, nothing is laid out yet, so only pixels, letters and a child's own content
+are known; down, the horizontal axis has settled, so a height may read a width. Everything else
+waits for its axis's own pass.
 
 ## Lines are the same grammar
 

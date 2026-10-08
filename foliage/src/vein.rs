@@ -75,6 +75,9 @@ pub enum Vein {
     Fit,
     /// How the element's corners are rounded, if it is something with corners.
     Rounding,
+    /// The line drawn around the inside of a [`Panel`](crate::Panel): how wide, and what it is
+    /// filled with. A width of zero where it has none. `None` on anything that is not a panel.
+    Outline,
     /// What the element says, if it is a run of glyphs.
     ///
     /// What was written, not how it wrapped: where the lines fell is a function of the box the
@@ -146,6 +149,8 @@ pub enum Sap {
     Color(Fill),
     /// The radius bracket on each of the four corners.
     Rounding(Corners),
+    /// How wide a panel's outline is, in logical pixels, and what it is filled with.
+    Outline(f32, Fill),
     /// A stroke's two ends, in the order they were written.
     Ends(Position, Position),
     /// A stroke's thickness, in logical pixels.

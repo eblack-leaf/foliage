@@ -183,7 +183,10 @@ than once per frame. The cost is one rule: when the density changes (a window dr
 display) the logical values do not, and would compare equal forever against instances derived for a
 density that is gone. So a density change, and a backend rebuilt from nothing after an Android
 suspend, both call `recut`, which empties every cache. The next extraction has nothing to compare
-against and states every element.
+against and states every element. On a density change the backend is kept, so it empties what it
+holds in the same breath, the glyph atlas with it: the next batch is then the whole of what is drawn,
+and an element that stopped being drawn in that frame (which nothing would name to be let go of,
+with nothing held for it to compare) is not left on screen.
 
 ## In the trace
 

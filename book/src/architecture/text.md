@@ -15,7 +15,7 @@ Every text measurement foliage makes is a count of cells: `letters`, a letter-pi
 max-content width, wrapping, where a caret stands. In a monospaced face all of those are exact
 arithmetic, and one of them is the key to the whole layout model: a run's widest unwrapped line is
 its character count times the cell width, known before any layout runs. That is what lets
-[width flow down and height flow up](resolution.md#r2-the-two-axes-and-the-measure-between-them)
+[width flow down and height flow up](resolution.md#r1m-and-r2-the-two-axes-and-a-measure-before-each)
 in two passes instead of an iteration.
 
 A proportional face would not degrade gracefully under that model. It would silently put every
@@ -182,11 +182,14 @@ packed onto **one 2048 by 2048 single-channel texture**. Three details are worth
   on is placed on a whole device pixel, so each sample lands on a texel centre and the glyph is the
   bitmap. Unsnapped, every sample would fall between texels and the glyph's outer rows would fade,
   which reads as a trimmed glyph rather than as a glyph half a pixel low.
-- **Nothing is evicted.** The sheet is packed in shelves and never freed. A monospaced app addresses a
-  small alphabet at a handful of sizes, and four megabytes holds thousands of cuts. If it does fill,
-  an `error` is written once and further characters stop drawing; the
-  [TODO](https://github.com/eblack-leaf/foliage/blob/main/TODO.md#glyph-atlas) records the plan to
-  rebuild it from what the frame draws instead.
+- **Nothing is evicted one at a time.** The sheet is packed in shelves, and a cut stays on it once
+  made: a monospaced app addresses a small alphabet at a handful of sizes, and four megabytes holds
+  thousands of cuts. When a cut finds no room, the sheet is **cut again from the runs the frame
+  draws** and nothing else, before any of that frame's glyphs reach the GPU, so whatever the frame
+  stopped drawing gives its room back at once. Only if the frame's own cuts do not fit is the sheet
+  full: an `error` is written once, and the characters that found no room draw nothing until the
+  sheet is next cut again. A display whose density changed clears it outright, since every cut on it
+  was made at the density that went.
 
 A character with no outline (a space, and more characters than a space) is remembered as nothing, so
 asking again does not rasterise again.

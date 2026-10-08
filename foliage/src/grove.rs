@@ -11,7 +11,7 @@ use crate::image::{Plate, Plates};
 use crate::interaction::focus::Focus;
 use crate::interaction::input::{Incoming, Pointer};
 use crate::interaction::stack::Stack;
-use crate::interaction::{Claim, Hold};
+use crate::interaction::{Claim, Hold, Taps};
 use crate::keyboard::Keyboard;
 use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf, Presence};
@@ -85,6 +85,8 @@ pub struct Grove {
     pub(crate) claim: Claim,
     /// How long a press is down before it is a hold. Tuned at boot.
     pub(crate) hold: Hold,
+    /// How close together two taps are for the second to follow the first. Tuned at boot.
+    pub(crate) taps: Taps,
     /// How a released drag coasts. Tuned at boot.
     pub(crate) momentum: Momentum,
     pub(crate) again: bool,
@@ -129,6 +131,7 @@ impl Grove {
             sought: Vec::new(),
             claim: Claim::default(),
             hold: Hold::default(),
+            taps: Taps::default(),
             momentum: Momentum::default(),
             again: false,
             frames: 0,
@@ -159,6 +162,10 @@ impl Grove {
                 None => self.tree.fill(leaf)?,
             }),
             Vein::Rounding => Sap::Rounding(self.tree.rounding(leaf)?),
+            Vein::Outline => {
+                let outline = self.tree.outline(leaf)?;
+                Sap::Outline(outline.width, outline.fill)
+            }
             Vein::Ends => {
                 let stretched = self.elements.stretched(leaf)?;
                 Sap::Ends(stretched.from, stretched.to)

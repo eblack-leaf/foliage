@@ -104,6 +104,8 @@ Dispatch knows nothing about fields. It reports a tap, a hold or a drag like any
 
 - a **tap** queues a `select` of an empty range at the character it landed on, placing the caret and
   collapsing any selection;
+- a **second tap** in a row (a tap reported with a count past one) queues a `select` of the word
+  under it instead;
 - a **hold** queues focus and the same empty `select`, where the selection will begin;
 - a **drag** out of a hold queues a `select` from the selection's anchor to the character the pointer
   has reached, and while the pointer is past the field's edge it asks for another frame, because a
@@ -112,7 +114,8 @@ Dispatch knows nothing about fields. It reports a tap, a hold or a drag like any
 These are the same `select` ops an app would write, queued before the app runs, so an app that wants
 something else writes it in `frame` and wins. Which character a point falls on rounds the column (a
 press past the middle of a character puts the caret after it) and floors the line, then asks the
-wrap which index that cell is.
+wrap which index that cell is. Which word it falls on floors both, because a word is chosen by the
+character under the hand.
 
 ## Typing
 
@@ -125,15 +128,25 @@ pub(crate) fn applied(
     value: &str,
     editing: Editing,
     stroke: Keystroke,
-    wrap: Option<Wrap<'_>>,
+    run: Wrap<'_>,
+    lines: Lines,
 ) -> Applied
 ```
 
-It takes the value, the caret and selection, the key, and (for an area) the value as it wrapped, and
-says what the key does: a new value and caret, a moved caret, a copy, a cut, a paste to ask for, a
-submission, or nothing. Everything editing means is in that one function, as arithmetic over
-character indices, which is why every case of it can be tested as one line of a table. A read-only
-field passes the answer through a filter that turns writes into nothing and a cut into a copy.
+It takes the value, the caret and selection, the key, the value as it is drawn at the width it
+wrapped to (which a one-line field never does), and which kind of field it is, and says what the key
+does: a new value and caret, a moved caret, a copy, a cut, a paste to ask for, a submission, or
+nothing. Everything editing means is in that one function, as arithmetic over character indices,
+which is why every case of it can be tested as one line of a table. A read-only field passes the
+answer through a filter that turns writes into nothing and a cut into a copy, and a masked one
+through a filter that turns copying into nothing.
+
+The keys about lines read the wrap, because a line is a fact about the wrap and not the value. The
+keys about words read the run as it is drawn, because a word is something a reader sees: a masked
+run is all dots, so its words break nowhere but at a newline. `Editing` carries a goal column
+beside the caret and the anchor, set by the first `Up` or `Down` of a run and kept by the rest, so a
+shorter line passed through does not shorten every line after it; anything else that places the
+caret clears it.
 
 A write sets the run's text and the caret, records `edited`, and calls `refresh`, which re-places the
 caret, shows or hides the placeholder, and asks the field to `show` the caret, so R4 scrolls the
@@ -150,7 +163,8 @@ At the end of every drain, `settled` walks the fields once focus is final:
   otherwise. It is not cleared when focus leaves: a selection is state and focus is not, so a field
   stepped away from and back into is as it was left;
 - the soft keyboard is raised for the focused field's keypad, or lowered if nothing typeable holds
-  focus. Nothing about a phone is declared anywhere; being a field is the whole of it.
+  focus, and a desktop's input method is allowed to compose for as long as it is up -- unless the
+  field is masked. Nothing about a phone is declared anywhere; being a field is the whole of it.
 
 Every one of those is an ordinary `visible` or `at` write, recorded like any other and resolved by R7
 and R2 in the same frame. That is the payoff of settling focus before resolution runs: a caret is not

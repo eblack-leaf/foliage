@@ -229,6 +229,98 @@ fn rounding_written_after_the_fact_is_extracted() {
     assert_eq!(held(&grove, leaf).radii, [4.0, 4.0, 0.0, 0.0]);
 }
 
+// Outlines.
+
+/// An outline reaches the backend as a width and a colour beside the fill, resolved against the
+/// scheme as the fill is. A panel that says nothing has none.
+#[test]
+fn an_outline_reaches_the_backend_beside_the_fill() {
+    let mut grove = grove();
+    let plain = grove.plant(panel(40.0));
+    let ringed = grove.plant(
+        panel(40.0)
+            .color(Color::rgba(0.0, 0.0, 0.0, 0.0))
+            .outline(2.0, Palette::Accent),
+    );
+    tick(&mut grove);
+    assert_eq!(held(&grove, plain).outline_width, 0.0);
+    let ring = held(&grove, ringed);
+    assert_eq!(ring.outline_width, 2.0);
+    assert_eq!(ring.outline, grove.scheme().color(Palette::Accent));
+    // Inside the box: the box is where the layout put it, whatever the outline is.
+    assert_eq!(ring.section, Section::from_edges(0.0, 0.0, 40.0, 40.0));
+}
+
+/// Written after the fact, an outline is drawn again and nothing is placed again -- which is what
+/// lets a focus ring come and go without moving anything around it.
+#[test]
+fn an_outline_written_after_the_fact_is_a_restyle() {
+    let mut grove = grove();
+    let leaf = grove.plant(panel(40.0));
+    let under = grove.branch(leaf, panel(10.0));
+    tick(&mut grove);
+
+    grove.outline(leaf, 3.0, Color::rgb(1.0, 0.0, 0.0));
+    tick(&mut grove);
+    assert_eq!(grove.elm.panels.written.len(), 1);
+    assert_eq!(grove.elm.panels.written[0].key, Key::from(leaf));
+    assert_eq!(held(&grove, leaf).outline_width, 3.0);
+    assert_eq!(held(&grove, leaf).outline, Color::rgb(1.0, 0.0, 0.0));
+
+    // And a width of zero takes it away again.
+    grove.outline(leaf, 0.0, Color::rgb(1.0, 0.0, 0.0));
+    tick(&mut grove);
+    assert_eq!(held(&grove, leaf).outline_width, 0.0);
+    let _ = under;
+}
+
+/// What an outline is filled with reads back as it was declared, and a line of less than no width
+/// is no line.
+#[test]
+fn an_outline_reads_back() {
+    let mut grove = grove();
+    let leaf = grove.plant(panel(40.0).outline(2.0, Palette::Ink));
+    let backwards = grove.plant(panel(40.0).outline(-4.0, Palette::Ink));
+    tick(&mut grove);
+    assert_eq!(
+        grove.tap(leaf, Vein::Outline),
+        Some(Sap::Outline(2.0, Fill::Role(Palette::Ink)))
+    );
+    assert_eq!(held(&grove, backwards).outline_width, 0.0);
+}
+
+/// An outline in a role is moved by a repaint as a fill in one is, and faded with its panel.
+#[test]
+fn an_outline_follows_the_scheme_and_the_panel_s_opacity() {
+    let mut grove = grove();
+    let leaf = grove.plant(
+        panel(40.0)
+            .color(Palette::Muted)
+            .outline(2.0, Palette::Accent),
+    );
+    tick(&mut grove);
+
+    grove.repaint(Scheme::new().set(Palette::Accent, Color::rgb(1.0, 0.0, 0.0)));
+    tick(&mut grove);
+    assert_eq!(grove.elm.panels.written.len(), 1);
+    assert_eq!(held(&grove, leaf).outline, Color::rgb(1.0, 0.0, 0.0));
+
+    grove.opacity(leaf, 0.5);
+    tick(&mut grove);
+    assert_eq!(held(&grove, leaf).outline, Color::rgba(1.0, 0.0, 0.0, 0.5));
+}
+
+/// Only a panel draws one. Outlining anything else is dropped, and it reads no outline.
+#[test]
+fn outlining_what_is_not_a_panel_is_dropped() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new());
+    tick(&mut grove);
+    grove.outline(leaf, 2.0, Palette::Accent);
+    tick(&mut grove);
+    assert_eq!(grove.tap(leaf, Vein::Outline), None);
+}
+
 // Reading back what was declared.
 
 #[test]

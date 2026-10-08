@@ -133,6 +133,7 @@ architecture half of the book.
 | | Pass |
 |---|---|
 | R1 | measure |
+| R1m | across: the measure the horizontal axis reads |
 | R2a, R2m, R2b | the horizontal axis, the wrap, the vertical axis |
 | R3 | extent |
 | R4 | scroll |

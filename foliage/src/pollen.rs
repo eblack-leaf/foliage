@@ -85,7 +85,20 @@ impl Pollen {
     /// the only one that is certainly on the element. A gesture that wandered and came back is
     /// still a tap, and it is a tap where it started.
     pub fn clicked_at(&self, leaf: Leaf) -> Option<Position> {
-        self.0.clicked.get(&leaf).copied()
+        self.0.clicked.get(&leaf).map(|tap| tap.at)
+    }
+
+    /// How many taps in a row `leaf` has been given, counting this frame's: `1` for a tap on its
+    /// own, `2` for the second of a double, and so on. `0` where it was not
+    /// [`clicked`](Pollen::clicked) this frame.
+    ///
+    /// A tap follows the one before it when it lands on the same element within
+    /// [`Taps`](crate::Taps) of it, in time and in space, with nothing but taps between them. Each
+    /// tap of a run is reported as it lands, so the frame a double tap finishes in is a frame the
+    /// first tap's [`clicked`](Pollen::clicked) was already reported in -- a double tap is a second
+    /// tap with a count, not a first one taken back.
+    pub fn taps(&self, leaf: Leaf) -> u32 {
+        self.0.clicked.get(&leaf).map_or(0, |tap| tap.count)
     }
 
     /// Whether the press `leaf` is holding has been held past [`Hold::after`](crate::Hold) without
@@ -316,9 +329,10 @@ pub(crate) struct Drift {
     pub(crate) repainted: bool,
     pub(crate) engaged: HashSet<Leaf>,
     pub(crate) disengaged: HashSet<Leaf>,
-    /// Where each tap landed, which is where its gesture began. Carried rather than counted,
-    /// because an element that has somewhere to put a point needs the point.
-    pub(crate) clicked: HashMap<Leaf, Position>,
+    /// Where each tap landed, which is where its gesture began, and how many it made in a row.
+    /// Carried rather than counted, because an element that has somewhere to put a point needs the
+    /// point.
+    pub(crate) clicked: HashMap<Leaf, Tap>,
     /// Where each hold landed, which is where its press did. Carried for the reason a tap's point
     /// is: a menu and a selection both begin at a point, and neither has another to use.
     pub(crate) held: HashMap<Leaf, Position>,
@@ -343,6 +357,13 @@ pub(crate) struct Drift {
     pub(crate) tweens: Named<Tween, f32>,
     pub(crate) finished: HashSet<Tween, EntityHash>,
     pub(crate) sequences: HashSet<Sequence>,
+}
+
+/// One tap, as it is reported: where it landed, and how many taps in a row it made.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) struct Tap {
+    pub(crate) at: Position,
+    pub(crate) count: u32,
 }
 
 impl Drift {

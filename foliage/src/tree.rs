@@ -5,7 +5,7 @@ use bevy_ecs::world::World;
 
 use crate::coordinate::{Area, Position};
 use crate::elevation::Elevation;
-use crate::elm::{Chlorophyll, PanelPigment, Pigment};
+use crate::elm::{Chlorophyll, Outline, PanelPigment, Pigment};
 use crate::icon::{Field, IconPigment};
 use crate::image::{Fit, ImagePigment, Plate};
 use crate::interaction::Gestures;
@@ -67,6 +67,10 @@ pub(crate) struct Tree {
     restructured: bool,
     /// Whether something every element is read against has changed, which is every element written.
     invalidated: bool,
+    /// Whether that something is also what a measure across reads -- a breakpoint, which chooses
+    /// every placement and every size, or a face, which sizes every cell -- so every element is
+    /// measured across again as well as laid out again.
+    remeasured: bool,
     /// Whether something every element is drawn against has changed -- the scheme, or an asset --
     /// which is every element drawn again and none of them placed again.
     repainted: bool,
@@ -99,6 +103,8 @@ pub(crate) struct Written<'a> {
     pub(crate) restated: bool,
     /// Whether everything has to be resolved again.
     pub(crate) all: bool,
+    /// Whether everything has to be measured across again, as against only laid out again.
+    pub(crate) across: bool,
     /// Whether everything has to be drawn again.
     pub(crate) repainted: bool,
 }
@@ -115,6 +121,7 @@ impl Tree {
             restructured: true,
             // Nothing has resolved yet, so the first frame has everything to do.
             invalidated: true,
+            remeasured: true,
             repainted: false,
         }
     }
@@ -154,7 +161,19 @@ impl Tree {
     /// them hangs off.
     pub(crate) fn invalidate(&mut self) {
         self.invalidated = true;
+        self.remeasured = true;
         self.restated = true;
+    }
+
+    /// Records that everything has to be laid out again, and nothing measured across again.
+    ///
+    /// The viewport alone, moved inside one breakpoint: every placement reads it, so every element
+    /// is written, but no placement and no size is chosen differently for it and no cell is a
+    /// different size -- which is all a measure across reads. So every box is resolved again and
+    /// what each one measures to across stands, which is what keeps dragging a window's edge from
+    /// measuring the whole tree on every frame of the drag.
+    pub(crate) fn relay(&mut self) {
+        self.invalidated = true;
     }
 
     /// Records that everything has to be drawn again, and nothing placed again.
@@ -175,6 +194,7 @@ impl Tree {
             restructured: self.restructured,
             restated: self.restated,
             all: self.invalidated,
+            across: self.remeasured,
             repainted: self.repainted,
         }
     }
@@ -193,6 +213,7 @@ impl Tree {
         self.restated = false;
         self.restructured = false;
         self.invalidated = false;
+        self.remeasured = false;
         self.repainted = false;
     }
 
@@ -825,6 +846,28 @@ impl Tree {
             return true;
         }
         false
+    }
+
+    /// The line drawn around the inside of `leaf`, or `None` if it is not a panel.
+    pub(crate) fn outline(&self, leaf: Leaf) -> Option<Outline> {
+        Some(self.read::<PanelPigment>(leaf)?.outline)
+    }
+
+    /// Outlines `leaf`, reporting whether it is a panel.
+    ///
+    /// Read by extraction alone, so it is a restyle: the panel is drawn again and nothing is placed
+    /// again. A panel and nothing else, because an outline is drawn by the field that rounds a
+    /// panel, and the other renderers have no such field to draw one with.
+    pub(crate) fn set_outline(&mut self, leaf: Leaf, outline: Outline) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut pigment) = entity.get_mut::<PanelPigment>() else {
+            return false;
+        };
+        pigment.outline = outline;
+        self.restyled(leaf);
+        true
     }
 
     /// How `leaf`'s corners are rounded, or `None` if it has no box to round.

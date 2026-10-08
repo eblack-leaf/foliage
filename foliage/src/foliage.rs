@@ -8,7 +8,7 @@ use crate::ginkgo::Ginkgo;
 use crate::grove::Grove;
 use crate::icon::{Field, Marks};
 use crate::image::Plate;
-use crate::interaction::{Claim, Hold};
+use crate::interaction::{Claim, Hold, Taps};
 use crate::root::{Registered, Root, Rooted};
 use crate::text::Font;
 use crate::verbs::Grow;
@@ -201,14 +201,15 @@ impl Foliage {
     /// Sets one of the engine's tuning values.
     ///
     /// These are the numbers behind how the engine feels rather than what it does -- how far a
-    /// gesture travels before it is a drag, how long a press is down before it is a hold, how a
-    /// coast decays, and later what a key is bound to. Each is a value for the whole app, because
-    /// feel that varies from element to element is what makes an app feel unpredictable, and each is
-    /// set here rather than per element for that reason.
+    /// gesture travels before it is a drag, how long a press is down before it is a hold, how close
+    /// two taps land to count as a double, how a coast decays, and later what a key is bound to.
+    /// Each is a value for the whole app, because feel that varies from element to element is what
+    /// makes an app feel unpredictable, and each is set here rather than per element for that
+    /// reason.
     ///
     /// ```no_run
     /// # use core::time::Duration;
-    /// # use foliage::{Claim, Foliage, Hold, Momentum};
+    /// # use foliage::{Claim, Foliage, Hold, Momentum, Taps};
     /// # let mut foliage = Foliage::new();
     /// foliage.tune(Claim {
     ///     horizontal: 18.0,
@@ -216,6 +217,10 @@ impl Foliage {
     /// });
     /// foliage.tune(Hold {
     ///     after: Duration::from_millis(400),
+    /// });
+    /// foliage.tune(Taps {
+    ///     within: Duration::from_millis(400),
+    ///     apart: 16.0,
     /// });
     /// foliage.tune(Momentum {
     ///     half_life: Duration::from_millis(350),
@@ -245,6 +250,12 @@ impl Tuning for Claim {
 impl Tuning for Hold {
     fn tune(self, grove: &mut Grove) {
         grove.hold = self;
+    }
+}
+
+impl Tuning for Taps {
+    fn tune(self, grove: &mut Grove) {
+        grove.taps = self;
     }
 }
 

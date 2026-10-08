@@ -60,6 +60,7 @@ use crate::interaction::focus::Intent;
 use crate::interaction::input::{Input, Key, Keystroke};
 use crate::leaf::Leaf;
 use crate::op::Op;
+use crate::pollen::Tap;
 use crate::rowan::Elements;
 use crate::view::{self, consumable, range};
 
@@ -179,6 +180,55 @@ impl Default for Hold {
             after: Duration::from_millis(500),
         }
     }
+}
+
+/// How close together two taps land, in time and in space, for the second to follow the first.
+///
+/// A tap that follows one is counted with it, so the second of two is a double tap and the third of
+/// three a triple -- which is what [`taps`](crate::Pollen::taps) reports. Both bounds are measured
+/// from the tap before: from when its press landed to when this one's did, and from where it landed
+/// to where this one did. The second has to land on the same element as well, and anything that
+/// is not a tap -- a drag, a hold -- ends the run.
+///
+/// A **global tuning value, not a per-element flag**, for the reason [`Claim`] is one. Set it once,
+/// before the engine runs:
+///
+/// ```no_run
+/// # use core::time::Duration;
+/// # use foliage::{Foliage, Taps};
+/// let mut foliage = Foliage::new();
+/// foliage.tune(Taps {
+///     within: Duration::from_millis(400),
+///     apart: 16.0,
+/// });
+/// ```
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Taps {
+    /// How long after the last tap's press this one's can land and still follow it.
+    pub within: Duration,
+    /// How far from where the last tap landed this one can land and still follow it, in logical
+    /// pixels.
+    pub apart: f32,
+}
+
+impl Default for Taps {
+    fn default() -> Self {
+        Self {
+            within: Duration::from_millis(400),
+            apart: 16.0,
+        }
+    }
+}
+
+/// The last tap, kept for the one after it to be counted against.
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct Tapped {
+    leaf: Leaf,
+    at: Position,
+    /// When its press landed, on the engine's own clock.
+    since: Duration,
+    /// How many taps in a row it made.
+    count: u32,
 }
 
 /// What a drag has done, as the element holding it reads it.
@@ -623,32 +673,77 @@ fn close(grove: &mut Grove, released: bool) {
     if released {
         launch(grove, &gesture);
     }
-    let Some(target) = gesture.target else {
-        // A tap that reached nothing that receives takes focus off whatever held it. That is not a
-        // rule about dismissing: it is the same rule as below, reading that what was tapped cannot
-        // hold focus -- so nothing does.
-        if released && matches!(gesture.stage, Stage::Resolving) {
-            focus::moved(grove, Intent::Away);
-        }
-        return;
-    };
     // A tap is what a gesture that ended without ever resolving to a drag emits. A gesture that
     // became a drag is not a tap that was taken back; it was never a tap. Neither is one that was
     // held: a press reported as a hold has already stopped being a gesture that could end as a tap,
     // so it moves no caret and takes no focus either.
-    if released && matches!(gesture.stage, Stage::Resolving) {
-        grove.drift.clicked.insert(target, gesture.at);
-        // Focus goes to what was tapped. There is no second declaration deciding it: `interactive`
-        // is already the statement that an element takes input, and focus already rests only on
-        // what said that -- so a target of a tap is by definition somewhere focus can be.
-        //
-        // Applied rather than queued, because it is decided here. That leaves focus final before
-        // the drain, so anything following it is an ordinary write on the ordinary path, and an app
-        // moving focus elsewhere from `clicked` is drained afterwards and still wins.
-        focus::moved(grove, Intent::To(target));
-        debug!(leaf = target.id(), "tapped");
+    let tapped = released && matches!(gesture.stage, Stage::Resolving);
+    let Some(target) = gesture.target else {
+        grove.incoming.tapped = None;
+        // A tap that reached nothing that receives takes focus off whatever held it. That is not a
+        // rule about dismissing: it is the same rule as below, reading that what was tapped cannot
+        // hold focus -- so nothing does.
+        if tapped {
+            focus::moved(grove, Intent::Away);
+        }
+        return;
+    };
+    match tapped {
+        true => {
+            let count = counted(grove, target, &gesture);
+            grove.drift.clicked.insert(
+                target,
+                Tap {
+                    at: gesture.at,
+                    count,
+                },
+            );
+            // Focus goes to what was tapped. There is no second declaration deciding it:
+            // `interactive` is already the statement that an element takes input, and focus
+            // already rests only on what said that -- so a target of a tap is by definition
+            // somewhere focus can be.
+            //
+            // Applied rather than queued, because it is decided here. That leaves focus final
+            // before the drain, so anything following it is an ordinary write on the ordinary
+            // path, and an app moving focus elsewhere from `clicked` is drained afterwards and
+            // still wins.
+            focus::moved(grove, Intent::To(target));
+            debug!(leaf = target.id(), count, "tapped");
+        }
+        // Whatever this was, it came between the last tap and the next one, so the next one starts
+        // a run of its own.
+        false => grove.incoming.tapped = None,
     }
     grove.drift.disengaged.insert(target);
+}
+
+/// How many taps in a row a tap on `target` makes, which is kept for the one after it.
+///
+/// One more than the last where the last was on the same element, within [`Taps`] of this one in
+/// time and in space; one where it was not. Measured press to press, because a press is when each
+/// was made and the release is only when it was let go of.
+fn counted(grove: &mut Grove, target: Leaf, gesture: &Gesture) -> u32 {
+    let taps = grove.taps;
+    let count = match grove.incoming.tapped {
+        Some(last)
+            if last.leaf == target
+                && gesture.since.saturating_sub(last.since) <= taps.within
+                && {
+                    let apart = last.at.to(gesture.at);
+                    apart.x.hypot(apart.y) <= taps.apart
+                } =>
+        {
+            last.count + 1
+        }
+        _ => 1,
+    };
+    grove.incoming.tapped = Some(Tapped {
+        leaf: target,
+        at: gesture.at,
+        since: gesture.since,
+        count,
+    });
+    count
 }
 
 /// Hands the region that was holding the gesture its release velocity, and stops there.

@@ -5,6 +5,8 @@
 //! geometry and two declarations, so a test that had to describe a walk would be testing something
 //! else.
 
+use core::time::Duration;
+
 use crate::coordinate::{Area, Axes, Position, Section};
 use crate::elm::Key;
 use crate::tests::{
@@ -12,7 +14,8 @@ use crate::tests::{
     tick_with, wheel,
 };
 use crate::{
-    Boxed, Elevation, Grove, Grow, Leaf, Location, Panel, Place, Pollen, Source, Stem, left, top,
+    Boxed, Elevation, Grove, Grow, Hold, Leaf, Location, Panel, Place, Pollen, Source, Stem, left,
+    top,
 };
 
 /// A box at a stated place, so a point can be aimed at it.
@@ -222,6 +225,83 @@ fn a_cancelled_gesture_is_not_a_tap() {
     let pollen = frame(&mut grove);
     assert!(!pollen.clicked(button));
     assert!(pollen.disengaged(button));
+}
+
+/// Taps close together are counted, each in the frame it lands in: a tap on its own is one, the
+/// second of a double is two, and a run goes on for as long as each follows the one before.
+#[test]
+fn taps_in_a_row_are_counted() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    tick(&mut grove);
+    assert_eq!(tap(&mut grove, 50.0, 25.0).taps(button), 1);
+    // A little later and a little to one side, which is how a hand taps twice.
+    advance(&mut grove, 150);
+    let second = tap(&mut grove, 56.0, 28.0);
+    assert!(second.clicked(button));
+    assert_eq!(second.taps(button), 2);
+    advance(&mut grove, 150);
+    assert_eq!(tap(&mut grove, 50.0, 25.0).taps(button), 3);
+    // Not tapped at all reads as none.
+    assert_eq!(frame(&mut grove).taps(button), 0);
+}
+
+/// A tap follows the one before it only inside both bounds and on the same element. Too late, too
+/// far, or somewhere else, and it starts a run of its own.
+#[test]
+fn a_tap_follows_another_only_when_it_is_close_to_it() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    let other = grove.plant(Panel::new().at(at(0.0, 60.0, 100.0, 50.0)).interactive());
+    tick(&mut grove);
+    let within = grove.taps.within.as_millis() as u64;
+
+    tap(&mut grove, 50.0, 25.0);
+    advance(&mut grove, within + 1);
+    assert_eq!(tap(&mut grove, 50.0, 25.0).taps(button), 1);
+
+    advance(&mut grove, within + 1);
+    tap(&mut grove, 10.0, 25.0);
+    assert_eq!(tap(&mut grove, 90.0, 25.0).taps(button), 1);
+
+    advance(&mut grove, within + 1);
+    tap(&mut grove, 50.0, 45.0);
+    assert_eq!(tap(&mut grove, 50.0, 65.0).taps(other), 1);
+}
+
+/// Anything that is not a tap ends a run: a drag between two taps leaves the second a tap on its
+/// own, and so does a hold.
+#[test]
+fn a_gesture_between_two_taps_ends_the_run() {
+    let mut grove = grove();
+    let button = grove.plant(
+        Panel::new()
+            .at(at(0.0, 0.0, 100.0, 50.0))
+            .interactive()
+            .drags(Axes::Horizontal),
+    );
+    tick(&mut grove);
+
+    tap(&mut grove, 50.0, 25.0);
+    press(&mut grove, 50.0, 25.0);
+    drag(&mut grove, 80.0, 25.0);
+    release(&mut grove, 50.0, 25.0);
+    tick(&mut grove);
+    assert_eq!(tap(&mut grove, 50.0, 25.0).taps(button), 1);
+
+    // A hold quicker than the window two taps have to land in, so the tap after it would follow
+    // the one before it on time alone.
+    grove.hold = Hold {
+        after: Duration::from_millis(100),
+    };
+    tap(&mut grove, 50.0, 25.0);
+    press(&mut grove, 50.0, 25.0);
+    tick(&mut grove);
+    past_the_hold(&mut grove);
+    tick(&mut grove);
+    release(&mut grove, 50.0, 25.0);
+    tick(&mut grove);
+    assert_eq!(tap(&mut grove, 50.0, 25.0).taps(button), 1);
 }
 
 /// The threshold decides the kind of the gesture, and it is per axis: the same travel that is a

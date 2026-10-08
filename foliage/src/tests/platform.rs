@@ -310,6 +310,38 @@ fn the_keyboard_follows_focus() {
     assert_eq!(grove.keyboard.raised(), Some(Keypad::Text));
 }
 
+/// An input method composes into the window for exactly as long as the keyboard is up: while a field
+/// that takes typing holds focus.
+#[test]
+fn an_input_method_composes_while_a_field_holds_focus() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove, TextInput::new());
+    assert!(grove.keyboard.composing());
+
+    grove.unfocus();
+    tick(&mut grove);
+    assert!(!grove.keyboard.composing());
+
+    grove.focus(leaf);
+    grove.read_only(leaf, true);
+    tick(&mut grove);
+    assert!(!grove.keyboard.composing());
+}
+
+/// A masked field raises its keyboard and lets no input method compose into it: a method composes
+/// what it is shown, and one that predicts would learn the passphrase. Shown again, it composes.
+#[test]
+fn nothing_composes_into_a_masked_field() {
+    let mut grove = grove();
+    let leaf = focused(&mut grove, TextInput::new().masked(true));
+    assert_eq!(grove.keyboard.raised(), Some(Keypad::Text));
+    assert!(!grove.keyboard.composing());
+
+    grove.masked(leaf, false);
+    tick(&mut grove);
+    assert!(grove.keyboard.composing());
+}
+
 /// The one thing a field says about the keyboard, because a dialling pad behind a full alphabet is
 /// what the platform cannot be left to guess.
 #[test]

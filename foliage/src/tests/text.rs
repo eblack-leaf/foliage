@@ -521,6 +521,297 @@ fn an_empty_container_measures_to_nothing() {
     assert_eq!(section(&grove, container).height(), 0.0);
 }
 
+// A container measured across.
+
+/// A box sized to its content on both axes, at the origin.
+fn hugging() -> Location {
+    Location::new().xs(left(0.px()).width(content()), top(0.px()).height(content()))
+}
+
+/// `content()` across asks what it asks down: how large is what is inside me. On something with
+/// elements grown under it, that is how far right the furthest of them reaches.
+#[test]
+fn a_container_is_as_wide_as_what_is_grown_under_it() {
+    let mut grove = grove();
+    let container = grove.plant(Stem::new().at(hugging()));
+    grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(30.px()), top(0.px()).height(10.px()))),
+    );
+    grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(40.px()).width(50.px()), top(20.px()).height(10.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(
+        section(&grove, container),
+        Section::from_edges(0.0, 0.0, 90.0, 30.0)
+    );
+}
+
+/// The case the measure exists for: a button that hugs a label grown on it, held off its edges by
+/// what the button adds to what the label measures.
+#[test]
+fn a_button_hugs_the_label_grown_on_it() {
+    let mut grove = grove();
+    let button = grove.plant(Stem::new().at(Location::new().xs(
+        left(0.px()).width(content() + 12.px()),
+        top(0.px()).height(content() + 8.px()),
+    )));
+    let label = grove.branch(
+        button,
+        Text::new("save").at(Location::new().xs(
+            left(12.px()).width(content()),
+            top(8.px()).height(content()),
+        )),
+    );
+    tick(&mut grove);
+    // Four cells of ten, twelve either side of them; one line of twenty-two, eight above and below.
+    assert_eq!(
+        section(&grove, button),
+        Section::from_edges(0.0, 0.0, 64.0, 38.0)
+    );
+    assert_eq!(
+        section(&grove, label),
+        Section::from_edges(12.0, 8.0, 52.0, 30.0)
+    );
+
+    // And it follows the label in the frame the label was rewritten.
+    grove.text(label, "save as");
+    tick(&mut grove);
+    assert_eq!(section(&grove, button).width(), 94.0);
+}
+
+/// A run with elements grown under it takes the wider of the two: its own words unwrapped, or how
+/// far right anything under it reaches.
+#[test]
+fn a_run_is_as_wide_as_its_words_or_what_is_under_it() {
+    let mut grove = grove();
+    let run = grove.plant(Text::new("hello").at(hugging()));
+    let mark = grove.branch(
+        run,
+        Stem::new()
+            .at(Location::new().xs(left(20.px()).width(10.px()), top(0.px()).height(10.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, run).width(), 50.0);
+
+    grove.at(
+        mark,
+        Location::new().xs(left(70.px()).width(10.px()), top(0.px()).height(10.px())),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, run).width(), 80.0);
+}
+
+/// A child sized to its trunk's width cannot also be what sizes it: it is left out of the measure
+/// across and given its real width by the horizontal pass, exactly as one sized to the trunk's
+/// height is left out of the measure down. So is one placed by its trunk's grid or by an anchor.
+#[test]
+fn a_child_sized_to_a_measured_trunk_does_not_size_it_across() {
+    let mut grove = grove();
+    let elsewhere =
+        grove
+            .plant(Stem::new().at(
+                Location::new().xs(left(300.px()).width(50.px()), top(0.px()).height(10.px())),
+            ));
+    let container = grove.plant(Stem::new().at(hugging()));
+    let filling = grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).right(100.pct()), top(0.px()).height(10.px()))),
+    );
+    grove.branch(
+        container,
+        Stem::new().anchored(elsewhere).at(Location::new().xs(
+            left(anchor().right()).width(10.px()),
+            top(0.px()).height(10.px()),
+        )),
+    );
+    grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(60.px()), top(10.px()).height(10.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).width(), 60.0);
+    assert_eq!(section(&grove, filling).width(), 60.0);
+}
+
+/// Measured bottom-up, so a container of containers is measured from the inside out in one pass,
+/// and a box in the innermost moving moves every one that hugs it in the same frame.
+#[test]
+fn nested_containers_are_measured_from_the_inside_out() {
+    let mut grove = grove();
+    let outer = grove.plant(Stem::new().at(hugging()));
+    let inner = grove.branch(
+        outer,
+        Stem::new().at(Location::new().xs(
+            left(10.px()).width(content()),
+            top(0.px()).height(content()),
+        )),
+    );
+    let tile = grove.branch(
+        inner,
+        Stem::new()
+            .at(Location::new().xs(left(5.px()).width(20.px()), top(0.px()).height(20.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, inner).width(), 25.0);
+    assert_eq!(section(&grove, outer).width(), 35.0);
+
+    grove.at(
+        tile,
+        Location::new().xs(left(5.px()).width(60.px()), top(0.px()).height(20.px())),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, inner).width(), 65.0);
+    assert_eq!(section(&grove, outer).width(), 75.0);
+}
+
+/// What goes away is measured out: the widest child pruned leaves the next widest to decide, in the
+/// frame it was pruned.
+#[test]
+fn a_container_narrows_when_what_was_widest_goes() {
+    let mut grove = grove();
+    let container = grove.plant(Stem::new().at(hugging()));
+    grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(40.px()), top(0.px()).height(10.px()))),
+    );
+    let widest = grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(90.px()), top(0.px()).height(10.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).width(), 90.0);
+
+    grove.prune(widest);
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).width(), 40.0);
+}
+
+/// What reads a container's measure follows it when it moves, however it reads it: the container's
+/// own placement, a child reading its trunk's, and an element anchored to it reading its anchor's.
+#[test]
+fn what_reads_a_measure_across_follows_it() {
+    let mut grove = grove();
+    let container = grove.plant(Stem::new().at(hugging()));
+    let tile = grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(30.px()), top(0.px()).height(10.px()))),
+    );
+    let under = grove.branch(
+        container,
+        Stem::new().at(Location::new().xs(
+            left(0.px()).width(trunk().content() * 0.5),
+            top(20.px()).height(10.px()),
+        )),
+    );
+    let beside = grove.plant(Stem::new().anchored(container).at(Location::new().xs(
+        left(anchor().right()).width(anchor().content()),
+        top(0.px()).height(10.px()),
+    )));
+    tick(&mut grove);
+    assert_eq!(section(&grove, under).width(), 15.0);
+    assert_eq!(
+        section(&grove, beside),
+        Section::from_edges(30.0, 0.0, 60.0, 10.0)
+    );
+
+    grove.at(
+        tile,
+        Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(10.px())),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).width(), 50.0);
+    assert_eq!(section(&grove, under).width(), 25.0);
+    assert_eq!(
+        section(&grove, beside),
+        Section::from_edges(50.0, 0.0, 100.0, 10.0)
+    );
+}
+
+/// A run under a container that hugs it wraps at the width the container came to, and the
+/// container's height follows the wrap: width is measured first and height after, so a box that
+/// hugs a run on both axes is one line of it.
+#[test]
+fn hugging_both_ways_measures_across_and_then_down() {
+    let mut grove = grove();
+    let chip = grove.plant(Stem::new().at(hugging()));
+    grove.branch(
+        chip,
+        Text::new("one two three")
+            .at(Location::new().xs(left(0.px()).right(100.pct()), top(0.px()).height(content()))),
+    );
+    grove.branch(
+        chip,
+        Text::new("hello")
+            .at(Location::new().xs(left(0.px()).width(content()), top(0.px()).height(content()))),
+    );
+    tick(&mut grove);
+    // "one two three" fills its trunk and so cannot size it; "hello" sizes it to five cells, the
+    // other wraps there to three lines, and the chip is as tall as those.
+    assert_eq!(
+        section(&grove, chip),
+        Section::from_edges(0.0, 0.0, 50.0, 66.0)
+    );
+}
+
+/// A resize that stays inside one breakpoint lays every box out again and measures nothing across
+/// again, since nothing a measure across reads changed: what hugs still hugs, and what fills it is
+/// laid out against it.
+#[test]
+fn a_resize_inside_a_breakpoint_keeps_what_was_measured_across() {
+    let mut grove = grove();
+    let chip = grove.plant(Stem::new().at(hugging()));
+    grove.branch(
+        chip,
+        Text::new("hello")
+            .at(Location::new().xs(left(4.px()).width(content()), top(0.px()).height(content()))),
+    );
+    let filling = grove.branch(
+        chip,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).right(100.pct()), top(30.px()).height(4.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, chip).width(), 54.0);
+
+    resize(&mut grove, Area::new(410.0, 320.0));
+    tick(&mut grove);
+    assert_eq!(grove.layout(), Layout::Xs);
+    assert_eq!(section(&grove, chip).width(), 54.0);
+    assert_eq!(section(&grove, filling).width(), 54.0);
+}
+
+/// Crossing a breakpoint is what chooses a size, so it is every measure across taken again: a
+/// label set larger at the wider breakpoint widens what hugs it in the frame the window crossed.
+#[test]
+fn crossing_a_breakpoint_measures_across_again() {
+    let mut grove = grove();
+    let chip = grove.plant(Stem::new().at(hugging()));
+    grove.branch(
+        chip,
+        Text::new("hello")
+            .font_size(FontSize::new().xs(16).md(24))
+            .at(Location::new().xs(left(0.px()).width(content()), top(0.px()).height(content()))),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, chip).width(), 50.0);
+
+    resize(&mut grove, Area::new(700.0, 600.0));
+    tick(&mut grove);
+    assert_eq!(grove.layout(), Layout::Md);
+    // Five cells of fifteen.
+    assert_eq!(section(&grove, chip).width(), 75.0);
+}
+
 // The one exception.
 
 /// Shaping is memoized on the run, its font and its size, and swept back to what the tree states.

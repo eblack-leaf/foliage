@@ -13,7 +13,7 @@ pub(crate) fn run(grove: &mut Grove) {
     read(&mut elements, grove);          // what to resolve, and the order to resolve it in
     grove.tree.taken();                  // writes after this belong to the next frame
     measure(grove, &mut elements);       // R1
-    axes(grove, &mut elements);          // R2a, R2m, R2b
+    axes(grove, &mut elements);          // R1m, R2a, R2m, R2b
     extent(grove, &elements);            // R3
     scroll(grove, &mut elements);        // R4
     clip(&mut elements);                 // R5
@@ -28,9 +28,10 @@ pub(crate) fn run(grove: &mut Grove) {
 
 | | Pass | Direction | Writes |
 |---|---|---|---|
-| R1 | measure | any | the character cell, the shaped run, and the max-content width |
+| R1 | measure | any | the character cell and the shaped run |
+| R1m | across | bottom-up | how wide each element's content wants to be: the width half of `content()` |
 | R2a | horizontal | dependency order | every left edge and width |
-| R2m | wrap | bottom-up | how tall each element's content turned out: the other half of `content()` |
+| R2m | wrap | bottom-up | how tall each element's content turned out: the height half of `content()` |
 | R2b | vertical | dependency order | every top edge and height, and with them the placed box |
 | R3 | extent | bottom-up | how far each scrolling region's content reaches |
 | R4 | scroll | top-down | the drawn box: the placed box less every scrolling ancestor's offset |
@@ -58,7 +59,8 @@ pub(crate) struct Elements {
     pub(crate) standing: Vec<Standing>, // what each declared that the later passes read
     section: Vec<Section>,            // the placed box
     intrinsic: Vec<Area>,             // what content() reads
-    reached: Vec<Option<f32>>,        // how far each reaches toward its trunk's measure
+    spread: Vec<Option<f32>>,         // how far right each reaches, toward its trunk's measure
+    reached: Vec<Option<f32>>,        // how far down each reaches, likewise
     cell: Vec<Area>,                  // the character cell
     pub(crate) composed: Vec<Option<Arc<Shaped>>>, // the shaped run
     pub(crate) drawn: Vec<Section>,   // the placed box, moved by scrolling
@@ -146,45 +148,54 @@ to be marked `moved`.
 R1 visits only elements that say something new: grown this frame, text rewritten, or everything
 after a breakpoint or a font change. For each, it reads the element's font and size at the
 breakpoint in force, takes its character cell from the font, and shapes its run through the
-[shaping cache](text.md). The cell is what `letters` counts in. The run's **max-content width** is
-its longest line's character count times the cell width, which in a monospaced face is exact and
-needs no layout at all. That is written as the width half of the element's intrinsic size.
+[shaping cache](text.md). The cell is what `letters` counts in, and the shaped run is what both
+measures read.
 
-## R2: the two axes, and the measure between them
+## R1m and R2: the two axes, and a measure before each
+
+`content()` asks the same question on both axes: how large is what is inside me. An element takes
+the larger of two answers, its own run and how far anything grown under it reaches, and each is
+measured bottom-up just before the axis that reads it is laid out:
+
+1. **R1m** walks bottom-up and measures across. A run's **max-content width** is its longest line's
+   character count times the cell width, which in a monospaced face is exact and needs no layout at
+   all. An element with children also reaches over them: the furthest any of them extends right of
+   its left edge. The element takes the greater of the two as the width half of its intrinsic size.
+2. **R2a** resolves the horizontal axis of every dirty element, in dependency order. Every input is
+   available: widths come from trunks, and `width(content())` reads what R1m measured.
+3. **R2m** walks bottom-up and measures down. Each run wraps at the width R2a just gave it, and its
+   line count times its cell height is its measured height. An element with children takes the
+   furthest any of them extends below its top edge if that is greater, as the height half of its
+   intrinsic size.
+4. **R2b** resolves the vertical axis, and `height(content())` reads what R2m measured.
 
 Text wrapping makes a height depend on a width, and the width comes from layout, so a box sized to
-what it holds looks circular. It is not, because **width flows down and height flows up**:
+what it holds looks circular. It is not, because **width flows down and height flows up**: R1m needs
+no wrapping to measure a run across, and R2m is the one moment in the frame when every width is
+known and no height is, which is exactly what measuring down needs.
 
-1. **R2a** resolves the horizontal axis of every dirty element, in dependency order. Every input is
-   available: widths come from trunks, and a run's max-content width came from R1 without any
-   layout.
-2. **R2m** walks bottom-up and measures. Each run wraps at the width R2a just gave it, and its line
-   count times its cell height is its measured height. An element with children also reaches over
-   them: the furthest any of them extends below its top edge. The element takes the greater of the
-   two as the height half of its intrinsic size.
-3. **R2b** resolves the vertical axis, and `height(content())` reads what R2m measured.
-
-R2m is the one moment in the frame when every width is known and no height is, which is exactly what
-measuring needs.
-
-The reach over children counts only children whose vertical placement **describes its own extent**:
-pixels, letters, its own content, any reading of the already-settled horizontal axis. A child placed
-by a percentage of its trunk's height, a row of its trunk's grid, or an anchor's edge is asking how
-tall something else is, so it cannot also be what decides that height. It is left out of the measure
-and given its real height by R2b like anything else. This is `Config::measurable`
+The reach over children counts only children whose placement on that axis **describes its own
+extent**: pixels, letters, its own content, and down, any reading of the already-settled horizontal
+axis. A child placed by a percentage of its trunk, a track of its trunk's grid, or an anchor's edge
+is asking how large something else is, so it cannot also be what decides that size. It is left out
+of the measure and given its real extent by its axis's own pass like anything else. Across, a
+character's place in a run is left out too: it is read off the run as it wrapped, at a width that is
+not known yet. This is `Config::measurable`
 ([`placement/role.rs`](https://github.com/eblack-leaf/foliage/blob/main/foliage/src/placement/role.rs)),
-and it is the reason [Placing elements](../usage/placement.md#sizing-a-box-to-what-it-holds) states
-the rule it does.
+the same question asked of either axis, and it is the reason
+[Placing elements](../usage/placement.md#sizing-a-box-to-what-it-holds) states the rule it does.
 
-R2m also marks what has to measure again, and it runs *up* the order rather than down it: a measure
-travels toward the trunk and stops there, where a box travels away from it. An element that measured
-to something new is marked dirty, and R2b's own closure (`dirty[at] |= dirty[trunk] || dirty[anchor]`
-at the top of each axis) spreads that to everything placed against it. That is why R2m sits between
-the axes and not after them.
+Both measures mark what has to measure again, and they run *up* the order rather than down it: a
+measure travels toward the trunk and stops there, where a box travels away from it. An element that
+measured to something new is marked dirty, and the next axis's own closure
+(`dirty[at] |= dirty[trunk] || dirty[anchor]` at the top of each axis) spreads that to everything
+placed against it. That is why each measure sits before the axis that reads it and not after. R2a
+also marks for measuring down whatever it resolves again, since a box that came out another width
+may wrap to another height.
 
 An element measuring again because one child moved does not ask the others. How far each child
-reaches is a column of its own, `reached`, written when the child is resolved in its trunk's reach
-and read back otherwise:
+reaches is a column of its own, `spread` across and `reached` down, written when the child is
+resolved in its trunk's measure and read back otherwise. Down:
 
 ```rust,ignore
 // rowan.rs
@@ -194,7 +205,7 @@ fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
         let child_at = elements.children[index] as usize;
         if elements.dirty[child_at] {
             let child = elements.order[child_at];
-            let far = measurable(grove, child).then(|| {
+            let far = measurable(grove, child, Axis::Vertical).then(|| {
                 let context = raised(elements, at, child_at);
                 geometry(grove, child, &context, Axis::Vertical).0.far
             });
@@ -212,7 +223,8 @@ It is the rule every other column keeps, applied to one more answer. What a chil
 its own placement, the horizontal half of what it and its trunk and anchor resolved to, and its own
 measure; each of those that moves makes the child dirty, the last one here in R2m itself, before
 the walk reaches the trunk. So a container of thousands with one child written resolves one child
-to measure itself, and the column is never behind.
+to measure itself, and the column is never behind. `spread` is the same walk across, against a
+context with no box laid out at all.
 
 **A motion in progress is resolved inside the same axis.** For an element with a `Location` motion
 running, R2 resolves the target *and* the placement it departed from, in the same context, and
@@ -289,14 +301,17 @@ It is rebuilt only on a frame where something it is built from changed, which R4
 `restack`, and re-sorted only when a rank changed. A frame where one element's color fades, or
 nothing happens at all, keeps the stack the last one built.
 
-## Two cycles that are not vicious
+## Three cycles that are not vicious
 
-Resolution has two places that look circular, and each is resolved in single passes rather than by
+Resolution has three places that look circular, and each is resolved in single passes rather than by
 iterating:
 
 - **Width and height.** A wrapped height depends on a width. Widths never depend on heights (the
   [type system](resolver.md#the-order-is-in-the-types) refuses to let a horizontal role read one),
-  so R2a, R2m and R2b in that order are enough.
+  so R1m, R2a, R2m and R2b in that order are enough.
+- **A box and what it holds.** A box sized to its content is sized by boxes resolved against it. A
+  child that reads its trunk's extent is left out of the measure on that axis, and what is left is
+  measured bottom-up before the axis is laid out, so one measure per axis settles it.
 - **Extent and offset.** A child resolves against its region's box, the region's extent comes from
   where its children landed, and the offset is clamped to the extent. But the extent affects only the
   clamp, never the region's own box, so a top-down layout, a bottom-up extent and a top-down scroll

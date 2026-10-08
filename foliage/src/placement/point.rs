@@ -12,6 +12,7 @@
 //! What is responsive is the pair and not the point: a [`Trace`](crate::Trace) states two of these
 //! per breakpoint, in the chain a [`Location`](crate::Location) is written in.
 
+use crate::coordinate::Axis;
 use crate::placement::role::known;
 use crate::placement::source::{Coord, HorizontalCoordinate, Origin, VerticalCoordinate};
 
@@ -81,13 +82,23 @@ impl Point {
         }
     }
 
-    /// Whether this point's vertical half can be answered before any vertical box has resolved, and
-    /// so whether an element ending here counts toward the measure of the element it is grown under.
+    /// Whether this point's half on `axis` can be answered before any box on that axis has
+    /// resolved, and so whether an element ending here counts toward the measure of the element it
+    /// is grown under on that axis.
     ///
     /// The same question [`Config::measurable`](crate::placement::role::Config::measurable) asks of
-    /// a box, asked of a vertex: a point that reads a vertical extent is asking how tall something
-    /// else is, and cannot be what decides how tall this is.
-    pub(crate) fn measurable(&self) -> bool {
-        self.y.origin != Origin::Anchor && self.y.expr.terms().iter().all(|term| known(term.kind))
+    /// a box, asked of a vertex: a point that reads an extent on the axis is asking how large
+    /// something else is, and cannot be what decides how large this is.
+    pub(crate) fn measurable(&self, axis: Axis) -> bool {
+        let coordinate = match axis {
+            Axis::Horizontal => &self.x,
+            Axis::Vertical => &self.y,
+        };
+        coordinate.origin != Origin::Anchor
+            && coordinate
+                .expr
+                .terms()
+                .iter()
+                .all(|term| known(term.kind, axis))
     }
 }

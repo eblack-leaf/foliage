@@ -55,6 +55,9 @@ stage to the element holding the gesture:
 - `engaged(leaf)`: a gesture went down on it and is being held. The hook for a pressed visual.
 - `clicked(leaf)`: it ended without ever becoming a drag or a hold. `clicked_at(leaf)` is where it
   *began*, which is the point that was hit-tested and therefore the one certainly on the element.
+  `taps(leaf)` is how many taps in a row it makes: `2` for the second of a double, counted when it
+  lands on the same element within `Taps` of the one before. Each tap of a run is reported as it
+  lands, so a double tap is a second `clicked` with a count, not a first one taken back.
 - `held(leaf)`: it stayed still for `Hold::after` (500ms by default). A hold is never also a
   click. `held_at(leaf)` is where the press landed.
 - `drag_started(leaf)`, then `dragged(leaf)` each frame it moves, carrying a
@@ -410,19 +413,21 @@ what the element itself declared, not the product.
 
 ## Feel
 
-How a gesture feels is three numbers, set once for the whole app with `Foliage::tune`:
+How a gesture feels is four numbers, set once for the whole app with `Foliage::tune`:
 
 ```rust
 # use core::time::Duration;
-# use foliage::{Claim, Foliage, Hold, Momentum};
+# use foliage::{Claim, Foliage, Hold, Momentum, Taps};
 # let mut foliage = Foliage::new();
 foliage.tune(Claim { horizontal: 16.0, vertical: 8.0 });
 foliage.tune(Hold { after: Duration::from_millis(500) });
+foliage.tune(Taps { within: Duration::from_millis(400), apart: 16.0 });
 foliage.tune(Momentum { half_life: Duration::from_millis(350), minimum: 40.0 });
 ```
 
 Those are the defaults. `Claim` is how far a gesture travels before it is a drag, per axis;
-`Hold` is how long a still press takes to become a hold; `Momentum` is how a released drag coasts
+`Hold` is how long a still press takes to become a hold; `Taps` is how soon after the last tap's
+press, and how near it, a tap has to land to follow it; `Momentum` is how a released drag coasts
 ([Scrolling](scrolling.md)). They are global rather than per element, because input feel that
 varies from element to element is what makes an app feel unpredictable.
 

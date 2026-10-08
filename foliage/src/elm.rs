@@ -104,13 +104,36 @@ pub(crate) enum Pigment {
 /// What a panel is filled and shaped by: everything the panel renderer was told.
 ///
 /// Grown alongside [`Chlorophyll::Panel`] and by nothing else, so an element carries both or
-/// neither. Ordinary declared state, and what [`color`](crate::Grow::color) and
-/// [`round`](crate::Grow::round) write -- the decision beside it stays untouched, because an
-/// element does not stop being a panel by being repainted.
+/// neither. Ordinary declared state, and what [`color`](crate::Grow::color),
+/// [`round`](crate::Grow::round) and [`outline`](crate::Grow::outline) write -- the decision
+/// beside it stays untouched, because an element does not stop being a panel by being repainted.
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct PanelPigment {
     pub(crate) fill: Fill,
     pub(crate) rounding: Corners,
+    pub(crate) outline: Outline,
+}
+
+/// A line drawn around the inside of a panel's box: how wide, and what it is filled with.
+///
+/// Inside the box rather than around it, as CSS's `box-sizing: border-box` draws a border, so an
+/// outline takes no room of its own and nothing about where anything sits changes for one. No
+/// width at all is no outline, which is what a panel that says nothing has.
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
+pub(crate) struct Outline {
+    /// How far in from the box's edge the line reaches, in logical pixels.
+    pub(crate) width: f32,
+    pub(crate) fill: Fill,
+}
+
+impl Outline {
+    pub(crate) fn new(width: f32, fill: Fill) -> Self {
+        Self {
+            // A line of no width is no line, and one of less than none is not a line either.
+            width: width.max(0.0),
+            fill,
+        }
+    }
 }
 
 /// What the backend is holding, one set per renderer.
@@ -199,7 +222,10 @@ impl Elm {
     /// - **The density changed.** The backend's copy is in device pixels and this one is not, so a
     ///   display whose density changed leaves every derived instance -- a cut glyph, a snapped
     ///   stroke, a field's screen-space range -- correct against a density that is gone, while the
-    ///   logical values they came from are unchanged and compare equal forever.
+    ///   logical values they came from are unchanged and compare equal forever. The backend is kept,
+    ///   so it lets go of what it holds in the same breath ([`Ash::recut`](crate::ash::Ash::recut)),
+    ///   or an element that stopped being drawn in the frame this lands in would go on being drawn:
+    ///   with nothing held here for it, nothing would name it to be let go of.
     /// - **The backend was rebuilt.** A platform that took its surface back and gave another one --
     ///   an Android activity leaving the foreground and returning -- leaves a cache describing
     ///   buffers that no longer exist. Every value would compare equal and nothing would be
@@ -341,6 +367,12 @@ impl Runs {
     /// What is held for one run, which is what the backend is to be holding for it.
     pub(crate) fn run(&self, key: Key) -> Option<&Run> {
         self.held.get(&key)
+    }
+
+    /// Every run held, which is every run the backend is to be holding: the whole of what the frame
+    /// draws in glyphs.
+    pub(crate) fn keys(&self) -> impl Iterator<Item = Key> + '_ {
+        self.held.keys().copied()
     }
 }
 
@@ -588,10 +620,15 @@ fn state(
             let Some(pigment) = grove.tree.panel_pigment(leaf) else {
                 return false;
             };
+            // The outline is filled as a fill is, against the scheme the frame is drawn in, and
+            // faded with the panel. It has no motion of its own, so there is no blend to read.
+            let outline = pigment.outline;
             let instance = PanelInstance::new(
                 painted.section,
                 tint(grove, leaf, pigment.fill).faded(painted.opacity),
                 pigment.rounding,
+                outline.fill.color(&grove.scheme).faded(painted.opacity),
+                outline.width,
             );
             grove.elm.panels.want(leaf, rank, painted.clip, instance);
             true

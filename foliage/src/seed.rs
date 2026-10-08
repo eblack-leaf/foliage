@@ -40,6 +40,7 @@ impl Buds for Panel {
             pigment: Some(Pigment::Panel(PanelPigment {
                 fill: self.fill,
                 rounding: self.rounding,
+                outline: self.outline,
             })),
             placement: self.placement,
             at,

@@ -212,22 +212,25 @@ The last rule is the interesting one, and it comes from how resolution is ordere
 ## Width flows down, height flows up
 
 Text wrapping makes a height depend on a width, and a width comes from layout. A box sized to its
-contents is therefore a cycle in general. foliage breaks it at two passes and never iterates:
+contents is therefore a cycle in general. foliage breaks it by measuring before each axis and never
+iterates:
 
-1. The **horizontal** axis resolves for the whole tree. A run of monospaced text knows the widest
+1. Everything is **measured across**, from the inside out. A run of monospaced text knows the widest
    it could want to be before any layout (its longest line's character count times the cell
-   width), so nothing on this pass has to be measured.
-2. Every run **wraps** at the width it was just given, which settles how tall it is.
-3. The **vertical** axis resolves for the whole tree, reading those heights.
+   width), and a box knows how far right what it holds reaches, so this needs nothing laid out.
+2. The **horizontal** axis resolves for the whole tree, reading those widths.
+3. Every run **wraps** at the width it was just given, and every box is measured down from the
+   inside out, which settles how tall each is.
+4. The **vertical** axis resolves for the whole tree, reading those heights.
 
 The types are that order stated in advance. A horizontal role cannot read a height because, when
 it is resolved, no height exists. The reverse is fine and useful: `height(2.col())` is a
 two-column span used as a height, and `aspect` is a height read off the element's own width.
 
-`content()` is one word with a different question per axis. In a width role it is the widest the
-element wants to be (its text, unwrapped). In a height role it is how tall it turned out at the
-width it was given. So `left(..).right(..)` with `height(content())` is a paragraph: as wide as its
-parent allows, as tall as it wraps to.
+`content()` is one word asking the same thing on either axis: how large is what is inside me. In a
+width role it is the widest the element wants to be (its text unwrapped, or what it holds). In a
+height role it is how tall it turned out at the width it was given. So `left(..).right(..)` with
+`height(content())` is a paragraph: as wide as its parent allows, as tall as it wraps to.
 
 ## Clamps
 
@@ -291,15 +294,18 @@ The card's ground is not the parent of the text it frames. It is a sibling, grow
 it sits behind, and anchored to the last thing it frames. That is the idiom, and the reason for it
 is worth knowing.
 
-An element sized `height(content())` takes the greater of two things: how tall its own run of
-text wrapped to, and how far down its children reach. **Only children that describe their own
-extent are counted**: a child placed in pixels, in letters, by its own content, or by any
-horizontal reading. A child whose vertical placement reads *another* vertical box (a percentage of
-its trunk, a row of its trunk's grid, an anchor's edge) is asking how tall something else is, so
-it cannot be what decides how tall this is. It is left out of the measure and given its real
-position afterwards.
+An element sized to `content()` takes the greater of two things on that axis: its own run of
+text (unwrapped across, as it wrapped down), and how far its children reach (right of its left
+edge, or down from its top). **Only children that describe their own extent on that axis are
+counted**: a child placed in pixels, in letters, or by its own content -- and down, by any
+horizontal reading, since widths have settled by then. A child whose placement reads *another* box
+on that axis (a percentage of its trunk, a track of its trunk's grid, an anchor's edge) is asking
+how large something else is, so it cannot be what decides how large this is. It is left out of the
+measure and given its real place afterwards, which is what lets one child size a box that another
+child fills.
 
-So a box *can* be sized to children at known offsets. A badge whose label sits 6 pixels in:
+So a box *can* be sized to children at known offsets. A badge that hugs its label, with the label
+held two letters in from either side and 6 pixels from the top and bottom:
 
 ```rust
 # use foliage::{Boxed, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding, Source, Text, content, left, top};
@@ -310,9 +316,9 @@ let badge = grove.branch(
         .color(Palette::Signal)
         .rounding(Rounding::Full)
         .font_size(FontSize::new().xs(12))
-        // Two letters of room either side of a five-letter label, in the label's own cells.
+        // As far as the label reaches, and two letters more on the right to match the left.
         .at(Location::new().xs(
-            left(0.px()).width(9.letters()),
+            left(0.px()).width(content() + 2.letters()),
             top(0.px()).height(content() + 6.px()),
         )),
 );
@@ -329,16 +335,15 @@ grove.branch(
 # }
 ```
 
-The label reaches 6 pixels plus one line down, and the badge adds 6 more for the padding below.
-Two things in it are worth copying:
+The label reaches two letters plus its own five across and 6 pixels plus one line down, and the
+badge adds two letters on the right and 6 pixels below. Rewrite the label and the badge follows it in
+the same frame. Two things in it are worth copying:
 
-- **Padding below is added, not measured.** The measure is how far the children reach, so a
-  bottom margin is `content() + 6.px()`.
-- **A width in letters needs a font size.** As a *width*, `content()` is only the element's own
-  text, so a panel does not take its width from a label on it. It can state the same width in
-  characters instead, and `letters` counts cells of the element's own font and size, which is why
-  the badge declares the label's `font_size`. An element that names no font and no size has no
-  cell and reads zero for every letter.
+- **Padding past the far edge is added, not measured.** The measure is how far the children reach,
+  so a right margin is `content() + 2.letters()` and a bottom one is `content() + 6.px()`.
+- **Letters need a font size.** `letters` counts cells of the element's own font and size, which is
+  why the badge declares the label's `font_size`: its two letters of margin are the label's two. An
+  element that names no font and no size has no cell and reads zero for every letter.
 
 A stack of things of unknown height, each placed under the last with an anchor, is the case that
 cannot be measured this way. Frame it the way the card does, with a sibling anchored to the last

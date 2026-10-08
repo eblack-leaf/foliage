@@ -133,6 +133,11 @@ that landed on nothing that receives takes focus away. Nothing was reported earl
 retracted: the threshold is not a rule about taking a click back, it is the point at which the
 kind of gesture becomes known.
 
+A tap is also **counted**. The last one is kept, and a tap that lands on the same element within
+`Taps` of it, measured press to press and point to point, is one more than it; anything else is one,
+and any gesture that is not a tap ends the run. The count rides with the tap (`taps`), so a double
+tap is the second tap reported with a two, never a single tap held back in case a second follows.
+
 If a region was holding the drag, the release hands it a velocity, and the region may coast. The
 velocity is the mean over the last 100 milliseconds of the gesture, not over its last frame: a hand
 slows as it lifts, a mouse reports nothing in the frame the button came up, and a flick can put all
@@ -202,6 +207,6 @@ so there is no mark the engine could draw that would be right.
 ## What the fields make of it
 
 A text field is several elements under one name, and what a tap or a drag means to it (a caret
-placed, a selection extended) is its own business rather than dispatch's. Dispatch reports taps,
+placed, a word selected, a selection extended) is its own business rather than dispatch's. Dispatch reports taps,
 holds and drags like any other; straight after dispatch, before the app's `frame`, each field reads
 what was reported about it and queues what that means. [Fronds](fronds.md) covers it.

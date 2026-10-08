@@ -73,7 +73,7 @@ The set of seeds is closed:
 | Seed | What it is | Draws |
 |---|---|---|
 | `Stem` | Structure: a box that holds children and takes hits | nothing |
-| `Panel` | A filled rectangle with rounded corners | yes |
+| `Panel` | A filled rectangle with rounded corners, and a line around its inside if it says so | yes |
 | `Text` | A run of monospaced glyphs | yes |
 | `Icon` | A vector mark, from a registered distance field | yes |
 | `Image` | A registered picture, fitted into its box | yes |
@@ -105,6 +105,7 @@ sealed traits: they can be called, never implemented.
 | `Place::elevate` | `Grow::elevate` |
 | `color` on the seed | `Grow::color` |
 | `rounding` on the seed | `Grow::round` |
+| `Panel::outline` | `Grow::outline` |
 | `Place::visible` | `Grow::visible` |
 | `Place::opacity` | `Grow::opacity` |
 
@@ -223,9 +224,10 @@ A grid decides layout and nothing else. Whether an element scrolls is a separate
 
 ### Width flows down, height flows up
 
-Text wrapping makes height depend on width, and width comes from layout. The cycle is bounded at two
-passes with no iteration: the horizontal axis resolves for the whole tree, each run wraps at its
-now-known width, and the vertical axis resolves and reads the heights that came out.
+Text wrapping makes height depend on width, and width comes from layout. The cycle is broken with no
+iteration: everything is measured across from the inside out, the horizontal axis resolves for the
+whole tree, each run wraps at its now-known width and everything is measured down from the inside
+out, and the vertical axis resolves and reads the heights that came out.
 
 The order is visible in the types. A `VerticalLength` — `Source::row`, `anchor().height()`,
 `aspect(..)` — is refused by a horizontal role. The reverse is fine and useful: `height(2.col())` is
@@ -237,12 +239,14 @@ whatever its width was stated in and after any clamp. It is a length like any ot
 `height(aspect(1.0) + 40.px())` is a square with a caption bar, `height(content()).at_most(aspect(1.0))`
 is content no taller than it is wide — and it counts toward a trunk's `content()`.
 
-One consequence is worth stating outright. An element sized with `height(content())` takes the
-furthest its children reach, **counting only the children that describe their own extent**. A child
-whose vertical placement reads a vertical box — a percentage of its trunk, a row of its trunk's
-grid, an anchor's edge — is asking how tall something else is, so it cannot be what decides how tall
-this is; it is left out of the measure and given its real height afterwards. Pixels, letters, the
-child's own content, and any horizontal reading all count.
+One consequence is worth stating outright. An element sized to `content()` takes the furthest its
+children reach on that axis — right across, down down — if that is more than its own run,
+**counting only the children that describe their own extent**. A child whose placement on that axis
+reads a box on it — a percentage of its trunk, a track of its trunk's grid, an anchor's edge — is
+asking how large something else is, so it cannot be what decides how large this is; it is left out
+of the measure and given its real extent afterwards. Pixels, letters and the child's own content
+count on either axis, and any horizontal reading counts down. So a button hugs a label grown on it
+with `width(content() + 12.px())`, while another child fills it.
 
 ### Elevation
 
@@ -342,10 +346,9 @@ illegible tone still renders.
 Every font is monospaced, and every measurement foliage makes is a count of character cells. A
 proportional face is refused.
 
-`Text` is a run of glyphs. It is the one element whose box can be measured rather than declared:
-in a width role `content()` is the widest the run wants to be, and in a height role it is how tall
-it turned out at the width the layout gave it. `Source::letters` is the other half, for where the
-count is known ahead of time.
+`Text` is a run of glyphs, measured rather than declared: in a width role `content()` is the widest
+the run wants to be, and in a height role it is how tall it turned out at the width the layout gave
+it. `Source::letters` is the other half, for where the count is known ahead of time.
 
 `FontSize` is stated per breakpoint. `Place::font` and `Place::font_size` are on **every**
 element, not only on ones that draw glyphs: a font and a size are what give a character cell its
@@ -359,7 +362,10 @@ like any other, so a role follows a repaint and a literal does not. `Grow::untin
 `TextInput` is an editable run: one `Leaf` to hold, `Grow::select` to move its caret,
 `Pollen::edited` and `Pollen::submitted` to hear what was typed. It answers `Ctrl+C`, `Ctrl+X`
 and `Ctrl+V` itself and raises the `Keypad` it named where there is one to raise. Its value is
-read with `Vein::Text` and its selection with `Vein::Selection`.
+read with `Vein::Text` and its selection with `Vein::Selection`. `Ctrl+Left` and `Ctrl+Right` move
+over a word and `Ctrl+Backspace` and `Ctrl+Delete` take one, a word being a run of letters and
+digits, of other marks, or of space; a second tap selects the word under it. On a desktop, the
+input method composes into whichever field holds focus.
 
 `TextInput::read_only` -- or `Grow::read_only`, to change it later -- keeps the value and nothing
 else from the person at the keyboard. The field still receives: a drag scrolls it, a hold
@@ -371,12 +377,14 @@ it being scrolled at all.
 `TextInput::masked` -- or `Grow::masked`, to show and hide it later -- draws the value as a dot for
 each of its characters and keeps it off the clipboard. The value is held and read as ever, and the
 caret, the selection and a tap land where they would, since a dot takes a character's cell. `Ctrl+C`
-and `Ctrl+X` do nothing; a paste goes in. It is what a passphrase wants.
+and `Ctrl+X` do nothing; a paste goes in. Its words break nowhere, so a word move goes to the end of
+the line, and no input method composes into it. It is what a passphrase wants.
 
 `TextArea` is the same with as many lines as its value wraps to. It wraps at its box and scrolls
 down rather than across; `Enter` puts a newline in the value and `Ctrl+Enter` is what submits;
-`Up` and `Down` move by a line and `Home` and `End` go to the ends of the line the caret is on, as
-it wrapped. A newline that arrives on the clipboard is kept, where a field drops it.
+`Up` and `Down` move by a line, keeping the column a run of them set out from, and `Home` and `End`
+go to the ends of the line the caret is on, as it wrapped. A newline that arrives on the clipboard is
+kept, where a field drops it.
 
 `anchor().character(n)` is where character `n` of the anchor's run stands, as it wrapped: its column
 across and its line down, each in the anchor's cells. It is how a caret is placed against a run of
@@ -410,7 +418,8 @@ decoration exactly as over anything else.
 gesture will turn out to be. From there it becomes one of:
 
 - `Pollen::clicked` — it ended without ever becoming a drag. `Pollen::clicked_at` is where it
-  began, which is the point it was hit-tested against.
+  began, which is the point it was hit-tested against, and `Pollen::taps` how many taps in a row
+  it makes: a second tap close enough behind the first is a double, reported with a two.
 - `Pollen::held` — it stayed still past `Hold`'s duration. A hold is never also a click.
 - `Pollen::drag_started`, then `Pollen::dragged` carrying a `Drag` — reported to an element
   that declared `drags` on the axis the gesture went, or that took the hold this drag came out of.
@@ -442,13 +451,14 @@ different things in each order. A `Keystroke` carries a `Key` and its `Modifiers
 
 ### Feel
 
-Three global tuning values, set once at boot with `Foliage::tune`. They are global because input
+Four global tuning values, set once at boot with `Foliage::tune`. They are global because input
 feel that varies from element to element is what makes an app feel unpredictable.
 
 | Value | What it sets | Default |
 |---|---|---|
 | `Claim` | How far a gesture travels before it is a drag, per axis | 16 across, 8 down |
 | `Hold` | How long a press is down before it is a hold | 500ms |
+| `Taps` | How soon and how near a tap lands to follow the last one | 400ms, 16px |
 | `Momentum` | How a released drag coasts: half-life and minimum speed | 350ms, 40px/s |
 
 *Modules: `src/interaction/`, `src/keyboard.rs`.*

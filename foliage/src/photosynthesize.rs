@@ -9,7 +9,7 @@ use core::time::Duration;
 use tracing::info;
 use winit::application::ApplicationHandler;
 use winit::event::{
-    ElementState, KeyEvent, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent,
+    ElementState, Ime, KeyEvent, MouseButton, MouseScrollDelta, TouchPhase, WindowEvent,
 };
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key as Named, NamedKey};
@@ -210,13 +210,19 @@ impl Foliage {
     /// stroke, a mark's screen-space range -- so a display that changed density leaves those correct
     /// against a density that is gone, while the logical values they came from are untouched and
     /// would compare equal forever. Moving a window between two displays is exactly that case: the
-    /// logical size can be identical on both.
+    /// logical size can be identical on both. What the backend holds goes with it, and the glyph
+    /// atlas with that, so nothing cut at the old density is drawn or kept.
     fn reconfigure(&mut self) {
         let area = self.willow.area();
         let scale = self.willow.scale();
         if let Some(ginkgo) = &mut self.ginkgo {
             if ginkgo.scale() != scale {
+                // Both sides of the contract at once: what extraction thinks the backend holds, and
+                // what the backend holds -- the glyphs cut at the old density among it.
                 self.grove.elm.recut();
+                if let Some(ash) = &mut self.ash {
+                    ash.recut();
+                }
                 self.grove.tree.invalidate();
             }
             ginkgo.resize(area, scale);
@@ -313,6 +319,10 @@ impl ApplicationHandler for Foliage {
             return;
         }
         self.willow.connect(event_loop);
+        // What an input method composes into, on a desktop. Told now, because a window opens
+        // allowing none and a field may already hold focus.
+        #[cfg(not(any(target_family = "wasm", target_os = "android", target_os = "ios")))]
+        self.grove.keyboard.window(self.willow.window());
         let area = self.willow.area();
         let scale = self.willow.scale();
         // The surface the platform actually gave is the first thing the tree is resolved against,
@@ -435,6 +445,20 @@ impl ApplicationHandler for Foliage {
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 for key in keys(&event) {
                     self.input(Input::Keyed(key));
+                }
+            }
+            // What an input method committed: a word it composed, a letter a dead key began. Typed
+            // in a character at a time, the way the web's hidden input hands back what it composed,
+            // and under the rule `keys` reads a key's text by.
+            //
+            // The only text that arrives this way. A key the method takes while composing is the
+            // method's and is not also reported as `KeyboardInput`, and one it does not take arrives
+            // as itself -- so what was committed is typed once. What it shows while composing is
+            // not drawn, because nothing places it inline, so the commit is the first the field
+            // hears of it.
+            WindowEvent::Ime(Ime::Commit(text)) => {
+                for character in text.chars().filter(|character| !character.is_control()) {
+                    self.input(Input::Keyed(Key::Typed(character)));
                 }
             }
             // Into the same queue as everything else, so what a key was held with is settled by

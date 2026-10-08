@@ -388,14 +388,25 @@ pub trait Source: Sized {
     fn letters(self) -> Length;
 }
 
-/// The element's own intrinsic extent, which is a different question per axis.
+/// The element's own intrinsic extent: how large what is inside it turned out, on the axis the role
+/// names.
 ///
-/// In a width role it is **max-content**: the widest the element wants to be, unwrapped. In a
-/// monospaced font that is the character count times the cell width, so it is exact and free, and
-/// it is available before any layout has happened.
+/// What is inside an element is two things, and on either axis it takes the larger: its own run of
+/// glyphs, where it has one, and how far anything grown under it reaches -- right of its left edge
+/// across, below its top edge down. So a [`Text`](crate::Text) is as large as its words, a container
+/// is as large as what it holds, and a button hugs the label grown on it.
 ///
-/// In a height role it is what the element measured to *after* wrapping, at the width the
-/// horizontal pass gave it. One word, and the axis supplies the question.
+/// A run answers differently per axis. In a width role it is **max-content**: the widest it wants
+/// to be, unwrapped. In a monospaced font that is the character count times the cell width, so it
+/// is exact and free, and it is known before any layout has happened. In a height role it is what
+/// the run measured to *after* wrapping, at the width the horizontal pass gave it. One word, and
+/// the axis supplies the question.
+///
+/// A child counts toward the measure only where it describes its own extent on that axis -- in
+/// pixels, in letters, by its own content. One that reads its trunk's extent there -- a percentage
+/// of it, a track of its grid, an edge of it or of an anchor -- is asking how large something else
+/// is, so it is left out and sized against the result like anything else. That is what lets a box
+/// hug one child while another fills it.
 ///
 /// Under [`at_most`](crate::Horizontal::at_most) this is fit-content: the smaller of what the
 /// content wants and what the ceiling allows.

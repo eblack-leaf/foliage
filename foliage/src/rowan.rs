@@ -35,7 +35,8 @@
 //!
 //! | | Pass | Direction | Produces |
 //! |---|---|---|---|
-//! | R1 | measure | — | the character cell, and the max-content width half of the intrinsic size |
+//! | R1 | measure | — | the character cell, and the run each element is drawn from |
+//! | R1m | across | **bottom-up** | the max-content width half of the intrinsic size |
 //! | R2a | horizontal | dependency order | the horizontal axis |
 //! | R2m | wrap | **bottom-up** | the measured-height half of the intrinsic size |
 //! | R2b | vertical | dependency order | the vertical axis, and with it the placed box |
@@ -50,11 +51,13 @@
 //! pure: there is no accumulated state for a second call to corrupt.
 //!
 //! R2a and R2b resolve what was written to, and R1 only what says something new -- a run rewritten,
-//! an element grown, a breakpoint or a face that changed every cell. R2m resolves what was written to
-//! and everything above it, because
-//! what an element reaches over is what the elements under it resolved to -- a measure travels
-//! toward the trunk where a box travels away from it. A measure that moves under an element nothing
-//! wrote to makes that element resolve again, which is why R2m sits before R2b and not after it. And
+//! an element grown, a breakpoint or a face that changed every cell. R1m and R2m measure what was
+//! written to and everything above it, because what an element reaches over is what the elements
+//! under it resolved to -- a measure travels toward the trunk where a box travels away from it. R2m
+//! also measures what is only being resolved again against something written, since a box that
+//! comes out another width may wrap to another height; R1m does not, since nothing it reads is
+//! anyone else's box. A measure that moves under an element nothing wrote to makes that element
+//! resolve again, which is why each measure sits before the axis it is read on and not after it. And
 //! an element measuring again because one of its children moved asks that child alone: how far each
 //! of the others reaches is held from when it last resolved, which is the answer asking would give.
 //!
@@ -80,20 +83,23 @@
 //!
 //! Nothing about what is computed changes, and neither does the ordering that makes it correct.
 //!
-//! Two passes run the other way, and each is a cycle that turns out not to be vicious.
+//! Three passes run the other way, and each is a cycle that turns out not to be vicious.
 //!
-//! R2m is one: wrapping makes a height depend on a width, and the width comes from the layout, so a
-//! box sized to its contents looks circular. It is not, because **width flows down and height flows
-//! up** -- a monospaced run's widest unwrapped line is free from its character count, so the
-//! down-pass needs nothing measured. R2m sits between the two halves of R2 for that reason: it is
-//! the one moment when every width is known and no height is, which is exactly what measuring needs.
+//! R1m and R2m are two of them, and the same one on each axis: a box sized to its contents is sized
+//! by boxes resolved against it. Neither is circular, because a child that reads its trunk's extent
+//! on the axis being measured is not counted toward it -- and what is left is measured bottom-up
+//! before that axis is laid out at all. R1m runs before R2a, when no width is known; R2m between the
+//! two halves of R2, the one moment when every width is known and no height is. The order matters
+//! for wrapping, which makes a height depend on a width: **width flows down and height flows up** --
+//! a monospaced run's widest unwrapped line is free from its character count, so a run's width needs
+//! no wrapping measured, and its height is measured at the width R2a gave it.
 //!
-//! R3 is the other: a child resolves against its parent's box, a scrolling parent's extent comes
+//! R3 is the third: a child resolves against its parent's box, a scrolling parent's extent comes
 //! from where its children landed, and that extent is what its offset is clamped to. Extent affects
 //! only the clamp and never the parent's own box -- so a top-down layout sweep, a bottom-up extent
 //! sweep and a top-down scroll application resolve it in one pass each.
 //!
-//! Neither iterates to convergence. Every pass here runs exactly once.
+//! None of them iterates to convergence. Every pass here runs exactly once.
 
 use std::sync::Arc;
 
@@ -233,9 +239,32 @@ pub(crate) struct Elements {
     /// [`dirty`](Elements::dirty) is most of it. The rest is an element something withered from,
     /// which has one fewer thing to reach over and nothing left below it to say so.
     measures: Vec<bool>,
-    /// What the element measured to, which is what [`content()`](crate::content) reads. R1 writes
-    /// the width -- max-content, free in a monospaced font -- and R2m the height it wrapped to at
-    /// the width R2a gave it, which is the whole of width-down and height-up.
+    /// Whether the element's own declarations were written: [`dirty`](Elements::dirty) as the
+    /// tree recorded it, before anything it depends on spread to it -- and, once R1m has measured
+    /// it, whether what it measured to across moved.
+    ///
+    /// What a trunk measuring across asks a child again for. A child's reach across reads its own
+    /// placement and its own measure and nothing of where its trunk or its anchor sits, so a child
+    /// that is only being resolved against something that moved reaches exactly as far as it did.
+    touched: Vec<bool>,
+    /// Whether R1m has to measure the element again: it was written to, or something under it was,
+    /// or went.
+    ///
+    /// Narrower than [`measures`](Elements::measures), for the reason
+    /// [`touched`](Elements::touched) is narrower than `dirty`: nothing a measure across reads is
+    /// moved by an element's trunk moving, so a subtree under a box in motion measures to what it
+    /// did and is not asked.
+    measures_across: Vec<bool>,
+    /// Whether anything is to be measured across this frame at all: something was written to, or
+    /// went, or every measure has to be taken again. Known from what the tree recorded before any
+    /// element is looked at, so a frame that wrote nothing -- a hover's fade, a frame where nothing
+    /// happened -- walks nothing for R1m.
+    across: bool,
+    /// What the element measured to, which is what [`content()`](crate::content) reads. R1m writes
+    /// the width -- the wider of its run's max-content, free in a monospaced font, and how far right
+    /// anything grown under it reaches -- and R2m the height, the taller of what its run wrapped to
+    /// at the width R2a gave it and how far down anything grown under it reaches. Width first and
+    /// height after is the whole of width-down and height-up.
     intrinsic: Vec<Area>,
     /// How far the element reaches below the top of what it is grown under, as R2m last found it
     /// there, or `None` where its placement does not count toward that measure.
@@ -247,6 +276,13 @@ pub(crate) struct Elements {
     /// exactly where its element is, and a container of thousands with one child written pays for
     /// one child.
     reached: Vec<Option<f32>>,
+    /// How far the element reaches right of the left edge of what it is grown under, as R1m last
+    /// found it there, or `None` where its placement does not count toward that measure.
+    ///
+    /// [`reached`](Elements::reached) across: what each element contributes to its trunk's
+    /// [`spread`], held so that a trunk measuring again because one of its children moved asks the
+    /// rest nothing.
+    spread: Vec<Option<f32>>,
     /// The element's own grid, divided at the breakpoint in force.
     tracks: Vec<Tracks>,
     /// The character cell the element's own font and size make, as R1 measured it. What
@@ -413,13 +449,12 @@ pub(crate) fn run(grove: &mut Grove) {
     grove.elements = elements;
 }
 
-/// R1. What an element's own font makes of it: its character cell, and the widest its content would
-/// like to be.
+/// R1. What an element's own font makes of it: its character cell, and its run shaped in it.
 ///
 /// Ahead of every other pass, and reading no geometry at all, because neither answer has anything to
 /// do with where the element ended up. A monospaced run's max-content width is its longest line's
-/// character count times its cell, so the whole of the down-pass's input is available before the
-/// down-pass runs -- which is what leaves only the up-pass with anything to measure.
+/// character count times its cell, so what a run asks of the down-pass is known before the
+/// down-pass runs -- R1m reads it off the run left here.
 fn measure(grove: &mut Grove, elements: &mut Elements) {
     let _pass = trace_span!("measure").entered();
     let Grove {
@@ -456,18 +491,15 @@ fn measure(grove: &mut Grove, elements: &mut Elements) {
                 .clone(),
             false => shaping.shape(fonts, typeface.font, size, value).clone(),
         });
-        let width = composed
-            .as_ref()
-            .map(|shaped| shaped.max_content())
-            .unwrap_or_default();
         elements.cell[at] = cell;
+        // Both halves of what it measures to are read off this, by R1m and R2m, which write them
+        // before anything reads either.
         elements.composed[at] = composed;
-        // The height half is R2m's, and is written before anything reads it.
-        elements.intrinsic[at] = Area::new(width, 0.0);
     }
 }
 
-/// R2a, R2m and R2b: the horizontal axis, then the measure it makes possible, then the vertical one.
+/// R1m, R2a, R2m and R2b: the measure across, the horizontal axis, then the measure down it makes
+/// possible, then the vertical axis.
 ///
 /// An element with a placement in motion is resolved twice on each axis -- once for each endpoint,
 /// in the *same* context -- and the two answers are blended. That is what the resolver's purity
@@ -475,6 +507,7 @@ fn measure(grove: &mut Grove, elements: &mut Elements) {
 /// in the same dependency order, against the same settled ancestors, and neither is remembered
 /// afterwards.
 fn axes(grove: &mut Grove, elements: &mut Elements) {
+    across(grove, elements);
     axis(grove, elements, Axis::Horizontal);
     wrap(grove, elements);
     axis(grove, elements, Axis::Vertical);
@@ -485,15 +518,21 @@ fn axis(grove: &Grove, elements: &mut Elements, axis: Axis) {
     let _pass = trace_span!("axis", vertical = (axis == Axis::Vertical)).entered();
     let viewport = Section::new(Position::default(), grove.viewport);
     for at in 0..elements.len() {
-        // R2m may have found a measure that moved under an element nothing was written to, between
-        // this axis and the last. The order puts what an element reads before it, so spreading that
-        // here reaches everything resolved against it.
+        // A measure may have moved under an element nothing was written to, before this axis: R1m's
+        // before this one, R2m's before the vertical. The order puts what an element reads before
+        // it, so spreading that here reaches everything resolved against it.
         elements.dirty[at] |= elements.trunk[at].is_some_and(|on| elements.dirty[on])
             || elements.anchor[at].is_some_and(|on| elements.dirty[on]);
         // Nothing it or anything it resolves against was written, so it resolves to the box it
         // already holds. Its column keeps that box, so what reads it here reads the right one.
         if !elements.dirty[at] {
             continue;
+        }
+        // Laid out across again, it may come out another width -- and wrap to another height, or
+        // reach somewhere else below it -- so it is measured down again in R2m. Almost all of it
+        // already was; what R1m's spreading reached here was not.
+        if axis == Axis::Horizontal {
+            elements.measures[at] = true;
         }
         let leaf = elements.order[at];
         let context = context(elements, viewport, at, axis);
@@ -623,6 +662,104 @@ fn departure(
     }
 }
 
+/// R1m. How wide each element's contents would like to be, before any width is laid out.
+///
+/// R2m across, and the reason [`content()`](crate::content) asks the same question on both axes --
+/// *how large is what is inside me*. Bottom-up, so everything inside an element is measured before
+/// the element asks, and an element takes the wider of two things:
+///
+/// - its run's max-content, its widest line unwrapped, which R1 left it holding
+/// - how far right anything grown under it reaches, from its own left edge
+///
+/// The second is resolved with no horizontal box known at all, which is exactly what there is at
+/// this point in the frame. So a child that reads one -- `100.pct()`, a column of a grid, an edge of
+/// its trunk or of an anchor, a place in a run -- contributes nothing to the measure and is given its
+/// real width by R2a like anything else; a child that describes its own extent, in pixels, in
+/// letters or by its own content, is what is measured. A width that moved marks the element written,
+/// and R2a spreads it to everything resolved against it.
+///
+/// What has to measure again is what was written to itself, and everything above it -- not what
+/// is only being resolved again against something written, which R2m measures as well. Nothing
+/// this measure reads is anyone else's box, so a subtree under a box that moved measures across to
+/// what it did; see [`touched`](Elements::touched).
+fn across(grove: &Grove, elements: &mut Elements) {
+    let _pass = trace_span!("across").entered();
+    if !elements.across {
+        return;
+    }
+    for at in (0..elements.len()).rev() {
+        if let (true, Some(trunk)) = (elements.measures_across[at], elements.trunk[at]) {
+            elements.measures_across[trunk] = true;
+        }
+    }
+    for at in (0..elements.len()).rev() {
+        if !elements.measures_across[at] {
+            continue;
+        }
+        let run = elements.composed[at]
+            .as_ref()
+            .map_or(0.0, |run| run.max_content());
+        let width = run.max(spread(grove, elements, at));
+        if width != elements.intrinsic[at].width {
+            elements.intrinsic[at].width = width;
+            // Ahead of R2a, which resolves it and what reads it against the new measure -- and
+            // below every trunk it reaches, each of which asks it again on the way up.
+            elements.dirty[at] = true;
+            elements.touched[at] = true;
+        }
+    }
+}
+
+/// How far right the elements grown under the element at `at` reach from its left edge.
+///
+/// [`reach`] across: only a child that describes its own extent is counted, and a child is asked
+/// only where it was [`touched`](Elements::touched) -- every other one reaches exactly as far as it
+/// did when it last was, which is what [`spread`](Elements::spread) holds for it.
+fn spread(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
+    let mut spread: f32 = 0.0;
+    for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
+        let child_at = elements.children[index] as usize;
+        if elements.touched[child_at] {
+            let child = elements.order[child_at];
+            let far = measurable(grove, child, Axis::Horizontal).then(|| {
+                let context = unlaid(elements, at, child_at);
+                geometry(grove, child, &context, Axis::Horizontal).0.far
+            });
+            elements.spread[child_at] = far;
+        }
+        if let Some(far) = elements.spread[child_at] {
+            spread = spread.max(far);
+        }
+    }
+    spread
+}
+
+/// What one child resolves its horizontal axis against while its trunk is being measured across.
+///
+/// The same [`Context`] R2a will build, with every box taken as not laid out yet -- which none is,
+/// and which a counted child never reads. What is real is what R1 and the measure below the trunk
+/// already answered: every cell, and the child's own intrinsic width, so a width in letters or of
+/// the child's own content still answers. The trunk's left edge is the origin, so what comes back
+/// is how far right of it the child reaches.
+fn unlaid<'a>(elements: &'a Elements, trunk: usize, child: usize) -> Context<'a> {
+    let offered = |at: usize| Basis {
+        section: Section::default(),
+        intrinsic: elements.intrinsic[at],
+        tracks: elements.tracks[at],
+        cell: elements.cell[at],
+        run: None,
+    };
+    Context {
+        axis: Axis::Horizontal,
+        own: own(elements, child, Axis::Horizontal),
+        trunk: offered(trunk),
+        anchor: match elements.anchor[child] {
+            Some(anchor) => offered(anchor),
+            None => Basis::default(),
+        },
+    }
+}
+
 /// R2m. How tall each element's contents turned out at the width R2a gave it.
 ///
 /// Bottom-up, so everything inside an element is measured before the element asks. Two things are
@@ -637,7 +774,8 @@ fn departure(
 /// extent -- `100.pct()`, a row of a grid, an anchor's edge -- contributes nothing to the measure
 /// and is given its real height by R2b like anything else. That is the correct reading rather than a
 /// limitation: a child sized to its trunk cannot also be what sizes it, and nothing is asked to
-/// converge.
+/// converge. [`across`] is the same reading on the other axis, taken before any width is known.
+///
 /// The two halves are separate walks because only one of them has an order. A run wraps at its own
 /// width and against its own font, so what an element shapes to reads nothing but the element --
 /// while what reaches below it reads the measures of everything under it, and so has to run after
@@ -704,7 +842,7 @@ fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
         let child_at = elements.children[index] as usize;
         if elements.dirty[child_at] {
             let child = elements.order[child_at];
-            let far = measurable(grove, child).then(|| {
+            let far = measurable(grove, child, Axis::Vertical).then(|| {
                 let context = raised(elements, at, child_at);
                 geometry(grove, child, &context, Axis::Vertical).0.far
             });
@@ -717,20 +855,20 @@ fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
     reach
 }
 
-/// Whether `leaf`'s vertical placement describes its own extent, and so counts toward the measure
-/// of what it is grown under.
+/// Whether `leaf`'s placement on `axis` describes its own extent, and so counts toward the measure
+/// of what it is grown under on that axis.
 ///
-/// One question with two spellings, because a placement has two. A box asks it of its vertical
-/// configuration; a trace asks it of both of its ends, since either one reading a vertical box is
+/// One question with two spellings, because a placement has two. A box asks it of its configuration
+/// on the axis; a trace asks it of both of its ends, since either one reading a box on the axis is
 /// enough to make the answer circular.
-fn measurable(grove: &Grove, leaf: Leaf) -> bool {
+fn measurable(grove: &Grove, leaf: Leaf, axis: Axis) -> bool {
     match grove.tree.placement(leaf) {
         Some(Placement::Traced(trace, _)) => {
             let ends = pinned_ends(trace, grove);
-            ends.from.measurable() && ends.to.measurable()
+            ends.from.measurable(axis) && ends.to.measurable(axis)
         }
-        Some(Placement::Boxed(location)) => pinned(location, grove, Axis::Vertical).measurable(),
-        None => pinned(&Location::default(), grove, Axis::Vertical).measurable(),
+        Some(Placement::Boxed(location)) => pinned(location, grove, axis).measurable(axis),
+        None => pinned(&Location::default(), grove, axis).measurable(axis),
     }
 }
 
@@ -1312,6 +1450,7 @@ fn structure(elements: &mut Elements, grove: &Grove) {
     carry(&mut elements.section, &from, Section::default());
     carry(&mut elements.intrinsic, &from, Area::default());
     carry(&mut elements.reached, &from, None);
+    carry(&mut elements.spread, &from, None);
     carry(&mut elements.cell, &from, Area::default());
     carry(&mut elements.composed, &from, None);
     carry(&mut elements.spanned, &from, None);
@@ -1437,6 +1576,32 @@ fn read(elements: &mut Elements, grove: &Grove) {
         if let Some(at) = elements.at(leaf) {
             elements.moved[at] = true;
         }
+    }
+    // What R1m reads, taken before the closure below spreads anything: what was written to each
+    // element itself, and with it what something went from. Everything, where what every measure
+    // across reads changed; where only the viewport moved, it changed nothing a measure reads, and
+    // what was written is what was. Nothing at all, and nothing is filled in, where nothing was
+    // written and nothing went.
+    elements.across =
+        written.across || !written.declared.is_empty() || !written.measures.is_empty();
+    if elements.across {
+        elements.touched.clear();
+        elements.touched.resize(count, written.across);
+        if !written.across {
+            for &leaf in written.declared {
+                if let Some(at) = elements.at(leaf) {
+                    elements.touched[at] = true;
+                }
+            }
+        }
+        elements.measures_across.clear();
+        elements.measures_across.extend(
+            elements
+                .touched
+                .iter()
+                .zip(&elements.measures)
+                .map(|(touched, measures)| *touched || *measures),
+        );
     }
     for at in 0..count {
         // A dependency the order could not put first is one a cycle left in the remainder, and it

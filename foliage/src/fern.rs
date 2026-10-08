@@ -85,8 +85,13 @@ fn breakpoints(grove: &mut Grove) {
     let layout = Layout::of(grove.viewport);
     let short = grove.short.next(grove.viewport);
     // The viewport, the breakpoint and the short-side reading are read by every placement in the
-    // tree, so a change to any of them is every element written.
-    grove.tree.invalidate();
+    // tree, so a change to any of them is every element written. A breakpoint or a short-side
+    // reading that moved is also what chooses each placement and each size, so it is every measure
+    // taken again too; the viewport alone is not.
+    match layout != grove.layout || short != grove.short {
+        true => grove.tree.invalidate(),
+        false => grove.tree.relay(),
+    }
     if layout != grove.layout {
         debug!(from = ?grove.layout, to = ?layout, "breakpoint");
         grove.layout = layout;
@@ -410,6 +415,17 @@ fn drain(grove: &mut Grove) {
                     debug!(leaf = leaf.id(), "rounded");
                 } else {
                     dropped("round", leaf, "draws nothing to round");
+                }
+            }
+            Op::Outline { leaf, outline } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("outline", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_outline(leaf, outline) {
+                    debug!(leaf = leaf.id(), "outlined");
+                } else {
+                    dropped("outline", leaf, "is not a panel");
                 }
             }
             Op::Scroll { leaf, to } => {

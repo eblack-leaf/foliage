@@ -9,7 +9,7 @@ use crate::tests::{advance, grove, resize, section, tick};
 use crate::{
     Boxed, Divide, FontSize, Grid, Grove, Grow, Layout, Leaf, Location, Motion, Panel, Place, Sap,
     ScrollTo, Source, Stem, Text, Timing, Vein, anchor, aspect, bottom, center_x, center_y,
-    content, left, right, top,
+    content, left, right, top, trunk,
 };
 
 /// A box at a stated place, for the passes that are about where boxes end up rather than about the
@@ -747,6 +747,169 @@ fn resolving_only_what_was_written_lands_where_resolving_everything_does() {
                 incremental.tap(*mine, Vein::Drawn),
                 entire.tap(*reference, Vein::Drawn),
                 "frame {frame}: {mine:?} is not where resolving everything puts it",
+            );
+        }
+    }
+}
+
+// -- Measuring only what was written, across -------------------------------------------------
+
+/// Everything a wandering script grew on shelves sized across, in the order it grew it.
+#[derive(Default)]
+struct Shelves {
+    shelves: Vec<Leaf>,
+    items: Vec<Leaf>,
+    labels: Vec<Leaf>,
+    grown: Vec<Leaf>,
+}
+
+/// Where an item goes across: mostly somewhere that states its own extent -- in pixels, from either
+/// edge or the middle, or as wide as its own label -- which is what a shelf sized to its contents
+/// reaches over, and sometimes somewhere read off the shelf, which counts for nothing.
+fn item_at(wander: &mut Wander) -> Location {
+    let x = wander.px(160);
+    let width = 4.0 + wander.px(80);
+    let across = match wander.below(6) {
+        0 | 1 => left(x.px()).width(width.px()),
+        2 => right(x.px()).width(width.px()),
+        3 => center_x(x.px()).width(width.px()),
+        4 => left(x.px()).width(content()),
+        _ => left(wander.px(50).pct()).width(20.pct()),
+    };
+    Location::new().xs(across, top(wander.px(200).px()).height(content()))
+}
+
+/// Grows an item on one of the shelves, with a label on it half the time: one the item may hug, or
+/// one that fills the item and wraps at whatever width the item comes to -- which is what makes a
+/// height depend on a width a shelf's measure moved.
+fn stock(grove: &mut Grove, wander: &mut Wander, shelves: &mut Shelves) {
+    let shelf = shelves.shelves[wander.below(shelves.shelves.len())];
+    let item = grove.branch(shelf, Stem::new().at(item_at(wander)));
+    shelves.items.push(item);
+    shelves.grown.push(item);
+    if wander.below(2) == 0 {
+        let across = match wander.below(2) {
+            0 => left(4.px()).width(content()),
+            _ => left(4.px()).right(100.pct() - 4.px()),
+        };
+        let label = grove.branch(
+            item,
+            Text::new(words(wander))
+                .font_size(FontSize::new().xs(14).md(20))
+                .at(Location::new().xs(across, top(4.px()).height(content()))),
+        );
+        shelves.labels.push(label);
+        shelves.grown.push(label);
+    }
+}
+
+/// Two shelves sized to what is on them across and down, a third grown on the first so a measure
+/// travels up more than one trunk -- and two elements that read a shelf's measure rather than
+/// adding to it: one grown on it reading its trunk's, and one anchored to it reading its anchor's.
+fn shelving(grove: &mut Grove, wander: &mut Wander) -> Shelves {
+    let mut shelves = Shelves::default();
+    for n in 0..2 {
+        let shelf = grove.plant(Stem::new().at(Location::new().xs(
+            left((n as f32 * 200.0).px()).width(content()),
+            top(0.px()).height(content()),
+        )));
+        shelves.shelves.push(shelf);
+        shelves.grown.push(shelf);
+    }
+    let nested = grove.branch(
+        shelves.shelves[0],
+        Stem::new().at(Location::new().xs(
+            left(wander.px(40).px()).width(content()),
+            top(wander.px(100).px()).height(content()),
+        )),
+    );
+    shelves.shelves.push(nested);
+    shelves.grown.push(nested);
+    let reading = grove.branch(
+        shelves.shelves[1],
+        Stem::new().at(Location::new().xs(
+            left(0.px()).width(trunk().content() * 0.5),
+            top(0.px()).height(10.px()),
+        )),
+    );
+    shelves.grown.push(reading);
+    let beside = grove.plant(
+        Stem::new()
+            .anchored(shelves.shelves[0])
+            .at(Location::new().xs(
+                left(anchor().right()).width(anchor().content()),
+                top(anchor().bottom()).height(10.px()),
+            )),
+    );
+    shelves.grown.push(beside);
+    for _ in 0..24 {
+        stock(grove, wander, &mut shelves);
+    }
+    shelves
+}
+
+/// One frame's worth of writes: items grown, moved, set in motion, hidden and pruned, labels
+/// rewritten, shelves moved, and the window resized -- inside its breakpoint, which measures nothing
+/// across again, and across it, where the labels change size.
+fn restock(grove: &mut Grove, wander: &mut Wander, shelves: &mut Shelves) {
+    for _ in 0..1 + wander.below(4) {
+        let item = shelves.items[wander.below(shelves.items.len())];
+        match wander.below(9) {
+            8 => {
+                let width = [400.0, 412.0, 640.0, 660.0][wander.below(4)];
+                resize(grove, Area::new(width, 480.0));
+            }
+            0 => stock(grove, wander, shelves),
+            1 | 2 => grove.at(item, item_at(wander)),
+            3 => {
+                let label = shelves.labels[wander.below(shelves.labels.len())];
+                grove.text(label, words(wander));
+            }
+            4 => {
+                let to = item_at(wander);
+                grove.animate(item, Motion::Location(to), Timing::ms(80));
+            }
+            5 => {
+                let shelf = shelves.shelves[wander.below(shelves.shelves.len())];
+                grove.at(
+                    shelf,
+                    Location::new().xs(
+                        left(wander.px(200).px()).width(content()),
+                        top(wander.px(40).px()).height(content()),
+                    ),
+                );
+            }
+            6 => grove.visible(item, wander.below(2) == 0),
+            _ => grove.prune(item),
+        }
+    }
+}
+
+/// The same claim as above, across: a shelf measured from what is on it is measured again only
+/// where something under it was written, and every box lands where measuring and resolving
+/// everything would have put it, after every frame.
+#[test]
+fn measuring_across_only_what_was_written_lands_where_measuring_everything_does() {
+    let mut incremental = grove();
+    let mut entire = grove();
+    let mut one = Wander(0x5eed_5e1f);
+    let mut two = Wander(0x5eed_5e1f);
+    let mut ours = shelving(&mut incremental, &mut one);
+    let mut theirs = shelving(&mut entire, &mut two);
+    for frame in 0..400 {
+        restock(&mut incremental, &mut one, &mut ours);
+        restock(&mut entire, &mut two, &mut theirs);
+        advance(&mut incremental, 16);
+        advance(&mut entire, 16);
+        entire.tree.invalidate();
+        tick(&mut incremental);
+        tick(&mut entire);
+        assert_eq!(ours.grown.len(), theirs.grown.len());
+        for (mine, reference) in ours.grown.iter().zip(&theirs.grown) {
+            assert_eq!(
+                incremental.tap(*mine, Vein::Drawn),
+                entire.tap(*reference, Vein::Drawn),
+                "frame {frame}: {mine:?} is not where measuring everything puts it",
             );
         }
     }

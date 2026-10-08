@@ -30,21 +30,22 @@ impl Config {
         }
     }
 
-    /// Whether this vertical axis can be resolved without any vertical box being known yet, and so
-    /// whether it counts toward the measure of the element it is grown under (R2m).
+    /// Whether this axis can be resolved before any box on it is known, and so whether it counts
+    /// toward the measure of the element it is grown under on `axis` -- R1m across, R2m down.
     ///
-    /// An element sized by its contents is being asked how tall what is inside it turned out. A
-    /// child that answers *by reading a vertical box* -- a percentage of its trunk, a row of its
-    /// trunk's grid, an edge of an anchor -- is not describing how tall it is, it is asking someone
-    /// else. It cannot be what decides the answer without deciding it circularly, so it is left out
-    /// of the measure and given its real height by R2b like anything else.
+    /// An element sized by its contents is being asked how large what is inside it turned out. A
+    /// child that answers *by reading a box on that axis* -- a percentage of its trunk, a track of
+    /// its trunk's grid, an edge of an anchor -- is not describing how large it is, it is asking
+    /// someone else. It cannot be what decides the answer without deciding it circularly, so it is
+    /// left out of the measure and given its real extent by the axis's own pass like anything else.
     ///
     /// Everything that describes an extent in its own terms counts: pixels, letters, its own
-    /// content, and any horizontal reading, because the horizontal axis has already resolved.
-    pub(crate) fn measurable(&self) -> bool {
-        let terms = |expr: &Expr| expr.terms().iter().all(|term| known(term.kind));
+    /// content -- and on the vertical axis any horizontal reading, because the horizontal axis has
+    /// already resolved by then. See [`known`] for the whole of it.
+    pub(crate) fn measurable(&self, axis: Axis) -> bool {
+        let terms = |expr: &Expr| expr.terms().iter().all(|term| known(term.kind, axis));
         let coordinate = |coordinate: &Coord| {
-            // An anchor's near edge is a vertical position, which is exactly what is not known.
+            // An anchor's near edge is a position on the axis, which is exactly what is not known.
             coordinate.origin != Origin::Anchor && terms(&coordinate.expr)
         };
         let form = match &self.form {
@@ -57,22 +58,27 @@ impl Config {
     }
 }
 
-/// Whether one term of a vertical placement reads something already settled.
-pub(crate) fn known(kind: Kind) -> bool {
+/// Whether one term of a placement on `axis` reads something already settled when that axis is
+/// measured -- across before any width is laid out, and down once every width is.
+pub(crate) fn known(kind: Kind, axis: Axis) -> bool {
     match kind {
-        // Reads no geometry at all, or reads the element's own -- which R1 and the bottom-up sweep
-        // have both already answered.
+        // Reads no geometry at all, or reads a cell -- which R1 answered before either axis.
         Kind::Px(_) => true,
         Kind::Letters { .. } => true,
-        // A line of a run is read off the width the run resolved to, which the horizontal axis has
-        // settled, and off the run itself, which R1 shaped -- so it is as known as a count of cells.
-        Kind::Character { .. } | Kind::Span { .. } => true,
+        // A place in a run is read off the width the run resolved to, which the horizontal axis
+        // settles: known down, once it has, and not across, where it is the width being asked for.
+        Kind::Character { .. } | Kind::Span { .. } => axis == Axis::Vertical,
+        // The element's own measure, which the bottom-up sweep answers below a trunk before the trunk
+        // asks. Anyone else's is still being measured.
         Kind::Content { against } => against == Against::Own,
-        // The horizontal axis resolved before any of this, so a height stated in one is known.
-        Kind::Extent { axis, .. } | Kind::Cell { axis, .. } => axis == Axis::Horizontal,
-        // A fraction of the resolving axis, which here is the vertical one.
+        // An extent or a track on the other axis, once that axis has resolved -- which is only ever
+        // the horizontal one, read while measuring down.
+        Kind::Extent { axis: read, .. } | Kind::Cell { axis: read, .. } => {
+            axis == Axis::Vertical && read == Axis::Horizontal
+        }
+        // A fraction of the axis being measured, which nothing has laid out yet.
         Kind::Pct { .. } => false,
-        // Already a position on a surface no vertical box has been laid out on yet.
+        // Already a position on a surface no box on this axis has been laid out on yet.
         Kind::Edge { .. } => false,
     }
 }
