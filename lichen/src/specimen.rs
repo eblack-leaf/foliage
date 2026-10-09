@@ -172,10 +172,7 @@ impl Specimen {
                 let chip = Chip::grow(
                     grove,
                     square,
-                    Location::new().xs(
-                        center_x(50.pct()).width((CHIP * height).px()),
-                        center_y(50.pct()).height(height.px()),
-                    ),
+                    Self::placed(height, 0.0),
                     Elevation::up(3),
                     mark,
                     name,
@@ -243,6 +240,28 @@ impl Specimen {
     /// Tip `n`'s chip: its name to write over, a badge to hang on its corner.
     pub fn chip(&self, n: usize) -> &Chip {
         &self.tips[n].chip
+    }
+
+    /// Where a chip stands, `by` across from its place in the middle of its tip, at a caption line
+    /// `height` tall.
+    fn placed(height: f32, by: f32) -> Location {
+        Location::new().xs(
+            center_x(50.pct() + by.px()).width((CHIP * height).px()),
+            center_y(50.pct()).height(height.px()),
+        )
+    }
+
+    /// Draws tip `n`'s chip `by` across from its place, or back in it at `0.0`: for something
+    /// tugging at it. The tip stays where it is; only the chip is drawn aside, and its press with
+    /// it.
+    pub fn nudge(&self, grove: &mut Grove, n: usize, by: f32) {
+        grove.at(self.tips[n].chip.leaf(), Self::placed(measure().height, by));
+    }
+
+    /// Brings tip `n`'s chip back to its place over `timing`, from wherever it was drawn aside.
+    pub fn settle(&self, grove: &mut Grove, n: usize, timing: Timing) {
+        let home = Self::placed(measure().height, 0.0);
+        grove.animate(self.tips[n].chip.leaf(), Motion::Location(home), timing);
     }
 
     /// How many tips it has.
