@@ -391,6 +391,23 @@ The trunk decides what takes an element down, what clips it, and what it stacks 
 decides where it sits. Keeping the two apart is what lets a menu live at the top of the tree and
 still follow the button that opened it.
 
+## Drawn aside
+
+`grove.shift(leaf, by)` draws an element `by` from where the layout put it, in pixels, and
+everything grown under it with it; `Position::default()` puts it back. What moves is where it is
+drawn and pressed, not where it is placed, so nothing placed against it follows: the next row of a
+list, anchored to the one shifted, stays where it is. `Vein::Placed` still reads where the layout
+put it, `Vein::Drawn` where it is drawn, and `Vein::Shift` how far it was shifted. `Motion::Shift`
+eases it there or back.
+
+```rust,ignore
+grove.shift(row, Position::new(12.0, 0.0));
+grove.animate(row, Motion::Shift(Position::default()), Timing::ms(450));
+```
+
+It is for a moment's displacement -- something tugged, nudged or shaken -- without restating where
+it stands. An element that belongs somewhere else is given a new placement.
+
 ## Lines
 
 A [`Line`](https://eblack-leaf.github.io/foliage/api/foliage/struct.Line.html) has no box to

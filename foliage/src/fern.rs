@@ -475,6 +475,15 @@ fn drain(grove: &mut Grove) {
                 grove.tree.set_opacity(leaf, opacity);
                 debug!(leaf = leaf.id(), opacity, "faded");
             }
+            Op::Shift { leaf, by } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("shift", leaf, "not live");
+                    continue;
+                }
+                cancel(grove, "shift", leaf, Property::Shift);
+                grove.tree.set_shift(leaf, by);
+                debug!(leaf = leaf.id(), x = by.x, y = by.y, "shifted");
+            }
             Op::Animate {
                 leaf,
                 motion,

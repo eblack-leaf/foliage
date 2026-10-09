@@ -25,7 +25,7 @@ use crate::rowan::Standing;
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
 use crate::text_input::{Editing, Masked, Parts, ReadOnly};
-use crate::view::{Extent, Floats, Offset, Pinned, Scroll, Scrolls};
+use crate::view::{Extent, Floats, Offset, Pinned, Scroll, Scrolls, Shift};
 
 /// The tree itself, seen from the inside.
 ///
@@ -979,6 +979,17 @@ impl Tree {
         }
     }
 
+    /// How far `leaf` is drawn from where the layout put it.
+    pub(crate) fn shift(&self, leaf: Leaf) -> Position {
+        self.read::<Shift>(leaf).unwrap_or_default().0
+    }
+
+    pub(crate) fn set_shift(&mut self, leaf: Leaf, by: Position) {
+        if self.overwrite(leaf, Shift(by)) {
+            self.restyled(leaf);
+        }
+    }
+
     /// Everything the passes after the axes read about `leaf`, in one read of the element.
     ///
     /// What resolution holds beside the order for every element, and reads again only where one of
@@ -999,6 +1010,7 @@ impl Tree {
             opacity: entity.get::<Opacity>().copied().unwrap_or_default().0,
             disabled: entity.get::<Disabled>().copied().unwrap_or_default().0,
             elevation: entity.get::<Elevation>().copied().unwrap_or_default(),
+            shift: entity.get::<Shift>().copied().unwrap_or_default().0,
         }
     }
 

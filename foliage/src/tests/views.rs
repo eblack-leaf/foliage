@@ -1,4 +1,4 @@
-//! Views: extent, pinning, chain against contain, `ScrollTo`, and momentum.
+//! Views: extent, pinning, shifting, chain against contain, `ScrollTo`, and momentum.
 //!
 //! What a region *does* with a gesture was proven in `interaction` when the structure landed --
 //! that a drag anywhere inside a region scrolls it, that a region at its end hands a continuing
@@ -7,7 +7,9 @@
 //! statements about the gesture. What is here is everything about the region itself.
 
 use crate::coordinate::{Area, Axes, Position, Section};
-use crate::tests::{advance, drag, grove, press, release, section, tick, wheel};
+use crate::tests::{
+    Observer, advance, drag, grove, press, release, section, tick, tick_with, wheel,
+};
 use crate::view::coasted;
 use crate::{
     Boxed, Divide, Elevation, Escape, Grid, Grove, Grow, Leaf, Location, Motion, Panel, Place, Sap,
@@ -351,6 +353,145 @@ fn a_pinned_child_still_travels_with_a_region_outside_its_own() {
     // The inner region's own is left out, and the outer one's is not.
     assert_eq!(section(&grove, header).top(), -40.0);
     assert_eq!(section(&grove, inner).top(), -40.0);
+}
+
+// -- Shift ---------------------------------------------------------------------------------------
+
+/// Where the layout put an element, as an app would read it.
+fn placed(grove: &Grove, leaf: Leaf) -> Section {
+    match grove.tap(leaf, Vein::Placed) {
+        Some(Sap::Section(placed)) => placed,
+        other => panic!("expected a section, got {other:?}"),
+    }
+}
+
+/// How far an element was shifted, as an app would read it.
+fn shift(grove: &Grove, leaf: Leaf) -> Position {
+    match grove.tap(leaf, Vein::Shift) {
+        Some(Sap::Position(by)) => by,
+        other => panic!("expected a shift, got {other:?}"),
+    }
+}
+
+/// A row drawn aside carries everything on it, and nothing placed against it: the next row down
+/// reads the layout, and the layout did not move.
+#[test]
+fn a_shift_moves_what_is_drawn_and_nothing_placed_against_it() {
+    let mut grove = grove();
+    let row = grove.plant(Stem::new().at(at(10.0, 10.0, 100.0, 20.0)));
+    let words = grove.branch(row, Panel::new().at(at(4.0, 2.0, 50.0, 16.0)));
+    let next = grove.plant(
+        Panel::new()
+            .at(Location::new().xs(
+                left(10.px()).width(100.px()),
+                top(anchor().bottom() + 6.px()).height(20.px()),
+            ))
+            .anchored(row),
+    );
+    tick(&mut grove);
+    assert_eq!(shift(&grove, row), Position::default());
+
+    grove.shift(row, Position::new(12.0, 3.0));
+    tick(&mut grove);
+    assert_eq!(shift(&grove, row), Position::new(12.0, 3.0));
+    assert_eq!(
+        section(&grove, row),
+        Section::new(Position::new(22.0, 13.0), Area::new(100.0, 20.0))
+    );
+    assert_eq!(placed(&grove, row).left(), 10.0);
+    assert_eq!(section(&grove, words).left(), 26.0);
+    assert_eq!(section(&grove, words).top(), 15.0);
+    // Its own shift is its own: what is under it was moved, not shifted.
+    assert_eq!(shift(&grove, words), Position::default());
+    assert_eq!(section(&grove, next).top(), 36.0);
+    assert_eq!(section(&grove, next).left(), 10.0);
+
+    grove.shift(row, Position::default());
+    tick(&mut grove);
+    assert_eq!(section(&grove, row).left(), 10.0);
+    assert_eq!(section(&grove, words).left(), 14.0);
+}
+
+/// Inside a scrolled region a shift is added to the offset, and a pinned element shifted, or under
+/// something shifted, moves by it like anything else.
+#[test]
+fn a_shift_inside_a_scrolled_region_is_added_to_its_offset() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    let content = grove.branch(region, Panel::new().at(at(0.0, 0.0, 200.0, 400.0)));
+    let header = grove.branch(region, Stem::new().at(at(0.0, 0.0, 200.0, 20.0)).pinned());
+    let mark = grove.branch(header, Panel::new().at(at(0.0, 0.0, 10.0, 10.0)));
+    tick(&mut grove);
+
+    grove.scroll(region, ScrollTo::px(60.0));
+    grove.shift(content, Position::new(5.0, 0.0));
+    grove.shift(header, Position::new(0.0, 4.0));
+    tick(&mut grove);
+    assert_eq!(section(&grove, content).left(), 5.0);
+    assert_eq!(section(&grove, content).top(), -60.0);
+    assert_eq!(section(&grove, header).top(), 4.0);
+    assert_eq!(section(&grove, mark).top(), 4.0);
+}
+
+/// What is pressed is what is drawn: a button shifted aside takes a press where it now is, and
+/// none where it was.
+#[test]
+fn a_shifted_element_is_pressed_where_it_is_drawn() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    tick(&mut grove);
+    grove.shift(button, Position::new(200.0, 0.0));
+    tick(&mut grove);
+
+    let mut app = Observer::default();
+    press(&mut grove, 50.0, 25.0);
+    tick_with(&mut grove, &mut app);
+    assert!(!app.last().engaged(button));
+    release(&mut grove, 50.0, 25.0);
+    tick_with(&mut grove, &mut app);
+
+    press(&mut grove, 250.0, 25.0);
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().engaged(button));
+}
+
+/// Eased back, a shift is read where it has reached and lands on zero; and a direct write takes
+/// over from the motion, as a write to any property moving does.
+#[test]
+fn a_shift_eases_back_and_a_direct_shift_cancels_the_motion() {
+    let mut grove = grove();
+    let row = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 20.0)));
+    grove.shift(row, Position::new(40.0, 0.0));
+    tick(&mut grove);
+
+    grove.animate(row, Motion::Shift(Position::default()), Timing::ms(100));
+    tick(&mut grove);
+    advance(&mut grove, 50);
+    tick(&mut grove);
+    assert_eq!(shift(&grove, row), Position::new(20.0, 0.0));
+    assert_eq!(section(&grove, row).left(), 20.0);
+    advance(&mut grove, 50);
+    tick(&mut grove);
+    assert_eq!(shift(&grove, row), Position::default());
+    assert_eq!(section(&grove, row).left(), 0.0);
+
+    grove.animate(
+        row,
+        Motion::Shift(Position::new(30.0, 0.0)),
+        Timing::ms(100),
+    );
+    tick(&mut grove);
+    advance(&mut grove, 50);
+    tick(&mut grove);
+    grove.shift(row, Position::new(8.0, 0.0));
+    tick(&mut grove);
+    advance(&mut grove, 50);
+    tick(&mut grove);
+    assert_eq!(shift(&grove, row), Position::new(8.0, 0.0));
 }
 
 // -- Chain against contain -----------------------------------------------------------------------

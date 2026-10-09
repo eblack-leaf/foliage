@@ -19,6 +19,7 @@ concept of, and motion an app drives by hand.
 | `Trace(Trace)` | where a line's two ends are |
 | `Scroll(ScrollTo)` | where a region is moved to; the destination re-resolves every frame |
 | `Polygon(Shape)` | a polygon's sides, rounding and rotation together |
+| `Shift(Position)` | how far the element is drawn from where it is placed ([Drawn aside](placement.md#drawn-aside)) |
 
 Anything that can be filled converts into a motion toward that fill, so
 `Motion::from(Palette::Accent)` and `Palette::Accent.into()` are both `Motion::Palette`.

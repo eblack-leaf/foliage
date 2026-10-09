@@ -198,6 +198,7 @@ impl Grove {
             Vein::Visible => Sap::Visible(self.tree.visible(leaf).0),
             Vein::Opacity => Sap::Opacity(self.tree.opacity(leaf).0),
             Vein::Disabled => Sap::Disabled(self.tree.disabled(leaf).0),
+            Vein::Shift => Sap::Position(self.tree.shift(leaf)),
             // The three a region has and nothing else does. `None` where the element does not
             // scroll, which is the reading that keeps "an axis that was not declared has no extent"
             // true of the whole element as well as of one of its axes.

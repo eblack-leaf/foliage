@@ -20,15 +20,15 @@ pub enum Vein {
     Branches,
     /// The element this one was branched off, if any.
     Trunk,
-    /// Where the layout put the element, before any scrolling moved it.
+    /// Where the layout put the element, before any scrolling or [shift](Vein::Shift) moved it.
     ///
     /// What a containing view's extent is measured from, and what to read when the question is
     /// where content sits rather than where it currently appears.
     Placed,
-    /// The element's box less every scrolling ancestor's offset: where it is on screen, which is
-    /// what was drawn and what a hit test runs against.
+    /// The element's box less every scrolling ancestor's offset, and moved by every shift on it and
+    /// above it: where it is on screen, which is what was drawn and what a hit test runs against.
     ///
-    /// The two differ only inside a view that has been scrolled.
+    /// The two differ only inside a view that has been scrolled, or under a shift.
     Drawn,
     /// The one other element this one's placement may read, if it has been given one.
     Anchor,
@@ -105,6 +105,13 @@ pub enum Vein {
     /// Whether the element was disabled in its own right, on the same terms as
     /// [`Visible`](Vein::Visible).
     Disabled,
+    /// How far the element was [shifted](crate::Grow::shift) from where the layout put it, in
+    /// logical pixels -- its own, not what it was moved by from above, on the same terms as
+    /// [`Visible`](Vein::Visible). Zero where it never was.
+    ///
+    /// While a [`Motion::Shift`](crate::Motion::Shift) is running this is where it has reached, as
+    /// with [`Opacity`](Vein::Opacity).
+    Shift,
     /// How far a scrolling region has been moved from its content's origin, in logical pixels.
     ///
     /// The same unit it is written in, so reading it back after a

@@ -34,7 +34,7 @@ pub(crate) fn run(grove: &mut Grove) {
 | R2m | wrap | bottom-up | how tall each element's content turned out: the height half of `content()` |
 | R2b | vertical | dependency order | every top edge and height, and with them the placed box |
 | R3 | extent | bottom-up | how far each scrolling region's content reaches |
-| R4 | scroll | top-down | the drawn box: the placed box less every scrolling ancestor's offset |
+| R4 | scroll | top-down | the drawn box: the placed box less every scrolling ancestor's offset, and moved by every shift over it |
 | R5 | clip | top-down | what the scrolling regions above an element leave visible of it |
 | R6 | rank | dependency order | where each element sits in the stack |
 | R7 | inherit | top-down | the visible, opacity and disabled products over the ancestry |
@@ -253,7 +253,9 @@ measuring against it would make the extent depend on itself.
 R4 first answers the three ways a region is asked to move, because all three need the extent R3
 just measured: a coast still running from a release, a `scroll` written this frame, and a scroll
 motion part way through ([Scrolling](views.md)). Then it walks down the order, accumulating offsets:
-an element's drawn box is its placed box less the sum of every scrolling ancestor's offset.
+an element's drawn box is its placed box less the sum of every scrolling ancestor's offset, and
+moved by every `shift` on it and above it -- a shift is an offset the other way, carried to
+everything under the element, pinned or not.
 
 A region's own box does not move under its own offset; what moves is everything grown inside it. A
 pinned child receives every offset except its nearest region's. And each offset is clamped against
@@ -262,7 +264,7 @@ frame rather than sitting somewhere it can no longer reach.
 
 The placed box and the drawn box are kept apart on purpose. A change to the placed box means the
 layout moved something and its children must follow. A change to the drawn box means only that it
-moved under a scroll, and nothing needs resolving for that.
+moved under a scroll or a shift, and nothing needs resolving for that.
 
 ## R5: clip
 

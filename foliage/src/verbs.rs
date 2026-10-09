@@ -1,7 +1,7 @@
 use core::ops::Range;
 
 use crate::aspen::{Motion, Sequence, Timing, Tween};
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Position};
 use crate::elevation::Elevation;
 use crate::elm::Outline;
 use crate::icon::Field;
@@ -462,6 +462,29 @@ pub trait Grow: Queues {
     /// How opaque an element is, as [`opacity`](crate::Place::opacity) states it at spawn.
     fn opacity(&mut self, leaf: Leaf, opacity: f32) {
         self.queue(Op::Fade { leaf, opacity });
+    }
+
+    /// Draws an element `by` from where the layout put it, and everything grown under it with it --
+    /// or back where it belongs, at zero. Positive is right and down.
+    ///
+    /// Where it is placed does not move, so nothing placed against it does either: an element
+    /// anchored to it stays put, and so does the next row down a list. What moves is where it is
+    /// drawn, which is where it is pressed and what [`Drawn`](crate::Vein::Drawn) reads --
+    /// [`Placed`](crate::Vein::Placed) still says where the layout put it. For something drawn a
+    /// little aside for a moment, without restating where it stands.
+    ///
+    /// ```no_run
+    /// # use foliage::{Grove, Grow, Leaf, Motion, Position, Timing};
+    /// # fn f(grove: &mut Grove, row: Leaf) {
+    /// grove.shift(row, Position::new(12.0, 0.0));
+    /// grove.animate(row, Motion::Shift(Position::default()), Timing::ms(450));
+    /// # }
+    /// ```
+    ///
+    /// A direct write, so it cancels a [`Motion::Shift`](crate::Motion::Shift) still moving the
+    /// element.
+    fn shift(&mut self, leaf: Leaf, by: Position) {
+        self.queue(Op::Shift { leaf, by });
     }
 
     /// Moves a property of an element over time.

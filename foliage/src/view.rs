@@ -318,6 +318,15 @@ impl Default for Momentum {
 #[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Offset(pub(crate) Position);
 
+/// How far an element is drawn from where the layout put it, in logical pixels: it and everything
+/// grown under it, and nothing else. Positive is right and down.
+///
+/// Applied where an offset is, in R4, and on the same terms: the placed box does not move, so
+/// nothing placed against it does either -- an element anchored to it, or the next row down a list
+/// -- and what is drawn and hit-tested is where it was shifted to.
+#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+pub(crate) struct Shift(pub(crate) Position);
+
 /// How far a region's content reaches, measured outward from the region's own near edges.
 ///
 /// Derived from where the children landed, never from what is currently drawn: a child scrolled out

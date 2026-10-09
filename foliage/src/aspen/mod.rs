@@ -51,6 +51,7 @@
 //! | [`Motion::Color`], [`Motion::Palette`] | a color, where the declaration is a [`Fill`] | `extract` |
 //! | [`Motion::Polygon`] | a shape, like its declaration | `animate` -- written back |
 //! | [`Motion::Scroll`] | an offset, where the target is a [`ScrollTo`] | `resolve`, at R4 |
+//! | [`Motion::Shift`] | a shift, like its declaration | `animate` -- written back |
 //!
 //! The fill case is the one that needs saying. A [`Fill`] is a role *or* a color, and a blend of two
 //! of them is always a color -- so even two literals cannot be written back, and the blend belongs
@@ -179,6 +180,11 @@ pub enum Motion {
     /// Dropped, like any op naming something it does not apply to, if the element is not a
     /// [`Polygon`](crate::Polygon).
     Polygon(Shape),
+    /// How far the element is drawn from where the layout put it, as
+    /// [`shift`](crate::Grow::shift) writes it: a pair of numbers, so it blends plainly and is
+    /// written back over the declaration, as an opacity is. What eases a thing drawn aside back
+    /// where it belongs.
+    Shift(Position),
 }
 
 impl From<Fill> for Motion {
@@ -217,17 +223,19 @@ pub(crate) enum Property {
     Fill,
     Scroll,
     Shape,
+    Shift,
 }
 
 impl Property {
     /// Every property a motion can be running on, which is what an element being taken down has to
     /// be cleared from.
-    const ALL: [Property; 5] = [
+    const ALL: [Property; 6] = [
         Property::Location,
         Property::Opacity,
         Property::Fill,
         Property::Scroll,
         Property::Shape,
+        Property::Shift,
     ];
 }
 
@@ -271,6 +279,9 @@ enum Moving {
     /// written back over the declaration every frame and the element holds where the motion has
     /// reached rather than where it began or where it is going.
     Shape { from: Shape, to: Shape },
+    /// Both ends, for the reason opacity carries both: the blend is written back over the
+    /// declaration every frame.
+    Shift { from: Position, to: Position },
 }
 
 /// How far a tween has come, against the one clock.
@@ -605,6 +616,11 @@ pub(crate) fn animate(
             };
             (Property::Shape, Moving::Shape { from, to })
         }
+        Motion::Shift(to) => {
+            // Written back every frame, so what the element declares is where it currently is.
+            let from = tree.shift(leaf);
+            (Property::Shift, Moving::Shift { from, to })
+        }
         Motion::Scroll(to) => {
             // Where the region is now, which is what the last frame's R4 settled it at. A retarget
             // needs nothing else: an offset is already a number, so there is no departed
@@ -693,14 +709,18 @@ pub(crate) fn stop(grove: &mut Grove, tween: Tween, reported: bool) -> bool {
 /// Records that a running motion moved its element this frame, as the kind of write it is.
 ///
 /// A placement is blended where it is resolved, so the element is placed again. A fill is blended
-/// where it is drawn, so the element is drawn again and placed where it was. An opacity and a shape
-/// are written back through the tree's own setters, which record themselves; and an offset is
-/// answered by R4 every frame whatever was written, and moves whatever it moves from there.
+/// where it is drawn, so the element is drawn again and placed where it was. An opacity, a shape
+/// and a shift are written back through the tree's own setters, which record themselves; and an
+/// offset is answered by R4 every frame whatever was written, and moves whatever it moves from
+/// there.
 fn stirred(tree: &mut Tree, leaf: Leaf, moving: &Moving) {
     match moving {
         Moving::Location(_) | Moving::Trace(_) => tree.declared(leaf),
         Moving::Fill(_) => tree.restyled(leaf),
-        Moving::Opacity { .. } | Moving::Shape { .. } | Moving::Scroll { .. } => {}
+        Moving::Opacity { .. }
+        | Moving::Shape { .. }
+        | Moving::Shift { .. }
+        | Moving::Scroll { .. } => {}
     }
 }
 
@@ -721,6 +741,7 @@ fn land(tree: &mut Tree, sought: &mut Vec<(Leaf, ScrollTo)>, leaf: Leaf, moving:
         Moving::Shape { to, .. } => {
             tree.set_shape(leaf, *to);
         }
+        Moving::Shift { to, .. } => tree.set_shift(leaf, *to),
         Moving::Scroll { to, .. } => sought.push((leaf, *to)),
     }
 }
@@ -809,6 +830,10 @@ fn motions(grove: &mut Grove, delta: Duration) {
         }
         if let Moving::Shape { from, to } = motioning.moving {
             tree.set_shape(*leaf, from.blend(to, at));
+        }
+        if let Moving::Shift { from, to } = motioning.moving {
+            let by = Position::new(blend(from.x, to.x, at), blend(from.y, to.y, at));
+            tree.set_shift(*leaf, by);
         }
         if !motioning.progress.done() {
             return true;

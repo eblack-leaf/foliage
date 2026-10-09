@@ -318,7 +318,8 @@ progress on that axis.
 
 Inside a scrolled region, an element has two boxes. `Vein::Placed` is where the layout put it;
 `Vein::Drawn` is that less every scrolling ancestor's offset, which is what was drawn and what a
-hit test runs against. The two differ only inside a region that has moved.
+hit test runs against. The two differ only inside a region that has moved, or under a
+[shift](placement.md#drawn-aside).
 
 ## Following a region from the app
 

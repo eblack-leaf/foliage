@@ -66,6 +66,7 @@ apply every motion itself. Which phase applies a motion follows from one rule:
 |---|---|---|
 | `Opacity` | a number, like its declaration | step 5, written back through the tree |
 | `Polygon` | a shape, like its declaration | step 5, written back |
+| `Shift` | a shift, like its declaration | step 5, written back |
 | `Location` | a box, where the declaration is a placement | R2, when the element is resolved |
 | `Trace` | two ends, where the declaration is a trace | R2 |
 | `Scroll` | an offset, where the target is a `ScrollTo` | R4 |
@@ -80,8 +81,8 @@ the scheme every frame.
 
 A motion held beside the tree is invisible to the tree's write records, so step 5 records one for
 it every frame it runs: a placement motion marks its element as written (so R2 resolves it again),
-and a fill motion marks it restyled (so extraction draws it again). An opacity or a shape is written
-through the tree's own setters, which record themselves.
+and a fill motion marks it restyled (so extraction draws it again). An opacity, a shape or a shift is
+written through the tree's own setters, which record themselves.
 
 ```rust,ignore
 // aspen/mod.rs
@@ -89,7 +90,10 @@ fn stirred(tree: &mut Tree, leaf: Leaf, moving: &Moving) {
     match moving {
         Moving::Location(_) | Moving::Trace(_) => tree.declared(leaf),
         Moving::Fill(_) => tree.restyled(leaf),
-        Moving::Opacity { .. } | Moving::Shape { .. } | Moving::Scroll { .. } => {}
+        Moving::Opacity { .. }
+        | Moving::Shape { .. }
+        | Moving::Shift { .. }
+        | Moving::Scroll { .. } => {}
     }
 }
 ```

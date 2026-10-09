@@ -1,6 +1,6 @@
 use crate::aspen::{Motion, Timing, Tween};
 use crate::asset::{Destination, Retrieved};
-use crate::coordinate::Area;
+use crate::coordinate::{Area, Position};
 use crate::elevation::Elevation;
 use crate::elm::{Chlorophyll, Outline, Pigment};
 use crate::frond::Sprouts;
@@ -162,6 +162,10 @@ pub(crate) enum Op {
     Fade {
         leaf: Leaf,
         opacity: f32,
+    },
+    Shift {
+        leaf: Leaf,
+        by: Position,
     },
     /// Moves a property over time. Applied here, which is what makes a write to the same property
     /// earlier in the same drain cancel it, and one later replace it.

@@ -41,7 +41,7 @@
 //! | R2m | wrap | **bottom-up** | the measured-height half of the intrinsic size |
 //! | R2b | vertical | dependency order | the vertical axis, and with it the placed box |
 //! | R3 | extent | **bottom-up** | [`Extent`](crate::view::Extent): how far a region's content reaches |
-//! | R4 | scroll | top-down | the drawn box: the placed box less every scrolling ancestor's offset |
+//! | R4 | scroll | top-down | the drawn box: the placed box less every scrolling ancestor's offset, and moved by every shift over it |
 //! | R5 | clip | top-down | the clip: what a scrolling ancestor leaves visible |
 //! | R6 | rank | dependency order | `ResolvedElevation`: elevation accumulated, then tie-broken |
 //! | R7 | inherit | top-down | [`Inherited`]: the visible, opacity and disabled products |
@@ -154,6 +154,8 @@ pub(crate) struct Standing {
     pub(crate) disabled: bool,
     /// How far in front of its trunk it was told to sit.
     pub(crate) elevation: Elevation,
+    /// How far it is drawn from where the layout put it, and everything under it with it.
+    pub(crate) shift: Position,
 }
 
 impl Default for Standing {
@@ -169,6 +171,7 @@ impl Default for Standing {
             opacity: 1.0,
             disabled: false,
             elevation: Elevation::default(),
+            shift: Position::default(),
         }
     }
 }
@@ -985,7 +988,7 @@ fn reached(scroll: Scroll, section: Section, far: Position) -> Area {
 }
 
 /// R4. Where each element is drawn: where the layout put it, less what its scrolling ancestors have
-/// moved.
+/// moved, and moved by whatever shift it and they were given.
 ///
 /// A region's own box does not move under its own offset -- what moves is everything grown inside
 /// it. The offset is clamped here, against the extent R3 just measured, so a region whose content
@@ -1007,8 +1010,13 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
         let placed = elements.section[at];
         let trunk = elements.trunk[at];
         let standing = elements.standing[at];
-        let inherited = trunk.map(|trunk| accumulated[trunk]).unwrap_or_default();
-        let outside = trunk.map(|trunk| unpinned[trunk]).unwrap_or_default();
+        // A shift moves the element and everything grown under it, pinned or not, so it comes off
+        // both accumulations -- the other way to an offset, which moves content toward the near
+        // edge.
+        let shift = standing.shift;
+        let shifted = |by: Position| Position::new(by.x - shift.x, by.y - shift.y);
+        let inherited = shifted(trunk.map(|trunk| accumulated[trunk]).unwrap_or_default());
+        let outside = shifted(trunk.map(|trunk| unpinned[trunk]).unwrap_or_default());
         // A pinned element does not receive its nearest scrolling ancestor's offset, and receives
         // every offset outside that one: pinning is relative to the region the element sits in and
         // says nothing about what contains that region.
