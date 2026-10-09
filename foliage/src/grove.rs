@@ -68,6 +68,12 @@ pub struct Grove {
     pub(crate) incoming: Incoming,
     /// The pointer events this frame was run for, as they arrived. See [`Grove::pointer`].
     pub(crate) pointer: Vec<Pointer>,
+    /// Where a hovering pointer is, pressed or not. See [`Grove::cursor`].
+    pub(crate) cursor: Option<Position>,
+    /// Whether the app has asked to be woken by the cursor moving. See [`Grove::rouse_on_cursor`].
+    pub(crate) rouses: bool,
+    /// The cursor moved since the last frame, and the app asked to hear of it.
+    pub(crate) roused: bool,
     /// The system clipboard, and what this program last put on it.
     pub(crate) clipboard: Clipboard,
     /// The soft keyboard, and which one is up.
@@ -122,6 +128,9 @@ impl Grove {
             scheme: Scheme::default(),
             incoming: Incoming::default(),
             pointer: Vec::new(),
+            cursor: None,
+            rouses: false,
+            roused: false,
             clipboard: Clipboard::default(),
             keyboard: Keyboard::default(),
             links: Links::default(),
@@ -397,6 +406,29 @@ impl Grove {
     /// Empty in a frame nothing touched the window. Each frame's are gone by the next.
     pub fn pointer(&self) -> &[Pointer] {
         &self.pointer
+    }
+
+    /// Where a hovering pointer is -- a mouse or a pen over the window -- whether or not it is
+    /// pressed.
+    ///
+    /// `None` where there is no such pointer: it has left the window, or the last pointer to touch
+    /// it was a finger, which has no position between touches. An app that follows the cursor reads
+    /// this and does without on a touchscreen, rather than being told about a device.
+    ///
+    /// Read on any frame; a move alone does not run one unless [`rouse_on_cursor`] asked it to.
+    ///
+    /// [`rouse_on_cursor`]: Grove::rouse_on_cursor
+    pub fn cursor(&self) -> Option<Position> {
+        self.cursor
+    }
+
+    /// Whether the cursor moving, with nothing pressed, owes a frame. Off until asked.
+    ///
+    /// An engine with no hover has no reason to wake for a pointer passing over it, so by default
+    /// it does not: a move with nothing held says nothing. An app that follows the cursor -- even
+    /// while it is otherwise idle -- turns this on, and every move then runs a frame to read it in.
+    pub fn rouse_on_cursor(&mut self, rouse: bool) {
+        self.rouses = rouse;
     }
 
     /// Asks for another frame after this one.

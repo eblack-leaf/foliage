@@ -40,6 +40,7 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     grove.frames += 1;
     let _frame = trace_span!("frame", n = grove.frames).entered();
     grove.again = false;
+    grove.roused = false;
     intake(grove);
     interaction::dispatch(grove);
     // What this frame's gestures meant to the leaves that are divided. After dispatch, because that

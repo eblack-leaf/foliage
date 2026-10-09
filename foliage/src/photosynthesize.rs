@@ -170,6 +170,8 @@ impl Foliage {
             // is handed it, so a report that has been made and not yet delivered owes the frame
             // that delivers it. Without this the loop could idle holding one.
             || self.grove.drift.pending()
+            // The cursor moved, and the app asked to be woken for that.
+            || self.grove.roused
     }
 
     /// One platform input event, in the form dispatch takes.
@@ -390,8 +392,11 @@ impl ApplicationHandler for Foliage {
             WindowEvent::RedrawRequested => self.paint(),
             WindowEvent::CursorMoved { position, .. } => {
                 self.cursor = self.at(position.x, position.y);
-                // With no hover to report, a move with nothing held says nothing and owes no
-                // frame. Where the pointer is still matters, because a press names no position.
+                // Read by the app as the cursor; a move owes a frame only if it asked to be roused.
+                self.grove.cursor = Some(self.cursor);
+                self.grove.roused |= self.grove.rouses;
+                // With no hover to report, a move with nothing held is no gesture. Where the
+                // pointer is still matters, because a press names no position.
                 if self.held {
                     self.contact(Phase::Moved, self.cursor, 0, Device::Mouse);
                     self.input(Input::Moved(self.cursor));
@@ -432,6 +437,8 @@ impl ApplicationHandler for Foliage {
                     TouchPhase::Ended => Phase::Up,
                     TouchPhase::Cancelled => Phase::Cancelled,
                 };
+                // A finger has no position between touches, so there is no cursor to follow.
+                self.grove.cursor = None;
                 self.contact(phase, at, touch.id, Device::Touch);
                 // One pointer. A second finger is not a second gesture, and until there is a
                 // gesture that needs one it is not one at all.
@@ -471,6 +478,10 @@ impl ApplicationHandler for Foliage {
             }
             // The gesture was taken away rather than finished, so it never becomes a tap.
             WindowEvent::CursorLeft { .. } | WindowEvent::Focused(false) => {
+                if matches!(event, WindowEvent::CursorLeft { .. }) && self.grove.cursor.is_some() {
+                    self.grove.cursor = None;
+                    self.grove.roused |= self.grove.rouses;
+                }
                 if self.held {
                     self.held = false;
                     self.contact(Phase::Cancelled, self.cursor, 0, Device::Mouse);
