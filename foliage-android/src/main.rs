@@ -860,6 +860,8 @@ fn doctor_first(reason: String) -> String {
 ///
 /// Entries are appended and only when absent, so a `.gitignore` with its own content keeps it and a
 /// rerun adds nothing. Nothing happens where there is no `.gitignore` and no repository to want one.
+/// Only what lies inside the repository is named: an SDK shared from elsewhere is not this
+/// repository's to ignore.
 fn ignore(root: &Path, project: &Project) -> Result<(), String> {
     let path = root.join(".gitignore");
     let existing = fs::read_to_string(&path).unwrap_or_default();
@@ -883,6 +885,7 @@ fn ignore(root: &Path, project: &Project) -> Result<(), String> {
     ];
     let addition: String = wanted
         .iter()
+        .filter_map(|(entry, why)| Some((inside(root, entry)?, why)))
         .filter(|(entry, _)| !named(entry))
         .map(|(entry, why)| format!("# {why}\n/{entry}/\n"))
         .collect();
@@ -902,6 +905,25 @@ fn ignore(root: &Path, project: &Project) -> Result<(), String> {
         .map_err(|e| format!("writing {}: {e}", path.display()))?;
     println!("updated {}", path.display());
     Ok(())
+}
+
+/// `entry` as a path inside `root`, `/`-separated, or `None` for one outside it. Relative entries
+/// are relative to `root`, as `foliage-android.toml` writes them; an absolute one is inside only
+/// when it is under `root`.
+fn inside(root: &Path, entry: &str) -> Option<String> {
+    let path = Path::new(entry);
+    let relative = match path.is_absolute() {
+        true => path.strip_prefix(root).ok()?,
+        false => path,
+    };
+    let parts: Vec<&str> = relative
+        .components()
+        .map(|c| match c {
+            std::path::Component::Normal(part) => part.to_str(),
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    (!parts.is_empty()).then(|| parts.join("/"))
 }
 
 /// Runs a command, reporting a missing one as the install that fixes it.
@@ -961,4 +983,26 @@ fn download(url: &str, dest: &Path) -> Result<(), String> {
     }
     println!("downloaded {}", dest.display());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_what_is_inside_the_repository_is_ignored() {
+        let root = Path::new("/work/app");
+        assert_eq!(
+            inside(root, ".android-sdk").as_deref(),
+            Some(".android-sdk")
+        );
+        assert_eq!(inside(root, "gui/android").as_deref(), Some("gui/android"));
+        assert_eq!(
+            inside(root, "/work/app/.android-sdk").as_deref(),
+            Some(".android-sdk")
+        );
+        assert_eq!(inside(root, "/work/foliage/.android-sdk"), None);
+        assert_eq!(inside(root, "../foliage/.android-sdk"), None);
+        assert_eq!(inside(root, "/work/app"), None);
+    }
 }
