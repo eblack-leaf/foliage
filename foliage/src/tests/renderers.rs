@@ -879,3 +879,54 @@ fn a_recut_makes_the_next_frame_write_everything_again() {
     tick(&mut grove);
     assert_eq!(grove.elm.moved(), (3, 0));
 }
+
+/// Moving a stroke's ends writes them into the trace it holds, and replaces every breakpoint's
+/// pair, as a trace of one link does.
+#[test]
+fn between_moves_a_stroke_and_drops_its_overrides() {
+    let mut grove = grove();
+    resize(&mut grove, Area::new(1200.0, 800.0));
+    let leaf = grove.plant(
+        Line::new().weight(2.0).trace(
+            Trace::new()
+                .xs(at(0.0, 0.0), at(10.0, 0.0))
+                .lg(at(0.0, 0.0), at(90.0, 0.0)),
+        ),
+    );
+    tick(&mut grove);
+    assert_eq!(ends(&grove, leaf).1, Position::new(90.0, 0.0));
+
+    grove.between(leaf, at(5.0, 5.0), at(25.0, 5.0));
+    tick(&mut grove);
+    assert_eq!(
+        ends(&grove, leaf),
+        (Position::new(5.0, 5.0), Position::new(25.0, 5.0))
+    );
+}
+
+/// A stroke's weight written again is its box grown again by half of it, and is refused by
+/// anything that is not a stroke.
+#[test]
+fn a_weight_written_again_grows_the_stroke_again() {
+    let mut grove = grove();
+    let leaf = grove.plant(line((10.0, 20.0), (60.0, 20.0), 2.0));
+    let panel = grove.plant(
+        Panel::new()
+            .at(Location::new().xs(left(0.px()).width(10.px()), top(0.px()).height(10.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, leaf).height(), 2.0);
+
+    grove.weight(leaf, 6.0);
+    grove.weight(panel, 6.0);
+    tick(&mut grove);
+    assert_eq!(stroke(&grove, leaf).weight, 6.0);
+    assert_eq!(
+        section(&grove, leaf),
+        Section::from_edges(7.0, 17.0, 63.0, 23.0)
+    );
+    assert_eq!(
+        section(&grove, panel),
+        Section::from_edges(0.0, 0.0, 10.0, 10.0)
+    );
+}

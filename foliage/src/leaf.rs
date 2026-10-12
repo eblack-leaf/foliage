@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::hash::{BuildHasherDefault, Hasher};
 
 use bevy_ecs::component::Component;
 use bevy_ecs::entity::{Entity, EntityHash};
@@ -22,7 +23,42 @@ pub struct Leaf(pub(crate) Entity);
 pub(crate) type Leaves = HashSet<Leaf, EntityHash>;
 
 /// A map keyed on anything that hashes as one name: an element, or what one is held under.
-pub(crate) type Named<K, V> = HashMap<K, V, EntityHash>;
+///
+/// Hashed by [`Spread`] rather than as [`Leaves`] are. A name's index is dense -- elements grown
+/// together are numbered together -- and hashed as itself it puts what was grown together in one
+/// unbroken run of the table. That is what a set emptied every frame wants. A map held across
+/// frames, whose entries come and go by the hundred thousand as a map's streets do, does not:
+/// taking an entry out of a full run leaves a marker rather than a gap, and every lookup for a
+/// name not there walks the markers until it finds a gap, further each time entries come and go.
+pub(crate) type Named<K, V> = HashMap<K, V, BuildHasherDefault<Spread>>;
+
+/// A hash that mixes every bit of a name into every bit of the hash, so names numbered together
+/// land apart: the finaliser of SplitMix64, two multiplies.
+#[derive(Default)]
+pub(crate) struct Spread {
+    hash: u64,
+}
+
+impl Hasher for Spread {
+    fn finish(&self) -> u64 {
+        let mut x = self.hash;
+        x ^= x >> 30;
+        x = x.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        x ^= x >> 27;
+        x = x.wrapping_mul(0x94d0_49bb_1331_11eb);
+        x ^ (x >> 31)
+    }
+
+    fn write_u64(&mut self, value: u64) {
+        self.hash = self.hash.rotate_left(29) ^ value;
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &byte in bytes {
+            self.write_u64(u64::from(byte));
+        }
+    }
+}
 
 impl Leaf {
     /// A stable number for this element, for logging or as a map key. Not an address -- there is

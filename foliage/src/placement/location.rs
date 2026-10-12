@@ -3,7 +3,7 @@
 use bevy_ecs::component::Component;
 
 use crate::layout::{Layout, Short};
-use crate::placement::breakpoints::{Breakpoints, Override};
+use crate::placement::breakpoints::{Override, Stated};
 use crate::placement::role::{Config, Horizontal, Vertical, left, top};
 use crate::placement::source::Source;
 
@@ -70,7 +70,7 @@ use crate::placement::source::Source;
 /// the whole of it is large, and it is carried a great deal -- in every write that moves an element,
 /// in every motion, in the row the element is held in -- where a pointer is all any of those needs.
 #[derive(Component, Clone, Debug, PartialEq)]
-pub struct Location(pub(crate) Box<Breakpoints<Axes>>);
+pub struct Location(pub(crate) Box<Stated<Axes>>);
 
 impl Location {
     /// An empty placement: the whole of the parent's box, at every breakpoint.
@@ -78,7 +78,7 @@ impl Location {
     /// Each of [`xs`](Location::xs) upward states one breakpoint's placement, and a breakpoint
     /// with none of its own takes the nearest smaller one that has.
     pub fn new() -> Self {
-        Self(Box::new(Breakpoints::new()))
+        Self(Box::new(Stated::new()))
     }
 
     /// States the placement from the smallest breakpoint up, which is to say everywhere that a

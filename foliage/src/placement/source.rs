@@ -67,12 +67,16 @@ pub(crate) enum Kind {
     /// Where one character of the named element's run stands, as it wrapped at the width it
     /// resolved to: its column on the horizontal axis and its line on the vertical one, each as a
     /// count of that element's cells.
-    Character { index: usize, against: Against },
+    ///
+    /// Character indices are held as `u32`, which every run is far short of, rather than `usize`:
+    /// this is the largest variant, and every term of every placement is the size of it. See
+    /// [`index`].
+    Character { index: u32, against: Against },
     /// Where a span of the named element's run, from one character to another, starts or stops on
     /// one of its lines, as the run wrapped at the width it resolved to.
     Span {
-        from: usize,
-        to: usize,
+        from: u32,
+        to: u32,
         end: SpanEnd,
         against: Against,
     },
@@ -80,6 +84,12 @@ pub(crate) enum Kind {
     Content { against: Against },
     /// One edge of a box. Already a position on the surface, so it is measured from nothing.
     Edge { edge: Edge, against: Against },
+}
+
+/// A character index as a [`Kind`] holds it. One past `u32::MAX` reads as the place after the last
+/// character, which is what an index past the end of a run already means.
+pub(crate) fn index(index: usize) -> u32 {
+    u32::try_from(index).unwrap_or(u32::MAX)
 }
 
 /// Which end of a span across a wrapped run a [`Kind::Span`] reads.
@@ -118,17 +128,21 @@ pub(crate) enum Edge {
 /// Almost every expression is one term -- a length, a percentage, an edge -- and that one is held
 /// in place. Only a sum puts its terms on the heap, so writing a placement allocates for the sums in
 /// it and nothing else, and so does letting go of the one it replaced.
+///
+/// A sum's terms are a boxed slice rather than a vector: an expression is built once and never
+/// grows after, so the room a vector keeps to grow into is never used, and its third word would be
+/// carried in every expression of every placement for nothing. An empty one holds nothing at all.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Expr {
     /// One term.
     One(Term),
     /// Any number of them, added together. Empty is zero.
-    Sum(Vec<Term>),
+    Sum(Box<[Term]>),
 }
 
 impl Default for Expr {
     fn default() -> Self {
-        Self::Sum(Vec::new())
+        Self::Sum(Box::default())
     }
 }
 
@@ -146,6 +160,14 @@ impl Term {
 }
 
 impl Expr {
+    /// Whether any of its terms reads the measured extent of what `against` names: its
+    /// [`content`](crate::content).
+    pub(crate) fn reads_content(&self, against: Against) -> bool {
+        self.terms()
+            .iter()
+            .any(|term| matches!(term.kind, Kind::Content { against: read } if read == against))
+    }
+
     fn of(kind: Kind) -> Self {
         Self::One(Term::new(kind))
     }
@@ -159,12 +181,8 @@ impl Expr {
     }
 
     fn plus(self, other: Expr) -> Self {
-        let mut terms = match self {
-            Self::One(term) => vec![term],
-            Self::Sum(terms) => terms,
-        };
-        terms.extend_from_slice(other.terms());
-        Self::Sum(terms)
+        let terms: Vec<Term> = self.terms().iter().chain(other.terms()).copied().collect();
+        Self::Sum(terms.into_boxed_slice())
     }
 
     fn minus(self, other: Expr) -> Self {
@@ -179,7 +197,7 @@ impl Expr {
         match &mut self {
             Self::One(term) => term.scale *= by,
             Self::Sum(terms) => {
-                for term in terms {
+                for term in terms.iter_mut() {
                     term.scale *= by;
                 }
             }

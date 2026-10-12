@@ -24,6 +24,19 @@
 //! - `FOLIAGE_BENCH_FRAMES` -- how many frames each reading is taken over.
 //! - `FOLIAGE_BENCH_PHASES` -- set to anything to follow each reading with where its frames went,
 //!   from the engine's own spans. A separate run, so the spans' own cost is not in the headline.
+//! - `FOLIAGE_BENCH_STROKES` -- how many strokes [`strokes_once`] grows, rather than 290 thousand.
+//!
+//! # Frames that happen once
+//!
+//! A load is a frame repeated, and some of what a frame costs only happens once: growing a great
+//! many elements, letting them go. [`strokes_once`] reads those for a field of strokes -- a map's
+//! streets, a cell to a stem -- one frame at a time and each by phase: grown, zoomed in with the
+//! stems the page no longer reaches let go, zoomed back out with them grown again, and the halves
+//! of those apart.
+//!
+//! ```sh
+//! cargo test -p foliage --release --lib strokes_once -- --ignored --nocapture
+//! ```
 
 use core::time::Duration;
 use std::cell::RefCell;
@@ -196,6 +209,18 @@ const LOADS: &[Load] = &[
                 Location::new().xs(left(x.px()).right(100.pct()), top(0.px()).bottom(100.pct())),
             );
         },
+    },
+    Load {
+        name: "strokes/pan",
+        what: "cells short strokes in fifteen stems, every stem shifted, as a map pans",
+        grow: strokes,
+        step: panned,
+    },
+    Load {
+        name: "strokes/zoom",
+        what: "the same strokes, every stem placed again at another size, as a map zooms",
+        grow: strokes,
+        step: zoomed,
     },
     Load {
         name: "type",
@@ -679,4 +704,255 @@ fn wheeled(grove: &mut Grove, _field: &mut Field, frame: usize) {
         at: Position::new(PAGE.width / 2.0, PAGE.height / 2.0),
         delta: Position::new(0.0, if down { -20.0 } else { 20.0 }),
     });
+}
+
+// -- A field of strokes ----------------------------------------------------------------------------
+
+/// The stems a field of strokes is cut into, across and down, and how wide each is at rest: fifteen
+/// boxes over the page, as a map cuts what it draws at one zoom into cells.
+const TILES: (usize, usize) = (5, 3);
+const TILE: f32 = 400.0;
+
+/// How much larger a stem is placed for one zoom in.
+const ZOOM: f32 = 1.54;
+
+/// How many strokes [`strokes_once`] is read at, unless `FOLIAGE_BENCH_STROKES` says otherwise: what
+/// a map draws at its widest zoom over a small country.
+const STROKES: usize = 290_000;
+
+/// `count` short strokes over [`TILES`] stems tiling the page, each stroke's ends a fraction of its
+/// stem. The page is `held[0]` and the stems follow it.
+fn strokes(grove: &mut Grove, count: usize) -> Field {
+    let page = grove.plant(Panel::new());
+    let tiles = TILES.0 * TILES.1;
+    let mut held = vec![page];
+    held.extend((0..tiles).map(|n| tile(grove, page, n, count.div_ceil(tiles))));
+    Field {
+        held,
+        ..Field::default()
+    }
+}
+
+/// Stem `n` at rest, with `count` strokes in it: the same strokes every time it is grown.
+fn tile(grove: &mut Grove, page: Leaf, n: usize, count: usize) -> Leaf {
+    use crate::{Cap, Elevation, Line, Point};
+    let stem = grove.branch(page, Stem::new().at(tiled(n, TILE)).intangible());
+    let mut seed = (n as u64 + 1).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+    let mut next = move || {
+        seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        (seed >> 40) as f32 / (1u64 << 24) as f32
+    };
+    for _ in 0..count {
+        let (x, y) = (next(), next());
+        let (dx, dy) = ((next() - 0.5) * 0.02, (next() - 0.5) * 0.02);
+        let rank = 1 + (next() * 7.0) as i32;
+        grove.branch(
+            stem,
+            Line::new()
+                .weight(2.0)
+                .cap(Cap::Round)
+                .color(Palette::Muted)
+                .elevate(Elevation::up(rank))
+                .intangible()
+                .between(
+                    Point::new((x * 100.0).pct(), (y * 100.0).pct()),
+                    Point::new(((x + dx) * 100.0).pct(), ((y + dy) * 100.0).pct()),
+                ),
+        );
+    }
+    stem
+}
+
+/// Where stem `n` stands when each is `side` across: the tiles centred on the page, so placing
+/// them larger is zooming in on its middle.
+fn tiled(n: usize, side: f32) -> Location {
+    let column = (n % TILES.0) as f32 - TILES.0 as f32 / 2.0;
+    let row = (n / TILES.0) as f32 - TILES.1 as f32 / 2.0;
+    Location::new().xs(
+        left((PAGE.width / 2.0 + column * side).px()).width(side.px()),
+        top((PAGE.height / 2.0 + row * side).px()).height(side.px()),
+    )
+}
+
+/// Every stem shifted, as a map pans.
+fn panned(grove: &mut Grove, field: &mut Field, frame: usize) {
+    let by = (frame % 32) as f32 * 2.0;
+    for &stem in &field.held[1..] {
+        grove.shift(stem, Position::new(by, by / 2.0));
+    }
+}
+
+/// Every stem placed again, larger and smaller on alternate frames, as a map zooms.
+fn zoomed(grove: &mut Grove, field: &mut Field, frame: usize) {
+    let side = if frame.is_multiple_of(2) {
+        TILE * ZOOM
+    } else {
+        TILE
+    };
+    for (n, &stem) in field.held[1..].iter().enumerate() {
+        grove.at(stem, tiled(n, side));
+    }
+}
+
+/// The frames a field of strokes has once rather than every frame, each by phase: grown, zoomed in
+/// -- every stem placed again larger, and the six the page no longer reaches let go -- and zoomed
+/// back out, those six grown again. Then the three halves of those apart: placed again, let go,
+/// grown. Then the six hidden rather than let go, a frame where nothing happens and a pan with them
+/// hidden, and the six shown again; and half of one stem's strokes let go.
+///
+/// What it takes to describe what is grown is timed beside the frame, because a frame that grows
+/// pays for it too: it is the app's side of the same frame.
+#[test]
+#[ignore = "a measurement; run with --ignored --nocapture"]
+fn strokes_once() {
+    let count: usize = std::env::var("FOLIAGE_BENCH_STROKES")
+        .ok()
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(STROKES);
+    let tiles = TILES.0 * TILES.1;
+    let per = count.div_ceil(tiles);
+    let outer: Vec<usize> = (0..tiles)
+        .filter(|n| n % TILES.0 == 0 || n % TILES.0 == TILES.0 - 1)
+        .collect();
+    let mut grove = Grove::new(PAGE);
+    let started = Instant::now();
+    let mut field = strokes(&mut grove, count);
+    let described = started.elapsed();
+    let page = field.held[0];
+    println!();
+    println!("  strokes_once: {} strokes in {tiles} stems", per * tiles);
+    once(&mut grove, "grown", Some(described));
+    once(&mut grove, "idle", None);
+
+    for n in 0..tiles {
+        match outer.contains(&n) {
+            true => grove.prune(field.held[1 + n]),
+            false => grove.at(field.held[1 + n], tiled(n, TILE * ZOOM)),
+        }
+    }
+    once(&mut grove, "zoomed in: placed again, six let go", None);
+
+    let started = Instant::now();
+    for n in 0..tiles {
+        match outer.contains(&n) {
+            true => field.held[1 + n] = tile(&mut grove, page, n, per),
+            false => grove.at(field.held[1 + n], tiled(n, TILE)),
+        }
+    }
+    let described = started.elapsed();
+    once(
+        &mut grove,
+        "zoomed out: placed again, six grown",
+        Some(described),
+    );
+
+    for (n, &stem) in field.held[1..].iter().enumerate() {
+        grove.at(stem, tiled(n, TILE * ZOOM));
+    }
+    once(&mut grove, "placed again", None);
+    for &n in &outer {
+        grove.prune(field.held[1 + n]);
+    }
+    once(&mut grove, "six let go", None);
+    let started = Instant::now();
+    for &n in &outer {
+        field.held[1 + n] = tile(&mut grove, page, n, per);
+    }
+    let described = started.elapsed();
+    once(&mut grove, "six grown", Some(described));
+
+    // Kept rather than let go, as a map keeps the cells it zooms away from: hidden, then a frame
+    // where nothing happens, which they should cost nothing in, then shown again.
+    for &n in &outer {
+        grove.visible(field.held[1 + n], false);
+    }
+    once(&mut grove, "six hidden", None);
+    once(&mut grove, "idle, six hidden", None);
+    panned(&mut grove, &mut field, 5);
+    once(&mut grove, "panned, six hidden", None);
+    for &n in &outer {
+        grove.visible(field.held[1 + n], true);
+    }
+    once(&mut grove, "six shown", None);
+
+    // Every other stroke of one stem let go, as a stem filled with fewer strokes than it holds lets
+    // go of the rest.
+    let strokes = grove.tree.branches(field.held[1 + TILES.0 + 1]);
+    for &stroke in strokes.iter().step_by(2) {
+        grove.prune(stroke);
+    }
+    once(&mut grove, "half a stem's strokes let go", None);
+
+    // Zoomed in and out again and again, as a map is, the stems let go and grown each time with
+    // names never used before: what a frame costs should not climb with how many elements came and
+    // went before it.
+    println!("    zoomed out and in, {CYCLES} times: frame, extract, ms");
+    for cycle in 0..CYCLES {
+        for n in 0..tiles {
+            match outer.contains(&n) {
+                true => grove.prune(field.held[1 + n]),
+                false => grove.at(field.held[1 + n], tiled(n, TILE * ZOOM)),
+            }
+        }
+        tick(&mut grove);
+        for n in 0..tiles {
+            match outer.contains(&n) {
+                true => field.held[1 + n] = tile(&mut grove, page, n, per),
+                false => grove.at(field.held[1 + n], tiled(n, TILE)),
+            }
+        }
+        let (frame, extract) = timed(&mut grove);
+        println!("      {cycle:>2}  {frame:>9.3}  {extract:>9.3}");
+    }
+}
+
+/// How many times [`strokes_once`] lets the outer stems go and grows them again.
+const CYCLES: usize = 8;
+
+/// One frame, and how long it and its extraction took, in milliseconds.
+fn timed(grove: &mut Grove) -> (f64, f64) {
+    TALLIES.with(|tallies| tallies.borrow_mut().clear());
+    let subscriber = tracing_subscriber::registry().with(Stopwatch);
+    tracing::subscriber::with_default(subscriber, || {
+        advance(grove, 16);
+        tick(grove);
+    });
+    TALLIES.with(|tallies| {
+        let tallies = tallies.borrow();
+        let ms = |phase: &str| {
+            tallies
+                .iter()
+                .filter(|((name, _), _)| *name == phase)
+                .map(|(_, nanos)| *nanos as f64 / 1e6)
+                .sum::<f64>()
+        };
+        (ms("frame"), ms("extract"))
+    })
+}
+
+/// One frame under the engine's own spans, written out as where it went.
+fn once(grove: &mut Grove, what: &str, described: Option<Duration>) {
+    TALLIES.with(|tallies| tallies.borrow_mut().clear());
+    let subscriber = tracing_subscriber::registry().with(Stopwatch);
+    tracing::subscriber::with_default(subscriber, || {
+        advance(grove, 16);
+        tick(grove);
+    });
+    let tallies = TALLIES.with(|tallies| core::mem::take(&mut *tallies.borrow_mut()));
+    let mut rows: Vec<(&'static str, Option<&'static str>, u64)> = tallies
+        .into_iter()
+        .map(|((phase, parent), nanos)| (phase, parent, nanos))
+        .collect();
+    rows.sort_by_key(|row| core::cmp::Reverse(row.2));
+    match described {
+        Some(described) => println!(
+            "    {what}, {} elements, described in {:.3}ms:",
+            grove.elements.len(),
+            described.as_secs_f64() * 1000.0
+        ),
+        None => println!("    {what}, {} elements:", grove.elements.len()),
+    }
+    branch(&rows, None, 0, 1);
 }

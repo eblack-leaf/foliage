@@ -1,8 +1,8 @@
 use crate::aspen::{Sequence, Tween};
 use crate::asset::Arrival;
 use crate::coordinate::{Area, Position};
-use crate::interaction::Drag;
 use crate::interaction::input::{Key, Keystroke};
+use crate::interaction::{Drag, Wheel};
 use crate::leaf::{Leaf, Leaves, Named};
 use bevy_ecs::entity::EntityHash;
 use std::collections::{HashMap, HashSet};
@@ -139,6 +139,14 @@ impl Pollen {
     /// How far the drag `leaf` is holding has moved, if it moved this frame.
     pub fn dragged(&self, leaf: Leaf) -> Option<Drag> {
         self.0.dragged.get(&leaf).copied()
+    }
+
+    /// The wheel notches `leaf` took this frame, if it took any.
+    ///
+    /// Only an element that declared [`wheels`](crate::Place::wheels) is sent one, and only a notch
+    /// that landed on it.
+    pub fn wheeled(&self, leaf: Leaf) -> Option<Wheel> {
+        self.0.wheeled.get(&leaf).copied()
     }
 
     /// Whether a motion on `leaf` reached its end.
@@ -338,6 +346,7 @@ pub(crate) struct Drift {
     pub(crate) held: HashMap<Leaf, Position>,
     pub(crate) drag_started: HashSet<Leaf>,
     pub(crate) dragged: HashMap<Leaf, Drag>,
+    pub(crate) wheeled: HashMap<Leaf, Wheel>,
     /// What each focused element was sent, in arrival order -- the one ordered thing here, because
     /// two keys in a frame mean different things in each order.
     pub(crate) keys: HashMap<Leaf, Vec<Keystroke>>,
@@ -394,5 +403,15 @@ impl Drift {
             carried.delta.x + drag.delta.x,
             carried.delta.y + drag.delta.y,
         );
+    }
+
+    /// Adds a notch to what `leaf` is being told about the wheel, for the reason drags are added.
+    pub(crate) fn wheeled(&mut self, leaf: Leaf, wheel: Wheel) {
+        let carried = self.wheeled.entry(leaf).or_insert(Wheel {
+            delta: Position::default(),
+            ..wheel
+        });
+        carried.at = wheel.at;
+        carried.delta = carried.delta.moved(wheel.delta);
     }
 }

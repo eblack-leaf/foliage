@@ -90,6 +90,48 @@ fn prune_reports_every_name_that_went() {
     }
 }
 
+/// Many of one trunk's branches pruned in a row go together, wherever they sit among the rest, and
+/// what stays keeps the order it was grown in. A branch pruned in the same row as the trunk it hangs
+/// off goes once.
+#[test]
+fn prunes_in_a_row_leave_the_rest_in_order() {
+    let mut grove = grove();
+    let mut app = Observer::default();
+    let trunk = grove.plant(Stem::new());
+    let branches: Vec<Leaf> = (0..12).map(|_| grove.branch(trunk, Stem::new())).collect();
+    let held = grove.plant(Stem::new());
+    let twig = grove.branch(held, Stem::new());
+    tick_with(&mut grove, &mut app);
+
+    let (going, staying): (Vec<_>, Vec<_>) =
+        branches.iter().enumerate().partition(|(n, _)| n % 3 != 1);
+    for (_, leaf) in &going {
+        grove.prune(**leaf);
+    }
+    grove.prune(twig);
+    grove.prune(held);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+
+    let staying: Vec<Leaf> = staying.into_iter().map(|(_, leaf)| *leaf).collect();
+    assert_eq!(
+        grove.tap(trunk, Vein::Branches),
+        Some(Sap::Leaves(staying.clone()))
+    );
+    for (_, leaf) in &going {
+        assert_eq!(grove.presence(**leaf), Presence::Withered);
+        assert!(app.last().withered(**leaf));
+    }
+    for leaf in [held, twig] {
+        assert_eq!(grove.presence(leaf), Presence::Withered);
+        assert!(app.last().withered(leaf));
+    }
+    // What stays is still laid out, and still under its trunk.
+    for leaf in staying {
+        assert_eq!(grove.tap(leaf, Vein::Trunk), Some(Sap::Leaf(Some(trunk))));
+    }
+}
+
 #[test]
 fn ops_naming_a_withered_leaf_are_dropped() {
     let mut grove = grove();

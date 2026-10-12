@@ -14,9 +14,11 @@ use crate::interaction;
 use crate::interaction::focus;
 use crate::layout::Layout;
 use crate::leaf::Leaf;
+use crate::line::Stroke;
 use crate::op::{Bud, Op};
 use crate::place::Caller;
 use crate::pollen::Pollen;
+use crate::queue::Queued;
 use crate::root::Rooted;
 use crate::rowan;
 use crate::sprig;
@@ -123,20 +125,23 @@ fn root(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
 ///
 /// An op naming something that has withered is dropped silently, and reported to the trace.
 fn drain(grove: &mut Grove) {
-    let ops = grove.queue.take();
+    let Queued { ops, buds } = grove.queue.take();
     let _step = trace_span!("drain", ops = ops.len()).entered();
-    for op in ops {
+    // In the order the ops that grow them were queued, so each such op takes the next.
+    let mut buds = buds.into_iter();
+    let mut ops = ops.into_iter().peekable();
+    while let Some(op) = ops.next() {
         match op {
-            Op::Plant {
-                leaf,
-                growth,
-                mut bud,
-            } => {
+            Op::Plant { leaf, growth } => {
+                let Some(mut bud) = buds.next() else {
+                    dropped("plant", leaf, "nothing queued to grow");
+                    continue;
+                };
                 refuse_sown_cycle(grove, leaf, &bud);
                 // Taken before the bud is spent, because a frond's leaflets are grown under the leaf
                 // this is about to grow and so cannot be grown until it exists.
                 let sprout = bud.sprout.take();
-                if grove.tree.grow(leaf, growth, None, *bud) {
+                if grove.tree.grow(leaf, growth, None, bud) {
                     sprouted(grove, leaf, sprout);
                     debug!(leaf = leaf.id(), "planted");
                 } else {
@@ -147,13 +152,16 @@ fn drain(grove: &mut Grove) {
                 leaf,
                 growth,
                 under,
-                mut bud,
             } => {
+                let Some(mut bud) = buds.next() else {
+                    dropped("branch", leaf, "nothing queued to grow");
+                    continue;
+                };
                 refuse_sown_cycle(grove, leaf, &bud);
                 let sprout = bud.sprout.take();
                 if !grove.tree.is_live(under) {
                     dropped("branch", leaf, "trunk is not live");
-                } else if grove.tree.grow(leaf, growth, Some(under), *bud) {
+                } else if grove.tree.grow(leaf, growth, Some(under), bud) {
                     sprouted(grove, leaf, sprout);
                     debug!(leaf = leaf.id(), under = under.id(), "branched");
                 } else {
@@ -161,12 +169,25 @@ fn drain(grove: &mut Grove) {
                 }
             }
             Op::Prune(leaf) => {
-                if !grove.tree.is_live(leaf) {
-                    dropped("prune", leaf, "not live");
+                // Every prune queued after this one with nothing between them goes with it, so what
+                // they hang off is written once for all of them rather than once for each.
+                let mut leaves = vec![leaf];
+                while let Some(Op::Prune(next)) = ops.peek() {
+                    leaves.push(*next);
+                    ops.next();
+                }
+                leaves.retain(|leaf| {
+                    let live = grove.tree.is_live(*leaf);
+                    if !live {
+                        dropped("prune", *leaf, "not live");
+                    }
+                    live
+                });
+                if leaves.is_empty() {
                     continue;
                 }
-                let gone = grove.tree.wither(leaf);
-                debug!(leaf = leaf.id(), withered = gone.len(), "pruned");
+                let gone = grove.tree.wither(&leaves);
+                debug!(leaves = leaves.len(), withered = gone.len(), "pruned");
                 grove.aspen.wither(&gone);
                 grove.coasting.wither(&gone);
                 grove.drift.withered.extend(gone);
@@ -181,6 +202,30 @@ fn drain(grove: &mut Grove) {
                     debug!(leaf = leaf.id(), "placed");
                 } else {
                     dropped("at", leaf, "is placed by its ends; use `between`");
+                }
+            }
+            Op::Between { leaf, ends } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("between", leaf, "not live");
+                    continue;
+                }
+                // What `trace` cancels, for the same reason: this is a trace written.
+                cancel(grove, "between", leaf, Property::Location);
+                if grove.tree.set_ends(leaf, ends) {
+                    debug!(leaf = leaf.id(), "traced");
+                } else {
+                    dropped("between", leaf, "is placed by a box; use `at`");
+                }
+            }
+            Op::Weight { leaf, weight } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("weight", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_stroke(leaf, Stroke::new(weight)) {
+                    debug!(leaf = leaf.id(), weight, "weighted");
+                } else {
+                    dropped("weight", leaf, "is not a stroke");
                 }
             }
             Op::Trace { leaf, trace } => {

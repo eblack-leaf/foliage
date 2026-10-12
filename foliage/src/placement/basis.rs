@@ -11,7 +11,7 @@
 use crate::coordinate::Axis;
 use crate::placement::source::{
     Against, Edge, HorizontalCoordinate, Kind, Length, Origin, SpanEnd, VerticalCoordinate,
-    VerticalLength,
+    VerticalLength, index,
 };
 
 /// The element this one was grown under.
@@ -156,9 +156,9 @@ macro_rules! basis {
             /// A length rather than a coordinate for the reason `letters` is: it is measured from
             /// the run's own edge, and `left(anchor().left() + anchor().character(n))` says which.
             /// That is the whole of how a caret is placed against a run that wraps.
-            pub fn character(self, index: usize) -> Length {
+            pub fn character(self, at: usize) -> Length {
                 Length::of(Kind::Character {
-                    index,
+                    index: index(at),
                     against: $against,
                 })
             }
@@ -189,8 +189,8 @@ impl Anchor {
     /// divided into lines by the wrap this frame lays out rather than the one it last drew.
     pub(crate) fn stops(self, from: usize, to: usize) -> Length {
         Length::of(Kind::Span {
-            from,
-            to,
+            from: index(from),
+            to: index(to),
             end: SpanEnd::Stops,
             against: Against::Anchor,
         })
@@ -201,8 +201,8 @@ impl Anchor {
     /// is not -- where there is nothing left of the span to draw.
     pub(crate) fn resumes(self, from: usize, to: usize) -> Length {
         Length::of(Kind::Span {
-            from,
-            to,
+            from: index(from),
+            to: index(to),
             end: SpanEnd::Resumes,
             against: Against::Anchor,
         })

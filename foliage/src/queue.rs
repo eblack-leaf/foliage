@@ -1,4 +1,4 @@
-use crate::op::Op;
+use crate::op::{Bud, Op};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
@@ -7,23 +7,43 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 /// Every op lands here whichever side of the boundary issued it, and its position is fixed by
 /// when it arrived and by nothing else.
 #[derive(Clone, Default)]
-pub(crate) struct Queue(Arc<Mutex<Vec<Op>>>);
+pub(crate) struct Queue(Arc<Mutex<Queued>>);
+
+/// What is waiting to be applied: the ops in arrival order, and the element each op that grows one
+/// describes, in the same order.
+///
+/// The elements are held beside the ops rather than inside them. An op is small enough to move
+/// freely, and an element's description is not; boxing each one made every element grown an
+/// allocation, and a frame that grows tens of thousands paid for each. Held in one run, they cost
+/// what the run's growth costs, and the drain takes them in order as it meets each op that grows.
+#[derive(Default)]
+pub(crate) struct Queued {
+    pub(crate) ops: Vec<Op>,
+    pub(crate) buds: Vec<Bud>,
+}
 
 impl Queue {
     pub(crate) fn push(&self, op: Op) {
-        self.lock().push(op);
+        self.lock().ops.push(op);
+    }
+
+    /// Queues an op that grows an element, with the element it grows.
+    pub(crate) fn sow(&self, op: Op, bud: Bud) {
+        let mut queued = self.lock();
+        queued.ops.push(op);
+        queued.buds.push(bud);
     }
 
     /// Everything queued since the last drain, in arrival order.
-    pub(crate) fn take(&self) -> Vec<Op> {
+    pub(crate) fn take(&self) -> Queued {
         core::mem::take(&mut *self.lock())
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.lock().is_empty()
+        self.lock().ops.is_empty()
     }
 
-    fn lock(&self) -> MutexGuard<'_, Vec<Op>> {
+    fn lock(&self) -> MutexGuard<'_, Queued> {
         self.0
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())

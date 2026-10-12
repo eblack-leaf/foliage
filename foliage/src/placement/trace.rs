@@ -3,7 +3,7 @@
 use bevy_ecs::component::Component;
 
 use crate::layout::{Layout, Short};
-use crate::placement::breakpoints::{Breakpoints, Override};
+use crate::placement::breakpoints::{Override, Stated};
 use crate::placement::point::Point;
 use crate::placement::source::Source;
 
@@ -31,7 +31,7 @@ use crate::placement::source::Source;
 ///
 /// Held behind one pointer, for the reason a [`Location`](crate::Location) is.
 #[derive(Component, Clone, Debug, PartialEq)]
-pub struct Trace(pub(crate) Box<Breakpoints<Ends>>);
+pub struct Trace(pub(crate) Box<Stated<Ends>>);
 
 impl Trace {
     /// An empty trace: a stroke of no length at its trunk's top-left corner, at every breakpoint.
@@ -39,7 +39,7 @@ impl Trace {
     /// Each of [`xs`](Trace::xs) upward states one breakpoint's ends, and a breakpoint with none of
     /// its own takes the nearest smaller one that has.
     pub fn new() -> Self {
-        Self(Box::new(Breakpoints::new()))
+        Self(Box::new(Stated::new()))
     }
 
     /// States the ends from the smallest breakpoint up, which is to say everywhere that a larger

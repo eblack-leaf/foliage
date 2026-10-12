@@ -19,7 +19,8 @@
 //!   line drawn around the inside of it.
 //! - A gesture goes to the top of the box stack: [`interactive`](Place::interactive) says who
 //!   receives one, [`intangible`](Place::intangible) says who it passes through, and
-//!   [`Drag`] is what one reports while it is held. A press that stayed still for [`Hold`]'s
+//!   [`Drag`] is what one reports while it is held. A wheel notch scrolls what is under it unless
+//!   that [`wheels`](Place::wheels), which is then sent the [`Wheel`] instead. A press that stayed still for [`Hold`]'s
 //!   duration is [`held`](Pollen::held) rather than a tap that might still be coming, and a tap
 //!   close enough behind another, by [`Taps`], is counted with it in [`taps`](Pollen::taps).
 //! - [`Font`], [`Field`] and [`Plate`] are registered from bytes an app holds or from an [`Origin`]
@@ -117,7 +118,7 @@ pub use grove::Grove;
 pub use icon::{Field, Icon, Marks};
 pub use image::{Fit, Image, Plate};
 pub use interaction::input::{Device, Key, Keystroke, Modifiers, Phase, Pointer};
-pub use interaction::{Claim, Drag, Hold, Taps};
+pub use interaction::{Claim, Drag, Hold, Taps, Wheel};
 pub use keyboard::Keypad;
 pub use layout::{Layout, Short};
 pub use leaf::{Leaf, Presence};

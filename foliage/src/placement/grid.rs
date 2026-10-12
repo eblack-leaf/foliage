@@ -4,7 +4,7 @@ use bevy_ecs::component::Component;
 
 use crate::coordinate::Axis;
 use crate::layout::{Layout, Short};
-use crate::placement::breakpoints::{Breakpoints, Override};
+use crate::placement::breakpoints::{Override, Stated};
 
 /// How a parent's box is divided, per breakpoint.
 ///
@@ -21,8 +21,8 @@ use crate::placement::breakpoints::{Breakpoints, Override};
 ///
 /// A grid decides how children are laid out and nothing else. Whether an element scrolls is
 /// declared separately.
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
-pub struct Grid(pub(crate) Breakpoints<Tracks>);
+#[derive(Component, Clone, Debug, PartialEq)]
+pub struct Grid(pub(crate) Stated<Tracks>);
 
 impl Grid {
     /// An undivided grid: a single column and a single row, at every breakpoint.
@@ -30,7 +30,7 @@ impl Grid {
     /// Each of [`xs`](Grid::xs) upward states one breakpoint's division, and a breakpoint with none
     /// of its own takes the nearest smaller one that has.
     pub fn new() -> Self {
-        Self(Breakpoints::new())
+        Self(Stated::new())
     }
 
     /// States the division from the smallest breakpoint up, which is to say everywhere that a

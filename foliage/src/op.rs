@@ -12,7 +12,7 @@ use crate::palette::{Fill, Scheme};
 use crate::place::{Caller, Placement};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
-use crate::placement::trace::Trace;
+use crate::placement::trace::{Ends, Trace};
 use crate::rounding::Corners;
 use crate::text::{Lettering, Tints};
 use crate::vein::Vein;
@@ -20,16 +20,17 @@ use crate::view::ScrollTo;
 
 /// One queued change.
 pub(crate) enum Op {
+    /// Grows an element at the top level. What it grows is the next of the queue's
+    /// [`buds`](crate::queue::Queued::buds).
     Plant {
         leaf: Leaf,
         growth: Growth,
-        bud: Box<Bud>,
     },
+    /// Grows an element off `under`, the same way.
     Branch {
         leaf: Leaf,
         growth: Growth,
         under: Leaf,
-        bud: Box<Bud>,
     },
     Prune(Leaf),
     Place {
@@ -42,6 +43,17 @@ pub(crate) enum Op {
     Trace {
         leaf: Leaf,
         trace: Trace,
+    },
+    /// A stroke's two ends at every breakpoint: [`Trace`](Op::Trace) with one link, carried as the
+    /// ends themselves and written into the trace already held, so moving a stroke allocates
+    /// nothing.
+    Between {
+        leaf: Leaf,
+        ends: Ends,
+    },
+    Weight {
+        leaf: Leaf,
+        weight: f32,
     },
     Divide {
         leaf: Leaf,

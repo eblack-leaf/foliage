@@ -19,10 +19,18 @@
 //! forward are read by the passes below that run over every element anyway. Such an element is read
 //! again and drawn again, and nothing is placed again on its account.
 //!
-//! What still runs over everything is the accumulations, R3 through R7: what they carry is a running
-//! product rather than an answer per element, so there is no position in them to start from. They
-//! record what they actually changed as they go, which is what extraction then states -- and R8, the
-//! box stack, is built again only on a frame where one of them changed something it is built from.
+//! The accumulations, R3 through R7, carry a running product down the trunks (or up them, for R3)
+//! rather than an answer per element, so what each element passes on is held too, beside what it
+//! resolved to. An element is visited where something it reads moved: it was written to, restyled or
+//! grown, or what it hangs off passes it something new -- and what it passes on is handed to what is
+//! under it only where that changed. They record what they actually changed as they go, which is
+//! what extraction then states -- and R8, the box stack, is built again only on a frame where one of
+//! them changed something it is built from.
+//!
+//! No pass walks the order to find what it has to do. What each visits is marked, a bit per
+//! position ([`Positions`]), and the walk goes from one mark to the next: a frame that wrote nothing
+//! walks a few thousand empty words, where it once walked every element, and an element left alone
+//! -- hidden, or only sitting there -- costs nothing on any frame that does not reach it.
 //!
 //! The read itself is kept between frames and repaired where the tree was written -- growing,
 //! withering and anchoring are the only things that change the order, so an ordinary frame reads
@@ -70,9 +78,9 @@
 //!
 //! So the tree is read once, into [`Elements`]: every live element in dependency order, holding what
 //! it depends on as **positions in that order** rather than as names, and holding what it offers a
-//! placement beside it. From there every pass indexes -- the accumulations R3 through R7 carry are
-//! arrays the length of the order, and a trunk's contribution is `[..]` rather than a lookup on a
-//! map keyed by element.
+//! placement beside it. From there every pass indexes -- what the accumulations R3 through R7 carry
+//! is held in columns the length of the order, and a trunk's contribution is `[..]` rather than a
+//! lookup on a map keyed by element.
 //!
 //! **What resolution produces is held there and nowhere else.** The placed and drawn boxes, the
 //! measures, the clip, the rank and the inherited products are columns of the order, kept between
@@ -120,9 +128,10 @@ use crate::placement::grid::Tracks;
 use crate::placement::location::Location;
 use crate::placement::resolve::{Basis, Context, Span, locate, resolve};
 use crate::placement::role::Config;
+use crate::placement::source::Against;
 use crate::placement::trace::{Ends, Trace};
 use crate::text::shape::Shaped;
-use crate::tree::Placement;
+use crate::tree::{Placement, Written};
 use crate::view::{self, Clipped, Escape, Scroll, range};
 
 /// Everything the passes after the axes read about an element, and nothing that places it.
@@ -208,22 +217,46 @@ pub(crate) struct Elements {
     /// element never asks the world.
     branches: Vec<u32>,
     children: Vec<u32>,
+    /// What is anchored to each element, as positions in the order, held the way
+    /// [`children`](Elements::children) are: the elements anchored to the one at `at` are
+    /// `anchored[anchoring[at]..anchoring[at + 1]]`. With the children, everything resolved against
+    /// an element -- what a box that moved reaches.
+    anchoring: Vec<u32>,
+    anchored: Vec<u32>,
+    /// The positions whose trunk or anchor sits at or after them: a cycle's remainder, resolved
+    /// against what its dependency last was, and so visited by every pass on every frame. Almost
+    /// always empty.
+    forward: Vec<u32>,
+    /// The positions of every element that scrolls. What a region scrolled to is not written to it
+    /// -- a coast, a drag and a clamp each move it -- so R4 and R5 visit each of these on every
+    /// frame. There are few.
+    scrolling: Vec<u32>,
+    /// The positions of every element that floats out to an element it names, which may sit any
+    /// distance above it: R5 visits each on every frame, rather than following the chain between.
+    within: Vec<u32>,
     /// What each element declared that the passes after the axes read.
     pub(crate) standing: Vec<Standing>,
     /// The box, as far as the axes have resolved it: where the layout put the element, which is
     /// what its children resolve against.
     section: Vec<Section>,
-    /// Whether the element has a box worth reading yet. True from the start for one nothing has
-    /// written to, whose box is the one it settled at last frame; false for one being resolved
-    /// again, until an axis reaches it -- which is what answers a cycle's remainder with the
-    /// fallback rather than with a box that has not been computed.
-    resolved: Vec<bool>,
+    /// Whether the element is being resolved again and no axis has reached it yet: false from the
+    /// start for one nothing has written to, whose box is the one it settled at last frame. What
+    /// answers a cycle's remainder with the fallback rather than with a box that has not been
+    /// computed.
+    unresolved: Positions,
     /// Whether the element has to be resolved again this frame.
     ///
     /// True where something it reads was written -- its own declarations, or those of what it hangs
     /// off or is anchored to. False where nothing was, in which case the columns already hold what
     /// it resolved to and the passes that only rewrite that have nothing to do.
-    dirty: Vec<bool>,
+    dirty: Positions,
+    /// Whether the element was restyled this frame: what R3, R4, R6 and R7 read of it may be
+    /// different, and nothing that places it is.
+    restyled: Positions,
+    /// Whether what the element passes on has to be found again whatever it reads: it is new to the
+    /// order this frame, with nothing it passes on yet -- or, on a frame the order was built again or
+    /// everything is resolved again, every element is.
+    fresh: Positions,
     /// Whether any run stopped being stated this frame, which is the one thing that makes the
     /// shaping cache worth sweeping.
     restated: bool,
@@ -233,15 +266,31 @@ pub(crate) struct Elements {
     /// somewhere else, and from a [`restyled`](crate::tree::Tree::restyled) write, and set by R4
     /// through R7 where what they wrote differs from what was held. An element it is false for is
     /// drawn exactly as the backend already has it.
-    pub(crate) moved: Vec<bool>,
+    pub(crate) moved: Positions,
+    /// Whether what the element offers what is resolved against it may be different this frame,
+    /// which is what makes those resolve again.
+    ///
+    /// Seeded from [`dirty`](Elements::dirty) as [`read`] left it -- an element written to, and
+    /// everything resolved against one, which are all resolved again whatever they land on -- and
+    /// set by R2 where an element resolved again for any other reason came out with another box.
+    /// An element resolved again only because a measure moved under it, and that lands where it
+    /// was, offers what it offered: what is resolved against it is resolved again only where it
+    /// reads that measure. See [`remeasured`](Elements::remeasured).
+    answers: Positions,
+    /// Whether the element's measured extent moved this frame, found by R1m across and R2m down.
+    ///
+    /// What makes the element itself resolve again, and what is resolved against it where it reads
+    /// the measure: a [`content`](crate::content) of it. Nothing else reads a measure, so nothing
+    /// else follows it unless the box moved too.
+    remeasured: Positions,
     /// Whether R1 has to measure the element again: it was grown, or what it says was rewritten, or
     /// every cell in the tree moved.
-    lettered: Vec<bool>,
+    lettered: Positions,
     /// Whether the element has to measure again, before R2m walks that up the trunks.
     ///
     /// [`dirty`](Elements::dirty) is most of it. The rest is an element something withered from,
     /// which has one fewer thing to reach over and nothing left below it to say so.
-    measures: Vec<bool>,
+    measures: Positions,
     /// Whether the element's own declarations were written: [`dirty`](Elements::dirty) as the
     /// tree recorded it, before anything it depends on spread to it -- and, once R1m has measured
     /// it, whether what it measured to across moved.
@@ -249,7 +298,7 @@ pub(crate) struct Elements {
     /// What a trunk measuring across asks a child again for. A child's reach across reads its own
     /// placement and its own measure and nothing of where its trunk or its anchor sits, so a child
     /// that is only being resolved against something that moved reaches exactly as far as it did.
-    touched: Vec<bool>,
+    touched: Positions,
     /// Whether R1m has to measure the element again: it was written to, or something under it was,
     /// or went.
     ///
@@ -257,7 +306,7 @@ pub(crate) struct Elements {
     /// [`touched`](Elements::touched) is narrower than `dirty`: nothing a measure across reads is
     /// moved by an element's trunk moving, so a subtree under a box in motion measures to what it
     /// did and is not asked.
-    measures_across: Vec<bool>,
+    measures_across: Positions,
     /// Whether anything is to be measured across this frame at all: something was written to, or
     /// went, or every measure has to be taken again. Known from what the tree recorded before any
     /// element is looked at, so a frame that wrote nothing -- a hover's fade, a frame where nothing
@@ -279,6 +328,14 @@ pub(crate) struct Elements {
     /// exactly where its element is, and a container of thousands with one child written pays for
     /// one child.
     reached: Vec<Option<f32>>,
+    /// Whether the element's placement describes its own height, and so counts toward the measure
+    /// of what it is grown under: [`measurable`] on the vertical axis, as R2a last found it.
+    ///
+    /// Found where R2a already holds the placement, so R2m asks no element for it a second time.
+    /// It is a fact about the placement and the breakpoint in force, either of which changing makes
+    /// the element dirty -- so every element R2m asks about was found again by R2a this frame, or
+    /// holds what it was found to be when last it was.
+    upright: Vec<bool>,
     /// How far the element reaches right of the left edge of what it is grown under, as R1m last
     /// found it there, or `None` where its placement does not count toward that measure.
     ///
@@ -319,13 +376,31 @@ pub(crate) struct Elements {
     pub(crate) rank: Vec<ResolvedElevation>,
     /// What the three off-states resolved to over the element's whole ancestry.
     pub(crate) inherited: Vec<Inherited>,
+    /// What R3 found the element reaches to: the far corner of it and everything under it that is
+    /// content, or `None` where it is hidden. What its trunk measures its own from.
+    extends: Vec<Option<Position>>,
+    /// What R4 passes to what is grown under the element: the offset everything above it scrolled
+    /// and shifted by, its own included -- and, for a pinned child, the same with the nearest
+    /// scrolling region's own offset left out.
+    accumulated: Vec<Position>,
+    unpinned: Vec<Position>,
+    /// What R5 passes to what is grown under the element: what is left visible of it -- and, for a
+    /// floating child, the same with the nearest scrolling region's own rect left out.
+    passed: Vec<Section>,
+    escaped: Vec<Section>,
     /// Whether anything the box stack is built from moved this frame: an element grown or withered,
     /// or a drawn box, a clip, a rank or an inherited product that changed. What R8 waits on.
     restack: bool,
-    /// Every position, front-most first: the order the box stack is read in. Sorted again only when
-    /// a rank moved, which is the only thing it is sorted on.
+    /// The position of every tangible element, front-most first: the order the box stack is read
+    /// in. Nothing intangible is ever in the stack, so nothing intangible is sorted for it. Sorted
+    /// again only when a tangible element's rank moved, or the order was made again.
     stacking: Vec<u32>,
-    /// Whether a rank moved this frame, or the order was built again.
+    /// Whether some element is anchored to one that was not live when the order was last built, so
+    /// the order has an edge still to come: the frame that grows what it waits on builds the order
+    /// again rather than repairing it, since repairing only places what is grown after what it
+    /// reads, and here what is grown is what something already placed reads.
+    waits: bool,
+    /// Whether a tangible element's rank moved this frame, or the order was built again.
     reranked: bool,
     /// Every element that withered since the order was last built, and what it drew. Read by
     /// extraction, which has to let go of whatever it was holding for them.
@@ -349,6 +424,36 @@ impl Elements {
         self.children[self.branches[at] as usize..self.branches[at + 1] as usize]
             .iter()
             .map(|child| *child as usize)
+    }
+
+    /// Marks in `marks` everything resolved against the element at `at` that comes after it in the
+    /// order -- what is grown under it, and what is anchored to it -- which is everything a walk
+    /// still to reach them will visit. One that comes before it is a cycle's remainder, which every
+    /// pass visits anyway.
+    fn dependents(&self, at: usize, marks: &mut Positions) {
+        let anchored = &self.anchored[self.anchoring[at] as usize..self.anchoring[at + 1] as usize];
+        for dependent in self
+            .children(at)
+            .chain(anchored.iter().map(|on| *on as usize))
+        {
+            if dependent > at {
+                marks.set(dependent);
+            }
+        }
+    }
+
+    /// Nothing marked, as long as the order, with what `seeds` mark and what every pass visits on
+    /// every frame marked: where a pass that walks the order starts from.
+    fn visiting(&self, seeds: &[&Positions], every: &[&[u32]]) -> Positions {
+        let mut marks = Positions::default();
+        marks.reset(self.len());
+        for seed in seeds {
+            marks.add(seed);
+        }
+        for at in every.iter().copied().flatten().chain(&self.forward) {
+            marks.set(*at as usize);
+        }
+        marks
     }
 
     /// Where the layout put `leaf`, which is what its children resolve against. A zero box for
@@ -386,6 +491,18 @@ impl Elements {
             .unwrap_or_default()
     }
 
+    /// How far `leaf` and the content under it reach, as R3 last found it.
+    #[cfg(test)]
+    pub(crate) fn extends(&self, leaf: Leaf) -> Option<Position> {
+        self.extends[self.at(leaf)?]
+    }
+
+    /// Whether `leaf` was resolved again by the last frame.
+    #[cfg(test)]
+    pub(crate) fn resolved_again(&self, leaf: Leaf) -> bool {
+        self.at(leaf).is_some_and(|at| self.dirty.get(at))
+    }
+
     /// What R1 shaped `leaf`'s run as, character for character: what is drawn, which a masked
     /// field's value is not.
     #[cfg(test)]
@@ -415,6 +532,108 @@ impl Elements {
     }
 }
 
+/// Positions in the order, a bit each: what a pass has to visit, walked from one mark to the next.
+///
+/// What lets a pass cost what it visits rather than what is there. A position left unmarked is a
+/// sixty-fourth of a word looked at, so a walk over an order of three hundred thousand elements with
+/// nothing marked reads under five thousand words -- and a walk forward that marks a position ahead
+/// of it, as a trunk marks what hangs off it, reaches that position in the same walk.
+#[derive(Clone, Default)]
+pub(crate) struct Positions {
+    words: Vec<u64>,
+}
+
+impl Positions {
+    /// Nothing marked, over `len` positions.
+    fn reset(&mut self, len: usize) {
+        self.words.clear();
+        self.words.resize(len.div_ceil(64), 0);
+    }
+
+    /// Every one of `len` positions marked.
+    pub(crate) fn fill(&mut self, len: usize) {
+        self.words.clear();
+        self.words.resize(len / 64, u64::MAX);
+        if !len.is_multiple_of(64) {
+            self.words.push((1 << (len % 64)) - 1);
+        }
+    }
+
+    /// What `other` marks, and nothing else.
+    pub(crate) fn copy_from(&mut self, other: &Positions) {
+        self.words.clear();
+        self.words.extend_from_slice(&other.words);
+    }
+
+    /// Whether `at` is marked. A position past the end is not.
+    pub(crate) fn get(&self, at: usize) -> bool {
+        self.words
+            .get(at / 64)
+            .is_some_and(|word| (word >> (at % 64)) & 1 == 1)
+    }
+
+    fn set(&mut self, at: usize) {
+        self.words[at / 64] |= 1 << (at % 64);
+    }
+
+    fn unset(&mut self, at: usize) {
+        self.words[at / 64] &= !(1 << (at % 64));
+    }
+
+    /// Marks everything `other` marks, as far as both reach.
+    fn add(&mut self, other: &Positions) {
+        for (word, theirs) in self.words.iter_mut().zip(&other.words) {
+            *word |= theirs;
+        }
+    }
+
+    /// How many positions are marked.
+    pub(crate) fn count(&self) -> usize {
+        self.words
+            .iter()
+            .map(|word| word.count_ones() as usize)
+            .sum()
+    }
+
+    /// The first marked position at or after `from`.
+    fn next(&self, from: usize) -> Option<usize> {
+        let mut index = from / 64;
+        let mut word = *self.words.get(index)? & (u64::MAX << (from % 64));
+        loop {
+            if word != 0 {
+                return Some(index * 64 + word.trailing_zeros() as usize);
+            }
+            index += 1;
+            word = *self.words.get(index)?;
+        }
+    }
+
+    /// The last marked position before `end`.
+    fn last_before(&self, end: usize) -> Option<usize> {
+        let last = end.min(self.words.len() * 64).checked_sub(1)?;
+        let mut index = last / 64;
+        let mut word = self.words[index] & (u64::MAX >> (63 - last % 64));
+        loop {
+            if word != 0 {
+                return Some(index * 64 + 63 - word.leading_zeros() as usize);
+            }
+            index = index.checked_sub(1)?;
+            word = self.words[index];
+        }
+    }
+
+    /// Every marked position, first to last.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+        self.words.iter().enumerate().flat_map(|(index, &word)| {
+            core::iter::successors((word != 0).then_some(word), |word| {
+                let rest = word & (word - 1);
+                (rest != 0).then_some(rest)
+            })
+            .map(move |word| index * 64 + word.trailing_zeros() as usize)
+        })
+    }
+}
+
 /// Steps 6 and 7. Declared state becomes resolved geometry and resolved products, for everything.
 pub(crate) fn run(grove: &mut Grove) {
     let step = trace_span!("resolve", elements = Empty, dirty = Empty);
@@ -423,15 +642,13 @@ pub(crate) fn run(grove: &mut Grove) {
     // the end of resolution: what it holds is what this frame settled, and what the next one starts
     // from rather than reads again.
     let mut elements = core::mem::take(&mut grove.elements);
+    grove.tree.refresh();
     read(&mut elements, grove);
     // Forgotten the moment it is read, so a write made by a pass after this belongs to the frame
     // that would resolve it.
     grove.tree.taken();
     step.record("elements", elements.len());
-    step.record(
-        "dirty",
-        elements.dirty.iter().filter(|dirty| **dirty).count(),
-    );
+    step.record("dirty", elements.dirty.count());
     measure(grove, &mut elements);
     // Every element now holds the run it states, so a run nothing holds is one nothing states. Only
     // on a frame where a run stopped being stated, which is the only way the cache comes to hold
@@ -440,7 +657,7 @@ pub(crate) fn run(grove: &mut Grove) {
         grove.shaping.sweep();
     }
     axes(grove, &mut elements);
-    extent(grove, &elements);
+    extent(grove, &mut elements);
     scroll(grove, &mut elements);
     clip(&mut elements);
     rank(&mut elements);
@@ -468,13 +685,11 @@ fn measure(grove: &mut Grove, elements: &mut Elements) {
         short,
         ..
     } = grove;
-    for at in 0..elements.order.len() {
-        // Nothing it reads was written, so it measures to what it measured to, which is what the
-        // column is already holding. What it reads is its own run and face and nothing else, so an
-        // element that only moved is one of these.
-        if !elements.lettered[at] {
-            continue;
-        }
+    // An element left unmarked measures to what it measured to, which is what the column is already
+    // holding: what it reads is its own run and face and nothing else, so one that only moved is
+    // one of these.
+    let lettered = core::mem::take(&mut elements.lettered);
+    for at in lettered.iter() {
         let leaf = elements.order[at];
         // No font and no size is no cell, and nothing measured in one. What such an element last
         // measured to stands.
@@ -499,6 +714,7 @@ fn measure(grove: &mut Grove, elements: &mut Elements) {
         // before anything reads either.
         elements.composed[at] = composed;
     }
+    elements.lettered = lettered;
 }
 
 /// R1m, R2a, R2m and R2b: the measure across, the horizontal axis, then the measure down it makes
@@ -520,26 +736,46 @@ fn axes(grove: &mut Grove, elements: &mut Elements) {
 fn axis(grove: &Grove, elements: &mut Elements, axis: Axis) {
     let _pass = trace_span!("axis", vertical = (axis == Axis::Vertical)).entered();
     let viewport = Section::new(Position::default(), grove.viewport);
-    for at in 0..elements.len() {
+    // What is to be resolved again, and what is resolved against something that may have moved --
+    // marked as the walk finds it, ahead of where the walk is, since the order puts it there.
+    let mut visit = elements.visiting(&[&elements.dirty], &[]);
+    let mut from = 0;
+    while let Some(at) = visit.next(from) {
+        from = at + 1;
         // A measure may have moved under an element nothing was written to, before this axis: R1m's
         // before this one, R2m's before the vertical. The order puts what an element reads before
-        // it, so spreading that here reaches everything resolved against it.
-        elements.dirty[at] |= elements.trunk[at].is_some_and(|on| elements.dirty[on])
-            || elements.anchor[at].is_some_and(|on| elements.dirty[on]);
+        // it, so spreading that here reaches everything resolved against it -- where what it reads
+        // changed: a box that moved, or a measure that moved and that it reads.
+        let follows = |on: Option<usize>, against: Against| {
+            on.is_some_and(|on| {
+                elements.answers.get(on)
+                    || (elements.remeasured.get(on)
+                        && reads_content(grove, elements.order[at], against, axis))
+            })
+        };
+        if follows(elements.trunk[at], Against::Trunk)
+            || follows(elements.anchor[at], Against::Anchor)
+        {
+            elements.dirty.set(at);
+        }
         // Nothing it or anything it resolves against was written, so it resolves to the box it
         // already holds. Its column keeps that box, so what reads it here reads the right one.
-        if !elements.dirty[at] {
+        if !elements.dirty.get(at) {
             continue;
         }
         // Laid out across again, it may come out another width -- and wrap to another height, or
         // reach somewhere else below it -- so it is measured down again in R2m. Almost all of it
         // already was; what R1m's spreading reached here was not.
         if axis == Axis::Horizontal {
-            elements.measures[at] = true;
+            elements.measures.set(at);
         }
         let leaf = elements.order[at];
+        let placement = grove.tree.placement(leaf);
+        if axis == Axis::Horizontal {
+            elements.upright[at] = measurable(grove, placement, Axis::Vertical);
+        }
         let context = context(elements, viewport, at, axis);
-        let (span, stretched) = geometry(grove, leaf, &context, axis);
+        let (span, stretched) = geometry(grove, leaf, placement, &context, axis);
         // A stroke's ends are settled one axis at a time, into what it held: an element a measure
         // reached between the two axes is resolved on the second alone, and keeps the first.
         if let Some((from, to)) = stretched {
@@ -548,17 +784,29 @@ fn axis(grove: &Grove, elements: &mut Elements, axis: Axis) {
                 .set(axis, from, to);
         }
         let section = &mut elements.section[at];
-        match axis {
+        let landed = match axis {
             Axis::Horizontal => {
+                let landed = (section.position.x, section.area.width) == (span.near, span.extent());
                 section.position.x = span.near;
                 section.area.width = span.extent();
+                landed
             }
             Axis::Vertical => {
+                let landed =
+                    (section.position.y, section.area.height) == (span.near, span.extent());
                 section.position.y = span.near;
                 section.area.height = span.extent();
+                landed
             }
+        };
+        if !landed {
+            elements.answers.set(at);
         }
-        elements.resolved[at] = true;
+        elements.unresolved.unset(at);
+        // What it offers may be different, so what is resolved against it is looked at.
+        if elements.answers.get(at) || elements.remeasured.get(at) {
+            elements.dependents(at, &mut visit);
+        }
     }
 }
 
@@ -571,10 +819,11 @@ fn axis(grove: &Grove, elements: &mut Elements, axis: Axis) {
 fn geometry(
     grove: &Grove,
     leaf: Leaf,
+    placement: Option<Placement>,
     context: &Context,
     axis: Axis,
 ) -> (Span, Option<(f32, f32)>) {
-    let (trace, stroke) = match grove.tree.placement(leaf) {
+    let (trace, stroke) = match placement {
         Some(Placement::Traced(trace, stroke)) => (trace, stroke),
         Some(Placement::Boxed(location)) => {
             return (span(grove, leaf, location, context, axis), None);
@@ -690,14 +939,13 @@ fn across(grove: &Grove, elements: &mut Elements) {
     if !elements.across {
         return;
     }
-    for at in (0..elements.len()).rev() {
-        if let (true, Some(trunk)) = (elements.measures_across[at], elements.trunk[at]) {
-            elements.measures_across[trunk] = true;
-        }
-    }
-    for at in (0..elements.len()).rev() {
-        if !elements.measures_across[at] {
-            continue;
+    // Up the order, so everything under an element is measured before it is -- and each one marks
+    // what it hangs off, which the walk reaches after it.
+    let mut from = elements.len();
+    while let Some(at) = elements.measures_across.last_before(from) {
+        from = at;
+        if let Some(trunk) = elements.trunk[at] {
+            elements.measures_across.set(trunk);
         }
         let run = elements.composed[at]
             .as_ref()
@@ -707,8 +955,9 @@ fn across(grove: &Grove, elements: &mut Elements) {
             elements.intrinsic[at].width = width;
             // Ahead of R2a, which resolves it and what reads it against the new measure -- and
             // below every trunk it reaches, each of which asks it again on the way up.
-            elements.dirty[at] = true;
-            elements.touched[at] = true;
+            elements.dirty.set(at);
+            elements.remeasured.set(at);
+            elements.touched.set(at);
         }
     }
 }
@@ -722,11 +971,14 @@ fn spread(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
     let mut spread: f32 = 0.0;
     for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
         let child_at = elements.children[index] as usize;
-        if elements.touched[child_at] {
+        if elements.touched.get(child_at) {
             let child = elements.order[child_at];
-            let far = measurable(grove, child, Axis::Horizontal).then(|| {
+            let placement = grove.tree.placement(child);
+            let far = measurable(grove, placement, Axis::Horizontal).then(|| {
                 let context = unlaid(elements, at, child_at);
-                geometry(grove, child, &context, Axis::Horizontal).0.far
+                geometry(grove, child, placement, &context, Axis::Horizontal)
+                    .0
+                    .far
             });
             elements.spread[child_at] = far;
         }
@@ -779,55 +1031,37 @@ fn unlaid<'a>(elements: &'a Elements, trunk: usize, child: usize) -> Context<'a>
 /// limitation: a child sized to its trunk cannot also be what sizes it, and nothing is asked to
 /// converge. [`across`] is the same reading on the other axis, taken before any width is known.
 ///
-/// The two halves are separate walks because only one of them has an order. A run wraps at its own
-/// width and against its own font, so what an element shapes to reads nothing but the element --
-/// while what reaches below it reads the measures of everything under it, and so has to run after
-/// them.
+/// Both halves are taken in the one walk up the order. What reaches below an element reads the
+/// measures of everything under it, so it has to come after them -- and a run wraps at its own width
+/// and against its own font, reading nothing but its element, so it can be measured wherever the
+/// walk finds it. The run is the one R1 left the element holding: an element measuring again
+/// because something under it moved says what it said last frame, and one that says something new
+/// was shaped for it by R1 this frame.
 fn wrap(grove: &mut Grove, elements: &mut Elements) {
     let _pass = trace_span!("wrap").entered();
     // What has to measure again: what was written to, and everything above it, because what an
     // element reaches over is what the elements under it resolved to. Up the order rather than down
-    // it -- a measure travels toward the trunk and stops there, where a box travels away from it.
-    for at in (0..elements.len()).rev() {
-        if let (true, Some(trunk)) = (elements.measures[at], elements.trunk[at]) {
-            elements.measures[trunk] = true;
+    // it -- a measure travels toward the trunk and stops there, where a box travels away from it --
+    // so each element marks what it hangs off, which the walk reaches after it.
+    let mut from = elements.len();
+    while let Some(at) = elements.measures.last_before(from) {
+        from = at;
+        if let Some(trunk) = elements.trunk[at] {
+            elements.measures.set(trunk);
         }
-    }
-    let shaped = shaped(elements);
-    let _half = trace_span!("reach").entered();
-    for at in (0..elements.len()).rev() {
-        if !elements.measures[at] {
-            continue;
-        }
-        let height = shaped[at].max(reach(grove, elements, at));
+        let shaped = elements.composed[at]
+            .as_ref()
+            .map_or(0.0, |run| run.measure(elements.section[at].width()));
+        let height = shaped.max(reach(grove, elements, at));
         if height != elements.intrinsic[at].height {
             elements.intrinsic[at].height = height;
             // The measure moved under an element nothing was written to, and a placement reading
             // that measure has to be resolved against the new one. R2b runs after this and spreads
             // it, which is why it is safe to find out here.
-            elements.dirty[at] = true;
+            elements.dirty.set(at);
+            elements.remeasured.set(at);
         }
     }
-}
-
-/// How tall each element's own run turned out at the width R2a gave it, or zero where it says
-/// nothing.
-///
-/// In any order, because no element's answer is another's. The run is the one R1 left the element
-/// holding: an element measuring again because something under it moved says what it said last
-/// frame, and one that says something new was shaped for it by R1 this frame.
-fn shaped(elements: &Elements) -> Vec<f32> {
-    let _half = trace_span!("shaped").entered();
-    elements
-        .measures
-        .iter()
-        .zip(&elements.composed)
-        .zip(&elements.section)
-        .map(|((measures, run), section)| match (measures, run) {
-            (true, Some(run)) => run.measure(section.width()),
-            _ => 0.0,
-        })
-        .collect()
 }
 
 /// How far the elements grown under the element at `at` reach below its top edge.
@@ -839,15 +1073,20 @@ fn shaped(elements: &Elements) -> Vec<f32> {
 ///
 /// A child is asked only where it is dirty, and its answer kept. Every other child reaches exactly
 /// as far as it did when it last was, which is what [`reached`](Elements::reached) holds for it.
+/// Whether a child counts at all is what R2a left in [`upright`](Elements::upright), so one that
+/// does not is passed over without its placement being asked for.
 fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
     let mut reach: f32 = 0.0;
     for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
         let child_at = elements.children[index] as usize;
-        if elements.dirty[child_at] {
+        if elements.dirty.get(child_at) {
             let child = elements.order[child_at];
-            let far = measurable(grove, child, Axis::Vertical).then(|| {
+            let far = elements.upright[child_at].then(|| {
                 let context = raised(elements, at, child_at);
-                geometry(grove, child, &context, Axis::Vertical).0.far
+                let placement = grove.tree.placement(child);
+                geometry(grove, child, placement, &context, Axis::Vertical)
+                    .0
+                    .far
             });
             elements.reached[child_at] = far;
         }
@@ -864,14 +1103,34 @@ fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
 /// One question with two spellings, because a placement has two. A box asks it of its configuration
 /// on the axis; a trace asks it of both of its ends, since either one reading a box on the axis is
 /// enough to make the answer circular.
-fn measurable(grove: &Grove, leaf: Leaf, axis: Axis) -> bool {
-    match grove.tree.placement(leaf) {
+fn measurable(grove: &Grove, placement: Option<Placement>, axis: Axis) -> bool {
+    match placement {
         Some(Placement::Traced(trace, _)) => {
             let ends = pinned_ends(trace, grove);
             ends.from.measurable(axis) && ends.to.measurable(axis)
         }
         Some(Placement::Boxed(location)) => pinned(location, grove, axis).measurable(axis),
         None => pinned(&Location::default(), grove, axis).measurable(axis),
+    }
+}
+
+/// Whether `leaf`'s placement on `axis` reads the measured extent of what `against` names -- its
+/// trunk's or its anchor's [`content`](crate::content) -- which is all a measure that moved changes
+/// for what is resolved against it, where the box it measures stayed where it was.
+///
+/// An element in motion is resolved against what it left as well as what it declares, and either
+/// may read anything, so it is answered yes.
+fn reads_content(grove: &Grove, leaf: Leaf, against: Against, axis: Axis) -> bool {
+    if grove.aspen.location(leaf).is_some() || grove.aspen.trace(leaf).is_some() {
+        return true;
+    }
+    match grove.tree.placement(leaf) {
+        Some(Placement::Boxed(location)) => pinned(location, grove, axis).reads_content(against),
+        Some(Placement::Traced(trace, _)) => {
+            let ends = pinned_ends(trace, grove);
+            ends.from.reads_content(against, axis) || ends.to.reads_content(against, axis)
+        }
+        None => false,
     }
 }
 
@@ -917,46 +1176,66 @@ fn raised<'a>(elements: &'a Elements, trunk: usize, child: usize) -> Context<'a>
 /// it and its subtree out, and [`pinned`] takes out something that is inside the region without
 /// travelling with it.
 ///
+/// What an element reaches to is held, so a walk up the order visits what may reach somewhere else
+/// -- what was resolved again, shown or hidden, or lost something under it -- and what hangs over
+/// one whose reach moved.
+///
 /// [`visible(false)`]: crate::Place::visible
 /// [`pinned`]: crate::Place::pinned
-fn extent(grove: &mut Grove, elements: &Elements) {
+fn extent(grove: &mut Grove, elements: &mut Elements) {
     let _pass = trace_span!("extent").entered();
-    // The far corner of everything under an element, in absolute coordinates. Absent where the
-    // element was skipped, which is what keeps a hidden subtree out of what contains it.
-    let mut reach: Vec<Option<Position>> = vec![None; elements.len()];
-    for at in (0..elements.len()).rev() {
-        let standing = &elements.standing[at];
+    let mut visit = elements.visiting(
+        &[
+            &elements.dirty,
+            &elements.restyled,
+            &elements.measures,
+            &elements.fresh,
+        ],
+        &[],
+    );
+    let mut from = elements.len();
+    while let Some(at) = visit.last_before(from) {
+        from = at;
+        let standing = elements.standing[at];
         // A hidden element is not content, and neither is anything under it: that is what makes
         // hiding the whole answer for parking something out of the way, rather than half of one.
-        if !standing.visible {
-            continue;
-        }
-        let section = elements.section[at];
-        let mut far = Position::new(section.right(), section.bottom());
-        for child in elements.children(at) {
-            // The two ways an element grown inside a region is not part of its content, and each
-            // is left out here by the same one declaration that says the rest of what it means --
-            // which is what keeps the halves from disagreeing.
-            //
-            // A pinned child does not move with the content. A floating one moves with it but sits
-            // over the region rather than in it, so it is not content either: an overlay that
-            // invented room to scroll to is the scrollbar nobody ordered.
-            let held = &elements.standing[child];
-            if held.pinned || held.floats.is_some() {
-                continue;
+        // It reaches nowhere, which is what keeps a hidden subtree out of what contains it.
+        let extends = standing.visible.then(|| {
+            let section = elements.section[at];
+            let mut far = Position::new(section.right(), section.bottom());
+            for child in elements.children(at) {
+                // The two ways an element grown inside a region is not part of its content, and
+                // each is left out here by the same one declaration that says the rest of what it
+                // means -- which is what keeps the halves from disagreeing.
+                //
+                // A pinned child does not move with the content. A floating one moves with it but
+                // sits over the region rather than in it, so it is not content either: an overlay
+                // that invented room to scroll to is the scrollbar nobody ordered.
+                let held = &elements.standing[child];
+                if held.pinned || held.floats.is_some() {
+                    continue;
+                }
+                let Some(child) = elements.extends[child] else {
+                    continue;
+                };
+                far = Position::new(far.x.max(child.x), far.y.max(child.y));
             }
-            let Some(child) = reach[child] else {
-                continue;
-            };
-            far = Position::new(far.x.max(child.x), far.y.max(child.y));
+            match standing.scrolls {
+                Some(scroll) => {
+                    grove
+                        .tree
+                        .set_extent(elements.order[at], reached(scroll, section, far));
+                    Position::new(section.right(), section.bottom())
+                }
+                None => far,
+            }
+        });
+        if extends != elements.extends[at] {
+            elements.extends[at] = extends;
+            if let Some(trunk) = elements.trunk[at] {
+                visit.set(trunk);
+            }
         }
-        if let Some(scroll) = standing.scrolls {
-            grove
-                .tree
-                .set_extent(elements.order[at], reached(scroll, section, far));
-            far = Position::new(section.right(), section.bottom());
-        }
-        reach[at] = Some(far);
     }
 }
 
@@ -999,14 +1278,20 @@ fn reached(scroll: Scroll, section: Section, far: Position) -> Area {
 /// [`scroll`](crate::Grow::scroll) written this frame, and a
 /// [`Motion::Scroll`](crate::Motion::Scroll) part way through -- are answered first, here rather
 /// than where they were written, because all three need the extent and the extent is one pass old.
+///
+/// What each element passes on is held, so the walk visits what was resolved again or restyled,
+/// every region -- since what one scrolled to is never written to it -- and what hangs off an element
+/// that passes on something new.
 fn scroll(grove: &mut Grove, elements: &mut Elements) {
     let _pass = trace_span!("scroll", coasting = grove.coasting.len()).entered();
     view::asked(grove, elements);
-    let mut accumulated: Vec<Position> = vec![Position::default(); elements.len()];
-    // What a *pinned* child of each element receives, which is the accumulation with its nearest
-    // scrolling ancestor left out of it.
-    let mut unpinned: Vec<Position> = vec![Position::default(); elements.len()];
-    for at in 0..elements.len() {
+    let mut visit = elements.visiting(
+        &[&elements.dirty, &elements.restyled, &elements.fresh],
+        &[&elements.scrolling],
+    );
+    let mut from = 0;
+    while let Some(at) = visit.next(from) {
+        from = at + 1;
         let placed = elements.section[at];
         let trunk = elements.trunk[at];
         let standing = elements.standing[at];
@@ -1015,8 +1300,18 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
         // edge.
         let shift = standing.shift;
         let shifted = |by: Position| Position::new(by.x - shift.x, by.y - shift.y);
-        let inherited = shifted(trunk.map(|trunk| accumulated[trunk]).unwrap_or_default());
-        let outside = shifted(trunk.map(|trunk| unpinned[trunk]).unwrap_or_default());
+        let inherited = shifted(
+            trunk
+                .map(|trunk| elements.accumulated[trunk])
+                .unwrap_or_default(),
+        );
+        // What a *pinned* element receives, which is the accumulation with its nearest scrolling
+        // ancestor left out of it.
+        let outside = shifted(
+            trunk
+                .map(|trunk| elements.unpinned[trunk])
+                .unwrap_or_default(),
+        );
         // A pinned element does not receive its nearest scrolling ancestor's offset, and receives
         // every offset outside that one: pinning is relative to the region the element sits in and
         // says nothing about what contains that region.
@@ -1030,7 +1325,7 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
         );
         if drawn != elements.drawn[at] {
             elements.drawn[at] = drawn;
-            elements.moved[at] = true;
+            elements.moved.set(at);
             elements.restack = true;
         }
         // A stroke's ends travel with its box, by the same offset, because they are the same
@@ -1040,7 +1335,7 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
             let stretched = Some(spanned.less(applied));
             if stretched != elements.stretched[at] {
                 elements.stretched[at] = stretched;
-                elements.moved[at] = true;
+                elements.moved.set(at);
             }
         }
         let (carried, escaped) = match standing.scrolls {
@@ -1057,8 +1352,13 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
             // whatever region contains it, exactly as a pinned sibling of this element would be.
             None => (applied, outside),
         };
-        accumulated[at] = carried;
-        unpinned[at] = escaped;
+        if (carried, escaped) != (elements.accumulated[at], elements.unpinned[at]) {
+            elements.accumulated[at] = carried;
+            elements.unpinned[at] = escaped;
+            for child in elements.children(at) {
+                visit.set(child);
+            }
+        }
     }
 }
 
@@ -1093,20 +1393,29 @@ fn clamp(grove: &mut Grove, leaf: Leaf, scroll: Scroll, placed: Section) -> Posi
 /// element with no scrolling ancestor is clipped by nothing at all. Whether an element is *culled*
 /// is extraction's decision from this rect, and is never recorded on the element -- so there is no
 /// state saying "currently clipped away" for anything else, extent first among them, to read.
+///
+/// What each element passes on is held. A clip reads no box but a region's own, and nothing it reads
+/// is restyled, so the walk visits what is new, every region and every element floating out to one
+/// it names, and what hangs off an element that passes on something new.
 fn clip(elements: &mut Elements) {
     let _pass = trace_span!("clip").entered();
     let unbounded = Clipped::unbounded().0;
-    let mut passed: Vec<Section> = vec![unbounded; elements.len()];
-    // What a *floating* child of each element is clipped to, which is the intersection with its
-    // nearest scrolling ancestor's own rect left out of it. The same second accumulation R4 carries
-    // for a pinned child, and for the same reason: both say "not part of this region", and both
-    // have to say it about the region the element is actually in rather than about all of them.
-    let mut escaped: Vec<Section> = vec![unbounded; elements.len()];
-    for at in 0..elements.len() {
+    let mut visit = elements.visiting(&[&elements.fresh], &[&elements.scrolling, &elements.within]);
+    let mut from = 0;
+    while let Some(at) = visit.next(from) {
+        from = at + 1;
         let trunk = elements.trunk[at];
         let standing = elements.standing[at];
-        let inherited = trunk.map(|trunk| passed[trunk]).unwrap_or(unbounded);
-        let outside = trunk.map(|trunk| escaped[trunk]).unwrap_or(unbounded);
+        let inherited = trunk
+            .map(|trunk| elements.passed[trunk])
+            .unwrap_or(unbounded);
+        // What a *floating* element is clipped to, which is the intersection with its nearest
+        // scrolling ancestor's own rect left out of it. The same second accumulation R4 carries
+        // for a pinned child, and for the same reason: both say "not part of this region", and both
+        // have to say it about the region the element is actually in rather than about all of them.
+        let outside = trunk
+            .map(|trunk| elements.escaped[trunk])
+            .unwrap_or(unbounded);
         // A floating element is positioned outside the region on purpose, so cutting it off at the
         // region's edge would undo the placement that put it there. How far out it reaches is the
         // element's own statement, because no one answer is right everywhere.
@@ -1117,7 +1426,7 @@ fn clip(elements: &mut Elements) {
             // what is being drawn on.
             Some(Escape::Surface) => unbounded,
             // Held by the element named, which is what that element passes down to what it holds.
-            Some(Escape::Within(named)) => match within(elements, &passed, at, named) {
+            Some(Escape::Within(named)) => match within(elements, at, named) {
                 Some(clip) => clip,
                 // Named something that is not above it, so it holds nothing. Falling back to the
                 // near answer rather than the far one: an element escapes no further than it was
@@ -1128,18 +1437,25 @@ fn clip(elements: &mut Elements) {
         };
         if applied != elements.clip[at] {
             elements.clip[at] = applied;
-            elements.moved[at] = true;
+            elements.moved.set(at);
             elements.restack = true;
         }
         let scrolls = standing.scrolls.is_some();
-        passed[at] = match scrolls {
+        let passed = match scrolls {
             true => applied.intersect(elements.drawn[at]),
             false => applied,
         };
-        escaped[at] = match scrolls {
+        let escaped = match scrolls {
             true => applied,
             false => outside,
         };
+        if (passed, escaped) != (elements.passed[at], elements.escaped[at]) {
+            elements.passed[at] = passed;
+            elements.escaped[at] = escaped;
+            for child in elements.children(at) {
+                visit.set(child);
+            }
+        }
     }
 }
 
@@ -1149,14 +1465,14 @@ fn clip(elements: &mut Elements) {
 /// above it gets `None` and is answered as though it had named the region it is in. Naming the
 /// element rather than counting regions is what makes this survive a wrapper being added between
 /// the two, which a count would not.
-fn within(elements: &Elements, passed: &[Section], at: usize, named: Leaf) -> Option<Section> {
+fn within(elements: &Elements, at: usize, named: Leaf) -> Option<Section> {
     let named = elements.at(named)?;
     let mut step = elements.trunk[at];
     while let Some(above) = step {
         // An ancestor resolves before what hangs off it, so one found here has already passed its
         // own clip down and the read is never of a position the pass has yet to reach.
         if above == named {
-            return Some(passed[above]);
+            return Some(elements.passed[above]);
         }
         step = elements.trunk[above];
     }
@@ -1169,10 +1485,14 @@ fn within(elements: &Elements, passed: &[Section], at: usize, named: Leaf) -> Op
 /// One walk in the same dependency order the axes used, which puts every trunk before what hangs
 /// off it -- so a trunk's rank is already this frame's when what hangs off it reads it. Nothing here
 /// reads a box: where an element sits in the stack has nothing to do with where it sits on the
-/// surface.
+/// surface. What is visited is what is new or restyled, and what hangs off an element whose rank
+/// moved.
 fn rank(elements: &mut Elements) {
     let _pass = trace_span!("rank").entered();
-    for at in 0..elements.len() {
+    let mut visit = elements.visiting(&[&elements.fresh, &elements.restyled], &[]);
+    let mut from = 0;
+    while let Some(at) = visit.next(from) {
+        from = at + 1;
         let trunk = elements.trunk[at]
             .map(|trunk| elements.rank[trunk].stack)
             .unwrap_or_default();
@@ -1183,9 +1503,13 @@ fn rank(elements: &mut Elements) {
         };
         if rank != elements.rank[at] {
             elements.rank[at] = rank;
-            elements.moved[at] = true;
+            elements.moved.set(at);
             elements.restack = true;
-            elements.reranked = true;
+            // What the stack is sorted on moved, where the element is in it at all.
+            elements.reranked |= !standing.gestures.intangible;
+            for child in elements.children(at) {
+                visit.set(child);
+            }
         }
     }
 }
@@ -1197,9 +1521,15 @@ fn rank(elements: &mut Elements) {
 /// frame because the pass does not care when it arrived, and enabling that trunk leaves anything
 /// disabled in its own right disabled because the product is over the whole ancestry rather than a
 /// single bit that was overwritten on the way down.
+///
+/// What is visited is what is new or restyled, and what hangs off an element whose product moved --
+/// so hiding a subtree visits all of it once, on the frame it is hidden, and none of it after.
 fn inherit(elements: &mut Elements) {
     let _pass = trace_span!("inherit").entered();
-    for at in 0..elements.len() {
+    let mut visit = elements.visiting(&[&elements.fresh, &elements.restyled], &[]);
+    let mut from = 0;
+    while let Some(at) = visit.next(from) {
+        from = at + 1;
         let trunk = elements.trunk[at]
             .map(|trunk| elements.inherited[trunk])
             .unwrap_or_default();
@@ -1208,18 +1538,23 @@ fn inherit(elements: &mut Elements) {
             Inherited::under(trunk, standing.visible, standing.opacity, standing.disabled);
         if product != elements.inherited[at] {
             elements.inherited[at] = product;
-            elements.moved[at] = true;
+            elements.moved.set(at);
             elements.restack = true;
+            for child in elements.children(at) {
+                visit.set(child);
+            }
         }
     }
 }
 
 /// R8. The box stack the next frame's dispatch reads.
 ///
-/// Membership is universal: an element is here because it is there. What is left out is only what
-/// is not there at all -- hidden, fully transparent, or clipped away by a region it sits inside.
-/// `intangible` is not a way out of the stack; it is carried on the region and decides what may be
-/// the top of it.
+/// Membership is universal: an element is here because it is there. What is left out is what is
+/// not there at all -- hidden, fully transparent, or clipped away by a region it sits inside -- and
+/// what is `intangible`. The one read of the stack is its top, the front-most tangible element at a
+/// point, and a gesture passes through an intangible one to whatever is beneath it: holding it
+/// would change no answer the stack gives, and would make the stack the size of everything drawn
+/// rather than of what can be pressed.
 ///
 /// Built only on a frame where something it is built from moved. Every one of those is a column R4
 /// through R7 compared as they wrote it, or the order itself being built again -- so a frame where
@@ -1231,11 +1566,9 @@ fn regions(grove: &mut Grove, elements: &mut Elements) {
     let _pass = trace_span!("regions").entered();
     // The order is total -- a resolved elevation carries allocation order as its tie-break -- so two
     // identical runs read the same element at the same point, and sorting without stability loses
-    // nothing.
+    // nothing. What is sorted is what the order was made holding, every tangible position.
     if elements.reranked {
         let rank = &elements.rank;
-        elements.stacking.clear();
-        elements.stacking.extend(0..elements.len() as u32);
         elements
             .stacking
             .sort_unstable_by(|left, right| rank[*right as usize].cmp(&rank[*left as usize]));
@@ -1244,6 +1577,7 @@ fn regions(grove: &mut Grove, elements: &mut Elements) {
         .stack
         .settle(elements.stacking.iter().filter_map(|&at| {
             let at = at as usize;
+            let gestures = elements.standing[at].gestures;
             let inherited = elements.inherited[at];
             if !inherited.present() {
                 return None;
@@ -1253,13 +1587,11 @@ fn regions(grove: &mut Grove, elements: &mut Elements) {
             if section.intersect(clip).is_empty() {
                 return None;
             }
-            let gestures = elements.standing[at].gestures;
             Some(Region {
                 leaf: elements.order[at],
                 section,
                 clip,
                 shape: gestures.shape,
-                tangible: !gestures.intangible,
                 receives: gestures.receives,
                 disabled: inherited.disabled,
             })
@@ -1336,10 +1668,10 @@ fn basis<'a>(
         };
     };
     Basis {
-        section: match (elements.resolved[at], axis) {
-            (true, Axis::Horizontal) => flattened(elements.section[at]),
-            (true, Axis::Vertical) => elements.section[at],
-            (false, _) => fallback,
+        section: match (elements.unresolved.get(at), axis) {
+            (false, Axis::Horizontal) => flattened(elements.section[at]),
+            (false, Axis::Vertical) => elements.section[at],
+            (true, _) => fallback,
         },
         intrinsic: elements.intrinsic[at],
         tracks: elements.tracks[at],
@@ -1400,8 +1732,11 @@ fn structure(elements: &mut Elements, grove: &Grove) {
     // depends on at most two others, so the whole graph fits in one allocation rather than in a
     // vector per element.
     let mut runs: Vec<u32> = vec![0; count + 1];
+    elements.waits = false;
     for &leaf in &leaves {
-        let on = [tree.trunk(leaf), tree.anchor(leaf)].map(|on| on.and_then(find));
+        let declared = [tree.trunk(leaf), tree.anchor(leaf)];
+        let on = declared.map(|on| on.and_then(find));
+        elements.waits |= declared[1].is_some() && on[1].is_none();
         let mut unresolved = 0;
         for at in on.into_iter().flatten() {
             unresolved += 1;
@@ -1443,49 +1778,192 @@ fn structure(elements: &mut Elements, grove: &Grove) {
     for (position, &at) in order.iter().enumerate() {
         ranked[at] = position;
     }
-    // Where each element sat in the order being replaced, which is where what it resolved to is
-    // carried from. Whatever sat there and is not carried anywhere withered.
-    let from: Vec<Option<usize>> = order.iter().map(|&at| elements.at(leaves[at])).collect();
-    let mut carried = vec![false; elements.len()];
-    for at in from.iter().flatten() {
-        carried[*at] = true;
+    let placed = order
+        .iter()
+        .map(|&at| {
+            let [trunk, anchor] = depends[at];
+            Placed {
+                leaf: leaves[at],
+                trunk: trunk.map(|on| ranked[on]),
+                anchor: anchor.map(|on| ranked[on]),
+                from: elements.at(leaves[at]),
+            }
+        })
+        .collect();
+    settle(elements, grove, placed, names, None);
+}
+
+/// One element's place in an order being made: what it is, the positions of what it hangs off and
+/// what it is anchored to, and where it sat in the order being replaced.
+struct Placed {
+    leaf: Leaf,
+    trunk: Option<usize>,
+    anchor: Option<usize>,
+    from: Option<usize>,
+}
+
+/// The order repaired for what was grown and what withered since it was made, rather than made
+/// again: what withered is taken out, and what was grown is placed after everything already there,
+/// in the order it was grown. Reports whether it could be, having changed nothing where it could
+/// not.
+///
+/// Everything [`structure`] makes the order from is read here too, but only of what changed: what
+/// stays keeps its place relative to the rest, so what it depends on is still before it, and is
+/// carried without a lookup. What is grown depends on what it was grown under, which was grown
+/// before it, and on an anchor -- which has to be placed already. One that is not, or an order whose
+/// anchors point forward, is left to [`structure`], which places everything from scratch.
+fn patch(elements: &mut Elements, grove: &Grove, written: &Written) -> bool {
+    let _pass = trace_span!("patch").entered();
+    let tree = &grove.tree;
+    let held = elements.len();
+    let mut kept = vec![true; held];
+    for &leaf in written.withered {
+        if let Some(at) = elements.at(leaf) {
+            kept[at] = false;
+        }
     }
-    elements.gone.extend(
-        (0..elements.len())
-            .filter(|at| !carried[*at])
-            .map(|at| (elements.order[at], elements.standing[at].chlorophyll)),
-    );
-    carry(&mut elements.section, &from, Section::default());
-    carry(&mut elements.intrinsic, &from, Area::default());
-    carry(&mut elements.reached, &from, None);
-    carry(&mut elements.spread, &from, None);
-    carry(&mut elements.cell, &from, Area::default());
-    carry(&mut elements.composed, &from, None);
-    carry(&mut elements.spanned, &from, None);
-    carry(&mut elements.drawn, &from, Section::default());
-    carry(&mut elements.stretched, &from, None);
-    carry(&mut elements.clip, &from, Clipped::unbounded().0);
-    carry(&mut elements.rank, &from, ResolvedElevation::default());
-    carry(&mut elements.inherited, &from, Inherited::default());
-    // What an element declared is carried like what it resolved to. A grid is divided again by
-    // `read` wherever the element is dirty, which an element just grown always is; its standing is
-    // read here, and read again by `read` wherever it was restyled.
-    carry(&mut elements.tracks, &from, Tracks::default());
-    carry(&mut elements.standing, &from, Standing::default());
+    let mut moved: Vec<u32> = vec![NOWHERE; held];
+    let mut placed: Vec<Placed> = Vec::with_capacity(held + written.grown.len());
+    for at in 0..held {
+        if !kept[at] {
+            continue;
+        }
+        // Earlier in the order than the element itself, or this is an order a cycle left a
+        // remainder in, which only building it again answers.
+        let earlier = |on: Option<usize>| match on {
+            Some(on) if on < at => Ok((moved[on] != NOWHERE).then_some(moved[on] as usize)),
+            Some(_) => Err(()),
+            None => Ok(None),
+        };
+        let (Ok(trunk), Ok(anchor)) = (earlier(elements.trunk[at]), earlier(elements.anchor[at]))
+        else {
+            return false;
+        };
+        moved[at] = placed.len() as u32;
+        placed.push(Placed {
+            leaf: elements.order[at],
+            trunk,
+            anchor,
+            from: Some(at),
+        });
+    }
+    let names = written
+        .grown
+        .iter()
+        .map(|leaf| leaf.0.index_u32() as usize + 1)
+        .max()
+        .unwrap_or_default()
+        .max(elements.slots.len());
+    // Where each element grown this frame was placed, by the index of its name.
+    let placing = trace_span!("grown").entered();
+    let mut grown: Vec<u32> = vec![NOWHERE; names];
+    for &leaf in written.grown {
+        if !tree.is_live(leaf) || elements.at(leaf).is_some() {
+            continue;
+        }
+        let find = |on: Leaf| match elements.at(on) {
+            Some(at) => (moved[at] != NOWHERE).then_some(moved[at] as usize),
+            None => grown
+                .get(on.0.index_u32() as usize)
+                .filter(|at| **at != NOWHERE && placed[**at as usize].leaf == on)
+                .map(|at| *at as usize),
+        };
+        let trunk = match tree.trunk(leaf) {
+            Some(on) => match find(on) {
+                Some(at) => Some(at),
+                None => return false,
+            },
+            None => None,
+        };
+        let anchor = match tree.anchor(leaf) {
+            Some(on) => match find(on) {
+                Some(at) => Some(at),
+                None => return false,
+            },
+            None => None,
+        };
+        grown[leaf.0.index_u32() as usize] = placed.len() as u32;
+        placed.push(Placed {
+            leaf,
+            trunk,
+            anchor,
+            from: None,
+        });
+    }
+    drop(placing);
+    settle(elements, grove, placed, names, Some(kept));
+    true
+}
+
+/// Makes `placed` the order: every column moved to where its element now sits, what is new read
+/// from the tree, and what is grown under each element found again. `names` is one past the
+/// largest index of any name placed.
+///
+/// `kept` says the order was repaired -- what stays is in the order it was, with what is new after
+/// it, and `kept` holds which of the elements there before stayed -- so each column is compacted
+/// where it lies and lengthened, rather than made again element by element from where each one
+/// sat.
+fn settle(
+    elements: &mut Elements,
+    grove: &Grove,
+    placed: Vec<Placed>,
+    names: usize,
+    kept: Option<Vec<bool>>,
+) {
+    let _pass = trace_span!("carry").entered();
+    let tree = &grove.tree;
+    let count = placed.len();
+    // A repaired order is new only where it was grown. One made again may hang anything off
+    // anything, so what every element passes on is found again.
+    match kept {
+        Some(_) => {
+            elements.fresh.reset(count);
+            for (position, placed) in placed.iter().enumerate() {
+                if placed.from.is_none() {
+                    elements.fresh.set(position);
+                }
+            }
+        }
+        None => elements.fresh.fill(count),
+    }
+    match kept {
+        Some(kept) => {
+            elements.gone.extend(
+                (0..elements.len())
+                    .filter(|at| !kept[*at])
+                    .map(|at| (elements.order[at], elements.standing[at].chlorophyll)),
+            );
+            let grown = placed.iter().filter(|placed| placed.from.is_none()).count();
+            columns(elements, &Kept { kept: &kept, grown });
+        }
+        None => {
+            // Where each element sat in the order being replaced, which is where what it resolved
+            // to is carried from. Whatever sat there and is not carried anywhere withered.
+            let from: Vec<Option<usize>> = placed.iter().map(|placed| placed.from).collect();
+            let mut carried = vec![false; elements.len()];
+            for at in from.iter().flatten() {
+                carried[*at] = true;
+            }
+            elements.gone.extend(
+                (0..elements.len())
+                    .filter(|at| !carried[*at])
+                    .map(|at| (elements.order[at], elements.standing[at].chlorophyll)),
+            );
+            columns(elements, &Carried(&from));
+        }
+    }
     elements.order.clear();
     elements.trunk.clear();
     elements.anchor.clear();
     elements.slots.clear();
     elements.slots.resize(names, NOWHERE);
-    for (position, &at) in order.iter().enumerate() {
-        let leaf = leaves[at];
-        let [trunk, anchor] = depends[at];
-        elements.slots[leaf.0.index_u32() as usize] = position as u32;
-        elements.order.push(leaf);
-        elements.trunk.push(trunk.map(|on| ranked[on]));
-        elements.anchor.push(anchor.map(|on| ranked[on]));
-        if from[position].is_none() {
-            elements.standing[position] = tree.standing(leaf);
+    for (position, placed) in placed.iter().enumerate() {
+        elements.slots[placed.leaf.0.index_u32() as usize] = position as u32;
+        elements.order.push(placed.leaf);
+        elements.trunk.push(placed.trunk);
+        elements.anchor.push(placed.anchor);
+        if placed.from.is_none() {
+            elements.standing[position] = tree.standing(placed.leaf);
         }
     }
     // What is grown under each element, by position: counted, summed into where each element's run
@@ -1507,27 +1985,127 @@ fn structure(elements: &mut Elements, grove: &Grove) {
             filling[trunk] += 1;
         }
     }
+    // What is anchored to each element, the same way.
+    elements.anchoring.clear();
+    elements.anchoring.resize(count + 1, 0);
+    for anchor in elements.anchor.iter().flatten() {
+        elements.anchoring[anchor + 1] += 1;
+    }
+    for at in 0..count {
+        elements.anchoring[at + 1] += elements.anchoring[at];
+    }
+    let mut filling = elements.anchoring.clone();
+    elements.anchored.clear();
+    elements
+        .anchored
+        .resize(elements.anchoring[count] as usize, 0);
+    for at in 0..count {
+        if let Some(anchor) = elements.anchor[at] {
+            elements.anchored[filling[anchor] as usize] = at as u32;
+            filling[anchor] += 1;
+        }
+    }
+    // What every pass visits whatever was written, and what the stack is sorted from.
+    elements.forward.clear();
+    elements.scrolling.clear();
+    elements.within.clear();
+    elements.stacking.clear();
+    for at in 0..count {
+        let ahead = |on: Option<usize>| on.is_some_and(|on| on >= at);
+        if ahead(elements.trunk[at]) || ahead(elements.anchor[at]) {
+            elements.forward.push(at as u32);
+        }
+        let standing = &elements.standing[at];
+        if standing.scrolls.is_some() {
+            elements.scrolling.push(at as u32);
+        }
+        if let Some(Escape::Within(_)) = standing.floats {
+            elements.within.push(at as u32);
+        }
+        if !standing.gestures.intangible {
+            elements.stacking.push(at as u32);
+        }
+    }
     // Everything the stack is built from may have moved, since what is in it did.
     elements.restack = true;
     elements.reranked = true;
 }
 
-/// Rebuilds one column in the new order: each element's value carried from where it sat, and
-/// `fresh` for one that was not in the order before.
-fn carry<T: Clone>(column: &mut Vec<T>, from: &[Option<usize>], fresh: T) {
-    let held = core::mem::take(column);
-    column.extend(from.iter().map(|at| match at {
-        Some(at) => held[*at].clone(),
-        None => fresh.clone(),
-    }));
+/// Every column held per element, moved into a new order by `moves`, each with what an element new
+/// to the order starts from. Listed once, so the two ways an order is made cannot hold different
+/// columns.
+fn columns(elements: &mut Elements, moves: &impl Moves) {
+    moves.apply(&mut elements.section, Section::default());
+    moves.apply(&mut elements.intrinsic, Area::default());
+    moves.apply(&mut elements.reached, None);
+    moves.apply(&mut elements.upright, false);
+    moves.apply(&mut elements.spread, None);
+    moves.apply(&mut elements.cell, Area::default());
+    moves.apply(&mut elements.composed, None);
+    moves.apply(&mut elements.spanned, None);
+    moves.apply(&mut elements.drawn, Section::default());
+    moves.apply(&mut elements.stretched, None);
+    moves.apply(&mut elements.clip, Clipped::unbounded().0);
+    moves.apply(&mut elements.rank, ResolvedElevation::default());
+    moves.apply(&mut elements.inherited, Inherited::default());
+    // What the accumulations pass on, which an element new to the order is visited for.
+    moves.apply(&mut elements.extends, None);
+    moves.apply(&mut elements.accumulated, Position::default());
+    moves.apply(&mut elements.unpinned, Position::default());
+    moves.apply(&mut elements.passed, Clipped::unbounded().0);
+    moves.apply(&mut elements.escaped, Clipped::unbounded().0);
+    // What an element declared is moved like what it resolved to. A grid is divided again by
+    // `read` wherever the element is dirty, which an element just grown always is; its standing is
+    // read by `settle`, and read again by `read` wherever it was restyled.
+    moves.apply(&mut elements.tracks, Tracks::default());
+    moves.apply(&mut elements.standing, Standing::default());
+}
+
+/// How a column gets from the order being replaced to the one being made.
+trait Moves {
+    fn apply<T: Clone>(&self, column: &mut Vec<T>, fresh: T);
+}
+
+/// An order made from scratch: each element's value carried from where it sat, by position in the
+/// new order, and `fresh` for one that was not in the order before.
+struct Carried<'a>(&'a [Option<usize>]);
+
+impl Moves for Carried<'_> {
+    fn apply<T: Clone>(&self, column: &mut Vec<T>, fresh: T) {
+        let held = core::mem::take(column);
+        column.extend(self.0.iter().map(|at| match at {
+            Some(at) => held[*at].clone(),
+            None => fresh.clone(),
+        }));
+    }
+}
+
+/// An order repaired: what withered taken out where it lay, and `fresh` for each of the elements
+/// grown after everything that stayed.
+struct Kept<'a> {
+    kept: &'a [bool],
+    grown: usize,
+}
+
+impl Moves for Kept<'_> {
+    fn apply<T: Clone>(&self, column: &mut Vec<T>, fresh: T) {
+        let mut at = 0;
+        column.retain(|_| {
+            at += 1;
+            self.kept[at - 1]
+        });
+        column.extend(core::iter::repeat_n(fresh, self.grown));
+    }
 }
 
 /// What this frame has to resolve, and what it may leave alone.
 ///
 /// An element resolves again if it was written to, or if what it hangs off or is anchored to does.
 /// That closure is one walk of the order rather than a search, because the order already puts a
-/// dependency before what depends on it. What was written is found by name and marked where it
-/// sits, so the walk costs the order and the marking costs what was written.
+/// dependency before what depends on it -- and the walk goes from mark to mark, each element
+/// resolving again marking what is resolved against it. What was written is found by name and
+/// marked where it sits, so the walk costs what resolves again and the marking costs what was
+/// written.
 ///
 /// An element that was restyled is read again and marked as moved, and resolves again only if
 /// something it is placed by was written as well.
@@ -1537,54 +2115,67 @@ fn read(elements: &mut Elements, grove: &Grove) {
     elements.gone.clear();
     elements.restack = false;
     elements.reranked = false;
-    if written.restructured {
+    // Nothing is new unless the order is made or repaired below, which marks what is.
+    elements.fresh.reset(0);
+    if written.restructured
+        && (written.reordered || elements.waits || !patch(elements, grove, &written))
+    {
         structure(elements, grove);
     }
+    let count = elements.len();
     // What the restyled elements declared is read again where they sit.
+    elements.restyled.reset(count);
     for &leaf in written.restyled {
         if let Some(at) = elements.at(leaf) {
             elements.standing[at] = grove.tree.standing(leaf);
+            elements.restyled.set(at);
         }
     }
-    let count = elements.len();
     elements.restated = written.restated;
-    elements.dirty.clear();
-    elements.dirty.resize(count, written.all);
-    elements.moved.clear();
-    elements.moved.resize(count, false);
-    elements.measures.clear();
-    elements.measures.resize(count, false);
-    elements.resolved.clear();
-    elements.resolved.resize(count, false);
-    elements.lettered.clear();
-    elements.lettered.resize(count, written.all);
-    if !written.all {
-        for &leaf in written.lettered {
+    if written.all {
+        elements.fresh.fill(count);
+    }
+    let marked = |marks: &mut Positions, leaves: &crate::leaf::Leaves| {
+        for &leaf in leaves {
             if let Some(at) = elements.at(leaf) {
-                elements.lettered[at] = true;
+                marks.set(at);
             }
         }
-    }
-    if !written.all {
-        for &leaf in written.declared {
-            if let Some(at) = elements.at(leaf) {
-                elements.dirty[at] = true;
-            }
+    };
+    let mut dirty = Positions::default();
+    let mut lettered = Positions::default();
+    match written.all {
+        true => {
+            dirty.fill(count);
+            lettered.fill(count);
+        }
+        false => {
+            dirty.reset(count);
+            lettered.reset(count);
+            marked(&mut lettered, written.lettered);
+            marked(&mut dirty, written.declared);
         }
     }
-    for &leaf in written.measures {
-        if let Some(at) = elements.at(leaf) {
-            elements.measures[at] = true;
-        }
+    let mut measures = Positions::default();
+    measures.reset(count);
+    marked(&mut measures, written.measures);
+    let mut touched = Positions::default();
+    if written.across {
+        touched.fill(count);
+    } else {
+        touched.reset(count);
+        marked(&mut touched, written.declared);
     }
-    if written.repainted {
-        elements.moved.fill(true);
+    elements.dirty = dirty;
+    elements.lettered = lettered;
+    elements.measures = measures;
+    match written.repainted {
+        true => elements.moved.fill(count),
+        false => elements.moved.reset(count),
     }
-    for &leaf in written.restyled {
-        if let Some(at) = elements.at(leaf) {
-            elements.moved[at] = true;
-        }
-    }
+    elements.moved.add(&elements.restyled);
+    elements.answers.reset(count);
+    elements.remeasured.reset(count);
     // What R1m reads, taken before the closure below spreads anything: what was written to each
     // element itself, and with it what something went from. Everything, where what every measure
     // across reads changed; where only the viewport moved, it changed nothing a measure reads, and
@@ -1593,47 +2184,46 @@ fn read(elements: &mut Elements, grove: &Grove) {
     elements.across =
         written.across || !written.declared.is_empty() || !written.measures.is_empty();
     if elements.across {
-        elements.touched.clear();
-        elements.touched.resize(count, written.across);
-        if !written.across {
-            for &leaf in written.declared {
-                if let Some(at) = elements.at(leaf) {
-                    elements.touched[at] = true;
-                }
-            }
-        }
-        elements.measures_across.clear();
-        elements.measures_across.extend(
-            elements
-                .touched
-                .iter()
-                .zip(&elements.measures)
-                .map(|(touched, measures)| *touched || *measures),
-        );
+        elements.measures_across.copy_from(&touched);
+        elements.measures_across.add(&elements.measures);
+        elements.touched = touched;
     }
-    for at in 0..count {
-        // A dependency the order could not put first is one a cycle left in the remainder, and it
-        // has no answer yet. Resolving such an element is the same fallback the rest of resolution
-        // gives it: it is answered against what its dependency last was, so it is answered again.
-        let decided = |on: Option<usize>| on.is_some_and(|on| on >= at || elements.dirty[on]);
-        let dirty =
-            elements.dirty[at] || decided(elements.trunk[at]) || decided(elements.anchor[at]);
-        elements.dirty[at] = dirty;
-        elements.moved[at] |= dirty;
-        elements.measures[at] |= dirty;
-        // A clean element offers the box it settled at, and offers it from the start, because
-        // nothing this frame is going to compute it again. One being resolved again offers nothing
-        // until an axis reaches it, which is what it did when every element was resolved.
-        elements.resolved[at] = !dirty;
-        // The grid is divided at the breakpoint in force, so it is read again wherever the element
-        // is -- a breakpoint that moved is every element written to, and nothing else can change a
-        // division without writing the grid it divides.
-        if dirty {
-            elements.tracks[at] = grove
-                .tree
-                .grid(elements.order[at])
-                .unwrap_or_default()
-                .tracks(grove.layout, grove.short);
+    // A dependency the order could not put first is one a cycle left in the remainder, and it has
+    // no answer yet. Resolving such an element is the same fallback the rest of resolution gives
+    // it: it is answered against what its dependency last was, so it is answered again.
+    if !written.all {
+        let mut dirty = core::mem::take(&mut elements.dirty);
+        for &at in &elements.forward {
+            dirty.set(at as usize);
         }
+        let mut from = 0;
+        while let Some(at) = dirty.next(from) {
+            from = at + 1;
+            elements.dependents(at, &mut dirty);
+        }
+        elements.dirty = dirty;
+    }
+    elements.answers.add(&elements.dirty);
+    elements.moved.add(&elements.dirty);
+    elements.measures.add(&elements.dirty);
+    // A clean element offers the box it settled at, and offers it from the start, because nothing
+    // this frame is going to compute it again. One being resolved again offers nothing until an
+    // axis reaches it, which is what it did when every element was resolved.
+    elements.unresolved.copy_from(&elements.dirty);
+    // The grid is divided at the breakpoint in force, so it is read again wherever the element is --
+    // a breakpoint that moved is every element written to, and nothing else can change a division
+    // without writing the grid it divides.
+    let Elements {
+        dirty,
+        tracks,
+        order,
+        ..
+    } = elements;
+    for at in dirty.iter() {
+        tracks[at] = grove
+            .tree
+            .grid(order[at])
+            .unwrap_or_default()
+            .tracks(grove.layout, grove.short);
     }
 }

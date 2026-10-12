@@ -17,7 +17,7 @@ use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf, Presence};
 use crate::link::Links;
 use crate::naming::Naming;
-use crate::op::Op;
+use crate::op::{Bud, Op};
 use crate::palette::Scheme;
 use crate::pollen::Drift;
 use crate::queue::{Queue, Wake};
@@ -445,6 +445,10 @@ impl Grove {
 impl Queues for Grove {
     fn queue(&mut self, op: Op) {
         self.queue.push(op);
+    }
+
+    fn sow(&mut self, op: Op, bud: Bud) {
+        self.queue.sow(op, bud);
     }
 
     fn allocate(&self) -> (Leaf, Growth) {

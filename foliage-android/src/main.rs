@@ -908,11 +908,14 @@ fn ignore(root: &Path, project: &Project) -> Result<(), String> {
 }
 
 /// `entry` as a path inside `root`, `/`-separated, or `None` for one outside it. Relative entries
-/// are relative to `root`, as `foliage-android.toml` writes them; an absolute one is inside only
-/// when it is under `root`.
+/// are relative to `root`, as `foliage-android.toml` writes them; a rooted one is inside only when
+/// it is under `root`.
+///
+/// Rooted rather than absolute: on Windows a path is absolute only with a drive or a share, so
+/// `/work/app` is not, though it is no more relative to `root` than `C:\work\app` is.
 fn inside(root: &Path, entry: &str) -> Option<String> {
     let path = Path::new(entry);
-    let relative = match path.is_absolute() {
+    let relative = match path.has_root() {
         true => path.strip_prefix(root).ok()?,
         false => path,
     };

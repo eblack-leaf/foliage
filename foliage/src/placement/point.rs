@@ -14,7 +14,7 @@
 
 use crate::coordinate::Axis;
 use crate::placement::role::known;
-use crate::placement::source::{Coord, HorizontalCoordinate, Origin, VerticalCoordinate};
+use crate::placement::source::{Against, Coord, HorizontalCoordinate, Origin, VerticalCoordinate};
 
 /// A position stated in the placement grammar: one coordinate on each axis.
 ///
@@ -33,6 +33,14 @@ pub struct Point {
 }
 
 impl Point {
+    /// Whether this point on `axis` reads the measured extent of what `against` names.
+    pub(crate) fn reads_content(&self, against: Against, axis: Axis) -> bool {
+        match axis {
+            Axis::Horizontal => self.x.expr.reads_content(against),
+            Axis::Vertical => self.y.expr.reads_content(against),
+        }
+    }
+
     /// A position, from one coordinate on each axis.
     ///
     /// The horizontal half is written first, as it is everywhere else in the grammar, and the two

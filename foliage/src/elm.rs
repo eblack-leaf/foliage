@@ -55,7 +55,7 @@ use crate::palette::Fill;
 use crate::panel::PanelInstance;
 use crate::polygon::{PolygonInstance, PolygonPigment};
 use crate::rounding::Corners;
-use crate::rowan::Elements;
+use crate::rowan::{Elements, Positions};
 use crate::text::TextPigment;
 use crate::text::font::Font;
 
@@ -539,7 +539,6 @@ pub(crate) fn run(grove: &mut Grove) {
     // there is to do.
     let elements = core::mem::take(&mut grove.elements);
     let mut total = 0;
-    let mut kept = 0;
     // Nothing is held to compare against, so nothing can be said to be unchanged.
     let recut = core::mem::take(&mut grove.elm.recut);
     // Whatever the backend held for an element that withered, it holds for nothing now.
@@ -547,16 +546,18 @@ pub(crate) fn run(grove: &mut Grove) {
         grove.elm.withdraw(chlorophyll, leaf);
     }
     let surface = Section::new(Position::default(), grove.viewport);
-    for at in 0..elements.len() {
+    // An element nothing extraction reads about moved is held by the backend as it should go on
+    // being held, and there is nothing to say: the walk is over what moved, unless nothing is held.
+    let mut moved = Positions::default();
+    match recut {
+        true => moved.fill(elements.len()),
+        false => moved.copy_from(&elements.moved),
+    }
+    let kept = elements.len() - moved.count();
+    for at in moved.iter() {
         let chlorophyll = elements.standing[at].chlorophyll;
         // Carrying no renderer is the whole of what makes an element a stem.
         if chlorophyll == Chlorophyll::None {
-            continue;
-        }
-        // Nothing extraction reads about it moved, so what the backend holds for it is what it
-        // should go on holding, and there is nothing to say.
-        if !(elements.moved[at] || recut) {
-            kept += 1;
             continue;
         }
         let stated = match painted(&elements, at, surface) {

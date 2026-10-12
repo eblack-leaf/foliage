@@ -467,6 +467,49 @@ fn a_wheel_notch_scrolls_the_region_under_it() {
     assert_eq!(offset(&grove, region).y, 40.0);
 }
 
+/// An element that takes the wheel is sent the notch, and the region it sits in stays where it was.
+/// Notches in one frame are added together.
+#[test]
+fn a_wheel_notch_on_an_element_that_wheels_is_its_own() {
+    let mut grove = grove();
+    let (region, content) = column(&mut grove);
+    let dial = grove.branch(
+        content,
+        Panel::new()
+            .at(at(0.0, 0.0, 200.0, 50.0))
+            .interactive()
+            .wheels(),
+    );
+    tick(&mut grove);
+
+    wheel(&mut grove, (50.0, 25.0), (0.0, -40.0));
+    wheel(&mut grove, (60.0, 25.0), (0.0, -20.0));
+    let pollen = frame(&mut grove);
+
+    let wheeled = pollen.wheeled(dial).expect("the dial took the notches");
+    assert_eq!(wheeled.at, Position::new(60.0, 25.0));
+    assert_eq!(wheeled.delta, Position::new(0.0, -60.0));
+    assert_eq!(offset(&grove, region).y, 0.0);
+}
+
+/// Taking the wheel is declared. A target that only receives leaves the notch to the region.
+#[test]
+fn a_wheel_notch_on_a_target_that_does_not_wheel_scrolls_its_region() {
+    let mut grove = grove();
+    let (region, content) = column(&mut grove);
+    let button = grove.branch(
+        content,
+        Panel::new().at(at(0.0, 0.0, 200.0, 50.0)).interactive(),
+    );
+    tick(&mut grove);
+
+    wheel(&mut grove, (50.0, 25.0), (0.0, -40.0));
+    let pollen = frame(&mut grove);
+
+    assert_eq!(pollen.wheeled(button), None);
+    assert_eq!(offset(&grove, region).y, 40.0);
+}
+
 /// A region cannot be moved along an axis it did not declare, and the gesture does not become
 /// something else because of it.
 #[test]

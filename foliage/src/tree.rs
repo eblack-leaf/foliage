@@ -1,6 +1,8 @@
+use bevy_ecs::bundle::Bundle;
 use bevy_ecs::component::{Component, Mutable};
 use bevy_ecs::entity::RemoteAllocator;
 use bevy_ecs::hierarchy::{ChildOf, Children};
+use bevy_ecs::query::{Has, QueryState};
 use bevy_ecs::world::World;
 
 use crate::coordinate::{Area, Position};
@@ -10,7 +12,7 @@ use crate::icon::{Field, IconPigment};
 use crate::image::{Fit, ImagePigment, Plate};
 use crate::interaction::Gestures;
 use crate::keyboard::Keypad;
-use crate::leaf::{Grown, Growth, Leaf, Leaves, Presence, SpawnedAt};
+use crate::leaf::{Grown, Growth, Leaf, Leaves, Named, Presence, SpawnedAt};
 use crate::lifecycle::{Disabled, Opacity, Visible};
 use crate::line::{LinePigment, Stroke};
 use crate::op::Bud;
@@ -18,7 +20,7 @@ use crate::palette::Fill;
 use crate::place::{Anchored, Caller, Focusing};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
-use crate::placement::trace::Trace;
+use crate::placement::trace::{Ends, Trace};
 use crate::polygon::{PolygonPigment, Shape};
 use crate::rounding::Corners;
 use crate::rowan::Standing;
@@ -32,6 +34,18 @@ use crate::view::{Extent, Floats, Offset, Pinned, Scroll, Scrolls, Shift};
 /// Owns the world. The only place raw `bevy_ecs` is touched.
 pub(crate) struct Tree {
     world: World,
+    /// How each element is placed, fetched from its row in one step rather than looked up one
+    /// component at a time. Resolution asks it of every element it resolves, on each axis and again
+    /// when measuring, so on a frame that resolves tens of thousands of elements the lookups are
+    /// most of what the asking costs. See [`refresh`](Tree::refresh).
+    placements: QueryState<(
+        Option<&'static Trace>,
+        Option<&'static Stroke>,
+        Option<&'static Location>,
+    )>,
+    /// Everything an element's [`Standing`] is read from, fetched the same way: an element grown or
+    /// restyled has all of it read, and a frame that grows tens of thousands reads it for each.
+    standings: QueryState<Stands>,
     /// Every element written to since resolution last read this.
     ///
     /// A declaration is what resolution reads, so an element nothing has written to resolves to what
@@ -65,6 +79,14 @@ pub(crate) struct Tree {
     /// Whether the elements, or the edges between them, changed -- which is what the order is built
     /// from and the only thing that makes it worth building again.
     restructured: bool,
+    /// What was grown since resolution last read this, in the order it was grown, and what withered.
+    /// Together they are all an order needs to be repaired rather than built again, unless
+    /// [`reordered`](Tree::reordered) says an edge moved.
+    grown: Vec<Leaf>,
+    withered: Vec<Leaf>,
+    /// Whether an edge between elements that were already there changed -- an anchor written --
+    /// which no repair of the order can follow, so it is built again.
+    reordered: bool,
     /// Whether something every element is read against has changed, which is every element written.
     invalidated: bool,
     /// Whether that something is also what a measure across reads -- a breakpoint, which chooses
@@ -76,7 +98,23 @@ pub(crate) struct Tree {
     repainted: bool,
 }
 
+/// Everything an element's [`Standing`] is read from, as one row of the world.
+type Stands = (
+    Option<&'static Chlorophyll>,
+    Option<&'static Growth>,
+    Option<&'static Gestures>,
+    Option<&'static Scrolls>,
+    Has<Pinned>,
+    Option<&'static Floats>,
+    Option<&'static Visible>,
+    Option<&'static Opacity>,
+    Option<&'static Disabled>,
+    Option<&'static Elevation>,
+    Option<&'static Shift>,
+);
+
 /// How an element is placed, borrowed from its declaration.
+#[derive(Clone, Copy)]
 pub(crate) enum Placement<'a> {
     /// By a box.
     Boxed(&'a Location),
@@ -97,8 +135,13 @@ pub(crate) struct Written<'a> {
     pub(crate) lettered: &'a Leaves,
     /// The elements that have to measure again because what is under them went away.
     pub(crate) measures: &'a Leaves,
-    /// Whether the order has to be built again.
+    /// Whether the order has to be built again, or repaired.
     pub(crate) restructured: bool,
+    /// What was grown, in the order it was grown, and what withered: what repairing it reads.
+    pub(crate) grown: &'a [Leaf],
+    pub(crate) withered: &'a [Leaf],
+    /// Whether it can only be built again: an edge between elements already there moved.
+    pub(crate) reordered: bool,
     /// Whether a run stopped being stated, so the shaping cache has to be swept.
     pub(crate) restated: bool,
     /// Whether everything has to be resolved again.
@@ -111,14 +154,23 @@ pub(crate) struct Written<'a> {
 
 impl Tree {
     pub(crate) fn new() -> Self {
+        let mut world = World::new();
+        let placements = QueryState::new(&mut world);
+        let standings = QueryState::new(&mut world);
         Self {
-            world: World::new(),
+            world,
+            placements,
+            standings,
             touched: Leaves::default(),
             restyled: Leaves::default(),
             lettered: Leaves::default(),
             reached: Leaves::default(),
             restated: true,
             restructured: true,
+            grown: Vec::new(),
+            withered: Vec::new(),
+            // Nothing has been ordered yet, so there is nothing to repair.
+            reordered: true,
             // Nothing has resolved yet, so the first frame has everything to do.
             invalidated: true,
             remeasured: true,
@@ -192,6 +244,9 @@ impl Tree {
             lettered: &self.lettered,
             measures: &self.reached,
             restructured: self.restructured,
+            grown: &self.grown,
+            withered: &self.withered,
+            reordered: self.reordered,
             restated: self.restated,
             all: self.invalidated,
             across: self.remeasured,
@@ -212,6 +267,9 @@ impl Tree {
         self.reached.clear();
         self.restated = false;
         self.restructured = false;
+        self.grown.clear();
+        self.withered.clear();
+        self.reordered = false;
         self.invalidated = false;
         self.remeasured = false;
         self.repainted = false;
@@ -247,33 +305,69 @@ impl Tree {
         leaf: Leaf,
         growth: Growth,
         under: Option<Leaf>,
-        bud: Bud,
+        mut bud: Bud,
     ) -> bool {
-        let Ok(mut entity) = self.world.spawn_at(leaf.0, Grown) else {
-            return false;
-        };
-        entity.insert((
-            SpawnedAt(bud.at),
-            growth,
-            bud.chlorophyll,
-            bud.placement.location.unwrap_or_default(),
-            bud.placement.grid.unwrap_or_default(),
-            bud.placement.elevation.unwrap_or_default(),
-        ));
         // Everything an element declares about how it behaves. Each is present on every element, so
         // nothing that reads one has to ask whether the element is the kind of thing that has it.
         // What resolution makes of them is not here: that is held in resolution's own columns
         // ([`Elements`](crate::rowan::Elements)), which is where every pass reads it.
         let manner = bud.placement.manner;
-        entity.insert((
-            manner.gestures,
-            manner.focusing,
-            manner.visible,
-            manner.opacity,
-            Disabled::default(),
-            Offset::default(),
-            Extent::default(),
-        ));
+        let common = (
+            (
+                Grown,
+                SpawnedAt(bud.at),
+                growth,
+                bud.chlorophyll,
+                bud.placement.grid.unwrap_or_default(),
+                bud.placement.elevation.unwrap_or_default(),
+            ),
+            (
+                manner.gestures,
+                manner.focusing,
+                manner.visible,
+                manner.opacity,
+                Disabled::default(),
+                Offset::default(),
+                Extent::default(),
+            ),
+        );
+        // Spawned with what every element has, what it hangs off, and what its renderer reads, in
+        // one bundle. Each insert after the spawn moves the element to another archetype and copies
+        // every component it holds, and growing tens of thousands of elements in a frame is mostly
+        // those copies when they are made one group at a time. A stroke always carries a trace and
+        // a weight, so they go in with its pigment.
+        let parent = under.map(|under| ChildOf(under.0));
+        // An element placed by its ends has no box placement, and is not given an empty one: it
+        // would be held, and carried, and read by nothing, since a trace is what resolution asks
+        // for first and a `Location` written onto a stroke is refused.
+        let location = match bud.placement.traced {
+            Some(_) => None,
+            None => Some(bud.placement.location.take().unwrap_or_default()),
+        };
+        let spawned = match bud.pigment.take() {
+            Some(Pigment::Panel(pigment)) => self.spawn(leaf, common, parent, location, pigment),
+            Some(Pigment::Text(pigment)) => self.spawn(leaf, common, parent, location, pigment),
+            Some(Pigment::Polygon(pigment)) => self.spawn(leaf, common, parent, location, pigment),
+            Some(Pigment::Line(pigment)) => {
+                match (bud.placement.traced.take(), bud.placement.stroke.take()) {
+                    (Some(trace), Some(stroke)) => {
+                        self.spawn(leaf, common, parent, location, (pigment, trace, stroke))
+                    }
+                    (trace, stroke) => {
+                        bud.placement.traced = trace;
+                        bud.placement.stroke = stroke;
+                        self.spawn(leaf, common, parent, location, pigment)
+                    }
+                }
+            }
+            Some(Pigment::Icon(pigment)) => self.spawn(leaf, common, parent, location, pigment),
+            Some(Pigment::Image(pigment)) => self.spawn(leaf, common, parent, location, pigment),
+            None => self.spawn(leaf, common, parent, location, ()),
+        };
+        if !spawned {
+            return false;
+        }
+        let mut entity = self.world.entity_mut(leaf.0);
         if let Some(scrolls) = manner.scrolls {
             entity.insert(scrolls);
         }
@@ -284,27 +378,6 @@ impl Tree {
         }
         if let Some(escape) = manner.floats {
             entity.insert(Floats(escape));
-        }
-        match bud.pigment {
-            Some(Pigment::Panel(pigment)) => {
-                entity.insert(pigment);
-            }
-            Some(Pigment::Text(pigment)) => {
-                entity.insert(pigment);
-            }
-            Some(Pigment::Polygon(pigment)) => {
-                entity.insert(pigment);
-            }
-            Some(Pigment::Line(pigment)) => {
-                entity.insert(pigment);
-            }
-            Some(Pigment::Icon(pigment)) => {
-                entity.insert(pigment);
-            }
-            Some(Pigment::Image(pigment)) => {
-                entity.insert(pigment);
-            }
-            None => {}
         }
         if let Some(lettering) = bud.lettering {
             entity.insert(lettering);
@@ -326,31 +399,82 @@ impl Tree {
         if let Some(anchored) = bud.placement.anchor {
             entity.insert(anchored);
         }
-        if let Some(under) = under {
-            entity.insert(ChildOf(under.0));
-        }
         // What it was grown under has one more element to reach over, and finds that out by the
         // walk R2m makes from this one toward it.
         self.declared(leaf);
         self.lettered.insert(leaf);
         self.restructured = true;
+        self.grown.push(leaf);
         true
     }
 
-    /// Takes `leaf` and everything beneath it down, and reports every name that went.
-    pub(crate) fn wither(&mut self, leaf: Leaf) -> Vec<Leaf> {
-        let mut gone = Vec::new();
-        self.gather(leaf, &mut gone);
-        let trunk = self.trunk(leaf);
-        if let Ok(entity) = self.world.get_entity_mut(leaf.0) {
-            entity.despawn();
+    /// Spawns `leaf` holding `common` and `kind`, hanging off `parent` and placed by `location`
+    /// where it has either, reporting whether the name was still free to grow into.
+    fn spawn<C: Bundle, K: Bundle>(
+        &mut self,
+        leaf: Leaf,
+        common: C,
+        parent: Option<ChildOf>,
+        location: Option<Location>,
+        kind: K,
+    ) -> bool {
+        let world = &mut self.world;
+        match (parent, location) {
+            (Some(parent), Some(location)) => world
+                .spawn_at(leaf.0, (common, kind, parent, location))
+                .is_ok(),
+            (Some(parent), None) => world.spawn_at(leaf.0, (common, kind, parent)).is_ok(),
+            (None, Some(location)) => world.spawn_at(leaf.0, (common, kind, location)).is_ok(),
+            (None, None) => world.spawn_at(leaf.0, (common, kind)).is_ok(),
         }
-        // What it hung off has one fewer element to reach over, and nothing left below it to say so:
-        // the element that went is what the walk would have started from.
-        if let Some(trunk) = trunk {
+    }
+
+    /// Takes each of `leaves` down, and everything beneath each, and reports every name that went.
+    ///
+    /// Each trunk they hang off has them taken out of its branches in one pass, before any of them
+    /// goes. One at a time, each would be searched for among its trunk's branches and everything
+    /// grown after it moved down a place -- so letting go of many off one trunk, as a list cut short
+    /// does, would cost the trunk's length many times over.
+    pub(crate) fn wither(&mut self, leaves: &[Leaf]) -> Vec<Leaf> {
+        let mut gone = Vec::new();
+        let mut taken = Leaves::default();
+        let mut trunks: Named<Leaf, Leaves> = Named::default();
+        for &leaf in leaves {
+            // Already going, under one of the others.
+            if taken.contains(&leaf) {
+                continue;
+            }
+            let from = gone.len();
+            self.gather(leaf, &mut gone);
+            taken.extend(gone[from..].iter().copied());
+            if let Some(trunk) = self.trunk(leaf) {
+                trunks.entry(trunk).or_default().insert(leaf);
+            }
+        }
+        for (trunk, going) in trunks {
+            if !taken.contains(&trunk) {
+                let staying: Vec<_> = self
+                    .world
+                    .get::<Children>(trunk.0)
+                    .into_iter()
+                    .flat_map(|children| children.iter().copied())
+                    .filter(|child| !going.contains(&Leaf(*child)))
+                    .collect();
+                self.world
+                    .entity_mut(trunk.0)
+                    .replace_related::<ChildOf>(&staying);
+            }
+            // What it hung off has one fewer element to reach over, and nothing left below it to
+            // say so: the element that went is what the walk would have started from.
             self.measures(trunk);
         }
+        for leaf in gone.iter().rev() {
+            if let Ok(entity) = self.world.get_entity_mut(leaf.0) {
+                entity.despawn();
+            }
+        }
         self.restructured = true;
+        self.withered.extend_from_slice(&gone);
         // Whatever it said, it does not say any more.
         self.restated = true;
         gone
@@ -421,18 +545,38 @@ impl Tree {
     /// the declaration it goes on to read -- which a pass resolving every element on two axes would
     /// otherwise ask the world for separately.
     pub(crate) fn placement(&self, leaf: Leaf) -> Option<Placement<'_>> {
-        let entity = self.world.get_entity(leaf.0).ok()?;
-        match entity.get::<Trace>() {
+        let (trace, stroke, location) = match self.placements.get_manual(&self.world, leaf.0) {
+            Ok(row) => row,
+            // Grown into a shape the query has not been shown yet, since the last refresh. Asked
+            // of the element itself, which is always right and only slower.
+            Err(_) => {
+                let entity = self.world.get_entity(leaf.0).ok()?;
+                (
+                    entity.get::<Trace>(),
+                    entity.get::<Stroke>(),
+                    entity.get::<Location>(),
+                )
+            }
+        };
+        match trace {
             Some(trace) => Some(Placement::Traced(
                 trace,
-                entity.get::<Stroke>().copied().unwrap_or_default(),
+                stroke.copied().unwrap_or_default(),
             )),
-            None => entity.get::<Location>().map(Placement::Boxed),
+            None => location.map(Placement::Boxed),
         }
     }
 
+    /// Shows [`placement`](Tree::placement)'s query every shape an element has been grown in since
+    /// it was last shown, so every element is fetched in one step. Before resolution, which is
+    /// after everything this frame grows has been grown.
+    pub(crate) fn refresh(&mut self) {
+        self.placements.update_archetypes(&self.world);
+        self.standings.update_archetypes(&self.world);
+    }
+
     pub(crate) fn grid(&self, leaf: Leaf) -> Option<Grid> {
-        self.world.get_entity(leaf.0).ok()?.get::<Grid>().copied()
+        self.world.get_entity(leaf.0).ok()?.get::<Grid>().cloned()
     }
 
     /// Which font `leaf` composes in and at what size, or `None` if it was never given one.
@@ -629,8 +773,9 @@ impl Tree {
             entity.insert(Anchored { to, at });
         }
         self.declared(leaf);
-        // An anchor is an edge of the graph the order is built from.
+        // An anchor is an edge of the graph the order is built from, between elements already there.
         self.restructured = true;
+        self.reordered = true;
     }
 
     /// How far in front of its trunk `leaf` was told to sit.
@@ -702,6 +847,37 @@ impl Tree {
         };
         if *held != trace {
             *held = trace;
+            self.declared(leaf);
+        }
+        true
+    }
+
+    /// Writes both of `leaf`'s ends at every breakpoint into the trace it holds, reporting whether
+    /// it is something placed by its ends. Ends it already holds, and nothing else, are no write.
+    pub(crate) fn set_ends(&mut self, leaf: Leaf, ends: Ends) -> bool {
+        let Ok(mut entity) = self.world.get_entity_mut(leaf.0) else {
+            return false;
+        };
+        let Some(mut held) = entity.get_mut::<Trace>() else {
+            return false;
+        };
+        if held.0.only() != Some(&ends) {
+            held.0.reset(ends);
+            self.declared(leaf);
+        }
+        true
+    }
+
+    /// Writes how thick `leaf` is stroked, reporting whether it is a stroke. The same weight is no
+    /// write.
+    pub(crate) fn set_stroke(&mut self, leaf: Leaf, stroke: Stroke) -> bool {
+        let Ok(entity) = self.world.get_entity(leaf.0) else {
+            return false;
+        };
+        if !entity.contains::<Stroke>() {
+            return false;
+        }
+        if self.overwrite(leaf, stroke) {
             self.declared(leaf);
         }
         true
@@ -996,21 +1172,54 @@ impl Tree {
     /// these was written -- so the passes that run over every element on every frame index a column
     /// rather than look each of these up.
     pub(crate) fn standing(&self, leaf: Leaf) -> Standing {
-        let Ok(entity) = self.world.get_entity(leaf.0) else {
-            return Standing::default();
+        let row = match self.standings.get_manual(&self.world, leaf.0) {
+            Ok(row) => row,
+            // A shape the query has not been shown since the last refresh. Asked of the element
+            // itself, which is always right and only slower.
+            Err(_) => {
+                let Ok(entity) = self.world.get_entity(leaf.0) else {
+                    return Standing::default();
+                };
+                (
+                    entity.get::<Chlorophyll>(),
+                    entity.get::<Growth>(),
+                    entity.get::<Gestures>(),
+                    entity.get::<Scrolls>(),
+                    entity.contains::<Pinned>(),
+                    entity.get::<Floats>(),
+                    entity.get::<Visible>(),
+                    entity.get::<Opacity>(),
+                    entity.get::<Disabled>(),
+                    entity.get::<Elevation>(),
+                    entity.get::<Shift>(),
+                )
+            }
         };
+        let (
+            chlorophyll,
+            growth,
+            gestures,
+            scrolls,
+            pinned,
+            floats,
+            visible,
+            opacity,
+            disabled,
+            elevation,
+            shift,
+        ) = row;
         Standing {
-            chlorophyll: entity.get::<Chlorophyll>().copied().unwrap_or_default(),
-            growth: entity.get::<Growth>().map_or(0, |growth| growth.0),
-            gestures: entity.get::<Gestures>().copied().unwrap_or_default(),
-            scrolls: entity.get::<Scrolls>().map(|scrolls| scrolls.0),
-            pinned: entity.contains::<Pinned>(),
-            floats: entity.get::<Floats>().map(|floats| floats.0),
-            visible: entity.get::<Visible>().copied().unwrap_or_default().0,
-            opacity: entity.get::<Opacity>().copied().unwrap_or_default().0,
-            disabled: entity.get::<Disabled>().copied().unwrap_or_default().0,
-            elevation: entity.get::<Elevation>().copied().unwrap_or_default(),
-            shift: entity.get::<Shift>().copied().unwrap_or_default().0,
+            chlorophyll: chlorophyll.copied().unwrap_or_default(),
+            growth: growth.map_or(0, |growth| growth.0),
+            gestures: gestures.copied().unwrap_or_default(),
+            scrolls: scrolls.map(|scrolls| scrolls.0),
+            pinned,
+            floats: floats.map(|floats| floats.0),
+            visible: visible.copied().unwrap_or_default().0,
+            opacity: opacity.copied().unwrap_or_default().0,
+            disabled: disabled.copied().unwrap_or_default().0,
+            elevation: elevation.copied().unwrap_or_default(),
+            shift: shift.copied().unwrap_or_default().0,
         }
     }
 

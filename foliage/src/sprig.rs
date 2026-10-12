@@ -32,7 +32,7 @@ use crate::image::Plate;
 use crate::layout::{Layout, Short};
 use crate::leaf::{Growth, Leaf};
 use crate::naming::Naming;
-use crate::op::Op;
+use crate::op::{Bud, Op};
 use crate::palette::Scheme;
 use crate::pollen::Pollen;
 use crate::queue::{Queue, Wake};
@@ -273,6 +273,11 @@ impl Queues for Sprig {
         self.0.queue.push(op);
         // The frame that will drain it. An op arriving from off the frame is the one kind nothing
         // else announces: the loop is asleep, and the platform has nothing to say about it.
+        self.0.wake.rouse();
+    }
+
+    fn sow(&mut self, op: Op, bud: Bud) {
+        self.0.queue.sow(op, bud);
         self.0.wake.rouse();
     }
 

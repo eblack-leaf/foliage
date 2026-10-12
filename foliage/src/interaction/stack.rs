@@ -15,7 +15,9 @@
 //!
 //! A gesture goes to the top of the stack -- the element nearest the viewer at that point, whatever
 //! it draws and whether or not it receives. [`intangible`](crate::Place::intangible) is what a
-//! gesture passes through rather than landing on, so the element beneath it is the top. An element
+//! gesture passes through rather than landing on, so the element beneath it is the top -- which is
+//! why an intangible element is left out of the stack altogether: nothing read of it would differ
+//! for holding one, and everything drawn as decoration would be in it. An element
 //! that is at the top without receiving eats the gesture, and a backdrop, a sheet backing and a
 //! menu's padding are all that without declaring anything to be it.
 //!
@@ -41,9 +43,6 @@ pub(crate) struct Region {
     /// far its own box extends.
     pub(crate) clip: Section,
     pub(crate) shape: Shape,
-    /// Whether a gesture lands here. False for an element declared
-    /// [`intangible`](crate::Place::intangible), which is in the stack but never the top of it.
-    pub(crate) tangible: bool,
     /// Declared [`interactive`](crate::Place::interactive).
     pub(crate) receives: bool,
     /// Disabled, in its own right or by an ancestor. Blocks, and gives nothing back.
@@ -90,13 +89,14 @@ impl Stack {
         self.regions.extend(regions);
     }
 
-    /// The top of the stack at `point`: the front-most tangible element there.
+    /// The top of the stack at `point`: the front-most element there. Everything in the stack is
+    /// tangible, since an intangible element is one a gesture passes through.
     ///
     /// One read, and the whole of the hit test.
     pub(crate) fn top(&self, point: Position) -> Option<Region> {
         self.regions
             .iter()
-            .find(|region| region.tangible && region.holds(point))
+            .find(|region| region.holds(point))
             .copied()
     }
 

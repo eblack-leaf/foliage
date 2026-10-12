@@ -221,14 +221,20 @@ fn source(kind: Kind, role: Role, context: &Context) -> f32 {
             letters * extent_of_area(context.basis(against).cell, context.axis)
         }
         Kind::Character { index, against } => {
-            character(index, context.basis(against), context.axis)
+            character(index as usize, context.basis(against), context.axis)
         }
         Kind::Span {
             from,
             to,
             end,
             against,
-        } => span(from, to, end, context.basis(against), context.axis),
+        } => span(
+            from as usize,
+            to as usize,
+            end,
+            context.basis(against),
+            context.axis,
+        ),
         Kind::Content { against } => extent_of_area(context.basis(against).intrinsic, context.axis),
         Kind::Edge { edge, against } => {
             let section = context.basis(against).section;

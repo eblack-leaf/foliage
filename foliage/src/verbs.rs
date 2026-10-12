@@ -8,12 +8,12 @@ use crate::icon::Field;
 use crate::image::{Fit, Plate};
 use crate::interaction::focus::Intent;
 use crate::leaf::{Growth, Leaf};
-use crate::op::Op;
+use crate::op::{Bud, Op};
 use crate::palette::{Fill, Scheme};
 use crate::placement::grid::Grid;
 use crate::placement::location::Location;
 use crate::placement::point::Point;
-use crate::placement::trace::Trace;
+use crate::placement::trace::{Ends, Trace};
 use crate::polygon::Shape;
 use crate::rounding::Corners;
 use crate::seed::Seed;
@@ -26,6 +26,8 @@ use crate::view::ScrollTo;
 /// order is fixed where the name is asked for and not where the element is grown.
 pub(crate) trait Queues {
     fn queue(&mut self, op: Op);
+    /// Queues an op that grows an element, with the element it grows.
+    fn sow(&mut self, op: Op, bud: Bud);
     fn allocate(&self) -> (Leaf, Growth);
     fn name(&self) -> Tween;
     fn group(&self) -> Sequence;
@@ -53,11 +55,10 @@ pub trait Grow: Queues {
     #[track_caller]
     fn plant(&mut self, seed: impl Seed) -> Leaf {
         let (leaf, growth) = self.allocate();
-        self.queue(Op::Plant {
-            leaf,
-            growth,
-            bud: Box::new(seed.bud(core::panic::Location::caller())),
-        });
+        self.sow(
+            Op::Plant { leaf, growth },
+            seed.bud(core::panic::Location::caller()),
+        );
         leaf
     }
 
@@ -65,12 +66,14 @@ pub trait Grow: Queues {
     #[track_caller]
     fn branch(&mut self, under: Leaf, seed: impl Seed) -> Leaf {
         let (leaf, growth) = self.allocate();
-        self.queue(Op::Branch {
-            leaf,
-            growth,
-            under,
-            bud: Box::new(seed.bud(core::panic::Location::caller())),
-        });
+        self.sow(
+            Op::Branch {
+                leaf,
+                growth,
+                under,
+            },
+            seed.bud(core::panic::Location::caller()),
+        );
         leaf
     }
 
@@ -101,7 +104,21 @@ pub trait Grow: Queues {
     ///
     /// Dropped if the element is placed by a box.
     fn between(&mut self, leaf: Leaf, from: Point, to: Point) {
-        self.trace(leaf, Trace::new().xs(from, to));
+        self.queue(Op::Between {
+            leaf,
+            ends: Ends { from, to },
+        });
+    }
+
+    /// How thick a stroke is, in logical pixels, clamped to [`HAIRLINE`](crate::line::HAIRLINE).
+    ///
+    /// What [`Line::weight`](crate::Line::weight) declares, written again. Placement rather than
+    /// decoration, as it is there: the stroke's box is grown by half of it, so the stroke is laid
+    /// out again.
+    ///
+    /// Dropped if the element is not a stroke.
+    fn weight(&mut self, leaf: Leaf, weight: f32) {
+        self.queue(Op::Weight { leaf, weight });
     }
 
     /// Moves a stroke, replacing its whole trace.

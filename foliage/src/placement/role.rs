@@ -22,6 +22,21 @@ pub(crate) struct Config {
 }
 
 impl Config {
+    /// Whether anything in this axis of a placement reads the measured extent of what `against`
+    /// names, which is the one thing about it a measure that moved changes when its box did not.
+    pub(crate) fn reads_content(&self, against: Against) -> bool {
+        let form = match &self.form {
+            Form::NearExtent { near, extent } => [&near.expr, extent],
+            Form::NearFar { near, far } => [&near.expr, &far.expr],
+            Form::FarExtent { far, extent } => [&far.expr, extent],
+            Form::CenterExtent { center, extent } => [&center.expr, extent],
+        };
+        form.into_iter()
+            .chain(&self.least)
+            .chain(&self.most)
+            .any(|expr| expr.reads_content(against))
+    }
+
     fn new(form: Form) -> Self {
         Self {
             form,

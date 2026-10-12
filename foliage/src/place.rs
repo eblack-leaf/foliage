@@ -197,6 +197,19 @@ pub trait Place: Places + Sized {
         self
     }
 
+    /// The element takes the wheel.
+    ///
+    /// A notch over it is reported to it as [`wheeled`](crate::Pollen::wheeled) and scrolls
+    /// nothing, as a drag it [`drags`](Place::drags) on scrolls nothing. What a notch means is the
+    /// app's: a map zooms on it, a dial turns.
+    ///
+    /// Undeclared, a notch scrolls the region under it. Only an element that is
+    /// [`interactive`](Place::interactive) takes it, as only one of those takes a drag.
+    fn wheels(mut self) -> Self {
+        self.placement().manner.gestures.wheels = true;
+        self
+    }
+
     /// Hits are tested against the ellipse inscribed in the element's box rather than the box.
     ///
     /// For a round control, so it does not take presses in the square corners it does not draw.

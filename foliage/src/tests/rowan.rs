@@ -914,3 +914,388 @@ fn measuring_across_only_what_was_written_lands_where_measuring_everything_does(
         }
     }
 }
+
+/// A frame that only grows and withers repairs the order rather than building it again -- what is
+/// grown placed after everything already there -- and every element lands exactly where building
+/// the order from scratch would put it.
+#[test]
+fn a_repaired_order_resolves_as_a_rebuilt_one_does() {
+    let mut grove = grove();
+    let root = grove.plant(Stem::new().at(box_at(0.0, 0.0, 400.0, 300.0)));
+    let first = grove.branch(root, Stem::new().at(box_at(10.0, 10.0, 180.0, 120.0)));
+    let second = grove.branch(root, Stem::new().at(box_at(200.0, 10.0, 180.0, 120.0)));
+    let target = grove.branch(first, Panel::new().at(box_at(20.0, 30.0, 40.0, 20.0)));
+    for n in 0..3 {
+        grove.branch(
+            second,
+            Panel::new().at(box_at(n as f32 * 30.0, 5.0, 20.0, 20.0)),
+        );
+    }
+    tick(&mut grove);
+    let before = grove.elements.len();
+
+    // One subtree withers and another is grown in the same frame, one of its elements anchored to
+    // something that stayed.
+    grove.prune(second);
+    let third = grove.branch(root, Stem::new().at(box_at(10.0, 150.0, 300.0, 120.0)));
+    let inner = grove.branch(
+        third,
+        Panel::new()
+            .at(Location::new().xs(left(10.pct()).width(50.pct()), top(5.px()).height(30.px()))),
+    );
+    let follower = grove.branch(
+        third,
+        Stem::new().anchored(target).at(Location::new().xs(
+            left(anchor().right() + 5.px()).width(30.px()),
+            top(anchor().top()).height(anchor().height()),
+        )),
+    );
+    tick(&mut grove);
+    // Repaired: what was grown follows everything that stayed, where building it would have put
+    // the new subtree among the rest by name.
+    let kept = before - 4;
+    let at = |leaf: Leaf| {
+        grove
+            .elements
+            .order
+            .iter()
+            .position(|placed| *placed == leaf)
+    };
+    assert!(at(third).is_some_and(|at| at >= kept));
+    assert!(at(follower).is_some_and(|at| at > at_of(&grove, third)));
+    let live = [root, first, target, third, inner, follower];
+    let repaired: Vec<Section> = live.iter().map(|leaf| section(&grove, *leaf)).collect();
+    assert_eq!(
+        repaired[5],
+        Section::from_edges(75.0, 40.0, 105.0, 60.0),
+        "the follower reads its anchor through the repaired order"
+    );
+
+    // An anchor written again is an edge moved, which builds the order from scratch.
+    grove.anchor(follower, target);
+    tick(&mut grove);
+    let rebuilt: Vec<Section> = live.iter().map(|leaf| section(&grove, *leaf)).collect();
+    assert_eq!(repaired, rebuilt);
+}
+
+fn at_of(grove: &Grove, leaf: Leaf) -> usize {
+    grove
+        .elements
+        .order
+        .iter()
+        .position(|placed| *placed == leaf)
+        .expect("placed")
+}
+
+/// A measure that moves under a box that stays put re-resolves what reads the measure, and nothing
+/// else resolved against the box.
+#[test]
+fn a_measure_that_moves_reaches_only_what_reads_it() {
+    let mut grove = grove();
+    let root = grove.plant(Stem::new().at(box_at(0.0, 0.0, 400.0, 300.0)));
+    grove.branch(root, Panel::new().at(box_at(0.0, 0.0, 50.0, 20.0)));
+    let reader = grove.branch(
+        root,
+        Panel::new().at(Location::new().xs(
+            left(0.px()).width(trunk().content()),
+            top(40.px()).height(10.px()),
+        )),
+    );
+    let bystander = grove.branch(root, Stem::new().at(box_at(0.0, 100.0, 40.0, 100.0)));
+    let under = grove.branch(bystander, Panel::new().at(box_at(10.0, 10.0, 20.0, 20.0)));
+    tick(&mut grove);
+    assert_eq!(section(&grove, reader).width(), 50.0);
+
+    // Wider content under the root: its measure moves, and its box, stated in pixels, does not.
+    grove.branch(root, Panel::new().at(box_at(0.0, 60.0, 120.0, 20.0)));
+    tick(&mut grove);
+    assert_eq!(
+        section(&grove, root),
+        Section::from_edges(0.0, 0.0, 400.0, 300.0)
+    );
+    assert_eq!(
+        section(&grove, reader).width(),
+        120.0,
+        "what reads the measure follows it"
+    );
+    assert!(!grove.elements.resolved_again(bystander));
+    assert!(!grove.elements.resolved_again(under));
+    assert_eq!(
+        section(&grove, under),
+        Section::from_edges(10.0, 110.0, 30.0, 130.0)
+    );
+}
+
+// -- Accumulating only what moved --------------------------------------------------------------
+
+/// Everything a wandering script grew in and around two scrolling regions, in the order it grew it.
+#[derive(Default)]
+struct Regions {
+    /// The two regions, the outer first.
+    regions: Vec<Leaf>,
+    /// What anything may be grown under: the page, the regions, a stem beside them, and every stem
+    /// grown since.
+    holders: Vec<Leaf>,
+    /// What is placed by a box and may be moved, restyled or let go.
+    items: Vec<Leaf>,
+    /// The strokes, which are moved by their ends.
+    strokes: Vec<Leaf>,
+    grown: Vec<Leaf>,
+}
+
+/// Somewhere in a holder, often past its edge, so a region has somewhere to scroll to.
+fn spot(wander: &mut Wander) -> Location {
+    box_at(
+        wander.px(300),
+        wander.px(500),
+        10.0 + wander.px(80),
+        10.0 + wander.px(80),
+    )
+}
+
+/// A point inside a holder, as a fraction of it, as a map's strokes are.
+fn fraction(wander: &mut Wander) -> crate::Point {
+    crate::Point::new(wander.px(100).pct(), wander.px(100).pct())
+}
+
+/// Grows one thing under a holder: pinned, floating out of its region or out to the outer one,
+/// raised, a stroke, or a stem that more is grown under -- half see-through, or floating out to the
+/// surface, so what floats out to the outer region from under it is held by something the stem
+/// passes nothing of down.
+fn plant_in(grove: &mut Grove, wander: &mut Wander, regions: &mut Regions) {
+    use crate::{Elevation, Escape, Line};
+    let holder = regions.holders[wander.below(regions.holders.len())];
+    let at = spot(wander);
+    let leaf = match wander.below(7) {
+        0 => grove.branch(holder, Panel::new().at(at).pinned()),
+        1 => grove.branch(holder, Panel::new().at(at).floats(Escape::Region)),
+        2 => grove.branch(
+            holder,
+            Panel::new()
+                .at(at)
+                .floats(Escape::Within(regions.regions[0])),
+        ),
+        3 => grove.branch(
+            holder,
+            Panel::new()
+                .at(at)
+                .elevate(Elevation::up(wander.below(4) as i32)),
+        ),
+        4 => {
+            let (from, to) = (fraction(wander), fraction(wander));
+            let stroke = grove.branch(holder, Line::new().weight(2.0).between(from, to));
+            regions.strokes.push(stroke);
+            regions.grown.push(stroke);
+            return;
+        }
+        held => {
+            let stem = match held {
+                5 => Stem::new().at(at).opacity(0.5),
+                _ => Stem::new().at(at).floats(Escape::Surface),
+            };
+            let stem = grove.branch(holder, stem);
+            regions.holders.push(stem);
+            regions.grown.push(stem);
+            return;
+        }
+    };
+    regions.items.push(leaf);
+    regions.grown.push(leaf);
+}
+
+fn plantation(grove: &mut Grove, wander: &mut Wander) -> Regions {
+    let mut regions = Regions::default();
+    let page = grove.plant(Stem::new().at(box_at(0.0, 0.0, 400.0, 400.0)));
+    let outer = grove.branch(
+        page,
+        Stem::new()
+            .at(box_at(10.0, 10.0, 300.0, 300.0))
+            .scrolls(Axes::Vertical),
+    );
+    let inner = grove.branch(
+        outer,
+        Stem::new()
+            .at(box_at(20.0, 40.0, 200.0, 120.0))
+            .scrolls(Axes::Both),
+    );
+    let beside = grove.branch(page, Stem::new().at(box_at(320.0, 0.0, 80.0, 400.0)));
+    regions.regions = vec![outer, inner];
+    regions.holders = vec![page, outer, inner, beside];
+    regions.grown = vec![page, outer, inner, beside];
+    for _ in 0..30 {
+        plant_in(grove, wander, &mut regions);
+    }
+    regions
+}
+
+/// One frame's worth of writes: things grown, moved and let go, holders shifted, moved, hidden and
+/// faded and raised, regions scrolled, and strokes given new ends.
+fn stir(grove: &mut Grove, wander: &mut Wander, regions: &mut Regions) {
+    use crate::{Elevation, Position};
+    for _ in 0..1 + wander.below(4) {
+        let holder = regions.holders[wander.below(regions.holders.len())];
+        match wander.below(11) {
+            0 => plant_in(grove, wander, regions),
+            1 | 2 if !regions.items.is_empty() => {
+                let item = regions.items[wander.below(regions.items.len())];
+                grove.at(item, spot(wander));
+            }
+            3 => grove.shift(
+                holder,
+                Position::new(wander.px(40) - 20.0, wander.px(40) - 20.0),
+            ),
+            4 => {
+                let region = regions.regions[wander.below(2)];
+                grove.scroll(region, ScrollTo::px(wander.px(300)));
+            }
+            5 => grove.visible(holder, wander.below(3) != 0),
+            6 => grove.opacity(holder, 0.25 + wander.px(4) / 4.0),
+            7 => {
+                // A holder raises everything under it with it.
+                let raised = match regions.items.is_empty() || wander.below(2) == 0 {
+                    true => holder,
+                    false => regions.items[wander.below(regions.items.len())],
+                };
+                grove.elevate(raised, Elevation::up(wander.below(5) as i32));
+            }
+            8 if holder != regions.holders[0] => grove.at(holder, spot(wander)),
+            9 if !regions.items.is_empty() => {
+                let item = regions.items.swap_remove(wander.below(regions.items.len()));
+                grove.prune(item);
+            }
+            _ if !regions.strokes.is_empty() => {
+                let stroke = regions.strokes[wander.below(regions.strokes.len())];
+                let (from, to) = (fraction(wander), fraction(wander));
+                grove.between(stroke, from, to);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// What the accumulations leave alone is exactly what carrying them over everything would have
+/// produced. The same wandering script runs on two groves, one of them made to resolve everything
+/// every frame, and every element has to be drawn where the other one draws it, clipped as it clips
+/// it, ranked and faded as it ranks and fades it -- through regions scrolled, holders shifted, hidden
+/// and moved, and elements grown and let go under them.
+#[test]
+fn accumulating_only_what_moved_lands_where_accumulating_everything_does() {
+    let mut incremental = grove();
+    let mut entire = grove();
+    let mut one = Wander(0x0dd_ba11);
+    let mut two = Wander(0x0dd_ba11);
+    let mut ours = plantation(&mut incremental, &mut one);
+    let mut theirs = plantation(&mut entire, &mut two);
+    for frame in 0..400 {
+        stir(&mut incremental, &mut one, &mut ours);
+        stir(&mut entire, &mut two, &mut theirs);
+        advance(&mut incremental, 16);
+        advance(&mut entire, 16);
+        entire.tree.invalidate();
+        tick(&mut incremental);
+        tick(&mut entire);
+        assert_eq!(ours.grown.len(), theirs.grown.len());
+        let (mine, reference) = (&incremental.elements, &entire.elements);
+        for (&leaf, &other) in ours.grown.iter().zip(&theirs.grown) {
+            let said = |what: &str| {
+                format!("frame {frame}: {leaf:?}'s {what} is not what carrying everything makes it")
+            };
+            assert_eq!(
+                mine.drawn(leaf),
+                reference.drawn(other),
+                "{}",
+                said("drawn box")
+            );
+            assert_eq!(mine.clip(leaf), reference.clip(other), "{}", said("clip"));
+            assert_eq!(mine.rank(leaf), reference.rank(other), "{}", said("rank"));
+            assert_eq!(
+                mine.inherited(leaf),
+                reference.inherited(other),
+                "{}",
+                said("inherited")
+            );
+            assert_eq!(
+                mine.stretched(leaf),
+                reference.stretched(other),
+                "{}",
+                said("ends")
+            );
+            assert_eq!(
+                mine.extends(leaf),
+                reference.extends(other),
+                "{}",
+                said("reach")
+            );
+        }
+        for (&leaf, &other) in ours.regions.iter().zip(&theirs.regions) {
+            assert_eq!(
+                incremental.tree.extent(leaf),
+                entire.tree.extent(other),
+                "frame {frame}: a region's extent is not what carrying everything makes it"
+            );
+            assert_eq!(incremental.tree.offset(leaf), entire.tree.offset(other));
+        }
+    }
+}
+
+/// What withers out of a region takes the room it reached over with it, even where the region's own
+/// measure never counted it: a child sized off the region is not part of what it measures to, and
+/// is part of how far its content reaches.
+#[test]
+fn a_region_lets_go_of_the_room_what_withered_took() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(box_at(0.0, 0.0, 100.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    let tall = grove.branch(
+        region,
+        Panel::new()
+            .at(Location::new().xs(left(0.px()).width(100.pct()), top(0.px()).height(300.pct()))),
+    );
+    tick(&mut grove);
+    assert_eq!(grove.tree.extent(region), Area::new(100.0, 300.0));
+
+    grove.prune(tall);
+    tick(&mut grove);
+    assert_eq!(grove.tree.extent(region), Area::new(100.0, 100.0));
+}
+
+/// An element floating out to a region it names is clipped by that region however far up it is,
+/// and follows it when it moves -- even past a stem between the two that passes nothing down,
+/// because it floats out to the surface itself.
+#[test]
+fn what_floats_out_to_a_region_follows_it_past_what_passes_nothing_down() {
+    use crate::Escape;
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(box_at(0.0, 0.0, 200.0, 200.0))
+            .scrolls(Axes::Vertical),
+    );
+    let surfaced = grove.branch(
+        region,
+        Stem::new()
+            .at(box_at(0.0, 0.0, 50.0, 50.0))
+            .floats(Escape::Surface),
+    );
+    let held = grove.branch(
+        surfaced,
+        Panel::new()
+            .at(box_at(0.0, 0.0, 20.0, 20.0))
+            .floats(Escape::Within(region)),
+    );
+    tick(&mut grove);
+    assert_eq!(
+        grove.elements.clip(held),
+        Section::from_edges(0.0, 0.0, 200.0, 200.0)
+    );
+
+    grove.at(region, box_at(50.0, 50.0, 200.0, 200.0));
+    tick(&mut grove);
+    assert_eq!(
+        grove.elements.clip(held),
+        Section::from_edges(50.0, 50.0, 250.0, 250.0)
+    );
+}

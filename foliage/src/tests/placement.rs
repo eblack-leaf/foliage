@@ -313,7 +313,7 @@ fn an_anchor_s_grid_is_addressable() {
     let grid = Grid::new().xs(4.columns().gap(8.0), 2.rows().gap(10.0));
     let under = Given {
         trunk: Section::from_edges(300.0, 40.0, 400.0, 90.0),
-        trunk_grid: grid,
+        trunk_grid: grid.clone(),
         ..Given::default()
     };
     let beside = Given {
@@ -799,7 +799,7 @@ fn a_grid_falls_back_the_same_way() {
         .lg(4.columns(), 1.rows());
     let column = |layout| {
         Given {
-            trunk_grid: grid,
+            trunk_grid: grid.clone(),
             layout,
             ..Given::default()
         }

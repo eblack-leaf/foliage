@@ -79,6 +79,8 @@ pub(crate) struct Gestures {
     /// Which drags the element takes. Absent, it takes none -- so it holds a gesture only until
     /// that gesture becomes a drag, and then yields.
     pub(crate) drags: Option<Axes>,
+    /// Declared [`wheels`](crate::Place::wheels): a notch over it is its own, and scrolls nothing.
+    pub(crate) wheels: bool,
     pub(crate) shape: Shape,
 }
 
@@ -244,6 +246,19 @@ pub struct Drag {
     /// Where the pointer is now.
     pub current: Position,
     /// How far it moved this frame.
+    pub delta: Position,
+}
+
+/// The wheel notches an element that [`wheels`](crate::Place::wheels) took this frame.
+///
+/// Stated as the movement a drag of the same distance would have been, so rolling the wheel away
+/// from you is a positive `y`, as dragging down is. Several notches in one frame are one answer:
+/// where the last one landed, and how far they all came.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Wheel {
+    /// Where the pointer was at the last notch.
+    pub at: Position,
+    /// How far the notches came, added together.
     pub delta: Position,
 }
 
@@ -780,10 +795,18 @@ fn launch(grove: &mut Grove, gesture: &Gesture) {
 }
 
 /// A wheel notch: no gesture, no claim, no lifecycle. It moves what is under it, and it is over.
+///
+/// An element at the top that declared [`wheels`](crate::Place::wheels) takes it whole and nothing
+/// scrolls, as a slider taking a drag along its own axis keeps the column it sits in still.
 fn wheeled(grove: &mut Grove, at: Position, delta: Position) {
     let Some(region) = grove.stack.top(at) else {
         return;
     };
+    if region.receives && !region.disabled && grove.tree.gestures(region.leaf).wheels {
+        grove.drift.wheeled(region.leaf, Wheel { at, delta });
+        debug!(leaf = region.leaf.id(), "wheeled");
+        return;
+    }
     let axis = if delta.x.abs() > delta.y.abs() {
         Axis::Horizontal
     } else {
