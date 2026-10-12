@@ -53,7 +53,6 @@
 
 use core::ops::Range;
 
-use bevy_ecs::component::Component;
 use tracing::debug;
 
 use crate::coordinate::{Axes, Position};
@@ -402,21 +401,6 @@ pub(crate) struct Sprout {
     pub(crate) lines: Lines,
 }
 
-/// Whether a field refuses the keystrokes that would change its value.
-///
-/// Carried on the field beside its [`Keypad`], and read wherever a keystroke is about to write:
-/// the whole of read-only is that those writes do not happen.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct ReadOnly(pub(crate) bool);
-
-/// Whether a run is drawn as dots.
-///
-/// Carried on the field's run rather than on the field, because the run is what R1 shapes and it
-/// shapes nothing else: a masked run is shaped as a dot for each character it holds, and that is
-/// the whole of what masking changes about the drawing.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Masked(pub(crate) bool);
-
 /// What a masked run is drawn as: a dot for every character but a newline.
 pub(crate) fn dots(value: &str) -> String {
     value
@@ -433,7 +417,7 @@ pub(crate) fn dots(value: &str) -> String {
 /// Carried on the field, which is what makes every verb addressed to the field able to reach the
 /// part it actually changes -- and what makes an element a field at all, since nothing else grows
 /// one.
-#[derive(Component, Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Parts {
     pub(crate) run: Leaf,
     pub(crate) hint: Leaf,
@@ -454,7 +438,7 @@ pub(crate) struct Parts {
 /// Two indices rather than a range, because which end moves is what a shifted arrow key needs to
 /// know: `anchor` is where the selection was begun and `caret` is where it has reached, so the two
 /// are equal exactly when nothing is selected.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Editing {
     pub(crate) caret: usize,
     pub(crate) anchor: usize,

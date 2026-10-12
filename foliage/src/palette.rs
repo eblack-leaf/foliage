@@ -1,6 +1,5 @@
 //! Palette -- the tones a fill is stated in, and the scheme that answers them.
 
-use bevy_ecs::component::Component;
 use tracing::trace;
 
 use crate::color::Color;
@@ -77,7 +76,7 @@ const TINT: f32 = 0.15;
 /// [`Positive`](Palette::Positive) -- and [`SLOTS`](Palette::SLOTS) more are numbered, for whatever
 /// an app wants to say that those do not. An app names a slot for itself: `const MOSS: Palette =
 /// Palette::hue(0);`.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Palette {
     role: Role,
     form: Form,

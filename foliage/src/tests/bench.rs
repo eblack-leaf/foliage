@@ -816,6 +816,7 @@ fn strokes_once() {
     let outer: Vec<usize> = (0..tiles)
         .filter(|n| n % TILES.0 == 0 || n % TILES.0 == TILES.0 - 1)
         .collect();
+    let before = resident();
     let mut grove = Grove::new(PAGE);
     let started = Instant::now();
     let mut field = strokes(&mut grove, count);
@@ -824,6 +825,14 @@ fn strokes_once() {
     println!();
     println!("  strokes_once: {} strokes in {tiles} stems", per * tiles);
     once(&mut grove, "grown", Some(described));
+    if let (Some(before), Some(after)) = (before, resident()) {
+        let held = after.saturating_sub(before);
+        println!(
+            "    held: {:.1}MB, {} bytes an element",
+            held as f64 / 1e6,
+            held / grove.elements.len()
+        );
+    }
     once(&mut grove, "idle", None);
 
     for n in 0..tiles {
@@ -955,4 +964,13 @@ fn once(grove: &mut Grove, what: &str, described: Option<Duration>) {
         None => println!("    {what}, {} elements:", grove.elements.len()),
     }
     branch(&rows, None, 0, 1);
+}
+
+/// How much memory the process holds, in bytes, where the platform says: what the elements grown
+/// between two readings take, allocator and all.
+fn resident() -> Option<usize> {
+    let status = std::fs::read_to_string("/proc/self/status").ok()?;
+    let line = status.lines().find(|line| line.starts_with("VmRSS:"))?;
+    let kilobytes: usize = line.split_whitespace().nth(1)?.parse().ok()?;
+    Some(kilobytes * 1024)
 }

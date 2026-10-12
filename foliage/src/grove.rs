@@ -101,8 +101,8 @@ pub struct Grove {
 
 impl Grove {
     pub(crate) fn new(viewport: Area) -> Self {
-        let tree = Tree::new();
-        let naming = Naming::new(tree.remote());
+        let naming = Naming::new();
+        let tree = Tree::new(naming.clone());
         let queue = Queue::default();
         let wake = Wake::default();
         Self {

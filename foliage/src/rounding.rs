@@ -1,7 +1,5 @@
 //! Corner rounding, stated as a bracket rather than as a radius.
 
-use bevy_ecs::component::Component;
-
 use crate::coordinate::Section;
 
 /// How much one corner is rounded.
@@ -114,7 +112,7 @@ impl Side {
 ///
 /// A single [`Rounding`] converts into this, so the common case says one word:
 /// `Panel::new().rounding(Rounding::Md)`.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Corners([Rounding; 4]);
 
 impl Corners {

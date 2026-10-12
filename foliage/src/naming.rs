@@ -14,13 +14,11 @@
 //! Every counter is monotonic and **nothing is ever handed out twice**, which is what makes a stale
 //! handle inert rather than dangerous: there is no later thing for it to come to address. A
 //! generation would be what made reuse safe, and so there is none to carry -- except on an element,
-//! where the index behind a [`Leaf`] does return to the allocator when it withers, and the
-//! generation `bevy_ecs` keeps on it is what tells the two apart.
+//! where the index behind a [`Leaf`] does return here when it withers, and the generation it comes
+//! back with is what tells the two apart.
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-
-use bevy_ecs::entity::RemoteAllocator;
+use std::sync::atomic::{AtomicU32, AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use crate::aspen::{Sequence, Tween};
 use crate::icon::Field;
@@ -33,9 +31,16 @@ use crate::text::Font;
 pub(crate) struct Naming(Arc<Names>);
 
 struct Names {
-    /// The world's own entity allocator, owned rather than borrowed from it -- which is what lets a
-    /// name be taken where the world cannot be reached.
-    entities: RemoteAllocator,
+    /// One past every index an element has been named by: where a name comes from when none has
+    /// gone back.
+    fresh: AtomicU32,
+    /// The names of elements that withered, each at the generation it is handed out at next. The
+    /// last to go back is the first handed out, so what is held per index stays as few indices
+    /// long as there have ever been elements at once.
+    free: Mutex<Vec<Leaf>>,
+    /// How many are in `free`, read without taking it: a frame growing a great deal with nothing
+    /// gone back -- the first frame, a page loading -- takes no lock for any of it.
+    freed: AtomicUsize,
     growth: AtomicU64,
     tweens: AtomicU64,
     sequences: AtomicU64,
@@ -47,9 +52,11 @@ struct Names {
 }
 
 impl Naming {
-    pub(crate) fn new(entities: RemoteAllocator) -> Self {
+    pub(crate) fn new() -> Self {
         Self(Arc::new(Names {
-            entities,
+            fresh: AtomicU32::new(0),
+            free: Mutex::new(Vec::new()),
+            freed: AtomicUsize::new(0),
             growth: AtomicU64::new(0),
             tweens: AtomicU64::new(0),
             sequences: AtomicU64::new(0),
@@ -66,8 +73,30 @@ impl Naming {
     /// tie-break, and it is total across the boundary because there is one counter rather than one
     /// per side.
     pub(crate) fn leaf(&self) -> (Leaf, Growth) {
-        let leaf = Leaf(self.0.entities.alloc());
-        (leaf, Growth(self.0.growth.fetch_add(1, Ordering::Relaxed)))
+        let names = &self.0;
+        let returned = match names.freed.load(Ordering::Acquire) {
+            0 => None,
+            _ => {
+                let mut free = names.free.lock().unwrap_or_else(PoisonError::into_inner);
+                let leaf = free.pop();
+                names.freed.store(free.len(), Ordering::Release);
+                leaf
+            }
+        };
+        // Nothing went back, or another thread took the last of it between the count and the lock.
+        let leaf = returned.unwrap_or_else(|| Leaf {
+            index: names.fresh.fetch_add(1, Ordering::Relaxed),
+            generation: 0,
+        });
+        (leaf, Growth(names.growth.fetch_add(1, Ordering::Relaxed)))
+    }
+
+    /// Hands the indices of elements that withered back, each at the generation its next name
+    /// carries. The frame's alone to call, since only the frame withers anything.
+    pub(crate) fn release(&self, leaves: impl IntoIterator<Item = Leaf>) {
+        let mut free = self.0.free.lock().unwrap_or_else(PoisonError::into_inner);
+        free.extend(leaves);
+        self.0.freed.store(free.len(), Ordering::Release);
     }
 
     /// A name for one channel. Never reused, so a stale one is inert.

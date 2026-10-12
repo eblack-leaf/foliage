@@ -116,10 +116,9 @@ use tracing::trace_span;
 
 use crate::aspen::{Departed, blend};
 use crate::coordinate::{Area, Axis, Position, Section};
-use crate::elevation::{Elevation, ResolvedElevation};
+use crate::elevation::ResolvedElevation;
 use crate::elm::Chlorophyll;
 use crate::grove::Grove;
-use crate::interaction::Gestures;
 use crate::interaction::stack::Region;
 use crate::leaf::Leaf;
 use crate::lifecycle::Inherited;
@@ -131,62 +130,16 @@ use crate::placement::role::Config;
 use crate::placement::source::Against;
 use crate::placement::trace::{Ends, Trace};
 use crate::text::shape::Shaped;
-use crate::tree::{Placement, Written};
+use crate::tree::{Placement, Tree, Written};
 use crate::view::{self, Clipped, Escape, Scroll, range};
-
-/// Everything the passes after the axes read about an element, and nothing that places it.
-///
-/// Held beside the order, one per element, so the passes that run over every element on every frame
-/// read a column rather than look each of these up. Read out of the tree when the order is built,
-/// and again for an element only where one of these was written -- which is a
-/// [`restyled`](crate::tree::Tree::restyled) write, since the rest of it is fixed when the element
-/// is grown.
-#[derive(Copy, Clone, Debug)]
-pub(crate) struct Standing {
-    /// What it draws. Fixed at growth.
-    pub(crate) chlorophyll: Chlorophyll,
-    /// Where it came in allocation order, which is what settles a tie in the stack. Fixed at growth.
-    pub(crate) growth: u64,
-    /// What it declared about gestures. Fixed at growth.
-    pub(crate) gestures: Gestures,
-    /// What it declared about scrolling, if it scrolls. Fixed at growth.
-    pub(crate) scrolls: Option<Scroll>,
-    /// Whether it stays put while its region's content slides under it. Fixed at growth.
-    pub(crate) pinned: bool,
-    /// How far it floats out of the regions above it. Fixed at growth.
-    pub(crate) floats: Option<Escape>,
-    /// Whether the app hid it, as against an ancestor of it.
-    pub(crate) visible: bool,
-    /// How opaque it was told to be, before its ancestry is taken into account.
-    pub(crate) opacity: f32,
-    /// Whether it was disabled in its own right.
-    pub(crate) disabled: bool,
-    /// How far in front of its trunk it was told to sit.
-    pub(crate) elevation: Elevation,
-    /// How far it is drawn from where the layout put it, and everything under it with it.
-    pub(crate) shift: Position,
-}
-
-impl Default for Standing {
-    fn default() -> Self {
-        Self {
-            chlorophyll: Chlorophyll::None,
-            growth: 0,
-            gestures: Gestures::default(),
-            scrolls: None,
-            pinned: false,
-            floats: None,
-            visible: true,
-            opacity: 1.0,
-            disabled: false,
-            elevation: Elevation::default(),
-            shift: Position::default(),
-        }
-    }
-}
 
 /// No element sits here.
 const NOWHERE: u32 = u32::MAX;
+
+/// A position held as a number, read back as one if anything sits there.
+fn position(held: u32) -> Option<usize> {
+    (held != NOWHERE).then_some(held as usize)
+}
 
 /// Every live element in dependency order, with what each one resolves against, what each one offers
 /// a placement that reads it, and everything resolution made of it.
@@ -196,21 +149,25 @@ const NOWHERE: u32 = u32::MAX;
 /// twice per element on each axis. Out of the world each time, every one of those is a lookup by
 /// entity -- resolved once to a position in the order, each is an index.
 ///
-/// The columns are as long as the order and are read at the position an element sits at, so a pass
-/// that already knows where it is never asks a second time. They are kept between frames, which is
-/// what lets an element nothing wrote to keep the answer it already has.
+/// What the order is made of -- what each element hangs off, what is under it, what every pass
+/// visits -- is held by position, since that is what a walk goes by. What resolution made of each
+/// element is held by its slot, the index of its name, which is where the tree holds what it
+/// declared: so an order made again, or repaired for what was grown and what withered, moves none of
+/// it, and an element new to the order has only its own slot to clear. The columns are kept between
+/// frames, which is what lets an element nothing wrote to keep the answer it already has.
 #[derive(Default)]
 pub(crate) struct Elements {
     /// Every live element, ordered so that nothing resolves before what it depends on.
     pub(crate) order: Vec<Leaf>,
-    /// Where each element sits in the order, by the index of its name. A slot may be stale -- one
-    /// left by a name that withered -- which is why a lookup checks the order holds the name it
-    /// asked for.
-    slots: Vec<u32>,
-    /// What each element hangs off, as a position in the order.
-    trunk: Vec<Option<usize>>,
-    /// What each element is anchored to, as a position in the order.
-    anchor: Vec<Option<usize>>,
+    /// Where each element sits in the order, by its slot. One may be stale -- left by a name that
+    /// withered -- which is why a lookup checks the order holds the name it asked for.
+    sits: Vec<u32>,
+    /// What each element hangs off, as a position in the order, or [`NOWHERE`]. See
+    /// [`trunk`](Elements::trunk).
+    trunk: Vec<u32>,
+    /// What each element is anchored to, as a position in the order, or [`NOWHERE`]. See
+    /// [`anchor`](Elements::anchor).
+    anchor: Vec<u32>,
     /// What is grown directly under each element, as positions in the order: the children of the
     /// element at `at` are `children[branches[at]..branches[at + 1]]`. One array for the whole tree
     /// rather than one per element, and built with the order, so a pass that asks what is under an
@@ -229,13 +186,19 @@ pub(crate) struct Elements {
     forward: Vec<u32>,
     /// The positions of every element that scrolls. What a region scrolled to is not written to it
     /// -- a coast, a drag and a clamp each move it -- so R4 and R5 visit each of these on every
-    /// frame. There are few.
+    /// frame. There are few. Found again wherever what scrolls changed.
     scrolling: Vec<u32>,
     /// The positions of every element that floats out to an element it names, which may sit any
     /// distance above it: R5 visits each on every frame, rather than following the chain between.
     within: Vec<u32>,
-    /// What each element declared that the passes after the axes read.
-    pub(crate) standing: Vec<Standing>,
+    /// The elements grown inside a region that are not part of its content, which R3 asks of every
+    /// child of whatever it measures -- so it is a bit here rather than a read of what each child
+    /// declared. There are two ways, each left out by the same one declaration that says the rest
+    /// of what it means, which is what keeps the halves from disagreeing: a pinned child does not
+    /// move with the content, and a floating one moves with it but sits over the region rather
+    /// than in it -- an overlay that invented room to scroll to is the scrollbar nobody ordered.
+    /// Found again wherever either is written.
+    aside: Positions,
     /// The box, as far as the axes have resolved it: where the layout put the element, which is
     /// what its children resolve against.
     section: Vec<Section>,
@@ -250,6 +213,9 @@ pub(crate) struct Elements {
     /// off or is anchored to. False where nothing was, in which case the columns already hold what
     /// it resolved to and the passes that only rewrite that have nothing to do.
     dirty: Positions,
+    /// [`dirty`](Elements::dirty) as [`read`] closed it, before any measure moved: everything
+    /// resolved against one of these is one of these, so an axis reaching it has nothing to mark.
+    closed: Positions,
     /// Whether the element was restyled this frame: what R3, R4, R6 and R7 read of it may be
     /// different, and nothing that places it is.
     restyled: Positions,
@@ -260,6 +226,11 @@ pub(crate) struct Elements {
     /// Whether any run stopped being stated this frame, which is the one thing that makes the
     /// shaping cache worth sweeping.
     restated: bool,
+    /// Whether what scrolls, what is pinned or what floats changed this frame. A restyled element
+    /// may have come to scroll or stopped, and what R5 passes on from it with it, so R5 visits what
+    /// was restyled as well -- and it may have come to count toward its trunk's extent or stopped,
+    /// so R3 visits what each hangs off.
+    rescoped: bool,
     /// Whether anything extraction reads about the element moved this frame.
     ///
     /// Seeded from [`dirty`](Elements::dirty), because an element being resolved again may land
@@ -343,8 +314,6 @@ pub(crate) struct Elements {
     /// [`spread`], held so that a trunk measuring again because one of its children moved asks the
     /// rest nothing.
     spread: Vec<Option<f32>>,
-    /// The element's own grid, divided at the breakpoint in force.
-    tracks: Vec<Tracks>,
     /// The character cell the element's own font and size make, as R1 measured it. What
     /// [`letters`](crate::Source::letters) and a letter-pitched track are measured in; an element
     /// that named no font and no size has none.
@@ -415,8 +384,28 @@ impl Elements {
 
     /// Where `leaf` sits, or `None` if it is not in the order.
     fn at(&self, leaf: Leaf) -> Option<usize> {
-        let at = *self.slots.get(leaf.0.index_u32() as usize)? as usize;
+        let at = *self.sits.get(leaf.slot())? as usize;
         (self.order.get(at) == Some(&leaf)).then_some(at)
+    }
+
+    /// Where what the element at `at` hangs off sits, if it hangs off anything.
+    fn trunk(&self, at: usize) -> Option<usize> {
+        position(self.trunk[at])
+    }
+
+    /// Where what the element at `at` is anchored to sits, if it is anchored to anything.
+    fn anchor(&self, at: usize) -> Option<usize> {
+        position(self.anchor[at])
+    }
+
+    /// The slot of the element at `at`: where what resolution made of it is held.
+    fn slot(&self, at: usize) -> usize {
+        self.order[at].slot()
+    }
+
+    /// The slot of `leaf`, or `None` if it is not in the order.
+    fn held(&self, leaf: Leaf) -> Option<usize> {
+        self.at(leaf).map(|_| leaf.slot())
     }
 
     /// The positions of everything grown directly under the element at `at`.
@@ -459,42 +448,48 @@ impl Elements {
     /// Where the layout put `leaf`, which is what its children resolve against. A zero box for
     /// anything resolution has not reached.
     ///
-    /// Resolution reads a box by position, because it holds every element in order. A coast, a
+    /// Resolution reads a box where it goes, because it holds every element in order. A coast, a
     /// sought region, a running motion and an app each name one element instead, so they ask this.
     pub(crate) fn placed(&self, leaf: Leaf) -> Section {
-        self.at(leaf).map(|at| self.section[at]).unwrap_or_default()
+        self.held(leaf)
+            .map(|slot| self.section[slot])
+            .unwrap_or_default()
     }
 
     /// Where `leaf` is on screen, which is what an app reads and what a hit test runs against.
     pub(crate) fn drawn(&self, leaf: Leaf) -> Section {
-        self.at(leaf).map(|at| self.drawn[at]).unwrap_or_default()
+        self.held(leaf)
+            .map(|slot| self.drawn[slot])
+            .unwrap_or_default()
     }
 
     /// What a scrolling ancestor leaves visible of `leaf`.
     #[allow(unused)]
     pub(crate) fn clip(&self, leaf: Leaf) -> Section {
-        self.at(leaf)
-            .map(|at| self.clip[at])
+        self.held(leaf)
+            .map(|slot| self.clip[slot])
             .unwrap_or_else(|| Clipped::unbounded().0)
     }
 
     /// Where `leaf` sits in the one stack, as R6 last resolved it.
     #[allow(unused)]
     pub(crate) fn rank(&self, leaf: Leaf) -> ResolvedElevation {
-        self.at(leaf).map(|at| self.rank[at]).unwrap_or_default()
+        self.held(leaf)
+            .map(|slot| self.rank[slot])
+            .unwrap_or_default()
     }
 
     /// What the three off-states resolved to over `leaf`'s whole ancestry, as R7 last computed it.
     pub(crate) fn inherited(&self, leaf: Leaf) -> Inherited {
-        self.at(leaf)
-            .map(|at| self.inherited[at])
+        self.held(leaf)
+            .map(|slot| self.inherited[slot])
             .unwrap_or_default()
     }
 
     /// How far `leaf` and the content under it reach, as R3 last found it.
     #[cfg(test)]
     pub(crate) fn extends(&self, leaf: Leaf) -> Option<Position> {
-        self.extends[self.at(leaf)?]
+        self.extends[self.held(leaf)?]
     }
 
     /// Whether `leaf` was resolved again by the last frame.
@@ -507,7 +502,7 @@ impl Elements {
     /// field's value is not.
     #[cfg(test)]
     pub(crate) fn shaped_text(&self, leaf: Leaf) -> Option<String> {
-        self.composed[self.at(leaf)?]
+        self.composed[self.held(leaf)?]
             .as_ref()
             .map(|shaped| shaped.text())
     }
@@ -517,18 +512,20 @@ impl Elements {
     /// Per element rather than per engine: an app registers as many fonts as it likes and each
     /// element chooses, so `8.letters()` is eight cells of *that* element's font.
     pub(crate) fn cell(&self, leaf: Leaf) -> Area {
-        self.at(leaf).map(|at| self.cell[at]).unwrap_or_default()
+        self.held(leaf)
+            .map(|slot| self.cell[slot])
+            .unwrap_or_default()
     }
 
     /// Where the layout put `leaf`'s two ends, before R4 moved them, or `None` if it is placed by
     /// a box.
     pub(crate) fn spanned(&self, leaf: Leaf) -> Option<Stretched> {
-        self.spanned[self.at(leaf)?]
+        self.spanned[self.held(leaf)?]
     }
 
     /// Where `leaf`'s two ends landed, as R4 moved them, or `None` if it is placed by a box.
     pub(crate) fn stretched(&self, leaf: Leaf) -> Option<Stretched> {
-        self.stretched[self.at(leaf)?]
+        self.stretched[self.held(leaf)?]
     }
 }
 
@@ -642,7 +639,6 @@ pub(crate) fn run(grove: &mut Grove) {
     // the end of resolution: what it holds is what this frame settled, and what the next one starts
     // from rather than reads again.
     let mut elements = core::mem::take(&mut grove.elements);
-    grove.tree.refresh();
     read(&mut elements, grove);
     // Forgotten the moment it is read, so a write made by a pass after this belongs to the frame
     // that would resolve it.
@@ -659,12 +655,12 @@ pub(crate) fn run(grove: &mut Grove) {
     axes(grove, &mut elements);
     extent(grove, &mut elements);
     scroll(grove, &mut elements);
-    clip(&mut elements);
-    rank(&mut elements);
+    clip(&grove.tree, &mut elements);
+    rank(&grove.tree, &mut elements);
     // Resolution ends here. What settles after it is its own step, and is timed as one.
     drop(resolving);
     let _step = trace_span!("settle").entered();
-    inherit(&mut elements);
+    inherit(&grove.tree, &mut elements);
     regions(grove, &mut elements);
     grove.elements = elements;
 }
@@ -709,10 +705,10 @@ fn measure(grove: &mut Grove, elements: &mut Elements) {
                 .clone(),
             false => shaping.shape(fonts, typeface.font, size, value).clone(),
         });
-        elements.cell[at] = cell;
+        elements.cell[leaf.slot()] = cell;
         // Both halves of what it measures to are read off this, by R1m and R2m, which write them
         // before anything reads either.
-        elements.composed[at] = composed;
+        elements.composed[leaf.slot()] = composed;
     }
     elements.lettered = lettered;
 }
@@ -739,6 +735,7 @@ fn axis(grove: &Grove, elements: &mut Elements, axis: Axis) {
     // What is to be resolved again, and what is resolved against something that may have moved --
     // marked as the walk finds it, ahead of where the walk is, since the order puts it there.
     let mut visit = elements.visiting(&[&elements.dirty], &[]);
+    let mut offered = Offered::default();
     let mut from = 0;
     while let Some(at) = visit.next(from) {
         from = at + 1;
@@ -753,8 +750,8 @@ fn axis(grove: &Grove, elements: &mut Elements, axis: Axis) {
                         && reads_content(grove, elements.order[at], against, axis))
             })
         };
-        if follows(elements.trunk[at], Against::Trunk)
-            || follows(elements.anchor[at], Against::Anchor)
+        if follows(elements.trunk(at), Against::Trunk)
+            || follows(elements.anchor(at), Against::Anchor)
         {
             elements.dirty.set(at);
         }
@@ -770,20 +767,21 @@ fn axis(grove: &Grove, elements: &mut Elements, axis: Axis) {
             elements.measures.set(at);
         }
         let leaf = elements.order[at];
+        let slot = leaf.slot();
         let placement = grove.tree.placement(leaf);
         if axis == Axis::Horizontal {
-            elements.upright[at] = measurable(grove, placement, Axis::Vertical);
+            elements.upright[slot] = measurable(grove, placement, Axis::Vertical);
         }
-        let context = context(elements, viewport, at, axis);
+        let context = context(grove, elements, viewport, at, axis, &mut offered);
         let (span, stretched) = geometry(grove, leaf, placement, &context, axis);
         // A stroke's ends are settled one axis at a time, into what it held: an element a measure
         // reached between the two axes is resolved on the second alone, and keeps the first.
         if let Some((from, to)) = stretched {
-            elements.spanned[at]
+            elements.spanned[slot]
                 .get_or_insert_with(Stretched::default)
                 .set(axis, from, to);
         }
-        let section = &mut elements.section[at];
+        let section = &mut elements.section[slot];
         let landed = match axis {
             Axis::Horizontal => {
                 let landed = (section.position.x, section.area.width) == (span.near, span.extent());
@@ -803,8 +801,10 @@ fn axis(grove: &Grove, elements: &mut Elements, axis: Axis) {
             elements.answers.set(at);
         }
         elements.unresolved.unset(at);
-        // What it offers may be different, so what is resolved against it is looked at.
-        if elements.answers.get(at) || elements.remeasured.get(at) {
+        offered.resolved(at);
+        // What it offers may be different, so what is resolved against it is looked at -- unless
+        // it was resolving again from the start, when everything resolved against it already is.
+        if !elements.closed.get(at) && (elements.answers.get(at) || elements.remeasured.get(at)) {
             elements.dependents(at, &mut visit);
         }
     }
@@ -944,15 +944,16 @@ fn across(grove: &Grove, elements: &mut Elements) {
     let mut from = elements.len();
     while let Some(at) = elements.measures_across.last_before(from) {
         from = at;
-        if let Some(trunk) = elements.trunk[at] {
+        if let Some(trunk) = elements.trunk(at) {
             elements.measures_across.set(trunk);
         }
-        let run = elements.composed[at]
+        let slot = elements.slot(at);
+        let run = elements.composed[slot]
             .as_ref()
             .map_or(0.0, |run| run.max_content());
         let width = run.max(spread(grove, elements, at));
-        if width != elements.intrinsic[at].width {
-            elements.intrinsic[at].width = width;
+        if width != elements.intrinsic[slot].width {
+            elements.intrinsic[slot].width = width;
             // Ahead of R2a, which resolves it and what reads it against the new measure -- and
             // below every trunk it reaches, each of which asks it again on the way up.
             elements.dirty.set(at);
@@ -969,20 +970,21 @@ fn across(grove: &Grove, elements: &mut Elements) {
 /// did when it last was, which is what [`spread`](Elements::spread) holds for it.
 fn spread(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
     let mut spread: f32 = 0.0;
+    let divided = tracks(grove, elements, at);
     for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
         let child_at = elements.children[index] as usize;
+        let child = elements.order[child_at];
         if elements.touched.get(child_at) {
-            let child = elements.order[child_at];
             let placement = grove.tree.placement(child);
             let far = measurable(grove, placement, Axis::Horizontal).then(|| {
-                let context = unlaid(elements, at, child_at);
+                let context = unlaid(grove, elements, (at, divided), child_at);
                 geometry(grove, child, placement, &context, Axis::Horizontal)
                     .0
                     .far
             });
-            elements.spread[child_at] = far;
+            elements.spread[child.slot()] = far;
         }
-        if let Some(far) = elements.spread[child_at] {
+        if let Some(far) = elements.spread[child.slot()] {
             spread = spread.max(far);
         }
     }
@@ -996,20 +998,30 @@ fn spread(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
 /// already answered: every cell, and the child's own intrinsic width, so a width in letters or of
 /// the child's own content still answers. The trunk's left edge is the origin, so what comes back
 /// is how far right of it the child reaches.
-fn unlaid<'a>(elements: &'a Elements, trunk: usize, child: usize) -> Context<'a> {
-    let offered = |at: usize| Basis {
-        section: Section::default(),
-        intrinsic: elements.intrinsic[at],
-        tracks: elements.tracks[at],
-        cell: elements.cell[at],
-        run: None,
+///
+/// The trunk comes with its grid already divided, since every child of it asks.
+fn unlaid<'a>(
+    grove: &Grove,
+    elements: &'a Elements,
+    (trunk, divided): (usize, Tracks),
+    child: usize,
+) -> Context<'a> {
+    let offered = |at: usize, tracks: Tracks| {
+        let slot = elements.slot(at);
+        Basis {
+            section: Section::default(),
+            intrinsic: elements.intrinsic[slot],
+            tracks,
+            cell: elements.cell[slot],
+            run: None,
+        }
     };
     Context {
         axis: Axis::Horizontal,
         own: own(elements, child, Axis::Horizontal),
-        trunk: offered(trunk),
-        anchor: match elements.anchor[child] {
-            Some(anchor) => offered(anchor),
+        trunk: offered(trunk, divided),
+        anchor: match elements.anchor(child) {
+            Some(anchor) => offered(anchor, tracks(grove, elements, anchor)),
             None => Basis::default(),
         },
     }
@@ -1046,15 +1058,16 @@ fn wrap(grove: &mut Grove, elements: &mut Elements) {
     let mut from = elements.len();
     while let Some(at) = elements.measures.last_before(from) {
         from = at;
-        if let Some(trunk) = elements.trunk[at] {
+        if let Some(trunk) = elements.trunk(at) {
             elements.measures.set(trunk);
         }
-        let shaped = elements.composed[at]
+        let slot = elements.slot(at);
+        let shaped = elements.composed[slot]
             .as_ref()
-            .map_or(0.0, |run| run.measure(elements.section[at].width()));
+            .map_or(0.0, |run| run.measure(elements.section[slot].width()));
         let height = shaped.max(reach(grove, elements, at));
-        if height != elements.intrinsic[at].height {
-            elements.intrinsic[at].height = height;
+        if height != elements.intrinsic[slot].height {
+            elements.intrinsic[slot].height = height;
             // The measure moved under an element nothing was written to, and a placement reading
             // that measure has to be resolved against the new one. R2b runs after this and spreads
             // it, which is why it is safe to find out here.
@@ -1077,20 +1090,21 @@ fn wrap(grove: &mut Grove, elements: &mut Elements) {
 /// does not is passed over without its placement being asked for.
 fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
     let mut reach: f32 = 0.0;
+    let divided = tracks(grove, elements, at);
     for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
         let child_at = elements.children[index] as usize;
+        let child = elements.order[child_at];
         if elements.dirty.get(child_at) {
-            let child = elements.order[child_at];
-            let far = elements.upright[child_at].then(|| {
-                let context = raised(elements, at, child_at);
+            let far = elements.upright[child.slot()].then(|| {
+                let context = raised(grove, elements, (at, divided), child_at);
                 let placement = grove.tree.placement(child);
                 geometry(grove, child, placement, &context, Axis::Vertical)
                     .0
                     .far
             });
-            elements.reached[child_at] = far;
+            elements.reached[child.slot()] = far;
         }
-        if let Some(far) = elements.reached[child_at] {
+        if let Some(far) = elements.reached[child.slot()] {
             reach = reach.max(far);
         }
     }
@@ -1140,20 +1154,30 @@ fn reads_content(grove: &Grove, leaf: Leaf, against: Against, axis: Axis) -> boo
 /// axis has resolved yet, which is the point of measuring. Every horizontal reading is real -- the
 /// child's own width included -- so a height stated in columns, read off a width, or held in
 /// proportion to its own still answers.
-fn raised<'a>(elements: &'a Elements, trunk: usize, child: usize) -> Context<'a> {
-    let offered = |at: usize| Basis {
-        section: flattened(elements.section[at]),
-        intrinsic: elements.intrinsic[at],
-        tracks: elements.tracks[at],
-        cell: elements.cell[at],
-        run: elements.composed[at].as_deref(),
+///
+/// The trunk comes with its grid already divided, since every child of it asks.
+fn raised<'a>(
+    grove: &Grove,
+    elements: &'a Elements,
+    (trunk, divided): (usize, Tracks),
+    child: usize,
+) -> Context<'a> {
+    let offered = |at: usize, tracks: Tracks| {
+        let slot = elements.slot(at);
+        Basis {
+            section: flattened(elements.section[slot]),
+            intrinsic: elements.intrinsic[slot],
+            tracks,
+            cell: elements.cell[slot],
+            run: elements.composed[slot].as_deref(),
+        }
     };
     Context {
         axis: Axis::Vertical,
         own: own(elements, child, Axis::Vertical),
-        trunk: offered(trunk),
-        anchor: match elements.anchor[child] {
-            Some(anchor) => offered(anchor),
+        trunk: offered(trunk, divided),
+        anchor: match elements.anchor(child) {
+            Some(anchor) => offered(anchor, tracks(grove, elements, anchor)),
             None => Basis::default(),
         },
     }
@@ -1193,46 +1217,49 @@ fn extent(grove: &mut Grove, elements: &mut Elements) {
         ],
         &[],
     );
+    // A child that came to be pinned or to float, or stopped, came to count toward what it hangs
+    // off or stopped, whether or not it reaches anywhere else.
+    if elements.rescoped {
+        for at in elements.restyled.iter() {
+            if let Some(trunk) = elements.trunk(at) {
+                visit.set(trunk);
+            }
+        }
+    }
     let mut from = elements.len();
     while let Some(at) = visit.last_before(from) {
         from = at;
-        let standing = elements.standing[at];
+        let leaf = elements.order[at];
+        let slot = leaf.slot();
+        let standing = grove.tree.standing(leaf);
+        let (visible, scrolls) = (standing.visible(), standing.scrolls());
         // A hidden element is not content, and neither is anything under it: that is what makes
         // hiding the whole answer for parking something out of the way, rather than half of one.
         // It reaches nowhere, which is what keeps a hidden subtree out of what contains it.
-        let extends = standing.visible.then(|| {
-            let section = elements.section[at];
+        let extends = visible.then(|| {
+            let section = elements.section[slot];
             let mut far = Position::new(section.right(), section.bottom());
             for child in elements.children(at) {
-                // The two ways an element grown inside a region is not part of its content, and
-                // each is left out here by the same one declaration that says the rest of what it
-                // means -- which is what keeps the halves from disagreeing.
-                //
-                // A pinned child does not move with the content. A floating one moves with it but
-                // sits over the region rather than in it, so it is not content either: an overlay
-                // that invented room to scroll to is the scrollbar nobody ordered.
-                let held = &elements.standing[child];
-                if held.pinned || held.floats.is_some() {
+                // Pinned or floating, and so not content. See [`aside`](Elements::aside).
+                if elements.aside.get(child) {
                     continue;
                 }
-                let Some(child) = elements.extends[child] else {
+                let Some(child) = elements.extends[elements.slot(child)] else {
                     continue;
                 };
                 far = Position::new(far.x.max(child.x), far.y.max(child.y));
             }
-            match standing.scrolls {
+            match scrolls {
                 Some(scroll) => {
-                    grove
-                        .tree
-                        .set_extent(elements.order[at], reached(scroll, section, far));
+                    grove.tree.set_extent(leaf, reached(scroll, section, far));
                     Position::new(section.right(), section.bottom())
                 }
                 None => far,
             }
         });
-        if extends != elements.extends[at] {
-            elements.extends[at] = extends;
-            if let Some(trunk) = elements.trunk[at] {
+        if extends != elements.extends[slot] {
+            elements.extends[slot] = extends;
+            if let Some(trunk) = elements.trunk(at) {
                 visit.set(trunk);
             }
         }
@@ -1292,13 +1319,15 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
     let mut from = 0;
     while let Some(at) = visit.next(from) {
         from = at + 1;
-        let placed = elements.section[at];
-        let trunk = elements.trunk[at];
-        let standing = elements.standing[at];
+        let leaf = elements.order[at];
+        let slot = leaf.slot();
+        let placed = elements.section[slot];
+        let trunk = elements.trunk(at).map(|trunk| elements.slot(trunk));
+        let standing = grove.tree.standing(leaf);
+        let (shift, pinned, scrolls) = (standing.shift(), standing.pinned(), standing.scrolls());
         // A shift moves the element and everything grown under it, pinned or not, so it comes off
         // both accumulations -- the other way to an offset, which moves content toward the near
         // edge.
-        let shift = standing.shift;
         let shifted = |by: Position| Position::new(by.x - shift.x, by.y - shift.y);
         let inherited = shifted(
             trunk
@@ -1315,7 +1344,7 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
         // A pinned element does not receive its nearest scrolling ancestor's offset, and receives
         // every offset outside that one: pinning is relative to the region the element sits in and
         // says nothing about what contains that region.
-        let applied = match standing.pinned {
+        let applied = match pinned {
             true => outside,
             false => inherited,
         };
@@ -1323,24 +1352,24 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
             Position::new(placed.left() - applied.x, placed.top() - applied.y),
             placed.area,
         );
-        if drawn != elements.drawn[at] {
-            elements.drawn[at] = drawn;
+        if drawn != elements.drawn[slot] {
+            elements.drawn[slot] = drawn;
             elements.moved.set(at);
             elements.restack = true;
         }
         // A stroke's ends travel with its box, by the same offset, because they are the same
         // geometry said two ways. A stroke nothing wrote to keeps the ends it settled at, and moves
         // under the offset exactly as its box does.
-        if let Some(spanned) = elements.spanned[at] {
+        if let Some(spanned) = elements.spanned[slot] {
             let stretched = Some(spanned.less(applied));
-            if stretched != elements.stretched[at] {
-                elements.stretched[at] = stretched;
+            if stretched != elements.stretched[slot] {
+                elements.stretched[slot] = stretched;
                 elements.moved.set(at);
             }
         }
-        let (carried, escaped) = match standing.scrolls {
+        let (carried, escaped) = match scrolls {
             Some(scroll) => {
-                let clamped = clamp(grove, elements.order[at], scroll, placed);
+                let clamped = clamp(grove, leaf, scroll, placed);
                 (
                     Position::new(applied.x + clamped.x, applied.y + clamped.y),
                     // A pinned child of this element is pinned to *this* region, so its offset is
@@ -1352,9 +1381,9 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
             // whatever region contains it, exactly as a pinned sibling of this element would be.
             None => (applied, outside),
         };
-        if (carried, escaped) != (elements.accumulated[at], elements.unpinned[at]) {
-            elements.accumulated[at] = carried;
-            elements.unpinned[at] = escaped;
+        if (carried, escaped) != (elements.accumulated[slot], elements.unpinned[slot]) {
+            elements.accumulated[slot] = carried;
+            elements.unpinned[slot] = escaped;
             for child in elements.children(at) {
                 visit.set(child);
             }
@@ -1397,15 +1426,24 @@ fn clamp(grove: &mut Grove, leaf: Leaf, scroll: Scroll, placed: Section) -> Posi
 /// What each element passes on is held. A clip reads no box but a region's own, and nothing it reads
 /// is restyled, so the walk visits what is new, every region and every element floating out to one
 /// it names, and what hangs off an element that passes on something new.
-fn clip(elements: &mut Elements) {
+fn clip(tree: &Tree, elements: &mut Elements) {
     let _pass = trace_span!("clip").entered();
     let unbounded = Clipped::unbounded().0;
-    let mut visit = elements.visiting(&[&elements.fresh], &[&elements.scrolling, &elements.within]);
+    let restyled = match elements.rescoped {
+        true => &elements.restyled,
+        false => &Positions::default(),
+    };
+    let mut visit = elements.visiting(
+        &[&elements.fresh, restyled],
+        &[&elements.scrolling, &elements.within],
+    );
     let mut from = 0;
     while let Some(at) = visit.next(from) {
         from = at + 1;
-        let trunk = elements.trunk[at];
-        let standing = elements.standing[at];
+        let leaf = elements.order[at];
+        let slot = leaf.slot();
+        let trunk = elements.trunk(at).map(|trunk| elements.slot(trunk));
+        let standing = tree.standing(leaf);
         let inherited = trunk
             .map(|trunk| elements.passed[trunk])
             .unwrap_or(unbounded);
@@ -1419,7 +1457,7 @@ fn clip(elements: &mut Elements) {
         // A floating element is positioned outside the region on purpose, so cutting it off at the
         // region's edge would undo the placement that put it there. How far out it reaches is the
         // element's own statement, because no one answer is right everywhere.
-        let applied = match standing.floats {
+        let applied = match standing.floats() {
             // Held by whatever holds the region it left.
             Some(Escape::Region) => outside,
             // Held by nothing, which extraction reads as the surface: a clip is never wider than
@@ -1435,23 +1473,23 @@ fn clip(elements: &mut Elements) {
             },
             None => inherited,
         };
-        if applied != elements.clip[at] {
-            elements.clip[at] = applied;
+        if applied != elements.clip[slot] {
+            elements.clip[slot] = applied;
             elements.moved.set(at);
             elements.restack = true;
         }
-        let scrolls = standing.scrolls.is_some();
+        let scrolls = standing.scrolls().is_some();
         let passed = match scrolls {
-            true => applied.intersect(elements.drawn[at]),
+            true => applied.intersect(elements.drawn[slot]),
             false => applied,
         };
         let escaped = match scrolls {
             true => applied,
             false => outside,
         };
-        if (passed, escaped) != (elements.passed[at], elements.escaped[at]) {
-            elements.passed[at] = passed;
-            elements.escaped[at] = escaped;
+        if (passed, escaped) != (elements.passed[slot], elements.escaped[slot]) {
+            elements.passed[slot] = passed;
+            elements.escaped[slot] = escaped;
             for child in elements.children(at) {
                 visit.set(child);
             }
@@ -1467,14 +1505,14 @@ fn clip(elements: &mut Elements) {
 /// the two, which a count would not.
 fn within(elements: &Elements, at: usize, named: Leaf) -> Option<Section> {
     let named = elements.at(named)?;
-    let mut step = elements.trunk[at];
+    let mut step = elements.trunk(at);
     while let Some(above) = step {
         // An ancestor resolves before what hangs off it, so one found here has already passed its
         // own clip down and the read is never of a position the pass has yet to reach.
         if above == named {
-            return Some(elements.passed[above]);
+            return Some(elements.passed[elements.slot(above)]);
         }
-        step = elements.trunk[above];
+        step = elements.trunk(above);
     }
     None
 }
@@ -1487,26 +1525,28 @@ fn within(elements: &Elements, at: usize, named: Leaf) -> Option<Section> {
 /// reads a box: where an element sits in the stack has nothing to do with where it sits on the
 /// surface. What is visited is what is new or restyled, and what hangs off an element whose rank
 /// moved.
-fn rank(elements: &mut Elements) {
+fn rank(tree: &Tree, elements: &mut Elements) {
     let _pass = trace_span!("rank").entered();
     let mut visit = elements.visiting(&[&elements.fresh, &elements.restyled], &[]);
     let mut from = 0;
     while let Some(at) = visit.next(from) {
         from = at + 1;
-        let trunk = elements.trunk[at]
-            .map(|trunk| elements.rank[trunk].stack)
+        let trunk = elements
+            .trunk(at)
+            .map(|trunk| elements.rank[elements.slot(trunk)].stack)
             .unwrap_or_default();
-        let standing = &elements.standing[at];
+        let leaf = elements.order[at];
+        let standing = tree.standing(leaf);
         let rank = ResolvedElevation {
-            stack: standing.elevation.accumulate(trunk),
-            growth: standing.growth,
+            stack: standing.elevation().accumulate(trunk),
+            growth: standing.growth(),
         };
-        if rank != elements.rank[at] {
-            elements.rank[at] = rank;
+        if rank != elements.rank[leaf.slot()] {
+            elements.rank[leaf.slot()] = rank;
             elements.moved.set(at);
             elements.restack = true;
             // What the stack is sorted on moved, where the element is in it at all.
-            elements.reranked |= !standing.gestures.intangible;
+            elements.reranked |= !standing.gestures().intangible;
             for child in elements.children(at) {
                 visit.set(child);
             }
@@ -1524,20 +1564,26 @@ fn rank(elements: &mut Elements) {
 ///
 /// What is visited is what is new or restyled, and what hangs off an element whose product moved --
 /// so hiding a subtree visits all of it once, on the frame it is hidden, and none of it after.
-fn inherit(elements: &mut Elements) {
+fn inherit(tree: &Tree, elements: &mut Elements) {
     let _pass = trace_span!("inherit").entered();
     let mut visit = elements.visiting(&[&elements.fresh, &elements.restyled], &[]);
     let mut from = 0;
     while let Some(at) = visit.next(from) {
         from = at + 1;
-        let trunk = elements.trunk[at]
-            .map(|trunk| elements.inherited[trunk])
+        let trunk = elements
+            .trunk(at)
+            .map(|trunk| elements.inherited[elements.slot(trunk)])
             .unwrap_or_default();
-        let standing = &elements.standing[at];
-        let product =
-            Inherited::under(trunk, standing.visible, standing.opacity, standing.disabled);
-        if product != elements.inherited[at] {
-            elements.inherited[at] = product;
+        let leaf = elements.order[at];
+        let standing = tree.standing(leaf);
+        let product = Inherited::under(
+            trunk,
+            standing.visible(),
+            standing.opacity(),
+            standing.disabled(),
+        );
+        if product != elements.inherited[leaf.slot()] {
+            elements.inherited[leaf.slot()] = product;
             elements.moved.set(at);
             elements.restack = true;
             for child in elements.children(at) {
@@ -1568,38 +1614,50 @@ fn regions(grove: &mut Grove, elements: &mut Elements) {
     // identical runs read the same element at the same point, and sorting without stability loses
     // nothing. What is sorted is what the order was made holding, every tangible position.
     if elements.reranked {
-        let rank = &elements.rank;
-        elements
-            .stacking
-            .sort_unstable_by(|left, right| rank[*right as usize].cmp(&rank[*left as usize]));
+        let Elements {
+            rank,
+            order,
+            stacking,
+            ..
+        } = elements;
+        let rank = |at: &u32| rank[order[*at as usize].slot()];
+        stacking.sort_unstable_by_key(|at| core::cmp::Reverse(rank(at)));
     }
-    grove
-        .stack
-        .settle(elements.stacking.iter().filter_map(|&at| {
-            let at = at as usize;
-            let gestures = elements.standing[at].gestures;
-            let inherited = elements.inherited[at];
-            if !inherited.present() {
-                return None;
-            }
-            let section = elements.drawn[at];
-            let clip = elements.clip[at];
-            if section.intersect(clip).is_empty() {
-                return None;
-            }
-            Some(Region {
-                leaf: elements.order[at],
-                section,
-                clip,
-                shape: gestures.shape,
-                receives: gestures.receives,
-                disabled: inherited.disabled,
-            })
-        }));
+    let Grove { tree, stack, .. } = grove;
+    stack.settle(elements.stacking.iter().filter_map(|&at| {
+        let leaf = elements.order[at as usize];
+        let slot = leaf.slot();
+        let gestures = tree.standing(leaf).gestures();
+        let inherited = elements.inherited[slot];
+        if !inherited.present() {
+            return None;
+        }
+        let section = elements.drawn[slot];
+        let clip = elements.clip[slot];
+        if section.intersect(clip).is_empty() {
+            return None;
+        }
+        Some(Region {
+            leaf,
+            section,
+            clip,
+            shape: gestures.shape,
+            receives: gestures.receives,
+            disabled: inherited.disabled,
+        })
+    }));
 }
 
 /// Everything one axis of the element at `at` resolves against.
-fn context<'a>(elements: &'a Elements, viewport: Section, at: usize, axis: Axis) -> Context<'a> {
+fn context<'a>(
+    grove: &Grove,
+    elements: &'a Elements,
+    viewport: Section,
+    at: usize,
+    axis: Axis,
+    offered: &mut Offered,
+) -> Context<'a> {
+    let (trunk, anchor) = (elements.trunk(at), elements.anchor(at));
     Context {
         axis,
         // Its box on this axis is the answer being computed, and its own grid divides it for its
@@ -1607,9 +1665,18 @@ fn context<'a>(elements: &'a Elements, viewport: Section, at: usize, axis: Axis)
         // is readable exactly when that axis has already run, which is what [`own`] hands over.
         own: own(elements, at, axis),
         // A top-level element has no trunk, and fills the viewport instead.
-        trunk: basis(elements, elements.trunk[at], viewport, axis),
+        trunk: match trunk {
+            Some(trunk) => offered.basis(grove, elements, trunk, viewport, axis),
+            None => basis(elements, None, viewport, axis, Tracks::default()),
+        },
         // A placement that reads an anchor it has not been given resolves against a zero box.
-        anchor: basis(elements, elements.anchor[at], Section::default(), axis),
+        anchor: basis(
+            elements,
+            anchor,
+            Section::default(),
+            axis,
+            anchor.map_or_else(Tracks::default, |anchor| tracks(grove, elements, anchor)),
+        ),
     }
 }
 
@@ -1623,14 +1690,15 @@ fn context<'a>(elements: &'a Elements, viewport: Section, at: usize, axis: Axis)
 ///
 /// Nothing on the horizontal pass, where neither axis of it is known.
 fn own<'a>(elements: &'a Elements, at: usize, axis: Axis) -> Basis<'a> {
+    let slot = elements.slot(at);
     Basis {
         section: match axis {
             Axis::Horizontal => Section::default(),
-            Axis::Vertical => flattened(elements.section[at]),
+            Axis::Vertical => flattened(elements.section[slot]),
         },
-        intrinsic: elements.intrinsic[at],
+        intrinsic: elements.intrinsic[slot],
         tracks: Tracks::default(),
-        cell: elements.cell[at],
+        cell: elements.cell[slot],
         // Where its own characters stand is a question about a box that is still being solved.
         run: None,
     }
@@ -1660,6 +1728,7 @@ fn basis<'a>(
     at: Option<usize>,
     fallback: Section,
     axis: Axis,
+    tracks: Tracks,
 ) -> Basis<'a> {
     let Some(at) = at else {
         return Basis {
@@ -1667,17 +1736,85 @@ fn basis<'a>(
             ..Basis::default()
         };
     };
+    let slot = elements.slot(at);
     Basis {
         section: match (elements.unresolved.get(at), axis) {
-            (false, Axis::Horizontal) => flattened(elements.section[at]),
-            (false, Axis::Vertical) => elements.section[at],
+            (false, Axis::Horizontal) => flattened(elements.section[slot]),
+            (false, Axis::Vertical) => elements.section[slot],
             (true, _) => fallback,
         },
-        intrinsic: elements.intrinsic[at],
-        tracks: elements.tracks[at],
-        cell: elements.cell[at],
-        run: elements.composed[at].as_deref(),
+        intrinsic: elements.intrinsic[slot],
+        tracks,
+        cell: elements.cell[slot],
+        run: elements.composed[slot].as_deref(),
     }
+}
+
+/// What the trunk the last element resolved against offers, held for the next element to ask.
+///
+/// Siblings sit together in the order and each asks the same trunk the same thing -- and nothing a
+/// trunk offers moves once the walk is past it, so what was read for one serves the rest. The one
+/// trunk the walk has yet to reach, a cycle's remainder, is let go of when the walk resolves it.
+#[derive(Default)]
+struct Offered {
+    held: Option<(usize, Section, Area, Tracks, Area)>,
+}
+
+impl Offered {
+    fn basis<'a>(
+        &mut self,
+        grove: &Grove,
+        elements: &'a Elements,
+        trunk: usize,
+        viewport: Section,
+        axis: Axis,
+    ) -> Basis<'a> {
+        let (section, intrinsic, tracks, cell) = match self.held {
+            Some((held, section, intrinsic, tracks, cell)) if held == trunk => {
+                (section, intrinsic, tracks, cell)
+            }
+            _ => {
+                let basis = basis(
+                    elements,
+                    Some(trunk),
+                    viewport,
+                    axis,
+                    tracks(grove, elements, trunk),
+                );
+                self.held = Some((
+                    trunk,
+                    basis.section,
+                    basis.intrinsic,
+                    basis.tracks,
+                    basis.cell,
+                ));
+                (basis.section, basis.intrinsic, basis.tracks, basis.cell)
+            }
+        };
+        Basis {
+            section,
+            intrinsic,
+            tracks,
+            cell,
+            run: elements.composed[elements.slot(trunk)].as_deref(),
+        }
+    }
+
+    /// The walk resolved the element at `at`, so what it offers may be different.
+    fn resolved(&mut self, at: usize) {
+        if self.held.is_some_and(|(held, ..)| held == at) {
+            self.held = None;
+        }
+    }
+}
+
+/// The grid of the element at `at`, divided at the breakpoint in force: what a child of it reads a
+/// track of.
+fn tracks(grove: &Grove, elements: &Elements, at: usize) -> Tracks {
+    grove
+        .tree
+        .standing(elements.order[at])
+        .tracks(grove.layout, grove.short)
 }
 
 /// The frame's one read of the tree: every live element, ordered so that nothing resolves before
@@ -1700,9 +1837,8 @@ fn basis<'a>(
 ///
 /// Kept between frames and repaired rather than built again. The order is what the elements and the
 /// edges between them make, and only growing, withering and anchoring change those -- so an ordinary
-/// frame reads none of it. When it is built again, what every element already resolved to is
-/// carried to wherever the element now sits, so building it again loses nothing but the elements
-/// that went.
+/// frame reads none of it. When it is built again, what every element already resolved to stays
+/// where it is held, by slot, so building it again loses nothing but the elements that went.
 fn structure(elements: &mut Elements, grove: &Grove) {
     let _pass = trace_span!("structure").entered();
     let tree = &grove.tree;
@@ -1712,15 +1848,15 @@ fn structure(elements: &mut Elements, grove: &Grove) {
     // is an index rather than a hash.
     let names = leaves
         .iter()
-        .map(|leaf| leaf.0.index_u32() as usize + 1)
+        .map(|leaf| leaf.slot() + 1)
         .max()
         .unwrap_or_default();
     let mut among: Vec<u32> = vec![NOWHERE; names];
     for (at, leaf) in leaves.iter().enumerate() {
-        among[leaf.0.index_u32() as usize] = at as u32;
+        among[leaf.slot()] = at as u32;
     }
     let find = |leaf: Leaf| -> Option<usize> {
-        let at = *among.get(leaf.0.index_u32() as usize)? as usize;
+        let at = *among.get(leaf.slot())? as usize;
         (leaves.get(at) == Some(&leaf)).then_some(at)
     };
     // What each element waits on, and how many of those have yet to resolve. An element the leaves
@@ -1790,7 +1926,7 @@ fn structure(elements: &mut Elements, grove: &Grove) {
             }
         })
         .collect();
-    settle(elements, grove, placed, names, None);
+    settle(elements, grove, placed, names, false);
 }
 
 /// One element's place in an order being made: what it is, the positions of what it hangs off and
@@ -1817,7 +1953,7 @@ fn patch(elements: &mut Elements, grove: &Grove, written: &Written) -> bool {
     let tree = &grove.tree;
     let held = elements.len();
     let mut kept = vec![true; held];
-    for &leaf in written.withered {
+    for &(leaf, _) in written.withered {
         if let Some(at) = elements.at(leaf) {
             kept[at] = false;
         }
@@ -1835,7 +1971,7 @@ fn patch(elements: &mut Elements, grove: &Grove, written: &Written) -> bool {
             Some(_) => Err(()),
             None => Ok(None),
         };
-        let (Ok(trunk), Ok(anchor)) = (earlier(elements.trunk[at]), earlier(elements.anchor[at]))
+        let (Ok(trunk), Ok(anchor)) = (earlier(elements.trunk(at)), earlier(elements.anchor(at)))
         else {
             return false;
         };
@@ -1850,10 +1986,10 @@ fn patch(elements: &mut Elements, grove: &Grove, written: &Written) -> bool {
     let names = written
         .grown
         .iter()
-        .map(|leaf| leaf.0.index_u32() as usize + 1)
+        .map(|leaf| leaf.slot() + 1)
         .max()
         .unwrap_or_default()
-        .max(elements.slots.len());
+        .max(elements.sits.len());
     // Where each element grown this frame was placed, by the index of its name.
     let placing = trace_span!("grown").entered();
     let mut grown: Vec<u32> = vec![NOWHERE; names];
@@ -1864,7 +2000,7 @@ fn patch(elements: &mut Elements, grove: &Grove, written: &Written) -> bool {
         let find = |on: Leaf| match elements.at(on) {
             Some(at) => (moved[at] != NOWHERE).then_some(moved[at] as usize),
             None => grown
-                .get(on.0.index_u32() as usize)
+                .get(on.slot())
                 .filter(|at| **at != NOWHERE && placed[**at as usize].leaf == on)
                 .map(|at| *at as usize),
         };
@@ -1882,7 +2018,7 @@ fn patch(elements: &mut Elements, grove: &Grove, written: &Written) -> bool {
             },
             None => None,
         };
-        grown[leaf.0.index_u32() as usize] = placed.len() as u32;
+        grown[leaf.slot()] = placed.len() as u32;
         placed.push(Placed {
             leaf,
             trunk,
@@ -1891,32 +2027,30 @@ fn patch(elements: &mut Elements, grove: &Grove, written: &Written) -> bool {
         });
     }
     drop(placing);
-    settle(elements, grove, placed, names, Some(kept));
+    settle(elements, grove, placed, names, true);
     true
 }
 
-/// Makes `placed` the order: every column moved to where its element now sits, what is new read
-/// from the tree, and what is grown under each element found again. `names` is one past the
-/// largest index of any name placed.
+/// Makes `placed` the order: what is grown under each element found again, and what every pass
+/// visits. `names` is one past the largest slot of any element placed.
 ///
-/// `kept` says the order was repaired -- what stays is in the order it was, with what is new after
-/// it, and `kept` holds which of the elements there before stayed -- so each column is compacted
-/// where it lies and lengthened, rather than made again element by element from where each one
-/// sat.
+/// Nothing any element resolved to moves, since it is held by slot: an element new to the order has
+/// its slot cleared of whatever withered from it, and everything else keeps what it holds.
+/// `repaired` says the order was repaired rather than made again -- what stays is in the order it
+/// was, with what is new after it -- so only what was grown passes on anything new, where an order
+/// made again may hang anything off anything.
 fn settle(
     elements: &mut Elements,
     grove: &Grove,
     placed: Vec<Placed>,
     names: usize,
-    kept: Option<Vec<bool>>,
+    repaired: bool,
 ) {
-    let _pass = trace_span!("carry").entered();
+    let _pass = trace_span!("order").entered();
     let tree = &grove.tree;
     let count = placed.len();
-    // A repaired order is new only where it was grown. One made again may hang anything off
-    // anything, so what every element passes on is found again.
-    match kept {
-        Some(_) => {
+    match repaired {
+        true => {
             elements.fresh.reset(count);
             for (position, placed) in placed.iter().enumerate() {
                 if placed.from.is_none() {
@@ -1924,53 +2058,38 @@ fn settle(
                 }
             }
         }
-        None => elements.fresh.fill(count),
+        false => elements.fresh.fill(count),
     }
-    match kept {
-        Some(kept) => {
-            elements.gone.extend(
-                (0..elements.len())
-                    .filter(|at| !kept[*at])
-                    .map(|at| (elements.order[at], elements.standing[at].chlorophyll)),
-            );
-            let grown = placed.iter().filter(|placed| placed.from.is_none()).count();
-            columns(elements, &Kept { kept: &kept, grown });
-        }
-        None => {
-            // Where each element sat in the order being replaced, which is where what it resolved
-            // to is carried from. Whatever sat there and is not carried anywhere withered.
-            let from: Vec<Option<usize>> = placed.iter().map(|placed| placed.from).collect();
-            let mut carried = vec![false; elements.len()];
-            for at in from.iter().flatten() {
-                carried[*at] = true;
-            }
-            elements.gone.extend(
-                (0..elements.len())
-                    .filter(|at| !carried[*at])
-                    .map(|at| (elements.order[at], elements.standing[at].chlorophyll)),
-            );
-            columns(elements, &Carried(&from));
+    // A slot past what the columns held is new to them, and already holds what an element starts
+    // from. One before it held something that withered.
+    let held = elements.section.len();
+    columns(elements, &Lengthen(names));
+    for placed in &placed {
+        let slot = placed.leaf.slot();
+        if placed.from.is_none() && slot < held {
+            columns(elements, &Clear(slot));
         }
     }
     elements.order.clear();
     elements.trunk.clear();
     elements.anchor.clear();
-    elements.slots.clear();
-    elements.slots.resize(names, NOWHERE);
+    elements.sits.clear();
+    elements.sits.resize(names, NOWHERE);
     for (position, placed) in placed.iter().enumerate() {
-        elements.slots[placed.leaf.0.index_u32() as usize] = position as u32;
+        elements.sits[placed.leaf.slot()] = position as u32;
         elements.order.push(placed.leaf);
-        elements.trunk.push(placed.trunk);
-        elements.anchor.push(placed.anchor);
-        if placed.from.is_none() {
-            elements.standing[position] = tree.standing(placed.leaf);
-        }
+        elements
+            .trunk
+            .push(placed.trunk.map_or(NOWHERE, |on| on as u32));
+        elements
+            .anchor
+            .push(placed.anchor.map_or(NOWHERE, |on| on as u32));
     }
     // What is grown under each element, by position: counted, summed into where each element's run
     // starts, and filled.
     elements.branches.clear();
     elements.branches.resize(count + 1, 0);
-    for trunk in elements.trunk.iter().flatten() {
+    for trunk in elements.trunk.iter().filter_map(|&on| position(on)) {
         elements.branches[trunk + 1] += 1;
     }
     for at in 0..count {
@@ -1980,7 +2099,7 @@ fn settle(
     elements.children.clear();
     elements.children.resize(count, 0);
     for at in 0..count {
-        if let Some(trunk) = elements.trunk[at] {
+        if let Some(trunk) = elements.trunk(at) {
             elements.children[filling[trunk] as usize] = at as u32;
             filling[trunk] += 1;
         }
@@ -1988,7 +2107,7 @@ fn settle(
     // What is anchored to each element, the same way.
     elements.anchoring.clear();
     elements.anchoring.resize(count + 1, 0);
-    for anchor in elements.anchor.iter().flatten() {
+    for anchor in elements.anchor.iter().filter_map(|&on| position(on)) {
         elements.anchoring[anchor + 1] += 1;
     }
     for at in 0..count {
@@ -2000,101 +2119,98 @@ fn settle(
         .anchored
         .resize(elements.anchoring[count] as usize, 0);
     for at in 0..count {
-        if let Some(anchor) = elements.anchor[at] {
+        if let Some(anchor) = elements.anchor(at) {
             elements.anchored[filling[anchor] as usize] = at as u32;
             filling[anchor] += 1;
         }
     }
     // What every pass visits whatever was written, and what the stack is sorted from.
     elements.forward.clear();
-    elements.scrolling.clear();
-    elements.within.clear();
     elements.stacking.clear();
     for at in 0..count {
         let ahead = |on: Option<usize>| on.is_some_and(|on| on >= at);
-        if ahead(elements.trunk[at]) || ahead(elements.anchor[at]) {
+        if ahead(elements.trunk(at)) || ahead(elements.anchor(at)) {
             elements.forward.push(at as u32);
         }
-        let standing = &elements.standing[at];
-        if standing.scrolls.is_some() {
-            elements.scrolling.push(at as u32);
-        }
-        if let Some(Escape::Within(_)) = standing.floats {
-            elements.within.push(at as u32);
-        }
-        if !standing.gestures.intangible {
+        if !tree.standing(elements.order[at]).gestures().intangible {
             elements.stacking.push(at as u32);
         }
     }
+    scopes(elements, tree);
     // Everything the stack is built from may have moved, since what is in it did.
     elements.restack = true;
     elements.reranked = true;
 }
 
-/// Every column held per element, moved into a new order by `moves`, each with what an element new
-/// to the order starts from. Listed once, so the two ways an order is made cannot hold different
-/// columns.
-fn columns(elements: &mut Elements, moves: &impl Moves) {
-    moves.apply(&mut elements.section, Section::default());
-    moves.apply(&mut elements.intrinsic, Area::default());
-    moves.apply(&mut elements.reached, None);
-    moves.apply(&mut elements.upright, false);
-    moves.apply(&mut elements.spread, None);
-    moves.apply(&mut elements.cell, Area::default());
-    moves.apply(&mut elements.composed, None);
-    moves.apply(&mut elements.spanned, None);
-    moves.apply(&mut elements.drawn, Section::default());
-    moves.apply(&mut elements.stretched, None);
-    moves.apply(&mut elements.clip, Clipped::unbounded().0);
-    moves.apply(&mut elements.rank, ResolvedElevation::default());
-    moves.apply(&mut elements.inherited, Inherited::default());
-    // What the accumulations pass on, which an element new to the order is visited for.
-    moves.apply(&mut elements.extends, None);
-    moves.apply(&mut elements.accumulated, Position::default());
-    moves.apply(&mut elements.unpinned, Position::default());
-    moves.apply(&mut elements.passed, Clipped::unbounded().0);
-    moves.apply(&mut elements.escaped, Clipped::unbounded().0);
-    // What an element declared is moved like what it resolved to. A grid is divided again by
-    // `read` wherever the element is dirty, which an element just grown always is; its standing is
-    // read by `settle`, and read again by `read` wherever it was restyled.
-    moves.apply(&mut elements.tracks, Tracks::default());
-    moves.apply(&mut elements.standing, Standing::default());
-}
-
-/// How a column gets from the order being replaced to the one being made.
-trait Moves {
-    fn apply<T: Clone>(&self, column: &mut Vec<T>, fresh: T);
-}
-
-/// An order made from scratch: each element's value carried from where it sat, by position in the
-/// new order, and `fresh` for one that was not in the order before.
-struct Carried<'a>(&'a [Option<usize>]);
-
-impl Moves for Carried<'_> {
-    fn apply<T: Clone>(&self, column: &mut Vec<T>, fresh: T) {
-        let held = core::mem::take(column);
-        column.extend(self.0.iter().map(|at| match at {
-            Some(at) => held[*at].clone(),
-            None => fresh.clone(),
-        }));
+/// Finds again which elements are regions, which float out to an element they name, and which are
+/// grown inside a region without being its content: what R3, R4 and R5 read of every element, held
+/// beside the order. Wherever the order is made, and wherever what scrolls changed.
+fn scopes(elements: &mut Elements, tree: &Tree) {
+    elements.scrolling.clear();
+    elements.within.clear();
+    elements.aside.reset(elements.len());
+    for (at, &leaf) in elements.order.iter().enumerate() {
+        let standing = tree.standing(leaf);
+        if standing.scrolls().is_some() {
+            elements.scrolling.push(at as u32);
+        }
+        let floats = standing.floats();
+        if let Some(Escape::Within(_)) = floats {
+            elements.within.push(at as u32);
+        }
+        if standing.pinned() || floats.is_some() {
+            elements.aside.set(at);
+        }
     }
 }
 
-/// An order repaired: what withered taken out where it lay, and `fresh` for each of the elements
-/// grown after everything that stayed.
-struct Kept<'a> {
-    kept: &'a [bool],
-    grown: usize,
+/// Every column held per element, each with what an element new to the order starts from. Listed
+/// once, so lengthening them and clearing one element's slot cannot disagree about which there are.
+fn columns(elements: &mut Elements, each: &impl Each) {
+    each.apply(&mut elements.section, Section::default());
+    each.apply(&mut elements.intrinsic, Area::default());
+    each.apply(&mut elements.reached, None);
+    each.apply(&mut elements.upright, false);
+    each.apply(&mut elements.spread, None);
+    each.apply(&mut elements.cell, Area::default());
+    each.apply(&mut elements.composed, None);
+    each.apply(&mut elements.spanned, None);
+    each.apply(&mut elements.drawn, Section::default());
+    each.apply(&mut elements.stretched, None);
+    each.apply(&mut elements.clip, Clipped::unbounded().0);
+    each.apply(&mut elements.rank, ResolvedElevation::default());
+    each.apply(&mut elements.inherited, Inherited::default());
+    // What the accumulations pass on, which an element new to the order is visited for.
+    each.apply(&mut elements.extends, None);
+    each.apply(&mut elements.accumulated, Position::default());
+    each.apply(&mut elements.unpinned, Position::default());
+    each.apply(&mut elements.passed, Clipped::unbounded().0);
+    each.apply(&mut elements.escaped, Clipped::unbounded().0);
 }
 
-impl Moves for Kept<'_> {
+/// What is done to every column.
+trait Each {
+    fn apply<T: Clone>(&self, column: &mut Vec<T>, fresh: T);
+}
+
+/// Every column at least this many slots long, each new slot holding what an element starts from.
+struct Lengthen(usize);
+
+impl Each for Lengthen {
     fn apply<T: Clone>(&self, column: &mut Vec<T>, fresh: T) {
-        let mut at = 0;
-        column.retain(|_| {
-            at += 1;
-            self.kept[at - 1]
-        });
-        column.extend(core::iter::repeat_n(fresh, self.grown));
+        if column.len() < self.0 {
+            column.resize(self.0, fresh);
+        }
+    }
+}
+
+/// One slot of every column back to what an element starts from, for an element new to the order
+/// in a slot something withered from.
+struct Clear(usize);
+
+impl Each for Clear {
+    fn apply<T: Clone>(&self, column: &mut Vec<T>, fresh: T) {
+        column[self.0] = fresh;
     }
 }
 
@@ -2112,7 +2228,23 @@ impl Moves for Kept<'_> {
 fn read(elements: &mut Elements, grove: &Grove) {
     let _pass = trace_span!("elements").entered();
     let written = grove.tree.written();
-    elements.gone.clear();
+    // What withered from the order, and what it drew: what extraction lets go of. Found before the
+    // order is repaired, while it still says where each sat -- an element grown and withered between
+    // two frames was never in it, and has nothing drawn to let go of.
+    let mut gone = core::mem::take(&mut elements.gone);
+    gone.clear();
+    gone.extend(
+        written
+            .withered
+            .iter()
+            .filter(|(leaf, _)| elements.at(*leaf).is_some()),
+    );
+    // What each held stays in its slot until something is grown there, which is harmless for a
+    // value and not for a run: the shaping cache keeps a run for as long as anything holds it.
+    for &(leaf, _) in &gone {
+        elements.composed[leaf.slot()] = None;
+    }
+    elements.gone = gone;
     elements.restack = false;
     elements.reranked = false;
     // Nothing is new unless the order is made or repaired below, which marks what is.
@@ -2123,13 +2255,17 @@ fn read(elements: &mut Elements, grove: &Grove) {
         structure(elements, grove);
     }
     let count = elements.len();
-    // What the restyled elements declared is read again where they sit.
     elements.restyled.reset(count);
     for &leaf in written.restyled {
         if let Some(at) = elements.at(leaf) {
-            elements.standing[at] = grove.tree.standing(leaf);
             elements.restyled.set(at);
         }
+    }
+    // An element that came to scroll, or stopped, is restyled, and is a region or is not one from
+    // here on.
+    elements.rescoped = written.rescoped;
+    if written.rescoped {
+        scopes(elements, &grove.tree);
     }
     elements.restated = written.restated;
     if written.all {
@@ -2210,20 +2346,5 @@ fn read(elements: &mut Elements, grove: &Grove) {
     // this frame is going to compute it again. One being resolved again offers nothing until an
     // axis reaches it, which is what it did when every element was resolved.
     elements.unresolved.copy_from(&elements.dirty);
-    // The grid is divided at the breakpoint in force, so it is read again wherever the element is --
-    // a breakpoint that moved is every element written to, and nothing else can change a division
-    // without writing the grid it divides.
-    let Elements {
-        dirty,
-        tracks,
-        order,
-        ..
-    } = elements;
-    for at in dirty.iter() {
-        tracks[at] = grove
-            .tree
-            .grid(order[at])
-            .unwrap_or_default()
-            .tracks(grove.layout, grove.short);
-    }
+    elements.closed.copy_from(&elements.dirty);
 }

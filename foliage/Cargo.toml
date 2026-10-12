@@ -15,7 +15,6 @@ documentation = "https://eblack-leaf.github.io/foliage/book/"
 origin-url = ["dep:ureq"]
 
 [dependencies]
-bevy_ecs = "0.19.0"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 fontdue = "0.9.4"
 # PNG and JPEG only. A picture is given to the engine encoded and comes back as RGBA, so what

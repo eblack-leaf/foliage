@@ -1,6 +1,5 @@
 //! Icon -- a vector mark, drawn from a distance field.
 
-use bevy_ecs::component::Component;
 use tracing::info;
 
 use crate::color::Color;
@@ -133,7 +132,7 @@ impl Buds for Icon {
 /// What the icon renderer was told.
 ///
 /// Grown alongside [`Chlorophyll::Icon`] and by nothing else, so an element carries both or neither.
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct IconPigment {
     pub(crate) field: Field,
     pub(crate) fill: Fill,

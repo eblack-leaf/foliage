@@ -1,7 +1,5 @@
 //! The coordinate system a parent offers its children.
 
-use bevy_ecs::component::Component;
-
 use crate::coordinate::Axis;
 use crate::layout::{Layout, Short};
 use crate::placement::breakpoints::{Override, Stated};
@@ -21,7 +19,7 @@ use crate::placement::breakpoints::{Override, Stated};
 ///
 /// A grid decides how children are laid out and nothing else. Whether an element scrolls is
 /// declared separately.
-#[derive(Component, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Grid(pub(crate) Stated<Tracks>);
 
 impl Grid {

@@ -1,6 +1,5 @@
 //! Polygon -- a regular n-sided shape, filled, with uniform corner rounding.
 
-use bevy_ecs::component::Component;
 use bytemuck::{Pod, Zeroable};
 
 use crate::aspen::blend;
@@ -158,7 +157,7 @@ impl Default for Shape {
 ///
 /// Grown alongside [`Chlorophyll::Polygon`] and by nothing else, so an element carries both or
 /// neither.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct PolygonPigment {
     pub(crate) fill: Fill,
     pub(crate) shape: Shape,

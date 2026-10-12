@@ -16,7 +16,7 @@ use crate::placement::trace::{Ends, Trace};
 use crate::rounding::Corners;
 use crate::text::{Lettering, Tints};
 use crate::vein::Vein;
-use crate::view::ScrollTo;
+use crate::view::{Escape, Scroll, ScrollTo};
 
 /// One queued change.
 pub(crate) enum Op {
@@ -162,6 +162,21 @@ pub(crate) enum Op {
     Scroll {
         leaf: Leaf,
         to: ScrollTo,
+    },
+    /// Makes an element a region, changes how it scrolls, or makes it no region at all.
+    Scrolls {
+        leaf: Leaf,
+        scroll: Option<Scroll>,
+    },
+    /// Pins an element in its region, or lets it travel with the content again.
+    Pin {
+        leaf: Leaf,
+        pinned: bool,
+    },
+    /// Floats an element out of the regions above it, or puts it back in its own.
+    Float {
+        leaf: Leaf,
+        escape: Option<Escape>,
     },
     Disable {
         leaf: Leaf,

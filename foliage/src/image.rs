@@ -1,6 +1,5 @@
 //! Image -- pixels, fitted into a box.
 
-use bevy_ecs::component::Component;
 use tracing::info;
 
 use crate::coordinate::{Area, Section};
@@ -119,7 +118,7 @@ impl Buds for Image {
 ///
 /// Grown alongside [`Chlorophyll::Image`] and by nothing else, so an element carries both or
 /// neither.
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct ImagePigment {
     pub(crate) plate: Plate,
     pub(crate) fit: Fit,

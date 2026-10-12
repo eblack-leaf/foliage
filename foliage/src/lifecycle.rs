@@ -18,14 +18,12 @@
 //! get wrong: an element grown under a disabled trunk is disabled on its first frame, and enabling
 //! the trunk leaves anything disabled in its own right disabled.
 
-use bevy_ecs::component::Component;
-
 /// Whether the app has hidden the element.
 ///
 /// App intent, and only that. Being scrolled out of view is not a kind of hidden -- culling is a
 /// decision extraction makes from the clip rect and is never recorded here, so content scrolled
 /// past still counts toward its region's extent and can be scrolled back to.
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct Visible(pub(crate) bool);
 
 impl Default for Visible {
@@ -35,7 +33,7 @@ impl Default for Visible {
 }
 
 /// How opaque the element is, in `0.0..=1.0`.
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct Opacity(pub(crate) f32);
 
 impl Opacity {
@@ -54,7 +52,7 @@ impl Default for Opacity {
 ///
 /// Held separately from the product for exactly that reason: re-enabling an ancestor recomputes the
 /// product over the whole ancestry, and an element that turned itself off stays off.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Disabled(pub(crate) bool);
 
 /// What the three resolved to over an element's whole ancestry.

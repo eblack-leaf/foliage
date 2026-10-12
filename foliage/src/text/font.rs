@@ -124,7 +124,7 @@ impl Default for FontSize {
 /// Placement input rather than decoration: it is the whole of what gives a character cell a size,
 /// and so what [`letters`](crate::Source::letters) and a letter-pitched track resolve against. An
 /// element that was never given one has no cell, and reads zero for both.
-#[derive(bevy_ecs::component::Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Typeface {
     pub(crate) font: Font,
     pub(crate) size: FontSize,

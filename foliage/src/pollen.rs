@@ -3,10 +3,10 @@ use crate::asset::Arrival;
 use crate::coordinate::{Area, Position};
 use crate::interaction::input::{Key, Keystroke};
 use crate::interaction::{Drag, Wheel};
-use crate::leaf::{Leaf, Leaves, Named};
-use bevy_ecs::entity::EntityHash;
+use crate::leaf::{Fibonacci, Leaf, Leaves, Named};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::hash::BuildHasherDefault;
 use std::sync::Arc;
 
 /// What the tree put out this frame.
@@ -364,7 +364,7 @@ pub(crate) struct Drift {
     pub(crate) unfocused: HashSet<Leaf>,
     pub(crate) landed: Leaves,
     pub(crate) tweens: Named<Tween, f32>,
-    pub(crate) finished: HashSet<Tween, EntityHash>,
+    pub(crate) finished: HashSet<Tween, BuildHasherDefault<Fibonacci>>,
     pub(crate) sequences: HashSet<Sequence>,
 }
 

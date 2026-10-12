@@ -47,14 +47,12 @@ use std::sync::Arc;
 
 use tracing::debug;
 
-use bevy_ecs::component::Component;
-
 /// Which keys a soft keyboard offers.
 ///
 /// A hint and not a constraint: it changes what is easy to type and never what a field accepts, so
 /// a [`Keypad::Number`] field can still be pasted a word into and is still the app's to validate.
 /// Ignored where the platform has no keyboard of its own to raise.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum Keypad {
     /// Letters. What a field asks for unless it says otherwise.
     #[default]

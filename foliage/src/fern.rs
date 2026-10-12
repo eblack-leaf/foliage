@@ -491,6 +491,38 @@ fn drain(grove: &mut Grove) {
                 grove.sought.push((leaf, to));
                 debug!(leaf = leaf.id(), "scrolling");
             }
+            Op::Scrolls { leaf, scroll } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("scrolls", leaf, "not live");
+                    continue;
+                }
+                // Nothing is left to move, so nothing moving it goes on.
+                if scroll.is_none() {
+                    cancel(grove, "scrolls", leaf, Property::Scroll);
+                    grove.coasting.stop(leaf);
+                }
+                if grove.tree.set_scrolls(leaf, scroll) {
+                    debug!(leaf = leaf.id(), scrolls = scroll.is_some(), "scrolls");
+                }
+            }
+            Op::Pin { leaf, pinned } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("pinned", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_pinned(leaf, pinned) {
+                    debug!(leaf = leaf.id(), pinned, "pinned");
+                }
+            }
+            Op::Float { leaf, escape } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("floats", leaf, "not live");
+                    continue;
+                }
+                if grove.tree.set_floats(leaf, escape) {
+                    debug!(leaf = leaf.id(), ?escape, "floated");
+                }
+            }
             Op::Disable { leaf, disabled } => {
                 if !grove.tree.is_live(leaf) {
                     dropped(

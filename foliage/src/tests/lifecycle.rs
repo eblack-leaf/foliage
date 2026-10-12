@@ -7,7 +7,7 @@ use crate::placement::location::Location;
 use crate::stem::Stem;
 use crate::vein::{Sap, Vein};
 use crate::verbs::Grow;
-use crate::{Boxed, Divide, Panel, Place, Source, left, top};
+use crate::{Boxed, Divide, Line, Panel, Place, Point, Source, Text, left, top};
 
 #[test]
 fn a_name_is_planted_until_its_op_drains() {
@@ -449,4 +449,36 @@ fn opacity_multiplies_through_the_tree() {
     assert_eq!(drawn(&grove, child), Some(0.5));
     // The child's own declaration reads back as what it declared, whatever its ancestry did.
     assert_eq!(grove.tap(child, Vein::Opacity), Some(Sap::Opacity(0.5)));
+}
+
+/// An index is named again the moment what held it withers, and what is grown under the new name
+/// starts from nothing of what was there: a box grown where a stroke was has no ends to read, and a
+/// stem with no font grown where a run was has no character cell to be measured in.
+#[test]
+fn what_is_grown_where_something_withered_holds_none_of_it() {
+    let mut grove = grove();
+    let stroke =
+        grove.plant(Line::new().between(Point::new(0.px(), 0.px()), Point::new(10.px(), 10.px())));
+    let run = grove.plant(Text::new("hello"));
+    tick(&mut grove);
+    assert!(grove.tap(stroke, Vein::Ends).is_some());
+
+    // A name is handed out when it is asked for, so what is grown into the index is asked for once
+    // the prune has drained.
+    grove.prune(stroke);
+    tick(&mut grove);
+    let panel = grove.plant(Panel::new());
+    tick(&mut grove);
+    assert_eq!(panel.index, stroke.index);
+    assert_eq!(grove.tap(panel, Vein::Ends), None);
+
+    grove.prune(run);
+    tick(&mut grove);
+    let stem = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(8.letters()), top(0.px()).height(10.px()))),
+    );
+    tick(&mut grove);
+    assert_eq!(stem.index, run.index);
+    assert_eq!(section(&grove, stem).width(), 0.0);
 }

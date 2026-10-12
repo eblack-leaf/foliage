@@ -7,8 +7,7 @@ use wgpu::{Buffer, BufferAddress, BufferDescriptor, BufferSlice, BufferUsages, D
 
 use crate::coordinate::Section;
 use crate::elevation::ResolvedElevation;
-use crate::elm::Key;
-use crate::leaf::Named;
+use crate::elm::{Key, Table};
 
 /// One renderer's instance buffers, kept in rank order.
 ///
@@ -168,7 +167,7 @@ impl<I: Pod> Instances<I> {
 /// changed rank is sorted before the two are merged. A frame that adds a hundred thousand instances
 /// to as many already held sorts the hundred thousand.
 struct Slots<I> {
-    held: Named<Key, Held<I>>,
+    held: Table<Held<I>>,
     /// Which instance each slot holds.
     keys: Vec<Key>,
     /// The renderer's data, in slot order.
@@ -211,7 +210,7 @@ const UNPLACED: u32 = u32::MAX;
 impl<I> Default for Slots<I> {
     fn default() -> Self {
         Self {
-            held: Named::default(),
+            held: Table::default(),
             keys: Vec::new(),
             data: Vec::new(),
             depths: Vec::new(),
@@ -235,7 +234,7 @@ impl<I: Copy> Slots<I> {
     /// a rounding -- costs one slot rather than a new order. A clip that changed while the order
     /// did not costs the stack being cut again, and no upload at all.
     fn write(&mut self, key: Key, rank: ResolvedElevation, clip: Section, group: u32, instance: I) {
-        match self.held.get_mut(&key) {
+        match self.held.get_mut(key) {
             Some(held) => {
                 held.instance = instance;
                 // Both are what the stack is cut on rather than what is uploaded, so either one
@@ -264,16 +263,20 @@ impl<I: Copy> Slots<I> {
                 }
             }
             None => {
-                self.held.insert(
-                    key,
-                    Held {
-                        instance,
-                        rank,
-                        clip,
-                        group,
-                        slot: UNPLACED,
-                    },
-                );
+                let held = Held {
+                    instance,
+                    rank,
+                    clip,
+                    group,
+                    slot: UNPLACED,
+                };
+                // A name withered and another grown into its index in the same batch, with the
+                // write ahead of the withdrawal: the one it displaced goes now, as it would have.
+                if let Some((_, displaced)) = self.held.insert(key, held)
+                    && displaced.slot != UNPLACED
+                {
+                    self.vacated.push(displaced.slot);
+                }
                 self.arrived.push(key);
                 self.resort = true;
             }
@@ -295,7 +298,7 @@ impl<I: Copy> Slots<I> {
     }
 
     fn withdraw(&mut self, key: Key) {
-        if let Some(held) = self.held.remove(&key) {
+        if let Some(held) = self.held.remove(key) {
             if held.slot != UNPLACED {
                 self.vacated.push(held.slot);
             }
@@ -321,7 +324,7 @@ impl<I: Copy> Slots<I> {
             .arrived
             .drain(..)
             .filter_map(|key| {
-                let held = self.held.get(&key)?;
+                let held = self.held.get(key)?;
                 (held.slot == UNPLACED).then_some((held.rank, key))
             })
             .collect();
@@ -351,7 +354,7 @@ impl<I: Copy> Slots<I> {
                 let Some(slot) = stays.next() else { break };
                 let key = self.keys[slot];
                 if slot as u32 != at
-                    && let Some(held) = self.held.get_mut(&key)
+                    && let Some(held) = self.held.get_mut(key)
                 {
                     held.slot = at;
                 }
@@ -364,7 +367,7 @@ impl<I: Copy> Slots<I> {
                 let Some((rank, key)) = arriving.next() else {
                     break;
                 };
-                let Some(held) = self.held.get_mut(&key) else {
+                let Some(held) = self.held.get_mut(key) else {
                     continue;
                 };
                 held.slot = at;
@@ -425,6 +428,32 @@ mod tests {
         ResolvedElevation { stack, growth }
     }
 
+    /// The key of the name at `index`, at its first generation.
+    fn named(index: u32) -> Key {
+        Key(u64::from(index))
+    }
+
+    /// A name withered and another grown into its index, in one batch with the write first, leaves
+    /// the new one held and the old one's slot let go -- and the withdrawal that follows names
+    /// something no longer held.
+    #[test]
+    fn a_name_grown_into_an_index_displaces_what_withered_from_it() {
+        let mut slots: Slots<u32> = Slots::default();
+        for n in 0..4 {
+            slots.write(named(n), rank(1, n as u64), Section::default(), 0, n);
+        }
+        slots.reorder();
+        let withered = named(2);
+        let grown = Key(withered.0 + (1 << 32));
+        slots.write(grown, rank(1, 9), Section::default(), 0, 9);
+        slots.withdraw(withered);
+        slots.reorder();
+        assert_eq!(slots.keys, vec![named(0), named(1), named(3), grown]);
+        assert_eq!(slots.data, vec![0, 1, 3, 9]);
+        assert_eq!(slots.held.len(), 4);
+        assert!(slots.held.get(withered).is_none());
+    }
+
     /// Every slot in rank-then-name order, every held instance where its slot says, and holding
     /// what was last written to it.
     fn consistent(slots: &Slots<u32>, expected: &[(Key, ResolvedElevation, u32)]) {
@@ -435,7 +464,10 @@ mod tests {
             .collect();
         assert_eq!(got, sorted);
         for (slot, key) in slots.keys.iter().enumerate() {
-            assert_eq!(slots.held[key].slot, slot as u32);
+            assert_eq!(
+                slots.held.get(*key).map(|held| held.slot),
+                Some(slot as u32)
+            );
         }
         assert_eq!(slots.held.len(), expected.len());
         assert_eq!(slots.depths.len(), expected.len());
@@ -454,7 +486,7 @@ mod tests {
         };
         for frame in 0..60 {
             for _ in 0..40 {
-                let key = Key(next(120));
+                let key = named(next(120) as u32);
                 let value = (frame * 1000) as u32 + next(1000) as u32;
                 match next(5) {
                     // Gone.
@@ -484,14 +516,14 @@ mod tests {
     fn what_stays_keeps_its_slot_where_nothing_before_it_moved() {
         let mut slots: Slots<u32> = Slots::default();
         for n in 0..10 {
-            slots.write(Key(n), rank(1, n), Section::default(), 0, n as u32);
+            slots.write(named(n as u32), rank(1, n), Section::default(), 0, n as u32);
         }
         slots.reorder();
-        slots.withdraw(Key(7));
-        slots.write(Key(20), rank(2, 20), Section::default(), 0, 20);
+        slots.withdraw(named(7));
+        slots.write(named(20), rank(2, 20), Section::default(), 0, 20);
         slots.reorder();
-        assert_eq!(slots.held[&Key(3)].slot, 3);
-        assert_eq!(slots.held[&Key(8)].slot, 7);
-        assert_eq!(slots.held[&Key(20)].slot, 9);
+        assert_eq!(slots.held.get(named(3)).map(|held| held.slot), Some(3));
+        assert_eq!(slots.held.get(named(8)).map(|held| held.slot), Some(7));
+        assert_eq!(slots.held.get(named(20)).map(|held| held.slot), Some(9));
     }
 }

@@ -10,7 +10,7 @@ use crate::coordinate::{Area, Axes, Position, Section};
 use crate::tests::{
     Observer, advance, drag, grove, press, release, section, tick, tick_with, wheel,
 };
-use crate::view::coasted;
+use crate::view::{Clipped, coasted};
 use crate::{
     Boxed, Divide, Elevation, Escape, Grid, Grove, Grow, Leaf, Location, Motion, Panel, Place, Sap,
     Scroll, ScrollTo, Source, Stem, Text, Timing, Vein, anchor, content, left, top,
@@ -278,6 +278,170 @@ fn extent_tracks_a_child_that_grew_by_wrapping() {
     tick(&mut grove);
     // Thirty characters at five cells a line, twenty-two tall each.
     assert_eq!(extent(&grove, region).height, 132.0);
+}
+
+// -- Scrolling, written --------------------------------------------------------------------------
+
+/// What a scrolling ancestor leaves visible of `leaf`.
+fn clip(grove: &Grove, leaf: Leaf) -> Section {
+    grove.elements.clip(leaf)
+}
+
+/// An element grown as anything at all is made a region by saying so, and from that frame it is
+/// one in every respect: it measures its content, takes the wheel, moves what is in it and clips it.
+#[test]
+fn an_element_told_to_scroll_after_it_was_grown_is_a_region() {
+    let mut grove = grove();
+    let region = grove.plant(Stem::new().at(at(0.0, 0.0, 200.0, 100.0)));
+    let content = grove.branch(region, Panel::new().at(at(0.0, 0.0, 200.0, 400.0)));
+    tick(&mut grove);
+    assert_eq!(grove.tap(region, Vein::Offset), None);
+    assert_eq!(clip(&grove, content), Clipped::unbounded().0);
+
+    grove.scrolls(region, Axes::Vertical);
+    tick(&mut grove);
+    assert_eq!(extent(&grove, region), Area::new(200.0, 400.0));
+    assert_eq!(
+        clip(&grove, content),
+        Section::new(Position::default(), Area::new(200.0, 100.0))
+    );
+
+    wheel(&mut grove, (50.0, 50.0), (0.0, -60.0));
+    tick(&mut grove);
+    assert_eq!(offset(&grove, region).y, 60.0);
+    assert_eq!(section(&grove, content).top(), -60.0);
+}
+
+/// Told to stop, it has no offset and no extent -- not a range of zero -- its content is back where
+/// it was laid out, nothing it held clips anything, and a drag over it moves nothing.
+#[test]
+fn a_region_told_to_stop_scrolling_puts_its_content_back() {
+    let mut grove = grove();
+    let (region, content) = column(&mut grove);
+    tick(&mut grove);
+    grove.scroll(region, ScrollTo::px(120.0));
+    tick(&mut grove);
+    assert_eq!(section(&grove, content).top(), -120.0);
+
+    grove.scrolls(region, None);
+    tick(&mut grove);
+    assert_eq!(grove.tap(region, Vein::Offset), None);
+    assert_eq!(grove.tap(region, Vein::Extent), None);
+    assert_eq!(section(&grove, content).top(), 0.0);
+    assert_eq!(clip(&grove, content), Clipped::unbounded().0);
+
+    wheel(&mut grove, (50.0, 50.0), (0.0, -60.0));
+    grove.scroll(region, ScrollTo::end());
+    tick(&mut grove);
+    assert_eq!(section(&grove, content).top(), 0.0);
+
+    // And made a region again, it starts from the top: where it was scrolled went with what it was.
+    grove.scrolls(region, Axes::Vertical);
+    tick(&mut grove);
+    assert_eq!(offset(&grove, region), Position::default());
+    assert_eq!(extent(&grove, region).height, 400.0);
+}
+
+/// An axis it still scrolls keeps where it was scrolled to; one it no longer scrolls goes back.
+#[test]
+fn a_region_scrolling_fewer_axes_keeps_the_ones_it_still_scrolls() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Axes::Both),
+    );
+    let content = grove.branch(region, Panel::new().at(at(0.0, 0.0, 600.0, 400.0)));
+    tick(&mut grove);
+    grove.scroll(region, ScrollTo::end());
+    tick(&mut grove);
+    assert_eq!(offset(&grove, region), Position::new(400.0, 300.0));
+
+    grove.scrolls(region, Axes::Vertical);
+    tick(&mut grove);
+    assert_eq!(offset(&grove, region), Position::new(0.0, 300.0));
+    assert_eq!(extent(&grove, region), Area::new(200.0, 400.0));
+    assert_eq!(section(&grove, content).left(), 0.0);
+    assert_eq!(section(&grove, content).top(), -300.0);
+}
+
+/// A coast still running when the region stops scrolling stops with it, rather than moving
+/// something that has nothing to move.
+#[test]
+fn a_coast_ends_when_its_region_stops_scrolling() {
+    let mut grove = grove();
+    let (region, content) = column(&mut grove);
+    tick(&mut grove);
+    press(&mut grove, 50.0, 90.0);
+    for y in [80.0, 60.0, 40.0, 20.0] {
+        advance(&mut grove, 16);
+        drag(&mut grove, 50.0, y);
+    }
+    release(&mut grove, 50.0, 20.0);
+    tick(&mut grove);
+    assert!(!grove.coasting.idle());
+
+    grove.scrolls(region, None);
+    tick(&mut grove);
+    assert!(grove.coasting.idle());
+    assert_eq!(section(&grove, content).top(), 0.0);
+}
+
+/// Pinned after it was grown, a child stops travelling with the content and stops counting toward
+/// it in the same frame -- the one declaration answers both, written or grown -- and let go of, it
+/// does both again.
+#[test]
+fn a_child_pinned_after_it_was_grown_neither_moves_with_the_content_nor_counts_toward_it() {
+    let mut grove = grove();
+    let (region, content) = column(&mut grove);
+    let tall = grove.branch(region, Panel::new().at(at(0.0, 0.0, 200.0, 900.0)));
+    tick(&mut grove);
+    assert_eq!(extent(&grove, region).height, 900.0);
+
+    grove.pinned(tall, true);
+    tick(&mut grove);
+    assert_eq!(extent(&grove, region).height, 400.0);
+    wheel(&mut grove, (50.0, 50.0), (0.0, -60.0));
+    tick(&mut grove);
+    assert_eq!(section(&grove, content).top(), -60.0);
+    assert_eq!(section(&grove, tall).top(), 0.0);
+
+    grove.pinned(tall, false);
+    tick(&mut grove);
+    assert_eq!(extent(&grove, region).height, 900.0);
+    assert_eq!(section(&grove, tall).top(), -60.0);
+}
+
+/// Floated after it was grown, a child is clipped by nothing its region holds and gives the region
+/// nothing to scroll to; put back, it is content again.
+#[test]
+fn a_child_floated_after_it_was_grown_escapes_its_region() {
+    let mut grove = grove();
+    let region = grove.plant(
+        Stem::new()
+            .at(at(0.0, 0.0, 200.0, 100.0))
+            .scrolls(Axes::Vertical),
+    );
+    let menu = grove.branch(region, Panel::new().at(at(0.0, 80.0, 100.0, 200.0)));
+    tick(&mut grove);
+    assert_eq!(extent(&grove, region).height, 280.0);
+    assert_eq!(
+        clip(&grove, menu),
+        Section::new(Position::default(), Area::new(200.0, 100.0))
+    );
+
+    grove.floats(menu, Escape::Region);
+    tick(&mut grove);
+    assert_eq!(extent(&grove, region).height, 100.0);
+    assert_eq!(clip(&grove, menu), Clipped::unbounded().0);
+
+    grove.floats(menu, None);
+    tick(&mut grove);
+    assert_eq!(extent(&grove, region).height, 280.0);
+    assert_eq!(
+        clip(&grove, menu),
+        Section::new(Position::default(), Area::new(200.0, 100.0))
+    );
 }
 
 // -- Pinned --------------------------------------------------------------------------------------

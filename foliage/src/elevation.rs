@@ -1,7 +1,5 @@
 //! Elevation -- where an element sits in the one stack.
 
-use bevy_ecs::component::Component;
-
 /// How far in front of its trunk an element sits.
 ///
 /// Always relative, so raising a card carries its whole subtree with it and nothing inside it is
@@ -19,7 +17,7 @@ use bevy_ecs::component::Component;
 /// trunk decides what takes an element down and what it stacks among, and
 /// [`anchored`](crate::Place::anchored) decides where it sits, so a dropdown planted at top level
 /// still tracks the control that opened it.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Elevation(i32);
 
 impl Elevation {

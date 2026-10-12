@@ -30,7 +30,6 @@
 use core::time::Duration;
 use std::collections::HashMap;
 
-use bevy_ecs::component::Component;
 use tracing::debug;
 
 use crate::aspen::blend;
@@ -44,7 +43,7 @@ use crate::rowan::Elements;
 ///
 /// Absent, the element does not scroll, and a drag inside it goes on outward to something that
 /// does.
-#[derive(Component, Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Scrolls(pub(crate) Scroll);
 
 /// What a region declares about scrolling: the axes it moves on, and which of them absorb.
@@ -106,6 +105,14 @@ impl Scroll {
 impl From<Axes> for Scroll {
     fn from(axes: Axes) -> Self {
         Self::new(axes)
+    }
+}
+
+/// What lets [`scrolls`](crate::Grow::scrolls) name the axes alone, as the declaration does, where it
+/// also takes `None`.
+impl From<Axes> for Option<Scroll> {
+    fn from(axes: Axes) -> Self {
+        Some(Scroll::new(axes))
     }
 }
 
@@ -315,7 +322,7 @@ impl Default for Momentum {
 ///
 /// One unit throughout, read and written the same way. Positive is content moved toward the near
 /// edge -- what a drag away from that edge produces.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Offset(pub(crate) Position);
 
 /// How far an element is drawn from where the layout put it, in logical pixels: it and everything
@@ -324,7 +331,7 @@ pub(crate) struct Offset(pub(crate) Position);
 /// Applied where an offset is, in R4, and on the same terms: the placed box does not move, so
 /// nothing placed against it does either -- an element anchored to it, or the next row down a list
 /// -- and what is drawn and hit-tested is where it was shifted to.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Shift(pub(crate) Position);
 
 /// How far a region's content reaches, measured outward from the region's own near edges.
@@ -333,7 +340,7 @@ pub(crate) struct Shift(pub(crate) Position);
 /// of sight is the content the extent exists to describe, so culling has no say in it. Never
 /// smaller than the region's own box, so an empty region has a range of zero rather than a negative
 /// one.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Extent(pub(crate) Area);
 
 /// How far out of the regions above it a floating element reaches.
@@ -385,17 +392,8 @@ pub enum Escape {
 ///
 /// Both are relative to the **nearest** scrolling ancestor: the region the element is grown in is
 /// the one it is not part of.
-#[derive(Component, Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Floats(pub(crate) Escape);
-
-/// The element does not travel with its region's content.
-///
-/// *Moving with the content* and *counting toward extent* are the same question, so they get one
-/// answer: a pinned element receives no offset from its nearest scrolling ancestor in R4 and
-/// contributes nothing to that region's extent in R3. Two separate flags could drift out of
-/// agreement with each other; one cannot.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct Pinned;
 
 /// The box a scrolling ancestor leaves visible: the intersection of every one of them.
 ///

@@ -49,7 +49,6 @@ pub(crate) mod stack;
 use core::time::Duration;
 use std::collections::VecDeque;
 
-use bevy_ecs::component::Component;
 use tracing::field::Empty;
 use tracing::{debug, trace_span};
 
@@ -69,7 +68,7 @@ use crate::view::{self, consumable, range};
 /// Two of these state what cannot be derived from anything else, and the other two are the shape of
 /// the element as a hand meets it rather than as it is drawn. What is *not* here is any prediction
 /// of what a gesture will mean: that is claimed at the time, from the gesture itself.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct Gestures {
     /// Declared [`interactive`](crate::Place::interactive): this element receives.
     pub(crate) receives: bool,

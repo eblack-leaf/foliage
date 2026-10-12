@@ -18,7 +18,7 @@ use crate::polygon::Shape;
 use crate::rounding::Corners;
 use crate::seed::Seed;
 use crate::text::Tints;
-use crate::view::ScrollTo;
+use crate::view::{Escape, Scroll, ScrollTo};
 
 /// What an op sink has to be able to do: take an op, and hand out the names an op may need.
 ///
@@ -436,6 +436,46 @@ pub trait Grow: Queues {
     /// [`ScrollTo::show`](ScrollTo::show) names an element not grown under it.
     fn scroll(&mut self, leaf: Leaf, to: ScrollTo) {
         self.queue(Op::Scroll { leaf, to });
+    }
+
+    /// Whether an element is a region and how it scrolls, as [`scrolls`](crate::Place::scrolls)
+    /// states it at spawn: the axes it scrolls and which of them absorb, or `None` for no region at
+    /// all.
+    ///
+    /// Where it has been scrolled to is kept on every axis it still scrolls, and held to what it can
+    /// reach there; an axis it no longer scrolls goes back to where its content was laid out. One
+    /// that stops scrolling has nothing left to move, so a coast or a motion moving it ends, and a
+    /// drag over it goes on outward to whatever scrolls around it.
+    ///
+    /// ```no_run
+    /// # use foliage::{Axes, Grove, Grow, Leaf};
+    /// # fn f(grove: &mut Grove, list: Leaf) {
+    /// grove.scrolls(list, Axes::Vertical);
+    /// grove.scrolls(list, None);
+    /// # }
+    /// ```
+    fn scrolls(&mut self, leaf: Leaf, scroll: impl Into<Option<Scroll>>) {
+        self.queue(Op::Scrolls {
+            leaf,
+            scroll: scroll.into(),
+        });
+    }
+
+    /// Whether an element stays put while its region's content slides under it, as
+    /// [`pinned`](crate::Place::pinned) states it at spawn -- and, with it, whether it counts toward
+    /// that region's extent, which is the same question.
+    fn pinned(&mut self, leaf: Leaf, pinned: bool) {
+        self.queue(Op::Pin { leaf, pinned });
+    }
+
+    /// How far an element floats out of the regions above it, as
+    /// [`floats`](crate::Place::floats) states it at spawn, or `None` for sitting in its region like
+    /// any other content: clipped by it, and counted toward its extent.
+    fn floats(&mut self, leaf: Leaf, escape: impl Into<Option<Escape>>) {
+        self.queue(Op::Float {
+            leaf,
+            escape: escape.into(),
+        });
     }
 
     /// Makes an element inert without taking it out of the picture.

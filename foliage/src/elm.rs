@@ -38,7 +38,6 @@
 //! or drawing an asset that has not arrived), and an element that withered, which resolution
 //! reports when it builds the order again. A frame that moves nothing does nothing here.
 
-use bevy_ecs::component::Component;
 use tracing::field::Empty;
 use tracing::trace_span;
 
@@ -68,7 +67,7 @@ use crate::text::font::Font;
 /// Extraction walks the tree once and routes on this, so a further renderer costs a variant rather
 /// than a pass over everything. It is the *only* thing that says what an element is: a set of
 /// components that happens to look like a panel is not a panel.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) enum Chlorophyll {
     /// Nothing. Carrying no renderer is the whole of what makes an element a [`Stem`](crate::Stem).
     #[default]
@@ -107,7 +106,7 @@ pub(crate) enum Pigment {
 /// neither. Ordinary declared state, and what [`color`](crate::Grow::color),
 /// [`round`](crate::Grow::round) and [`outline`](crate::Grow::outline) write -- the decision
 /// beside it stays untouched, because an element does not stop being a panel by being repainted.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct PanelPigment {
     pub(crate) fill: Fill,
     pub(crate) rounding: Corners,
@@ -391,6 +390,86 @@ impl From<Leaf> for Key {
     }
 }
 
+impl Key {
+    /// The index of the name it is the bits of, which is its low half: dense, since an index that
+    /// went is the next one handed out.
+    fn index(self) -> usize {
+        self.0 as u32 as usize
+    }
+}
+
+/// What is held for each key, in a slot per name's index rather than in a hash table.
+///
+/// The indices in use are dense, so the table is as long as the most names live at once. A lookup
+/// is an index rather than a hash -- and a walk over the order, which is mostly the order things
+/// were grown in, walks the table nearly in step rather than all over it. A slot holds the whole
+/// key, so a name grown into an index something withered from is never taken for it.
+pub(crate) struct Table<V> {
+    slots: Vec<Option<(Key, V)>>,
+    len: usize,
+}
+
+impl<V> Default for Table<V> {
+    fn default() -> Self {
+        Self {
+            slots: Vec::new(),
+            len: 0,
+        }
+    }
+}
+
+impl<V> Table<V> {
+    pub(crate) fn get(&self, key: Key) -> Option<&V> {
+        match self.slots.get(key.index())? {
+            Some((held, value)) if *held == key => Some(value),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn get_mut(&mut self, key: Key) -> Option<&mut V> {
+        match self.slots.get_mut(key.index())? {
+            Some((held, value)) if *held == key => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Holds `value` under `key`, and hands back what another name was holding in its slot: one
+    /// that withered with nothing yet said about it, whose index `key` was grown into. The caller
+    /// lets that go as it would anything withdrawn.
+    pub(crate) fn insert(&mut self, key: Key, value: V) -> Option<(Key, V)> {
+        let at = key.index();
+        if at >= self.slots.len() {
+            self.slots.resize_with(at + 1, || None);
+        }
+        match self.slots[at].replace((key, value)) {
+            None => {
+                self.len += 1;
+                None
+            }
+            Some((held, _)) if held == key => None,
+            displaced => displaced,
+        }
+    }
+
+    pub(crate) fn remove(&mut self, key: Key) -> Option<V> {
+        let slot = self.slots.get_mut(key.index())?;
+        if !slot.as_ref().is_some_and(|(held, _)| *held == key) {
+            return None;
+        }
+        self.len -= 1;
+        slot.take().map(|(_, value)| value)
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.slots.clear();
+        self.len = 0;
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.len
+    }
+}
+
 /// One renderer's instances: what the backend holds, and the difference the last extraction found.
 ///
 /// Generic over the instance, because what a renderer sends is the renderer's own business. This
@@ -402,7 +481,7 @@ impl From<Leaf> for Key {
 /// the one the resolver produced. Keeping it out is also what leaves an instance free to be
 /// exactly the bytes a vertex buffer takes, for the renderers whose instance is those bytes.
 pub(crate) struct Instances<I> {
-    held: Named<Key, Held<I>>,
+    held: Table<Held<I>>,
     /// Instances the backend does not hold, or holds at a different value or rank.
     pub(crate) written: Vec<Stacked<I>>,
     /// Instances the backend holds and should not, in a stable order.
@@ -432,7 +511,7 @@ struct Held<I> {
 impl<I> Default for Instances<I> {
     fn default() -> Self {
         Self {
-            held: Named::default(),
+            held: Table::default(),
             written: Vec::new(),
             withdrawn: Vec::new(),
         }
@@ -453,7 +532,7 @@ impl<I: Copy + PartialEq> Instances<I> {
     /// one that states it at what is already held writes nothing.
     fn want(&mut self, key: impl Into<Key>, rank: ResolvedElevation, clip: Section, instance: I) {
         let key = key.into();
-        match self.held.get_mut(&key) {
+        match self.held.get_mut(key) {
             Some(held) => {
                 if held.instance == instance && held.rank == rank && held.clip == clip {
                     return;
@@ -463,14 +542,14 @@ impl<I: Copy + PartialEq> Instances<I> {
                 held.clip = clip;
             }
             None => {
-                self.held.insert(
-                    key,
-                    Held {
-                        instance,
-                        rank,
-                        clip,
-                    },
-                );
+                let held = Held {
+                    instance,
+                    rank,
+                    clip,
+                };
+                if let Some((displaced, _)) = self.held.insert(key, held) {
+                    self.withdrawn.push(displaced);
+                }
             }
         }
         self.written.push(Stacked {
@@ -483,7 +562,7 @@ impl<I: Copy + PartialEq> Instances<I> {
 
     /// Lets go of an instance, if the backend is holding one.
     fn withdraw(&mut self, key: Key) {
-        if self.held.remove(&key).is_some() {
+        if self.held.remove(key).is_some() {
             self.withdrawn.push(key);
         }
     }
@@ -508,7 +587,7 @@ impl<I: Copy + PartialEq> Instances<I> {
     /// What the backend is holding for `key`.
     #[allow(unused)]
     pub(crate) fn holding(&self, key: impl Into<Key>) -> Option<I> {
-        self.held.get(&key.into()).map(|held| held.instance)
+        self.held.get(key.into()).map(|held| held.instance)
     }
 }
 
@@ -555,7 +634,7 @@ pub(crate) fn run(grove: &mut Grove) {
     }
     let kept = elements.len() - moved.count();
     for at in moved.iter() {
-        let chlorophyll = elements.standing[at].chlorophyll;
+        let chlorophyll = grove.tree.standing(elements.order[at]).chlorophyll();
         // Carrying no renderer is the whole of what makes an element a stem.
         if chlorophyll == Chlorophyll::None {
             continue;
@@ -612,7 +691,8 @@ fn state(
         painted,
     } = drawing;
     let leaf = elements.order[at];
-    let rank = elements.rank[at];
+    let slot = leaf.slot();
+    let rank = elements.rank[slot];
     match chlorophyll {
         // Answered by the caller: carrying no renderer is the whole of what makes an element a stem.
         Chlorophyll::None => false,
@@ -655,7 +735,7 @@ fn state(
         Chlorophyll::Line => {
             let (Some(pigment), Some(stretched), Some(stroke)) = (
                 grove.tree.line_pigment(leaf),
-                elements.stretched[at],
+                elements.stretched[slot],
                 grove.tree.stroke(leaf),
             ) else {
                 return false;
@@ -726,7 +806,7 @@ fn state(
             let color = tint(grove, leaf, pigment.fill).faded(painted.opacity);
             let size = typeface.size.at(grove.layout, grove.short);
             // The run R1 left the element holding, which is what it was measured and wrapped as.
-            let Some(shaped) = elements.composed[at].as_deref() else {
+            let Some(shaped) = elements.composed[slot].as_deref() else {
                 return false;
             };
             let tints = grove.tree.tints(leaf);
@@ -770,12 +850,13 @@ struct Painted {
 /// recorded nowhere: an element scrolled out of its region is absent from the batch and unchanged in
 /// every other respect, so scrolling back to it needs nothing to be undone.
 fn painted(elements: &Elements, at: usize, surface: Section) -> Option<Painted> {
-    let inherited = elements.inherited[at];
-    let section = elements.drawn[at];
+    let slot = elements.order[at].slot();
+    let inherited = elements.inherited[slot];
+    let section = elements.drawn[slot];
     // What a scrolling ancestor leaves visible, never wider than the surface: a clip is what the
     // backend scissors the pass to, and nothing outside the surface is painted whatever the rect
     // says.
-    let clip = elements.clip[at].intersect(surface);
+    let clip = elements.clip[slot].intersect(surface);
     if !inherited.visible || section.intersect(clip).is_empty() {
         return None;
     }

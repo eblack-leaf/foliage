@@ -24,8 +24,6 @@ pub(crate) mod shape;
 
 use core::ops::Range;
 
-use bevy_ecs::component::Component;
-
 use crate::elm::{Chlorophyll, Pigment};
 use crate::op::Bud;
 use crate::palette::{Fill, Palette};
@@ -144,13 +142,13 @@ impl Boxed for Text {}
 ///
 /// Content rather than renderer state: it is what R1 shapes and what R2m wraps, so it is read by
 /// passes that have nothing to do with drawing. [`text`](crate::Grow::text) writes it.
-#[derive(Component, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Lettering(pub(crate) String);
 
 /// What the text renderer was told.
 ///
 /// Grown alongside [`Chlorophyll::Text`] and by nothing else, so an element carries both or neither.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct TextPigment {
     pub(crate) fill: Fill,
 }
@@ -163,7 +161,7 @@ pub(crate) struct TextPigment {
 ///
 /// Content rather than renderer state, like [`Lettering`] and for the same reason: a range is stated
 /// against the value, so the two have to be written and read in the same terms.
-#[derive(Component, Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Tints(pub(crate) Vec<(Range<usize>, Fill)>);
 
 impl Tints {

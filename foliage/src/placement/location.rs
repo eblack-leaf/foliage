@@ -1,7 +1,5 @@
 //! Where an element sits, per breakpoint.
 
-use bevy_ecs::component::Component;
-
 use crate::layout::{Layout, Short};
 use crate::placement::breakpoints::{Override, Stated};
 use crate::placement::role::{Config, Horizontal, Vertical, left, top};
@@ -69,7 +67,7 @@ use crate::placement::source::Source;
 /// Held behind one pointer. Every breakpoint's placement is a slot whether it is stated or not, so
 /// the whole of it is large, and it is carried a great deal -- in every write that moves an element,
 /// in every motion, in the row the element is held in -- where a pointer is all any of those needs.
-#[derive(Component, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Location(pub(crate) Box<Stated<Axes>>);
 
 impl Location {

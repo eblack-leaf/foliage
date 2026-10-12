@@ -1,7 +1,5 @@
 //! Where a stroked element's two ends are, per breakpoint.
 
-use bevy_ecs::component::Component;
-
 use crate::layout::{Layout, Short};
 use crate::placement::breakpoints::{Override, Stated};
 use crate::placement::point::Point;
@@ -30,7 +28,7 @@ use crate::placement::source::Source;
 /// different at every width would have no [`x`](Point::x) to hand a marker's box.
 ///
 /// Held behind one pointer, for the reason a [`Location`](crate::Location) is.
-#[derive(Component, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Trace(pub(crate) Box<Stated<Ends>>);
 
 impl Trace {

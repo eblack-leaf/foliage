@@ -1,7 +1,5 @@
 //! Line -- a straight stroke between two points.
 
-use bevy_ecs::component::Component;
-
 use crate::color::Color;
 use crate::coordinate::{Axis, Position};
 use crate::elm::{Chlorophyll, Pigment};
@@ -192,7 +190,7 @@ impl Stretched {
 }
 
 /// How thick a stroked element is drawn.
-#[derive(Component, Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct Stroke {
     pub(crate) weight: f32,
 }
@@ -219,7 +217,7 @@ impl Default for Stroke {
 /// What the line renderer was told.
 ///
 /// Grown alongside [`Chlorophyll::Line`] and by nothing else, so an element carries both or neither.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub(crate) struct LinePigment {
     pub(crate) fill: Fill,
     pub(crate) cap: Cap,

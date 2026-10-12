@@ -1,7 +1,5 @@
 //! Stating what an element is when it is described, before it exists.
 
-use bevy_ecs::component::Component;
-
 use crate::coordinate::Axes;
 use crate::elevation::Elevation;
 use crate::interaction::{Gestures, Shape};
@@ -63,7 +61,7 @@ pub(crate) struct Manner {
 }
 
 /// Where an element sits in focus order, and whether it holds focus inside itself.
-#[derive(Component, Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Focusing {
     /// What [`focus_order`](Place::focus_order) declared. Equal values keep reading order.
     pub(crate) order: i32,
@@ -72,7 +70,7 @@ pub(crate) struct Focusing {
 }
 
 /// The one other element a placement may read, and where it was named.
-#[derive(Component, Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct Anchored {
     pub(crate) to: Leaf,
     pub(crate) at: Caller,
