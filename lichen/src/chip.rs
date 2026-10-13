@@ -157,6 +157,12 @@ impl Chip {
         self.label
     }
 
+    /// Swaps the mark in its cell for `mark`, in the ink it already wears: a toggle that says
+    /// which way it goes -- a chevron down, then up -- or a press whose mark follows what it does.
+    pub fn remark(&self, grove: &mut Grove, mark: Field) {
+        grove.mark(self.mark, mark);
+    }
+
     /// Whether the frame reports a press on the chip.
     pub fn pressed(&self, pollen: &Pollen) -> bool {
         pollen.activated(self.chip)
