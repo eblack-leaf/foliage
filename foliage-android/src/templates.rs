@@ -72,12 +72,168 @@ pub fn themes_xml() -> String {
     THEMES_XML.to_string()
 }
 
-pub fn main_activity_java(app_id: &str, lib_name: &str) -> String {
+/// Whether an app asking for `permissions` is told where the device is: it asks for either
+/// location permission.
+pub fn locates(permissions: &[String]) -> bool {
+    permissions
+        .iter()
+        .any(|name| name == "ACCESS_FINE_LOCATION" || name == "ACCESS_COARSE_LOCATION")
+}
+
+/// The activity. One that [`locates`] starts a [`LOCATOR_JAVA`] when it comes to the front and
+/// stops it when it goes; one that does not is as it always was.
+pub fn main_activity_java(app_id: &str, lib_name: &str, locates: bool) -> String {
+    let (create, resume, members) = match locates {
+        true => (LOCATE_CREATE, LOCATE_RESUME, LOCATE_MEMBERS),
+        false => ("", "", ""),
+    };
     fill(
         MAIN_ACTIVITY_JAVA,
-        &[("APP_ID", app_id), ("LIB_NAME", lib_name)],
+        &[
+            ("APP_ID", app_id),
+            ("LIB_NAME", lib_name),
+            ("LOCATE_CREATE", create),
+            ("LOCATE_RESUME", resume),
+            ("LOCATE_MEMBERS", members),
+        ],
     )
 }
+
+/// The listener that hands each fix to foliage, for an app that [`locates`].
+pub fn locator_java() -> String {
+    LOCATOR_JAVA.to_string()
+}
+
+const LOCATE_CREATE: &str = "
+        locator = new dev.foliage.Locator(this);";
+
+const LOCATE_RESUME: &str = "
+        locator.start();";
+
+const LOCATE_MEMBERS: &str = r#"
+
+    /** Where the device is, handed to foliage while the activity is in front. */
+    private dev.foliage.Locator locator;
+
+    @Override
+    protected void onPause() {
+        locator.stop();
+        super.onPause();
+    }
+
+    // The permission is asked for by the locator the first time it starts; once it is given, the
+    // locator starts again with it.
+    @Override
+    public void onRequestPermissionsResult(int request, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(request, permissions, results);
+        if (request == dev.foliage.Locator.ASKED) {
+            locator.start();
+        }
+    }"#;
+
+const LOCATOR_JAVA: &str = r#"package dev.foliage;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Bundle;
+import android.os.Looper;
+
+/**
+ * Where the device is, handed to foliage as each fix arrives: from every provider the device has
+ * on, so a tablet with no GPS is still placed by its network. Which of two fixes is the better is
+ * foliage's to say.
+ *
+ * Written by `foliage-android init` for an app that asks for a location permission.
+ */
+public final class Locator implements LocationListener {
+
+    /** The request the permission is asked for under. */
+    public static final int ASKED = 0x10ca;
+
+    /** How often a provider is asked for a fix, in milliseconds. */
+    private static final long EVERY_MS = 1000;
+
+    /** foliage's: one fix. An accuracy below zero is none, and a bearing that is NaN is none. */
+    private static native void fix(double lat, double lon, float accuracy, float bearing, long time);
+
+    private final Activity activity;
+    private final LocationManager manager;
+    private boolean asked = false;
+    private boolean listening = false;
+
+    public Locator(Activity activity) {
+        this.activity = activity;
+        this.manager = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
+    }
+
+    private boolean allowed(String permission) {
+        return activity.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** Listens, or asks for the permission to -- once a run, so a refusal is not asked again. */
+    public void start() {
+        if (manager == null || listening) {
+            return;
+        }
+        if (!allowed(Manifest.permission.ACCESS_FINE_LOCATION)
+                && !allowed(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            if (!asked) {
+                asked = true;
+                activity.requestPermissions(new String[] {
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                }, ASKED);
+            }
+            return;
+        }
+        for (String provider : manager.getProviders(true)) {
+            if (LocationManager.PASSIVE_PROVIDER.equals(provider)) {
+                continue;
+            }
+            try {
+                manager.requestLocationUpdates(provider, EVERY_MS, 0f, this,
+                        Looper.getMainLooper());
+                listening = true;
+                android.location.Location last = manager.getLastKnownLocation(provider);
+                if (last != null) {
+                    onLocationChanged(last);
+                }
+            } catch (SecurityException | IllegalArgumentException e) {
+                // Taken away between the check and the request, or gone: nothing to listen to.
+            }
+        }
+    }
+
+    public void stop() {
+        if (manager != null && listening) {
+            manager.removeUpdates(this);
+            listening = false;
+        }
+    }
+
+    @Override
+    public void onLocationChanged(android.location.Location at) {
+        fix(at.getLatitude(), at.getLongitude(),
+                at.hasAccuracy() ? at.getAccuracy() : -1f,
+                at.hasBearing() ? at.getBearing() : Float.NaN,
+                at.getTime());
+    }
+
+    // Abstract before API 30, so a device older than that calls them and they have to be here.
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+    @Override
+    public void onProviderEnabled(String provider) {}
+
+    @Override
+    public void onProviderDisabled(String provider) {}
+}
+"#;
 
 /// `Cargo.toml` for the cdylib the Gradle project loads.
 ///
@@ -332,13 +488,13 @@ public class MainActivity extends GameActivity {
     protected void onCreate(Bundle savedInstanceState) {
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         hideSystemUI();
-        super.onCreate(savedInstanceState);
+        super.onCreate(savedInstanceState);{{LOCATE_CREATE}}
     }
 
     protected void onResume() {
         super.onResume();
-        hideSystemUI();
-    }
+        hideSystemUI();{{LOCATE_RESUME}}
+    }{{LOCATE_MEMBERS}}
 
     // The soft keyboard brings the navigation bar up with it and leaves it there when it goes,
     // over the foot of the surface, until something hides it again. Nothing about insets is said

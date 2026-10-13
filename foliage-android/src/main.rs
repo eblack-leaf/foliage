@@ -305,8 +305,20 @@ fn init(
             "app/src/main/java/{}/MainActivity.java",
             project.app_id.replace('.', "/")
         )),
-        &templates::main_activity_java(&project.app_id, &lib_name),
+        &templates::main_activity_java(
+            &project.app_id,
+            &lib_name,
+            templates::locates(&project.permissions),
+        ),
     )?;
+    // The listener a locating activity starts, beside it; taken away from an app that no longer
+    // asks, whose activity no longer names it.
+    let locator = out.join("app/src/main/java/dev/foliage/Locator.java");
+    if templates::locates(&project.permissions) {
+        write(&locator, &templates::locator_java())?;
+    } else if locator.exists() {
+        std::fs::remove_file(&locator).map_err(|e| format!("{}: {e}", locator.display()))?;
+    }
     write(
         &out.join("README.md"),
         &templates::readme(

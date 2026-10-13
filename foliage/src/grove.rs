@@ -342,6 +342,7 @@ impl Grove {
         self.clipboard.attach();
         self.keyboard.attach(&self.wake);
         self.links.attach();
+        crate::location::attach(&self.wake);
     }
 
     /// A handle on the engine that can be carried off the frame.
