@@ -56,9 +56,7 @@ pub fn app_build_gradle(
 pub fn android_manifest(app_name: &str, lib_name: &str, permissions: &[String]) -> String {
     let permissions: String = permissions
         .iter()
-        .map(|name| {
-            format!("    <uses-permission android:name=\"android.permission.{name}\" />\n")
-        })
+        .map(|name| format!("    <uses-permission android:name=\"android.permission.{name}\" />\n"))
         .collect();
     fill(
         ANDROID_MANIFEST,
@@ -297,7 +295,10 @@ import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.google.androidgamesdk.GameActivity;
 
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.SystemClock;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
 
@@ -309,6 +310,11 @@ public class MainActivity extends GameActivity {
         // find `android_main` to call into.
         System.loadLibrary("{{LIB_NAME}}");
     }
+
+    /** How long after a bar is found covering the window it is hidden again. */
+    private static final long REHIDE_MS = 300;
+
+    private final Runnable rehide = this::hideSystemUI;
 
     private void hideSystemUI() {
         getWindow().getAttributes().layoutInDisplayCutoutMode
@@ -332,6 +338,88 @@ public class MainActivity extends GameActivity {
     protected void onResume() {
         super.onResume();
         hideSystemUI();
+    }
+
+    // The soft keyboard brings the navigation bar up with it and leaves it there when it goes,
+    // over the foot of the surface, until something hides it again. Nothing about insets is said
+    // when it goes (measured on Android 10: no insets are applied, and GameActivity still thinks
+    // the keyboard is up), but the window is laid out again. So on every layout: if something
+    // covers the foot of the window, and less than a keyboard would, it is a bar, and the bars are
+    // hidden again -- a moment later, once the keyboard has finished going: asked while it is still
+    // closing, the bars stay.
+    @Override
+    public void onGlobalLayout() {
+        super.onGlobalLayout();
+        View decor = getWindow().getDecorView();
+        Rect visible = new Rect();
+        decor.getWindowVisibleDisplayFrame(visible);
+        int covered = decor.getHeight() - visible.bottom;
+        if (covered > 0 && covered < decor.getHeight() / 4) {
+            decor.removeCallbacks(rehide);
+            decor.postDelayed(rehide, REHIDE_MS);
+        }
+    }
+
+    // And whenever the window has focus back: a dialog or the notification shade shows the bars
+    // the same way.
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            hideSystemUI();
+        }
+    }
+
+    /** How soon after one editor action another is the same press of the key. */
+    private static final long ENTER_MS = 100;
+
+    private long entered = Long.MIN_VALUE / 2;
+
+    // The soft keyboard's enter key is turned into an editor action by the text input's own
+    // connection, and the key itself goes no further -- and winit reads the action and drops it. So
+    // the action is handed on as the key it was, which reaches the app like a hardware enter does.
+    // Once a press: the connection makes an action of the key going down and of it coming up, a
+    // few milliseconds apart.
+    @Override
+    public void onEditorAction(int action) {
+        super.onEditorAction(action);
+        long now = SystemClock.uptimeMillis();
+        if (now - entered < ENTER_MS) {
+            return;
+        }
+        entered = now;
+        onKeyDown(KeyEvent.KEYCODE_ENTER,
+                new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 0));
+        onKeyUp(KeyEvent.KEYCODE_ENTER,
+                new KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER, 0));
+    }
+
+    // A soft keyboard's control key is never sent as a key of its own: it rides on the letter, as
+    // meta state, and winit reads no meta state. So a key that carries control without being it is
+    // given a control key going down before it and coming up after, which is what a hardware
+    // keyboard would have sent -- and Ctrl+A selects rather than typing an "a".
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (!chorded(event)) {
+            return super.onKeyDown(keyCode, event);
+        }
+        super.onKeyDown(KeyEvent.KEYCODE_CTRL_LEFT, control(event, KeyEvent.ACTION_DOWN));
+        boolean handled = super.onKeyDown(keyCode, event);
+        super.onKeyUp(KeyEvent.KEYCODE_CTRL_LEFT, control(event, KeyEvent.ACTION_UP));
+        return handled;
+    }
+
+    private static boolean chorded(KeyEvent event) {
+        int code = event.getKeyCode();
+        return event.isCtrlPressed()
+                && code != KeyEvent.KEYCODE_CTRL_LEFT
+                && code != KeyEvent.KEYCODE_CTRL_RIGHT;
+    }
+
+    private static KeyEvent control(KeyEvent event, int action) {
+        return new KeyEvent(event.getDownTime(), event.getEventTime(), action,
+                KeyEvent.KEYCODE_CTRL_LEFT, 0, event.getMetaState(), event.getDeviceId(), 0,
+                event.getFlags(), event.getSource());
     }
 }
 "#;

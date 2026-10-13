@@ -22,9 +22,10 @@
 //! A field over a record already written reads the same two origins the other way round -- see
 //! [`Holds`] -- because there the record is what is true and an edit is what is not written yet.
 //!
-//! The bar between the name and the value is where focus shows, since the engine draws nothing
-//! for it: lit in the accent while the field holds focus, which is the caret's colour on a field
-//! with a caret.
+//! The bar between the name and the value is where focus shows where nothing else does: a field
+//! that takes typing has its caret, in the accent, a gap from the bar -- lit too, the two read as
+//! one bar doubled. So the bar is lit while a field holds focus with no caret, read-only, and
+//! while a pick holds it.
 
 use foliage::{
     Boxed, Elevation, Fill, Grove, Grow, Key, Leaf, Location, Motion, Palette, Panel, Place,
@@ -84,6 +85,10 @@ pub struct Field {
     bar: Leaf,
     origin: Origin,
     holds: Holds,
+    /// Whether focus is in the field, and whether it takes typing there -- which together say
+    /// whether the bar is lit.
+    focused: bool,
+    typing: std::cell::Cell<bool>,
 }
 
 impl Field {
@@ -139,7 +144,14 @@ impl Field {
             bar,
             origin: Origin::Empty,
             holds: Holds::Draft,
+            focused: false,
+            typing: std::cell::Cell::new(true),
         }
+    }
+
+    /// Lights the bar while focus is in the field and no caret shows it.
+    fn light(&self, grove: &mut Grove) {
+        mark(grove, self.bar, self.focused && !self.typing.get());
     }
 
     /// Says what goes in the field, in the grey between, for as long as it is empty: a way in for
@@ -182,14 +194,17 @@ impl Field {
         }
     }
 
-    /// Carries the field for a frame: focus shows on the bar, and an edit makes the words the
-    /// person's -- or nothing, if they took the last of them out. Whether the words moved.
+    /// Carries the field for a frame: focus shows on the caret, or on the bar where there is no
+    /// caret, and an edit makes the words the person's -- or nothing, if they took the last of
+    /// them out. Whether the words moved.
     pub fn frame(&mut self, grove: &mut Grove, pollen: &Pollen) -> bool {
         if pollen.focused(self.input) {
-            mark(grove, self.bar, true);
+            self.focused = true;
+            self.light(grove);
         }
         if pollen.unfocused(self.input) {
-            mark(grove, self.bar, false);
+            self.focused = false;
+            self.light(grove);
         }
         if !pollen.edited(self.input) {
             return false;
@@ -261,6 +276,9 @@ impl Reach for Field {
             (_, Holds::Record) => {
                 grove.enable(self.field);
                 grove.read_only(self.input, !within);
+                if self.typing.replace(within) != within {
+                    self.light(grove);
+                }
             }
             (true, Holds::Draft) => grove.enable(self.field),
             (false, Holds::Draft) => grove.disable(self.field),

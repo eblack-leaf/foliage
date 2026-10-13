@@ -1329,7 +1329,9 @@ fn settled(grove: &mut Grove) {
     let masked = typing
         .and_then(|leaf| grove.tree.parts(leaf))
         .is_some_and(|parts| grove.tree.masked(parts.run));
-    grove.keyboard.raise(wanted, wanted.is_some() && !masked);
+    grove
+        .keyboard
+        .raise(typing, wanted, wanted.is_some() && !masked);
 }
 
 /// Masks a field, or shows its value again.

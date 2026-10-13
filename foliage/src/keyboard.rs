@@ -19,16 +19,25 @@
 //! entering [`Incoming`](crate::interaction::input::Incoming) exactly where a translated winit
 //! event enters it.
 //!
-//! # Android raises one, and does not yet hand back what is typed on it
+//! # Android types into the activity's own text, and the engine reads it back
 //!
 //! The other platform with a keyboard of its own. The activity raises and lowers it directly, so
 //! there is no hidden element to hold -- only the activity handle, which is the one thing the engine
 //! cannot reach for itself.
 //!
 //! What is typed on it does not come back as key events. A soft keyboard types through the input
-//! method, into the text state the activity keeps for it, and winit 0.30's Android backend reads
-//! that state and drops it rather than reporting it. So a field on Android raises its keyboard and
-//! hears nothing typed on it; a hardware keyboard's keys arrive as ordinary key events and work.
+//! method, into the text state the activity keeps for it -- a word composed and recomposed, a
+//! correction made over it -- and winit 0.30's Android backend takes the word that the state moved
+//! and drops it rather than reporting it. The state itself is still there to read, so the engine
+//! reads it after every pass of the loop and types in what changed as keystrokes: what was taken
+//! back as backspaces, what was put in as characters, the way the web's hidden input hands back
+//! what it composed. See [`edited`].
+//!
+//! The state is a window onto the field and not the field's value: it is emptied whenever a field
+//! is given the keyboard, so it holds what was typed since, and the caret stands in the field where
+//! it stands in the state. A key the input method sends as a key -- a backspace with nothing in the
+//! state to take it from, anything typed on a hardware keyboard -- arrives as an ordinary key event
+//! and is typed as one.
 //!
 //! # A desktop's input method composes into the window
 //!
@@ -114,6 +123,11 @@ pub(crate) struct Keyboard {
     /// [`activity`](Keyboard::activity), and absent for good under the headless suite.
     #[cfg(target_os = "android")]
     activity: Option<winit::platform::android::activity::AndroidApp>,
+    /// The field typing goes into, so the input method's state is emptied when it moves.
+    field: Option<crate::leaf::Leaf>,
+    /// What the input method's state held when it was last read, or none while nothing is raised.
+    #[cfg(target_os = "android")]
+    held: Option<Held>,
 }
 
 impl Keyboard {
@@ -185,13 +199,25 @@ impl Keyboard {
     /// again, the viewport resizes under it, the resize is a frame, the frame takes focus back,
     /// and the page and the engine trade the keyboard back and forth for as long as there are
     /// frames to trade it on. Left down, it stays down until the field is pressed again.
-    pub(crate) fn raise(&mut self, wanted: Option<Keypad>, composing: bool) {
+    ///
+    /// `field` is what typing goes into. On Android a field given the keyboard starts the input
+    /// method over, so nothing composed for one field is recomposed into the next.
+    pub(crate) fn raise(
+        &mut self,
+        field: Option<crate::leaf::Leaf>,
+        wanted: Option<Keypad>,
+        composing: bool,
+    ) {
         let moved = wanted != self.raised;
         if moved {
             self.raised = wanted;
             debug!(keypad = ?wanted, "keyboard");
         }
-        if composing != self.composing {
+        let switched = composing != self.composing;
+        #[cfg_attr(not(target_os = "android"), allow(unused_variables))]
+        let entered = field != self.field;
+        self.field = field;
+        if switched {
             self.composing = composing;
             debug!(composing, "input method");
             // A desktop's alone. The web composes into its hidden input and Android into its
@@ -223,30 +249,90 @@ impl Keyboard {
         // Only where it moved, unlike the web: there is no element here whose focus the platform can
         // take away behind the engine's back, so what was raised stays raised until this lowers it.
         #[cfg(target_os = "android")]
-        if moved && let Some(activity) = &self.activity {
-            use winit::platform::android::activity::input::{ImeOptions, TextInputAction};
+        if let Some(activity) = &self.activity {
+            use winit::platform::android::activity::input::{
+                ImeOptions, InputType, TextInputAction, TextInputState, TextSpan,
+            };
 
             match wanted {
                 Some(keypad) => {
                     // Written before the keyboard is raised. An input type given to one already up
                     // changes nothing a person can see until it has been dismissed and raised again.
-                    activity.set_ime_editor_info(
-                        keypad.class(),
-                        // What the enter key does is the app's business and this engine has no way
-                        // to say -- `submitted` is reported for the key whatever it is labelled.
-                        TextInputAction::Unspecified,
-                        ImeOptions::empty(),
-                    );
+                    if moved || switched {
+                        // A field that composes nothing is a masked one, and a password is what
+                        // tells the input method to neither show suggestions nor learn from it.
+                        let class = match (composing, keypad) {
+                            (true, _) => keypad.class(),
+                            (false, Keypad::Text) => {
+                                InputType::TYPE_CLASS_TEXT | InputType::TYPE_TEXT_VARIATION_PASSWORD
+                            }
+                            (false, _) => {
+                                keypad.class() | InputType::TYPE_NUMBER_VARIATION_PASSWORD
+                            }
+                        };
+                        // No action on the enter key, so it is sent as a key or typed as a line
+                        // break, both of which arrive. An action is reported as an editor action,
+                        // which winit takes and drops like the text. What the key then does is the
+                        // field's -- `submitted` is reported for it whatever it is labelled. And
+                        // never the whole screen: a field is drawn where it stands, and an input
+                        // method's own copy of it would be a second one.
+                        let mut options = ImeOptions::IME_FLAG_NO_ENTER_ACTION
+                            | ImeOptions::IME_FLAG_NO_FULLSCREEN;
+                        if !composing {
+                            options |= ImeOptions::IME_FLAG_NO_PERSONALIZED_LEARNING;
+                        }
+                        activity.set_ime_editor_info(class, TextInputAction::Unspecified, options);
+                    }
+                    // Emptied for a field newly given the keyboard, so the state is a window onto
+                    // what is typed into this one from here.
+                    if moved || entered {
+                        activity.set_text_input_state(TextInputState {
+                            text: String::new(),
+                            selection: TextSpan { start: 0, end: 0 },
+                            compose_region: None,
+                        });
+                        self.held = Some(Held::default());
+                    }
                     // Implicit: focus asked for this keyboard, not a person reaching for one. The
                     // distinction is the platform's to act on -- an implicit keyboard is the one a
                     // back gesture is allowed to dismiss.
-                    activity.show_soft_input(true);
+                    if moved {
+                        activity.show_soft_input(true);
+                    }
                 }
                 // Everything, not only what was raised implicitly. Focus has left the field, so
                 // there is nothing left for a keyboard to type into either way.
-                None => activity.hide_soft_input(false),
+                None if moved => {
+                    activity.hide_soft_input(false);
+                    self.held = None;
+                }
+                None => {}
             }
         }
+    }
+
+    /// What the input method typed into the activity's text since it was last read, as keys.
+    ///
+    /// Read after every pass of the loop rather than when told, because winit takes the word that
+    /// the state moved and reports nothing. Empty while nothing is raised, and everywhere but
+    /// Android.
+    #[cfg(target_os = "android")]
+    pub(crate) fn typed(&mut self) -> Vec<crate::interaction::input::Key> {
+        let (Some(activity), Some(before)) = (&self.activity, &self.held) else {
+            return Vec::new();
+        };
+        let state = activity.text_input_state();
+        let after = Held {
+            caret: characters(&state.text, state.selection.end),
+            text: state.text,
+        };
+        if after == *before {
+            return Vec::new();
+        }
+        let keys = edited(before, &after);
+        debug!(text = %after.text, caret = after.caret, keys = keys.len(), "input method");
+        self.held = Some(after);
+        keys
     }
 
     /// What the hidden input captured since the last frame, in the order it arrived.
@@ -260,6 +346,74 @@ impl Keyboard {
         }
         Vec::new()
     }
+}
+
+/// What an input method's text held: its words, and where its caret stood among them, in characters.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Held {
+    pub(crate) text: String,
+    pub(crate) caret: usize,
+}
+
+/// How many characters `text` holds before `units` of Java's UTF-16, which is what the activity
+/// counts its caret in.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub(crate) fn characters(text: &str, units: usize) -> usize {
+    let mut counted = 0;
+    text.chars()
+        .take_while(|character| {
+            counted += character.len_utf16();
+            counted <= units
+        })
+        .count()
+}
+
+/// The keys that take a field from what an input method held `before` to what it holds `after`,
+/// with the field's caret standing where `before`'s did.
+///
+/// What changed is the run between what the two share at the start and at the end -- a letter put
+/// on a word being composed, a word put over a misspelling, a letter taken off. The caret is taken
+/// to the end of that run, it is taken back a character at a time, what replaced it is typed, and
+/// the caret is taken to where `after`'s stands. A caret that only moved is the last step alone.
+/// A line break typed is the enter key.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+pub(crate) fn edited(before: &Held, after: &Held) -> Vec<crate::interaction::input::Key> {
+    use crate::interaction::input::Key;
+
+    let old: Vec<char> = before.text.chars().collect();
+    let new: Vec<char> = after.text.chars().collect();
+    let shared = old.iter().zip(&new).take_while(|(a, b)| a == b).count();
+    let ending = old[shared..]
+        .iter()
+        .rev()
+        .zip(new[shared..].iter().rev())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let mut keys = Vec::new();
+    let mut caret = before.caret.min(old.len());
+    let step = |keys: &mut Vec<Key>, from: usize, to: usize| {
+        let key = match to > from {
+            true => Key::Right,
+            false => Key::Left,
+        };
+        keys.extend(std::iter::repeat_n(key, from.abs_diff(to)));
+    };
+    let removed = old.len() - ending - shared;
+    let added = &new[shared..new.len() - ending];
+    if removed > 0 || !added.is_empty() {
+        step(&mut keys, caret, old.len() - ending);
+        keys.extend(std::iter::repeat_n(Key::Backspace, removed));
+        // A line break is the enter key, which an input method may type rather than send. Any
+        // other control character is dropped under the rule `photosynthesize` reads a key by.
+        keys.extend(added.iter().filter_map(|&character| match character {
+            '\n' => Some(Key::Enter),
+            character if character.is_control() => None,
+            character => Some(Key::Typed(character)),
+        }));
+        caret = new.len() - ending;
+    }
+    step(&mut keys, caret, after.caret.min(new.len()));
+    keys
 }
 
 /// The browser's half: one hidden input, and the keys it takes from the canvas given back.

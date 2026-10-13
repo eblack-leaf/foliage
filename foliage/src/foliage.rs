@@ -44,6 +44,9 @@ pub struct Foliage {
     /// entry point. Absent under the headless suite, which builds for Android without being one.
     #[cfg(target_os = "android")]
     pub(crate) activity: Option<AndroidApp>,
+    /// What is held down, on the one platform that names the keys and never the state.
+    #[cfg(target_os = "android")]
+    pub(crate) modifiers: crate::interaction::input::Modifiers,
 }
 
 impl Foliage {
@@ -66,6 +69,8 @@ impl Foliage {
             acquiring: None,
             #[cfg(target_os = "android")]
             activity: None,
+            #[cfg(target_os = "android")]
+            modifiers: Default::default(),
         }
     }
 

@@ -13,7 +13,7 @@
 //! they are answered for by the app running rather than by the suite.
 
 use crate::interaction::input::{Input, Key};
-use crate::keyboard::Keypad;
+use crate::keyboard::{Held, Keypad, characters, edited};
 use crate::leaf::Leaf;
 use crate::op::Op;
 use crate::tests::{Observer, controlled, grove, tick, tick_with, typing};
@@ -459,4 +459,89 @@ fn a_masked_field_takes_a_paste() {
     tick(&mut grove);
     tick(&mut grove);
     assert_eq!(value(&grove, leaf), "pasted");
+}
+
+/// What an input method's text held, its caret at the end unless said.
+fn held(text: &str) -> Held {
+    Held {
+        text: text.to_string(),
+        caret: text.chars().count(),
+    }
+}
+
+#[test]
+fn a_letter_composed_onto_a_word_is_typed_alone() {
+    assert_eq!(edited(&held("hel"), &held("hell")), vec![Key::Typed('l')]);
+}
+
+#[test]
+fn a_word_put_over_a_misspelling_takes_back_what_differs() {
+    assert_eq!(
+        edited(&held("teh"), &held("the ")),
+        vec![
+            Key::Backspace,
+            Key::Backspace,
+            Key::Typed('h'),
+            Key::Typed('e'),
+            Key::Typed(' ')
+        ]
+    );
+}
+
+#[test]
+fn a_letter_taken_off_is_a_backspace() {
+    assert_eq!(edited(&held("word"), &held("wor")), vec![Key::Backspace]);
+}
+
+#[test]
+fn an_edit_behind_the_caret_is_reached_and_returned_from() {
+    let before = Held {
+        text: "ab cd".to_string(),
+        caret: 2,
+    };
+    let after = Held {
+        text: "abx cd".to_string(),
+        caret: 3,
+    };
+    assert_eq!(edited(&before, &after), vec![Key::Typed('x')]);
+    // The input method edited a word the caret is not in, and left the caret where it was.
+    let after = Held {
+        text: "ab cde".to_string(),
+        caret: 2,
+    };
+    assert_eq!(
+        edited(&before, &after),
+        vec![
+            Key::Right,
+            Key::Right,
+            Key::Right,
+            Key::Typed('e'),
+            Key::Left,
+            Key::Left,
+            Key::Left,
+            Key::Left
+        ]
+    );
+}
+
+#[test]
+fn a_caret_that_only_moved_is_arrows() {
+    let after = Held {
+        text: "abc".to_string(),
+        caret: 1,
+    };
+    assert_eq!(edited(&held("abc"), &after), vec![Key::Left, Key::Left]);
+}
+
+#[test]
+fn the_caret_is_counted_in_characters_not_javas_units() {
+    // An emoji is two of Java's units and one character.
+    assert_eq!(characters("a😀b", 3), 2);
+    assert_eq!(characters("a😀b", 4), 3);
+    assert_eq!(characters("abc", 9), 3);
+}
+
+#[test]
+fn a_line_break_typed_is_the_enter_key() {
+    assert_eq!(edited(&held("go"), &held("go\n")), vec![Key::Enter]);
 }

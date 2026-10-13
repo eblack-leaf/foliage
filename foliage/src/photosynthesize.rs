@@ -67,6 +67,10 @@ fn keys(event: &KeyEvent) -> Vec<Key> {
         Named::Named(NamedKey::Enter) => named(Key::Enter),
         Named::Named(NamedKey::Tab) => named(Key::Tab),
         Named::Named(NamedKey::Escape) => named(Key::Escape),
+        // Android reads enter and tab through the layout like any other key, and names them by the
+        // character the layout gives them.
+        Named::Character(text) if text == "\n" || text == "\r" => named(Key::Enter),
+        Named::Character(text) if text == "\t" => named(Key::Tab),
         _ => event
             .text
             .iter()
@@ -180,6 +184,23 @@ impl Foliage {
     /// past this call there is one path, and a scripted press and a real one are the same event.
     fn input(&mut self, input: Input) {
         self.grove.incoming.take(input);
+    }
+
+    /// Notes a modifier going down or coming up, where the platform names the key and not the
+    /// state.
+    #[cfg(target_os = "android")]
+    fn held_with(&mut self, event: &KeyEvent) {
+        let down = event.state == ElementState::Pressed;
+        let mut modifiers = self.modifiers;
+        match &event.logical_key {
+            Named::Named(NamedKey::Shift) => modifiers.shift = down,
+            Named::Named(NamedKey::Control) => modifiers.control = down,
+            _ => return,
+        }
+        if modifiers != self.modifiers {
+            self.modifiers = modifiers;
+            self.input(Input::Modifiers(modifiers));
+        }
     }
 
     /// One pointer event as it arrived, for [`Grove::pointer`](crate::Grove::pointer). Always beside
@@ -449,9 +470,16 @@ impl ApplicationHandler for Foliage {
                     TouchPhase::Cancelled => Input::Cancelled,
                 });
             }
-            WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
-                for key in keys(&event) {
-                    self.input(Input::Keyed(key));
+            WindowEvent::KeyboardInput { event, .. } => {
+                // Android reports no `ModifiersChanged`, so what is held there is read from the
+                // keys themselves -- and a letter typed with control held is a command rather than
+                // the letter, as it is everywhere else.
+                #[cfg(target_os = "android")]
+                self.held_with(&event);
+                if event.state == ElementState::Pressed {
+                    for key in keys(&event) {
+                        self.input(Input::Keyed(key));
+                    }
                 }
             }
             // What an input method committed: a word it composed, a letter a dead key began. Typed
@@ -493,6 +521,12 @@ impl ApplicationHandler for Foliage {
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        // What a soft keyboard typed on Android, read back from the activity's text once the pass
+        // that carried it is over. See `keyboard`.
+        #[cfg(target_os = "android")]
+        for key in self.grove.keyboard.typed() {
+            self.input(Input::Keyed(key));
+        }
         if self.owed() {
             self.willow.repaint();
         }
