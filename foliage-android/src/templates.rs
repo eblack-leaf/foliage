@@ -157,8 +157,26 @@ public final class Locator implements LocationListener {
     /** How often a provider is asked for a fix, in milliseconds. */
     private static final long EVERY_MS = 1000;
 
-    /** foliage's: one fix. An accuracy below zero is none, and a bearing that is NaN is none. */
-    private static native void fix(double lat, double lon, float accuracy, float bearing, long time);
+    /**
+     * foliage's: one fix, and which provider it came from -- 1 GPS, 2 network, 3 fused, 0 any
+     * other. An accuracy or a speed below zero is none, and a bearing that is NaN is none.
+     */
+    private static native void located(double lat, double lon, float accuracy, float bearing,
+            float speed, long time, int source);
+
+    /** The number foliage knows a provider by. */
+    private static int source(String provider) {
+        if (LocationManager.GPS_PROVIDER.equals(provider)) {
+            return 1;
+        }
+        if (LocationManager.NETWORK_PROVIDER.equals(provider)) {
+            return 2;
+        }
+        if ("fused".equals(provider)) {
+            return 3;
+        }
+        return 0;
+    }
 
     private final Activity activity;
     private final LocationManager manager;
@@ -217,10 +235,12 @@ public final class Locator implements LocationListener {
 
     @Override
     public void onLocationChanged(android.location.Location at) {
-        fix(at.getLatitude(), at.getLongitude(),
+        located(at.getLatitude(), at.getLongitude(),
                 at.hasAccuracy() ? at.getAccuracy() : -1f,
                 at.hasBearing() ? at.getBearing() : Float.NaN,
-                at.getTime());
+                at.hasSpeed() ? at.getSpeed() : -1f,
+                at.getTime(),
+                source(at.getProvider()));
     }
 
     // Abstract before API 30, so a device older than that calls them and they have to be here.
