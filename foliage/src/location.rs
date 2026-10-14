@@ -6,7 +6,9 @@
 //! [`better`] -- is kept, and wakes the loop, so a frame runs to read it. Everywhere else nothing
 //! is ever handed in, and [`location`] says there is none.
 
-use std::sync::{Mutex, OnceLock};
+use std::sync::Mutex;
+#[cfg(not(target_family = "wasm"))]
+use std::sync::OnceLock;
 
 use crate::queue::Wake;
 
@@ -32,7 +34,14 @@ const STALE_MS: i64 = 10_000;
 
 /// The fix held, and the wake that says a new one came.
 static HELD: Mutex<Option<Fix>> = Mutex::new(None);
+#[cfg(not(target_family = "wasm"))]
 static WAKE: OnceLock<Wake> = OnceLock::new();
+// On the web a wake is not `Sync` -- see `queue::Rouse` -- so it can't be a static. There is one
+// thread there, so that thread's own is the same thing.
+#[cfg(target_family = "wasm")]
+thread_local! {
+    static WAKE: std::cell::OnceCell<Wake> = const { std::cell::OnceCell::new() };
+}
 
 /// The latest fix the platform gave, or none where it has given none -- every desktop, and an
 /// Android app that asks for no location permission or was refused it.
@@ -42,7 +51,12 @@ pub fn location() -> Option<Fix> {
 
 /// Hands the loop's wake over, so a fix arriving off the frame is answered by one.
 pub(crate) fn attach(wake: &Wake) {
+    #[cfg(not(target_family = "wasm"))]
     let _ = WAKE.set(wake.clone());
+    #[cfg(target_family = "wasm")]
+    WAKE.with(|held| {
+        let _ = held.set(wake.clone());
+    });
 }
 
 /// Keeps `fix` if it is no worse than what is held, and wakes the loop for it.
@@ -54,7 +68,11 @@ pub(crate) fn hand(fix: Fix) {
     }
     *held = Some(fix);
     drop(held);
-    if let Some(wake) = WAKE.get() {
+    #[cfg(not(target_family = "wasm"))]
+    let wake = WAKE.get().cloned();
+    #[cfg(target_family = "wasm")]
+    let wake = WAKE.with(|held| held.get().cloned());
+    if let Some(wake) = wake {
         wake.rouse();
     }
 }
