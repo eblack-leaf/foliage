@@ -1,8 +1,8 @@
-//! Cross-platform, ECS-backed UI.
+//! Cross-platform UI.
 //!
 //! Everything crossing the seam between an app and the engine is plain data: ops in, emissions
 //! out, and read-only taps taken at the app's own callsite. No engine type is handed out and
-//! nothing an app holds borrows from the world.
+//! nothing an app holds borrows from the engine.
 //!
 //! - [`Foliage`] is the engine. [`Grove`] is the surface it hands a frame, and [`Root`] is the app
 //!   it hands it to.

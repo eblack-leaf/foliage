@@ -46,7 +46,7 @@ once per frame: **nothing iterates to a fixed point.**
 ## Held between frames
 
 Everything resolution produces lives in one struct, `Elements`, kept on the grove between frames
-and never written back into the world:
+and never written back into the tree:
 
 ```rust,ignore
 // rowan.rs, shortened
@@ -75,7 +75,7 @@ pub(crate) struct Elements {
 
 The shape is the point. Every pass asks the same questions of the same elements (what does it hang
 off, what is it anchored to, what is under it, what does each of those offer a placement), and asked
-of the world each one is a lookup by entity. The arithmetic a pass does is small enough that the
+of the tree each one is a lookup by name. The arithmetic a pass does is small enough that the
 lookups, not the arithmetic, were what a frame cost. So the tree is read once into this order,
 with every dependency stored as a **position** rather than a name, and from then on every pass
 indexes arrays. A trunk's contribution to what its child inherits is `inherited[trunk]`, not a hash

@@ -27,7 +27,7 @@ An app and the engine meet at a seam, and only three things cross it:
 - **Reads beside.** `tap` copies one property out of the engine's state and returns it. Nothing the
   app holds afterwards refers back into that state.
 
-No engine type is handed out and nothing an app holds borrows from the world. A
+No engine type is handed out and nothing an app holds borrows from the engine. A
 [`Leaf`](https://eblack-leaf.github.io/foliage/api/foliage/struct.Leaf.html) is a name, eight bytes
 and `Copy`, and naming something that is gone is harmless: an op that names it is dropped, and a
 read of it answers `None`.
@@ -49,7 +49,7 @@ side it is on.
 | `Willow` | `willow.rs` | The window: what it is opened as, its size and density |
 | `Fern` | `fern.rs` | The frame: one function that runs every phase in order, and the drain |
 | `Grove` | `grove.rs` | All the state a frame touches, and the surface an app's frame is lent |
-| `Tree` | `tree.rs` | The one door onto `bevy_ecs`: each element is an entity, and every declaration a component |
+| `Tree` | `tree.rs` | Every element, one slot each at the index of its name, and every declaration a column of those slots |
 | `Rowan` | `rowan.rs`, `placement/` | Resolution: declarations into boxes, extents, clips and ranks |
 | `Aspen` | `aspen/` | Motion: tweens, timers and sequences on the frame's one clock |
 | interaction | `interaction/` | The box stack, gestures, and focus |

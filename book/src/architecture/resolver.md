@@ -35,7 +35,7 @@ pub(crate) fn resolve(config: &Config, context: &Context) -> Span {
 
 ## Pure, on purpose
 
-The resolver touches no world, no entity names and no mutable state. Given the same inputs it gives
+The resolver touches no tree, no element names and no mutable state. Given the same inputs it gives
 the same answer, and it may be called as many times per element per frame as anything needs. Three
 things depend on that:
 

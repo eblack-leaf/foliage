@@ -1,42 +1,45 @@
 # The tree
 
-Every element is one entity in a [`bevy_ecs`](https://crates.io/crates/bevy_ecs) `World`, and
-`Tree` ([`tree.rs`](https://github.com/eblack-leaf/foliage/blob/main/foliage/src/tree.rs)) owns that
-world. It is the only place in the engine that touches `bevy_ecs` directly, and it touches very
-little of it: the world as a store of components, the parent and child relationship, and the entity
-allocator. There are no bevy systems and no schedules. The passes that run over the tree are plain
-functions called in a fixed order by [the frame](frame.md), which is the order the engine needs and
-not one a scheduler chose.
+Every element is one slot in `Tree` ([`tree.rs`](https://github.com/eblack-leaf/foliage/blob/main/foliage/src/tree.rs)),
+which is foliage's own store. An element's name is the index of its slot, and every field an element
+declares is a column of those slots: one array per field, so a pass that asks something of every
+element reads one array rather than gathering from wherever each element is. There are no systems and
+no scheduler. The passes that run over the tree are plain functions called in a fixed order by
+[the frame](frame.md), which is the order the engine needs.
 
 ## Names
 
-A `Leaf` is a bevy `Entity` and nothing else:
+A `Leaf` is an index and a generation:
 
 ```rust,ignore
 // leaf.rs
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
-pub struct Leaf(pub(crate) Entity);
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct Leaf {
+    pub(crate) index: u32,
+    pub(crate) generation: u32,
+}
 ```
 
 It is handed out the moment `plant` or `branch` is called, before the element exists, and that is
-the property the rest of the design leans on. The name comes from the world's own entity allocator,
-reached through a `RemoteAllocator` ([`naming.rs`](https://github.com/eblack-leaf/foliage/blob/main/foliage/src/naming.rs))
-that can reserve an entity without touching the world. That is what lets a name be taken on a worker
-thread through a `Sprig` as readily as inside `frame`. The drain later spawns the element *at* that
-reserved entity.
+the property the rest of the design leans on. The name comes from `Naming`
+([`naming.rs`](https://github.com/eblack-leaf/foliage/blob/main/foliage/src/naming.rs)), one source
+shared by the frame and by every `Sprig`, whose counters are all atomic. Taking a name never touches
+the tree, which is what lets one be taken on a worker thread through a `Sprig` as readily as inside
+`frame`. The index is one that went back when an element withered, the last to go back first, or
+else a fresh one past every index named so far. The drain later grows the element into that slot,
+and the columns grow to meet a name past their end.
 
-So a name's state is read straight off the allocator:
+So a name's state is read straight off its slot:
 
-| The entity is | `Presence` | Meaning |
+| The slot is | `Presence` | Meaning |
 |---|---|---|
-| reserved, not yet spawned | `Planted` | the op that grows it has not been drained yet |
-| spawned | `Live` | in the tree |
-| neither | `Withered` | pruned, or taken down with an ancestor |
+| past the end, or at the name's generation and empty | `Planted` | the op that grows it has not been drained yet |
+| at the name's generation, holding an element | `Live` | in the tree |
+| at another generation | `Withered` | pruned, or taken down with an ancestor |
 
 A `Planted` name stays planted forever if the op that would have grown it was dropped (its trunk
-withered before the drain reached it). A withered entity's index does go back to the allocator, but
-bevy's generation tells the old name from the new one, so a stale `Leaf` never comes to address
-whatever grew after it.
+withered before the drain reached it). A withered element's index does go back to `Naming`, but a
+generation on, so a stale `Leaf` never comes to address whatever grew after it.
 
 Each element also gets a `Growth`: a number from one atomic counter, taken with the name. It is the
 order `plant` and `branch` were *called* in, across every thread, rather than the order the drain
@@ -49,55 +52,65 @@ fonts, marks), each monotonic and never reused, so a stale handle of any kind is
 ## What an element is made of
 
 A seed (`Panel::new()...`) builds a `Bud` ([`op.rs`](https://github.com/eblack-leaf/foliage/blob/main/foliage/src/op.rs)):
-the element's components, formed before the element exists. The queue carries it boxed, and
-`Tree::grow` inserts it. Every element gets the same core, so nothing that reads one of these has to
-ask whether the element is the kind that has it:
+the element's declarations, formed before the element exists. The queue carries it, and
+`Tree::grow` writes it into the element's slot. Every element has a value in the same core columns,
+so nothing that reads one of these has to ask whether the element is the kind that has it:
 
-| Component | Holds |
+| Column | Holds |
 |---|---|
-| `Grown` | marks an element the app grew, as against a part an element grew under itself |
-| `SpawnedAt` | the source location of the `plant` or `branch` call, for error messages |
-| `Growth` | allocation order |
-| `Chlorophyll` | which renderer draws it: none, panel, text, polygon, line, icon or image |
-| `Location` | where it sits, at every breakpoint |
-| `Grid` | how it divides its box for its children |
-| `Elevation` | how far in front of its trunk it sits |
-| `Gestures` | whether it receives, whether it is intangible, which drags it takes, its hit shape |
-| `Focusing` | its focus order and whether it is a focus scope |
-| `Visible`, `Opacity`, `Disabled` | its own off-states, before its ancestry is taken into account |
-| `Offset`, `Extent` | where a region is scrolled to, and how far its content reaches |
+| `generation` | which name the slot answers to |
+| `flags` | whether the slot holds an element; whether the app grew it or a frond grew it as a part; what it declared that is one bit (visible, disabled, pinned, read-only, masked); and which side tables hold something for it |
+| `spawned_at` | the source location of the `plant` or `branch` call, for error messages |
+| `growth` | allocation order |
+| `chlorophyll` | which renderer draws it: none, panel, text, polygon, line, icon or image |
+| `placements` | how it is placed: a `Location` at every breakpoint, or a `Trace` and `Stroke` for a line |
+| `elevation` | how far in front of its trunk it sits |
+| `gestures` | whether it receives, whether it is intangible, which drags it takes, its hit shape |
+| `opacity` | its own opacity, before its ancestry is taken into account |
+| `shift` | how far it has been moved off where the layout put it |
+| `scrolls` | which axes it scrolls on, if any |
+| `trunk`, `first`, `last`, `next`, `previous` | [the hierarchy](#the-hierarchy) |
 
-And, only where they apply: the renderer's **pigment** (`PanelPigment`, `TextPigment` and so on:
-fill, rounding, shape, mark, plate), `Lettering` for a run of text, `Tints`, `Scrolls`, `Pinned`,
-`Floats`, `Trace` and `Stroke` for a line, `Typeface` for an element that states a font or a size,
-`Anchored` for one with an anchor, and bevy's `ChildOf` for one grown under another.
+What a renderer was told, its **pigment** (`PanelPigment`, `TextPigment` and so on: fill,
+rounding, shape, mark, plate), is held packed by renderer. Each renderer has one array as long as
+what draws with it, and an element's `pigment` column says where in that array its own sits. When
+one withers, the last item is moved into its place and its owner is told where it went.
+
+What only some elements state is held in a **side table**, and only for those that state it: `Grid`,
+`Offset` and `Extent` for a region, `Focusing`, `Typeface`, `Anchored`, `Floats`, `Lettering` and
+`Tints` for a run, and a field's `Parts`, `Editing` and `Keypad`. Each table owns a bit of the slot's
+flags, set exactly while it holds something there, so an element that states nothing is answered by
+the bit rather than by a lookup.
 
 `Chlorophyll` deserves a word. It is set when the element is grown and there is no op that can
 change it: what an element draws is part of what it is, and an element that is to draw something
 else is a different element. It is also the *only* thing that says what an element is. Extraction
 walks the elements once and routes each on its chlorophyll, so a further renderer costs a variant
-rather than a pass, and a set of components that happens to look like a panel is not a panel.
+rather than a pass, and a set of declarations that happens to look like a panel is not a panel.
 
 ## The hierarchy
 
-`branch` records the trunk with bevy's `ChildOf`, and bevy keeps the reverse `Children` list. The
-tree reads both ways: `trunk(leaf)` for what an element hangs off, `branched(leaf)` for what hangs
-off it.
+`branch` hangs an element off its trunk. `trunk` holds what each element hangs off, and what hangs
+off an element is a list threaded through the slots: `first` and `last` on the trunk, `next` and
+`previous` on each child, in the order they were grown. Letting go of one child of thousands is a
+few writes rather than a search. The tree reads both ways: `trunk(leaf)` for what an element hangs
+off, `branched(leaf)` for what hangs off it.
 
 Some children are not the app's. A `TextInput` is one element to the app and seven in the tree:
 the field itself, and under it a run, a placeholder, a caret, and three panels for a selection that
-can span lines. [Fronds](fronds.md) grow those parts as ordinary children. They are not marked `Grown`, so `branches` (and the `Vein::Branches` read) lists only what
-the app grew, while everything that resolves, draws and withers treats the parts like any other
-element.
+can span lines. [Fronds](fronds.md) grow those parts as ordinary children with `grow_part`, which
+is `grow` without the `GROWN` flag. `branches` (and the `Vein::Branches` read) lists only children
+with that flag, so it lists only what the app grew, while everything that resolves, draws and withers
+treats the parts like any other element.
 
 ## Declarations and resolved values
 
-The world holds **what was declared**: what the app said about each element, plus the few values
+The tree holds **what was declared**: what the app said about each element, plus the few values
 the engine keeps on its behalf and writes through the same setters (a region's offset and extent, a
 field's caret). It does not hold what resolution makes of them. Boxes, clips, ranks and the
 inherited off-states live in resolution's own arrays, `Elements`, described in
-[Resolution](resolution.md), and are never written back into the world. The line is sharp: a value in
-the world is something an op can write, and a value in `Elements` is something only a pass can.
+[Resolution](resolution.md), and are never written back into the tree. The line is sharp: a value in
+the tree is something an op can write, and a value in `Elements` is something only a pass can.
 
 `Grove::tap` reads across both, and always returns a copy:
 
@@ -123,13 +136,13 @@ be asked.
 
 ## Recording what was written
 
-The most important thing `Tree` does is not store components. It is to **record every write, where
+The most important thing `Tree` does is not store declarations. It is to **record every write, where
 the write happens**, so that resolution can leave alone everything nothing wrote to:
 
 ```rust,ignore
 // tree.rs
 pub(crate) struct Tree {
-    world: World,
+    // ...the columns and side tables above, then:
     touched: Leaves,     // declarations resolution reads were written
     restyled: Leaves,    // something about how it is drawn changed, and nothing about where
     lettered: Leaves,    // its run was rewritten, or it was grown: R1 measures it again
@@ -170,8 +183,9 @@ to the next frame, which is the frame that would resolve it.
 ## Withering
 
 `prune` is the one write that removes. The drain calls `Tree::wither`, which gathers the element and
-everything under it (the app's children and any parts a frond grew), despawns the element, and
-bevy despawns the rest through the parent relationship. Every name that went is reported three
+everything under it (the app's children and any parts a frond grew), walking the child lists, and
+empties each slot: its pigment and side-table entries go, and its generation moves on. The indices
+go back to `Naming` together. Every name that went is reported three
 places: to the running motion, which drops anything moving on those elements; to the coasting
 scrolls, which drop any region that went; and to the drift, which becomes `withered` in the next
 frame's `Pollen`.

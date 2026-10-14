@@ -59,9 +59,9 @@ running when it arrived, if it arrived before that frame's drain began, and in t
 otherwise. Nothing about how it is applied depends on which side it came from, and the suite proves
 it by running one script of writes through a `Grove` and through a `Sprig` and comparing the trees.
 
-**Names come from the same place.** `Naming` holds the world's entity allocator in its remote form
-and an atomic counter for everything else, so a worker can take a name for an element (or a motion,
-a picture, a face, a mark) without the world. Names from both sides never collide, and the
+**Names come from the same place.** `Naming` hands out every name from atomic counters
+and the indices of elements that withered, so a worker can take a name for an element (or a motion,
+a picture, a face, a mark) without the tree. Names from both sides never collide, and the
 allocation order that settles elevation ties is one order across every thread. A worker can grow an
 element and branch another off it on the next line, exactly as `frame` can.
 
@@ -121,7 +121,7 @@ fn misfit(&mut self, plate: Plate, reason: String) {
 
 ## Reading: pushed, not sampled
 
-A worker cannot sample the tree. A read needs the world, and the world belongs to the frame. So the
+A worker cannot sample the tree. A read needs the tree, and the tree belongs to the frame. So the
 reads a worker needs are **pushed** to it, at one point in the frame, by `sprig::publish`:
 
 ```rust,ignore

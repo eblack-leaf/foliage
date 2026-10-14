@@ -174,7 +174,7 @@ a product patched up after the pass that composes it.
 
 Every verb and every read an app aims at a field is redirected to the part it concerns. `text` writes
 the run and moves the caret to the end; `color` refills the run; `tap(field, Vein::Text)` reads the
-run; `Vein::Selection` reads the field's `Editing`. The field carries a `Parts` component naming its
-six parts, and that component's presence is the one test for "is this a field", asked once per op.
+run; `Vein::Selection` reads the field's `Editing`. The field carries a `Parts` entry naming its
+six parts, and that entry's presence is the one test for "is this a field", asked once per op.
 So what a field is made of is never a name an app has to hold, and never a surface an app has to keep
 in step.

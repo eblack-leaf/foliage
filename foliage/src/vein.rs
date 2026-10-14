@@ -16,7 +16,8 @@ use crate::rounding::Corners;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 #[non_exhaustive]
 pub enum Vein {
-    /// The elements branched directly off this one.
+    /// The elements branched directly off this one: what the app grew there, and never the parts
+    /// an element like a [`TextInput`](crate::TextInput) grows under itself.
     Branches,
     /// The element this one was branched off, if any.
     Trunk,

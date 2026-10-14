@@ -66,7 +66,7 @@ use crate::text::font::Font;
 ///
 /// Extraction walks the tree once and routes on this, so a further renderer costs a variant rather
 /// than a pass over everything. It is the *only* thing that says what an element is: a set of
-/// components that happens to look like a panel is not a panel.
+/// declarations that happens to look like a panel is not a panel.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) enum Chlorophyll {
     /// Nothing. Carrying no renderer is the whole of what makes an element a [`Stem`](crate::Stem).
@@ -89,8 +89,8 @@ pub(crate) enum Chlorophyll {
 /// What a renderer was told, for whichever renderer the element carries.
 ///
 /// Carried by the [`Bud`](crate::op::Bud) as one value so that growing an element inserts the
-/// pigment its own renderer reads and no other. Past that point each is an ordinary component and
-/// nothing asks which kind it was.
+/// pigment its own renderer reads and no other. Past that point each is held in its own renderer's
+/// array and nothing asks which kind it was.
 pub(crate) enum Pigment {
     Panel(PanelPigment),
     Text(TextPigment),

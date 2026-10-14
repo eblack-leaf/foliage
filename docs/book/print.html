@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c59f2531.js"></script>
@@ -179,9 +179,9 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
-ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
+<p>foliage is a cross-platform UI library for Rust. One element on screen is one <code>Leaf</code>: a name into
+foliage’s own store, an index and a generation, so a name that withered is never the one that came
+after it. No engine type is ever handed out, and nothing an app holds borrows from the engine. Rendering is
 <a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
 code runs on Linux, Windows, macOS, the web and Android.</p>
 <p>Everything that crosses the seam between an app and the engine is plain data:</p>
@@ -464,7 +464,7 @@ grown, named, written to, read, and taken down.</p>
 </thead>
 <tbody>
 <tr><td><code>Stem</code></td><td>Structure: a box that holds children and takes hits</td><td>nothing</td></tr>
-<tr><td><code>Panel</code></td><td>A filled rectangle with rounded corners</td><td>yes</td></tr>
+<tr><td><code>Panel</code></td><td>A filled rectangle with rounded corners, and a line around its inside if it says so</td><td>yes</td></tr>
 <tr><td><code>Text</code></td><td>A run of monospaced glyphs</td><td>yes</td></tr>
 <tr><td><code>Icon</code></td><td>A vector mark, from a registered distance field</td><td>yes</td></tr>
 <tr><td><code>Image</code></td><td>A registered picture, fitted into its box</td><td>yes</td></tr>
@@ -921,21 +921,24 @@ left(0.px()).width(2.row());</code></pre>
 <p>The last rule is the interesting one, and it comes from how resolution is ordered.</p>
 <h2 id="width-flows-down-height-flows-up"><a class="header" href="#width-flows-down-height-flows-up">Width flows down, height flows up</a></h2>
 <p>Text wrapping makes a height depend on a width, and a width comes from layout. A box sized to its
-contents is therefore a cycle in general. foliage breaks it at two passes and never iterates:</p>
+contents is therefore a cycle in general. foliage breaks it by measuring before each axis and never
+iterates:</p>
 <ol>
-<li>The <strong>horizontal</strong> axis resolves for the whole tree. A run of monospaced text knows the widest
+<li>Everything is <strong>measured across</strong>, from the inside out. A run of monospaced text knows the widest
 it could want to be before any layout (its longest line’s character count times the cell
-width), so nothing on this pass has to be measured.</li>
-<li>Every run <strong>wraps</strong> at the width it was just given, which settles how tall it is.</li>
+width), and a box knows how far right what it holds reaches, so this needs nothing laid out.</li>
+<li>The <strong>horizontal</strong> axis resolves for the whole tree, reading those widths.</li>
+<li>Every run <strong>wraps</strong> at the width it was just given, and every box is measured down from the
+inside out, which settles how tall each is.</li>
 <li>The <strong>vertical</strong> axis resolves for the whole tree, reading those heights.</li>
 </ol>
 <p>The types are that order stated in advance. A horizontal role cannot read a height because, when
 it is resolved, no height exists. The reverse is fine and useful: <code>height(2.col())</code> is a
 two-column span used as a height, and <code>aspect</code> is a height read off the element’s own width.</p>
-<p><code>content()</code> is one word with a different question per axis. In a width role it is the widest the
-element wants to be (its text, unwrapped). In a height role it is how tall it turned out at the
-width it was given. So <code>left(..).right(..)</code> with <code>height(content())</code> is a paragraph: as wide as its
-parent allows, as tall as it wraps to.</p>
+<p><code>content()</code> is one word asking the same thing on either axis: how large is what is inside me. In a
+width role it is the widest the element wants to be (its text unwrapped, or what it holds). In a
+height role it is how tall it turned out at the width it was given. So <code>left(..).right(..)</code> with
+<code>height(content())</code> is a paragraph: as wide as its parent allows, as tall as it wraps to.</p>
 <h2 id="clamps"><a class="header" href="#clamps">Clamps</a></h2>
 <p>Either axis can be held between two extents:</p>
 <pre><code class="language-rust ignore">left(0.px()).width(content()).at_most(240.px())    // fit-content: as wide as its text, up to 240
@@ -979,14 +982,17 @@ vocabulary for the trunk, for the two readings the bare sources cannot spell:
 <p>The card’s ground is not the parent of the text it frames. It is a sibling, grown first so that
 it sits behind, and anchored to the last thing it frames. That is the idiom, and the reason for it
 is worth knowing.</p>
-<p>An element sized <code>height(content())</code> takes the greater of two things: how tall its own run of
-text wrapped to, and how far down its children reach. <strong>Only children that describe their own
-extent are counted</strong>: a child placed in pixels, in letters, by its own content, or by any
-horizontal reading. A child whose vertical placement reads <em>another</em> vertical box (a percentage of
-its trunk, a row of its trunk’s grid, an anchor’s edge) is asking how tall something else is, so
-it cannot be what decides how tall this is. It is left out of the measure and given its real
-position afterwards.</p>
-<p>So a box <em>can</em> be sized to children at known offsets. A badge whose label sits 6 pixels in:</p>
+<p>An element sized to <code>content()</code> takes the greater of two things on that axis: its own run of
+text (unwrapped across, as it wrapped down), and how far its children reach (right of its left
+edge, or down from its top). <strong>Only children that describe their own extent on that axis are
+counted</strong>: a child placed in pixels, in letters, or by its own content – and down, by any
+horizontal reading, since widths have settled by then. A child whose placement reads <em>another</em> box
+on that axis (a percentage of its trunk, a track of its trunk’s grid, an anchor’s edge) is asking
+how large something else is, so it cannot be what decides how large this is. It is left out of the
+measure and given its real place afterwards, which is what lets one child size a box that another
+child fills.</p>
+<p>So a box <em>can</em> be sized to children at known offsets. A badge that hugs its label, with the label
+held two letters in from either side and 6 pixels from the top and bottom:</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Boxed, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding, Source, Text, content, left, top};
 </span><span class="boring">fn f(grove: &amp;mut Grove, under: Leaf) {
 </span>let badge = grove.branch(
@@ -995,9 +1001,9 @@ position afterwards.</p>
         .color(Palette::Signal)
         .rounding(Rounding::Full)
         .font_size(FontSize::new().xs(12))
-        // Two letters of room either side of a five-letter label, in the label's own cells.
+        // As far as the label reaches, and two letters more on the right to match the left.
         .at(Location::new().xs(
-            left(0.px()).width(9.letters()),
+            left(0.px()).width(content() + 2.letters()),
             top(0.px()).height(content() + 6.px()),
         )),
 );
@@ -1012,16 +1018,15 @@ grove.branch(
         )),
 );
 <span class="boring">}</span></code></pre>
-<p>The label reaches 6 pixels plus one line down, and the badge adds 6 more for the padding below.
-Two things in it are worth copying:</p>
+<p>The label reaches two letters plus its own five across and 6 pixels plus one line down, and the
+badge adds two letters on the right and 6 pixels below. Rewrite the label and the badge follows it in
+the same frame. Two things in it are worth copying:</p>
 <ul>
-<li><strong>Padding below is added, not measured.</strong> The measure is how far the children reach, so a
-bottom margin is <code>content() + 6.px()</code>.</li>
-<li><strong>A width in letters needs a font size.</strong> As a <em>width</em>, <code>content()</code> is only the element’s own
-text, so a panel does not take its width from a label on it. It can state the same width in
-characters instead, and <code>letters</code> counts cells of the element’s own font and size, which is why
-the badge declares the label’s <code>font_size</code>. An element that names no font and no size has no
-cell and reads zero for every letter.</li>
+<li><strong>Padding past the far edge is added, not measured.</strong> The measure is how far the children reach,
+so a right margin is <code>content() + 2.letters()</code> and a bottom one is <code>content() + 6.px()</code>.</li>
+<li><strong>Letters need a font size.</strong> <code>letters</code> counts cells of the element’s own font and size, which is
+why the badge declares the label’s <code>font_size</code>: its two letters of margin are the label’s two. An
+element that names no font and no size has no cell and reads zero for every letter.</li>
 </ul>
 <p>A stack of things of unknown height, each placed under the last with an anchor, is the case that
 cannot be measured this way. Frame it the way the card does, with a sibling anchored to the last
@@ -1057,6 +1062,17 @@ back to what it belongs to:</p>
 <p>The trunk decides what takes an element down, what clips it, and what it stacks among. The anchor
 decides where it sits. Keeping the two apart is what lets a menu live at the top of the tree and
 still follow the button that opened it.</p>
+<h2 id="drawn-aside"><a class="header" href="#drawn-aside">Drawn aside</a></h2>
+<p><code>grove.shift(leaf, by)</code> draws an element <code>by</code> from where the layout put it, in pixels, and
+everything grown under it with it; <code>Position::default()</code> puts it back. What moves is where it is
+drawn and pressed, not where it is placed, so nothing placed against it follows: the next row of a
+list, anchored to the one shifted, stays where it is. <code>Vein::Placed</code> still reads where the layout
+put it, <code>Vein::Drawn</code> where it is drawn, and <code>Vein::Shift</code> how far it was shifted. <code>Motion::Shift</code>
+eases it there or back.</p>
+<pre><code class="language-rust ignore">grove.shift(row, Position::new(12.0, 0.0));
+grove.animate(row, Motion::Shift(Position::default()), Timing::ms(450));</code></pre>
+<p>It is for a moment’s displacement – something tugged, nudged or shaken – without restating where
+it stands. An element that belongs somewhere else is given a new placement.</p>
 <h2 id="lines"><a class="header" href="#lines">Lines</a></h2>
 <p>A <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Line.html"><code>Line</code></a> has no box to
 state. It has two ends, and each end is a
@@ -1826,7 +1842,10 @@ stage to the element holding the gesture:</p>
 <ul>
 <li><code>engaged(leaf)</code>: a gesture went down on it and is being held. The hook for a pressed visual.</li>
 <li><code>clicked(leaf)</code>: it ended without ever becoming a drag or a hold. <code>clicked_at(leaf)</code> is where it
-<em>began</em>, which is the point that was hit-tested and therefore the one certainly on the element.</li>
+<em>began</em>, which is the point that was hit-tested and therefore the one certainly on the element.
+<code>taps(leaf)</code> is how many taps in a row it makes: <code>2</code> for the second of a double, counted when it
+lands on the same element within <code>Taps</code> of the one before. Each tap of a run is reported as it
+lands, so a double tap is a second <code>clicked</code> with a count, not a first one taken back.</li>
 <li><code>held(leaf)</code>: it stayed still for <code>Hold::after</code> (500ms by default). A hold is never also a
 click. <code>held_at(leaf)</code> is where the press landed.</li>
 <li><code>drag_started(leaf)</code>, then <code>dragged(leaf)</code> each frame it moves, carrying a
@@ -2150,15 +2169,17 @@ grown under a disabled trunk is disabled on its first frame, and enabling the tr
 disabled in its own right disabled. <code>Vein::Visible</code>, <code>Vein::Disabled</code> and <code>Vein::Opacity</code> read
 what the element itself declared, not the product.</p>
 <h2 id="feel"><a class="header" href="#feel">Feel</a></h2>
-<p>How a gesture feels is three numbers, set once for the whole app with <code>Foliage::tune</code>:</p>
+<p>How a gesture feels is four numbers, set once for the whole app with <code>Foliage::tune</code>:</p>
 <pre><code class="language-rust"><span class="boring">use core::time::Duration;
-</span><span class="boring">use foliage::{Claim, Foliage, Hold, Momentum};
+</span><span class="boring">use foliage::{Claim, Foliage, Hold, Momentum, Taps};
 </span><span class="boring">let mut foliage = Foliage::new();
 </span>foliage.tune(Claim { horizontal: 16.0, vertical: 8.0 });
 foliage.tune(Hold { after: Duration::from_millis(500) });
+foliage.tune(Taps { within: Duration::from_millis(400), apart: 16.0 });
 foliage.tune(Momentum { half_life: Duration::from_millis(350), minimum: 40.0 });</code></pre>
 <p>Those are the defaults. <code>Claim</code> is how far a gesture travels before it is a drag, per axis;
-<code>Hold</code> is how long a still press takes to become a hold; <code>Momentum</code> is how a released drag coasts
+<code>Hold</code> is how long a still press takes to become a hold; <code>Taps</code> is how soon after the last tap’s
+press, and how near it, a tap has to land to follow it; <code>Momentum</code> is how a released drag coasts
 (<a href="#scrolling">Scrolling</a>). They are global rather than per element, because input feel that
 varies from element to element is what makes an app feel unpredictable.</p>
 <p>There is one pointer. A second finger is not a second gesture. And a wheel is not a gesture at all:
@@ -2290,18 +2311,29 @@ that do not match and moves the rest up. Enter submits, and the app clears it.</
 <tr><td>typing</td><td>inserts at the caret, replacing any selection</td></tr>
 <tr><td><code>Backspace</code>, <code>Delete</code></td><td>removes the selection, or the character before or after the caret</td></tr>
 <tr><td><code>Left</code>, <code>Right</code>, <code>Home</code>, <code>End</code></td><td>moves the caret; with <code>Shift</code>, extends the selection</td></tr>
+<tr><td><code>Ctrl+Left</code>, <code>Ctrl+Right</code></td><td>moves the caret over a word; with <code>Shift</code>, extends the selection</td></tr>
+<tr><td><code>Ctrl+Backspace</code>, <code>Ctrl+Delete</code></td><td>removes the selection, or the word before or after the caret</td></tr>
 <tr><td><code>Ctrl+A</code></td><td>selects everything</td></tr>
 <tr><td><code>Ctrl+C</code>, <code>Ctrl+X</code></td><td>copies or cuts the selection to the system clipboard</td></tr>
 <tr><td><code>Ctrl+V</code></td><td>asks the clipboard, and inserts what it holds when it answers</td></tr>
 <tr><td><code>Enter</code></td><td>reports <code>submitted</code></td></tr>
 <tr><td>a tap</td><td>puts the caret where it landed and takes focus</td></tr>
+<tr><td>a second tap</td><td>selects the word under it</td></tr>
 <tr><td>a drag</td><td>scrolls the value inside the field</td></tr>
 <tr><td>a hold, then a drag</td><td>selects from where the hold landed</td></tr>
 </tbody>
 </table>
 </div>
 <p>An unshifted arrow against a selection collapses it to the edge it points at rather than stepping
-from the caret, which is what every editor does.</p>
+from the caret, which is what every editor does. A word move does the same and goes on by a word
+from that edge.</p>
+<p>A <strong>word</strong> is a run of one kind of character: letters and digits, any other mark that is drawn, or
+space. A word move skips any space and then crosses one word, so the caret stops at the start of a
+word going back and at its end going on; <code>foo.bar</code> is three words to step over, and a newline is
+space like any other, so a word move goes on across the end of a line. A second tap selects the
+word the hand is on, whole, and past the end of a line it selects the last word on that line. A
+tap counts as a second one when it lands on the same field within <a href="#feel"><code>Taps</code></a> of the
+first.</p>
 <p>Dragging to scroll and dragging to select are the same motion, and the only thing that separates
 them is time: a field takes no drags, so a plain drag is the field’s scrolling, and a press held
 still for <a href="#feel"><code>Hold::after</code></a> first is the start of a selection. That is the same rule
@@ -2362,8 +2394,11 @@ the frame that typed past the edge is the frame that scrolls.</p>
 <p><strong>It draws no border and no ground.</strong> A field is a run and a caret inside whatever box an app puts
 it in, and a chrome the engine drew would be one more thing to talk an app out of. It draws no
 focus ring either: the caret and the selection are shown only while it holds focus, and that is
-the only change focus makes to it. An app that wants a ring watches <code>focused</code> and <code>unfocused</code>, as
-the slider in the last chapter does.</p>
+the only change focus makes to it. A border is a panel behind the field with an
+<a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Panel.html#method.outline"><code>outline</code></a>,
+and a ring follows focus the way the slider’s in the last chapter does, written from <code>focused</code> and
+<code>unfocused</code>: <code>grove.outline</code> draws one and a width of zero takes it away, and since an outline is
+drawn inside its panel’s box, neither moves anything.</p>
 <h2 id="many-lines"><a class="header" href="#many-lines">Many lines</a></h2>
 <p>A <code>TextArea</code> wraps at its box and scrolls down rather than across. Everything above applies,
 and four keys change meaning because a line means something:</p>
@@ -2380,6 +2415,9 @@ and four keys change meaning because a line means something:</p>
 </tbody>
 </table>
 </div>
+<p>A run of <code>Up</code>s and <code>Down</code>s keeps the column the first of them set out from, so a shorter line
+passed through puts the caret at its end and the next line has it back where it was. Any other key
+or a tap is a new place to set out from.</p>
 <p>A newline that arrives on the clipboard is kept, where a one-line field drops it.</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Boxed, FontSize, Grove, Grow, Leaf, Location, Palette, Place, Pollen, Sap, Source, Text, TextArea, Vein, content, left, top};
 </span><span class="boring">fn f(grove: &amp;mut Grove, page: Leaf) -&gt; (Leaf, Leaf) {
@@ -2424,8 +2462,11 @@ what is typed is reported as <code>edited</code>, and since a dot takes a charac
 selection and a tap land where they would. A newline stays a newline, so a masked <code>TextArea</code> wraps
 as it would.</p>
 <p>What is hidden from the screen does not leave by the clipboard either: <code>Ctrl+C</code> copies nothing
-and <code>Ctrl+X</code> cuts nothing. A paste goes in as ever. <code>grove.masked(field, false)</code> shows the value,
-and <code>true</code> hides it again – which is how a password’s “show” is built.</p>
+and <code>Ctrl+X</code> cuts nothing. A paste goes in as ever. Where its words break is hidden with the rest,
+so a word move goes to the end of the line and a second tap selects all of it; and no desktop input
+method composes into it, since one that predicts would learn the passphrase.
+<code>grove.masked(field, false)</code> shows the value, and <code>true</code> hides it again – which is how a password’s
+“show” is built.</p>
 <p>The run is shaped as its dots, so the value itself is never a key in the shaping cache.</p>
 <h2 id="soft-keyboards"><a class="header" href="#soft-keyboards">Soft keyboards</a></h2>
 <p>On a platform with a keyboard of its own to raise, a field raises one while it holds focus and
@@ -2725,7 +2766,8 @@ whatever it happened to stop over.</p>
 progress on that axis.</p>
 <p>Inside a scrolled region, an element has two boxes. <code>Vein::Placed</code> is where the layout put it;
 <code>Vein::Drawn</code> is that less every scrolling ancestor’s offset, which is what was drawn and what a
-hit test runs against. The two differ only inside a region that has moved.</p>
+hit test runs against. The two differ only inside a region that has moved, or under a
+<a href="#drawn-aside">shift</a>.</p>
 <h2 id="following-a-region-from-the-app"><a class="header" href="#following-a-region-from-the-app">Following a region from the app</a></h2>
 <p>The log’s thumb is the app following the column by reading it. Only the progress is read. How far
 the thumb can travel is stated in the grammar, as a percentage of its rail less its own height, so
@@ -2765,6 +2807,7 @@ concept of, and motion an app drives by hand.</p>
 <tr><td><code>Trace(Trace)</code></td><td>where a line’s two ends are</td></tr>
 <tr><td><code>Scroll(ScrollTo)</code></td><td>where a region is moved to; the destination re-resolves every frame</td></tr>
 <tr><td><code>Polygon(Shape)</code></td><td>a polygon’s sides, rounding and rotation together</td></tr>
+<tr><td><code>Shift(Position)</code></td><td>how far the element is drawn from where it is placed (<a href="#drawn-aside">Drawn aside</a>)</td></tr>
 </tbody>
 </table>
 </div>
@@ -3634,7 +3677,7 @@ them.</p>
 used from a promise or a callback instead (anything <code>wasm_bindgen_futures::spawn_local</code> runs), and
 the ops land the same way.</p>
 <h2 id="reading-from-off-the-frame"><a class="header" href="#reading-from-off-the-frame">Reading from off the frame</a></h2>
-<p>A worker cannot <em>sample</em> the tree: a read needs the world, and the world belongs to the frame. So
+<p>A worker cannot <em>sample</em> the tree: a read needs the tree, and the tree belongs to the frame. So
 the reads a worker needs are pushed to it instead, three ways.</p>
 <p><strong>Conditions</strong> are what is true of the whole tree, published at the end of every frame:</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Layout, Sprig};
@@ -4057,6 +4100,12 @@ desktop matches the window to the entry that launched it. Without one, some desk
 generic icon beside the one that was clicked.</p>
 <p>Building on Linux needs the windowing headers (see <a href="#setting-up">A first app</a>).
 Nothing else needs anything beyond Rust.</p>
+<p><strong>An input method composes into a field.</strong> While a field that takes typing holds focus, the window
+allows the desktop’s input method, so a word of Japanese or a letter begun with a dead key is
+committed into the field as the text it composed. What the method shows while composing is not drawn
+inline: the field hears the commit. A key the method does not take arrives as itself, so nothing
+arrives twice. A masked field allows none, because a method composes what it is shown, and one that
+predicts would learn the passphrase.</p>
 <h2 id="web"><a class="header" href="#web">Web</a></h2>
 <p>The app compiles to <code>wasm32-unknown-unknown</code> unchanged and is served by
 <a href="https://trunkrs.dev"><code>trunk</code></a>. The page needs almost nothing:</p>
@@ -4123,8 +4172,10 @@ and the engine drops everything built against it: the GPU device, the renderers,
 When it comes back they are built again. <strong>The tree is untouched</strong>, so an app returns to exactly
 the frame it left, and the first frame back is not told about the time it was away.</li>
 <li><strong>Typing into fields is not wired up yet.</strong> A focused field raises the soft keyboard, with the
-field’s <code>Keypad</code>, but Android delivers what is typed on it through the input method (IME), and
-the engine does not handle IME commits yet. A hardware keyboard works.</li>
+field’s <code>Keypad</code>, but Android delivers what is typed on it through the input method (IME), into
+the text state the activity keeps, and winit 0.30’s Android backend drops that rather than
+reporting it – so nothing typed on the soft keyboard reaches the engine yet. A hardware keyboard
+works.</li>
 <li><strong>The clipboard is the engine’s own.</strong> The system clipboard is not reached yet, so a copy
 round-trips inside the app and no further.</li>
 <li><strong><code>navigate</code> opens the URL</strong> with an <code>ACTION_VIEW</code> intent.</li>
@@ -4927,7 +4978,7 @@ frame runs, sealed into a <code>Pollen</code> at one point in the next frame, an
 <li><strong>Reads beside.</strong> <code>tap</code> copies one property out of the engine’s state and returns it. Nothing the
 app holds afterwards refers back into that state.</li>
 </ul>
-<p>No engine type is handed out and nothing an app holds borrows from the world. A
+<p>No engine type is handed out and nothing an app holds borrows from the engine. A
 <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Leaf.html"><code>Leaf</code></a> is a name, eight bytes
 and <code>Copy</code>, and naming something that is gone is harmless: an op that names it is dropped, and a
 read of it answers <code>None</code>.</p>
@@ -4949,7 +5000,7 @@ side it is on.</p>
 <tr><td><code>Willow</code></td><td><code>willow.rs</code></td><td>The window: what it is opened as, its size and density</td></tr>
 <tr><td><code>Fern</code></td><td><code>fern.rs</code></td><td>The frame: one function that runs every phase in order, and the drain</td></tr>
 <tr><td><code>Grove</code></td><td><code>grove.rs</code></td><td>All the state a frame touches, and the surface an app’s frame is lent</td></tr>
-<tr><td><code>Tree</code></td><td><code>tree.rs</code></td><td>The one door onto <code>bevy_ecs</code>: each element is an entity, and every declaration a component</td></tr>
+<tr><td><code>Tree</code></td><td><code>tree.rs</code></td><td>Every element, one slot each at the index of its name, and every declaration a column of those slots</td></tr>
 <tr><td><code>Rowan</code></td><td><code>rowan.rs</code>, <code>placement/</code></td><td>Resolution: declarations into boxes, extents, clips and ranks</td></tr>
 <tr><td><code>Aspen</code></td><td><code>aspen/</code></td><td>Motion: tweens, timers and sequences on the frame’s one clock</td></tr>
 <tr><td>interaction</td><td><code>interaction/</code></td><td>The box stack, gestures, and focus</td></tr>
@@ -5377,41 +5428,44 @@ by issuing the same writes through a <code>Grove</code> and through a <code>Spri
 <a href="#proving-it">Proving it</a> describes the suite.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="the-tree"><a class="header" href="#the-tree">The tree</a></h1>
-<p>Every element is one entity in a <a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a> <code>World</code>, and
-<code>Tree</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/tree.rs"><code>tree.rs</code></a>) owns that
-world. It is the only place in the engine that touches <code>bevy_ecs</code> directly, and it touches very
-little of it: the world as a store of components, the parent and child relationship, and the entity
-allocator. There are no bevy systems and no schedules. The passes that run over the tree are plain
-functions called in a fixed order by <a href="#the-frame">the frame</a>, which is the order the engine needs and
-not one a scheduler chose.</p>
+<p>Every element is one slot in <code>Tree</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/tree.rs"><code>tree.rs</code></a>),
+which is foliage’s own store. An element’s name is the index of its slot, and every field an element
+declares is a column of those slots: one array per field, so a pass that asks something of every
+element reads one array rather than gathering from wherever each element is. There are no systems and
+no scheduler. The passes that run over the tree are plain functions called in a fixed order by
+<a href="#the-frame">the frame</a>, which is the order the engine needs.</p>
 <h2 id="names-1"><a class="header" href="#names-1">Names</a></h2>
-<p>A <code>Leaf</code> is a bevy <code>Entity</code> and nothing else:</p>
+<p>A <code>Leaf</code> is an index and a generation:</p>
 <pre><code class="language-rust ignore">// leaf.rs
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
-pub struct Leaf(pub(crate) Entity);</code></pre>
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct Leaf {
+    pub(crate) index: u32,
+    pub(crate) generation: u32,
+}</code></pre>
 <p>It is handed out the moment <code>plant</code> or <code>branch</code> is called, before the element exists, and that is
-the property the rest of the design leans on. The name comes from the world’s own entity allocator,
-reached through a <code>RemoteAllocator</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/naming.rs"><code>naming.rs</code></a>)
-that can reserve an entity without touching the world. That is what lets a name be taken on a worker
-thread through a <code>Sprig</code> as readily as inside <code>frame</code>. The drain later spawns the element <em>at</em> that
-reserved entity.</p>
-<p>So a name’s state is read straight off the allocator:</p>
+the property the rest of the design leans on. The name comes from <code>Naming</code>
+(<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/naming.rs"><code>naming.rs</code></a>), one source
+shared by the frame and by every <code>Sprig</code>, whose counters are all atomic. Taking a name never touches
+the tree, which is what lets one be taken on a worker thread through a <code>Sprig</code> as readily as inside
+<code>frame</code>. The index is one that went back when an element withered, the last to go back first, or
+else a fresh one past every index named so far. The drain later grows the element into that slot,
+and the columns grow to meet a name past their end.</p>
+<p>So a name’s state is read straight off its slot:</p>
 <div class="table-wrapper">
 <table>
 <thead>
-<tr><th>The entity is</th><th><code>Presence</code></th><th>Meaning</th></tr>
+<tr><th>The slot is</th><th><code>Presence</code></th><th>Meaning</th></tr>
 </thead>
 <tbody>
-<tr><td>reserved, not yet spawned</td><td><code>Planted</code></td><td>the op that grows it has not been drained yet</td></tr>
-<tr><td>spawned</td><td><code>Live</code></td><td>in the tree</td></tr>
-<tr><td>neither</td><td><code>Withered</code></td><td>pruned, or taken down with an ancestor</td></tr>
+<tr><td>past the end, or at the name’s generation and empty</td><td><code>Planted</code></td><td>the op that grows it has not been drained yet</td></tr>
+<tr><td>at the name’s generation, holding an element</td><td><code>Live</code></td><td>in the tree</td></tr>
+<tr><td>at another generation</td><td><code>Withered</code></td><td>pruned, or taken down with an ancestor</td></tr>
 </tbody>
 </table>
 </div>
 <p>A <code>Planted</code> name stays planted forever if the op that would have grown it was dropped (its trunk
-withered before the drain reached it). A withered entity’s index does go back to the allocator, but
-bevy’s generation tells the old name from the new one, so a stale <code>Leaf</code> never comes to address
-whatever grew after it.</p>
+withered before the drain reached it). A withered element’s index does go back to <code>Naming</code>, but a
+generation on, so a stale <code>Leaf</code> never comes to address whatever grew after it.</p>
 <p>Each element also gets a <code>Growth</code>: a number from one atomic counter, taken with the name. It is the
 order <code>plant</code> and <code>branch</code> were <em>called</em> in, across every thread, rather than the order the drain
 reached them, and it is what settles ties: which of two equal-elevation elements is in front, and
@@ -5420,54 +5474,63 @@ which of two elements in the same place comes first in focus order.</p>
 fonts, marks), each monotonic and never reused, so a stale handle of any kind is inert.</p>
 <h2 id="what-an-element-is-made-of"><a class="header" href="#what-an-element-is-made-of">What an element is made of</a></h2>
 <p>A seed (<code>Panel::new()...</code>) builds a <code>Bud</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/op.rs"><code>op.rs</code></a>):
-the element’s components, formed before the element exists. The queue carries it boxed, and
-<code>Tree::grow</code> inserts it. Every element gets the same core, so nothing that reads one of these has to
-ask whether the element is the kind that has it:</p>
+the element’s declarations, formed before the element exists. The queue carries it, and
+<code>Tree::grow</code> writes it into the element’s slot. Every element has a value in the same core columns,
+so nothing that reads one of these has to ask whether the element is the kind that has it:</p>
 <div class="table-wrapper">
 <table>
 <thead>
-<tr><th>Component</th><th>Holds</th></tr>
+<tr><th>Column</th><th>Holds</th></tr>
 </thead>
 <tbody>
-<tr><td><code>Grown</code></td><td>marks an element the app grew, as against a part an element grew under itself</td></tr>
-<tr><td><code>SpawnedAt</code></td><td>the source location of the <code>plant</code> or <code>branch</code> call, for error messages</td></tr>
-<tr><td><code>Growth</code></td><td>allocation order</td></tr>
-<tr><td><code>Chlorophyll</code></td><td>which renderer draws it: none, panel, text, polygon, line, icon or image</td></tr>
-<tr><td><code>Location</code></td><td>where it sits, at every breakpoint</td></tr>
-<tr><td><code>Grid</code></td><td>how it divides its box for its children</td></tr>
-<tr><td><code>Elevation</code></td><td>how far in front of its trunk it sits</td></tr>
-<tr><td><code>Gestures</code></td><td>whether it receives, whether it is intangible, which drags it takes, its hit shape</td></tr>
-<tr><td><code>Focusing</code></td><td>its focus order and whether it is a focus scope</td></tr>
-<tr><td><code>Visible</code>, <code>Opacity</code>, <code>Disabled</code></td><td>its own off-states, before its ancestry is taken into account</td></tr>
-<tr><td><code>Offset</code>, <code>Extent</code></td><td>where a region is scrolled to, and how far its content reaches</td></tr>
+<tr><td><code>generation</code></td><td>which name the slot answers to</td></tr>
+<tr><td><code>flags</code></td><td>whether the slot holds an element; whether the app grew it or a frond grew it as a part; what it declared that is one bit (visible, disabled, pinned, read-only, masked); and which side tables hold something for it</td></tr>
+<tr><td><code>spawned_at</code></td><td>the source location of the <code>plant</code> or <code>branch</code> call, for error messages</td></tr>
+<tr><td><code>growth</code></td><td>allocation order</td></tr>
+<tr><td><code>chlorophyll</code></td><td>which renderer draws it: none, panel, text, polygon, line, icon or image</td></tr>
+<tr><td><code>placements</code></td><td>how it is placed: a <code>Location</code> at every breakpoint, or a <code>Trace</code> and <code>Stroke</code> for a line</td></tr>
+<tr><td><code>elevation</code></td><td>how far in front of its trunk it sits</td></tr>
+<tr><td><code>gestures</code></td><td>whether it receives, whether it is intangible, which drags it takes, its hit shape</td></tr>
+<tr><td><code>opacity</code></td><td>its own opacity, before its ancestry is taken into account</td></tr>
+<tr><td><code>shift</code></td><td>how far it has been moved off where the layout put it</td></tr>
+<tr><td><code>scrolls</code></td><td>which axes it scrolls on, if any</td></tr>
+<tr><td><code>trunk</code>, <code>first</code>, <code>last</code>, <code>next</code>, <code>previous</code></td><td><a href="#the-hierarchy">the hierarchy</a></td></tr>
 </tbody>
 </table>
 </div>
-<p>And, only where they apply: the renderer’s <strong>pigment</strong> (<code>PanelPigment</code>, <code>TextPigment</code> and so on:
-fill, rounding, shape, mark, plate), <code>Lettering</code> for a run of text, <code>Tints</code>, <code>Scrolls</code>, <code>Pinned</code>,
-<code>Floats</code>, <code>Trace</code> and <code>Stroke</code> for a line, <code>Typeface</code> for an element that states a font or a size,
-<code>Anchored</code> for one with an anchor, and bevy’s <code>ChildOf</code> for one grown under another.</p>
+<p>What a renderer was told, its <strong>pigment</strong> (<code>PanelPigment</code>, <code>TextPigment</code> and so on: fill,
+rounding, shape, mark, plate), is held packed by renderer. Each renderer has one array as long as
+what draws with it, and an element’s <code>pigment</code> column says where in that array its own sits. When
+one withers, the last item is moved into its place and its owner is told where it went.</p>
+<p>What only some elements state is held in a <strong>side table</strong>, and only for those that state it: <code>Grid</code>,
+<code>Offset</code> and <code>Extent</code> for a region, <code>Focusing</code>, <code>Typeface</code>, <code>Anchored</code>, <code>Floats</code>, <code>Lettering</code> and
+<code>Tints</code> for a run, and a field’s <code>Parts</code>, <code>Editing</code> and <code>Keypad</code>. Each table owns a bit of the slot’s
+flags, set exactly while it holds something there, so an element that states nothing is answered by
+the bit rather than by a lookup.</p>
 <p><code>Chlorophyll</code> deserves a word. It is set when the element is grown and there is no op that can
 change it: what an element draws is part of what it is, and an element that is to draw something
 else is a different element. It is also the <em>only</em> thing that says what an element is. Extraction
 walks the elements once and routes each on its chlorophyll, so a further renderer costs a variant
-rather than a pass, and a set of components that happens to look like a panel is not a panel.</p>
+rather than a pass, and a set of declarations that happens to look like a panel is not a panel.</p>
 <h2 id="the-hierarchy"><a class="header" href="#the-hierarchy">The hierarchy</a></h2>
-<p><code>branch</code> records the trunk with bevy’s <code>ChildOf</code>, and bevy keeps the reverse <code>Children</code> list. The
-tree reads both ways: <code>trunk(leaf)</code> for what an element hangs off, <code>branched(leaf)</code> for what hangs
-off it.</p>
+<p><code>branch</code> hangs an element off its trunk. <code>trunk</code> holds what each element hangs off, and what hangs
+off an element is a list threaded through the slots: <code>first</code> and <code>last</code> on the trunk, <code>next</code> and
+<code>previous</code> on each child, in the order they were grown. Letting go of one child of thousands is a
+few writes rather than a search. The tree reads both ways: <code>trunk(leaf)</code> for what an element hangs
+off, <code>branched(leaf)</code> for what hangs off it.</p>
 <p>Some children are not the app’s. A <code>TextInput</code> is one element to the app and seven in the tree:
 the field itself, and under it a run, a placeholder, a caret, and three panels for a selection that
-can span lines. <a href="#fronds">Fronds</a> grow those parts as ordinary children. They are not marked <code>Grown</code>, so <code>branches</code> (and the <code>Vein::Branches</code> read) lists only what
-the app grew, while everything that resolves, draws and withers treats the parts like any other
-element.</p>
+can span lines. <a href="#fronds">Fronds</a> grow those parts as ordinary children with <code>grow_part</code>, which
+is <code>grow</code> without the <code>GROWN</code> flag. <code>branches</code> (and the <code>Vein::Branches</code> read) lists only children
+with that flag, so it lists only what the app grew, while everything that resolves, draws and withers
+treats the parts like any other element.</p>
 <h2 id="declarations-and-resolved-values"><a class="header" href="#declarations-and-resolved-values">Declarations and resolved values</a></h2>
-<p>The world holds <strong>what was declared</strong>: what the app said about each element, plus the few values
+<p>The tree holds <strong>what was declared</strong>: what the app said about each element, plus the few values
 the engine keeps on its behalf and writes through the same setters (a region’s offset and extent, a
 field’s caret). It does not hold what resolution makes of them. Boxes, clips, ranks and the
 inherited off-states live in resolution’s own arrays, <code>Elements</code>, described in
-<a href="#resolution">Resolution</a>, and are never written back into the world. The line is sharp: a value in
-the world is something an op can write, and a value in <code>Elements</code> is something only a pass can.</p>
+<a href="#resolution">Resolution</a>, and are never written back into the tree. The line is sharp: a value in
+the tree is something an op can write, and a value in <code>Elements</code> is something only a pass can.</p>
 <p><code>Grove::tap</code> reads across both, and always returns a copy:</p>
 <pre><code class="language-rust ignore">// grove.rs, shortened
 pub fn tap(&amp;self, leaf: Leaf, vein: Vein) -&gt; Option&lt;Sap&gt; {
@@ -5486,11 +5549,11 @@ pub fn tap(&amp;self, leaf: Leaf, vein: Vein) -&gt; Option&lt;Sap&gt; {
 the product over its ancestry is resolution’s, and the read answers the question the element can
 be asked.</p>
 <h2 id="recording-what-was-written"><a class="header" href="#recording-what-was-written">Recording what was written</a></h2>
-<p>The most important thing <code>Tree</code> does is not store components. It is to <strong>record every write, where
+<p>The most important thing <code>Tree</code> does is not store declarations. It is to <strong>record every write, where
 the write happens</strong>, so that resolution can leave alone everything nothing wrote to:</p>
 <pre><code class="language-rust ignore">// tree.rs
 pub(crate) struct Tree {
-    world: World,
+    // ...the columns and side tables above, then:
     touched: Leaves,     // declarations resolution reads were written
     restyled: Leaves,    // something about how it is drawn changed, and nothing about where
     lettered: Leaves,    // its run was rewritten, or it was grown: R1 measures it again
@@ -5531,8 +5594,9 @@ read it</strong>, not at the end of the frame. A write made by anything that run
 to the next frame, which is the frame that would resolve it.</p>
 <h2 id="withering"><a class="header" href="#withering">Withering</a></h2>
 <p><code>prune</code> is the one write that removes. The drain calls <code>Tree::wither</code>, which gathers the element and
-everything under it (the app’s children and any parts a frond grew), despawns the element, and
-bevy despawns the rest through the parent relationship. Every name that went is reported three
+everything under it (the app’s children and any parts a frond grew), walking the child lists, and
+empties each slot: its pigment and side-table entries go, and its generation moves on. The indices
+go back to <code>Naming</code> together. Every name that went is reported three
 places: to the running motion, which drops anything moving on those elements; to the coasting
 scrolls, which drop any region that went; and to the drift, which becomes <code>withered</code> in the next
 frame’s <code>Pollen</code>.</p>
@@ -5759,7 +5823,7 @@ pub(crate) fn run(grove: &amp;mut Grove) {
     read(&amp;mut elements, grove);          // what to resolve, and the order to resolve it in
     grove.tree.taken();                  // writes after this belong to the next frame
     measure(grove, &amp;mut elements);       // R1
-    axes(grove, &amp;mut elements);          // R2a, R2m, R2b
+    axes(grove, &amp;mut elements);          // R1m, R2a, R2m, R2b
     extent(grove, &amp;elements);            // R3
     scroll(grove, &amp;mut elements);        // R4
     clip(&amp;mut elements);                 // R5
@@ -5775,12 +5839,13 @@ pub(crate) fn run(grove: &amp;mut Grove) {
 <tr><th></th><th>Pass</th><th>Direction</th><th>Writes</th></tr>
 </thead>
 <tbody>
-<tr><td>R1</td><td>measure</td><td>any</td><td>the character cell, the shaped run, and the max-content width</td></tr>
+<tr><td>R1</td><td>measure</td><td>any</td><td>the character cell and the shaped run</td></tr>
+<tr><td>R1m</td><td>across</td><td>bottom-up</td><td>how wide each element’s content wants to be: the width half of <code>content()</code></td></tr>
 <tr><td>R2a</td><td>horizontal</td><td>dependency order</td><td>every left edge and width</td></tr>
-<tr><td>R2m</td><td>wrap</td><td>bottom-up</td><td>how tall each element’s content turned out: the other half of <code>content()</code></td></tr>
+<tr><td>R2m</td><td>wrap</td><td>bottom-up</td><td>how tall each element’s content turned out: the height half of <code>content()</code></td></tr>
 <tr><td>R2b</td><td>vertical</td><td>dependency order</td><td>every top edge and height, and with them the placed box</td></tr>
 <tr><td>R3</td><td>extent</td><td>bottom-up</td><td>how far each scrolling region’s content reaches</td></tr>
-<tr><td>R4</td><td>scroll</td><td>top-down</td><td>the drawn box: the placed box less every scrolling ancestor’s offset</td></tr>
+<tr><td>R4</td><td>scroll</td><td>top-down</td><td>the drawn box: the placed box less every scrolling ancestor’s offset, and moved by every shift over it</td></tr>
 <tr><td>R5</td><td>clip</td><td>top-down</td><td>what the scrolling regions above an element leave visible of it</td></tr>
 <tr><td>R6</td><td>rank</td><td>dependency order</td><td>where each element sits in the stack</td></tr>
 <tr><td>R7</td><td>inherit</td><td>top-down</td><td>the visible, opacity and disabled products over the ancestry</td></tr>
@@ -5792,7 +5857,7 @@ pub(crate) fn run(grove: &amp;mut Grove) {
 once per frame: <strong>nothing iterates to a fixed point.</strong></p>
 <h2 id="held-between-frames"><a class="header" href="#held-between-frames">Held between frames</a></h2>
 <p>Everything resolution produces lives in one struct, <code>Elements</code>, kept on the grove between frames
-and never written back into the world:</p>
+and never written back into the tree:</p>
 <pre><code class="language-rust ignore">// rowan.rs, shortened
 pub(crate) struct Elements {
     pub(crate) order: Vec&lt;Leaf&gt;,      // every live element, in dependency order
@@ -5803,7 +5868,8 @@ pub(crate) struct Elements {
     pub(crate) standing: Vec&lt;Standing&gt;, // what each declared that the later passes read
     section: Vec&lt;Section&gt;,            // the placed box
     intrinsic: Vec&lt;Area&gt;,             // what content() reads
-    reached: Vec&lt;Option&lt;f32&gt;&gt;,        // how far each reaches toward its trunk's measure
+    spread: Vec&lt;Option&lt;f32&gt;&gt;,         // how far right each reaches, toward its trunk's measure
+    reached: Vec&lt;Option&lt;f32&gt;&gt;,        // how far down each reaches, likewise
     cell: Vec&lt;Area&gt;,                  // the character cell
     pub(crate) composed: Vec&lt;Option&lt;Arc&lt;Shaped&gt;&gt;&gt;, // the shaped run
     pub(crate) drawn: Vec&lt;Section&gt;,   // the placed box, moved by scrolling
@@ -5816,7 +5882,7 @@ pub(crate) struct Elements {
 }</code></pre>
 <p>The shape is the point. Every pass asks the same questions of the same elements (what does it hang
 off, what is it anchored to, what is under it, what does each of those offer a placement), and asked
-of the world each one is a lookup by entity. The arithmetic a pass does is small enough that the
+of the tree each one is a lookup by name. The arithmetic a pass does is small enough that the
 lookups, not the arithmetic, were what a frame cost. So the tree is read once into this order,
 with every dependency stored as a <strong>position</strong> rather than a name, and from then on every pass
 indexes arrays. A trunk’s contribution to what its child inherits is <code>inherited[trunk]</code>, not a hash
@@ -5876,40 +5942,49 @@ to be marked <code>moved</code>.</p>
 <p>R1 visits only elements that say something new: grown this frame, text rewritten, or everything
 after a breakpoint or a font change. For each, it reads the element’s font and size at the
 breakpoint in force, takes its character cell from the font, and shapes its run through the
-<a href="#text-shaped-and-cut">shaping cache</a>. The cell is what <code>letters</code> counts in. The run’s <strong>max-content width</strong> is
-its longest line’s character count times the cell width, which in a monospaced face is exact and
-needs no layout at all. That is written as the width half of the element’s intrinsic size.</p>
-<h2 id="r2-the-two-axes-and-the-measure-between-them"><a class="header" href="#r2-the-two-axes-and-the-measure-between-them">R2: the two axes, and the measure between them</a></h2>
-<p>Text wrapping makes a height depend on a width, and the width comes from layout, so a box sized to
-what it holds looks circular. It is not, because <strong>width flows down and height flows up</strong>:</p>
+<a href="#text-shaped-and-cut">shaping cache</a>. The cell is what <code>letters</code> counts in, and the shaped run is what both
+measures read.</p>
+<h2 id="r1m-and-r2-the-two-axes-and-a-measure-before-each"><a class="header" href="#r1m-and-r2-the-two-axes-and-a-measure-before-each">R1m and R2: the two axes, and a measure before each</a></h2>
+<p><code>content()</code> asks the same question on both axes: how large is what is inside me. An element takes
+the larger of two answers, its own run and how far anything grown under it reaches, and each is
+measured bottom-up just before the axis that reads it is laid out:</p>
 <ol>
+<li><strong>R1m</strong> walks bottom-up and measures across. A run’s <strong>max-content width</strong> is its longest line’s
+character count times the cell width, which in a monospaced face is exact and needs no layout at
+all. An element with children also reaches over them: the furthest any of them extends right of
+its left edge. The element takes the greater of the two as the width half of its intrinsic size.</li>
 <li><strong>R2a</strong> resolves the horizontal axis of every dirty element, in dependency order. Every input is
-available: widths come from trunks, and a run’s max-content width came from R1 without any
-layout.</li>
-<li><strong>R2m</strong> walks bottom-up and measures. Each run wraps at the width R2a just gave it, and its line
-count times its cell height is its measured height. An element with children also reaches over
-them: the furthest any of them extends below its top edge. The element takes the greater of the
-two as the height half of its intrinsic size.</li>
+available: widths come from trunks, and <code>width(content())</code> reads what R1m measured.</li>
+<li><strong>R2m</strong> walks bottom-up and measures down. Each run wraps at the width R2a just gave it, and its
+line count times its cell height is its measured height. An element with children takes the
+furthest any of them extends below its top edge if that is greater, as the height half of its
+intrinsic size.</li>
 <li><strong>R2b</strong> resolves the vertical axis, and <code>height(content())</code> reads what R2m measured.</li>
 </ol>
-<p>R2m is the one moment in the frame when every width is known and no height is, which is exactly what
-measuring needs.</p>
-<p>The reach over children counts only children whose vertical placement <strong>describes its own extent</strong>:
-pixels, letters, its own content, any reading of the already-settled horizontal axis. A child placed
-by a percentage of its trunk’s height, a row of its trunk’s grid, or an anchor’s edge is asking how
-tall something else is, so it cannot also be what decides that height. It is left out of the measure
-and given its real height by R2b like anything else. This is <code>Config::measurable</code>
+<p>Text wrapping makes a height depend on a width, and the width comes from layout, so a box sized to
+what it holds looks circular. It is not, because <strong>width flows down and height flows up</strong>: R1m needs
+no wrapping to measure a run across, and R2m is the one moment in the frame when every width is
+known and no height is, which is exactly what measuring down needs.</p>
+<p>The reach over children counts only children whose placement on that axis <strong>describes its own
+extent</strong>: pixels, letters, its own content, and down, any reading of the already-settled horizontal
+axis. A child placed by a percentage of its trunk, a track of its trunk’s grid, or an anchor’s edge
+is asking how large something else is, so it cannot also be what decides that size. It is left out
+of the measure and given its real extent by its axis’s own pass like anything else. Across, a
+character’s place in a run is left out too: it is read off the run as it wrapped, at a width that is
+not known yet. This is <code>Config::measurable</code>
 (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/placement/role.rs"><code>placement/role.rs</code></a>),
-and it is the reason <a href="#sizing-a-box-to-what-it-holds">Placing elements</a> states
-the rule it does.</p>
-<p>R2m also marks what has to measure again, and it runs <em>up</em> the order rather than down it: a measure
-travels toward the trunk and stops there, where a box travels away from it. An element that measured
-to something new is marked dirty, and R2b’s own closure (<code>dirty[at] |= dirty[trunk] || dirty[anchor]</code>
-at the top of each axis) spreads that to everything placed against it. That is why R2m sits between
-the axes and not after them.</p>
+the same question asked of either axis, and it is the reason
+<a href="#sizing-a-box-to-what-it-holds">Placing elements</a> states the rule it does.</p>
+<p>Both measures mark what has to measure again, and they run <em>up</em> the order rather than down it: a
+measure travels toward the trunk and stops there, where a box travels away from it. An element that
+measured to something new is marked dirty, and the next axis’s own closure
+(<code>dirty[at] |= dirty[trunk] || dirty[anchor]</code> at the top of each axis) spreads that to everything
+placed against it. That is why each measure sits before the axis that reads it and not after. R2a
+also marks for measuring down whatever it resolves again, since a box that came out another width
+may wrap to another height.</p>
 <p>An element measuring again because one child moved does not ask the others. How far each child
-reaches is a column of its own, <code>reached</code>, written when the child is resolved in its trunk’s reach
-and read back otherwise:</p>
+reaches is a column of its own, <code>spread</code> across and <code>reached</code> down, written when the child is
+resolved in its trunk’s measure and read back otherwise. Down:</p>
 <pre><code class="language-rust ignore">// rowan.rs
 fn reach(grove: &amp;Grove, elements: &amp;mut Elements, at: usize) -&gt; f32 {
     let mut reach: f32 = 0.0;
@@ -5917,7 +5992,7 @@ fn reach(grove: &amp;Grove, elements: &amp;mut Elements, at: usize) -&gt; f32 {
         let child_at = elements.children[index] as usize;
         if elements.dirty[child_at] {
             let child = elements.order[child_at];
-            let far = measurable(grove, child).then(|| {
+            let far = measurable(grove, child, Axis::Vertical).then(|| {
                 let context = raised(elements, at, child_at);
                 geometry(grove, child, &amp;context, Axis::Vertical).0.far
             });
@@ -5933,7 +6008,8 @@ fn reach(grove: &amp;Grove, elements: &amp;mut Elements, at: usize) -&gt; f32 {
 its own placement, the horizontal half of what it and its trunk and anchor resolved to, and its own
 measure; each of those that moves makes the child dirty, the last one here in R2m itself, before
 the walk reaches the trunk. So a container of thousands with one child written resolves one child
-to measure itself, and the column is never behind.</p>
+to measure itself, and the column is never behind. <code>spread</code> is the same walk across, against a
+context with no box laid out at all.</p>
 <p><strong>A motion in progress is resolved inside the same axis.</strong> For an element with a <code>Location</code> motion
 running, R2 resolves the target <em>and</em> the placement it departed from, in the same context, and
 blends the two. Both ends are answered against this frame’s trunks and anchors, so a resize or a
@@ -5957,14 +6033,16 @@ measuring against it would make the extent depend on itself.</p>
 <p>R4 first answers the three ways a region is asked to move, because all three need the extent R3
 just measured: a coast still running from a release, a <code>scroll</code> written this frame, and a scroll
 motion part way through (<a href="#scrolling-1">Scrolling</a>). Then it walks down the order, accumulating offsets:
-an element’s drawn box is its placed box less the sum of every scrolling ancestor’s offset.</p>
+an element’s drawn box is its placed box less the sum of every scrolling ancestor’s offset, and
+moved by every <code>shift</code> on it and above it – a shift is an offset the other way, carried to
+everything under the element, pinned or not.</p>
 <p>A region’s own box does not move under its own offset; what moves is everything grown inside it. A
 pinned child receives every offset except its nearest region’s. And each offset is clamped against
 the extent as it is applied, so a region whose content shrank comes back into range in the same
 frame rather than sitting somewhere it can no longer reach.</p>
 <p>The placed box and the drawn box are kept apart on purpose. A change to the placed box means the
 layout moved something and its children must follow. A change to the drawn box means only that it
-moved under a scroll, and nothing needs resolving for that.</p>
+moved under a scroll or a shift, and nothing needs resolving for that.</p>
 <h2 id="r5-clip"><a class="header" href="#r5-clip">R5: clip</a></h2>
 <p>A clip is a rectangle and nothing else: the intersection of the drawn boxes of every scrolling
 region above the element. A region does not clip itself, only what is inside it, and an element with
@@ -5992,13 +6070,16 @@ whether it is tangible, receives, and is disabled. It is what the next frame’s
 <p>It is rebuilt only on a frame where something it is built from changed, which R4 to R7 recorded as
 <code>restack</code>, and re-sorted only when a rank changed. A frame where one element’s color fades, or
 nothing happens at all, keeps the stack the last one built.</p>
-<h2 id="two-cycles-that-are-not-vicious"><a class="header" href="#two-cycles-that-are-not-vicious">Two cycles that are not vicious</a></h2>
-<p>Resolution has two places that look circular, and each is resolved in single passes rather than by
+<h2 id="three-cycles-that-are-not-vicious"><a class="header" href="#three-cycles-that-are-not-vicious">Three cycles that are not vicious</a></h2>
+<p>Resolution has three places that look circular, and each is resolved in single passes rather than by
 iterating:</p>
 <ul>
 <li><strong>Width and height.</strong> A wrapped height depends on a width. Widths never depend on heights (the
 <a href="#the-order-is-in-the-types">type system</a> refuses to let a horizontal role read one),
-so R2a, R2m and R2b in that order are enough.</li>
+so R1m, R2a, R2m and R2b in that order are enough.</li>
+<li><strong>A box and what it holds.</strong> A box sized to its content is sized by boxes resolved against it. A
+child that reads its trunk’s extent is left out of the measure on that axis, and what is left is
+measured bottom-up before the axis is laid out, so one measure per axis settles it.</li>
 <li><strong>Extent and offset.</strong> A child resolves against its region’s box, the region’s extent comes from
 where its children landed, and the offset is clamped to the extent. But the extent affects only the
 clamp, never the region’s own box, so a top-down layout, a bottom-up extent and a top-down scroll
@@ -6045,7 +6126,7 @@ pub(crate) fn resolve(config: &amp;Config, context: &amp;Context) -&gt; Span {
     Span { near, far }
 }</code></pre>
 <h2 id="pure-on-purpose"><a class="header" href="#pure-on-purpose">Pure, on purpose</a></h2>
-<p>The resolver touches no world, no entity names and no mutable state. Given the same inputs it gives
+<p>The resolver touches no tree, no element names and no mutable state. Given the same inputs it gives
 the same answer, and it may be called as many times per element per frame as anything needs. Three
 things depend on that:</p>
 <ul>
@@ -6156,7 +6237,7 @@ a role names it.</p>
 <tr><td><code>pct</code></td><td>a fraction of the basis’s extent on the resolving axis</td></tr>
 <tr><td><code>col</code>, <code>row</code></td><td>a track of the basis’s grid: its near edge in a near role, its far edge in a far role, its middle in a centre role, and <code>n</code> tracks with the gaps between them in a size role</td></tr>
 <tr><td><code>letters</code></td><td>a count of the basis’s character cells on the resolving axis</td></tr>
-<tr><td><code>content()</code></td><td>the basis’s measured extent on the resolving axis: max-content width, or wrapped height</td></tr>
+<tr><td><code>content()</code></td><td>the basis’s measured extent on the resolving axis: the wider of its max-content width and how far right its children reach, or the taller of its wrapped height and how far down they reach</td></tr>
 <tr><td><code>anchor().width()</code>, <code>.height()</code></td><td>the anchor’s extent on the named axis, whichever axis is resolving</td></tr>
 <tr><td>edges</td><td>a position on the surface</td></tr>
 <tr><td><code>anchor().character(n)</code></td><td>where character <code>n</code> of the anchor’s run stands, as it wrapped at the anchor’s width: its column times the cell width, or its line times the cell height</td></tr>
@@ -6230,23 +6311,27 @@ left(0.px()).center_x(50.pct());</code></pre>
 <pre><code class="language-rust compile_fail">use foliage::{Source, left};
 left(0.px()).width(2.row());</code></pre>
 <h2 id="measurable-stated-once"><a class="header" href="#measurable-stated-once">Measurable, stated once</a></h2>
-<p>R2m needs to know which children describe their own height (see
-<a href="#r2-the-two-axes-and-the-measure-between-them">Resolution</a>). That question is answered
-next to the grammar, term by term:</p>
+<p>R1m and R2m need to know which children describe their own extent on the axis they measure (see
+<a href="#r1m-and-r2-the-two-axes-and-a-measure-before-each">Resolution</a>). That question is
+answered next to the grammar, term by term, for the axis being measured:</p>
 <pre><code class="language-rust ignore">// placement/role.rs
-pub(crate) fn known(kind: Kind) -&gt; bool {
+pub(crate) fn known(kind: Kind, axis: Axis) -&gt; bool {
     match kind {
         Kind::Px(_) =&gt; true,
         Kind::Letters { .. } =&gt; true,
-        Kind::Character { .. } | Kind::Span { .. } =&gt; true,
+        Kind::Character { .. } | Kind::Span { .. } =&gt; axis == Axis::Vertical,
         Kind::Content { against } =&gt; against == Against::Own,
-        Kind::Extent { axis, .. } | Kind::Cell { axis, .. } =&gt; axis == Axis::Horizontal,
+        Kind::Extent { axis: read, .. } | Kind::Cell { axis: read, .. } =&gt; {
+            axis == Axis::Vertical &amp;&amp; read == Axis::Horizontal
+        }
         Kind::Pct { .. } =&gt; false,
         Kind::Edge { .. } =&gt; false,
     }
 }</code></pre>
-<p>A vertical placement is measurable if every term in it is known and it is not measured from an
-anchor’s edge. Everything else waits for R2b.</p>
+<p>A placement is measurable on an axis if every term in it is known and it is not measured from an
+anchor’s edge. Across, nothing is laid out yet, so only pixels, letters and a child’s own content
+are known; down, the horizontal axis has settled, so a height may read a width. Everything else
+waits for its axis’s own pass.</p>
 <h2 id="lines-are-the-same-grammar"><a class="header" href="#lines-are-the-same-grammar">Lines are the same grammar</a></h2>
 <p>A <code>Line</code> has no box: it has two ends. Each end is a <code>Point</code>, an x coordinate and a y coordinate in
 the same grammar, and <code>locate</code> resolves one axis of a point through the same <code>coordinate</code> function a
@@ -6269,7 +6354,7 @@ backend cuts each glyph onto a texture and draws it. This chapter follows a run 
 max-content width, wrapping, where a caret stands. In a monospaced face all of those are exact
 arithmetic, and one of them is the key to the whole layout model: a run’s widest unwrapped line is
 its character count times the cell width, known before any layout runs. That is what lets
-<a href="#r2-the-two-axes-and-the-measure-between-them">width flow down and height flow up</a>
+<a href="#r1m-and-r2-the-two-axes-and-a-measure-before-each">width flow down and height flow up</a>
 in two passes instead of an iteration.</p>
 <p>A proportional face would not degrade gracefully under that model. It would silently put every
 column address somewhere it does not belong. So the registry checks, when a face is handed over,
@@ -6398,11 +6483,14 @@ and the bowls of round letters.</li>
 on is placed on a whole device pixel, so each sample lands on a texel centre and the glyph is the
 bitmap. Unsnapped, every sample would fall between texels and the glyph’s outer rows would fade,
 which reads as a trimmed glyph rather than as a glyph half a pixel low.</li>
-<li><strong>Nothing is evicted.</strong> The sheet is packed in shelves and never freed. A monospaced app addresses a
-small alphabet at a handful of sizes, and four megabytes holds thousands of cuts. If it does fill,
-an <code>error</code> is written once and further characters stop drawing; the
-<a href="https://github.com/eblack-leaf/foliage/blob/main/TODO.md#glyph-atlas">TODO</a> records the plan to
-rebuild it from what the frame draws instead.</li>
+<li><strong>Nothing is evicted one at a time.</strong> The sheet is packed in shelves, and a cut stays on it once
+made: a monospaced app addresses a small alphabet at a handful of sizes, and four megabytes holds
+thousands of cuts. When a cut finds no room, the sheet is <strong>cut again from the runs the frame
+draws</strong> and nothing else, before any of that frame’s glyphs reach the GPU, so whatever the frame
+stopped drawing gives its room back at once. Only if the frame’s own cuts do not fit is the sheet
+full: an <code>error</code> is written once, and the characters that found no room draw nothing until the
+sheet is next cut again. A display whose density changed clears it outright, since every cut on it
+was made at the density that went.</li>
 </ul>
 <p>A character with no outline (a space, and more characters than a space) is remembered as nothing, so
 asking again does not rasterise again.</p>
@@ -6478,6 +6566,7 @@ type is left to the phase that reads the declaration.</p>
 <tbody>
 <tr><td><code>Opacity</code></td><td>a number, like its declaration</td><td>step 5, written back through the tree</td></tr>
 <tr><td><code>Polygon</code></td><td>a shape, like its declaration</td><td>step 5, written back</td></tr>
+<tr><td><code>Shift</code></td><td>a shift, like its declaration</td><td>step 5, written back</td></tr>
 <tr><td><code>Location</code></td><td>a box, where the declaration is a placement</td><td>R2, when the element is resolved</td></tr>
 <tr><td><code>Trace</code></td><td>two ends, where the declaration is a trace</td><td>R2</td></tr>
 <tr><td><code>Scroll</code></td><td>an offset, where the target is a <code>ScrollTo</code></td><td>R4</td></tr>
@@ -6493,14 +6582,17 @@ a role at either end of a motion follows a repaint mid-motion, because both ends
 the scheme every frame.</p>
 <p>A motion held beside the tree is invisible to the tree’s write records, so step 5 records one for
 it every frame it runs: a placement motion marks its element as written (so R2 resolves it again),
-and a fill motion marks it restyled (so extraction draws it again). An opacity or a shape is written
-through the tree’s own setters, which record themselves.</p>
+and a fill motion marks it restyled (so extraction draws it again). An opacity, a shape or a shift is
+written through the tree’s own setters, which record themselves.</p>
 <pre><code class="language-rust ignore">// aspen/mod.rs
 fn stirred(tree: &amp;mut Tree, leaf: Leaf, moving: &amp;Moving) {
     match moving {
         Moving::Location(_) | Moving::Trace(_) =&gt; tree.declared(leaf),
         Moving::Fill(_) =&gt; tree.restyled(leaf),
-        Moving::Opacity { .. } | Moving::Shape { .. } | Moving::Scroll { .. } =&gt; {}
+        Moving::Opacity { .. }
+        | Moving::Shape { .. }
+        | Moving::Shift { .. }
+        | Moving::Scroll { .. } =&gt; {}
     }
 }</code></pre>
 <h2 id="where-the-motions-are-held"><a class="header" href="#where-the-motions-are-held">Where the motions are held</a></h2>
@@ -6697,6 +6789,10 @@ here at dispatch, and like any write it cancels a scroll motion on that region a
 that landed on nothing that receives takes focus away. Nothing was reported early, so nothing is
 retracted: the threshold is not a rule about taking a click back, it is the point at which the
 kind of gesture becomes known.</p>
+<p>A tap is also <strong>counted</strong>. The last one is kept, and a tap that lands on the same element within
+<code>Taps</code> of it, measured press to press and point to point, is one more than it; anything else is one,
+and any gesture that is not a tap ends the run. The count rides with the tap (<code>taps</code>), so a double
+tap is the second tap reported with a two, never a single tap held back in case a second follows.</p>
 <p>If a region was holding the drag, the release hands it a velocity, and the region may coast. The
 velocity is the mean over the last 100 milliseconds of the gesture, not over its last frame: a hand
 slows as it lifts, a mouse reports nothing in the frame the button came up, and a flick can put all
@@ -6750,7 +6846,7 @@ so a dialog that declares itself a scope while focus is elsewhere traps nothing 
 so there is no mark the engine could draw that would be right.</p>
 <h2 id="what-the-fields-make-of-it"><a class="header" href="#what-the-fields-make-of-it">What the fields make of it</a></h2>
 <p>A text field is several elements under one name, and what a tap or a drag means to it (a caret
-placed, a selection extended) is its own business rather than dispatch’s. Dispatch reports taps,
+placed, a word selected, a selection extended) is its own business rather than dispatch’s. Dispatch reports taps,
 holds and drags like any other; straight after dispatch, before the app’s <code>frame</code>, each field reads
 what was reported about it and queues what that means. <a href="#fronds">Fronds</a> covers it.</p>
 <div style="break-before: page; page-break-before: always;"></div>
@@ -7033,6 +7129,8 @@ frame that rewraps under a selection draws it divided the new way with nothing d
 <ul>
 <li>a <strong>tap</strong> queues a <code>select</code> of an empty range at the character it landed on, placing the caret and
 collapsing any selection;</li>
+<li>a <strong>second tap</strong> in a row (a tap reported with a count past one) queues a <code>select</code> of the word
+under it instead;</li>
 <li>a <strong>hold</strong> queues focus and the same empty <code>select</code>, where the selection will begin;</li>
 <li>a <strong>drag</strong> out of a hold queues a <code>select</code> from the selection’s anchor to the character the pointer
 has reached, and while the pointer is past the field’s edge it asks for another frame, because a
@@ -7041,7 +7139,8 @@ reader holding still out there is still asking for more of the value.</li>
 <p>These are the same <code>select</code> ops an app would write, queued before the app runs, so an app that wants
 something else writes it in <code>frame</code> and wins. Which character a point falls on rounds the column (a
 press past the middle of a character puts the caret after it) and floors the line, then asks the
-wrap which index that cell is.</p>
+wrap which index that cell is. Which word it falls on floors both, because a word is chosen by the
+character under the hand.</p>
 <h2 id="typing"><a class="header" href="#typing">Typing</a></h2>
 <p>A key for a focused field reaches it in the drain, as a <code>Keyed</code> op, and the field applies it through
 one pure function:</p>
@@ -7050,13 +7149,22 @@ pub(crate) fn applied(
     value: &amp;str,
     editing: Editing,
     stroke: Keystroke,
-    wrap: Option&lt;Wrap&lt;'_&gt;&gt;,
+    run: Wrap&lt;'_&gt;,
+    lines: Lines,
 ) -&gt; Applied</code></pre>
-<p>It takes the value, the caret and selection, the key, and (for an area) the value as it wrapped, and
-says what the key does: a new value and caret, a moved caret, a copy, a cut, a paste to ask for, a
-submission, or nothing. Everything editing means is in that one function, as arithmetic over
-character indices, which is why every case of it can be tested as one line of a table. A read-only
-field passes the answer through a filter that turns writes into nothing and a cut into a copy.</p>
+<p>It takes the value, the caret and selection, the key, the value as it is drawn at the width it
+wrapped to (which a one-line field never does), and which kind of field it is, and says what the key
+does: a new value and caret, a moved caret, a copy, a cut, a paste to ask for, a submission, or
+nothing. Everything editing means is in that one function, as arithmetic over character indices,
+which is why every case of it can be tested as one line of a table. A read-only field passes the
+answer through a filter that turns writes into nothing and a cut into a copy, and a masked one
+through a filter that turns copying into nothing.</p>
+<p>The keys about lines read the wrap, because a line is a fact about the wrap and not the value. The
+keys about words read the run as it is drawn, because a word is something a reader sees: a masked
+run is all dots, so its words break nowhere but at a newline. <code>Editing</code> carries a goal column
+beside the caret and the anchor, set by the first <code>Up</code> or <code>Down</code> of a run and kept by the rest, so a
+shorter line passed through does not shorten every line after it; anything else that places the
+caret clears it.</p>
 <p>A write sets the run’s text and the caret, records <code>edited</code>, and calls <code>refresh</code>, which re-places the
 caret, shows or hides the placeholder, and asks the field to <code>show</code> the caret, so R4 scrolls the
 value in the same frame the caret passed the edge. A paste is the one key that cannot finish in the
@@ -7070,7 +7178,8 @@ where it is written exactly as typing would have been.</p>
 otherwise. It is not cleared when focus leaves: a selection is state and focus is not, so a field
 stepped away from and back into is as it was left;</li>
 <li>the soft keyboard is raised for the focused field’s keypad, or lowered if nothing typeable holds
-focus. Nothing about a phone is declared anywhere; being a field is the whole of it.</li>
+focus, and a desktop’s input method is allowed to compose for as long as it is up – unless the
+field is masked. Nothing about a phone is declared anywhere; being a field is the whole of it.</li>
 </ul>
 <p>Every one of those is an ordinary <code>visible</code> or <code>at</code> write, recorded like any other and resolved by R7
 and R2 in the same frame. That is the payoff of settling focus before resolution runs: a caret is not
@@ -7078,8 +7187,8 @@ a product patched up after the pass that composes it.</p>
 <h2 id="addressed-as-one"><a class="header" href="#addressed-as-one">Addressed as one</a></h2>
 <p>Every verb and every read an app aims at a field is redirected to the part it concerns. <code>text</code> writes
 the run and moves the caret to the end; <code>color</code> refills the run; <code>tap(field, Vein::Text)</code> reads the
-run; <code>Vein::Selection</code> reads the field’s <code>Editing</code>. The field carries a <code>Parts</code> component naming its
-six parts, and that component’s presence is the one test for “is this a field”, asked once per op.
+run; <code>Vein::Selection</code> reads the field’s <code>Editing</code>. The field carries a <code>Parts</code> entry naming its
+six parts, and that entry’s presence is the one test for “is this a field”, asked once per op.
 So what a field is made of is never a name an app has to hold, and never a surface an app has to keep
 in step.</p>
 <div style="break-before: page; page-break-before: always;"></div>
@@ -7246,7 +7355,10 @@ than once per frame. The cost is one rule: when the density changes (a window dr
 display) the logical values do not, and would compare equal forever against instances derived for a
 density that is gone. So a density change, and a backend rebuilt from nothing after an Android
 suspend, both call <code>recut</code>, which empties every cache. The next extraction has nothing to compare
-against and states every element.</p>
+against and states every element. On a density change the backend is kept, so it empties what it
+holds in the same breath, the glyph atlas with it: the next batch is then the whole of what is drawn,
+and an element that stopped being drawn in that frame (which nothing would name to be let go of,
+with nothing held for it to compare) is not left on screen.</p>
 <h2 id="in-the-trace"><a class="header" href="#in-the-trace">In the trace</a></h2>
 <p>The <code>extract</code> span records how many instances were written, how many withdrawn, how many glyphs the
 written runs held, and how many elements were <code>kept</code>: visited by the walk and skipped because nothing
@@ -7394,7 +7506,7 @@ emulator’s Vulkan driver crashes inside the naming call, so naming is turned o
 <tr><th></th><th>Held on</th><th>Freed</th></tr>
 </thead>
 <tbody>
-<tr><td>glyphs</td><td>one 2048 by 2048 single-channel atlas</td><td>never (<a href="#the-cut">Text</a>)</td></tr>
+<tr><td>glyphs</td><td>one 2048 by 2048 single-channel atlas</td><td>all at once: cut again from what the frame draws when it runs out, and cleared when the density changes (<a href="#the-cut">Text</a>)</td></tr>
 <tr><td>marks</td><td>one sheet of distance fields, three channels</td><td>never: a set an app names once</td></tr>
 <tr><td>pictures</td><td>a texture each</td><td>not today</td></tr>
 <tr><td>instances</td><td>one pair of buffers per renderer, grown to the next power of two</td><td>with the backend</td></tr>
@@ -7456,9 +7568,9 @@ place among the frame’s ops by arrival and nothing else. It lands in the drain
 running when it arrived, if it arrived before that frame’s drain began, and in the next frame’s
 otherwise. Nothing about how it is applied depends on which side it came from, and the suite proves
 it by running one script of writes through a <code>Grove</code> and through a <code>Sprig</code> and comparing the trees.</p>
-<p><strong>Names come from the same place.</strong> <code>Naming</code> holds the world’s entity allocator in its remote form
-and an atomic counter for everything else, so a worker can take a name for an element (or a motion,
-a picture, a face, a mark) without the world. Names from both sides never collide, and the
+<p><strong>Names come from the same place.</strong> <code>Naming</code> hands out every name from atomic counters
+and the indices of elements that withered, so a worker can take a name for an element (or a motion,
+a picture, a face, a mark) without the tree. Names from both sides never collide, and the
 allocation order that settles elevation ties is one order across every thread. A worker can grow an
 element and branch another off it on the next line, exactly as <code>frame</code> can.</p>
 <p>Then the <strong>rouse</strong>: the loop sleeps until the platform has something to say, and an op pushed from a
@@ -7503,7 +7615,7 @@ fn misfit(&amp;mut self, plate: Plate, reason: String) {
     });
 }</code></pre>
 <h2 id="reading-pushed-not-sampled"><a class="header" href="#reading-pushed-not-sampled">Reading: pushed, not sampled</a></h2>
-<p>A worker cannot sample the tree. A read needs the world, and the world belongs to the frame. So the
+<p>A worker cannot sample the tree. A read needs the tree, and the tree belongs to the frame. So the
 reads a worker needs are <strong>pushed</strong> to it, at one point in the frame, by <code>sprig::publish</code>:</p>
 <pre><code class="language-rust ignore">// fern.rs
     rowan::run(grove);
@@ -7650,7 +7762,7 @@ frame:</p>
 <ul>
 <li><strong>The resolver.</strong> <code>tests/placement.rs</code> tests the placement algebra “against the resolver alone”: a
 <code>Config</code> and a <code>Context</code> in, a <code>Span</code> out. That is possible only because the resolver touches no
-world.</li>
+tree.</li>
 <li><strong>Editing.</strong> <code>text_input::applied</code> takes a value, a caret, a key and a wrap, and says what the key
 does, so every editing rule is a one-line case in a table.</li>
 <li><strong>The scheme.</strong> The ramps a scheme derives from its seeds are checked as color arithmetic.</li>
@@ -7795,7 +7907,7 @@ the frame. What is left of it is mostly the accumulations every frame pays, and 
 again (0.10 ms) because the cells that moved moved in it. The measure is hardly in it: every element
 written still marks its ancestors to measure again, and the container over the field still measures,
 but it asks only the sixty-four children that moved and reads what the other four thousand reached
-from when they last did (<a href="#r2-the-two-axes-and-the-measure-between-them">Resolution</a>).
+from when they last did (<a href="#r1m-and-r2-the-two-axes-and-a-measure-before-each">Resolution</a>).
 Before that, asking all of them was 0.19 ms of this load on its own, and <code>layout/64</code> was 0.66 ms.</p>
 <p><strong>New text pays for shaping.</strong> <code>text</code> at 4.5 ms is <code>measure</code> shaping four thousand strings it has
 never seen (1.7 ms) and <code>wrap</code> wrapping them (0.76 ms). A string that has been shaped before, at that
@@ -7909,7 +8021,7 @@ than describing it from outside.</p>
 <tr><td><code>Fern</code></td><td>The frame: one function that runs every phase in order</td><td><code>fern.rs</code></td></tr>
 <tr><td><code>photosynthesize</code></td><td>The loop: light in, growth out, and it does not return</td><td><code>photosynthesize.rs</code></td></tr>
 <tr><td><code>Willow</code></td><td>The window: what it opens as, its size and density</td><td><code>willow.rs</code></td></tr>
-<tr><td><code>Tree</code></td><td>The one door onto <code>bevy_ecs</code>. A structure word, because it is the tree seen from inside</td><td><code>tree.rs</code></td></tr>
+<tr><td><code>Tree</code></td><td>Where every element is held, one slot each at the index of its name. A structure word, because it is the tree seen from inside</td><td><code>tree.rs</code></td></tr>
 <tr><td><code>Rowan</code></td><td>Resolution: declarations into boxes, clips, ranks and products</td><td><code>rowan.rs</code>, <code>placement/</code></td></tr>
 <tr><td><code>Aspen</code></td><td>Motion: tweens, channels, timers and sequences on one clock</td><td><code>aspen/</code></td></tr>
 <tr><td><code>Elm</code></td><td>Extraction: what changed, as render instances</td><td><code>elm.rs</code></td></tr>
@@ -8000,6 +8112,7 @@ architecture half of the book.</p>
 </thead>
 <tbody>
 <tr><td>R1</td><td>measure</td></tr>
+<tr><td>R1m</td><td>across: the measure the horizontal axis reads</td></tr>
 <tr><td>R2a, R2m, R2b</td><td>the horizontal axis, the wrap, the vertical axis</td></tr>
 <tr><td>R3</td><td>extent</td></tr>
 <tr><td>R4</td><td>scroll</td></tr>

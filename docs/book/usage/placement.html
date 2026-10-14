@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -357,21 +357,24 @@ left(0.px()).width(2.row());</code></pre>
 <p>The last rule is the interesting one, and it comes from how resolution is ordered.</p>
 <h2 id="width-flows-down-height-flows-up"><a class="header" href="#width-flows-down-height-flows-up">Width flows down, height flows up</a></h2>
 <p>Text wrapping makes a height depend on a width, and a width comes from layout. A box sized to its
-contents is therefore a cycle in general. foliage breaks it at two passes and never iterates:</p>
+contents is therefore a cycle in general. foliage breaks it by measuring before each axis and never
+iterates:</p>
 <ol>
-<li>The <strong>horizontal</strong> axis resolves for the whole tree. A run of monospaced text knows the widest
+<li>Everything is <strong>measured across</strong>, from the inside out. A run of monospaced text knows the widest
 it could want to be before any layout (its longest line’s character count times the cell
-width), so nothing on this pass has to be measured.</li>
-<li>Every run <strong>wraps</strong> at the width it was just given, which settles how tall it is.</li>
+width), and a box knows how far right what it holds reaches, so this needs nothing laid out.</li>
+<li>The <strong>horizontal</strong> axis resolves for the whole tree, reading those widths.</li>
+<li>Every run <strong>wraps</strong> at the width it was just given, and every box is measured down from the
+inside out, which settles how tall each is.</li>
 <li>The <strong>vertical</strong> axis resolves for the whole tree, reading those heights.</li>
 </ol>
 <p>The types are that order stated in advance. A horizontal role cannot read a height because, when
 it is resolved, no height exists. The reverse is fine and useful: <code>height(2.col())</code> is a
 two-column span used as a height, and <code>aspect</code> is a height read off the element’s own width.</p>
-<p><code>content()</code> is one word with a different question per axis. In a width role it is the widest the
-element wants to be (its text, unwrapped). In a height role it is how tall it turned out at the
-width it was given. So <code>left(..).right(..)</code> with <code>height(content())</code> is a paragraph: as wide as its
-parent allows, as tall as it wraps to.</p>
+<p><code>content()</code> is one word asking the same thing on either axis: how large is what is inside me. In a
+width role it is the widest the element wants to be (its text unwrapped, or what it holds). In a
+height role it is how tall it turned out at the width it was given. So <code>left(..).right(..)</code> with
+<code>height(content())</code> is a paragraph: as wide as its parent allows, as tall as it wraps to.</p>
 <h2 id="clamps"><a class="header" href="#clamps">Clamps</a></h2>
 <p>Either axis can be held between two extents:</p>
 <pre><code class="language-rust ignore">left(0.px()).width(content()).at_most(240.px())    // fit-content: as wide as its text, up to 240
@@ -415,14 +418,17 @@ vocabulary for the trunk, for the two readings the bare sources cannot spell:
 <p>The card’s ground is not the parent of the text it frames. It is a sibling, grown first so that
 it sits behind, and anchored to the last thing it frames. That is the idiom, and the reason for it
 is worth knowing.</p>
-<p>An element sized <code>height(content())</code> takes the greater of two things: how tall its own run of
-text wrapped to, and how far down its children reach. <strong>Only children that describe their own
-extent are counted</strong>: a child placed in pixels, in letters, by its own content, or by any
-horizontal reading. A child whose vertical placement reads <em>another</em> vertical box (a percentage of
-its trunk, a row of its trunk’s grid, an anchor’s edge) is asking how tall something else is, so
-it cannot be what decides how tall this is. It is left out of the measure and given its real
-position afterwards.</p>
-<p>So a box <em>can</em> be sized to children at known offsets. A badge whose label sits 6 pixels in:</p>
+<p>An element sized to <code>content()</code> takes the greater of two things on that axis: its own run of
+text (unwrapped across, as it wrapped down), and how far its children reach (right of its left
+edge, or down from its top). <strong>Only children that describe their own extent on that axis are
+counted</strong>: a child placed in pixels, in letters, or by its own content – and down, by any
+horizontal reading, since widths have settled by then. A child whose placement reads <em>another</em> box
+on that axis (a percentage of its trunk, a track of its trunk’s grid, an anchor’s edge) is asking
+how large something else is, so it cannot be what decides how large this is. It is left out of the
+measure and given its real place afterwards, which is what lets one child size a box that another
+child fills.</p>
+<p>So a box <em>can</em> be sized to children at known offsets. A badge that hugs its label, with the label
+held two letters in from either side and 6 pixels from the top and bottom:</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Boxed, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding, Source, Text, content, left, top};
 </span><span class="boring">fn f(grove: &amp;mut Grove, under: Leaf) {
 </span>let badge = grove.branch(
@@ -431,9 +437,9 @@ position afterwards.</p>
         .color(Palette::Signal)
         .rounding(Rounding::Full)
         .font_size(FontSize::new().xs(12))
-        // Two letters of room either side of a five-letter label, in the label's own cells.
+        // As far as the label reaches, and two letters more on the right to match the left.
         .at(Location::new().xs(
-            left(0.px()).width(9.letters()),
+            left(0.px()).width(content() + 2.letters()),
             top(0.px()).height(content() + 6.px()),
         )),
 );
@@ -448,16 +454,15 @@ grove.branch(
         )),
 );
 <span class="boring">}</span></code></pre>
-<p>The label reaches 6 pixels plus one line down, and the badge adds 6 more for the padding below.
-Two things in it are worth copying:</p>
+<p>The label reaches two letters plus its own five across and 6 pixels plus one line down, and the
+badge adds two letters on the right and 6 pixels below. Rewrite the label and the badge follows it in
+the same frame. Two things in it are worth copying:</p>
 <ul>
-<li><strong>Padding below is added, not measured.</strong> The measure is how far the children reach, so a
-bottom margin is <code>content() + 6.px()</code>.</li>
-<li><strong>A width in letters needs a font size.</strong> As a <em>width</em>, <code>content()</code> is only the element’s own
-text, so a panel does not take its width from a label on it. It can state the same width in
-characters instead, and <code>letters</code> counts cells of the element’s own font and size, which is why
-the badge declares the label’s <code>font_size</code>. An element that names no font and no size has no
-cell and reads zero for every letter.</li>
+<li><strong>Padding past the far edge is added, not measured.</strong> The measure is how far the children reach,
+so a right margin is <code>content() + 2.letters()</code> and a bottom one is <code>content() + 6.px()</code>.</li>
+<li><strong>Letters need a font size.</strong> <code>letters</code> counts cells of the element’s own font and size, which is
+why the badge declares the label’s <code>font_size</code>: its two letters of margin are the label’s two. An
+element that names no font and no size has no cell and reads zero for every letter.</li>
 </ul>
 <p>A stack of things of unknown height, each placed under the last with an anchor, is the case that
 cannot be measured this way. Frame it the way the card does, with a sibling anchored to the last
@@ -493,6 +498,17 @@ back to what it belongs to:</p>
 <p>The trunk decides what takes an element down, what clips it, and what it stacks among. The anchor
 decides where it sits. Keeping the two apart is what lets a menu live at the top of the tree and
 still follow the button that opened it.</p>
+<h2 id="drawn-aside"><a class="header" href="#drawn-aside">Drawn aside</a></h2>
+<p><code>grove.shift(leaf, by)</code> draws an element <code>by</code> from where the layout put it, in pixels, and
+everything grown under it with it; <code>Position::default()</code> puts it back. What moves is where it is
+drawn and pressed, not where it is placed, so nothing placed against it follows: the next row of a
+list, anchored to the one shifted, stays where it is. <code>Vein::Placed</code> still reads where the layout
+put it, <code>Vein::Drawn</code> where it is drawn, and <code>Vein::Shift</code> how far it was shifted. <code>Motion::Shift</code>
+eases it there or back.</p>
+<pre><code class="language-rust ignore">grove.shift(row, Position::new(12.0, 0.0));
+grove.animate(row, Motion::Shift(Position::default()), Timing::ms(450));</code></pre>
+<p>It is for a moment’s displacement – something tugged, nudged or shaken – without restating where
+it stands. An element that belongs somewhere else is given a new placement.</p>
 <h2 id="lines"><a class="header" href="#lines">Lines</a></h2>
 <p>A <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Line.html"><code>Line</code></a> has no box to
 state. It has two ends, and each end is a

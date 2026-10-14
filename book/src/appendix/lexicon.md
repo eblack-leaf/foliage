@@ -54,7 +54,7 @@ than describing it from outside.
 | `Fern` | The frame: one function that runs every phase in order | `fern.rs` |
 | `photosynthesize` | The loop: light in, growth out, and it does not return | `photosynthesize.rs` |
 | `Willow` | The window: what it opens as, its size and density | `willow.rs` |
-| `Tree` | The one door onto `bevy_ecs`. A structure word, because it is the tree seen from inside | `tree.rs` |
+| `Tree` | Where every element is held, one slot each at the index of its name. A structure word, because it is the tree seen from inside | `tree.rs` |
 | `Rowan` | Resolution: declarations into boxes, clips, ranks and products | `rowan.rs`, `placement/` |
 | `Aspen` | Motion: tweens, channels, timers and sequences on one clock | `aspen/` |
 | `Elm` | Extraction: what changed, as render instances | `elm.rs` |

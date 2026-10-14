@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -201,7 +201,7 @@ frame runs, sealed into a <code>Pollen</code> at one point in the next frame, an
 <li><strong>Reads beside.</strong> <code>tap</code> copies one property out of the engine’s state and returns it. Nothing the
 app holds afterwards refers back into that state.</li>
 </ul>
-<p>No engine type is handed out and nothing an app holds borrows from the world. A
+<p>No engine type is handed out and nothing an app holds borrows from the engine. A
 <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Leaf.html"><code>Leaf</code></a> is a name, eight bytes
 and <code>Copy</code>, and naming something that is gone is harmless: an op that names it is dropped, and a
 read of it answers <code>None</code>.</p>
@@ -223,7 +223,7 @@ side it is on.</p>
 <tr><td><code>Willow</code></td><td><code>willow.rs</code></td><td>The window: what it is opened as, its size and density</td></tr>
 <tr><td><code>Fern</code></td><td><code>fern.rs</code></td><td>The frame: one function that runs every phase in order, and the drain</td></tr>
 <tr><td><code>Grove</code></td><td><code>grove.rs</code></td><td>All the state a frame touches, and the surface an app’s frame is lent</td></tr>
-<tr><td><code>Tree</code></td><td><code>tree.rs</code></td><td>The one door onto <code>bevy_ecs</code>: each element is an entity, and every declaration a component</td></tr>
+<tr><td><code>Tree</code></td><td><code>tree.rs</code></td><td>Every element, one slot each at the index of its name, and every declaration a column of those slots</td></tr>
 <tr><td><code>Rowan</code></td><td><code>rowan.rs</code>, <code>placement/</code></td><td>Resolution: declarations into boxes, extents, clips and ranks</td></tr>
 <tr><td><code>Aspen</code></td><td><code>aspen/</code></td><td>Motion: tweens, timers and sequences on the frame’s one clock</td></tr>
 <tr><td>interaction</td><td><code>interaction/</code></td><td>The box stack, gestures, and focus</td></tr>

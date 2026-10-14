@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -303,18 +303,29 @@ that do not match and moves the rest up. Enter submits, and the app clears it.</
 <tr><td>typing</td><td>inserts at the caret, replacing any selection</td></tr>
 <tr><td><code>Backspace</code>, <code>Delete</code></td><td>removes the selection, or the character before or after the caret</td></tr>
 <tr><td><code>Left</code>, <code>Right</code>, <code>Home</code>, <code>End</code></td><td>moves the caret; with <code>Shift</code>, extends the selection</td></tr>
+<tr><td><code>Ctrl+Left</code>, <code>Ctrl+Right</code></td><td>moves the caret over a word; with <code>Shift</code>, extends the selection</td></tr>
+<tr><td><code>Ctrl+Backspace</code>, <code>Ctrl+Delete</code></td><td>removes the selection, or the word before or after the caret</td></tr>
 <tr><td><code>Ctrl+A</code></td><td>selects everything</td></tr>
 <tr><td><code>Ctrl+C</code>, <code>Ctrl+X</code></td><td>copies or cuts the selection to the system clipboard</td></tr>
 <tr><td><code>Ctrl+V</code></td><td>asks the clipboard, and inserts what it holds when it answers</td></tr>
 <tr><td><code>Enter</code></td><td>reports <code>submitted</code></td></tr>
 <tr><td>a tap</td><td>puts the caret where it landed and takes focus</td></tr>
+<tr><td>a second tap</td><td>selects the word under it</td></tr>
 <tr><td>a drag</td><td>scrolls the value inside the field</td></tr>
 <tr><td>a hold, then a drag</td><td>selects from where the hold landed</td></tr>
 </tbody>
 </table>
 </div>
 <p>An unshifted arrow against a selection collapses it to the edge it points at rather than stepping
-from the caret, which is what every editor does.</p>
+from the caret, which is what every editor does. A word move does the same and goes on by a word
+from that edge.</p>
+<p>A <strong>word</strong> is a run of one kind of character: letters and digits, any other mark that is drawn, or
+space. A word move skips any space and then crosses one word, so the caret stops at the start of a
+word going back and at its end going on; <code>foo.bar</code> is three words to step over, and a newline is
+space like any other, so a word move goes on across the end of a line. A second tap selects the
+word the hand is on, whole, and past the end of a line it selects the last word on that line. A
+tap counts as a second one when it lands on the same field within <a href="input.html#feel"><code>Taps</code></a> of the
+first.</p>
 <p>Dragging to scroll and dragging to select are the same motion, and the only thing that separates
 them is time: a field takes no drags, so a plain drag is the field’s scrolling, and a press held
 still for <a href="input.html#feel"><code>Hold::after</code></a> first is the start of a selection. That is the same rule
@@ -375,8 +386,11 @@ the frame that typed past the edge is the frame that scrolls.</p>
 <p><strong>It draws no border and no ground.</strong> A field is a run and a caret inside whatever box an app puts
 it in, and a chrome the engine drew would be one more thing to talk an app out of. It draws no
 focus ring either: the caret and the selection are shown only while it holds focus, and that is
-the only change focus makes to it. An app that wants a ring watches <code>focused</code> and <code>unfocused</code>, as
-the slider in the last chapter does.</p>
+the only change focus makes to it. A border is a panel behind the field with an
+<a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Panel.html#method.outline"><code>outline</code></a>,
+and a ring follows focus the way the slider’s in the last chapter does, written from <code>focused</code> and
+<code>unfocused</code>: <code>grove.outline</code> draws one and a width of zero takes it away, and since an outline is
+drawn inside its panel’s box, neither moves anything.</p>
 <h2 id="many-lines"><a class="header" href="#many-lines">Many lines</a></h2>
 <p>A <code>TextArea</code> wraps at its box and scrolls down rather than across. Everything above applies,
 and four keys change meaning because a line means something:</p>
@@ -393,6 +407,9 @@ and four keys change meaning because a line means something:</p>
 </tbody>
 </table>
 </div>
+<p>A run of <code>Up</code>s and <code>Down</code>s keeps the column the first of them set out from, so a shorter line
+passed through puts the caret at its end and the next line has it back where it was. Any other key
+or a tap is a new place to set out from.</p>
 <p>A newline that arrives on the clipboard is kept, where a one-line field drops it.</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Boxed, FontSize, Grove, Grow, Leaf, Location, Palette, Place, Pollen, Sap, Source, Text, TextArea, Vein, content, left, top};
 </span><span class="boring">fn f(grove: &amp;mut Grove, page: Leaf) -&gt; (Leaf, Leaf) {
@@ -437,8 +454,11 @@ what is typed is reported as <code>edited</code>, and since a dot takes a charac
 selection and a tap land where they would. A newline stays a newline, so a masked <code>TextArea</code> wraps
 as it would.</p>
 <p>What is hidden from the screen does not leave by the clipboard either: <code>Ctrl+C</code> copies nothing
-and <code>Ctrl+X</code> cuts nothing. A paste goes in as ever. <code>grove.masked(field, false)</code> shows the value,
-and <code>true</code> hides it again – which is how a password’s “show” is built.</p>
+and <code>Ctrl+X</code> cuts nothing. A paste goes in as ever. Where its words break is hidden with the rest,
+so a word move goes to the end of the line and a second tap selects all of it; and no desktop input
+method composes into it, since one that predicts would learn the passphrase.
+<code>grove.masked(field, false)</code> shows the value, and <code>true</code> hides it again – which is how a password’s
+“show” is built.</p>
 <p>The run is shaped as its dots, so the value itself is never a key in the shaping cache.</p>
 <h2 id="soft-keyboards"><a class="header" href="#soft-keyboards">Soft keyboards</a></h2>
 <p>On a platform with a keyboard of its own to raise, a field raises one while it holds focus and

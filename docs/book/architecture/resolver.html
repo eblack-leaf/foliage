@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -208,7 +208,7 @@ pub(crate) fn resolve(config: &amp;Config, context: &amp;Context) -&gt; Span {
     Span { near, far }
 }</code></pre>
 <h2 id="pure-on-purpose"><a class="header" href="#pure-on-purpose">Pure, on purpose</a></h2>
-<p>The resolver touches no world, no entity names and no mutable state. Given the same inputs it gives
+<p>The resolver touches no tree, no element names and no mutable state. Given the same inputs it gives
 the same answer, and it may be called as many times per element per frame as anything needs. Three
 things depend on that:</p>
 <ul>
@@ -319,7 +319,7 @@ a role names it.</p>
 <tr><td><code>pct</code></td><td>a fraction of the basis’s extent on the resolving axis</td></tr>
 <tr><td><code>col</code>, <code>row</code></td><td>a track of the basis’s grid: its near edge in a near role, its far edge in a far role, its middle in a centre role, and <code>n</code> tracks with the gaps between them in a size role</td></tr>
 <tr><td><code>letters</code></td><td>a count of the basis’s character cells on the resolving axis</td></tr>
-<tr><td><code>content()</code></td><td>the basis’s measured extent on the resolving axis: max-content width, or wrapped height</td></tr>
+<tr><td><code>content()</code></td><td>the basis’s measured extent on the resolving axis: the wider of its max-content width and how far right its children reach, or the taller of its wrapped height and how far down they reach</td></tr>
 <tr><td><code>anchor().width()</code>, <code>.height()</code></td><td>the anchor’s extent on the named axis, whichever axis is resolving</td></tr>
 <tr><td>edges</td><td>a position on the surface</td></tr>
 <tr><td><code>anchor().character(n)</code></td><td>where character <code>n</code> of the anchor’s run stands, as it wrapped at the anchor’s width: its column times the cell width, or its line times the cell height</td></tr>
@@ -393,23 +393,27 @@ left(0.px()).center_x(50.pct());</code></pre>
 <pre><code class="language-rust compile_fail">use foliage::{Source, left};
 left(0.px()).width(2.row());</code></pre>
 <h2 id="measurable-stated-once"><a class="header" href="#measurable-stated-once">Measurable, stated once</a></h2>
-<p>R2m needs to know which children describe their own height (see
-<a href="resolution.html#r2-the-two-axes-and-the-measure-between-them">Resolution</a>). That question is answered
-next to the grammar, term by term:</p>
+<p>R1m and R2m need to know which children describe their own extent on the axis they measure (see
+<a href="resolution.html#r1m-and-r2-the-two-axes-and-a-measure-before-each">Resolution</a>). That question is
+answered next to the grammar, term by term, for the axis being measured:</p>
 <pre><code class="language-rust ignore">// placement/role.rs
-pub(crate) fn known(kind: Kind) -&gt; bool {
+pub(crate) fn known(kind: Kind, axis: Axis) -&gt; bool {
     match kind {
         Kind::Px(_) =&gt; true,
         Kind::Letters { .. } =&gt; true,
-        Kind::Character { .. } | Kind::Span { .. } =&gt; true,
+        Kind::Character { .. } | Kind::Span { .. } =&gt; axis == Axis::Vertical,
         Kind::Content { against } =&gt; against == Against::Own,
-        Kind::Extent { axis, .. } | Kind::Cell { axis, .. } =&gt; axis == Axis::Horizontal,
+        Kind::Extent { axis: read, .. } | Kind::Cell { axis: read, .. } =&gt; {
+            axis == Axis::Vertical &amp;&amp; read == Axis::Horizontal
+        }
         Kind::Pct { .. } =&gt; false,
         Kind::Edge { .. } =&gt; false,
     }
 }</code></pre>
-<p>A vertical placement is measurable if every term in it is known and it is not measured from an
-anchor’s edge. Everything else waits for R2b.</p>
+<p>A placement is measurable on an axis if every term in it is known and it is not measured from an
+anchor’s edge. Across, nothing is laid out yet, so only pixels, letters and a child’s own content
+are known; down, the horizontal axis has settled, so a height may read a width. Everything else
+waits for its axis’s own pass.</p>
 <h2 id="lines-are-the-same-grammar"><a class="header" href="#lines-are-the-same-grammar">Lines are the same grammar</a></h2>
 <p>A <code>Line</code> has no box: it has two ends. Each end is a <code>Point</code>, an x coordinate and a y coordinate in
 the same grammar, and <code>locate</code> resolves one axis of a point through the same <code>coordinate</code> function a

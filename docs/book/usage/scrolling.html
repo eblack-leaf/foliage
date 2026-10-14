@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -465,7 +465,8 @@ whatever it happened to stop over.</p>
 progress on that axis.</p>
 <p>Inside a scrolled region, an element has two boxes. <code>Vein::Placed</code> is where the layout put it;
 <code>Vein::Drawn</code> is that less every scrolling ancestor’s offset, which is what was drawn and what a
-hit test runs against. The two differ only inside a region that has moved.</p>
+hit test runs against. The two differ only inside a region that has moved, or under a
+<a href="placement.html#drawn-aside">shift</a>.</p>
 <h2 id="following-a-region-from-the-app"><a class="header" href="#following-a-region-from-the-app">Following a region from the app</a></h2>
 <p>The log’s thumb is the app following the column by reading it. Only the progress is read. How far
 the thumb can travel is stated in the grammar, as a percentage of its rail less its own height, so

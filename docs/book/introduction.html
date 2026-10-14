@@ -35,7 +35,7 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-c59f2531.js"></script>
@@ -178,9 +178,9 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
-<p>foliage is a cross-platform UI library for Rust. One element on screen is one entity, held by an
-ECS (<a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a>) that stays an implementation detail: no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
+<p>foliage is a cross-platform UI library for Rust. One element on screen is one <code>Leaf</code>: a name into
+foliage’s own store, an index and a generation, so a name that withered is never the one that came
+after it. No engine type is ever handed out, and nothing an app holds borrows from the engine. Rendering is
 <a href="https://wgpu.rs"><code>wgpu</code></a>, and windowing and input are <a href="https://docs.rs/winit"><code>winit</code></a>. The same
 code runs on Linux, Windows, macOS, the web and Android.</p>
 <p>Everything that crosses the seam between an app and the engine is plain data:</p>

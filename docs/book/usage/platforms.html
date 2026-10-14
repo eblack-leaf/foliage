@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -242,6 +242,12 @@ desktop matches the window to the entry that launched it. Without one, some desk
 generic icon beside the one that was clicked.</p>
 <p>Building on Linux needs the windowing headers (see <a href="first-app.html#setting-up">A first app</a>).
 Nothing else needs anything beyond Rust.</p>
+<p><strong>An input method composes into a field.</strong> While a field that takes typing holds focus, the window
+allows the desktop’s input method, so a word of Japanese or a letter begun with a dead key is
+committed into the field as the text it composed. What the method shows while composing is not drawn
+inline: the field hears the commit. A key the method does not take arrives as itself, so nothing
+arrives twice. A masked field allows none, because a method composes what it is shown, and one that
+predicts would learn the passphrase.</p>
 <h2 id="web"><a class="header" href="#web">Web</a></h2>
 <p>The app compiles to <code>wasm32-unknown-unknown</code> unchanged and is served by
 <a href="https://trunkrs.dev"><code>trunk</code></a>. The page needs almost nothing:</p>
@@ -308,8 +314,10 @@ and the engine drops everything built against it: the GPU device, the renderers,
 When it comes back they are built again. <strong>The tree is untouched</strong>, so an app returns to exactly
 the frame it left, and the first frame back is not told about the time it was away.</li>
 <li><strong>Typing into fields is not wired up yet.</strong> A focused field raises the soft keyboard, with the
-field’s <code>Keypad</code>, but Android delivers what is typed on it through the input method (IME), and
-the engine does not handle IME commits yet. A hardware keyboard works.</li>
+field’s <code>Keypad</code>, but Android delivers what is typed on it through the input method (IME), into
+the text state the activity keeps, and winit 0.30’s Android backend drops that rather than
+reporting it – so nothing typed on the soft keyboard reaches the engine yet. A hardware keyboard
+works.</li>
 <li><strong>The clipboard is the engine’s own.</strong> The system clipboard is not reached yet, so a copy
 round-trips inside the app and no further.</li>
 <li><strong><code>navigate</code> opens the URL</strong> with an <code>ACTION_VIEW</code> intent.</li>

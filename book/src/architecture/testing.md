@@ -118,7 +118,7 @@ frame:
 
 - **The resolver.** `tests/placement.rs` tests the placement algebra "against the resolver alone": a
   `Config` and a `Context` in, a `Span` out. That is possible only because the resolver touches no
-  world.
+  tree.
 - **Editing.** `text_input::applied` takes a value, a caret, a key and a wrap, and says what the key
   does, so every editing rule is a one-line case in a table.
 - **The scheme.** The ramps a scheme derives from its seeds are checked as color arithmetic.

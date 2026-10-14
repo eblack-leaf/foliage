@@ -277,7 +277,7 @@ pub(crate) enum Op {
 /// An element formed and not yet open: what the queue carries between the call that described it
 /// and the drain that grows it.
 ///
-/// It carries the components the element will hold rather than a second enum describing them: a bud
+/// It carries the declarations the element will hold rather than a second enum describing them: a bud
 /// is the element before it exists, not an account of one. The pigment is present exactly when the
 /// chlorophyll is a renderer that has one, and the lettering exactly when there is a run to read.
 pub(crate) struct Bud {

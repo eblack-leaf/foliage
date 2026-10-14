@@ -11,7 +11,7 @@
 //! retrieval would have pushed -- which is what makes a thread that *made* an asset and one that
 //! *read* one the same case.
 //!
-//! What it cannot do is **sample**. A read needs the world, and the world belongs to the frame -- so
+//! What it cannot do is **sample**. A read needs the tree, and the tree belongs to the frame -- so
 //! the reads a worker needs are pushed to it instead: [`Conditions`] is what is true of the tree as a
 //! whole, published every frame, and [`watch`](Sprig::watch) is how one property of one element joins
 //! them.
@@ -186,7 +186,7 @@ impl Sprig {
     /// Asks to be told what one property of an element is, and told again whenever it changes.
     ///
     /// The read path for a thread that cannot sample: the value is pushed rather than asked for, so
-    /// nothing here borrows the world or waits on a frame. Read it with [`tap`](Sprig::tap).
+    /// nothing here borrows the tree or waits on a frame. Read it with [`tap`](Sprig::tap).
     ///
     /// The first reading is taken at the end of the frame this is drained in, with the value as it
     /// already stands -- so a watch does not have to be seeded by waiting for something to move.
@@ -207,7 +207,7 @@ impl Sprig {
     /// What a watched property last read, or `None` if it is not watched, has not been read yet, or
     /// the element does not carry it.
     ///
-    /// [`Grove::tap`] for a thread with no world to read: the same question, answered from what the
+    /// [`Grove::tap`] for a thread with no tree to read: the same question, answered from what the
     /// last frame published rather than from the tree. Everything read here comes from a single
     /// frame, so two readings never disagree about which frame they are from.
     ///
@@ -352,7 +352,7 @@ impl Watches {
     }
 }
 
-/// Publishes what a thread with no world to read would otherwise have to ask for.
+/// Publishes what a thread with no tree to read would otherwise have to ask for.
 ///
 /// After settle, so what is published is what the frame ended at rather than what it passed
 /// through, and before extraction, which is the backend's business and not the boundary's.

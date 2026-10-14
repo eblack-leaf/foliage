@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -242,7 +242,7 @@ than describing it from outside.</p>
 <tr><td><code>Fern</code></td><td>The frame: one function that runs every phase in order</td><td><code>fern.rs</code></td></tr>
 <tr><td><code>photosynthesize</code></td><td>The loop: light in, growth out, and it does not return</td><td><code>photosynthesize.rs</code></td></tr>
 <tr><td><code>Willow</code></td><td>The window: what it opens as, its size and density</td><td><code>willow.rs</code></td></tr>
-<tr><td><code>Tree</code></td><td>The one door onto <code>bevy_ecs</code>. A structure word, because it is the tree seen from inside</td><td><code>tree.rs</code></td></tr>
+<tr><td><code>Tree</code></td><td>Where every element is held, one slot each at the index of its name. A structure word, because it is the tree seen from inside</td><td><code>tree.rs</code></td></tr>
 <tr><td><code>Rowan</code></td><td>Resolution: declarations into boxes, clips, ranks and products</td><td><code>rowan.rs</code>, <code>placement/</code></td></tr>
 <tr><td><code>Aspen</code></td><td>Motion: tweens, channels, timers and sequences on one clock</td><td><code>aspen/</code></td></tr>
 <tr><td><code>Elm</code></td><td>Extraction: what changed, as render instances</td><td><code>elm.rs</code></td></tr>
@@ -333,6 +333,7 @@ architecture half of the book.</p>
 </thead>
 <tbody>
 <tr><td>R1</td><td>measure</td></tr>
+<tr><td>R1m</td><td>across: the measure the horizontal axis reads</td></tr>
 <tr><td>R2a, R2m, R2b</td><td>the horizontal axis, the wrap, the vertical axis</td></tr>
 <tr><td>R3</td><td>extent</td></tr>
 <tr><td>R4</td><td>scroll</td></tr>

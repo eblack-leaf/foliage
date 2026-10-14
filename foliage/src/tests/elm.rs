@@ -40,7 +40,7 @@ fn a_panel_is_written_on_the_frame_it_is_planted() {
 }
 
 /// Carrying no renderer is the whole of what makes an element a stem, so extraction routes past it
-/// on the decision alone -- never on which components it happens to have.
+/// on the decision alone -- never on which declarations it happens to have.
 #[test]
 fn a_stem_is_not_extracted() {
     let mut grove = grove();

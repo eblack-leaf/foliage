@@ -11,7 +11,7 @@
 <a href=#11 id=11 data-nosnippet>11</a></span><span class="kw">use </span><span class="kw">crate</span>::coordinate::Axis;
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span><span class="kw">crate</span>::placement::source::{
 <a href=#13 id=13 data-nosnippet>13</a>    Against, Edge, HorizontalCoordinate, Kind, Length, Origin, SpanEnd, VerticalCoordinate,
-<a href=#14 id=14 data-nosnippet>14</a>    VerticalLength,
+<a href=#14 id=14 data-nosnippet>14</a>    VerticalLength, index,
 <a href=#15 id=15 data-nosnippet>15</a>};
 <a href=#16 id=16 data-nosnippet>16</a>
 <a href=#17 id=17 data-nosnippet>17</a><span class="doccomment">/// The element this one was grown under.
@@ -156,9 +156,9 @@
 <a href=#156 id=156 data-nosnippet>156</a>            /// A length rather than a coordinate for the reason `letters` is: it is measured from
 <a href=#157 id=157 data-nosnippet>157</a>            /// the run's own edge, and `left(anchor().left() + anchor().character(n))` says which.
 <a href=#158 id=158 data-nosnippet>158</a>            /// That is the whole of how a caret is placed against a run that wraps.
-<a href=#159 id=159 data-nosnippet>159</a>            </span><span class="kw">pub fn </span>character(<span class="self">self</span>, index: usize) -&gt; Length {
+<a href=#159 id=159 data-nosnippet>159</a>            </span><span class="kw">pub fn </span>character(<span class="self">self</span>, at: usize) -&gt; Length {
 <a href=#160 id=160 data-nosnippet>160</a>                Length::of(Kind::Character {
-<a href=#161 id=161 data-nosnippet>161</a>                    index,
+<a href=#161 id=161 data-nosnippet>161</a>                    index: index(at),
 <a href=#162 id=162 data-nosnippet>162</a>                    against: <span class="macro-nonterminal">$against</span>,
 <a href=#163 id=163 data-nosnippet>163</a>                })
 <a href=#164 id=164 data-nosnippet>164</a>            }
@@ -189,8 +189,8 @@
 <a href=#189 id=189 data-nosnippet>189</a>    /// divided into lines by the wrap this frame lays out rather than the one it last drew.
 <a href=#190 id=190 data-nosnippet>190</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>stops(<span class="self">self</span>, from: usize, to: usize) -&gt; Length {
 <a href=#191 id=191 data-nosnippet>191</a>        Length::of(Kind::Span {
-<a href=#192 id=192 data-nosnippet>192</a>            from,
-<a href=#193 id=193 data-nosnippet>193</a>            to,
+<a href=#192 id=192 data-nosnippet>192</a>            from: index(from),
+<a href=#193 id=193 data-nosnippet>193</a>            to: index(to),
 <a href=#194 id=194 data-nosnippet>194</a>            end: SpanEnd::Stops,
 <a href=#195 id=195 data-nosnippet>195</a>            against: Against::Anchor,
 <a href=#196 id=196 data-nosnippet>196</a>        })
@@ -201,8 +201,8 @@
 <a href=#201 id=201 data-nosnippet>201</a>    /// is not -- where there is nothing left of the span to draw.
 <a href=#202 id=202 data-nosnippet>202</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resumes(<span class="self">self</span>, from: usize, to: usize) -&gt; Length {
 <a href=#203 id=203 data-nosnippet>203</a>        Length::of(Kind::Span {
-<a href=#204 id=204 data-nosnippet>204</a>            from,
-<a href=#205 id=205 data-nosnippet>205</a>            to,
+<a href=#204 id=204 data-nosnippet>204</a>            from: index(from),
+<a href=#205 id=205 data-nosnippet>205</a>            to: index(to),
 <a href=#206 id=206 data-nosnippet>206</a>            end: SpanEnd::Resumes,
 <a href=#207 id=207 data-nosnippet>207</a>            against: Against::Anchor,
 <a href=#208 id=208 data-nosnippet>208</a>        })

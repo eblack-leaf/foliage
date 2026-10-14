@@ -99,7 +99,7 @@ impl PanelInstance {
     ///
     /// Takes the resolved state rather than reading it, because only the element's
     /// [`Chlorophyll`](crate::elm::Chlorophyll) says whether it is a panel at all -- a set of
-    /// components that happens to look like one is not one.
+    /// declarations that happens to look like one is not one.
     pub(crate) fn new(
         section: Section,
         color: Color,

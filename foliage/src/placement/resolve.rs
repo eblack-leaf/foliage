@@ -1,6 +1,6 @@
 //! The resolver: declared placement in, one axis of geometry out.
 //!
-//! A pure function. No world, no entity names, no mutation -- given the same inputs it gives the
+//! A pure function. No tree, no element names, no mutation -- given the same inputs it gives the
 //! same answer, and it may be called as many times per element per frame as anything needs. Two
 //! things depend on that:
 //!

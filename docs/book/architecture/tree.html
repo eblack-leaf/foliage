@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -178,41 +178,44 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="the-tree"><a class="header" href="#the-tree">The tree</a></h1>
-<p>Every element is one entity in a <a href="https://crates.io/crates/bevy_ecs"><code>bevy_ecs</code></a> <code>World</code>, and
-<code>Tree</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/tree.rs"><code>tree.rs</code></a>) owns that
-world. It is the only place in the engine that touches <code>bevy_ecs</code> directly, and it touches very
-little of it: the world as a store of components, the parent and child relationship, and the entity
-allocator. There are no bevy systems and no schedules. The passes that run over the tree are plain
-functions called in a fixed order by <a href="frame.html">the frame</a>, which is the order the engine needs and
-not one a scheduler chose.</p>
+<p>Every element is one slot in <code>Tree</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/tree.rs"><code>tree.rs</code></a>),
+which is foliage’s own store. An element’s name is the index of its slot, and every field an element
+declares is a column of those slots: one array per field, so a pass that asks something of every
+element reads one array rather than gathering from wherever each element is. There are no systems and
+no scheduler. The passes that run over the tree are plain functions called in a fixed order by
+<a href="frame.html">the frame</a>, which is the order the engine needs.</p>
 <h2 id="names"><a class="header" href="#names">Names</a></h2>
-<p>A <code>Leaf</code> is a bevy <code>Entity</code> and nothing else:</p>
+<p>A <code>Leaf</code> is an index and a generation:</p>
 <pre><code class="language-rust ignore">// leaf.rs
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
-pub struct Leaf(pub(crate) Entity);</code></pre>
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct Leaf {
+    pub(crate) index: u32,
+    pub(crate) generation: u32,
+}</code></pre>
 <p>It is handed out the moment <code>plant</code> or <code>branch</code> is called, before the element exists, and that is
-the property the rest of the design leans on. The name comes from the world’s own entity allocator,
-reached through a <code>RemoteAllocator</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/naming.rs"><code>naming.rs</code></a>)
-that can reserve an entity without touching the world. That is what lets a name be taken on a worker
-thread through a <code>Sprig</code> as readily as inside <code>frame</code>. The drain later spawns the element <em>at</em> that
-reserved entity.</p>
-<p>So a name’s state is read straight off the allocator:</p>
+the property the rest of the design leans on. The name comes from <code>Naming</code>
+(<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/naming.rs"><code>naming.rs</code></a>), one source
+shared by the frame and by every <code>Sprig</code>, whose counters are all atomic. Taking a name never touches
+the tree, which is what lets one be taken on a worker thread through a <code>Sprig</code> as readily as inside
+<code>frame</code>. The index is one that went back when an element withered, the last to go back first, or
+else a fresh one past every index named so far. The drain later grows the element into that slot,
+and the columns grow to meet a name past their end.</p>
+<p>So a name’s state is read straight off its slot:</p>
 <div class="table-wrapper">
 <table>
 <thead>
-<tr><th>The entity is</th><th><code>Presence</code></th><th>Meaning</th></tr>
+<tr><th>The slot is</th><th><code>Presence</code></th><th>Meaning</th></tr>
 </thead>
 <tbody>
-<tr><td>reserved, not yet spawned</td><td><code>Planted</code></td><td>the op that grows it has not been drained yet</td></tr>
-<tr><td>spawned</td><td><code>Live</code></td><td>in the tree</td></tr>
-<tr><td>neither</td><td><code>Withered</code></td><td>pruned, or taken down with an ancestor</td></tr>
+<tr><td>past the end, or at the name’s generation and empty</td><td><code>Planted</code></td><td>the op that grows it has not been drained yet</td></tr>
+<tr><td>at the name’s generation, holding an element</td><td><code>Live</code></td><td>in the tree</td></tr>
+<tr><td>at another generation</td><td><code>Withered</code></td><td>pruned, or taken down with an ancestor</td></tr>
 </tbody>
 </table>
 </div>
 <p>A <code>Planted</code> name stays planted forever if the op that would have grown it was dropped (its trunk
-withered before the drain reached it). A withered entity’s index does go back to the allocator, but
-bevy’s generation tells the old name from the new one, so a stale <code>Leaf</code> never comes to address
-whatever grew after it.</p>
+withered before the drain reached it). A withered element’s index does go back to <code>Naming</code>, but a
+generation on, so a stale <code>Leaf</code> never comes to address whatever grew after it.</p>
 <p>Each element also gets a <code>Growth</code>: a number from one atomic counter, taken with the name. It is the
 order <code>plant</code> and <code>branch</code> were <em>called</em> in, across every thread, rather than the order the drain
 reached them, and it is what settles ties: which of two equal-elevation elements is in front, and
@@ -221,54 +224,63 @@ which of two elements in the same place comes first in focus order.</p>
 fonts, marks), each monotonic and never reused, so a stale handle of any kind is inert.</p>
 <h2 id="what-an-element-is-made-of"><a class="header" href="#what-an-element-is-made-of">What an element is made of</a></h2>
 <p>A seed (<code>Panel::new()...</code>) builds a <code>Bud</code> (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/op.rs"><code>op.rs</code></a>):
-the element’s components, formed before the element exists. The queue carries it boxed, and
-<code>Tree::grow</code> inserts it. Every element gets the same core, so nothing that reads one of these has to
-ask whether the element is the kind that has it:</p>
+the element’s declarations, formed before the element exists. The queue carries it, and
+<code>Tree::grow</code> writes it into the element’s slot. Every element has a value in the same core columns,
+so nothing that reads one of these has to ask whether the element is the kind that has it:</p>
 <div class="table-wrapper">
 <table>
 <thead>
-<tr><th>Component</th><th>Holds</th></tr>
+<tr><th>Column</th><th>Holds</th></tr>
 </thead>
 <tbody>
-<tr><td><code>Grown</code></td><td>marks an element the app grew, as against a part an element grew under itself</td></tr>
-<tr><td><code>SpawnedAt</code></td><td>the source location of the <code>plant</code> or <code>branch</code> call, for error messages</td></tr>
-<tr><td><code>Growth</code></td><td>allocation order</td></tr>
-<tr><td><code>Chlorophyll</code></td><td>which renderer draws it: none, panel, text, polygon, line, icon or image</td></tr>
-<tr><td><code>Location</code></td><td>where it sits, at every breakpoint</td></tr>
-<tr><td><code>Grid</code></td><td>how it divides its box for its children</td></tr>
-<tr><td><code>Elevation</code></td><td>how far in front of its trunk it sits</td></tr>
-<tr><td><code>Gestures</code></td><td>whether it receives, whether it is intangible, which drags it takes, its hit shape</td></tr>
-<tr><td><code>Focusing</code></td><td>its focus order and whether it is a focus scope</td></tr>
-<tr><td><code>Visible</code>, <code>Opacity</code>, <code>Disabled</code></td><td>its own off-states, before its ancestry is taken into account</td></tr>
-<tr><td><code>Offset</code>, <code>Extent</code></td><td>where a region is scrolled to, and how far its content reaches</td></tr>
+<tr><td><code>generation</code></td><td>which name the slot answers to</td></tr>
+<tr><td><code>flags</code></td><td>whether the slot holds an element; whether the app grew it or a frond grew it as a part; what it declared that is one bit (visible, disabled, pinned, read-only, masked); and which side tables hold something for it</td></tr>
+<tr><td><code>spawned_at</code></td><td>the source location of the <code>plant</code> or <code>branch</code> call, for error messages</td></tr>
+<tr><td><code>growth</code></td><td>allocation order</td></tr>
+<tr><td><code>chlorophyll</code></td><td>which renderer draws it: none, panel, text, polygon, line, icon or image</td></tr>
+<tr><td><code>placements</code></td><td>how it is placed: a <code>Location</code> at every breakpoint, or a <code>Trace</code> and <code>Stroke</code> for a line</td></tr>
+<tr><td><code>elevation</code></td><td>how far in front of its trunk it sits</td></tr>
+<tr><td><code>gestures</code></td><td>whether it receives, whether it is intangible, which drags it takes, its hit shape</td></tr>
+<tr><td><code>opacity</code></td><td>its own opacity, before its ancestry is taken into account</td></tr>
+<tr><td><code>shift</code></td><td>how far it has been moved off where the layout put it</td></tr>
+<tr><td><code>scrolls</code></td><td>which axes it scrolls on, if any</td></tr>
+<tr><td><code>trunk</code>, <code>first</code>, <code>last</code>, <code>next</code>, <code>previous</code></td><td><a href="#the-hierarchy">the hierarchy</a></td></tr>
 </tbody>
 </table>
 </div>
-<p>And, only where they apply: the renderer’s <strong>pigment</strong> (<code>PanelPigment</code>, <code>TextPigment</code> and so on:
-fill, rounding, shape, mark, plate), <code>Lettering</code> for a run of text, <code>Tints</code>, <code>Scrolls</code>, <code>Pinned</code>,
-<code>Floats</code>, <code>Trace</code> and <code>Stroke</code> for a line, <code>Typeface</code> for an element that states a font or a size,
-<code>Anchored</code> for one with an anchor, and bevy’s <code>ChildOf</code> for one grown under another.</p>
+<p>What a renderer was told, its <strong>pigment</strong> (<code>PanelPigment</code>, <code>TextPigment</code> and so on: fill,
+rounding, shape, mark, plate), is held packed by renderer. Each renderer has one array as long as
+what draws with it, and an element’s <code>pigment</code> column says where in that array its own sits. When
+one withers, the last item is moved into its place and its owner is told where it went.</p>
+<p>What only some elements state is held in a <strong>side table</strong>, and only for those that state it: <code>Grid</code>,
+<code>Offset</code> and <code>Extent</code> for a region, <code>Focusing</code>, <code>Typeface</code>, <code>Anchored</code>, <code>Floats</code>, <code>Lettering</code> and
+<code>Tints</code> for a run, and a field’s <code>Parts</code>, <code>Editing</code> and <code>Keypad</code>. Each table owns a bit of the slot’s
+flags, set exactly while it holds something there, so an element that states nothing is answered by
+the bit rather than by a lookup.</p>
 <p><code>Chlorophyll</code> deserves a word. It is set when the element is grown and there is no op that can
 change it: what an element draws is part of what it is, and an element that is to draw something
 else is a different element. It is also the <em>only</em> thing that says what an element is. Extraction
 walks the elements once and routes each on its chlorophyll, so a further renderer costs a variant
-rather than a pass, and a set of components that happens to look like a panel is not a panel.</p>
+rather than a pass, and a set of declarations that happens to look like a panel is not a panel.</p>
 <h2 id="the-hierarchy"><a class="header" href="#the-hierarchy">The hierarchy</a></h2>
-<p><code>branch</code> records the trunk with bevy’s <code>ChildOf</code>, and bevy keeps the reverse <code>Children</code> list. The
-tree reads both ways: <code>trunk(leaf)</code> for what an element hangs off, <code>branched(leaf)</code> for what hangs
-off it.</p>
+<p><code>branch</code> hangs an element off its trunk. <code>trunk</code> holds what each element hangs off, and what hangs
+off an element is a list threaded through the slots: <code>first</code> and <code>last</code> on the trunk, <code>next</code> and
+<code>previous</code> on each child, in the order they were grown. Letting go of one child of thousands is a
+few writes rather than a search. The tree reads both ways: <code>trunk(leaf)</code> for what an element hangs
+off, <code>branched(leaf)</code> for what hangs off it.</p>
 <p>Some children are not the app’s. A <code>TextInput</code> is one element to the app and seven in the tree:
 the field itself, and under it a run, a placeholder, a caret, and three panels for a selection that
-can span lines. <a href="fronds.html">Fronds</a> grow those parts as ordinary children. They are not marked <code>Grown</code>, so <code>branches</code> (and the <code>Vein::Branches</code> read) lists only what
-the app grew, while everything that resolves, draws and withers treats the parts like any other
-element.</p>
+can span lines. <a href="fronds.html">Fronds</a> grow those parts as ordinary children with <code>grow_part</code>, which
+is <code>grow</code> without the <code>GROWN</code> flag. <code>branches</code> (and the <code>Vein::Branches</code> read) lists only children
+with that flag, so it lists only what the app grew, while everything that resolves, draws and withers
+treats the parts like any other element.</p>
 <h2 id="declarations-and-resolved-values"><a class="header" href="#declarations-and-resolved-values">Declarations and resolved values</a></h2>
-<p>The world holds <strong>what was declared</strong>: what the app said about each element, plus the few values
+<p>The tree holds <strong>what was declared</strong>: what the app said about each element, plus the few values
 the engine keeps on its behalf and writes through the same setters (a region’s offset and extent, a
 field’s caret). It does not hold what resolution makes of them. Boxes, clips, ranks and the
 inherited off-states live in resolution’s own arrays, <code>Elements</code>, described in
-<a href="resolution.html">Resolution</a>, and are never written back into the world. The line is sharp: a value in
-the world is something an op can write, and a value in <code>Elements</code> is something only a pass can.</p>
+<a href="resolution.html">Resolution</a>, and are never written back into the tree. The line is sharp: a value in
+the tree is something an op can write, and a value in <code>Elements</code> is something only a pass can.</p>
 <p><code>Grove::tap</code> reads across both, and always returns a copy:</p>
 <pre><code class="language-rust ignore">// grove.rs, shortened
 pub fn tap(&amp;self, leaf: Leaf, vein: Vein) -&gt; Option&lt;Sap&gt; {
@@ -287,11 +299,11 @@ pub fn tap(&amp;self, leaf: Leaf, vein: Vein) -&gt; Option&lt;Sap&gt; {
 the product over its ancestry is resolution’s, and the read answers the question the element can
 be asked.</p>
 <h2 id="recording-what-was-written"><a class="header" href="#recording-what-was-written">Recording what was written</a></h2>
-<p>The most important thing <code>Tree</code> does is not store components. It is to <strong>record every write, where
+<p>The most important thing <code>Tree</code> does is not store declarations. It is to <strong>record every write, where
 the write happens</strong>, so that resolution can leave alone everything nothing wrote to:</p>
 <pre><code class="language-rust ignore">// tree.rs
 pub(crate) struct Tree {
-    world: World,
+    // ...the columns and side tables above, then:
     touched: Leaves,     // declarations resolution reads were written
     restyled: Leaves,    // something about how it is drawn changed, and nothing about where
     lettered: Leaves,    // its run was rewritten, or it was grown: R1 measures it again
@@ -332,8 +344,9 @@ read it</strong>, not at the end of the frame. A write made by anything that run
 to the next frame, which is the frame that would resolve it.</p>
 <h2 id="withering"><a class="header" href="#withering">Withering</a></h2>
 <p><code>prune</code> is the one write that removes. The drain calls <code>Tree::wither</code>, which gathers the element and
-everything under it (the app’s children and any parts a frond grew), despawns the element, and
-bevy despawns the rest through the parent relationship. Every name that went is reported three
+everything under it (the app’s children and any parts a frond grew), walking the child lists, and
+empties each slot: its pigment and side-table entries go, and its generation moves on. The indices
+go back to <code>Naming</code> together. Every name that went is reported three
 places: to the running motion, which drops anything moving on those elements; to the coasting
 scrolls, which drop any region that went; and to the drift, which becomes <code>withered</code> in the next
 frame’s <code>Pollen</code>.</p>

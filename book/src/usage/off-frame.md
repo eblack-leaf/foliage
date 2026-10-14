@@ -100,7 +100,7 @@ the ops land the same way.
 
 ## Reading from off the frame
 
-A worker cannot *sample* the tree: a read needs the world, and the world belongs to the frame. So
+A worker cannot *sample* the tree: a read needs the tree, and the tree belongs to the frame. So
 the reads a worker needs are pushed to it instead, three ways.
 
 **Conditions** are what is true of the whole tree, published at the end of every frame:

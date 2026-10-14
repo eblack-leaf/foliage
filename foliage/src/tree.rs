@@ -50,6 +50,12 @@ const READ_ONLY: u32 = 1 << 4;
 /// shapes nothing else: a masked run is shaped as a dot for each character it holds, and that is
 /// the whole of what masking changes about the drawing.
 const MASKED: u32 = 1 << 5;
+/// The app grew it, rather than a [frond](crate::frond) growing it as a part of something the app
+/// grew.
+///
+/// What [`branches`](Tree::branches) answers by: a part is held, resolved, drawn and withered like
+/// any other element, and is never one an app is told about, since it is never one an app named.
+const GROWN: u32 = 1 << 6;
 
 /// The tree itself, seen from the inside.
 ///
@@ -514,13 +520,30 @@ impl Tree {
         self.held(leaf).is_some()
     }
 
-    /// Grows `leaf`, reporting whether the name was still free to grow into.
+    /// Grows `leaf` for the app, reporting whether the name was still free to grow into.
     pub(crate) fn grow(
         &mut self,
         leaf: Leaf,
         growth: Growth,
         under: Option<Leaf>,
+        bud: Bud,
+    ) -> bool {
+        self.sow(leaf, growth, under, bud, GROWN)
+    }
+
+    /// Grows `leaf` as a part of `under`, which a frond grew it for: everything [`grow`](Tree::grow)
+    /// does, except that it is not one of `under`'s [`branches`](Tree::branches).
+    pub(crate) fn grow_part(&mut self, leaf: Leaf, growth: Growth, under: Leaf, bud: Bud) -> bool {
+        self.sow(leaf, growth, Some(under), bud, 0)
+    }
+
+    fn sow(
+        &mut self,
+        leaf: Leaf,
+        growth: Growth,
+        under: Option<Leaf>,
         mut bud: Bud,
+        grown: u32,
     ) -> bool {
         let slot = leaf.slot();
         if slot >= self.generation.len() {
@@ -533,7 +556,7 @@ impl Tree {
         // here: that is held in resolution's own columns ([`Elements`](crate::rowan::Elements)),
         // which is where every pass reads it.
         let manner = bud.placement.manner;
-        let mut flags = LIVE;
+        let mut flags = LIVE | grown;
         if manner.visible.0 {
             flags |= VISIBLE;
         }
@@ -757,7 +780,8 @@ impl Tree {
         self.scrolls[slot] = None;
     }
 
-    /// The elements the app branched directly off `leaf`, in the order they were grown.
+    /// The elements the app branched directly off `leaf`, in the order they were grown. A part a
+    /// frond grew under it is not one of them.
     pub(crate) fn branches(&self, leaf: Leaf) -> Vec<Leaf> {
         self.branched(leaf).collect()
     }
@@ -769,6 +793,7 @@ impl Tree {
             let next = self.next[slot as usize];
             (next != NONE).then_some(next)
         })
+        .filter(|&slot| self.flags[slot as usize] & GROWN != 0)
         .map(|slot| self.named(slot))
     }
 

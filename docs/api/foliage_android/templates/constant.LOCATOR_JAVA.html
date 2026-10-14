@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `LOCATOR_JAVA` constant in crate `foliage_android`."><title>LOCATOR_JAVA in foliage_android::templates - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="foliage_android" data-themes="" data-resource-suffix="" data-rustdoc-version="1.96.0 (ac68faa20 2026-05-25)" data-channel="1.96.0" data-search-js="search-b5634cc7.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-5013f961.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc constant"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">LOCATOR_JAVA</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../foliage_android/index.html">foliage_<wbr>android</a><span class="version">1.0.0</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"><h2><a href="index.html">In foliage_<wbr>android::<wbr>templates</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">foliage_android</a>::<wbr><a href="index.html">templates</a></div><h1>Constant <span class="constant">LOCATOR_<wbr>JAVA</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/foliage_android/templates.rs.html#134-236">Source</a> </span></div><pre class="rust item-decl"><code>const LOCATOR_JAVA: &amp;<a class="primitive" href="https://doc.rust-lang.org/1.96.0/std/primitive.str.html">str</a> = r#&quot;package dev.foliage;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Bundle;
+import android.os.Looper;
+
+/**
+ * Where the device is, handed to foliage as each fix arrives: from every provider the device has
+ * on, so a tablet with no GPS is still placed by its network. Which of two fixes is the better is
+ * foliage&#39;s to say.
+ *
+ * Written by `foliage-android init` for an app that asks for a location permission.
+ */
+public final class Locator implements LocationListener {
+
+    /** The request the permission is asked for under. */
+    public static final int ASKED = 0x10ca;
+
+    /** How often a provider is asked for a fix, in milliseconds. */
+    private static final long EVERY_MS = 1000;
+
+    /** foliage&#39;s: one fix. An accuracy below zero is none, and a bearing that is NaN is none. */
+    private static native void fix(double lat, double lon, float accuracy, float bearing, long time);
+
+    private final Activity activity;
+    private final LocationManager manager;
+    private boolean asked = false;
+    private boolean listening = false;
+
+    public Locator(Activity activity) {
+        this.activity = activity;
+        this.manager = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
+    }
+
+    private boolean allowed(String permission) {
+        return activity.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** Listens, or asks for the permission to -- once a run, so a refusal is not asked again. */
+    public void start() {
+        if (manager == null || listening) {
+            return;
+        }
+        if (!allowed(Manifest.permission.ACCESS_FINE_LOCATION)
+                &amp;&amp; !allowed(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            if (!asked) {
+                asked = true;
+                activity.requestPermissions(new String[] {
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                }, ASKED);
+            }
+            return;
+        }
+        for (String provider : manager.getProviders(true)) {
+            if (LocationManager.PASSIVE_PROVIDER.equals(provider)) {
+                continue;
+            }
+            try {
+                manager.requestLocationUpdates(provider, EVERY_MS, 0f, this,
+                        Looper.getMainLooper());
+                listening = true;
+                android.location.Location last = manager.getLastKnownLocation(provider);
+                if (last != null) {
+                    onLocationChanged(last);
+                }
+            } catch (SecurityException | IllegalArgumentException e) {
+                // Taken away between the check and the request, or gone: nothing to listen to.
+            }
+        }
+    }
+
+    public void stop() {
+        if (manager != null &amp;&amp; listening) {
+            manager.removeUpdates(this);
+            listening = false;
+        }
+    }
+
+    @Override
+    public void onLocationChanged(android.location.Location at) {
+        fix(at.getLatitude(), at.getLongitude(),
+                at.hasAccuracy() ? at.getAccuracy() : -1f,
+                at.hasBearing() ? at.getBearing() : Float.NaN,
+                at.getTime());
+    }
+
+    // Abstract before API 30, so a device older than that calls them and they have to be here.
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {}
+
+    @Override
+    public void onProviderEnabled(String provider) {}
+
+    @Override
+    public void onProviderDisabled(String provider) {}
+}
+&quot;#;</code></pre></section></div></main></body></html>

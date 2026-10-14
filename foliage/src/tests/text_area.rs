@@ -280,11 +280,20 @@ fn offset(grove: &Grove, leaf: Leaf) -> f32 {
 
 /// The parts, in the order they were grown: the selection's head, body and tail, then the run, the
 /// hint and the caret.
+///
+/// Read from the field's own record of them, since a part is never one of its branches.
 fn parts(grove: &Grove, leaf: Leaf) -> Vec<Leaf> {
-    match grove.tap(leaf, Vein::Branches) {
-        Some(Sap::Leaves(leaves)) => leaves,
-        other => panic!("expected branches, got {other:?}"),
-    }
+    let Some(parts) = grove.tree.parts(leaf) else {
+        panic!("expected a field");
+    };
+    vec![
+        parts.head,
+        parts.body,
+        parts.tail,
+        parts.run,
+        parts.hint,
+        parts.caret,
+    ]
 }
 
 fn caret(grove: &Grove, leaf: Leaf) -> Leaf {

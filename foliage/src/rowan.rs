@@ -69,11 +69,11 @@
 //! an element measuring again because one of its children moved asks that child alone: how far each
 //! of the others reaches is held from when it last resolved, which is the answer asking would give.
 //!
-//! # Every pass reads the order, not the world
+//! # Every pass reads the order, not the tree
 //!
 //! The passes ask the same questions of the same elements over and over: what an element hangs off,
 //! what it is anchored to, what is grown under it, and what each of those offers a placement reading
-//! it. Asked of the world each time, every one of those is a lookup by entity -- and the arithmetic a
+//! it. Asked of the tree each time, every one of those is a lookup by name -- and the arithmetic a
 //! pass does is small enough that the lookups, not the arithmetic, are what a frame costs.
 //!
 //! So the tree is read once, into [`Elements`]: every live element in dependency order, holding what
@@ -86,7 +86,7 @@
 //! measures, the clip, the rank and the inherited products are columns of the order, kept between
 //! frames and read by position -- by extraction, which walks the same order -- or by name through
 //! [`Elements`]'s accessors, by anything that asks about one element. None of it is written back
-//! into the world, so no pass pays to store a value per element per frame that the next pass would
+//! into the tree, so no pass pays to store a value per element per frame that the next pass would
 //! have to look up again.
 //!
 //! Nothing about what is computed changes, and neither does the ordering that makes it correct.
@@ -146,8 +146,8 @@ fn position(held: u32) -> Option<usize> {
 ///
 /// The frame's one read of the tree, and what every pass indexes into. A trunk and an anchor are
 /// asked for on both axes and on four of the passes after them; what an element offers is asked for
-/// twice per element on each axis. Out of the world each time, every one of those is a lookup by
-/// entity -- resolved once to a position in the order, each is an index.
+/// twice per element on each axis. Out of the tree each time, every one of those is a lookup by
+/// name -- resolved once to a position in the order, each is an index.
 ///
 /// What the order is made of -- what each element hangs off, what is under it, what every pass
 /// visits -- is held by position, since that is what a walk goes by. What resolution made of each
@@ -171,7 +171,7 @@ pub(crate) struct Elements {
     /// What is grown directly under each element, as positions in the order: the children of the
     /// element at `at` are `children[branches[at]..branches[at + 1]]`. One array for the whole tree
     /// rather than one per element, and built with the order, so a pass that asks what is under an
-    /// element never asks the world.
+    /// element never asks the tree.
     branches: Vec<u32>,
     children: Vec<u32>,
     /// What is anchored to each element, as positions in the order, held the way
@@ -829,7 +829,7 @@ fn geometry(
             return (span(grove, leaf, location, context, axis), None);
         }
         // Every live element is grown with a placement, so this is an element the order holds and
-        // the world does not -- which nothing that runs between the two can make.
+        // the tree does not -- which nothing that runs between the two can make.
         None => return (span(grove, leaf, &Location::default(), context, axis), None),
     };
     let half = stroke.half();
@@ -1860,7 +1860,7 @@ fn structure(elements: &mut Elements, grove: &Grove) {
         (leaves.get(at) == Some(&leaf)).then_some(at)
     };
     // What each element waits on, and how many of those have yet to resolve. An element the leaves
-    // do not hold is not live, since the leaves are what the world has grown, and a dependency on
+    // do not hold is not live, since the leaves are what the tree has grown, and a dependency on
     // something not live is no dependency at all.
     let mut depends: Vec<[Option<usize>; 2]> = Vec::with_capacity(count);
     let mut waiting: Vec<u8> = Vec::with_capacity(count);

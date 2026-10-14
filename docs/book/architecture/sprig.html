@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -224,9 +224,9 @@ place among the frame’s ops by arrival and nothing else. It lands in the drain
 running when it arrived, if it arrived before that frame’s drain began, and in the next frame’s
 otherwise. Nothing about how it is applied depends on which side it came from, and the suite proves
 it by running one script of writes through a <code>Grove</code> and through a <code>Sprig</code> and comparing the trees.</p>
-<p><strong>Names come from the same place.</strong> <code>Naming</code> holds the world’s entity allocator in its remote form
-and an atomic counter for everything else, so a worker can take a name for an element (or a motion,
-a picture, a face, a mark) without the world. Names from both sides never collide, and the
+<p><strong>Names come from the same place.</strong> <code>Naming</code> hands out every name from atomic counters
+and the indices of elements that withered, so a worker can take a name for an element (or a motion,
+a picture, a face, a mark) without the tree. Names from both sides never collide, and the
 allocation order that settles elevation ties is one order across every thread. A worker can grow an
 element and branch another off it on the next line, exactly as <code>frame</code> can.</p>
 <p>Then the <strong>rouse</strong>: the loop sleeps until the platform has something to say, and an op pushed from a
@@ -271,7 +271,7 @@ fn misfit(&amp;mut self, plate: Plate, reason: String) {
     });
 }</code></pre>
 <h2 id="reading-pushed-not-sampled"><a class="header" href="#reading-pushed-not-sampled">Reading: pushed, not sampled</a></h2>
-<p>A worker cannot sample the tree. A read needs the world, and the world belongs to the frame. So the
+<p>A worker cannot sample the tree. A read needs the tree, and the tree belongs to the frame. So the
 reads a worker needs are <strong>pushed</strong> to it, at one point in the frame, by <code>sprig::publish</code>:</p>
 <pre><code class="language-rust ignore">// fern.rs
     rowan::run(grove);

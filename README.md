@@ -1,9 +1,9 @@
 # foliage
 
-A cross-platform UI library for Rust. One element on screen is one entity, held by an ECS
-([`bevy_ecs`](https://crates.io/crates/bevy_ecs)) that stays an implementation detail — no engine
-type is ever handed out, and nothing an app holds borrows from the world. Rendering is
-[`wgpu`](https://wgpu.rs) and windowing and input are [`winit`](https://docs.rs/winit).
+A cross-platform UI library for Rust. One element on screen is one `Leaf`: a name into foliage's
+own store, an index and a generation, so a name that withered is never the one that came after
+it. No engine type is ever handed out, and nothing an app holds borrows from the engine. Rendering
+is [`wgpu`](https://wgpu.rs) and windowing and input are [`winit`](https://docs.rs/winit).
 
 Everything crossing the seam between an app and the engine is plain data: ops in, emissions out,
 and read-only taps taken at the app's own callsite. An app declares what an element *is* — where

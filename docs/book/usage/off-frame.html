@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -262,7 +262,7 @@ them.</p>
 used from a promise or a callback instead (anything <code>wasm_bindgen_futures::spawn_local</code> runs), and
 the ops land the same way.</p>
 <h2 id="reading-from-off-the-frame"><a class="header" href="#reading-from-off-the-frame">Reading from off the frame</a></h2>
-<p>A worker cannot <em>sample</em> the tree: a read needs the world, and the world belongs to the frame. So
+<p>A worker cannot <em>sample</em> the tree: a read needs the tree, and the tree belongs to the frame. So
 the reads a worker needs are pushed to it instead, three ways.</p>
 <p><strong>Conditions</strong> are what is true of the whole tree, published at the end of every frame:</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Layout, Sprig};

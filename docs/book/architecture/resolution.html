@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c0c9cc8c.js";
+            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -189,7 +189,7 @@ pub(crate) fn run(grove: &amp;mut Grove) {
     read(&amp;mut elements, grove);          // what to resolve, and the order to resolve it in
     grove.tree.taken();                  // writes after this belong to the next frame
     measure(grove, &amp;mut elements);       // R1
-    axes(grove, &amp;mut elements);          // R2a, R2m, R2b
+    axes(grove, &amp;mut elements);          // R1m, R2a, R2m, R2b
     extent(grove, &amp;elements);            // R3
     scroll(grove, &amp;mut elements);        // R4
     clip(&amp;mut elements);                 // R5
@@ -205,12 +205,13 @@ pub(crate) fn run(grove: &amp;mut Grove) {
 <tr><th></th><th>Pass</th><th>Direction</th><th>Writes</th></tr>
 </thead>
 <tbody>
-<tr><td>R1</td><td>measure</td><td>any</td><td>the character cell, the shaped run, and the max-content width</td></tr>
+<tr><td>R1</td><td>measure</td><td>any</td><td>the character cell and the shaped run</td></tr>
+<tr><td>R1m</td><td>across</td><td>bottom-up</td><td>how wide each element’s content wants to be: the width half of <code>content()</code></td></tr>
 <tr><td>R2a</td><td>horizontal</td><td>dependency order</td><td>every left edge and width</td></tr>
-<tr><td>R2m</td><td>wrap</td><td>bottom-up</td><td>how tall each element’s content turned out: the other half of <code>content()</code></td></tr>
+<tr><td>R2m</td><td>wrap</td><td>bottom-up</td><td>how tall each element’s content turned out: the height half of <code>content()</code></td></tr>
 <tr><td>R2b</td><td>vertical</td><td>dependency order</td><td>every top edge and height, and with them the placed box</td></tr>
 <tr><td>R3</td><td>extent</td><td>bottom-up</td><td>how far each scrolling region’s content reaches</td></tr>
-<tr><td>R4</td><td>scroll</td><td>top-down</td><td>the drawn box: the placed box less every scrolling ancestor’s offset</td></tr>
+<tr><td>R4</td><td>scroll</td><td>top-down</td><td>the drawn box: the placed box less every scrolling ancestor’s offset, and moved by every shift over it</td></tr>
 <tr><td>R5</td><td>clip</td><td>top-down</td><td>what the scrolling regions above an element leave visible of it</td></tr>
 <tr><td>R6</td><td>rank</td><td>dependency order</td><td>where each element sits in the stack</td></tr>
 <tr><td>R7</td><td>inherit</td><td>top-down</td><td>the visible, opacity and disabled products over the ancestry</td></tr>
@@ -222,7 +223,7 @@ pub(crate) fn run(grove: &amp;mut Grove) {
 once per frame: <strong>nothing iterates to a fixed point.</strong></p>
 <h2 id="held-between-frames"><a class="header" href="#held-between-frames">Held between frames</a></h2>
 <p>Everything resolution produces lives in one struct, <code>Elements</code>, kept on the grove between frames
-and never written back into the world:</p>
+and never written back into the tree:</p>
 <pre><code class="language-rust ignore">// rowan.rs, shortened
 pub(crate) struct Elements {
     pub(crate) order: Vec&lt;Leaf&gt;,      // every live element, in dependency order
@@ -233,7 +234,8 @@ pub(crate) struct Elements {
     pub(crate) standing: Vec&lt;Standing&gt;, // what each declared that the later passes read
     section: Vec&lt;Section&gt;,            // the placed box
     intrinsic: Vec&lt;Area&gt;,             // what content() reads
-    reached: Vec&lt;Option&lt;f32&gt;&gt;,        // how far each reaches toward its trunk's measure
+    spread: Vec&lt;Option&lt;f32&gt;&gt;,         // how far right each reaches, toward its trunk's measure
+    reached: Vec&lt;Option&lt;f32&gt;&gt;,        // how far down each reaches, likewise
     cell: Vec&lt;Area&gt;,                  // the character cell
     pub(crate) composed: Vec&lt;Option&lt;Arc&lt;Shaped&gt;&gt;&gt;, // the shaped run
     pub(crate) drawn: Vec&lt;Section&gt;,   // the placed box, moved by scrolling
@@ -246,7 +248,7 @@ pub(crate) struct Elements {
 }</code></pre>
 <p>The shape is the point. Every pass asks the same questions of the same elements (what does it hang
 off, what is it anchored to, what is under it, what does each of those offer a placement), and asked
-of the world each one is a lookup by entity. The arithmetic a pass does is small enough that the
+of the tree each one is a lookup by name. The arithmetic a pass does is small enough that the
 lookups, not the arithmetic, were what a frame cost. So the tree is read once into this order,
 with every dependency stored as a <strong>position</strong> rather than a name, and from then on every pass
 indexes arrays. A trunk’s contribution to what its child inherits is <code>inherited[trunk]</code>, not a hash
@@ -306,40 +308,49 @@ to be marked <code>moved</code>.</p>
 <p>R1 visits only elements that say something new: grown this frame, text rewritten, or everything
 after a breakpoint or a font change. For each, it reads the element’s font and size at the
 breakpoint in force, takes its character cell from the font, and shapes its run through the
-<a href="text.html">shaping cache</a>. The cell is what <code>letters</code> counts in. The run’s <strong>max-content width</strong> is
-its longest line’s character count times the cell width, which in a monospaced face is exact and
-needs no layout at all. That is written as the width half of the element’s intrinsic size.</p>
-<h2 id="r2-the-two-axes-and-the-measure-between-them"><a class="header" href="#r2-the-two-axes-and-the-measure-between-them">R2: the two axes, and the measure between them</a></h2>
-<p>Text wrapping makes a height depend on a width, and the width comes from layout, so a box sized to
-what it holds looks circular. It is not, because <strong>width flows down and height flows up</strong>:</p>
+<a href="text.html">shaping cache</a>. The cell is what <code>letters</code> counts in, and the shaped run is what both
+measures read.</p>
+<h2 id="r1m-and-r2-the-two-axes-and-a-measure-before-each"><a class="header" href="#r1m-and-r2-the-two-axes-and-a-measure-before-each">R1m and R2: the two axes, and a measure before each</a></h2>
+<p><code>content()</code> asks the same question on both axes: how large is what is inside me. An element takes
+the larger of two answers, its own run and how far anything grown under it reaches, and each is
+measured bottom-up just before the axis that reads it is laid out:</p>
 <ol>
+<li><strong>R1m</strong> walks bottom-up and measures across. A run’s <strong>max-content width</strong> is its longest line’s
+character count times the cell width, which in a monospaced face is exact and needs no layout at
+all. An element with children also reaches over them: the furthest any of them extends right of
+its left edge. The element takes the greater of the two as the width half of its intrinsic size.</li>
 <li><strong>R2a</strong> resolves the horizontal axis of every dirty element, in dependency order. Every input is
-available: widths come from trunks, and a run’s max-content width came from R1 without any
-layout.</li>
-<li><strong>R2m</strong> walks bottom-up and measures. Each run wraps at the width R2a just gave it, and its line
-count times its cell height is its measured height. An element with children also reaches over
-them: the furthest any of them extends below its top edge. The element takes the greater of the
-two as the height half of its intrinsic size.</li>
+available: widths come from trunks, and <code>width(content())</code> reads what R1m measured.</li>
+<li><strong>R2m</strong> walks bottom-up and measures down. Each run wraps at the width R2a just gave it, and its
+line count times its cell height is its measured height. An element with children takes the
+furthest any of them extends below its top edge if that is greater, as the height half of its
+intrinsic size.</li>
 <li><strong>R2b</strong> resolves the vertical axis, and <code>height(content())</code> reads what R2m measured.</li>
 </ol>
-<p>R2m is the one moment in the frame when every width is known and no height is, which is exactly what
-measuring needs.</p>
-<p>The reach over children counts only children whose vertical placement <strong>describes its own extent</strong>:
-pixels, letters, its own content, any reading of the already-settled horizontal axis. A child placed
-by a percentage of its trunk’s height, a row of its trunk’s grid, or an anchor’s edge is asking how
-tall something else is, so it cannot also be what decides that height. It is left out of the measure
-and given its real height by R2b like anything else. This is <code>Config::measurable</code>
+<p>Text wrapping makes a height depend on a width, and the width comes from layout, so a box sized to
+what it holds looks circular. It is not, because <strong>width flows down and height flows up</strong>: R1m needs
+no wrapping to measure a run across, and R2m is the one moment in the frame when every width is
+known and no height is, which is exactly what measuring down needs.</p>
+<p>The reach over children counts only children whose placement on that axis <strong>describes its own
+extent</strong>: pixels, letters, its own content, and down, any reading of the already-settled horizontal
+axis. A child placed by a percentage of its trunk, a track of its trunk’s grid, or an anchor’s edge
+is asking how large something else is, so it cannot also be what decides that size. It is left out
+of the measure and given its real extent by its axis’s own pass like anything else. Across, a
+character’s place in a run is left out too: it is read off the run as it wrapped, at a width that is
+not known yet. This is <code>Config::measurable</code>
 (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/placement/role.rs"><code>placement/role.rs</code></a>),
-and it is the reason <a href="../usage/placement.html#sizing-a-box-to-what-it-holds">Placing elements</a> states
-the rule it does.</p>
-<p>R2m also marks what has to measure again, and it runs <em>up</em> the order rather than down it: a measure
-travels toward the trunk and stops there, where a box travels away from it. An element that measured
-to something new is marked dirty, and R2b’s own closure (<code>dirty[at] |= dirty[trunk] || dirty[anchor]</code>
-at the top of each axis) spreads that to everything placed against it. That is why R2m sits between
-the axes and not after them.</p>
+the same question asked of either axis, and it is the reason
+<a href="../usage/placement.html#sizing-a-box-to-what-it-holds">Placing elements</a> states the rule it does.</p>
+<p>Both measures mark what has to measure again, and they run <em>up</em> the order rather than down it: a
+measure travels toward the trunk and stops there, where a box travels away from it. An element that
+measured to something new is marked dirty, and the next axis’s own closure
+(<code>dirty[at] |= dirty[trunk] || dirty[anchor]</code> at the top of each axis) spreads that to everything
+placed against it. That is why each measure sits before the axis that reads it and not after. R2a
+also marks for measuring down whatever it resolves again, since a box that came out another width
+may wrap to another height.</p>
 <p>An element measuring again because one child moved does not ask the others. How far each child
-reaches is a column of its own, <code>reached</code>, written when the child is resolved in its trunk’s reach
-and read back otherwise:</p>
+reaches is a column of its own, <code>spread</code> across and <code>reached</code> down, written when the child is
+resolved in its trunk’s measure and read back otherwise. Down:</p>
 <pre><code class="language-rust ignore">// rowan.rs
 fn reach(grove: &amp;Grove, elements: &amp;mut Elements, at: usize) -&gt; f32 {
     let mut reach: f32 = 0.0;
@@ -347,7 +358,7 @@ fn reach(grove: &amp;Grove, elements: &amp;mut Elements, at: usize) -&gt; f32 {
         let child_at = elements.children[index] as usize;
         if elements.dirty[child_at] {
             let child = elements.order[child_at];
-            let far = measurable(grove, child).then(|| {
+            let far = measurable(grove, child, Axis::Vertical).then(|| {
                 let context = raised(elements, at, child_at);
                 geometry(grove, child, &amp;context, Axis::Vertical).0.far
             });
@@ -363,7 +374,8 @@ fn reach(grove: &amp;Grove, elements: &amp;mut Elements, at: usize) -&gt; f32 {
 its own placement, the horizontal half of what it and its trunk and anchor resolved to, and its own
 measure; each of those that moves makes the child dirty, the last one here in R2m itself, before
 the walk reaches the trunk. So a container of thousands with one child written resolves one child
-to measure itself, and the column is never behind.</p>
+to measure itself, and the column is never behind. <code>spread</code> is the same walk across, against a
+context with no box laid out at all.</p>
 <p><strong>A motion in progress is resolved inside the same axis.</strong> For an element with a <code>Location</code> motion
 running, R2 resolves the target <em>and</em> the placement it departed from, in the same context, and
 blends the two. Both ends are answered against this frame’s trunks and anchors, so a resize or a
@@ -387,14 +399,16 @@ measuring against it would make the extent depend on itself.</p>
 <p>R4 first answers the three ways a region is asked to move, because all three need the extent R3
 just measured: a coast still running from a release, a <code>scroll</code> written this frame, and a scroll
 motion part way through (<a href="views.html">Scrolling</a>). Then it walks down the order, accumulating offsets:
-an element’s drawn box is its placed box less the sum of every scrolling ancestor’s offset.</p>
+an element’s drawn box is its placed box less the sum of every scrolling ancestor’s offset, and
+moved by every <code>shift</code> on it and above it – a shift is an offset the other way, carried to
+everything under the element, pinned or not.</p>
 <p>A region’s own box does not move under its own offset; what moves is everything grown inside it. A
 pinned child receives every offset except its nearest region’s. And each offset is clamped against
 the extent as it is applied, so a region whose content shrank comes back into range in the same
 frame rather than sitting somewhere it can no longer reach.</p>
 <p>The placed box and the drawn box are kept apart on purpose. A change to the placed box means the
 layout moved something and its children must follow. A change to the drawn box means only that it
-moved under a scroll, and nothing needs resolving for that.</p>
+moved under a scroll or a shift, and nothing needs resolving for that.</p>
 <h2 id="r5-clip"><a class="header" href="#r5-clip">R5: clip</a></h2>
 <p>A clip is a rectangle and nothing else: the intersection of the drawn boxes of every scrolling
 region above the element. A region does not clip itself, only what is inside it, and an element with
@@ -422,13 +436,16 @@ whether it is tangible, receives, and is disabled. It is what the next frame’s
 <p>It is rebuilt only on a frame where something it is built from changed, which R4 to R7 recorded as
 <code>restack</code>, and re-sorted only when a rank changed. A frame where one element’s color fades, or
 nothing happens at all, keeps the stack the last one built.</p>
-<h2 id="two-cycles-that-are-not-vicious"><a class="header" href="#two-cycles-that-are-not-vicious">Two cycles that are not vicious</a></h2>
-<p>Resolution has two places that look circular, and each is resolved in single passes rather than by
+<h2 id="three-cycles-that-are-not-vicious"><a class="header" href="#three-cycles-that-are-not-vicious">Three cycles that are not vicious</a></h2>
+<p>Resolution has three places that look circular, and each is resolved in single passes rather than by
 iterating:</p>
 <ul>
 <li><strong>Width and height.</strong> A wrapped height depends on a width. Widths never depend on heights (the
 <a href="resolver.html#the-order-is-in-the-types">type system</a> refuses to let a horizontal role read one),
-so R2a, R2m and R2b in that order are enough.</li>
+so R1m, R2a, R2m and R2b in that order are enough.</li>
+<li><strong>A box and what it holds.</strong> A box sized to its content is sized by boxes resolved against it. A
+child that reads its trunk’s extent is left out of the measure on that axis, and what is left is
+measured bottom-up before the axis is laid out, so one measure per axis settles it.</li>
 <li><strong>Extent and offset.</strong> A child resolves against its region’s box, the region’s extent comes from
 where its children landed, and the offset is clamped to the extent. But the extent affects only the
 clamp, never the region’s own box, so a top-down layout, a bottom-up extent and a top-down scroll

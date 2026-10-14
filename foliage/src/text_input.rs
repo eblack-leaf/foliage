@@ -953,18 +953,18 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
         (body, body_growth),
         (tail, tail_growth),
     ] {
-        grove.tree.grow(
+        grove.tree.grow_part(
             leaf,
             growth,
-            Some(field),
+            field,
             mark(sprout.selection, against(0, false)),
         );
     }
     let empty = sprout.value.is_empty();
-    grove.tree.grow(
+    grove.tree.grow_part(
         run,
         run_growth,
-        Some(field),
+        field,
         Bud {
             chlorophyll: Chlorophyll::Text,
             pigment: Some(Pigment::Text(TextPigment { fill: sprout.fill })),
@@ -976,10 +976,10 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
     );
     let mut hint_placement = line(2);
     hint_placement.manner.visible = Visible(empty);
-    grove.tree.grow(
+    grove.tree.grow_part(
         hint,
         hint_growth,
-        Some(field),
+        field,
         Bud {
             chlorophyll: Chlorophyll::Text,
             pigment: Some(Pigment::Text(TextPigment { fill: sprout.hint })),
@@ -989,10 +989,10 @@ fn sprout(grove: &mut Grove, field: Leaf, sprout: Sprout) {
             ..Bud::bare()
         },
     );
-    grove.tree.grow(
+    grove.tree.grow_part(
         caret,
         caret_growth,
-        Some(field),
+        field,
         mark(sprout.caret, against(1, true)),
     );
     grove.tree.set_parts(field, parts);

@@ -1,6 +1,6 @@
 //! The placement algebra, against the resolver alone.
 //!
-//! A struct in and a struct out, with no ECS, no engine and no frame anywhere near it. That is what
+//! A struct in and a struct out, with no tree, no engine and no frame anywhere near it. That is what
 //! lets these be exhaustive, and it is only possible because the resolver is a pure function.
 
 use crate::coordinate::{Area, Axis, Section};
