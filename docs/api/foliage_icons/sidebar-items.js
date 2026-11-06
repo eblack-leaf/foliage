@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["bake","bake_dir","generate","preview"],"struct":["Bake","Baked"]};

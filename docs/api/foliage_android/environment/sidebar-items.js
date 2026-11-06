@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["INSTALL"],"fn":["cargo_home","doctor","executable","have_cargo_ndk","host","host_abi","runs","rust_target","rustup_targets","vendored_games_activity"],"struct":["Checks","Environment"]};
