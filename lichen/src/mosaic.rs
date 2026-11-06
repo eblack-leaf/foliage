@@ -4,7 +4,7 @@ use core::f32::consts::TAU;
 
 use foliage::{
     Boxed, Cap, Ease, Elevation, Grove, Grow, HAIRLINE, Leaf, Line, Location, Motion, Place, Point,
-    Pollen, Polygon, Sequence, Shape, Source, Stem, Timing, Tween, left, top,
+    Pollen, Polygon, Position, Sap, Sequence, Shape, Source, Stem, Timing, Tween, Vein, left, top,
 };
 
 use crate::ramp::between;
@@ -56,6 +56,17 @@ const TINGE_RAGGED: f32 = 0.03;
 /// itself, on three lobes and on five. What makes a rim a shape rather than a rule.
 const LOBES: (f32, f32) = (0.16, 0.10);
 
+/// How many steps a light pales a tile in, between not at all and the most it does. Fine enough
+/// that a light moving slowly never reads as stepping, coarse enough that a light moved a little
+/// recolours only the tiles it has moved enough to change.
+const SHINE_STEPS: f32 = 32.0;
+
+/// What a light is: the ramp's light end, a little toward white -- the gold a leaf held up to the
+/// sun glows, rather than a wash over it -- and how far a tile at the light's middle is turned
+/// toward that.
+const SHINE_WHITE: f32 = 0.15;
+const SHINE_MOST: f32 = 0.55;
+
 /// A [`Silhouette`] outlined in dashes and filled with polygons coloured along a [`Ramp`].
 ///
 /// Built ungrown, which costs nothing, and grown once into a box. [`form`](Self::form) brings it
@@ -73,6 +84,11 @@ const LOBES: (f32, f32) = (0.16, 0.10);
 /// goes, what crosses the edge is cut to it, what is inside is recoloured over the part -- until
 /// [`uncrop`](Self::uncrop) puts the whole back, or as much of it as it is asked to and then,
 /// slowly, the rest. The outline stays through both.
+///
+/// [`shine`](Self::shine) lays a light over it at a point, paling the tiles under it, and moves it
+/// wherever it is shone next -- a little each frame, for one that drifts.
+/// [`point`](Self::point) reads a point on the screen, such as where it was pressed, into the unit
+/// space a light is shone at.
 pub struct Mosaic {
     silhouette: Silhouette,
     ramp: Ramp,
@@ -100,6 +116,9 @@ pub struct Mosaic {
     /// there, waited on, and how long the letting go takes once that has landed. `None` while
     /// nothing is restoring, and cleared by whatever moves the mosaic before then.
     restoring: Option<(Tween, u64)>,
+    /// How far each tile is paled by a light, in steps. All nothing while there is no light, and
+    /// empty until it is grown.
+    shone: Vec<u8>,
 }
 
 /// One dash of the outline, as grown.
@@ -171,6 +190,7 @@ impl Mosaic {
             forming: None,
             arrived: false,
             restoring: None,
+            shone: Vec::new(),
         }
     }
 
@@ -315,6 +335,7 @@ impl Mosaic {
                 }
             })
             .collect();
+        self.shone = vec![0; self.tiles.len()];
 
         self.root = Some(root);
         root
@@ -419,6 +440,47 @@ impl Mosaic {
             self.restoring = None;
             self.restore(grove, over);
         }
+    }
+
+    /// Lays a light over it at `at` -- a point in unit space -- reaching `reach` out from there, as
+    /// strong as `strength`, `0.0..=1.0`: the tiles under it turn toward the ramp's light end, most
+    /// at its middle and not at all at its reach, as a leaf held up to the sun glows.
+    ///
+    /// Shining again moves it, and recolours only the tiles that moving it changes, so a light
+    /// moved a little every frame costs a little every frame. A strength of nothing puts it out.
+    ///
+    /// Paled from the colours the tiles were grown in, so it is a light over the mosaic as grown:
+    /// shone over a region that is emphasized, or a crop, it puts back the grown colour where it
+    /// changes a tile. Nothing before it has formed, or on one never grown.
+    pub fn shine(&mut self, grove: &mut Grove, at: (f32, f32), reach: f32, strength: f32) {
+        if !self.arrived {
+            return;
+        }
+        let light = between(self.ramp.at(0.0), (1.0, 1.0, 1.0), SHINE_WHITE);
+        let strength = strength.clamp(0.0, 1.0);
+        for (tile, shone) in self.tiles.iter().zip(&mut self.shone) {
+            let out = distance(tile.center, at) / reach.max(f32::EPSILON);
+            let step = (lit(out) * strength * SHINE_STEPS).round() as u8;
+            if step != *shone {
+                *shone = step;
+                // Its drift off the ramp put back as far as the blend took it away, so the light
+                // shows the mosaic's grain rather than smoothing it over.
+                let toward = step as f32 / SHINE_STEPS * SHINE_MOST;
+                let paled = shifted(between(tile.hue, light, toward), tile.drift * toward);
+                grove.color(tile.leaf, fill(paled));
+            }
+        }
+    }
+
+    /// Where `at` -- a point on the screen, as a press is reported -- falls in the shape's unit
+    /// space, which is what [`shine`](Self::shine) is told. `None` on one never grown, or not yet
+    /// laid out.
+    pub fn point(&self, grove: &Grove, at: Position) -> Option<(f32, f32)> {
+        let Some(Sap::Section(drawn)) = grove.tap(self.root?, Vein::Drawn) else {
+            return None;
+        };
+        let width = drawn.width().max(f32::EPSILON);
+        Some(((at.x - drawn.left()) / width, (at.y - drawn.top()) / width))
     }
 
     /// Takes it away, swept in toward `toward` -- a point in unit space -- from the far side,
@@ -763,6 +825,14 @@ impl Mosaic {
     }
 }
 
+/// How much of a light falls `out` from its middle, as a fraction of its reach: all of it at the
+/// middle and none from its reach on. Round-shouldered rather than a cone, so the light has no
+/// point at its middle and no edge at its reach.
+fn lit(out: f32) -> f32 {
+    let falloff = (1.0 - out * out).max(0.0);
+    falloff * falloff
+}
+
 /// How far apart two points are.
 fn distance(from: (f32, f32), to: (f32, f32)) -> f32 {
     ((to.0 - from.0).powi(2) + (to.1 - from.1).powi(2)).sqrt()
@@ -837,4 +907,24 @@ fn boxed(height: f32, area: &Area) -> Location {
 /// A point in unit space, as the coordinate a stroke's end is stated in.
 fn spot(height: f32, (x, y): (f32, f32)) -> Point {
     Point::new((x * 100.0).pct(), (y / height * 100.0).pct())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// All of a light at its middle, none at its reach or past it, and less the further out, with
+    /// no step between.
+    #[test]
+    fn a_light_falls_off_smoothly() {
+        assert_eq!(lit(0.0), 1.0);
+        assert_eq!(lit(1.0), 0.0);
+        assert_eq!(lit(1.5), 0.0);
+        let mut last = lit(0.0);
+        for step in 1..=100 {
+            let now = lit(step as f32 / 100.0);
+            assert!(now < last && last - now < 0.04, "{last} to {now}");
+            last = now;
+        }
+    }
 }

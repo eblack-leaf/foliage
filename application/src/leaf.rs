@@ -1,7 +1,7 @@
-//! The leaf the site was sketched as: its outline, and the patches on it the ways off the page
-//! light.
+//! The leaf the site was sketched as: its outline, how it is tiled, and the light through it.
 
-use lichen::{Mosaic, Ramp, Region, Silhouette};
+use foliage::Ease;
+use lichen::{Mosaic, Ramp, Silhouette};
 
 use crate::theme;
 
@@ -34,35 +34,112 @@ const OUTLINE: [(f32, f32); 75] = [
     (0.924, 0.642), (0.961, 0.662), (0.979, 0.685),
 ];
 
-/// How far apart tile centres sit, as a fraction of the leaf's width. Fine enough that a patch
-/// holds enough tiles to read as a gradient, coarse enough that the whole leaf is a few hundred
-/// polygons -- which a browser draws as readily as a desktop does.
+/// How far apart tile centres sit, as a fraction of the leaf's width. Fine enough that the ramp
+/// reads as a gradient down it and a tile coming loose is a fleck rather than a hole, coarse
+/// enough that the whole leaf is a few hundred polygons -- which a browser draws as readily as a
+/// desktop does.
 const PITCH: f32 = 0.040;
 
 /// Which way the ramp runs: mostly down the leaf, a little across it, so it is gold at the tip and
 /// deepens toward the stem, and the across term keeps the bands from reading as stripes.
 const ALONG: (f32, f32) = (0.25, 0.75);
 
-/// How large a patch is, as a fraction of the leaf's width.
-const PATCH: f32 = 0.26;
-
-/// Where on the leaf each way off the page stands, in its unit space, in the order the label lists
-/// them: down the leaf from the tip, so each sits in the stretch of the ramp its row is worn in.
-/// The source is last, where the blade meets the stem -- what the rest grows from.
-pub(crate) const PATCHES: [(f32, f32); 4] = [(0.50, 0.20), (0.22, 0.66), (0.80, 0.70), (0.45, 0.98)];
-
-/// The leaf, ungrown, its tiles coloured from `ramp`, and its regions the size of a patch.
+/// The leaf, ungrown, its tiles coloured from `ramp`.
 pub(crate) fn mosaic(ramp: Ramp) -> Mosaic {
     Mosaic::new(Silhouette::new(&OUTLINE), ramp)
         .along(ALONG)
         .edge(theme::EDGE)
         .pitch(PITCH)
-        .square(PATCH)
 }
 
-/// The patches, as regions to stand on the grown leaf.
-pub(crate) fn stood() -> [Region; 4] {
-    PATCHES.map(Region::Point)
+/// How far the light reaches across the leaf, as a fraction of its width.
+pub(crate) const REACH: f32 = 0.42;
+
+/// How long the light takes to come up once the leaf has formed, to glide to where the leaf was
+/// pressed, and to wander off again from there -- the last a time constant, so it never quite has
+/// and never stops -- in seconds.
+const RISE: f32 = 3.0;
+const GLIDE: f32 = 1.8;
+const RETURN: f32 = 14.0;
+
+/// The light through the leaf: wandering slowly over the blade, as sun through a canopy moves,
+/// drawn to wherever the leaf is pressed, and from there wandering on.
+pub(crate) struct Sun {
+    /// How far a press has drawn the light off its wander.
+    drawn: (f32, f32),
+    /// The draw under way.
+    glide: Option<Glide>,
+    /// When it rose, and when it was last moved, in seconds.
+    rose: Option<f32>,
+    last: f32,
+}
+
+/// A press drawing the light to it: how far off its wander the light was drawn from, how far it
+/// is being drawn to, and when, in seconds.
+#[derive(Copy, Clone)]
+struct Glide {
+    from: (f32, f32),
+    to: (f32, f32),
+    began: f32,
+}
+
+impl Sun {
+    pub(crate) fn new() -> Self {
+        Self {
+            drawn: (0.0, 0.0),
+            glide: None,
+            rose: None,
+            last: 0.0,
+        }
+    }
+
+    /// Where the light stands `now` -- in seconds, from when the leaf was planted -- in the leaf's
+    /// unit space, and how strong it is; drawn toward `pressed` where the leaf was just pressed
+    /// there. Asked once a frame from when the leaf has formed, which is when it rises.
+    pub(crate) fn frame(&mut self, now: f32, pressed: Option<(f32, f32)>) -> ((f32, f32), f32) {
+        let rose = *self.rose.get_or_insert(now);
+        let since = (now - self.last).max(0.0);
+        self.last = now;
+        let wandering = wander(now);
+        if let Some(to) = pressed {
+            let off = (to.0 - wandering.0, to.1 - wandering.1);
+            self.glide = Some(Glide {
+                from: self.drawn,
+                to: off,
+                began: now,
+            });
+        }
+        match self.glide {
+            Some(Glide { from, to, began }) => {
+                let along = ((now - began) / GLIDE).min(1.0);
+                let eased = Ease::Emphasis.at(along);
+                self.drawn = (
+                    from.0 + (to.0 - from.0) * eased,
+                    from.1 + (to.1 - from.1) * eased,
+                );
+                if along >= 1.0 {
+                    self.glide = None;
+                }
+            }
+            None => {
+                let kept = (-since / RETURN).exp();
+                self.drawn = (self.drawn.0 * kept, self.drawn.1 * kept);
+            }
+        }
+        let at = (wandering.0 + self.drawn.0, wandering.1 + self.drawn.1);
+        let strength = Ease::Decelerate.at(((now - rose) / RISE).min(1.0));
+        (at, strength)
+    }
+}
+
+/// Where the light wanders to at `t` seconds: round the blade on two slow swings each way, at
+/// rates that never line up, so it does not retrace itself -- and never so far out that its
+/// middle leaves the leaf.
+fn wander(t: f32) -> (f32, f32) {
+    (
+        0.52 + 0.16 * (0.13 * t + 0.4).sin() + 0.05 * (0.31 * t + 2.1).sin(),
+        0.66 + 0.20 * (0.09 * t + 1.3).sin() + 0.05 * (0.23 * t + 0.2).sin(),
+    )
 }
 
 #[cfg(test)]
@@ -81,28 +158,35 @@ mod tests {
         inside
     }
 
+    /// However long the page is left open, the light's middle stays on the leaf.
+    #[test]
+    fn the_light_stays_on_the_leaf() {
+        for step in 0..8000 {
+            let at = wander(step as f32 * 0.25);
+            assert!(inside(at), "{at:?} at {}s", step as f32 * 0.25);
+        }
+    }
+
+    /// Pressed, the light goes to where the leaf was pressed, and then wanders on from there.
+    #[test]
+    fn the_light_goes_where_it_is_pressed() {
+        let mut sun = Sun::new();
+        sun.frame(10.0, None);
+        sun.frame(10.0, Some((0.3, 0.9)));
+        let (at, _) = sun.frame(10.0 + GLIDE, None);
+        let wandered = wander(10.0 + GLIDE);
+        let expected = (0.3 + wandered.0 - wander(10.0).0, 0.9 + wandered.1 - wander(10.0).1);
+        assert!((at.0 - expected.0).abs() < 1e-4 && (at.1 - expected.1).abs() < 1e-4, "{at:?}");
+        let (later, strength) = sun.frame(10.0 + GLIDE + 60.0, None);
+        let back = wander(10.0 + GLIDE + 60.0);
+        assert!((later.0 - back.0).abs() < 0.05 && (later.1 - back.1).abs() < 0.05, "{later:?}");
+        assert_eq!(strength, 1.0);
+    }
+
     /// Standing: half again as tall as it is wide.
     #[test]
     fn stands() {
         let aspect = Silhouette::new(&OUTLINE).aspect();
         assert!((1.45..1.55).contains(&aspect), "{aspect}");
-    }
-
-    /// Every patch's middle is on the leaf, they run down it in order, and no two overlap.
-    #[test]
-    fn patches_run_down_the_leaf() {
-        for &at in &PATCHES {
-            assert!(inside(at), "{at:?} is off the leaf");
-        }
-        let along = |(x, y): (f32, f32)| ALONG.0 * x + ALONG.1 * y;
-        for pair in PATCHES.windows(2) {
-            assert!(along(pair[0]) < along(pair[1]), "{pair:?} run up the ramp");
-        }
-        for (n, a) in PATCHES.iter().enumerate() {
-            for b in &PATCHES[n + 1..] {
-                let apart = (a.0 - b.0).abs().max((a.1 - b.1).abs());
-                assert!(apart >= PATCH, "{a:?} and {b:?} overlap");
-            }
-        }
     }
 }

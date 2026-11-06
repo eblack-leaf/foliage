@@ -3,25 +3,30 @@
 //! The leaf is mounted the way a herbarium sheet mounts a specimen, and the label is what a sheet's
 //! corner carries: what it is, and where the rest of the collection is kept -- the three apps
 //! grown on foliage and its source, and, under a heading of their own, where it is written down.
-//! Nothing on the leaf is pressed. Pointing at one of the apps or the source, or giving it focus,
-//! lights the patch of the leaf it stands for in green, and its tile in the label turns with it.
-//! The docs stand on no patch: they are about the leaf rather than grown on it.
+//!
+//! Light comes through the leaf. Once it has formed, a soft light rises in it and wanders slowly
+//! over the blade, paling the tiles it crosses, and pressing the leaf draws the light to where it
+//! was pressed -- the same on a phone as with a mouse, since nothing on the page waits on being
+//! pointed at.
 //!
 //! On a window wide enough the two stand side by side, centred as a pair; on a narrow one the leaf
 //! stands over the label, as large as leaves the label in view. Both are placements of the same
 //! things, stated again whenever the window is resized, and the page scrolls only where a window is
 //! too short for either.
 
+use core::f32::consts::FRAC_PI_3;
+
 use foliage::{
-    Area, Axes, Boxed, Corners, Ease, Elevation, Field, Fill, FontSize, Grove, Grow, HAIRLINE, Icon,
+    Area, Axes, Boxed, Corners, Ease, Elevation, Field, FontSize, Grove, Grow, HAIRLINE, Icon,
     Layout, Leaf, Location, Motion, Palette, Panel, Place, Polygon, Pollen, Position, Root,
-    Rounding, Short, Source, Stem, Text, Timing, anchor, center_y, content, left, right, top,
+    Rounding, Shape, Short, Source, Stem, Text, Timing, anchor, center_y, content, left, right,
+    top,
 };
 use lichen::{Hover, Mosaic, Ramp, Scatter};
 use tracing::info;
 
 use crate::icons::Icons;
-use crate::leaf;
+use crate::leaf::{self, Sun};
 use crate::theme::{self, MARGIN};
 
 /// One way off the page.
@@ -45,8 +50,8 @@ enum Where {
 /// What a way is marked with in the label.
 #[derive(Copy, Clone)]
 enum Mark {
-    /// A tile worn in its stretch of the leaf's ramp, standing for the patch of the leaf it lights.
-    Patch(usize),
+    /// A tile worn in its own stretch of the leaf's ramp.
+    Tile(usize),
     /// The kind of writing it leads to.
     Guide,
     Reference,
@@ -61,25 +66,25 @@ const GROWN: [Way; 4] = [
         name: "conservatory",
         says: "an exhibition of grown works",
         at: Where::Here("/foliage/portfolio/conservatory/"),
-        mark: Mark::Patch(0),
+        mark: Mark::Tile(0),
     },
     Way {
         name: "orchard",
         says: "a boutique of digital goods",
         at: Where::Here("/foliage/portfolio/orchard/"),
-        mark: Mark::Patch(1),
+        mark: Mark::Tile(1),
     },
     Way {
         name: "trellis",
         says: "a planning sheet for a team",
         at: Where::Here("/foliage/portfolio/trellis/"),
-        mark: Mark::Patch(2),
+        mark: Mark::Tile(2),
     },
     Way {
         name: "github",
         says: "eblack-leaf/foliage",
         at: Where::Away("https://github.com/eblack-leaf/foliage"),
-        mark: Mark::Patch(3),
+        mark: Mark::Tile(3),
     },
 ];
 
@@ -169,8 +174,17 @@ const TILE: f32 = 13.0;
 const GLYPH: f32 = 15.0;
 const ARROW: f32 = 16.0;
 
-/// How long a way takes to light, or to go out.
+/// How long a way takes to light, or to go out, and how long its tile takes to turn.
 const LIGHT_MS: u64 = 220;
+const TURN_MS: u64 = 520;
+
+/// A way's tile, a hexagon, and how far it turns while lit: a sixth, which lands it on itself.
+const HEXAGON: Shape = Shape {
+    sides: 6.0,
+    rounding: 0.2,
+    rotation: 0.0,
+};
+const TURN: f32 = FRAC_PI_3;
 
 /// How wide the label is, at least and at most.
 const COLUMN: (f32, f32) = (300.0, 420.0);
@@ -196,10 +210,12 @@ pub(crate) struct Site {
     /// What the label is grown in, placed again on every resize.
     label: Leaf,
     aspect: f32,
+    /// What takes a press on the leaf, over the whole of it.
+    touch: Leaf,
     ways: Vec<Grown>,
     hover: Hover,
-    /// The ramp a lit patch is recoloured onto.
-    patch: Ramp,
+    /// The light through the leaf.
+    sun: Sun,
 }
 
 /// One way, grown.
@@ -209,12 +225,9 @@ struct Grown {
     /// What comes up under its words while it is lit.
     ground: Leaf,
     mark: Leaf,
+    /// Whether its mark is a tile, which turns while it is lit, or a glyph, which brightens.
+    tile: bool,
     arrow: Leaf,
-    /// What its mark is at rest, and what it turns while it is lit.
-    rest: Fill,
-    turns: Fill,
-    /// The patch of the leaf it lights, where it stands for one.
-    patch: Option<usize>,
     href: String,
     lit: bool,
 }
@@ -237,8 +250,15 @@ impl Root for Site {
         let aspect = mosaic.aspect();
         let arranged = Arranged::of(aspect, grove.viewport());
         let shape = mosaic.grow(grove, page, arranged.leaf, &mut Scatter::new());
-        mosaic.regions(grove, &leaf::stood());
         mosaic.form(grove);
+        // Over the tiles and the outline both, which would otherwise take a press themselves.
+        let touch = grove.branch(
+            shape,
+            Stem::new()
+                .interactive()
+                .elevate(Elevation::up(3))
+                .at(Location::new()),
+        );
 
         let label = grove.branch(
             page,
@@ -338,9 +358,10 @@ impl Root for Site {
             leaf: shape,
             label,
             aspect,
+            touch,
             ways,
             hover,
-            patch: Ramp::of(&scheme.stops(theme::PATCH)),
+            sun: Sun::new(),
         }
     }
 
@@ -351,6 +372,18 @@ impl Root for Site {
             grove.at(self.label, arranged.label);
         }
         self.mosaic.frame(grove, &pollen);
+        // The light, from once the leaf has formed: drawn to where the leaf was pressed, or to
+        // its middle by a key, and moving every frame, so every frame is asked for.
+        if self.mosaic.formed(&pollen) {
+            let pressed = match pollen.clicked_at(self.touch) {
+                Some(at) => self.mosaic.point(grove, at),
+                None if pollen.activated(self.touch) => Some((0.5, 0.66)),
+                None => None,
+            };
+            let (at, strength) = self.sun.frame(grove.elapsed().as_secs_f32(), pressed);
+            self.mosaic.shine(grove, at, leaf::REACH, strength);
+            grove.again();
+        }
         self.hover.frame(grove, true);
         let focused = grove.focused();
         for way in &mut self.ways {
@@ -358,12 +391,6 @@ impl Root for Site {
             if lit != way.lit {
                 way.lit = lit;
                 way.light(grove, lit);
-                if let Some(patch) = way.patch {
-                    match lit {
-                        true => self.mosaic.emphasize(grove, patch, &self.patch),
-                        false => self.mosaic.unemphasize(grove, patch),
-                    }
-                }
             }
             if pollen.activated(way.press) {
                 grove.navigate(way.href.clone());
@@ -373,16 +400,32 @@ impl Root for Site {
 }
 
 impl Grown {
-    /// Lights the way, or puts it out: its ground comes up under it, its mark turns -- a tile the
-    /// green its patch on the leaf does -- and its arrow leans toward where it goes.
+    /// Lights the way, or puts it out: its ground comes up under it, its mark turns -- a tile a
+    /// sixth of the way round, a glyph to ink -- and its arrow leans toward where it goes.
     fn light(&self, grove: &mut Grove, lit: bool) {
         let timing = Timing::ms(LIGHT_MS).ease(Ease::Decelerate);
-        let (mark, arrow, lean) = match lit {
-            true => (self.turns, Palette::Ink, 4.0),
-            false => (self.rest, QUIET, 0.0),
+        let (arrow, lean) = match lit {
+            true => (Palette::Ink, 4.0),
+            false => (QUIET, 0.0),
         };
         grove.animate(self.ground, Motion::Opacity(lit as u8 as f32), timing);
-        grove.animate(self.mark, Motion::from(mark), timing);
+        match self.tile {
+            true => {
+                let turned = Shape {
+                    rotation: if lit { TURN } else { 0.0 },
+                    ..HEXAGON
+                };
+                grove.animate(
+                    self.mark,
+                    Motion::Polygon(turned),
+                    Timing::ms(TURN_MS).ease(Ease::Emphasis),
+                );
+            }
+            false => {
+                let glyph = if lit { Palette::Ink } else { QUIET };
+                grove.animate(self.mark, Motion::from(glyph), timing);
+            }
+        }
         grove.animate(self.arrow, Motion::from(arrow), timing);
         grove.animate(self.arrow, Motion::Shift(Position::new(lean, 0.0)), timing);
     }
@@ -492,28 +535,24 @@ fn grow_way(
             center_y(anchor().top() + anchor().height() * 0.5).height(side.px()),
         )
     };
-    let (mark, rest, turns): (Leaf, Fill, Fill) = match way.mark {
-        Mark::Patch(n) => {
-            let hue = theme::HUES[n];
-            let tile = grove.branch(
-                label,
-                Polygon::new()
-                    .sides(6.0)
-                    .rounding(0.2)
-                    .color(hue)
-                    .intangible()
-                    .elevate(Elevation::up(2))
-                    .anchored(name)
-                    .at(on_name(TILE)),
-            );
-            (tile, hue.into(), theme::LIT.into())
-        }
+    let mark = match way.mark {
+        Mark::Tile(n) => grove.branch(
+            label,
+            Polygon::new()
+                .sides(HEXAGON.sides)
+                .rounding(HEXAGON.rounding)
+                .color(theme::HUES[n])
+                .intangible()
+                .elevate(Elevation::up(2))
+                .anchored(name)
+                .at(on_name(TILE)),
+        ),
         Mark::Guide | Mark::Reference => {
             let field: Field = match way.mark {
                 Mark::Guide => icons.book_open,
                 _ => icons.file_text,
             };
-            let glyph = grove.branch(
+            grove.branch(
                 label,
                 Icon::new(field)
                     .color(QUIET)
@@ -521,8 +560,7 @@ fn grow_way(
                     .elevate(Elevation::up(2))
                     .anchored(name)
                     .at(on_name(GLYPH)),
-            );
-            (glyph, QUIET.into(), Palette::Ink.into())
+            )
         }
     };
     let arrow = grove.branch(
@@ -557,13 +595,8 @@ fn grow_way(
         press,
         ground,
         mark,
+        tile: matches!(way.mark, Mark::Tile(_)),
         arrow,
-        rest,
-        turns,
-        patch: match way.mark {
-            Mark::Patch(n) => Some(n),
-            _ => None,
-        },
         href: way.href(),
         lit: false,
     };
