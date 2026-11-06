@@ -16,12 +16,18 @@ const RANGE: f32 = 3.0;
 pub struct Icons {
     /// The `arrow-right` mark.
     pub arrow_right: Field,
+    /// The `book-open` mark.
+    pub book_open: Field,
+    /// The `file-text` mark.
+    pub file_text: Field,
 }
 
 impl Marks for Icons {
     fn register(grove: &mut Grove) -> Self {
         Self {
             arrow_right: grove.icon(include_bytes!("arrow-right.icon"), SIDE, RANGE),
+            book_open: grove.icon(include_bytes!("book-open.icon"), SIDE, RANGE),
+            file_text: grove.icon(include_bytes!("file-text.icon"), SIDE, RANGE),
         }
     }
 }

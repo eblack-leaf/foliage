@@ -2,9 +2,10 @@
 //!
 //! The leaf is mounted the way a herbarium sheet mounts a specimen, and the label is what a sheet's
 //! corner carries: what it is, and where the rest of the collection is kept -- the three apps
-//! grown on foliage, and its source. Nothing on the leaf is pressed. Pointing at a way off the page,
-//! or giving it focus, lights the patch of the leaf it stands for in green, and its tile in the
-//! label turns with it.
+//! grown on foliage and its source, and, under a heading of their own, where it is written down.
+//! Nothing on the leaf is pressed. Pointing at one of the apps or the source, or giving it focus,
+//! lights the patch of the leaf it stands for in green, and its tile in the label turns with it.
+//! The docs stand on no patch: they are about the leaf rather than grown on it.
 //!
 //! On a window wide enough the two stand side by side, centred as a pair; on a narrow one the leaf
 //! stands over the label, as large as leaves the label in view. Both are placements of the same
@@ -12,9 +13,9 @@
 //! too short for either.
 
 use foliage::{
-    Area, Axes, Boxed, Color, Corners, Ease, Elevation, FontSize, Grove, Grow, HAIRLINE, Icon, Layout,
-    Leaf, Location, Motion, Palette, Panel, Place, Polygon, Pollen, Position, Root, Rounding,
-    Short, Source, Stem, Text, Timing, anchor, center_y, content, left, right, top,
+    Area, Axes, Boxed, Corners, Ease, Elevation, Field, Fill, FontSize, Grove, Grow, HAIRLINE, Icon,
+    Layout, Leaf, Location, Motion, Palette, Panel, Place, Polygon, Pollen, Position, Root,
+    Rounding, Short, Source, Stem, Text, Timing, anchor, center_y, content, left, right, top,
 };
 use lichen::{Hover, Mosaic, Ramp, Scatter};
 use tracing::info;
@@ -31,6 +32,7 @@ struct Way {
     /// Where it is, from the site's own root on the web -- which holds whether or not the address
     /// the site was read from ends in a slash -- or outright.
     at: Where,
+    mark: Mark,
 }
 
 enum Where {
@@ -40,29 +42,60 @@ enum Where {
     Away(&'static str),
 }
 
+/// What a way is marked with in the label.
+#[derive(Copy, Clone)]
+enum Mark {
+    /// A tile worn in its stretch of the leaf's ramp, standing for the patch of the leaf it lights.
+    Patch(usize),
+    /// The kind of writing it leads to.
+    Guide,
+    Reference,
+}
+
 /// Where the site is published.
 const PUBLISHED: &str = "https://eblack-leaf.github.io";
 
-const WAYS: [Way; 4] = [
+/// The apps grown on foliage, and its source.
+const GROWN: [Way; 4] = [
     Way {
         name: "conservatory",
         says: "an exhibition of grown works",
         at: Where::Here("/foliage/portfolio/conservatory/"),
+        mark: Mark::Patch(0),
     },
     Way {
         name: "orchard",
         says: "a boutique of digital goods",
         at: Where::Here("/foliage/portfolio/orchard/"),
+        mark: Mark::Patch(1),
     },
     Way {
         name: "trellis",
         says: "a planning sheet for a team",
         at: Where::Here("/foliage/portfolio/trellis/"),
+        mark: Mark::Patch(2),
     },
     Way {
         name: "github",
         says: "eblack-leaf/foliage",
         at: Where::Away("https://github.com/eblack-leaf/foliage"),
+        mark: Mark::Patch(3),
+    },
+];
+
+/// Where foliage is written down.
+const DOCS: [Way; 2] = [
+    Way {
+        name: "book",
+        says: "the guide: how an app is put together",
+        at: Where::Here("/foliage/book/"),
+        mark: Mark::Guide,
+    },
+    Way {
+        name: "api",
+        says: "the reference: every type and verb",
+        at: Where::Here("/foliage/api/foliage/"),
+        mark: Mark::Reference,
     },
 ];
 
@@ -78,36 +111,63 @@ impl Way {
     }
 }
 
-/// What the label says under the wordmark.
-const TAGLINE: &str = "a ui library for rust, and three apps grown on it";
+/// How a set of ways is set: the apps large and ruled apart, the docs smaller and closer, the way
+/// an index is.
+struct Set {
+    /// Its names' size at `xs`, and at `md` and wider.
+    name: [u32; 2],
+    /// How far a way's ground reaches past its words, above and below.
+    pad: f32,
+    /// The room before its first way, and between one way's ground and the next.
+    lead: f32,
+    space: f32,
+    /// Whether a rule stands between one way and the next.
+    ruled: bool,
+}
 
-/// The wordmark's size at `xs`, `md` and `lg`, and a way's name's at `xs` and `md`. A window too
-/// short for either takes the `xs` size whatever its width.
+const APPS: Set = Set {
+    name: [17, 19],
+    pad: 12.0,
+    lead: 26.0,
+    space: 6.0,
+    ruled: true,
+};
+
+const INDEX: Set = Set {
+    name: [14, 15],
+    pad: 8.0,
+    lead: 6.0,
+    space: 2.0,
+    ruled: false,
+};
+
+/// What the label says under the wordmark, and over the docs.
+const TAGLINE: &str = "a ui library for rust, and three apps grown on it";
+const HEADING: &str = "docs";
+
+/// The room between the last of the apps and the docs' heading.
+const SECTION: f32 = 30.0;
+
+/// The wordmark's size at `xs`, `md` and `lg`. A window too short for it takes the `xs` size
+/// whatever its width, and the names do the same.
 const WORDMARK: [u32; 3] = [34, 44, 52];
-const NAME: [u32; 2] = [17, 19];
 
 /// How tall a line is, and how wide a letter, per pixel of its font size: the bundled face's own.
 const CELL: f32 = 1.32;
 const ADVANCE: f32 = 0.6;
 
-/// What quiet words are read in: what is there, under a way's name, and the tagline. Ink, a step
-/// into the ground, rather than the muted role, which is a hint's colour and too faint to read
-/// whole lines in.
+/// What quiet words are read in: what is there, under a way's name, the tagline and the heading.
+/// Ink, a step into the ground, rather than the muted role, which is a hint's colour and too faint
+/// to read whole lines in.
 const QUIET: Palette = Palette::Ink.recede();
 
-/// How far a way's ground reaches past its words, above and below, and past the label's edges.
-const PAD: f32 = 12.0;
-
-/// How far in from the label's edge a way's words start, past its tile.
+/// How far in from the label's edge a way's words start, past its mark.
 const INDENT: f32 = 28.0;
 
-/// How large a way's tile is, and the arrow at its end.
+/// How large a way's tile is, a doc's mark, and the arrow at a way's end.
 const TILE: f32 = 13.0;
+const GLYPH: f32 = 15.0;
 const ARROW: f32 = 16.0;
-
-/// The room between one way's ground and the next, and before the first.
-const SPACE: f32 = 6.0;
-const LEAD: f32 = 26.0;
 
 /// How long a way takes to light, or to go out.
 const LIGHT_MS: u64 = 220;
@@ -123,7 +183,7 @@ const LANDSCAPE: f32 = 0.9;
 const SHARE: f32 = 0.94;
 
 /// How wide the leaf is at most, and at least, over the label.
-const STACKED: (f32, f32) = (440.0, 160.0);
+const STACKED: (f32, f32) = (440.0, 200.0);
 
 /// The room between the leaf and the label, over it.
 const UNDER: f32 = 28.0;
@@ -148,9 +208,14 @@ struct Grown {
     press: Leaf,
     /// What comes up under its words while it is lit.
     ground: Leaf,
-    tile: Leaf,
+    mark: Leaf,
     arrow: Leaf,
-    hue: Color,
+    /// What its mark is at rest, and what it turns while it is lit.
+    rest: Fill,
+    turns: Fill,
+    /// The patch of the leaf it lights, where it stands for one.
+    patch: Option<usize>,
+    href: String,
     lit: bool,
 }
 
@@ -213,18 +278,39 @@ impl Root for Site {
                 )),
         );
         let mut arrivals = vec![vec![wordmark], vec![tagline]];
-        let mut above = tagline;
         let mut ways = Vec::new();
-        for (n, (way, hue)) in WAYS.iter().zip(theme::HUES).enumerate() {
-            let (grown, parts) = grow_way(grove, label, above, n, way, hue, icons.arrow_right);
-            above = grown.press;
-            ways.push(grown);
-            arrivals.push(parts);
-        }
+        let above = grow_set(grove, label, tagline, &GROWN, &APPS, &icons, &mut ways, &mut arrivals);
+        // The docs, set apart: a heading with a rule run out from it to the label's edge, and an
+        // index under it.
+        let heading = grove.branch(
+            label,
+            Text::new(HEADING)
+                .color(QUIET)
+                .font_size(lichen::caption())
+                .intangible()
+                .anchored(above)
+                .at(Location::new().xs(
+                    left(0.px()).width(content()),
+                    top(anchor().bottom() + SECTION.px()).height(1.letters()),
+                )),
+        );
+        let rule = grove.branch(
+            label,
+            Panel::new()
+                .color(Palette::Raised)
+                .intangible()
+                .anchored(heading)
+                .at(Location::new().xs(
+                    left(anchor().right() + 10.px()).right(100.pct()),
+                    center_y(anchor().top() + anchor().height() * 0.5).height(HAIRLINE.px()),
+                )),
+        );
+        arrivals.push(vec![heading, rule]);
+        let last = grow_set(grove, label, heading, &DOCS, &INDEX, &icons, &mut ways, &mut arrivals);
         // Room under the last way, so a page short enough to scroll scrolls to a margin past it.
         grove.branch(
             label,
-            Stem::new().intangible().anchored(above).at(Location::new().xs(
+            Stem::new().intangible().anchored(last).at(Location::new().xs(
                 left(0.px()).width(1.px()),
                 top(anchor().bottom()).height(MARGIN.px()),
             )),
@@ -233,7 +319,7 @@ impl Root for Site {
         // the page are there to press without waiting on it.
         for (n, parts) in arrivals.iter().enumerate() {
             let timing = Timing::ms(480)
-                .after(240 + 90 * n as u64)
+                .after(240 + 80 * n as u64)
                 .ease(Ease::Decelerate);
             for &part in parts {
                 grove.opacity(part, 0.0);
@@ -267,55 +353,87 @@ impl Root for Site {
         self.mosaic.frame(grove, &pollen);
         self.hover.frame(grove, true);
         let focused = grove.focused();
-        for (n, way) in self.ways.iter_mut().enumerate() {
+        for way in &mut self.ways {
             let lit = self.hover.is_over(way.press) || focused == Some(way.press);
             if lit != way.lit {
                 way.lit = lit;
                 way.light(grove, lit);
-                match lit {
-                    true => self.mosaic.emphasize(grove, n, &self.patch),
-                    false => self.mosaic.unemphasize(grove, n),
+                if let Some(patch) = way.patch {
+                    match lit {
+                        true => self.mosaic.emphasize(grove, patch, &self.patch),
+                        false => self.mosaic.unemphasize(grove, patch),
+                    }
                 }
             }
             if pollen.activated(way.press) {
-                grove.navigate(WAYS[n].href());
+                grove.navigate(way.href.clone());
             }
         }
     }
 }
 
 impl Grown {
-    /// Lights the way, or puts it out: its ground comes up under it, its tile turns the green its
-    /// patch on the leaf does, and its arrow leans toward where it goes.
+    /// Lights the way, or puts it out: its ground comes up under it, its mark turns -- a tile the
+    /// green its patch on the leaf does -- and its arrow leans toward where it goes.
     fn light(&self, grove: &mut Grove, lit: bool) {
         let timing = Timing::ms(LIGHT_MS).ease(Ease::Decelerate);
-        let (tile, arrow, lean) = match lit {
-            true => (theme::LIT, Palette::Ink, 4.0),
-            false => (self.hue, QUIET, 0.0),
+        let (mark, arrow, lean) = match lit {
+            true => (self.turns, Palette::Ink, 4.0),
+            false => (self.rest, QUIET, 0.0),
         };
         grove.animate(self.ground, Motion::Opacity(lit as u8 as f32), timing);
-        grove.animate(self.tile, Motion::from(tile), timing);
+        grove.animate(self.mark, Motion::from(mark), timing);
         grove.animate(self.arrow, Motion::from(arrow), timing);
         grove.animate(self.arrow, Motion::Shift(Position::new(lean, 0.0)), timing);
     }
 }
 
-/// Grows way `n` under `above` in `label`, worn in `hue`. Hands back the way, and the parts of it
-/// that come in when the label does.
+/// Grows `set`'s ways under `above` in `label`, one under the other, into `ways`, and what comes in
+/// with each into `arrivals`. Hands back the last way's press, for what stands under the set.
+#[allow(clippy::too_many_arguments)]
+fn grow_set(
+    grove: &mut Grove,
+    label: Leaf,
+    above: Leaf,
+    set: &[Way],
+    setting: &Set,
+    icons: &Icons,
+    ways: &mut Vec<Grown>,
+    arrivals: &mut Vec<Vec<Leaf>>,
+) -> Leaf {
+    let mut above = above;
+    for (n, way) in set.iter().enumerate() {
+        let lead = if n == 0 { setting.lead } else { setting.space };
+        let ruled = setting.ruled && n + 1 < set.len();
+        let (grown, parts) = grow_way(grove, label, above, lead, ruled, way, setting, icons);
+        above = grown.press;
+        ways.push(grown);
+        arrivals.push(parts);
+    }
+    above
+}
+
+/// Grows `way`, `lead` under `above` in `label`, set as `setting` says, with a rule under it if it
+/// is `ruled`. Hands back the way, and the parts of it that come in when the label does.
 ///
 /// Its words are placed first and its ground fitted round them, so a name over a line of words
 /// that wraps on a narrow label grows a ground as tall as it needs, and moves every way under it.
+#[allow(clippy::too_many_arguments)]
 fn grow_way(
     grove: &mut Grove,
     label: Leaf,
     above: Leaf,
-    n: usize,
+    lead: f32,
+    ruled: bool,
     way: &Way,
-    hue: Color,
-    arrow: foliage::Field,
+    setting: &Set,
+    icons: &Icons,
 ) -> (Grown, Vec<Leaf>) {
-    let lead = if n == 0 { LEAD } else { SPACE };
-    let size = FontSize::new().xs(NAME[0]).md(NAME[1]).short(NAME[0]);
+    let pad = setting.pad;
+    let size = FontSize::new()
+        .xs(setting.name[0])
+        .md(setting.name[1])
+        .short(setting.name[0]);
     let name = grove.branch(
         label,
         Text::new(way.name)
@@ -326,7 +444,7 @@ fn grow_way(
             .anchored(above)
             .at(Location::new().xs(
                 left(INDENT.px()).width(content()),
-                top(anchor().bottom() + (lead + PAD).px()).height(1.letters()),
+                top(anchor().bottom() + (lead + pad).px()).height(1.letters()),
             )),
     );
     let says = grove.branch(
@@ -353,9 +471,9 @@ fn grow_way(
             .font_size(size)
             .anchored(says)
             .at(Location::new().xs(
-                left(0.px() - PAD.px()).right(100.pct() + PAD.px()),
-                top(anchor().top() - 1.letters() - (2.0 + PAD).px())
-                    .bottom(anchor().bottom() + PAD.px()),
+                left(0.px() - 12.px()).right(100.pct() + 12.px()),
+                top(anchor().top() - 1.letters() - (2.0 + pad).px())
+                    .bottom(anchor().bottom() + pad.px()),
             )),
     );
     let ground = grove.branch(
@@ -367,23 +485,49 @@ fn grow_way(
             .opacity(0.0)
             .at(Location::new()),
     );
-    let tile = grove.branch(
-        label,
-        Polygon::new()
-            .sides(6.0)
-            .rounding(0.2)
-            .color(hue)
-            .intangible()
-            .elevate(Elevation::up(2))
-            .anchored(name)
-            .at(Location::new().xs(
-                left(0.px()).width(TILE.px()),
-                center_y(anchor().top() + anchor().height() * 0.5).height(TILE.px()),
-            )),
-    );
+    // On the name's line, at the label's edge.
+    let on_name = |side: f32| {
+        Location::new().xs(
+            left(0.px()).width(side.px()),
+            center_y(anchor().top() + anchor().height() * 0.5).height(side.px()),
+        )
+    };
+    let (mark, rest, turns): (Leaf, Fill, Fill) = match way.mark {
+        Mark::Patch(n) => {
+            let hue = theme::HUES[n];
+            let tile = grove.branch(
+                label,
+                Polygon::new()
+                    .sides(6.0)
+                    .rounding(0.2)
+                    .color(hue)
+                    .intangible()
+                    .elevate(Elevation::up(2))
+                    .anchored(name)
+                    .at(on_name(TILE)),
+            );
+            (tile, hue.into(), theme::LIT.into())
+        }
+        Mark::Guide | Mark::Reference => {
+            let field: Field = match way.mark {
+                Mark::Guide => icons.book_open,
+                _ => icons.file_text,
+            };
+            let glyph = grove.branch(
+                label,
+                Icon::new(field)
+                    .color(QUIET)
+                    .intangible()
+                    .elevate(Elevation::up(2))
+                    .anchored(name)
+                    .at(on_name(GLYPH)),
+            );
+            (glyph, QUIET.into(), Palette::Ink.into())
+        }
+    };
     let arrow = grove.branch(
         label,
-        Icon::new(arrow)
+        Icon::new(icons.arrow_right)
             .color(QUIET)
             .intangible()
             .elevate(Elevation::up(2))
@@ -393,9 +537,9 @@ fn grow_way(
                 center_y(anchor().top() + anchor().height() * 0.5).height(ARROW.px()),
             )),
     );
-    let mut parts = vec![name, says, tile, arrow];
+    let mut parts = vec![name, says, mark, arrow];
     // A rule between one way and the next, from where the words start.
-    if n + 1 < WAYS.len() {
+    if ruled {
         parts.push(grove.branch(
             label,
             Panel::new()
@@ -405,16 +549,22 @@ fn grow_way(
                 .anchored(press)
                 .at(Location::new().xs(
                     left(INDENT.px()).right(100.pct()),
-                    top(anchor().bottom() + (SPACE / 2.0).px()).height(HAIRLINE.px()),
+                    top(anchor().bottom() + (setting.space / 2.0).px()).height(HAIRLINE.px()),
                 )),
         ));
     }
     let grown = Grown {
         press,
         ground,
-        tile,
+        mark,
         arrow,
-        hue,
+        rest,
+        turns,
+        patch: match way.mark {
+            Mark::Patch(n) => Some(n),
+            _ => None,
+        },
+        href: way.href(),
         lit: false,
     };
     (grown, parts)
@@ -507,18 +657,27 @@ fn label_height(viewport: Area, column: f32) -> f32 {
         Layout::Md => WORDMARK[1],
         Layout::Lg | Layout::Xl => WORDMARK[2],
     } as f32;
-    let name = match layout {
-        Layout::Xs | Layout::Sm => NAME[0],
-        _ => NAME[1],
-    } as f32;
+    let narrow = matches!(layout, Layout::Xs | Layout::Sm);
     let caption = lichen::measure().caption as f32;
     let says = column - INDENT - ARROW - 8.0;
-    let ways: f32 = WAYS
-        .iter()
-        .map(|way| 2.0 * PAD + CELL * name + 2.0 + CELL * caption * lines(way.says, caption, says))
-        .sum();
-    let between = (WAYS.len() - 1) as f32 * SPACE;
-    CELL * wordmark + 4.0 + CELL * caption * lines(TAGLINE, caption, column) + LEAD + ways + between
+    // A set: the room before it, each way's words and ground, and the room between them.
+    let set = |ways: &[Way], setting: &Set| -> f32 {
+        let name = setting.name[if narrow { 0 } else { 1 }] as f32;
+        let each: f32 = ways
+            .iter()
+            .map(|way| {
+                2.0 * setting.pad + CELL * name + 2.0 + CELL * caption * lines(way.says, caption, says)
+            })
+            .sum();
+        setting.lead + each + (ways.len() - 1) as f32 * setting.space
+    };
+    CELL * wordmark
+        + 4.0
+        + CELL * caption * lines(TAGLINE, caption, column)
+        + set(&GROWN, &APPS)
+        + SECTION
+        + CELL * caption
+        + set(&DOCS, &INDEX)
 }
 
 /// How many lines `text` wraps to at `size`, `width` wide.
