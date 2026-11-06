@@ -35,17 +35,22 @@ impl LineQuad {
             Cap::Round => 1.0,
             Cap::Butt => 0.0,
         };
-        let (from, to, half) =
-            match instance.from.x == instance.to.x || instance.from.y == instance.to.y {
-                true => snapped(instance, scale),
-                false => (instance.from, instance.to, instance.weight / 2.0),
-            };
+        // Snapped where it runs along an axis on the surface itself: a turn takes it off the axis
+        // and a scale off the pixel grid, and either way there is no edge left to put on a whole
+        // pixel -- the feather is what draws it cleanly then, as at any other angle.
+        let along = instance.from.x == instance.to.x || instance.from.y == instance.to.y;
+        let (from, to, half) = match along && instance.pose.upright() {
+            true => snapped(instance, scale),
+            false => (instance.from, instance.to, instance.weight / 2.0),
+        };
         Self {
             segment: [from.x, from.y, to.x, to.y],
             color: instance.color,
             half,
             round,
-            feather: feather(half, scale),
+            // One device pixel as drawn, which under a scale is a different length of the stroke's
+            // own field.
+            feather: feather(half, scale * instance.pose.magnification()),
             pose: instance.pose,
         }
     }
@@ -113,4 +118,47 @@ fn snapped(
         to.y = whole(to.y);
     }
     (from, to, half)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::coordinate::Position;
+    use crate::pose::Affine;
+
+    fn stroke(from: (f32, f32), to: (f32, f32), pose: Affine) -> LineInstance {
+        LineInstance {
+            from: Position::new(from.0, from.1),
+            to: Position::new(to.0, to.1),
+            color: Color::rgb(1.0, 1.0, 1.0),
+            weight: 4.0,
+            cap: Cap::Butt,
+            pose,
+        }
+    }
+
+    /// The ramp is one device pixel as drawn: scaled up twice, a pixel is half as much of the
+    /// stroke's own field, and scaled down, twice as much -- capped at half the weight as ever.
+    #[test]
+    fn a_scaled_stroke_feathers_one_pixel_as_drawn() {
+        let at = |scale: f32| {
+            let pose = Affine::about(Position::new(50.0, 50.0), 0.3, scale);
+            LineQuad::new(stroke((0.0, 0.0), (100.0, 40.0), pose), 1.0).feather
+        };
+        assert_eq!(at(1.0), 0.5);
+        assert!((at(2.0) - 0.25).abs() < 1e-5, "{}", at(2.0));
+        assert!((at(0.5) - 1.0).abs() < 1e-5, "{}", at(0.5));
+    }
+
+    /// Along an axis and upright, a stroke is put on whole pixels. Turned or scaled, it has no
+    /// pixel edge left to be put on, and is drawn where it was asked to be.
+    #[test]
+    fn only_an_upright_stroke_is_snapped() {
+        let upright = LineQuad::new(stroke((0.0, 10.3), (100.0, 10.3), Affine::IDENTITY), 1.0);
+        assert_ne!(upright.segment[1], 10.3);
+        let scaled = Affine::about(Position::new(50.0, 50.0), 0.0, 1.5);
+        let posed = LineQuad::new(stroke((0.0, 10.3), (100.0, 10.3), scaled), 1.0);
+        assert_eq!(posed.segment[1], 10.3);
+        assert_eq!(posed.half, 2.0);
+    }
 }

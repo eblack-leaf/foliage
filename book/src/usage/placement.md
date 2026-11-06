@@ -462,6 +462,12 @@ Each also has a spelling on the seed (`.slide(..)`, `.turn(..)`, `.scale(..)`).
 - **Hit-testing:** a press is tested in the element's own upright space, so it lands where the
   element is drawn, and `clicked_within` reports a point in the element's own box.
 - **`Vein::Drawn`** stays the upright box: a turn and a scale are applied about it, not to it.
+- **Edges** of panels, polygons, marks and strokes stay one device pixel wide at any turn or scale.
+  Text is drawn from glyphs cut at its own size, so it reads slightly soft while it is scaled and
+  is sharp again at a scale of one: right for a press or an entrance, less so for text left
+  scaled. Text meant to stay larger is set at that size.
+- **Clipping:** a scrolling region clips what it holds where the region is drawn. Under a turn that
+  is the upright box around it, since a clip is always upright.
 
 ```rust,ignore
 // Pressed in, then back.

@@ -531,6 +531,12 @@ fn a_picture_is_drawn_apart_only_while_there_is_a_fade() {
     tick(&mut grove);
     assert!(grove.elm.layers.is_empty());
     assert_eq!(layer_of(&grove, face), 0);
+
+    // Faded all the way out and left standing, there is nothing to show, and no picture is held
+    // or drawn for it.
+    grove.opacity(card, 0.0);
+    tick(&mut grove);
+    assert!(grove.elm.layers.is_empty());
 }
 
 /// What an ancestor fades counts too: the picture is faded by the whole product, and drawn at the

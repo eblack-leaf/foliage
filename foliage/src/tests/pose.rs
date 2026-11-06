@@ -182,3 +182,39 @@ fn what_a_pose_brings_on_screen_is_drawn() {
     tick(&mut grove);
     assert!(grove.elm.panels.holding(edge).is_some());
 }
+
+/// A list on a card scaled to half clips its rows where the card is drawn, not where the layout
+/// put it: rows scrolled past the list's edge stay cut off while the card is small, and a press
+/// on the part of the upright box the scaled list no longer covers reaches none of them.
+#[test]
+fn a_scaled_list_clips_where_it_is_drawn() {
+    let mut grove = grove();
+    // 100 square, its middle at (50, 50): scaled to half, it is drawn over 25..75 both ways.
+    let card = grove.plant(Stem::new().scale(0.5).at(at(0.0, 0.0, 100.0, 100.0)));
+    let list = grove.branch(
+        card,
+        Stem::new()
+            .scrolls(crate::Axes::Vertical)
+            .at(at(0.0, 0.0, 100.0, 100.0)),
+    );
+    let row = grove.branch(list, Panel::new().interactive().at(at(0.0, 0.0, 100.0, 300.0)));
+    tick(&mut grove);
+    assert_eq!(
+        grove.elements.clip(row),
+        Section::from_edges(25.0, 25.0, 75.0, 75.0)
+    );
+    // Inside the upright box, outside the drawn one: the row reaches here as laid out (drawn
+    // through the scale it lands at 25 + 90 / 2), but is cut off.
+    assert!(!tap(&mut grove, 50.0, 90.0).clicked(row));
+    crate::tests::past_the_taps(&mut grove);
+    assert!(tap(&mut grove, 50.0, 50.0).clicked(row));
+
+    // Full size again, the clip is the list's own box.
+    grove.animate(card, Motion::Scale(1.0), Timing::ms(0));
+    tick(&mut grove);
+    tick(&mut grove);
+    assert_eq!(
+        grove.elements.clip(row),
+        Section::from_edges(0.0, 0.0, 100.0, 100.0)
+    );
+}

@@ -53,6 +53,9 @@ struct Laid {
     page: Leaf,
     open: bool,
     going: Option<Tween>,
+    /// Opened since `Escape` was last asked about: the frame it opened in may carry an `Escape`
+    /// pressed before it was there, which is not for it.
+    fresh: bool,
 }
 
 impl Laid {
@@ -61,6 +64,7 @@ impl Laid {
             page,
             open: false,
             going: None,
+            fresh: false,
         }
     }
 
@@ -71,6 +75,7 @@ impl Laid {
             return false;
         }
         self.open = true;
+        self.fresh = true;
         if let Some(going) = self.going.take() {
             grove.stop(going);
         }
@@ -109,8 +114,13 @@ impl Laid {
     }
 
     /// Whether `Escape` was pressed this frame while it was open.
-    fn escaped(&self, pollen: &Pollen) -> bool {
-        self.open && pollen.escaped()
+    ///
+    /// The first time it is asked after opening is passed over. The frame it opened in may carry
+    /// an `Escape` pressed before it was there -- the one that closed a drawer whose closing
+    /// opened it, say -- and that one is not for it.
+    fn escaped(&mut self, pollen: &Pollen) -> bool {
+        let fresh = core::mem::replace(&mut self.fresh, false);
+        self.open && !fresh && pollen.escaped()
     }
 }
 

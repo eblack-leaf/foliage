@@ -226,6 +226,15 @@ fn what_is_drawn_together_fades_whole() {
         BLUE.blue * 0.25 + ground.blue * 0.75,
     );
     assert!(near(both, quarter), "{both:?} against {quarter:?}");
+
+    // Resized while faded, the picture it is drawn into is made again at the new size, and the
+    // card is still in the frame rather than dropped for want of one.
+    house.resize(Area::new(120.0, 90.0));
+    house.frame();
+    let picture = house.render().expect("the same device again");
+    assert_eq!((picture.width(), picture.height()), (120, 90));
+    let both = picture.at(Position::new(40.0, 40.0)).unwrap();
+    assert!(near(both, quarter), "{both:?} against {quarter:?}");
 }
 
 /// Without it, each element fades on its own and the red shows through where they overlap -- the

@@ -358,13 +358,12 @@ impl Ash {
         // rewritten and nothing else.
         let mut restack = disturbed.into_iter().any(|moved| moved);
         if elm.relayered {
-            let placed = |layers: &[Layered]| -> Vec<(u32, ResolvedElevation)> {
-                layers
-                    .iter()
-                    .map(|layered| (layered.layer, layered.rank))
-                    .collect()
-            };
-            restack |= placed(&self.composites) != placed(&elm.layers);
+            let placed = |layered: &Layered| (layered.layer, layered.rank);
+            restack |= !self
+                .composites
+                .iter()
+                .map(placed)
+                .eq(elm.layers.iter().map(placed));
             self.composites.clone_from(&elm.layers);
             for (laid, layered) in self.laid.iter_mut().zip(&self.composites) {
                 laid.opacity = layered.opacity;

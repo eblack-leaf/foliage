@@ -92,47 +92,48 @@
 <a href=#92 id=92 data-nosnippet>92</a>            <span class="comment">// Already in a picture: drawn into it, faded by everything between.
 <a href=#93 id=93 data-nosnippet>93</a>            </span>(layer, <span class="kw">_</span>) <span class="kw">if </span>layer != <span class="number">0 </span>=&gt; (layer, trunk.drawn * opacity),
 <a href=#94 id=94 data-nosnippet>94</a>            <span class="comment">// Opens one, but only while there is a fade to apply to it whole. At full opacity
-<a href=#95 id=95 data-nosnippet>95</a>            // there is nothing to show through, and nothing is drawn apart.
-<a href=#96 id=96 data-nosnippet>96</a>            </span>(<span class="kw">_</span>, <span class="prelude-val">Some</span>(layer)) <span class="kw">if </span>product &lt; <span class="number">1.0 </span>=&gt; (layer, <span class="number">1.0</span>),
-<a href=#97 id=97 data-nosnippet>97</a>            <span class="kw">_ </span>=&gt; (<span class="number">0</span>, product),
-<a href=#98 id=98 data-nosnippet>98</a>        };
-<a href=#99 id=99 data-nosnippet>99</a>        <span class="self">Self </span>{
-<a href=#100 id=100 data-nosnippet>100</a>            visible: trunk.visible &amp;&amp; visible,
-<a href=#101 id=101 data-nosnippet>101</a>            opacity: product,
-<a href=#102 id=102 data-nosnippet>102</a>            disabled: trunk.disabled || disabled,
-<a href=#103 id=103 data-nosnippet>103</a>            layer,
-<a href=#104 id=104 data-nosnippet>104</a>            drawn,
-<a href=#105 id=105 data-nosnippet>105</a>        }
-<a href=#106 id=106 data-nosnippet>106</a>    }
-<a href=#107 id=107 data-nosnippet>107</a>
-<a href=#108 id=108 data-nosnippet>108</a>    <span class="doccomment">/// Whether the element opens the picture it is drawn into, as against being drawn into one
-<a href=#109 id=109 data-nosnippet>109</a>    /// something above it opened. `slot` is its own.
-<a href=#110 id=110 data-nosnippet>110</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>opens(<span class="kw-2">&amp;</span><span class="self">self</span>, slot: usize) -&gt; bool {
-<a href=#111 id=111 data-nosnippet>111</a>        <span class="self">self</span>.layer != <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.layer == slot <span class="kw">as </span>u32 + <span class="number">1
-<a href=#112 id=112 data-nosnippet>112</a>    </span>}
-<a href=#113 id=113 data-nosnippet>113</a>
-<a href=#114 id=114 data-nosnippet>114</a>    <span class="doccomment">/// Whether the element is in the box stack at all.
-<a href=#115 id=115 data-nosnippet>115</a>    ///
-<a href=#116 id=116 data-nosnippet>116</a>    /// Hidden or fully transparent is not there, wherever the fade was declared -- on the element,
-<a href=#117 id=117 data-nosnippet>117</a>    /// on the root of the part it belongs to, or on anything above -- so fading something out is
-<a href=#118 id=118 data-nosnippet>118</a>    /// enough to be rid of it, and no part's inner structure decides whether a fade leaves an
-<a href=#119 id=119 data-nosnippet>119</a>    /// invisible control behind. A press target that shows nothing is said by what it draws
-<a href=#120 id=120 data-nosnippet>120</a>    /// rather than by fading it: a stem, or a clear color, at full opacity. Disabled is there: it
-<a href=#121 id=121 data-nosnippet>121</a>    /// blocks, which is the whole difference between a disabled control and decoration.
-<a href=#122 id=122 data-nosnippet>122</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>present(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="self">self</span>.visible &amp;&amp; <span class="self">self</span>.opacity &gt; <span class="number">0.0
-<a href=#124 id=124 data-nosnippet>124</a>    </span>}
-<a href=#125 id=125 data-nosnippet>125</a>}
-<a href=#126 id=126 data-nosnippet>126</a>
-<a href=#127 id=127 data-nosnippet>127</a><span class="kw">impl </span>Default <span class="kw">for </span>Inherited {
-<a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="self">Self </span>{
-<a href=#130 id=130 data-nosnippet>130</a>            visible: <span class="bool-val">true</span>,
-<a href=#131 id=131 data-nosnippet>131</a>            opacity: <span class="number">1.0</span>,
-<a href=#132 id=132 data-nosnippet>132</a>            disabled: <span class="bool-val">false</span>,
-<a href=#133 id=133 data-nosnippet>133</a>            layer: <span class="number">0</span>,
-<a href=#134 id=134 data-nosnippet>134</a>            drawn: <span class="number">1.0</span>,
-<a href=#135 id=135 data-nosnippet>135</a>        }
-<a href=#136 id=136 data-nosnippet>136</a>    }
-<a href=#137 id=137 data-nosnippet>137</a>}
+<a href=#95 id=95 data-nosnippet>95</a>            // there is nothing to show through, and at none there is nothing to show: in neither
+<a href=#96 id=96 data-nosnippet>96</a>            // is anything drawn apart, so a card faded out and left standing holds no picture.
+<a href=#97 id=97 data-nosnippet>97</a>            </span>(<span class="kw">_</span>, <span class="prelude-val">Some</span>(layer)) <span class="kw">if </span>product &gt; <span class="number">0.0 </span>&amp;&amp; product &lt; <span class="number">1.0 </span>=&gt; (layer, <span class="number">1.0</span>),
+<a href=#98 id=98 data-nosnippet>98</a>            <span class="kw">_ </span>=&gt; (<span class="number">0</span>, product),
+<a href=#99 id=99 data-nosnippet>99</a>        };
+<a href=#100 id=100 data-nosnippet>100</a>        <span class="self">Self </span>{
+<a href=#101 id=101 data-nosnippet>101</a>            visible: trunk.visible &amp;&amp; visible,
+<a href=#102 id=102 data-nosnippet>102</a>            opacity: product,
+<a href=#103 id=103 data-nosnippet>103</a>            disabled: trunk.disabled || disabled,
+<a href=#104 id=104 data-nosnippet>104</a>            layer,
+<a href=#105 id=105 data-nosnippet>105</a>            drawn,
+<a href=#106 id=106 data-nosnippet>106</a>        }
+<a href=#107 id=107 data-nosnippet>107</a>    }
+<a href=#108 id=108 data-nosnippet>108</a>
+<a href=#109 id=109 data-nosnippet>109</a>    <span class="doccomment">/// Whether the element opens the picture it is drawn into, as against being drawn into one
+<a href=#110 id=110 data-nosnippet>110</a>    /// something above it opened. `slot` is its own.
+<a href=#111 id=111 data-nosnippet>111</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>opens(<span class="kw-2">&amp;</span><span class="self">self</span>, slot: usize) -&gt; bool {
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="self">self</span>.layer != <span class="number">0 </span>&amp;&amp; <span class="self">self</span>.layer == slot <span class="kw">as </span>u32 + <span class="number">1
+<a href=#113 id=113 data-nosnippet>113</a>    </span>}
+<a href=#114 id=114 data-nosnippet>114</a>
+<a href=#115 id=115 data-nosnippet>115</a>    <span class="doccomment">/// Whether the element is in the box stack at all.
+<a href=#116 id=116 data-nosnippet>116</a>    ///
+<a href=#117 id=117 data-nosnippet>117</a>    /// Hidden or fully transparent is not there, wherever the fade was declared -- on the element,
+<a href=#118 id=118 data-nosnippet>118</a>    /// on the root of the part it belongs to, or on anything above -- so fading something out is
+<a href=#119 id=119 data-nosnippet>119</a>    /// enough to be rid of it, and no part's inner structure decides whether a fade leaves an
+<a href=#120 id=120 data-nosnippet>120</a>    /// invisible control behind. A press target that shows nothing is said by what it draws
+<a href=#121 id=121 data-nosnippet>121</a>    /// rather than by fading it: a stem, or a clear color, at full opacity. Disabled is there: it
+<a href=#122 id=122 data-nosnippet>122</a>    /// blocks, which is the whole difference between a disabled control and decoration.
+<a href=#123 id=123 data-nosnippet>123</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>present(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#124 id=124 data-nosnippet>124</a>        <span class="self">self</span>.visible &amp;&amp; <span class="self">self</span>.opacity &gt; <span class="number">0.0
+<a href=#125 id=125 data-nosnippet>125</a>    </span>}
+<a href=#126 id=126 data-nosnippet>126</a>}
+<a href=#127 id=127 data-nosnippet>127</a>
+<a href=#128 id=128 data-nosnippet>128</a><span class="kw">impl </span>Default <span class="kw">for </span>Inherited {
+<a href=#129 id=129 data-nosnippet>129</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+<a href=#130 id=130 data-nosnippet>130</a>        <span class="self">Self </span>{
+<a href=#131 id=131 data-nosnippet>131</a>            visible: <span class="bool-val">true</span>,
+<a href=#132 id=132 data-nosnippet>132</a>            opacity: <span class="number">1.0</span>,
+<a href=#133 id=133 data-nosnippet>133</a>            disabled: <span class="bool-val">false</span>,
+<a href=#134 id=134 data-nosnippet>134</a>            layer: <span class="number">0</span>,
+<a href=#135 id=135 data-nosnippet>135</a>            drawn: <span class="number">1.0</span>,
+<a href=#136 id=136 data-nosnippet>136</a>        }
+<a href=#137 id=137 data-nosnippet>137</a>    }
+<a href=#138 id=138 data-nosnippet>138</a>}
 </code></pre></div></section></main></body></html>

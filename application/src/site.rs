@@ -378,16 +378,22 @@ impl Root for Site {
     fn frame(&mut self, grove: &mut Grove, pollen: Pollen) {
         // Arranged again when the window changes, and when what the label holds measured to
         // something else -- which a resize that rewraps it does a frame later, and the first frame
-        // does once.
+        // does once. The leaf's size reads the label's height, which no width in the grammar may,
+        // so that second look is the page's own -- asked for at once, so a rewrap is put right on
+        // the very next frame rather than whenever the next one happens to come.
         let tall = match grove.tap(self.label, Vein::Placed) {
             Some(Sap::Section(placed)) => placed.height() - MARGIN,
             _ => self.tall,
         };
-        if pollen.resized().is_some() || (tall - self.tall).abs() > 0.5 {
+        let resized = pollen.resized().is_some();
+        if resized || (tall - self.tall).abs() > 0.5 {
             self.tall = tall;
             let arranged = Arranged::of(self.aspect, grove.viewport(), tall);
             grove.at(self.leaf, arranged.leaf);
             grove.at(self.label, arranged.label);
+            if resized {
+                grove.again();
+            }
         }
         self.mosaic.frame(grove, &pollen);
         // The light, from once the leaf has formed: drawn to where the leaf was pressed, or to
@@ -766,6 +772,24 @@ mod tests {
             "{leaf:?}, {label:?}, {}",
             site.tall
         );
+    }
+
+    /// A resize that rewraps the label is put right on the next frame: the one it lands in is
+    /// arranged for the old height, and asks for the one after, which is arranged for the new.
+    #[test]
+    fn a_resize_that_rewraps_the_label_is_put_right_a_frame_later() {
+        let mut house = grown(Area::new(1280.0, 800.0));
+        let wide = house.root().tall;
+        let viewport = Area::new(1000.0, 800.0);
+        house.resize(viewport);
+        // Only frames that are owed: the second is there because the first asked for it.
+        house.settle();
+        let site = house.root();
+        assert!((site.tall - wide).abs() > 0.5, "rewrapped: {wide} to {}", site.tall);
+        let label = placed(&house, site.label);
+        assert!((label.height() - (site.tall + MARGIN)).abs() < 0.01, "{label:?}");
+        let centred = ((viewport.height - site.tall) / 2.0).max(MARGIN);
+        assert!((label.top() - centred).abs() < 0.5, "{label:?} against {centred}");
     }
 
     /// Side by side, the label is centred down the window by the height it measured.

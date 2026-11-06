@@ -516,9 +516,14 @@ impl ApplicationHandler for Foliage {
         }
         // Asleep until something arrives, or until a frame the app asked for at a time it chose:
         // what lets a slow motion run at its own rate rather than at every frame the display has.
+        // A time already come has asked for its repaint above, and the repaint is what wakes the
+        // loop: waiting until a past instant would only wake it again at once, and spin for as
+        // long as the platform holds the repaint back -- a minimised window, a hidden tab.
         event_loop.set_control_flow(match self.deadline {
-            Some(deadline) => ControlFlow::WaitUntil(deadline),
-            None => ControlFlow::Wait,
+            Some(deadline) if deadline > web_time::Instant::now() => {
+                ControlFlow::WaitUntil(deadline)
+            }
+            _ => ControlFlow::Wait,
         });
     }
 }

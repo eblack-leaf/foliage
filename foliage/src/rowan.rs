@@ -1573,8 +1573,11 @@ fn clip(tree: &Tree, elements: &mut Elements) {
             elements.restack = true;
         }
         let scrolls = standing.scrolls().is_some();
+        // The region as it is drawn, posed: a list on a card scaling in clips its rows where the
+        // card is drawn, not where the layout put it. A clip is upright on the surface -- it is a
+        // scissor -- so under a turn it is the upright box around the turned region.
         let passed = match scrolls {
-            true => applied.intersect(elements.drawn[slot]),
+            true => applied.intersect(elements.posed[slot].bounds(elements.drawn[slot])),
             false => applied,
         };
         let escaped = match scrolls {

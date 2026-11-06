@@ -76,8 +76,9 @@ pub(crate) struct MarkQuad {
 impl MarkQuad {
     pub(crate) fn new(instance: IconInstance, packed: Packed, scale: f32) -> Self {
         // The mark's box is square, so either side does. In device pixels, because the edge being
-        // measured is one of those.
-        let drawn = (instance.section.width() * scale).max(1.0);
+        // measured is one of those -- and as drawn, so a mark scaled up keeps a one-pixel edge
+        // rather than one as many pixels wide as it was scaled by.
+        let drawn = (instance.section.width() * scale * instance.pose.magnification()).max(1.0);
         Self {
             section: instance.section,
             color: instance.color,
@@ -240,5 +241,34 @@ impl Sheet {
     /// The sheet, as a pass binds it.
     pub(crate) fn binding(&self) -> &BindGroup {
         &self.binding
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::coordinate::Position;
+    use crate::pose::Affine;
+
+    /// The edge a mark smooths over is measured as drawn: scaled up twice, its field's range
+    /// covers twice the screen pixels, so the shader's ramp stays one pixel wide.
+    #[test]
+    fn a_scaled_mark_measures_its_range_as_drawn() {
+        let packed = Packed {
+            uv: [0.0, 0.0, 1.0, 1.0],
+            range: 3.0,
+            side: 48.0,
+        };
+        let range = |scale: f32| {
+            let instance = IconInstance {
+                section: Section::from_edges(0.0, 0.0, 24.0, 24.0),
+                color: Color::rgb(1.0, 1.0, 1.0),
+                field: Field(0),
+                pose: Affine::about(Position::new(12.0, 12.0), 0.7, scale),
+            };
+            MarkQuad::new(instance, packed, 1.0).range
+        };
+        assert!((range(1.0) - 1.5).abs() < 1e-5, "{}", range(1.0));
+        assert!((range(2.0) - 3.0).abs() < 1e-5, "{}", range(2.0));
     }
 }

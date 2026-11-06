@@ -185,9 +185,16 @@ impl<R: Root> Greenhouse<R> {
         fern::run(&mut self.grove, Some(&mut kept));
         self.pollen = kept.pollen.unwrap_or_default();
         // A device that exists is held to every batch, or what it holds stops being what extraction
-        // thinks it holds.
+        // thinks it holds -- and to the frame's size before the batch, as a window is resized
+        // before the frame after it, so what is prepared at a size (the pictures a fade draws
+        // apart) is prepared at the one it is drawn at.
         #[cfg(not(target_family = "wasm"))]
         if let Some(lamp) = &mut self.lamp {
+            let area = self.grove.viewport;
+            if lamp.area != area {
+                lamp.ginkgo.resize(area, 1.0);
+                lamp.area = area;
+            }
             lamp.ash.absorb(
                 &self.grove.elm,
                 &self.grove.fonts,
@@ -342,29 +349,22 @@ impl<R: Root> Greenhouse<R> {
     /// frame after that is handed to it as it runs, as a window's renderers are.
     #[cfg(not(target_family = "wasm"))]
     pub fn render(&mut self) -> Option<Picture> {
-        let area = self.grove.viewport;
-        match &mut self.lamp {
-            Some(lamp) if lamp.area != area => {
-                lamp.ginkgo.resize(area, 1.0);
-                lamp.area = area;
-            }
-            Some(_) => {}
-            None => {
-                let ginkgo = pollster::block_on(Ginkgo::offscreen(area, 1.0))?;
-                let mut ash = Ash::new(&ginkgo);
-                // A backend built fresh holds nothing, so the extraction that fills it states every
-                // element rather than what moved.
-                self.grove.elm.recut();
-                elm::run(&mut self.grove);
-                ash.absorb(
-                    &self.grove.elm,
-                    &self.grove.fonts,
-                    &self.grove.fields,
-                    &self.grove.plates,
-                    &ginkgo,
-                );
-                self.lamp = Some(Lamp { ginkgo, ash, area });
-            }
+        if self.lamp.is_none() {
+            let area = self.grove.viewport;
+            let ginkgo = pollster::block_on(Ginkgo::offscreen(area, 1.0))?;
+            let mut ash = Ash::new(&ginkgo);
+            // A backend built fresh holds nothing, so the extraction that fills it states every
+            // element rather than what moved.
+            self.grove.elm.recut();
+            elm::run(&mut self.grove);
+            ash.absorb(
+                &self.grove.elm,
+                &self.grove.fonts,
+                &self.grove.fields,
+                &self.grove.plates,
+                &ginkgo,
+            );
+            self.lamp = Some(Lamp { ginkgo, ash, area });
         }
         let lamp = self.lamp.as_ref()?;
         let clear = self.grove.scheme().color(Palette::Surface);

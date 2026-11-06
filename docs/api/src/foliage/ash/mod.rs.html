@@ -358,338 +358,337 @@
 <a href=#358 id=358 data-nosnippet>358</a>        // rewritten and nothing else.
 <a href=#359 id=359 data-nosnippet>359</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>restack = disturbed.into_iter().any(|moved| moved);
 <a href=#360 id=360 data-nosnippet>360</a>        <span class="kw">if </span>elm.relayered {
-<a href=#361 id=361 data-nosnippet>361</a>            <span class="kw">let </span>placed = |layers: <span class="kw-2">&amp;</span>[Layered]| -&gt; Vec&lt;(u32, ResolvedElevation)&gt; {
-<a href=#362 id=362 data-nosnippet>362</a>                layers
-<a href=#363 id=363 data-nosnippet>363</a>                    .iter()
-<a href=#364 id=364 data-nosnippet>364</a>                    .map(|layered| (layered.layer, layered.rank))
-<a href=#365 id=365 data-nosnippet>365</a>                    .collect()
-<a href=#366 id=366 data-nosnippet>366</a>            };
-<a href=#367 id=367 data-nosnippet>367</a>            restack |= placed(<span class="kw-2">&amp;</span><span class="self">self</span>.composites) != placed(<span class="kw-2">&amp;</span>elm.layers);
-<a href=#368 id=368 data-nosnippet>368</a>            <span class="self">self</span>.composites.clone_from(<span class="kw-2">&amp;</span>elm.layers);
-<a href=#369 id=369 data-nosnippet>369</a>            <span class="kw">for </span>(laid, layered) <span class="kw">in </span><span class="self">self</span>.laid.iter_mut().zip(<span class="kw-2">&amp;</span><span class="self">self</span>.composites) {
-<a href=#370 id=370 data-nosnippet>370</a>                laid.opacity = layered.opacity;
-<a href=#371 id=371 data-nosnippet>371</a>            }
-<a href=#372 id=372 data-nosnippet>372</a>        }
-<a href=#373 id=373 data-nosnippet>373</a>        <span class="kw">if </span>restack {
-<a href=#374 id=374 data-nosnippet>374</a>            <span class="self">self</span>.restack(ginkgo);
-<a href=#375 id=375 data-nosnippet>375</a>        } <span class="kw">else if </span>elm.relayered
-<a href=#376 id=376 data-nosnippet>376</a>            || <span class="self">self</span>.layers.canvases(ginkgo, <span class="self">self</span>.laid.len()).len() &lt; <span class="self">self</span>.laid.len()
-<a href=#377 id=377 data-nosnippet>377</a>        {
-<a href=#378 id=378 data-nosnippet>378</a>            <span class="comment">// What each is laid down with moved, or the window changed size under them.
-<a href=#379 id=379 data-nosnippet>379</a>            </span><span class="self">self</span>.layers.hold(ginkgo, <span class="kw-2">&amp;</span><span class="self">self</span>.laid);
-<a href=#380 id=380 data-nosnippet>380</a>        }
-<a href=#381 id=381 data-nosnippet>381</a>    }
-<a href=#382 id=382 data-nosnippet>382</a>
-<a href=#383 id=383 data-nosnippet>383</a>    <span class="doccomment">/// Lets go of everything the renderers hold, for the next batch to state all of it again.
-<a href=#384 id=384 data-nosnippet>384</a>    ///
-<a href=#385 id=385 data-nosnippet>385</a>    /// This side of [`Elm::recut`](crate::elm::Elm::recut), for a backend that is kept rather than
-<a href=#386 id=386 data-nosnippet>386</a>    /// built again -- which is a display whose density changed. That drops the cache of what is
-<a href=#387 id=387 data-nosnippet>387</a>    /// held here, so the next extraction states every element it finds drawn, and names nothing to
-<a href=#388 id=388 data-nosnippet>388</a>    /// be let go of: an element that stopped being drawn in the same frame has nothing held for it
-<a href=#389 id=389 data-nosnippet>389</a>    /// there to withdraw. So what is held here goes too, and the next batch is the whole of what is
-<a href=#390 id=390 data-nosnippet>390</a>    /// drawn.
-<a href=#391 id=391 data-nosnippet>391</a>    ///
-<a href=#392 id=392 data-nosnippet>392</a>    /// And the glyph atlas with it, because every cut on it was rasterised at the density that went.
-<a href=#393 id=393 data-nosnippet>393</a>    /// A mark's field and a picture's pixels are stated in their own texels and are kept.
-<a href=#394 id=394 data-nosnippet>394</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>recut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#395 id=395 data-nosnippet>395</a>        <span class="self">self</span>.composites.clear();
-<a href=#396 id=396 data-nosnippet>396</a>        <span class="self">self</span>.panels.instances.forget();
-<a href=#397 id=397 data-nosnippet>397</a>        <span class="self">self</span>.polygons.instances.forget();
-<a href=#398 id=398 data-nosnippet>398</a>        <span class="self">self</span>.lines.instances.forget();
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="self">self</span>.icons.instances.forget();
-<a href=#400 id=400 data-nosnippet>400</a>        <span class="self">self</span>.images.instances.forget();
-<a href=#401 id=401 data-nosnippet>401</a>        <span class="self">self</span>.texts.forget();
-<a href=#402 id=402 data-nosnippet>402</a>    }
-<a href=#403 id=403 data-nosnippet>403</a>
-<a href=#404 id=404 data-nosnippet>404</a>    <span class="doccomment">/// Puts a picture's pixels on the GPU as they now stand, replacing whatever was held under its
-<a href=#405 id=405 data-nosnippet>405</a>    /// name. Called the first time an instance wants a picture, and again whenever its pixels are
-<a href=#406 id=406 data-nosnippet>406</a>    /// replaced while it is held.
-<a href=#407 id=407 data-nosnippet>407</a>    </span><span class="kw">fn </span>upload(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plates: <span class="kw-2">&amp;</span>Plates, ginkgo: <span class="kw-2">&amp;</span>Ginkgo, plate: Plate) {
-<a href=#408 id=408 data-nosnippet>408</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(picture) = plates.picture(plate) <span class="kw">else </span>{
-<a href=#409 id=409 data-nosnippet>409</a>            <span class="kw">return</span>;
-<a href=#410 id=410 data-nosnippet>410</a>        };
-<a href=#411 id=411 data-nosnippet>411</a>        <span class="self">self</span>.pictures.upload(
-<a href=#412 id=412 data-nosnippet>412</a>            ginkgo,
-<a href=#413 id=413 data-nosnippet>413</a>            plate,
-<a href=#414 id=414 data-nosnippet>414</a>            <span class="kw-2">&amp;</span>picture.pixels,
-<a href=#415 id=415 data-nosnippet>415</a>            (picture.size.width <span class="kw">as </span>u32, picture.size.height <span class="kw">as </span>u32),
-<a href=#416 id=416 data-nosnippet>416</a>        );
-<a href=#417 id=417 data-nosnippet>417</a>    }
-<a href=#418 id=418 data-nosnippet>418</a>
-<a href=#419 id=419 data-nosnippet>419</a>    <span class="doccomment">/// Walks the one stack: gives every instance its depth, and cuts the draw into spans.
-<a href=#420 id=420 data-nosnippet>420</a>    ///
-<a href=#421 id=421 data-nosnippet>421</a>    /// Runs only when something in it moved -- a slot appeared, went, changed rank, or changed what
-<a href=#422 id=422 data-nosnippet>422</a>    /// it is clipped to or what it binds. A frame that only recoloured what was already there
-<a href=#423 id=423 data-nosnippet>423</a>    /// leaves the stack as it was, and this does not run.
-<a href=#424 id=424 data-nosnippet>424</a>    </span><span class="kw">fn </span>restack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ginkgo: <span class="kw-2">&amp;</span>Ginkgo) {
-<a href=#425 id=425 data-nosnippet>425</a>        <span class="kw">let </span>_span = <span class="macro">trace_span!</span>(<span class="string">"restack"</span>).entered();
-<a href=#426 id=426 data-nosnippet>426</a>        <span class="self">self</span>.stack.clear();
-<a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">let </span>gather = |ranks: <span class="kw-2">&amp;</span>[ResolvedElevation], renderer: Renderer, stack: <span class="kw-2">&amp;mut </span>Vec&lt;Slot&gt;| {
-<a href=#428 id=428 data-nosnippet>428</a>            stack.extend(ranks.iter().enumerate().map(|(slot, rank)| Slot {
-<a href=#429 id=429 data-nosnippet>429</a>                rank: <span class="kw-2">*</span>rank,
-<a href=#430 id=430 data-nosnippet>430</a>                renderer,
-<a href=#431 id=431 data-nosnippet>431</a>                slot: slot <span class="kw">as </span>u32,
-<a href=#432 id=432 data-nosnippet>432</a>            }));
-<a href=#433 id=433 data-nosnippet>433</a>        };
-<a href=#434 id=434 data-nosnippet>434</a>        gather(
-<a href=#435 id=435 data-nosnippet>435</a>            <span class="self">self</span>.panels.instances.ranks(),
-<a href=#436 id=436 data-nosnippet>436</a>            Renderer::Panel,
-<a href=#437 id=437 data-nosnippet>437</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
-<a href=#438 id=438 data-nosnippet>438</a>        );
-<a href=#439 id=439 data-nosnippet>439</a>        gather(
-<a href=#440 id=440 data-nosnippet>440</a>            <span class="self">self</span>.polygons.instances.ranks(),
-<a href=#441 id=441 data-nosnippet>441</a>            Renderer::Polygon,
-<a href=#442 id=442 data-nosnippet>442</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
-<a href=#443 id=443 data-nosnippet>443</a>        );
-<a href=#444 id=444 data-nosnippet>444</a>        gather(
-<a href=#445 id=445 data-nosnippet>445</a>            <span class="self">self</span>.lines.instances.ranks(),
-<a href=#446 id=446 data-nosnippet>446</a>            Renderer::Line,
-<a href=#447 id=447 data-nosnippet>447</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
-<a href=#448 id=448 data-nosnippet>448</a>        );
-<a href=#449 id=449 data-nosnippet>449</a>        gather(
-<a href=#450 id=450 data-nosnippet>450</a>            <span class="self">self</span>.icons.instances.ranks(),
-<a href=#451 id=451 data-nosnippet>451</a>            Renderer::Icon,
-<a href=#452 id=452 data-nosnippet>452</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
-<a href=#453 id=453 data-nosnippet>453</a>        );
-<a href=#454 id=454 data-nosnippet>454</a>        gather(
-<a href=#455 id=455 data-nosnippet>455</a>            <span class="self">self</span>.images.instances.ranks(),
-<a href=#456 id=456 data-nosnippet>456</a>            Renderer::Image,
-<a href=#457 id=457 data-nosnippet>457</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
-<a href=#458 id=458 data-nosnippet>458</a>        );
-<a href=#459 id=459 data-nosnippet>459</a>        <span class="comment">// A run contributes one entry however many characters it has, which is what keeps this the
-<a href=#460 id=460 data-nosnippet>460</a>        // size of the tree rather than the size of the text on it.
-<a href=#461 id=461 data-nosnippet>461</a>        </span>gather(<span class="self">self</span>.texts.ranks(), Renderer::Text, <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack);
-<a href=#462 id=462 data-nosnippet>462</a>        <span class="comment">// Each picture stands where the element that opened it does.
-<a href=#463 id=463 data-nosnippet>463</a>        </span><span class="self">self</span>.stack.extend(
-<a href=#464 id=464 data-nosnippet>464</a>            <span class="self">self</span>.composites
-<a href=#465 id=465 data-nosnippet>465</a>                .iter()
-<a href=#466 id=466 data-nosnippet>466</a>                .enumerate()
-<a href=#467 id=467 data-nosnippet>467</a>                .map(|(index, layered)| Slot {
-<a href=#468 id=468 data-nosnippet>468</a>                    rank: layered.rank,
-<a href=#469 id=469 data-nosnippet>469</a>                    renderer: Renderer::Layer,
-<a href=#470 id=470 data-nosnippet>470</a>                    slot: index <span class="kw">as </span>u32,
-<a href=#471 id=471 data-nosnippet>471</a>                }),
-<a href=#472 id=472 data-nosnippet>472</a>        );
-<a href=#473 id=473 data-nosnippet>473</a>        <span class="self">self</span>.stack.sort_unstable();
-<a href=#474 id=474 data-nosnippet>474</a>        <span class="kw">let </span>total = <span class="self">self</span>.stack.len();
-<a href=#475 id=475 data-nosnippet>475</a>        <span class="self">self</span>.spans.clear();
-<a href=#476 id=476 data-nosnippet>476</a>        <span class="self">self</span>.layered.iter_mut().for_each(Vec::clear);
-<a href=#477 id=477 data-nosnippet>477</a>        <span class="self">self</span>.layered.resize_with(<span class="self">self</span>.composites.len(), Vec::new);
-<a href=#478 id=478 data-nosnippet>478</a>        <span class="self">self</span>.laid.clear();
-<a href=#479 id=479 data-nosnippet>479</a>        <span class="self">self</span>.laid.extend(<span class="self">self</span>.composites.iter().map(|layered| Laid {
-<a href=#480 id=480 data-nosnippet>480</a>            opacity: layered.opacity,
-<a href=#481 id=481 data-nosnippet>481</a>            depth: <span class="number">0.0</span>,
-<a href=#482 id=482 data-nosnippet>482</a>        }));
-<a href=#483 id=483 data-nosnippet>483</a>        <span class="comment">// How far down each walk has come: the window's first, then each picture's. A picture has a
-<a href=#484 id=484 data-nosnippet>484</a>        // depth attachment of its own, so its walk counts from the back like the window's does.
-<a href=#485 id=485 data-nosnippet>485</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>positions = <span class="macro">vec!</span>[<span class="number">0_usize</span>; <span class="self">self</span>.composites.len() + <span class="number">1</span>];
-<a href=#486 id=486 data-nosnippet>486</a>        <span class="comment">// What was drawn into each picture reaches, which is all of it there is to lay down.
-<a href=#487 id=487 data-nosnippet>487</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>reaches: Vec&lt;<span class="prelude-ty">Option</span>&lt;Section&gt;&gt; = <span class="macro">vec!</span>[<span class="prelude-val">None</span>; <span class="self">self</span>.composites.len()];
-<a href=#488 id=488 data-nosnippet>488</a>        <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.stack {
-<a href=#489 id=489 data-nosnippet>489</a>            <span class="comment">// Into the picture its rank names, where that picture is open; onto the window where it
-<a href=#490 id=490 data-nosnippet>490</a>            // is not, which an instance whose picture closed this frame and has not been rewritten
-<a href=#491 id=491 data-nosnippet>491</a>            // yet still names.
-<a href=#492 id=492 data-nosnippet>492</a>            </span><span class="kw">let </span>into = <span class="kw">match </span>entry.renderer {
-<a href=#493 id=493 data-nosnippet>493</a>                Renderer::Layer =&gt; <span class="number">0</span>,
-<a href=#494 id=494 data-nosnippet>494</a>                <span class="kw">_ </span>=&gt; <span class="self">self
-<a href=#495 id=495 data-nosnippet>495</a>                    </span>.composites
-<a href=#496 id=496 data-nosnippet>496</a>                    .binary_search_by_key(<span class="kw-2">&amp;</span>entry.rank.layer, |layered| layered.layer)
-<a href=#497 id=497 data-nosnippet>497</a>                    .map_or(<span class="number">0</span>, |at| at + <span class="number">1</span>),
-<a href=#498 id=498 data-nosnippet>498</a>            };
-<a href=#499 id=499 data-nosnippet>499</a>            <span class="kw">let </span>depth = Depth::of(positions[into], total);
-<a href=#500 id=500 data-nosnippet>500</a>            positions[into] += <span class="number">1</span>;
-<a href=#501 id=501 data-nosnippet>501</a>            <span class="kw">let </span>(clip, group) = <span class="kw">match </span>entry.renderer {
-<a href=#502 id=502 data-nosnippet>502</a>                Renderer::Panel =&gt; {
-<a href=#503 id=503 data-nosnippet>503</a>                    <span class="self">self</span>.panels.instances.set_depth(entry.slot, depth);
-<a href=#504 id=504 data-nosnippet>504</a>                    (<span class="self">self</span>.panels.instances.clip(entry.slot), <span class="number">0</span>)
-<a href=#505 id=505 data-nosnippet>505</a>                }
-<a href=#506 id=506 data-nosnippet>506</a>                Renderer::Polygon =&gt; {
-<a href=#507 id=507 data-nosnippet>507</a>                    <span class="self">self</span>.polygons.instances.set_depth(entry.slot, depth);
-<a href=#508 id=508 data-nosnippet>508</a>                    (<span class="self">self</span>.polygons.instances.clip(entry.slot), <span class="number">0</span>)
-<a href=#509 id=509 data-nosnippet>509</a>                }
-<a href=#510 id=510 data-nosnippet>510</a>                Renderer::Line =&gt; {
-<a href=#511 id=511 data-nosnippet>511</a>                    <span class="self">self</span>.lines.instances.set_depth(entry.slot, depth);
-<a href=#512 id=512 data-nosnippet>512</a>                    (<span class="self">self</span>.lines.instances.clip(entry.slot), <span class="number">0</span>)
-<a href=#513 id=513 data-nosnippet>513</a>                }
-<a href=#514 id=514 data-nosnippet>514</a>                Renderer::Icon =&gt; {
-<a href=#515 id=515 data-nosnippet>515</a>                    <span class="self">self</span>.icons.instances.set_depth(entry.slot, depth);
-<a href=#516 id=516 data-nosnippet>516</a>                    (<span class="self">self</span>.icons.instances.clip(entry.slot), <span class="number">0</span>)
-<a href=#517 id=517 data-nosnippet>517</a>                }
-<a href=#518 id=518 data-nosnippet>518</a>                Renderer::Image =&gt; {
-<a href=#519 id=519 data-nosnippet>519</a>                    <span class="self">self</span>.images.instances.set_depth(entry.slot, depth);
-<a href=#520 id=520 data-nosnippet>520</a>                    (
-<a href=#521 id=521 data-nosnippet>521</a>                        <span class="self">self</span>.images.instances.clip(entry.slot),
-<a href=#522 id=522 data-nosnippet>522</a>                        <span class="self">self</span>.images.instances.group(entry.slot),
-<a href=#523 id=523 data-nosnippet>523</a>                    )
-<a href=#524 id=524 data-nosnippet>524</a>                }
-<a href=#525 id=525 data-nosnippet>525</a>                Renderer::Text =&gt; {
-<a href=#526 id=526 data-nosnippet>526</a>                    <span class="self">self</span>.texts.set_depth(entry.slot, depth);
-<a href=#527 id=527 data-nosnippet>527</a>                    (<span class="self">self</span>.texts.clip(entry.slot), <span class="number">0</span>)
-<a href=#528 id=528 data-nosnippet>528</a>                }
-<a href=#529 id=529 data-nosnippet>529</a>                <span class="comment">// Scissored to what was drawn into it, which is only known once the walk is over.
-<a href=#530 id=530 data-nosnippet>530</a>                </span>Renderer::Layer =&gt; {
-<a href=#531 id=531 data-nosnippet>531</a>                    <span class="self">self</span>.laid[entry.slot <span class="kw">as </span>usize].depth = depth;
-<a href=#532 id=532 data-nosnippet>532</a>                    (Section::default(), entry.slot)
-<a href=#533 id=533 data-nosnippet>533</a>                }
-<a href=#534 id=534 data-nosnippet>534</a>            };
-<a href=#535 id=535 data-nosnippet>535</a>            <span class="kw">let </span>spans = <span class="kw">match </span>into {
-<a href=#536 id=536 data-nosnippet>536</a>                <span class="number">0 </span>=&gt; <span class="kw-2">&amp;mut </span><span class="self">self</span>.spans,
-<a href=#537 id=537 data-nosnippet>537</a>                picture =&gt; {
-<a href=#538 id=538 data-nosnippet>538</a>                    <span class="kw">let </span>reach = <span class="kw-2">&amp;mut </span>reaches[picture - <span class="number">1</span>];
-<a href=#539 id=539 data-nosnippet>539</a>                    <span class="kw-2">*</span>reach = <span class="prelude-val">Some</span>(reach.map_or(clip, |reach| around(reach, clip)));
-<a href=#540 id=540 data-nosnippet>540</a>                    <span class="kw-2">&amp;mut </span><span class="self">self</span>.layered[picture - <span class="number">1</span>]
-<a href=#541 id=541 data-nosnippet>541</a>                }
-<a href=#542 id=542 data-nosnippet>542</a>            };
-<a href=#543 id=543 data-nosnippet>543</a>            <span class="kw">match </span>spans.last_mut() {
-<a href=#544 id=544 data-nosnippet>544</a>                <span class="prelude-val">Some</span>(span)
-<a href=#545 id=545 data-nosnippet>545</a>                    <span class="kw">if </span>span.renderer == entry.renderer
-<a href=#546 id=546 data-nosnippet>546</a>                        &amp;&amp; span.clip == clip
-<a href=#547 id=547 data-nosnippet>547</a>                        &amp;&amp; span.group == group
-<a href=#548 id=548 data-nosnippet>548</a>                        &amp;&amp; span.to == entry.slot =&gt;
-<a href=#549 id=549 data-nosnippet>549</a>                {
-<a href=#550 id=550 data-nosnippet>550</a>                    span.to = entry.slot + <span class="number">1</span>;
-<a href=#551 id=551 data-nosnippet>551</a>                }
-<a href=#552 id=552 data-nosnippet>552</a>                <span class="kw">_ </span>=&gt; spans.push(Span {
-<a href=#553 id=553 data-nosnippet>553</a>                    renderer: entry.renderer,
-<a href=#554 id=554 data-nosnippet>554</a>                    clip,
-<a href=#555 id=555 data-nosnippet>555</a>                    group,
-<a href=#556 id=556 data-nosnippet>556</a>                    from: entry.slot,
-<a href=#557 id=557 data-nosnippet>557</a>                    to: entry.slot + <span class="number">1</span>,
-<a href=#558 id=558 data-nosnippet>558</a>                }),
-<a href=#559 id=559 data-nosnippet>559</a>            }
-<a href=#560 id=560 data-nosnippet>560</a>        }
-<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">for </span>span <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.spans {
-<a href=#562 id=562 data-nosnippet>562</a>            <span class="kw">if </span>span.renderer == Renderer::Layer {
-<a href=#563 id=563 data-nosnippet>563</a>                span.clip = reaches[span.group <span class="kw">as </span>usize].unwrap_or_default();
-<a href=#564 id=564 data-nosnippet>564</a>            }
-<a href=#565 id=565 data-nosnippet>565</a>        }
-<a href=#566 id=566 data-nosnippet>566</a>        <span class="self">self</span>.layers.hold(ginkgo, <span class="kw-2">&amp;</span><span class="self">self</span>.laid);
-<a href=#567 id=567 data-nosnippet>567</a>        <span class="kw">let </span>queue = ginkgo.queue();
-<a href=#568 id=568 data-nosnippet>568</a>        <span class="self">self</span>.panels.instances.flush_depths(queue);
-<a href=#569 id=569 data-nosnippet>569</a>        <span class="self">self</span>.polygons.instances.flush_depths(queue);
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="self">self</span>.lines.instances.flush_depths(queue);
-<a href=#571 id=571 data-nosnippet>571</a>        <span class="self">self</span>.icons.instances.flush_depths(queue);
-<a href=#572 id=572 data-nosnippet>572</a>        <span class="self">self</span>.images.instances.flush_depths(queue);
-<a href=#573 id=573 data-nosnippet>573</a>        <span class="self">self</span>.texts.flush_depths(queue);
-<a href=#574 id=574 data-nosnippet>574</a>    }
-<a href=#575 id=575 data-nosnippet>575</a>
-<a href=#576 id=576 data-nosnippet>576</a>    <span class="doccomment">/// Step 9. Paints what is held.
-<a href=#577 id=577 data-nosnippet>577</a>    ///
-<a href=#578 id=578 data-nosnippet>578</a>    /// `clear` is what the surface is cleared to. Nothing of the engine's own sits behind the tree,
-<a href=#579 id=579 data-nosnippet>579</a>    /// so it is the app's own ground -- whatever [`Palette::Surface`](crate::Palette::Surface)
-<a href=#580 id=580 data-nosnippet>580</a>    /// currently resolves to.
-<a href=#581 id=581 data-nosnippet>581</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>draw(<span class="kw-2">&amp;</span><span class="self">self</span>, ginkgo: <span class="kw-2">&amp;</span>Ginkgo, clear: Color) {
-<a href=#582 id=582 data-nosnippet>582</a>        <span class="kw">let </span>_span = <span class="macro">trace_span!</span>(
-<a href=#583 id=583 data-nosnippet>583</a>            <span class="string">"draw"</span>,
-<a href=#584 id=584 data-nosnippet>584</a>            instances = <span class="self">self</span>.stack.len(),
-<a href=#585 id=585 data-nosnippet>585</a>            spans = <span class="self">self</span>.spans.len()
-<a href=#586 id=586 data-nosnippet>586</a>        )
-<a href=#587 id=587 data-nosnippet>587</a>        .entered();
-<a href=#588 id=588 data-nosnippet>588</a>        <span class="kw">let </span>canvases = <span class="self">self</span>.layers.canvases(ginkgo, <span class="self">self</span>.laid.len());
-<a href=#589 id=589 data-nosnippet>589</a>        <span class="kw">let </span>targets: Vec&lt;<span class="kw">_</span>&gt; = canvases.iter().map(|canvas| canvas.target()).collect();
-<a href=#590 id=590 data-nosnippet>590</a>        ginkgo.draw(
-<a href=#591 id=591 data-nosnippet>591</a>            clear,
-<a href=#592 id=592 data-nosnippet>592</a>            <span class="kw-2">&amp;</span>targets,
-<a href=#593 id=593 data-nosnippet>593</a>            |index, pass| <span class="self">self</span>.paint(ginkgo, pass, <span class="kw-2">&amp;</span><span class="self">self</span>.layered[index], <span class="bool-val">false</span>),
-<a href=#594 id=594 data-nosnippet>594</a>            <span class="comment">// A picture with nothing to lay down -- the window changed size and no frame has made
-<a href=#595 id=595 data-nosnippet>595</a>            // pictures at the new one yet -- is left out for the frame rather than laid down stale.
-<a href=#596 id=596 data-nosnippet>596</a>            </span>|pass| <span class="self">self</span>.paint(ginkgo, pass, <span class="kw-2">&amp;</span><span class="self">self</span>.spans, !targets.is_empty()),
-<a href=#597 id=597 data-nosnippet>597</a>        );
-<a href=#598 id=598 data-nosnippet>598</a>    }
-<a href=#599 id=599 data-nosnippet>599</a>
-<a href=#600 id=600 data-nosnippet>600</a>    <span class="doccomment">/// Draws `spans` into a pass, laying pictures down where they stand if `laying`.
-<a href=#601 id=601 data-nosnippet>601</a>    </span><span class="kw">fn </span>paint(
-<a href=#602 id=602 data-nosnippet>602</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#603 id=603 data-nosnippet>603</a>        ginkgo: <span class="kw-2">&amp;</span>Ginkgo,
-<a href=#604 id=604 data-nosnippet>604</a>        pass: <span class="kw-2">&amp;mut </span>wgpu::RenderPass&lt;<span class="lifetime">'_</span>&gt;,
-<a href=#605 id=605 data-nosnippet>605</a>        spans: <span class="kw-2">&amp;</span>[Span],
-<a href=#606 id=606 data-nosnippet>606</a>        laying: bool,
-<a href=#607 id=607 data-nosnippet>607</a>    ) {
-<a href=#608 id=608 data-nosnippet>608</a>        <span class="kw">for </span>span <span class="kw">in </span>spans {
-<a href=#609 id=609 data-nosnippet>609</a>            <span class="kw">let </span>(left, top, width, height) = ginkgo.scissor(span.clip);
-<a href=#610 id=610 data-nosnippet>610</a>            <span class="comment">// A region scrolled entirely off the surface has nothing to paint, and a zero-sized
-<a href=#611 id=611 data-nosnippet>611</a>            // scissor is not a way of saying so.
-<a href=#612 id=612 data-nosnippet>612</a>            </span><span class="kw">if </span>width == <span class="number">0 </span>|| height == <span class="number">0 </span>{
-<a href=#613 id=613 data-nosnippet>613</a>                <span class="kw">continue</span>;
-<a href=#614 id=614 data-nosnippet>614</a>            }
-<a href=#615 id=615 data-nosnippet>615</a>            pass.set_scissor_rect(left, top, width, height);
-<a href=#616 id=616 data-nosnippet>616</a>            <span class="kw">let </span>range = span.from..span.to;
-<a href=#617 id=617 data-nosnippet>617</a>            <span class="kw">match </span>span.renderer {
-<a href=#618 id=618 data-nosnippet>618</a>                Renderer::Panel =&gt; <span class="self">self</span>.panels.draw(pass, range, <span class="prelude-val">None</span>),
-<a href=#619 id=619 data-nosnippet>619</a>                Renderer::Polygon =&gt; <span class="self">self</span>.polygons.draw(pass, range, <span class="prelude-val">None</span>),
-<a href=#620 id=620 data-nosnippet>620</a>                Renderer::Line =&gt; <span class="self">self</span>.lines.draw(pass, range, <span class="prelude-val">None</span>),
-<a href=#621 id=621 data-nosnippet>621</a>                Renderer::Icon =&gt; <span class="self">self</span>.icons.draw(pass, range, <span class="prelude-val">Some</span>(<span class="self">self</span>.sheet.binding())),
-<a href=#622 id=622 data-nosnippet>622</a>                <span class="comment">// A picture whose texture is not held yet is skipped rather than drawn against
-<a href=#623 id=623 data-nosnippet>623</a>                // someone else's: it appears on the frame its pixels arrive.
-<a href=#624 id=624 data-nosnippet>624</a>                </span>Renderer::Image =&gt; {
-<a href=#625 id=625 data-nosnippet>625</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(binding) = <span class="self">self</span>.pictures.binding(<span class="kw">crate</span>::image::Plate(span.group)) {
-<a href=#626 id=626 data-nosnippet>626</a>                        <span class="self">self</span>.images.draw(pass, range, <span class="prelude-val">Some</span>(binding));
-<a href=#627 id=627 data-nosnippet>627</a>                    }
-<a href=#628 id=628 data-nosnippet>628</a>                }
-<a href=#629 id=629 data-nosnippet>629</a>                Renderer::Text =&gt; <span class="self">self</span>.texts.draw(pass, range),
-<a href=#630 id=630 data-nosnippet>630</a>                Renderer::Layer =&gt; {
-<a href=#631 id=631 data-nosnippet>631</a>                    <span class="kw">if </span>laying {
-<a href=#632 id=632 data-nosnippet>632</a>                        <span class="self">self</span>.layers.draw(pass, span.group <span class="kw">as </span>usize);
-<a href=#633 id=633 data-nosnippet>633</a>                    }
-<a href=#634 id=634 data-nosnippet>634</a>                }
-<a href=#635 id=635 data-nosnippet>635</a>            }
-<a href=#636 id=636 data-nosnippet>636</a>        }
-<a href=#637 id=637 data-nosnippet>637</a>    }
-<a href=#638 id=638 data-nosnippet>638</a>}
-<a href=#639 id=639 data-nosnippet>639</a>
-<a href=#640 id=640 data-nosnippet>640</a><span class="doccomment">/// The smallest section holding both.
-<a href=#641 id=641 data-nosnippet>641</a></span><span class="kw">fn </span>around(one: Section, other: Section) -&gt; Section {
-<a href=#642 id=642 data-nosnippet>642</a>    Section::from_edges(
-<a href=#643 id=643 data-nosnippet>643</a>        one.left().min(other.left()),
-<a href=#644 id=644 data-nosnippet>644</a>        one.top().min(other.top()),
-<a href=#645 id=645 data-nosnippet>645</a>        one.right().max(other.right()),
-<a href=#646 id=646 data-nosnippet>646</a>        one.bottom().max(other.bottom()),
-<a href=#647 id=647 data-nosnippet>647</a>    )
-<a href=#648 id=648 data-nosnippet>648</a>}
-<a href=#649 id=649 data-nosnippet>649</a>
-<a href=#650 id=650 data-nosnippet>650</a><span class="doccomment">/// Each renderer's instance attributes, from shader location 1 upward. The depth follows at the
-<a href=#651 id=651 data-nosnippet>651</a>/// location named in each [`Recipe`], and is its own buffer.
-<a href=#652 id=652 data-nosnippet>652</a>///
-<a href=#653 id=653 data-nosnippet>653</a>/// A panel's outline came later than its depth and is numbered after it, so the depth stays where
-<a href=#654 id=654 data-nosnippet>654</a>/// every renderer has it: the outline's colour at 5 and its width at 6, beside the rest of the
-<a href=#655 id=655 data-nosnippet>655</a>/// instance in the one buffer.
-<a href=#656 id=656 data-nosnippet>656</a></span><span class="kw">const </span>PANEL: [wgpu::VertexAttribute; <span class="number">7</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
-<a href=#657 id=657 data-nosnippet>657</a>    <span class="number">1 </span>=&gt; Float32x4,
-<a href=#658 id=658 data-nosnippet>658</a>    <span class="number">2 </span>=&gt; Float32x4,
-<a href=#659 id=659 data-nosnippet>659</a>    <span class="number">3 </span>=&gt; Float32x4,
-<a href=#660 id=660 data-nosnippet>660</a>    <span class="number">5 </span>=&gt; Float32x4,
-<a href=#661 id=661 data-nosnippet>661</a>    <span class="number">6 </span>=&gt; Float32,
-<a href=#662 id=662 data-nosnippet>662</a>    <span class="number">7 </span>=&gt; Float32x4,
-<a href=#663 id=663 data-nosnippet>663</a>    <span class="number">8 </span>=&gt; Float32x2,
-<a href=#664 id=664 data-nosnippet>664</a>];
-<a href=#665 id=665 data-nosnippet>665</a><span class="kw">const </span>POLYGON: [wgpu::VertexAttribute; <span class="number">5</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
-<a href=#666 id=666 data-nosnippet>666</a>    <span class="number">1 </span>=&gt; Float32x4,
-<a href=#667 id=667 data-nosnippet>667</a>    <span class="number">2 </span>=&gt; Float32x4,
-<a href=#668 id=668 data-nosnippet>668</a>    <span class="number">3 </span>=&gt; Float32x3,
-<a href=#669 id=669 data-nosnippet>669</a>    <span class="number">5 </span>=&gt; Float32x4,
-<a href=#670 id=670 data-nosnippet>670</a>    <span class="number">6 </span>=&gt; Float32x2,
-<a href=#671 id=671 data-nosnippet>671</a>];
-<a href=#672 id=672 data-nosnippet>672</a><span class="kw">const </span>LINE: [wgpu::VertexAttribute; <span class="number">5</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
-<a href=#673 id=673 data-nosnippet>673</a>    <span class="number">1 </span>=&gt; Float32x4,
-<a href=#674 id=674 data-nosnippet>674</a>    <span class="number">2 </span>=&gt; Float32x4,
-<a href=#675 id=675 data-nosnippet>675</a>    <span class="number">3 </span>=&gt; Float32x3,
-<a href=#676 id=676 data-nosnippet>676</a>    <span class="number">5 </span>=&gt; Float32x4,
-<a href=#677 id=677 data-nosnippet>677</a>    <span class="number">6 </span>=&gt; Float32x2,
-<a href=#678 id=678 data-nosnippet>678</a>];
-<a href=#679 id=679 data-nosnippet>679</a><span class="kw">const </span>ICON: [wgpu::VertexAttribute; <span class="number">6</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
-<a href=#680 id=680 data-nosnippet>680</a>    <span class="number">1 </span>=&gt; Float32x4,
-<a href=#681 id=681 data-nosnippet>681</a>    <span class="number">2 </span>=&gt; Float32x4,
-<a href=#682 id=682 data-nosnippet>682</a>    <span class="number">3 </span>=&gt; Float32x4,
-<a href=#683 id=683 data-nosnippet>683</a>    <span class="number">4 </span>=&gt; Float32,
-<a href=#684 id=684 data-nosnippet>684</a>    <span class="number">6 </span>=&gt; Float32x4,
-<a href=#685 id=685 data-nosnippet>685</a>    <span class="number">7 </span>=&gt; Float32x2,
-<a href=#686 id=686 data-nosnippet>686</a>];
-<a href=#687 id=687 data-nosnippet>687</a><span class="kw">const </span>IMAGE: [wgpu::VertexAttribute; <span class="number">6</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
-<a href=#688 id=688 data-nosnippet>688</a>    <span class="number">1 </span>=&gt; Float32x4,
-<a href=#689 id=689 data-nosnippet>689</a>    <span class="number">2 </span>=&gt; Float32x4,
-<a href=#690 id=690 data-nosnippet>690</a>    <span class="number">3 </span>=&gt; Float32x4,
-<a href=#691 id=691 data-nosnippet>691</a>    <span class="number">4 </span>=&gt; Float32,
-<a href=#692 id=692 data-nosnippet>692</a>    <span class="number">6 </span>=&gt; Float32x4,
-<a href=#693 id=693 data-nosnippet>693</a>    <span class="number">7 </span>=&gt; Float32x2,
-<a href=#694 id=694 data-nosnippet>694</a>];
+<a href=#361 id=361 data-nosnippet>361</a>            <span class="kw">let </span>placed = |layered: <span class="kw-2">&amp;</span>Layered| (layered.layer, layered.rank);
+<a href=#362 id=362 data-nosnippet>362</a>            restack |= !<span class="self">self
+<a href=#363 id=363 data-nosnippet>363</a>                </span>.composites
+<a href=#364 id=364 data-nosnippet>364</a>                .iter()
+<a href=#365 id=365 data-nosnippet>365</a>                .map(placed)
+<a href=#366 id=366 data-nosnippet>366</a>                .eq(elm.layers.iter().map(placed));
+<a href=#367 id=367 data-nosnippet>367</a>            <span class="self">self</span>.composites.clone_from(<span class="kw-2">&amp;</span>elm.layers);
+<a href=#368 id=368 data-nosnippet>368</a>            <span class="kw">for </span>(laid, layered) <span class="kw">in </span><span class="self">self</span>.laid.iter_mut().zip(<span class="kw-2">&amp;</span><span class="self">self</span>.composites) {
+<a href=#369 id=369 data-nosnippet>369</a>                laid.opacity = layered.opacity;
+<a href=#370 id=370 data-nosnippet>370</a>            }
+<a href=#371 id=371 data-nosnippet>371</a>        }
+<a href=#372 id=372 data-nosnippet>372</a>        <span class="kw">if </span>restack {
+<a href=#373 id=373 data-nosnippet>373</a>            <span class="self">self</span>.restack(ginkgo);
+<a href=#374 id=374 data-nosnippet>374</a>        } <span class="kw">else if </span>elm.relayered
+<a href=#375 id=375 data-nosnippet>375</a>            || <span class="self">self</span>.layers.canvases(ginkgo, <span class="self">self</span>.laid.len()).len() &lt; <span class="self">self</span>.laid.len()
+<a href=#376 id=376 data-nosnippet>376</a>        {
+<a href=#377 id=377 data-nosnippet>377</a>            <span class="comment">// What each is laid down with moved, or the window changed size under them.
+<a href=#378 id=378 data-nosnippet>378</a>            </span><span class="self">self</span>.layers.hold(ginkgo, <span class="kw-2">&amp;</span><span class="self">self</span>.laid);
+<a href=#379 id=379 data-nosnippet>379</a>        }
+<a href=#380 id=380 data-nosnippet>380</a>    }
+<a href=#381 id=381 data-nosnippet>381</a>
+<a href=#382 id=382 data-nosnippet>382</a>    <span class="doccomment">/// Lets go of everything the renderers hold, for the next batch to state all of it again.
+<a href=#383 id=383 data-nosnippet>383</a>    ///
+<a href=#384 id=384 data-nosnippet>384</a>    /// This side of [`Elm::recut`](crate::elm::Elm::recut), for a backend that is kept rather than
+<a href=#385 id=385 data-nosnippet>385</a>    /// built again -- which is a display whose density changed. That drops the cache of what is
+<a href=#386 id=386 data-nosnippet>386</a>    /// held here, so the next extraction states every element it finds drawn, and names nothing to
+<a href=#387 id=387 data-nosnippet>387</a>    /// be let go of: an element that stopped being drawn in the same frame has nothing held for it
+<a href=#388 id=388 data-nosnippet>388</a>    /// there to withdraw. So what is held here goes too, and the next batch is the whole of what is
+<a href=#389 id=389 data-nosnippet>389</a>    /// drawn.
+<a href=#390 id=390 data-nosnippet>390</a>    ///
+<a href=#391 id=391 data-nosnippet>391</a>    /// And the glyph atlas with it, because every cut on it was rasterised at the density that went.
+<a href=#392 id=392 data-nosnippet>392</a>    /// A mark's field and a picture's pixels are stated in their own texels and are kept.
+<a href=#393 id=393 data-nosnippet>393</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>recut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#394 id=394 data-nosnippet>394</a>        <span class="self">self</span>.composites.clear();
+<a href=#395 id=395 data-nosnippet>395</a>        <span class="self">self</span>.panels.instances.forget();
+<a href=#396 id=396 data-nosnippet>396</a>        <span class="self">self</span>.polygons.instances.forget();
+<a href=#397 id=397 data-nosnippet>397</a>        <span class="self">self</span>.lines.instances.forget();
+<a href=#398 id=398 data-nosnippet>398</a>        <span class="self">self</span>.icons.instances.forget();
+<a href=#399 id=399 data-nosnippet>399</a>        <span class="self">self</span>.images.instances.forget();
+<a href=#400 id=400 data-nosnippet>400</a>        <span class="self">self</span>.texts.forget();
+<a href=#401 id=401 data-nosnippet>401</a>    }
+<a href=#402 id=402 data-nosnippet>402</a>
+<a href=#403 id=403 data-nosnippet>403</a>    <span class="doccomment">/// Puts a picture's pixels on the GPU as they now stand, replacing whatever was held under its
+<a href=#404 id=404 data-nosnippet>404</a>    /// name. Called the first time an instance wants a picture, and again whenever its pixels are
+<a href=#405 id=405 data-nosnippet>405</a>    /// replaced while it is held.
+<a href=#406 id=406 data-nosnippet>406</a>    </span><span class="kw">fn </span>upload(<span class="kw-2">&amp;mut </span><span class="self">self</span>, plates: <span class="kw-2">&amp;</span>Plates, ginkgo: <span class="kw-2">&amp;</span>Ginkgo, plate: Plate) {
+<a href=#407 id=407 data-nosnippet>407</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(picture) = plates.picture(plate) <span class="kw">else </span>{
+<a href=#408 id=408 data-nosnippet>408</a>            <span class="kw">return</span>;
+<a href=#409 id=409 data-nosnippet>409</a>        };
+<a href=#410 id=410 data-nosnippet>410</a>        <span class="self">self</span>.pictures.upload(
+<a href=#411 id=411 data-nosnippet>411</a>            ginkgo,
+<a href=#412 id=412 data-nosnippet>412</a>            plate,
+<a href=#413 id=413 data-nosnippet>413</a>            <span class="kw-2">&amp;</span>picture.pixels,
+<a href=#414 id=414 data-nosnippet>414</a>            (picture.size.width <span class="kw">as </span>u32, picture.size.height <span class="kw">as </span>u32),
+<a href=#415 id=415 data-nosnippet>415</a>        );
+<a href=#416 id=416 data-nosnippet>416</a>    }
+<a href=#417 id=417 data-nosnippet>417</a>
+<a href=#418 id=418 data-nosnippet>418</a>    <span class="doccomment">/// Walks the one stack: gives every instance its depth, and cuts the draw into spans.
+<a href=#419 id=419 data-nosnippet>419</a>    ///
+<a href=#420 id=420 data-nosnippet>420</a>    /// Runs only when something in it moved -- a slot appeared, went, changed rank, or changed what
+<a href=#421 id=421 data-nosnippet>421</a>    /// it is clipped to or what it binds. A frame that only recoloured what was already there
+<a href=#422 id=422 data-nosnippet>422</a>    /// leaves the stack as it was, and this does not run.
+<a href=#423 id=423 data-nosnippet>423</a>    </span><span class="kw">fn </span>restack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ginkgo: <span class="kw-2">&amp;</span>Ginkgo) {
+<a href=#424 id=424 data-nosnippet>424</a>        <span class="kw">let </span>_span = <span class="macro">trace_span!</span>(<span class="string">"restack"</span>).entered();
+<a href=#425 id=425 data-nosnippet>425</a>        <span class="self">self</span>.stack.clear();
+<a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">let </span>gather = |ranks: <span class="kw-2">&amp;</span>[ResolvedElevation], renderer: Renderer, stack: <span class="kw-2">&amp;mut </span>Vec&lt;Slot&gt;| {
+<a href=#427 id=427 data-nosnippet>427</a>            stack.extend(ranks.iter().enumerate().map(|(slot, rank)| Slot {
+<a href=#428 id=428 data-nosnippet>428</a>                rank: <span class="kw-2">*</span>rank,
+<a href=#429 id=429 data-nosnippet>429</a>                renderer,
+<a href=#430 id=430 data-nosnippet>430</a>                slot: slot <span class="kw">as </span>u32,
+<a href=#431 id=431 data-nosnippet>431</a>            }));
+<a href=#432 id=432 data-nosnippet>432</a>        };
+<a href=#433 id=433 data-nosnippet>433</a>        gather(
+<a href=#434 id=434 data-nosnippet>434</a>            <span class="self">self</span>.panels.instances.ranks(),
+<a href=#435 id=435 data-nosnippet>435</a>            Renderer::Panel,
+<a href=#436 id=436 data-nosnippet>436</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
+<a href=#437 id=437 data-nosnippet>437</a>        );
+<a href=#438 id=438 data-nosnippet>438</a>        gather(
+<a href=#439 id=439 data-nosnippet>439</a>            <span class="self">self</span>.polygons.instances.ranks(),
+<a href=#440 id=440 data-nosnippet>440</a>            Renderer::Polygon,
+<a href=#441 id=441 data-nosnippet>441</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
+<a href=#442 id=442 data-nosnippet>442</a>        );
+<a href=#443 id=443 data-nosnippet>443</a>        gather(
+<a href=#444 id=444 data-nosnippet>444</a>            <span class="self">self</span>.lines.instances.ranks(),
+<a href=#445 id=445 data-nosnippet>445</a>            Renderer::Line,
+<a href=#446 id=446 data-nosnippet>446</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
+<a href=#447 id=447 data-nosnippet>447</a>        );
+<a href=#448 id=448 data-nosnippet>448</a>        gather(
+<a href=#449 id=449 data-nosnippet>449</a>            <span class="self">self</span>.icons.instances.ranks(),
+<a href=#450 id=450 data-nosnippet>450</a>            Renderer::Icon,
+<a href=#451 id=451 data-nosnippet>451</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
+<a href=#452 id=452 data-nosnippet>452</a>        );
+<a href=#453 id=453 data-nosnippet>453</a>        gather(
+<a href=#454 id=454 data-nosnippet>454</a>            <span class="self">self</span>.images.instances.ranks(),
+<a href=#455 id=455 data-nosnippet>455</a>            Renderer::Image,
+<a href=#456 id=456 data-nosnippet>456</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack,
+<a href=#457 id=457 data-nosnippet>457</a>        );
+<a href=#458 id=458 data-nosnippet>458</a>        <span class="comment">// A run contributes one entry however many characters it has, which is what keeps this the
+<a href=#459 id=459 data-nosnippet>459</a>        // size of the tree rather than the size of the text on it.
+<a href=#460 id=460 data-nosnippet>460</a>        </span>gather(<span class="self">self</span>.texts.ranks(), Renderer::Text, <span class="kw-2">&amp;mut </span><span class="self">self</span>.stack);
+<a href=#461 id=461 data-nosnippet>461</a>        <span class="comment">// Each picture stands where the element that opened it does.
+<a href=#462 id=462 data-nosnippet>462</a>        </span><span class="self">self</span>.stack.extend(
+<a href=#463 id=463 data-nosnippet>463</a>            <span class="self">self</span>.composites
+<a href=#464 id=464 data-nosnippet>464</a>                .iter()
+<a href=#465 id=465 data-nosnippet>465</a>                .enumerate()
+<a href=#466 id=466 data-nosnippet>466</a>                .map(|(index, layered)| Slot {
+<a href=#467 id=467 data-nosnippet>467</a>                    rank: layered.rank,
+<a href=#468 id=468 data-nosnippet>468</a>                    renderer: Renderer::Layer,
+<a href=#469 id=469 data-nosnippet>469</a>                    slot: index <span class="kw">as </span>u32,
+<a href=#470 id=470 data-nosnippet>470</a>                }),
+<a href=#471 id=471 data-nosnippet>471</a>        );
+<a href=#472 id=472 data-nosnippet>472</a>        <span class="self">self</span>.stack.sort_unstable();
+<a href=#473 id=473 data-nosnippet>473</a>        <span class="kw">let </span>total = <span class="self">self</span>.stack.len();
+<a href=#474 id=474 data-nosnippet>474</a>        <span class="self">self</span>.spans.clear();
+<a href=#475 id=475 data-nosnippet>475</a>        <span class="self">self</span>.layered.iter_mut().for_each(Vec::clear);
+<a href=#476 id=476 data-nosnippet>476</a>        <span class="self">self</span>.layered.resize_with(<span class="self">self</span>.composites.len(), Vec::new);
+<a href=#477 id=477 data-nosnippet>477</a>        <span class="self">self</span>.laid.clear();
+<a href=#478 id=478 data-nosnippet>478</a>        <span class="self">self</span>.laid.extend(<span class="self">self</span>.composites.iter().map(|layered| Laid {
+<a href=#479 id=479 data-nosnippet>479</a>            opacity: layered.opacity,
+<a href=#480 id=480 data-nosnippet>480</a>            depth: <span class="number">0.0</span>,
+<a href=#481 id=481 data-nosnippet>481</a>        }));
+<a href=#482 id=482 data-nosnippet>482</a>        <span class="comment">// How far down each walk has come: the window's first, then each picture's. A picture has a
+<a href=#483 id=483 data-nosnippet>483</a>        // depth attachment of its own, so its walk counts from the back like the window's does.
+<a href=#484 id=484 data-nosnippet>484</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>positions = <span class="macro">vec!</span>[<span class="number">0_usize</span>; <span class="self">self</span>.composites.len() + <span class="number">1</span>];
+<a href=#485 id=485 data-nosnippet>485</a>        <span class="comment">// What was drawn into each picture reaches, which is all of it there is to lay down.
+<a href=#486 id=486 data-nosnippet>486</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>reaches: Vec&lt;<span class="prelude-ty">Option</span>&lt;Section&gt;&gt; = <span class="macro">vec!</span>[<span class="prelude-val">None</span>; <span class="self">self</span>.composites.len()];
+<a href=#487 id=487 data-nosnippet>487</a>        <span class="kw">for </span>entry <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.stack {
+<a href=#488 id=488 data-nosnippet>488</a>            <span class="comment">// Into the picture its rank names, where that picture is open; onto the window where it
+<a href=#489 id=489 data-nosnippet>489</a>            // is not, which an instance whose picture closed this frame and has not been rewritten
+<a href=#490 id=490 data-nosnippet>490</a>            // yet still names.
+<a href=#491 id=491 data-nosnippet>491</a>            </span><span class="kw">let </span>into = <span class="kw">match </span>entry.renderer {
+<a href=#492 id=492 data-nosnippet>492</a>                Renderer::Layer =&gt; <span class="number">0</span>,
+<a href=#493 id=493 data-nosnippet>493</a>                <span class="kw">_ </span>=&gt; <span class="self">self
+<a href=#494 id=494 data-nosnippet>494</a>                    </span>.composites
+<a href=#495 id=495 data-nosnippet>495</a>                    .binary_search_by_key(<span class="kw-2">&amp;</span>entry.rank.layer, |layered| layered.layer)
+<a href=#496 id=496 data-nosnippet>496</a>                    .map_or(<span class="number">0</span>, |at| at + <span class="number">1</span>),
+<a href=#497 id=497 data-nosnippet>497</a>            };
+<a href=#498 id=498 data-nosnippet>498</a>            <span class="kw">let </span>depth = Depth::of(positions[into], total);
+<a href=#499 id=499 data-nosnippet>499</a>            positions[into] += <span class="number">1</span>;
+<a href=#500 id=500 data-nosnippet>500</a>            <span class="kw">let </span>(clip, group) = <span class="kw">match </span>entry.renderer {
+<a href=#501 id=501 data-nosnippet>501</a>                Renderer::Panel =&gt; {
+<a href=#502 id=502 data-nosnippet>502</a>                    <span class="self">self</span>.panels.instances.set_depth(entry.slot, depth);
+<a href=#503 id=503 data-nosnippet>503</a>                    (<span class="self">self</span>.panels.instances.clip(entry.slot), <span class="number">0</span>)
+<a href=#504 id=504 data-nosnippet>504</a>                }
+<a href=#505 id=505 data-nosnippet>505</a>                Renderer::Polygon =&gt; {
+<a href=#506 id=506 data-nosnippet>506</a>                    <span class="self">self</span>.polygons.instances.set_depth(entry.slot, depth);
+<a href=#507 id=507 data-nosnippet>507</a>                    (<span class="self">self</span>.polygons.instances.clip(entry.slot), <span class="number">0</span>)
+<a href=#508 id=508 data-nosnippet>508</a>                }
+<a href=#509 id=509 data-nosnippet>509</a>                Renderer::Line =&gt; {
+<a href=#510 id=510 data-nosnippet>510</a>                    <span class="self">self</span>.lines.instances.set_depth(entry.slot, depth);
+<a href=#511 id=511 data-nosnippet>511</a>                    (<span class="self">self</span>.lines.instances.clip(entry.slot), <span class="number">0</span>)
+<a href=#512 id=512 data-nosnippet>512</a>                }
+<a href=#513 id=513 data-nosnippet>513</a>                Renderer::Icon =&gt; {
+<a href=#514 id=514 data-nosnippet>514</a>                    <span class="self">self</span>.icons.instances.set_depth(entry.slot, depth);
+<a href=#515 id=515 data-nosnippet>515</a>                    (<span class="self">self</span>.icons.instances.clip(entry.slot), <span class="number">0</span>)
+<a href=#516 id=516 data-nosnippet>516</a>                }
+<a href=#517 id=517 data-nosnippet>517</a>                Renderer::Image =&gt; {
+<a href=#518 id=518 data-nosnippet>518</a>                    <span class="self">self</span>.images.instances.set_depth(entry.slot, depth);
+<a href=#519 id=519 data-nosnippet>519</a>                    (
+<a href=#520 id=520 data-nosnippet>520</a>                        <span class="self">self</span>.images.instances.clip(entry.slot),
+<a href=#521 id=521 data-nosnippet>521</a>                        <span class="self">self</span>.images.instances.group(entry.slot),
+<a href=#522 id=522 data-nosnippet>522</a>                    )
+<a href=#523 id=523 data-nosnippet>523</a>                }
+<a href=#524 id=524 data-nosnippet>524</a>                Renderer::Text =&gt; {
+<a href=#525 id=525 data-nosnippet>525</a>                    <span class="self">self</span>.texts.set_depth(entry.slot, depth);
+<a href=#526 id=526 data-nosnippet>526</a>                    (<span class="self">self</span>.texts.clip(entry.slot), <span class="number">0</span>)
+<a href=#527 id=527 data-nosnippet>527</a>                }
+<a href=#528 id=528 data-nosnippet>528</a>                <span class="comment">// Scissored to what was drawn into it, which is only known once the walk is over.
+<a href=#529 id=529 data-nosnippet>529</a>                </span>Renderer::Layer =&gt; {
+<a href=#530 id=530 data-nosnippet>530</a>                    <span class="self">self</span>.laid[entry.slot <span class="kw">as </span>usize].depth = depth;
+<a href=#531 id=531 data-nosnippet>531</a>                    (Section::default(), entry.slot)
+<a href=#532 id=532 data-nosnippet>532</a>                }
+<a href=#533 id=533 data-nosnippet>533</a>            };
+<a href=#534 id=534 data-nosnippet>534</a>            <span class="kw">let </span>spans = <span class="kw">match </span>into {
+<a href=#535 id=535 data-nosnippet>535</a>                <span class="number">0 </span>=&gt; <span class="kw-2">&amp;mut </span><span class="self">self</span>.spans,
+<a href=#536 id=536 data-nosnippet>536</a>                picture =&gt; {
+<a href=#537 id=537 data-nosnippet>537</a>                    <span class="kw">let </span>reach = <span class="kw-2">&amp;mut </span>reaches[picture - <span class="number">1</span>];
+<a href=#538 id=538 data-nosnippet>538</a>                    <span class="kw-2">*</span>reach = <span class="prelude-val">Some</span>(reach.map_or(clip, |reach| around(reach, clip)));
+<a href=#539 id=539 data-nosnippet>539</a>                    <span class="kw-2">&amp;mut </span><span class="self">self</span>.layered[picture - <span class="number">1</span>]
+<a href=#540 id=540 data-nosnippet>540</a>                }
+<a href=#541 id=541 data-nosnippet>541</a>            };
+<a href=#542 id=542 data-nosnippet>542</a>            <span class="kw">match </span>spans.last_mut() {
+<a href=#543 id=543 data-nosnippet>543</a>                <span class="prelude-val">Some</span>(span)
+<a href=#544 id=544 data-nosnippet>544</a>                    <span class="kw">if </span>span.renderer == entry.renderer
+<a href=#545 id=545 data-nosnippet>545</a>                        &amp;&amp; span.clip == clip
+<a href=#546 id=546 data-nosnippet>546</a>                        &amp;&amp; span.group == group
+<a href=#547 id=547 data-nosnippet>547</a>                        &amp;&amp; span.to == entry.slot =&gt;
+<a href=#548 id=548 data-nosnippet>548</a>                {
+<a href=#549 id=549 data-nosnippet>549</a>                    span.to = entry.slot + <span class="number">1</span>;
+<a href=#550 id=550 data-nosnippet>550</a>                }
+<a href=#551 id=551 data-nosnippet>551</a>                <span class="kw">_ </span>=&gt; spans.push(Span {
+<a href=#552 id=552 data-nosnippet>552</a>                    renderer: entry.renderer,
+<a href=#553 id=553 data-nosnippet>553</a>                    clip,
+<a href=#554 id=554 data-nosnippet>554</a>                    group,
+<a href=#555 id=555 data-nosnippet>555</a>                    from: entry.slot,
+<a href=#556 id=556 data-nosnippet>556</a>                    to: entry.slot + <span class="number">1</span>,
+<a href=#557 id=557 data-nosnippet>557</a>                }),
+<a href=#558 id=558 data-nosnippet>558</a>            }
+<a href=#559 id=559 data-nosnippet>559</a>        }
+<a href=#560 id=560 data-nosnippet>560</a>        <span class="kw">for </span>span <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.spans {
+<a href=#561 id=561 data-nosnippet>561</a>            <span class="kw">if </span>span.renderer == Renderer::Layer {
+<a href=#562 id=562 data-nosnippet>562</a>                span.clip = reaches[span.group <span class="kw">as </span>usize].unwrap_or_default();
+<a href=#563 id=563 data-nosnippet>563</a>            }
+<a href=#564 id=564 data-nosnippet>564</a>        }
+<a href=#565 id=565 data-nosnippet>565</a>        <span class="self">self</span>.layers.hold(ginkgo, <span class="kw-2">&amp;</span><span class="self">self</span>.laid);
+<a href=#566 id=566 data-nosnippet>566</a>        <span class="kw">let </span>queue = ginkgo.queue();
+<a href=#567 id=567 data-nosnippet>567</a>        <span class="self">self</span>.panels.instances.flush_depths(queue);
+<a href=#568 id=568 data-nosnippet>568</a>        <span class="self">self</span>.polygons.instances.flush_depths(queue);
+<a href=#569 id=569 data-nosnippet>569</a>        <span class="self">self</span>.lines.instances.flush_depths(queue);
+<a href=#570 id=570 data-nosnippet>570</a>        <span class="self">self</span>.icons.instances.flush_depths(queue);
+<a href=#571 id=571 data-nosnippet>571</a>        <span class="self">self</span>.images.instances.flush_depths(queue);
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="self">self</span>.texts.flush_depths(queue);
+<a href=#573 id=573 data-nosnippet>573</a>    }
+<a href=#574 id=574 data-nosnippet>574</a>
+<a href=#575 id=575 data-nosnippet>575</a>    <span class="doccomment">/// Step 9. Paints what is held.
+<a href=#576 id=576 data-nosnippet>576</a>    ///
+<a href=#577 id=577 data-nosnippet>577</a>    /// `clear` is what the surface is cleared to. Nothing of the engine's own sits behind the tree,
+<a href=#578 id=578 data-nosnippet>578</a>    /// so it is the app's own ground -- whatever [`Palette::Surface`](crate::Palette::Surface)
+<a href=#579 id=579 data-nosnippet>579</a>    /// currently resolves to.
+<a href=#580 id=580 data-nosnippet>580</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>draw(<span class="kw-2">&amp;</span><span class="self">self</span>, ginkgo: <span class="kw-2">&amp;</span>Ginkgo, clear: Color) {
+<a href=#581 id=581 data-nosnippet>581</a>        <span class="kw">let </span>_span = <span class="macro">trace_span!</span>(
+<a href=#582 id=582 data-nosnippet>582</a>            <span class="string">"draw"</span>,
+<a href=#583 id=583 data-nosnippet>583</a>            instances = <span class="self">self</span>.stack.len(),
+<a href=#584 id=584 data-nosnippet>584</a>            spans = <span class="self">self</span>.spans.len()
+<a href=#585 id=585 data-nosnippet>585</a>        )
+<a href=#586 id=586 data-nosnippet>586</a>        .entered();
+<a href=#587 id=587 data-nosnippet>587</a>        <span class="kw">let </span>canvases = <span class="self">self</span>.layers.canvases(ginkgo, <span class="self">self</span>.laid.len());
+<a href=#588 id=588 data-nosnippet>588</a>        <span class="kw">let </span>targets: Vec&lt;<span class="kw">_</span>&gt; = canvases.iter().map(|canvas| canvas.target()).collect();
+<a href=#589 id=589 data-nosnippet>589</a>        ginkgo.draw(
+<a href=#590 id=590 data-nosnippet>590</a>            clear,
+<a href=#591 id=591 data-nosnippet>591</a>            <span class="kw-2">&amp;</span>targets,
+<a href=#592 id=592 data-nosnippet>592</a>            |index, pass| <span class="self">self</span>.paint(ginkgo, pass, <span class="kw-2">&amp;</span><span class="self">self</span>.layered[index], <span class="bool-val">false</span>),
+<a href=#593 id=593 data-nosnippet>593</a>            <span class="comment">// A picture with nothing to lay down -- the window changed size and no frame has made
+<a href=#594 id=594 data-nosnippet>594</a>            // pictures at the new one yet -- is left out for the frame rather than laid down stale.
+<a href=#595 id=595 data-nosnippet>595</a>            </span>|pass| <span class="self">self</span>.paint(ginkgo, pass, <span class="kw-2">&amp;</span><span class="self">self</span>.spans, !targets.is_empty()),
+<a href=#596 id=596 data-nosnippet>596</a>        );
+<a href=#597 id=597 data-nosnippet>597</a>    }
+<a href=#598 id=598 data-nosnippet>598</a>
+<a href=#599 id=599 data-nosnippet>599</a>    <span class="doccomment">/// Draws `spans` into a pass, laying pictures down where they stand if `laying`.
+<a href=#600 id=600 data-nosnippet>600</a>    </span><span class="kw">fn </span>paint(
+<a href=#601 id=601 data-nosnippet>601</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#602 id=602 data-nosnippet>602</a>        ginkgo: <span class="kw-2">&amp;</span>Ginkgo,
+<a href=#603 id=603 data-nosnippet>603</a>        pass: <span class="kw-2">&amp;mut </span>wgpu::RenderPass&lt;<span class="lifetime">'_</span>&gt;,
+<a href=#604 id=604 data-nosnippet>604</a>        spans: <span class="kw-2">&amp;</span>[Span],
+<a href=#605 id=605 data-nosnippet>605</a>        laying: bool,
+<a href=#606 id=606 data-nosnippet>606</a>    ) {
+<a href=#607 id=607 data-nosnippet>607</a>        <span class="kw">for </span>span <span class="kw">in </span>spans {
+<a href=#608 id=608 data-nosnippet>608</a>            <span class="kw">let </span>(left, top, width, height) = ginkgo.scissor(span.clip);
+<a href=#609 id=609 data-nosnippet>609</a>            <span class="comment">// A region scrolled entirely off the surface has nothing to paint, and a zero-sized
+<a href=#610 id=610 data-nosnippet>610</a>            // scissor is not a way of saying so.
+<a href=#611 id=611 data-nosnippet>611</a>            </span><span class="kw">if </span>width == <span class="number">0 </span>|| height == <span class="number">0 </span>{
+<a href=#612 id=612 data-nosnippet>612</a>                <span class="kw">continue</span>;
+<a href=#613 id=613 data-nosnippet>613</a>            }
+<a href=#614 id=614 data-nosnippet>614</a>            pass.set_scissor_rect(left, top, width, height);
+<a href=#615 id=615 data-nosnippet>615</a>            <span class="kw">let </span>range = span.from..span.to;
+<a href=#616 id=616 data-nosnippet>616</a>            <span class="kw">match </span>span.renderer {
+<a href=#617 id=617 data-nosnippet>617</a>                Renderer::Panel =&gt; <span class="self">self</span>.panels.draw(pass, range, <span class="prelude-val">None</span>),
+<a href=#618 id=618 data-nosnippet>618</a>                Renderer::Polygon =&gt; <span class="self">self</span>.polygons.draw(pass, range, <span class="prelude-val">None</span>),
+<a href=#619 id=619 data-nosnippet>619</a>                Renderer::Line =&gt; <span class="self">self</span>.lines.draw(pass, range, <span class="prelude-val">None</span>),
+<a href=#620 id=620 data-nosnippet>620</a>                Renderer::Icon =&gt; <span class="self">self</span>.icons.draw(pass, range, <span class="prelude-val">Some</span>(<span class="self">self</span>.sheet.binding())),
+<a href=#621 id=621 data-nosnippet>621</a>                <span class="comment">// A picture whose texture is not held yet is skipped rather than drawn against
+<a href=#622 id=622 data-nosnippet>622</a>                // someone else's: it appears on the frame its pixels arrive.
+<a href=#623 id=623 data-nosnippet>623</a>                </span>Renderer::Image =&gt; {
+<a href=#624 id=624 data-nosnippet>624</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(binding) = <span class="self">self</span>.pictures.binding(<span class="kw">crate</span>::image::Plate(span.group)) {
+<a href=#625 id=625 data-nosnippet>625</a>                        <span class="self">self</span>.images.draw(pass, range, <span class="prelude-val">Some</span>(binding));
+<a href=#626 id=626 data-nosnippet>626</a>                    }
+<a href=#627 id=627 data-nosnippet>627</a>                }
+<a href=#628 id=628 data-nosnippet>628</a>                Renderer::Text =&gt; <span class="self">self</span>.texts.draw(pass, range),
+<a href=#629 id=629 data-nosnippet>629</a>                Renderer::Layer =&gt; {
+<a href=#630 id=630 data-nosnippet>630</a>                    <span class="kw">if </span>laying {
+<a href=#631 id=631 data-nosnippet>631</a>                        <span class="self">self</span>.layers.draw(pass, span.group <span class="kw">as </span>usize);
+<a href=#632 id=632 data-nosnippet>632</a>                    }
+<a href=#633 id=633 data-nosnippet>633</a>                }
+<a href=#634 id=634 data-nosnippet>634</a>            }
+<a href=#635 id=635 data-nosnippet>635</a>        }
+<a href=#636 id=636 data-nosnippet>636</a>    }
+<a href=#637 id=637 data-nosnippet>637</a>}
+<a href=#638 id=638 data-nosnippet>638</a>
+<a href=#639 id=639 data-nosnippet>639</a><span class="doccomment">/// The smallest section holding both.
+<a href=#640 id=640 data-nosnippet>640</a></span><span class="kw">fn </span>around(one: Section, other: Section) -&gt; Section {
+<a href=#641 id=641 data-nosnippet>641</a>    Section::from_edges(
+<a href=#642 id=642 data-nosnippet>642</a>        one.left().min(other.left()),
+<a href=#643 id=643 data-nosnippet>643</a>        one.top().min(other.top()),
+<a href=#644 id=644 data-nosnippet>644</a>        one.right().max(other.right()),
+<a href=#645 id=645 data-nosnippet>645</a>        one.bottom().max(other.bottom()),
+<a href=#646 id=646 data-nosnippet>646</a>    )
+<a href=#647 id=647 data-nosnippet>647</a>}
+<a href=#648 id=648 data-nosnippet>648</a>
+<a href=#649 id=649 data-nosnippet>649</a><span class="doccomment">/// Each renderer's instance attributes, from shader location 1 upward. The depth follows at the
+<a href=#650 id=650 data-nosnippet>650</a>/// location named in each [`Recipe`], and is its own buffer.
+<a href=#651 id=651 data-nosnippet>651</a>///
+<a href=#652 id=652 data-nosnippet>652</a>/// A panel's outline came later than its depth and is numbered after it, so the depth stays where
+<a href=#653 id=653 data-nosnippet>653</a>/// every renderer has it: the outline's colour at 5 and its width at 6, beside the rest of the
+<a href=#654 id=654 data-nosnippet>654</a>/// instance in the one buffer.
+<a href=#655 id=655 data-nosnippet>655</a></span><span class="kw">const </span>PANEL: [wgpu::VertexAttribute; <span class="number">7</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
+<a href=#656 id=656 data-nosnippet>656</a>    <span class="number">1 </span>=&gt; Float32x4,
+<a href=#657 id=657 data-nosnippet>657</a>    <span class="number">2 </span>=&gt; Float32x4,
+<a href=#658 id=658 data-nosnippet>658</a>    <span class="number">3 </span>=&gt; Float32x4,
+<a href=#659 id=659 data-nosnippet>659</a>    <span class="number">5 </span>=&gt; Float32x4,
+<a href=#660 id=660 data-nosnippet>660</a>    <span class="number">6 </span>=&gt; Float32,
+<a href=#661 id=661 data-nosnippet>661</a>    <span class="number">7 </span>=&gt; Float32x4,
+<a href=#662 id=662 data-nosnippet>662</a>    <span class="number">8 </span>=&gt; Float32x2,
+<a href=#663 id=663 data-nosnippet>663</a>];
+<a href=#664 id=664 data-nosnippet>664</a><span class="kw">const </span>POLYGON: [wgpu::VertexAttribute; <span class="number">5</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
+<a href=#665 id=665 data-nosnippet>665</a>    <span class="number">1 </span>=&gt; Float32x4,
+<a href=#666 id=666 data-nosnippet>666</a>    <span class="number">2 </span>=&gt; Float32x4,
+<a href=#667 id=667 data-nosnippet>667</a>    <span class="number">3 </span>=&gt; Float32x3,
+<a href=#668 id=668 data-nosnippet>668</a>    <span class="number">5 </span>=&gt; Float32x4,
+<a href=#669 id=669 data-nosnippet>669</a>    <span class="number">6 </span>=&gt; Float32x2,
+<a href=#670 id=670 data-nosnippet>670</a>];
+<a href=#671 id=671 data-nosnippet>671</a><span class="kw">const </span>LINE: [wgpu::VertexAttribute; <span class="number">5</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
+<a href=#672 id=672 data-nosnippet>672</a>    <span class="number">1 </span>=&gt; Float32x4,
+<a href=#673 id=673 data-nosnippet>673</a>    <span class="number">2 </span>=&gt; Float32x4,
+<a href=#674 id=674 data-nosnippet>674</a>    <span class="number">3 </span>=&gt; Float32x3,
+<a href=#675 id=675 data-nosnippet>675</a>    <span class="number">5 </span>=&gt; Float32x4,
+<a href=#676 id=676 data-nosnippet>676</a>    <span class="number">6 </span>=&gt; Float32x2,
+<a href=#677 id=677 data-nosnippet>677</a>];
+<a href=#678 id=678 data-nosnippet>678</a><span class="kw">const </span>ICON: [wgpu::VertexAttribute; <span class="number">6</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
+<a href=#679 id=679 data-nosnippet>679</a>    <span class="number">1 </span>=&gt; Float32x4,
+<a href=#680 id=680 data-nosnippet>680</a>    <span class="number">2 </span>=&gt; Float32x4,
+<a href=#681 id=681 data-nosnippet>681</a>    <span class="number">3 </span>=&gt; Float32x4,
+<a href=#682 id=682 data-nosnippet>682</a>    <span class="number">4 </span>=&gt; Float32,
+<a href=#683 id=683 data-nosnippet>683</a>    <span class="number">6 </span>=&gt; Float32x4,
+<a href=#684 id=684 data-nosnippet>684</a>    <span class="number">7 </span>=&gt; Float32x2,
+<a href=#685 id=685 data-nosnippet>685</a>];
+<a href=#686 id=686 data-nosnippet>686</a><span class="kw">const </span>IMAGE: [wgpu::VertexAttribute; <span class="number">6</span>] = <span class="macro">wgpu::vertex_attr_array!</span>[
+<a href=#687 id=687 data-nosnippet>687</a>    <span class="number">1 </span>=&gt; Float32x4,
+<a href=#688 id=688 data-nosnippet>688</a>    <span class="number">2 </span>=&gt; Float32x4,
+<a href=#689 id=689 data-nosnippet>689</a>    <span class="number">3 </span>=&gt; Float32x4,
+<a href=#690 id=690 data-nosnippet>690</a>    <span class="number">4 </span>=&gt; Float32,
+<a href=#691 id=691 data-nosnippet>691</a>    <span class="number">6 </span>=&gt; Float32x4,
+<a href=#692 id=692 data-nosnippet>692</a>    <span class="number">7 </span>=&gt; Float32x2,
+<a href=#693 id=693 data-nosnippet>693</a>];
 </code></pre></div></section></main></body></html>

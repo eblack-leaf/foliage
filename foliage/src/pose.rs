@@ -130,6 +130,20 @@ impl Affine {
         })
     }
 
+    /// How many times larger it draws a length: the scale it composes to, whatever it turned by.
+    /// Exact for the turns and uniform scales a pose is made of, which keep every length in the
+    /// same ratio. What a backend measuring an edge in device pixels multiplies its density by.
+    pub(crate) fn magnification(&self) -> f32 {
+        let [a, b, c, d] = self.linear;
+        (a * d - b * c).abs().sqrt()
+    }
+
+    /// Whether it keeps the plane upright and at its size: at most a move, so a stroke along an
+    /// axis stays along it and a whole pixel stays one.
+    pub(crate) fn upright(&self) -> bool {
+        self.linear == Self::IDENTITY.linear
+    }
+
     /// The smallest upright box holding all of `section` once it is moved.
     pub(crate) fn bounds(&self, section: Section) -> Section {
         if *self == Self::IDENTITY {
@@ -196,6 +210,16 @@ mod tests {
         assert!(near(both.apply(at), outer.apply(inner.apply(at))));
         let back = both.inverse().expect("invertible");
         assert!(near(back.apply(both.apply(at)), at));
+    }
+
+    /// However it turns, a map magnifies a length by the scale it composes to.
+    #[test]
+    fn magnification_is_the_composed_scale() {
+        let inner = Affine::about(Position::new(5.0, 5.0), 0.9, 1.5);
+        let outer = Affine::about(Position::new(40.0, 0.0), -2.1, 0.5);
+        assert!((inner.then(outer).magnification() - 0.75).abs() < 1e-5);
+        assert!(!inner.upright());
+        assert!(Affine::IDENTITY.upright());
     }
 
     #[test]

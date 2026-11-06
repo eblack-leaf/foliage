@@ -177,10 +177,11 @@ pub trait Place: Places + Sized {
     /// It is also what makes an element reachable by focus, because the set that asked to receive
     /// input is the set a keyboard should be able to reach.
     ///
-    /// On a mark it overrides the passing through a mark starts with, and on anything it holds at
-    /// any opacity -- a press target whose look fades in while it is pointed at is pressed while
-    /// it shows nothing. What takes one out of reach is [`visible`](Place::visible),
-    /// [`disable`](crate::Grow::disable) or [`intangible`](Place::intangible).
+    /// On a mark it overrides the passing through a mark starts with. What takes one out of reach
+    /// is [`visible`](Place::visible), [`disable`](crate::Grow::disable),
+    /// [`intangible`](Place::intangible), or a fade to nothing -- on it or on anything it is grown
+    /// under. A press target that shows nothing is a [`Stem`](crate::Stem), or a panel in a clear
+    /// color, at full opacity.
     fn interactive(mut self) -> Self {
         self.placement().manner.gestures.receives = true;
         self

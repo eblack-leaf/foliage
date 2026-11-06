@@ -92,8 +92,9 @@ impl Inherited {
             // Already in a picture: drawn into it, faded by everything between.
             (layer, _) if layer != 0 => (layer, trunk.drawn * opacity),
             // Opens one, but only while there is a fade to apply to it whole. At full opacity
-            // there is nothing to show through, and nothing is drawn apart.
-            (_, Some(layer)) if product < 1.0 => (layer, 1.0),
+            // there is nothing to show through, and at none there is nothing to show: in neither
+            // is anything drawn apart, so a card faded out and left standing holds no picture.
+            (_, Some(layer)) if product > 0.0 && product < 1.0 => (layer, 1.0),
             _ => (0, product),
         };
         Self {
