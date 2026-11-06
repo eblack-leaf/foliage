@@ -175,11 +175,20 @@ mod tests {
         sun.frame(10.0, Some((0.3, 0.9)));
         let (at, _) = sun.frame(10.0 + GLIDE, None);
         let wandered = wander(10.0 + GLIDE);
-        let expected = (0.3 + wandered.0 - wander(10.0).0, 0.9 + wandered.1 - wander(10.0).1);
-        assert!((at.0 - expected.0).abs() < 1e-4 && (at.1 - expected.1).abs() < 1e-4, "{at:?}");
+        let expected = (
+            0.3 + wandered.0 - wander(10.0).0,
+            0.9 + wandered.1 - wander(10.0).1,
+        );
+        assert!(
+            (at.0 - expected.0).abs() < 1e-4 && (at.1 - expected.1).abs() < 1e-4,
+            "{at:?}"
+        );
         let (later, strength) = sun.frame(10.0 + GLIDE + 60.0, None);
         let back = wander(10.0 + GLIDE + 60.0);
-        assert!((later.0 - back.0).abs() < 0.05 && (later.1 - back.1).abs() < 0.05, "{later:?}");
+        assert!(
+            (later.0 - back.0).abs() < 0.05 && (later.1 - back.1).abs() < 0.05,
+            "{later:?}"
+        );
         assert_eq!(strength, 1.0);
     }
 

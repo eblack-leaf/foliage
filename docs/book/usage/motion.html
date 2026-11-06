@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "../searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-c59f2531.js"></script>
+        <script src="../toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -199,6 +199,9 @@ concept of, and motion an app drives by hand.</p>
 <tr><td><code>Scroll(ScrollTo)</code></td><td>where a region is moved to; the destination re-resolves every frame</td></tr>
 <tr><td><code>Polygon(Shape)</code></td><td>a polygon’s sides, rounding and rotation together</td></tr>
 <tr><td><code>Shift(Position)</code></td><td>how far the element is drawn from where it is placed (<a href="placement.html#drawn-aside">Drawn aside</a>)</td></tr>
+<tr><td><code>Slide(Position)</code></td><td>the same, in the element’s own widths and heights</td></tr>
+<tr><td><code>Turn(f32)</code></td><td>how far it is turned about its middle, clockwise in radians</td></tr>
+<tr><td><code>Scale(f32)</code></td><td>how many times its size it is drawn, about its middle</td></tr>
 </tbody>
 </table>
 </div>
@@ -369,15 +372,31 @@ fn main() {
 and is pruned. Tap it while it is up and it leaves at once.</p>
 <p>Every step of the chain hangs off the name the step before handed back, and <code>pollen.finished(name)</code>
 is the frame that step ended on. The app never counts frames or reads a clock.</p>
+<h2 id="fading-a-card-whole"><a class="header" href="#fading-a-card-whole">Fading a card whole</a></h2>
+<p>Opacity multiplies down the tree, but each element is faded on its own. A card fading out
+therefore shows its ground through its text, and its rows through each other where they overlap.
+Declare the card <code>together</code> and it is drawn as one picture while it fades, and the picture is
+what fades:</p>
+<pre><code class="language-rust ignore">let card = grove.branch(page, Stem::new().together().at(/* ... */));
+// ... its ground, its text, its rows ...
+grove.animate(card, Motion::Opacity(0.0), Timing::ms(240));</code></pre>
+<p>While it fades, the card is drawn at its own place in the stack. Something grown elsewhere at the
+same elevation no longer sits between its parts, as with a stacking context in CSS. At full
+opacity nothing is drawn apart and it costs nothing. While it fades it costs one picture the size
+of the window, so keep it to what fades as a whole: a card, a sheet, a page coming in.</p>
 <h2 id="ending-a-motion"><a class="header" href="#ending-a-motion">Ending a motion</a></h2>
 <p>A motion ends in one of these ways:</p>
 <ul>
 <li><strong>It runs out.</strong> The element reports <code>pollen.landed(leaf)</code>, and the motion reports
 <code>pollen.finished(tween)</code>. <code>landed</code> says the element settled and not which of its properties did;
 <code>finished</code> says which motion it was.</li>
-<li><strong>Another <code>animate</code> on the same property replaces it</strong>, starting from wherever the element
-currently is rather than where the first motion began, so nothing jumps back.</li>
-<li><strong>A direct write to the property cancels it</strong>, and the element is at what was written. <code>at</code>
+<li><strong>Another <code>animate</code> on the same property replaces it</strong> when that one starts, beginning from
+wherever the element currently is rather than where the first motion began, so nothing jumps
+back. One with no delay starts at once; one with a delay starts when its delay has passed.
+What is asked last is where the property ends up: a new motion drops any still waiting on the
+property that would start no sooner than it does.</li>
+<li><strong>A direct write to the property cancels it</strong>, and anything waiting to take it over, and the
+element is at what was written. <code>at</code>
 cancels a <code>Location</code> motion (and a <code>Trace</code> one, since both are where the element is), <code>color</code>
 cancels a fill motion, <code>opacity</code> an opacity motion, <code>reshape</code> a shape motion, and <code>scroll</code> a
 scroll motion. A write to one property leaves a motion on another alone.</li>
@@ -386,7 +405,9 @@ scroll motion. A write to one property leaves a motion on another alone.</li>
 runs this frame.</li>
 <li><strong>Its element withers.</strong></li>
 </ul>
-<p>Only running out and <code>finish</code> report <code>finished</code>. Stopping, replacing, cancelling and withering are
+<p>Only running out and <code>finish</code> report <code>finished</code> (and <code>finish</code> on a motion still waiting out its
+delay puts the element on its target as though it had run). Stopping, replacing, cancelling and
+withering are
 all ways the name stops meaning anything, and a chain hanging off it quietly never runs, which is
 what makes <code>stop</code> the way to break a chain.</p>
 <p><strong>Stopping gives up the duration, not the destination.</strong> A motion stopped half way leaves its
@@ -400,7 +421,7 @@ instead of animating, and the arrival motion would simply have been cancelled.</
 <h2 id="timing"><a class="header" href="#timing">Timing</a></h2>
 <pre><code class="language-rust"><span class="boring">use foliage::{Ease, Timing};
 </span>Timing::ms(240)                        // 240 milliseconds, starting now, unshaped
-    .after(60)                         // hold where it is for 60ms first
+    .after(60)                         // wait 60ms before it starts
     .ease(Ease::Decelerate);           // the shape it moves in</code></pre>
 <p>The duration and the shape are independent: one says when a motion is over, and the other says
 where it is on the way. <a href="https://eblack-leaf.github.io/foliage/api/foliage/enum.Ease.html"><code>Ease</code></a>
@@ -422,9 +443,21 @@ has three named shapes for the three things a surface does, and a curve for anyt
 <p>Every shape starts exactly where the motion started and ends exactly on its target. A <code>Curve</code> may
 overshoot in between. <code>Ease::at(fraction)</code> is public, for anything built on top of a motion that
 needs to say where it would be part way through.</p>
-<p>A delay is part of the motion, not a queue in front of it: the motion is running from the frame it
-was asked for and holds where it was for the delay, so a write that cancels it cancels it whether
-or not it has started to move.</p>
+<p>A motion with a delay waits without touching anything. Whatever is moving the property goes on
+moving it, and when the delay has passed the new motion takes over from wherever the element has
+got to. So delays on one property chain, and a motion that goes there and comes back is two calls:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Ease, Grove, Grow, Leaf, Motion, Position, Timing};
+</span><span class="boring">fn f(grove: &amp;mut Grove, tile: Leaf) {
+</span>// Out to the right and back, as one gesture: the second starts as the first lands.
+grove.animate(tile, Motion::Shift(Position::new(6.0, 0.0)), Timing::ms(120).ease(Ease::Decelerate));
+grove.animate(tile, Motion::Shift(Position::default()), Timing::ms(240).after(120).ease(Ease::Emphasis));
+<span class="boring">}</span></code></pre>
+<p>A chain runs in the order its delays say, so ask for its steps in that order. What is asked
+<em>later</em> and starts <em>sooner</em> is not a step before the waiting ones but a change of mind: a sheet
+asked to fade in after a pause, then asked to fade out now because something else was chosen in
+the meantime, stays faded out. The waiting fade-in is dropped rather than bringing the sheet back
+once its pause is up. A direct write to the property cancels what is waiting as well as what is
+running.</p>
 <h2 id="several-at-once"><a class="header" href="#several-at-once">Several at once</a></h2>
 <p>A <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Sequence.html"><code>Sequence</code></a> names a
 group of tweens so that the <em>last</em> of them ending is reported too:</p>
@@ -496,6 +529,11 @@ spring. That is written from the clock by hand:</p>
 <p>The engine idles when nothing is owed, and a value an app is moving itself is invisible to it.
 <code>grove.again()</code> asks for one more frame, and calling it every frame for as long as the motion runs
 keeps the loop going for exactly that long.</p>
+<p>A motion that is slow and goes on for a long time does not need every frame the display can show.
+<code>grove.again_in(40)</code> asks for the next frame 40 milliseconds from now instead, and while nothing
+else is owed the loop sleeps until then, so a light drifting across a picture or a clock’s second
+hand runs at the rate it needs and not at the display’s. Anything else that owes a frame still
+runs it at once, and the next one asked for is counted from that frame.</p>
 <p><code>grove.frame_time()</code> is how long the last frame took, on the one clock every tween reads. When the
 machine stalls (it slept, a tab was in the background, a window was dragged) a frame is never told
 more than 100 milliseconds passed, so everything on the clock is deferred by the gap rather than

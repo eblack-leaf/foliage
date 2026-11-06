@@ -39,10 +39,19 @@
 //!
 //! Clipping is applied to the pass as a scissor rather than carried in an instance and tested per
 //! fragment, so it costs nothing per element and every renderer has it without a line of shader.
+//!
+//! # Some of it is drawn apart
+//!
+//! An instance whose rank names a [layer](crate::elevation::ResolvedElevation::layer) that is open
+//! this frame is taken out of the window's walk and walked into that layer's instead, in the same
+//! order. The layer itself stands in the window's walk at the rank of the element that opened it,
+//! and is laid down there ([`layer`]). So something drawn together is drawn at its own place in the
+//! stack, whole, and nothing grown elsewhere comes between its parts while it fades.
 
 use tracing::field::Empty;
 use tracing::trace_span;
 
+use crate::ash::layer::{Laid, Layers};
 use crate::ash::line::LineQuad;
 use crate::ash::picture::{PictureQuad, Pictures};
 use crate::ash::quad::{Quads, Recipe};
@@ -51,7 +60,7 @@ use crate::ash::text::Texts;
 use crate::color::Color;
 use crate::coordinate::Section;
 use crate::elevation::ResolvedElevation;
-use crate::elm::Elm;
+use crate::elm::{Elm, Layered};
 use crate::ginkgo::Ginkgo;
 use crate::ginkgo::depth::Depth;
 use crate::icon::Fields;
@@ -62,6 +71,7 @@ use crate::text::font::Fonts;
 
 pub(crate) mod atlas;
 mod instances;
+mod layer;
 mod line;
 mod picture;
 mod quad;
@@ -99,6 +109,13 @@ pub(crate) struct Ash {
     spans: Vec<Span>,
     /// The stack itself, kept between walks for its capacity.
     stack: Vec<Slot>,
+    /// The pictures drawn apart this frame, as extraction last stated them.
+    composites: Vec<Layered>,
+    /// Each picture's own draws, in order, beside [`composites`](Ash::composites).
+    layered: Vec<Vec<Span>>,
+    /// What each picture is laid down with: its opacity, and the depth its place in the stack gave.
+    laid: Vec<Laid>,
+    layers: Layers,
 }
 
 /// One run of the stack: which renderer draws it, what it is scissored to, what it binds, and which
@@ -131,13 +148,18 @@ enum Renderer {
     Icon,
     Image,
     Text,
+    /// A picture drawn apart, laid down whole. Its slot is its index among this frame's pictures.
+    Layer,
 }
 
 impl Ash {
     pub(crate) fn new(ginkgo: &Ginkgo) -> Self {
         let sheet = Sheet::new(ginkgo);
         let pictures = Pictures::new(ginkgo);
-        let rounded = include_str!("sdf.wgsl");
+        // Every renderer turns and scales what it lays out the same way, so every shader starts
+        // from the one function that does.
+        let posing = include_str!("pose.wgsl");
+        let rounded = format!("{posing}{}", include_str!("sdf.wgsl"));
         Self {
             panels: Quads::new(
                 ginkgo,
@@ -155,7 +177,7 @@ impl Ash {
                 ginkgo,
                 Recipe {
                     label: "polygon",
-                    shader: include_str!("polygon.wgsl").to_string(),
+                    shader: format!("{posing}{}", include_str!("polygon.wgsl")),
                     attributes: &POLYGON,
                     depth: 4,
                     sampled: false,
@@ -167,7 +189,7 @@ impl Ash {
                 ginkgo,
                 Recipe {
                     label: "line",
-                    shader: include_str!("line.wgsl").to_string(),
+                    shader: format!("{posing}{}", include_str!("line.wgsl")),
                     attributes: &LINE,
                     depth: 4,
                     sampled: false,
@@ -179,7 +201,7 @@ impl Ash {
                 ginkgo,
                 Recipe {
                     label: "icon",
-                    shader: include_str!("icon.wgsl").to_string(),
+                    shader: format!("{posing}{}", include_str!("icon.wgsl")),
                     attributes: &ICON,
                     depth: 5,
                     sampled: true,
@@ -204,6 +226,10 @@ impl Ash {
             pictures,
             spans: Vec::new(),
             stack: Vec::new(),
+            composites: Vec::new(),
+            layered: Vec::new(),
+            laid: Vec::new(),
+            layers: Layers::new(ginkgo),
         }
     }
 
@@ -298,6 +324,7 @@ impl Ash {
                     crop: wanted.instance.crop,
                     radii: wanted.instance.radii,
                     opacity: wanted.instance.opacity,
+                    pose: wanted.instance.pose,
                 },
             );
         }
@@ -326,8 +353,30 @@ impl Ash {
             self.images.instances.disturbed(),
             self.texts.disturbed(),
         ];
-        if disturbed.into_iter().any(|moved| moved) {
+        // Where the pictures stand moved, or which there are: the stack is walked again. Only how
+        // opaque each is moved, which is every frame of a fade: what each is laid down with is
+        // rewritten and nothing else.
+        let mut restack = disturbed.into_iter().any(|moved| moved);
+        if elm.relayered {
+            let placed = |layers: &[Layered]| -> Vec<(u32, ResolvedElevation)> {
+                layers
+                    .iter()
+                    .map(|layered| (layered.layer, layered.rank))
+                    .collect()
+            };
+            restack |= placed(&self.composites) != placed(&elm.layers);
+            self.composites.clone_from(&elm.layers);
+            for (laid, layered) in self.laid.iter_mut().zip(&self.composites) {
+                laid.opacity = layered.opacity;
+            }
+        }
+        if restack {
             self.restack(ginkgo);
+        } else if elm.relayered
+            || self.layers.canvases(ginkgo, self.laid.len()).len() < self.laid.len()
+        {
+            // What each is laid down with moved, or the window changed size under them.
+            self.layers.hold(ginkgo, &self.laid);
         }
     }
 
@@ -343,6 +392,7 @@ impl Ash {
     /// And the glyph atlas with it, because every cut on it was rasterised at the density that went.
     /// A mark's field and a picture's pixels are stated in their own texels and are kept.
     pub(crate) fn recut(&mut self) {
+        self.composites.clear();
         self.panels.instances.forget();
         self.polygons.instances.forget();
         self.lines.instances.forget();
@@ -409,11 +459,45 @@ impl Ash {
         // A run contributes one entry however many characters it has, which is what keeps this the
         // size of the tree rather than the size of the text on it.
         gather(self.texts.ranks(), Renderer::Text, &mut self.stack);
+        // Each picture stands where the element that opened it does.
+        self.stack.extend(
+            self.composites
+                .iter()
+                .enumerate()
+                .map(|(index, layered)| Slot {
+                    rank: layered.rank,
+                    renderer: Renderer::Layer,
+                    slot: index as u32,
+                }),
+        );
         self.stack.sort_unstable();
         let total = self.stack.len();
         self.spans.clear();
-        for (position, entry) in self.stack.iter().enumerate() {
-            let depth = Depth::of(position, total);
+        self.layered.iter_mut().for_each(Vec::clear);
+        self.layered.resize_with(self.composites.len(), Vec::new);
+        self.laid.clear();
+        self.laid.extend(self.composites.iter().map(|layered| Laid {
+            opacity: layered.opacity,
+            depth: 0.0,
+        }));
+        // How far down each walk has come: the window's first, then each picture's. A picture has a
+        // depth attachment of its own, so its walk counts from the back like the window's does.
+        let mut positions = vec![0_usize; self.composites.len() + 1];
+        // What was drawn into each picture reaches, which is all of it there is to lay down.
+        let mut reaches: Vec<Option<Section>> = vec![None; self.composites.len()];
+        for entry in &self.stack {
+            // Into the picture its rank names, where that picture is open; onto the window where it
+            // is not, which an instance whose picture closed this frame and has not been rewritten
+            // yet still names.
+            let into = match entry.renderer {
+                Renderer::Layer => 0,
+                _ => self
+                    .composites
+                    .binary_search_by_key(&entry.rank.layer, |layered| layered.layer)
+                    .map_or(0, |at| at + 1),
+            };
+            let depth = Depth::of(positions[into], total);
+            positions[into] += 1;
             let (clip, group) = match entry.renderer {
                 Renderer::Panel => {
                     self.panels.instances.set_depth(entry.slot, depth);
@@ -442,8 +526,21 @@ impl Ash {
                     self.texts.set_depth(entry.slot, depth);
                     (self.texts.clip(entry.slot), 0)
                 }
+                // Scissored to what was drawn into it, which is only known once the walk is over.
+                Renderer::Layer => {
+                    self.laid[entry.slot as usize].depth = depth;
+                    (Section::default(), entry.slot)
+                }
             };
-            match self.spans.last_mut() {
+            let spans = match into {
+                0 => &mut self.spans,
+                picture => {
+                    let reach = &mut reaches[picture - 1];
+                    *reach = Some(reach.map_or(clip, |reach| around(reach, clip)));
+                    &mut self.layered[picture - 1]
+                }
+            };
+            match spans.last_mut() {
                 Some(span)
                     if span.renderer == entry.renderer
                         && span.clip == clip
@@ -452,7 +549,7 @@ impl Ash {
                 {
                     span.to = entry.slot + 1;
                 }
-                _ => self.spans.push(Span {
+                _ => spans.push(Span {
                     renderer: entry.renderer,
                     clip,
                     group,
@@ -461,6 +558,12 @@ impl Ash {
                 }),
             }
         }
+        for span in &mut self.spans {
+            if span.renderer == Renderer::Layer {
+                span.clip = reaches[span.group as usize].unwrap_or_default();
+            }
+        }
+        self.layers.hold(ginkgo, &self.laid);
         let queue = ginkgo.queue();
         self.panels.instances.flush_depths(queue);
         self.polygons.instances.flush_depths(queue);
@@ -482,35 +585,66 @@ impl Ash {
             spans = self.spans.len()
         )
         .entered();
-        ginkgo.draw(clear, |pass| {
-            for span in &self.spans {
-                let (left, top, width, height) = ginkgo.scissor(span.clip);
-                // A region scrolled entirely off the surface has nothing to paint, and a zero-sized
-                // scissor is not a way of saying so.
-                if width == 0 || height == 0 {
-                    continue;
-                }
-                pass.set_scissor_rect(left, top, width, height);
-                let range = span.from..span.to;
-                match span.renderer {
-                    Renderer::Panel => self.panels.draw(pass, range, None),
-                    Renderer::Polygon => self.polygons.draw(pass, range, None),
-                    Renderer::Line => self.lines.draw(pass, range, None),
-                    Renderer::Icon => self.icons.draw(pass, range, Some(self.sheet.binding())),
-                    // A picture whose texture is not held yet is skipped rather than drawn against
-                    // someone else's: it appears on the frame its pixels arrive.
-                    Renderer::Image => {
-                        if let Some(binding) =
-                            self.pictures.binding(crate::image::Plate(span.group))
-                        {
-                            self.images.draw(pass, range, Some(binding));
-                        }
+        let canvases = self.layers.canvases(ginkgo, self.laid.len());
+        let targets: Vec<_> = canvases.iter().map(|canvas| canvas.target()).collect();
+        ginkgo.draw(
+            clear,
+            &targets,
+            |index, pass| self.paint(ginkgo, pass, &self.layered[index], false),
+            // A picture with nothing to lay down -- the window changed size and no frame has made
+            // pictures at the new one yet -- is left out for the frame rather than laid down stale.
+            |pass| self.paint(ginkgo, pass, &self.spans, !targets.is_empty()),
+        );
+    }
+
+    /// Draws `spans` into a pass, laying pictures down where they stand if `laying`.
+    fn paint(
+        &self,
+        ginkgo: &Ginkgo,
+        pass: &mut wgpu::RenderPass<'_>,
+        spans: &[Span],
+        laying: bool,
+    ) {
+        for span in spans {
+            let (left, top, width, height) = ginkgo.scissor(span.clip);
+            // A region scrolled entirely off the surface has nothing to paint, and a zero-sized
+            // scissor is not a way of saying so.
+            if width == 0 || height == 0 {
+                continue;
+            }
+            pass.set_scissor_rect(left, top, width, height);
+            let range = span.from..span.to;
+            match span.renderer {
+                Renderer::Panel => self.panels.draw(pass, range, None),
+                Renderer::Polygon => self.polygons.draw(pass, range, None),
+                Renderer::Line => self.lines.draw(pass, range, None),
+                Renderer::Icon => self.icons.draw(pass, range, Some(self.sheet.binding())),
+                // A picture whose texture is not held yet is skipped rather than drawn against
+                // someone else's: it appears on the frame its pixels arrive.
+                Renderer::Image => {
+                    if let Some(binding) = self.pictures.binding(crate::image::Plate(span.group)) {
+                        self.images.draw(pass, range, Some(binding));
                     }
-                    Renderer::Text => self.texts.draw(pass, range),
+                }
+                Renderer::Text => self.texts.draw(pass, range),
+                Renderer::Layer => {
+                    if laying {
+                        self.layers.draw(pass, span.group as usize);
+                    }
                 }
             }
-        });
+        }
     }
+}
+
+/// The smallest section holding both.
+fn around(one: Section, other: Section) -> Section {
+    Section::from_edges(
+        one.left().min(other.left()),
+        one.top().min(other.top()),
+        one.right().max(other.right()),
+        one.bottom().max(other.bottom()),
+    )
 }
 
 /// Each renderer's instance attributes, from shader location 1 upward. The depth follows at the
@@ -519,18 +653,42 @@ impl Ash {
 /// A panel's outline came later than its depth and is numbered after it, so the depth stays where
 /// every renderer has it: the outline's colour at 5 and its width at 6, beside the rest of the
 /// instance in the one buffer.
-const PANEL: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+const PANEL: [wgpu::VertexAttribute; 7] = wgpu::vertex_attr_array![
     1 => Float32x4,
     2 => Float32x4,
     3 => Float32x4,
     5 => Float32x4,
     6 => Float32,
+    7 => Float32x4,
+    8 => Float32x2,
 ];
-const POLYGON: [wgpu::VertexAttribute; 3] =
-    wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x3];
-const LINE: [wgpu::VertexAttribute; 3] =
-    wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x3];
-const ICON: [wgpu::VertexAttribute; 4] =
-    wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x4, 4 => Float32];
-const IMAGE: [wgpu::VertexAttribute; 4] =
-    wgpu::vertex_attr_array![1 => Float32x4, 2 => Float32x4, 3 => Float32x4, 4 => Float32];
+const POLYGON: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+    1 => Float32x4,
+    2 => Float32x4,
+    3 => Float32x3,
+    5 => Float32x4,
+    6 => Float32x2,
+];
+const LINE: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![
+    1 => Float32x4,
+    2 => Float32x4,
+    3 => Float32x3,
+    5 => Float32x4,
+    6 => Float32x2,
+];
+const ICON: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
+    1 => Float32x4,
+    2 => Float32x4,
+    3 => Float32x4,
+    4 => Float32,
+    6 => Float32x4,
+    7 => Float32x2,
+];
+const IMAGE: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
+    1 => Float32x4,
+    2 => Float32x4,
+    3 => Float32x4,
+    4 => Float32,
+    6 => Float32x4,
+    7 => Float32x2,
+];

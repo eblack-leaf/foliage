@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "../searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-c59f2531.js"></script>
+        <script src="../toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -184,9 +184,10 @@ what it can turn into, how focus moves, and how keys arrive.</p>
 <h2 id="two-questions"><a class="header" href="#two-questions">Two questions</a></h2>
 <p>A press raises two questions, and foliage answers them separately:</p>
 <ol>
-<li><strong>What is at this point?</strong> Every element that is shown and not clipped away is in the <em>box
-stack</em> at the points it covers, whatever it draws and whatever it declared. This is geometry,
-and nothing opts in.</li>
+<li><strong>What is at this point?</strong> Every surface that is shown and not clipped away is in the <em>box
+stack</em> at the points it covers, whatever it draws. This is geometry, and nothing opts in.
+<em>Marks</em> (text, icons, polygons and lines) are drawn on something, and a gesture over one passes
+through to it unless the mark says otherwise.</li>
 <li><strong>Who receives it?</strong> Only an element that declared
 <a href="https://eblack-leaf.github.io/foliage/api/foliage/trait.Place.html#method.interactive"><code>interactive</code></a>.</li>
 </ol>
@@ -200,16 +201,18 @@ there, and what that element declared decides what happens:</p>
 <tbody>
 <tr><td><code>interactive()</code></td><td>It receives the gesture, and focus can rest on it</td></tr>
 <tr><td><code>intangible()</code></td><td>The gesture passes through to whatever is beneath it</td></tr>
-<tr><td>neither</td><td>It <strong>eats</strong> the gesture: nothing receives it</td></tr>
+<tr><td>neither, on a surface</td><td>It <strong>eats</strong> the gesture: nothing receives it</td></tr>
+<tr><td>neither, on a mark</td><td>The gesture passes through, as for <code>intangible()</code></td></tr>
+<tr><td><code>tangible()</code>, on a mark</td><td>It eats the gesture, as a surface does</td></tr>
 </tbody>
 </table>
 </div>
 <p>The engine never searches down the stack for something willing to take a press. A search would
 have to decide, at each element it passed, whether that element is part of what it covers or a
 layer over it, and at a single point those are the same picture. So the rule is the top, and a
-composite marks its own decoration <code>intangible</code>. A backdrop behind a dialog, the padding of a
-menu, the ground of a sheet: those are the elements that should eat a press, and they do so by
-declaring nothing.</p>
+composite marks the surfaces it draws as decoration <code>intangible</code>; its text and icons pass presses
+through already. A backdrop behind a dialog, the padding of a menu, the ground of a sheet: those
+are the elements that should eat a press, and they do so by declaring nothing.</p>
 <p>Two more declarations shape how an element meets a hand:</p>
 <ul>
 <li><code>drags(Axes)</code> says which drags the element takes. Undeclared, it takes none.</li>
@@ -230,7 +233,8 @@ stage to the element holding the gesture:</p>
 <ul>
 <li><code>engaged(leaf)</code>: a gesture went down on it and is being held. The hook for a pressed visual.</li>
 <li><code>clicked(leaf)</code>: it ended without ever becoming a drag or a hold. <code>clicked_at(leaf)</code> is where it
-<em>began</em>, which is the point that was hit-tested and therefore the one certainly on the element.
+<em>began</em>, which is the point that was hit-tested and therefore the one certainly on the element,
+and <code>clicked_within(leaf)</code> is the same point measured from the element’s own top-left corner.
 <code>taps(leaf)</code> is how many taps in a row it makes: <code>2</code> for the second of a double, counted when it
 lands on the same element within <code>Taps</code> of the one before. Each tap of a run is reported as it
 lands, so a double tap is a second <code>clicked</code> with a count, not a first one taken back.</li>
@@ -260,6 +264,25 @@ was in a list.</p>
 goes and whatever that element declared. That is how an element scrolls like anything else and
 still takes a drag when it wants one, as a text field does to select: it declares no drags, and a
 press held still before moving is a selection.</p>
+<h2 id="where-the-cursor-rests"><a class="header" href="#where-the-cursor-rests">Where the cursor rests</a></h2>
+<p><code>grove.hovered()</code> is the element a press at the cursor would reach, where that is <code>interactive</code>
+and not disabled, and <code>pollen.hovered(leaf)</code> and <code>pollen.unhovered(leaf)</code> report it changing. It
+is read from the same box stack a press is, so it answers the question a person pointing is asking:
+a label over a button hovers the button, and nothing is hovered through a sheet laid over it.</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Grove, Grow, Leaf, Motion, Palette, Pollen, Timing};
+</span><span class="boring">fn f(grove: &amp;mut Grove, pollen: &amp;Pollen, row: Leaf, ground: Leaf) {
+</span>if pollen.hovered(row) {
+    grove.animate(ground, Motion::Opacity(1.0), Timing::ms(160));
+}
+if pollen.unhovered(row) {
+    grove.animate(ground, Motion::Opacity(0.0), Timing::ms(160));
+}
+<span class="boring">}</span></code></pre>
+<p>The engine wakes for a cursor move that would change what is hovered, and for no other, so
+following the cursor this way costs a frame only when there is something new to draw. An element
+hidden, covered or moved from under a cursor that did not move stops being hovered at the end of
+that frame. There is no hover on a touchscreen: a finger has no position between touches, so
+anything that has to be found there is found by pressing it too.</p>
 <h2 id="a-slider"><a class="header" href="#a-slider">A slider</a></h2>
 <pre><code class="language-rust no_run">use foliage::{
     Area, Axes, Boxed, Foliage, Grove, Grow, Key, Leaf, Location, Palette, Panel, Place, Pollen,
@@ -439,12 +462,14 @@ declaration to keep in step.</p>
 takes focus away.</li>
 <li><strong><code>Tab</code> and <code>Shift+Tab</code></strong> step to the next and previous element in focus order, and <strong><code>Escape</code></strong>
 takes focus away. The engine answers these three itself, wherever focus is (including nowhere),
-and they are not reported as keys.</li>
+and they are not reported as keys. <code>Escape</code> is reported on its own, as <code>pollen.escaped()</code>.</li>
 <li><strong>The verbs</strong>: <code>grove.focus(leaf)</code>, <code>grove.unfocus()</code>, <code>grove.focus_next()</code> and
 <code>grove.focus_previous()</code>.</li>
 </ul>
 <p>A drag and a hold move focus nowhere, because neither was a tap. And when whatever holds focus is
-hidden, disabled or pruned, focus lets go of it at the end of that frame’s drain.</p>
+hidden, disabled or pruned, focus lets go of it at the end of that frame’s drain. Focus asked for
+in a frame is answered after everything else that frame wrote, so <code>grove.focus(button)</code> and
+<code>grove.visible(drawer, true)</code> can be written in either order.</p>
 <p><code>Pollen::focused</code> and <code>Pollen::unfocused</code> report focus arriving and leaving, and <code>Grove::focused</code>
 says what holds it now. foliage <strong>draws nothing</strong> for focus. A focused element may be a <code>Stem</code>
 with nothing visible at all, so there is no mark the engine could draw that would be right; the
@@ -490,9 +515,10 @@ grove.focus(keep);
 </span><span class="boring">}</span></code></pre>
 <p>Tab now cycles between the two buttons and never leaves the dialog. Closing it is the reverse:
 <code>grove.prune(dialog)</code> and <code>grove.enable(page)</code>.</p>
-<p><code>Escape</code> takes focus away rather than being reported, so a dialog that should close on <code>Escape</code>
-watches for focus leaving it: <code>pollen.unfocused(keep)</code> in a frame where <code>grove.focused()</code> is
-<code>None</code>.</p>
+<p><code>Escape</code> takes focus away, and is reported as <code>pollen.escaped()</code> in the same frame as the
+<code>unfocused</code> it causes, so a dialog that should close on <code>Escape</code> reads that while it is open.
+Focus can be anywhere when it is pressed, including nowhere: a press on the dialog’s own ground
+takes focus away, and <code>Escape</code> should still close it.</p>
 <h2 id="keys"><a class="header" href="#keys">Keys</a></h2>
 <p>A key goes to whatever holds focus:</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Grove, Grow, Key, Leaf, Pollen};
@@ -543,15 +569,21 @@ reported either to an element or to the root, never both.</p>
 <tbody>
 <tr><td><code>visible(false)</code></td><td>no</td><td>no</td><td>no</td></tr>
 <tr><td><code>disable</code></td><td>yes</td><td><strong>yes</strong></td><td>no: swallows presses, passes scrolling on</td></tr>
-<tr><td><code>opacity(0.0)</code></td><td>nothing to see</td><td>no</td><td>no</td></tr>
+<tr><td><code>opacity(0.0)</code></td><td>no</td><td>no</td><td>no</td></tr>
 </tbody>
 </table>
 </div>
 <p>A disabled element still draws and still blocks, which is what makes it different from
 decoration, and what makes disabling a page enough on its own when a dialog opens over it. A drag
 over a disabled control still scrolls the list it is in, but a disabled region does not scroll.</p>
-<p>A fully transparent element is not there at all. That closes the case of an element faded out that
-went on taking presses. Anything above zero opacity is there and takes presses normally.</p>
+<p>A fully transparent element is not there at all, and neither is anything grown under it. It makes
+no difference where the fade was declared: on the control, on the root of the part it belongs to,
+or on a sheet holding it. Fading something out is enough to be rid of it, and no part’s inner
+structure decides whether a fade leaves an invisible control behind.</p>
+<p>A press target that shows nothing is said by what it draws instead: a <code>Stem</code>, or a panel in a
+clear color (<code>Color::rgba(.., 0.0)</code>), at full opacity. The ground of a row that only shows while
+the row is pointed at is grown under such a target, intangible, and fades in and out on its own
+while the target stays pressable throughout.</p>
 <p>All three are inherited as a product over the whole ancestry, recomputed every frame. An element
 grown under a disabled trunk is disabled on its first frame, and enabling the trunk leaves anything
 disabled in its own right disabled. <code>Vein::Visible</code>, <code>Vein::Disabled</code> and <code>Vein::Opacity</code> read

@@ -11,7 +11,7 @@ use crate::elm;
 use crate::frond::{self, Sprouts};
 use crate::grove::Grove;
 use crate::interaction;
-use crate::interaction::focus;
+use crate::interaction::focus::{self, Intent};
 use crate::layout::Layout;
 use crate::leaf::Leaf;
 use crate::line::Stroke;
@@ -42,6 +42,7 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     grove.frames += 1;
     let _frame = trace_span!("frame", n = grove.frames).entered();
     grove.again = false;
+    grove.again_in = None;
     grove.roused = false;
     intake(grove);
     interaction::dispatch(grove);
@@ -53,6 +54,8 @@ pub(crate) fn run(grove: &mut Grove, app: Option<&mut (dyn Rooted + '_)>) {
     drain(grove);
     aspen::run(grove);
     rowan::run(grove);
+    // The stack this frame settled, under a cursor that may not have moved.
+    interaction::hover(grove);
     // What settled, for the side of the boundary that cannot ask. After resolution and before
     // extraction: what is published is what the frame ended at.
     sprig::publish(grove);
@@ -130,6 +133,8 @@ fn drain(grove: &mut Grove) {
     // In the order the ops that grow them were queued, so each such op takes the next.
     let mut buds = buds.into_iter();
     let mut ops = ops.into_iter().peekable();
+    // Where focus is asked to go, answered once everything else this frame wrote has been.
+    let mut focusing = Vec::new();
     while let Some(op) = ops.next() {
         match op {
             Op::Plant { leaf, growth } => {
@@ -305,6 +310,35 @@ fn drain(grove: &mut Grove) {
                     }
                     None => dropped("text", leaf, "says nothing to rewrite"),
                 }
+            }
+            Op::Retype { leaf, font, size } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("retype", leaf, "not live");
+                    continue;
+                }
+                // A field is one element made of several, each set in its face and size: all of
+                // them follow, so its caret stays a character wide in the value it moves through.
+                let parts = grove.tree.parts(leaf).map(|parts| {
+                    [
+                        parts.run,
+                        parts.hint,
+                        parts.caret,
+                        parts.head,
+                        parts.body,
+                        parts.tail,
+                    ]
+                });
+                for leaf in core::iter::once(leaf).chain(parts.into_iter().flatten()) {
+                    let mut typeface = grove.tree.typeface(leaf).unwrap_or_default();
+                    if let Some(font) = font {
+                        typeface.font = font;
+                    }
+                    if let Some(size) = size {
+                        typeface.size = size;
+                    }
+                    grove.tree.set_typeface(leaf, typeface);
+                }
+                debug!(leaf = leaf.id(), "retyped");
             }
             Op::Arrived { destination, bytes } => {
                 // What an element draws is what the asset now is, and nothing was written to the
@@ -543,6 +577,14 @@ fn drain(grove: &mut Grove) {
                 grove.tree.set_visible(leaf, visible);
                 debug!(leaf = leaf.id(), visible, "revealed");
             }
+            Op::Together { leaf, together } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("together", leaf, "not live");
+                    continue;
+                }
+                grove.tree.set_together(leaf, together);
+                debug!(leaf = leaf.id(), together, "together");
+            }
             Op::Fade { leaf, opacity } => {
                 if !grove.tree.is_live(leaf) {
                     dropped("opacity", leaf, "not live");
@@ -551,6 +593,33 @@ fn drain(grove: &mut Grove) {
                 cancel(grove, "opacity", leaf, Property::Opacity);
                 grove.tree.set_opacity(leaf, opacity);
                 debug!(leaf = leaf.id(), opacity, "faded");
+            }
+            Op::Turn { leaf, radians } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("turn", leaf, "not live");
+                    continue;
+                }
+                cancel(grove, "turn", leaf, Property::Turn);
+                grove.tree.set_pose(leaf, |pose| pose.turn = radians);
+                debug!(leaf = leaf.id(), radians, "turned");
+            }
+            Op::Scale { leaf, scale } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("scale", leaf, "not live");
+                    continue;
+                }
+                cancel(grove, "scale", leaf, Property::Scale);
+                grove.tree.set_pose(leaf, |pose| pose.scale = scale);
+                debug!(leaf = leaf.id(), scale, "scaled");
+            }
+            Op::Slide { leaf, by } => {
+                if !grove.tree.is_live(leaf) {
+                    dropped("slide", leaf, "not live");
+                    continue;
+                }
+                cancel(grove, "slide", leaf, Property::Slide);
+                grove.tree.set_pose(leaf, |pose| pose.slide = by);
+                debug!(leaf = leaf.id(), x = by.x, y = by.y, "slid");
             }
             Op::Shift { leaf, by } => {
                 if !grove.tree.is_live(leaf) {
@@ -608,11 +677,16 @@ fn drain(grove: &mut Grove) {
                     );
                 }
             }
-            // Answered here, in arrival order like every other write. Whether a target can take
-            // focus is a walk of what has been declared, which this drain has already applied --
-            // so an app can show a drawer and focus into it in the same frame, and focus is final
-            // before anything downstream of it resolves.
-            Op::Focus(intent) => focus::moved(grove, intent),
+            // Answered after every other write, in the order they were asked among themselves.
+            // Whether a target can take focus is a walk of what has been declared, so asking
+            // before the write that shows it would otherwise be asking a question about a state
+            // the same frame is about to change -- and an app that shows a drawer and focuses into
+            // it in one frame should not have to know which it wrote first.
+            Op::Focus(intent) => focusing.push(intent),
+            Op::Escape => {
+                focusing.push(Intent::Away);
+                grove.drift.escaped = true;
+            }
             Op::Repaint(scheme) => {
                 let moved = grove.scheme.moved(&scheme);
                 grove.scheme = *scheme;
@@ -663,6 +737,11 @@ fn drain(grove: &mut Grove) {
                 }
             }
         }
+    }
+    // Every write is applied, so whether a target can take focus is asked of the frame as it will
+    // stand -- and focus is final before anything downstream of it resolves.
+    for intent in focusing {
+        focus::moved(grove, intent);
     }
     // Anything the drain hid, disabled or pruned may have been holding focus, and none of those
     // writes is obliged to think about it.

@@ -46,11 +46,17 @@ pub const HAIRLINE: f32 = 1.0;
 ///
 /// Its box is the rectangle around the two ends, grown by half its weight on every side -- so a
 /// horizontal rule, whose ends share a `y`, still has a box to be clipped, ranked and hit-tested by.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Line {
     pub(crate) placement: Placement,
     pub(crate) fill: Fill,
     pub(crate) cap: Cap,
+}
+
+impl Default for Line {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Line {
@@ -59,9 +65,14 @@ impl Line {
     /// [`between`](Line::between) is what gives it somewhere to go: a line that says nothing is a
     /// line of no length rather than one filling its trunk, because two ends have no reading that
     /// corresponds to "the whole of the parent's box".
+    ///
+    /// A mark, so a gesture over it passes through to what it is drawn on unless it says
+    /// [`interactive`](crate::Place::interactive) or [`tangible`](crate::Place::tangible) -- and
+    /// its box is the whole rectangle around its ends, which a diagonal hairline would otherwise
+    /// make a wall of.
     pub fn new() -> Self {
         Self {
-            placement: Placement::default(),
+            placement: Placement::mark(),
             fill: Fill::Role(Palette::Muted),
             cap: Cap::default(),
         }
@@ -236,4 +247,6 @@ pub(crate) struct LineInstance {
     pub(crate) color: Color,
     pub(crate) weight: f32,
     pub(crate) cap: Cap,
+    /// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+    pub(crate) pose: crate::pose::Affine,
 }

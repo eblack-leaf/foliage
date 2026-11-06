@@ -17,6 +17,7 @@ use crate::placement::grid::{Grid, Tracks};
 use crate::placement::location::Location;
 use crate::placement::trace::{Ends, Trace};
 use crate::polygon::{PolygonPigment, Shape};
+use crate::pose::Pose;
 use crate::rounding::Corners;
 use crate::text::font::Typeface;
 use crate::text::{Lettering, TextPigment, Tints};
@@ -56,6 +57,9 @@ const MASKED: u32 = 1 << 5;
 /// What [`branches`](Tree::branches) answers by: a part is held, resolved, drawn and withered like
 /// any other element, and is never one an app is told about, since it is never one an app named.
 const GROWN: u32 = 1 << 6;
+/// It and everything under it are drawn together, as one picture, whenever they are drawn at less
+/// than full opacity. See [`together`](crate::Place::together).
+const TOGETHER: u32 = 1 << 7;
 
 /// The tree itself, seen from the inside.
 ///
@@ -101,6 +105,7 @@ pub(crate) struct Tree {
     opacity: Vec<Opacity>,
     elevation: Vec<Elevation>,
     shift: Vec<Shift>,
+    pose: Vec<Pose>,
     scrolls: Vec<Option<Scroll>>,
     panels: Kind<PanelPigment>,
     texts: Kind<TextPigment>,
@@ -350,6 +355,7 @@ impl Tree {
             opacity: Vec::new(),
             elevation: Vec::new(),
             shift: Vec::new(),
+            pose: Vec::new(),
             scrolls: Vec::new(),
             panels: Kind::default(),
             texts: Kind::default(),
@@ -565,6 +571,9 @@ impl Tree {
         if manner.pinned {
             flags |= PINNED;
         }
+        if manner.together {
+            flags |= TOGETHER;
+        }
         self.flags[slot] = flags;
         self.growth[slot] = growth;
         self.spawned_at[slot] = Some(bud.at);
@@ -573,6 +582,7 @@ impl Tree {
         self.opacity[slot] = manner.opacity;
         self.elevation[slot] = bud.placement.elevation.unwrap_or_default();
         self.shift[slot] = Shift::default();
+        self.pose[slot] = bud.placement.pose;
         self.scrolls[slot] = manner.scrolls.map(|scrolls| scrolls.0);
         // Grown under something that went before the drain reached this is grown at top level,
         // since there is nothing left to hang it off.
@@ -648,6 +658,7 @@ impl Tree {
         self.opacity.resize(len, Opacity::default());
         self.elevation.resize(len, Elevation::default());
         self.shift.resize(len, Shift::default());
+        self.pose.resize(len, Pose::default());
         self.scrolls.resize(len, None);
     }
 
@@ -777,6 +788,7 @@ impl Tree {
         self.opacity[slot] = Opacity::default();
         self.elevation[slot] = Elevation::default();
         self.shift[slot] = Shift::default();
+        self.pose[slot] = Pose::default();
         self.scrolls[slot] = None;
     }
 
@@ -857,6 +869,24 @@ impl Tree {
         self.declared(leaf);
         self.lettered.insert(leaf);
         // The run it stated is not stated any more, whatever else still states one like it.
+        self.restated = true;
+        true
+    }
+
+    /// Sets what `leaf`'s characters are in, reporting whether it is live. A face or a size it
+    /// already holds is no write; any other is the same statement a new value is, so it is marked
+    /// the way [`set_lettering`](Self::set_lettering) marks one -- measured, shaped and placed
+    /// again.
+    pub(crate) fn set_typeface(&mut self, leaf: Leaf, typeface: Typeface) -> bool {
+        let Some(slot) = self.held(leaf) else {
+            return false;
+        };
+        if self.typefaces.get(&self.flags, slot) == Some(&typeface) {
+            return true;
+        }
+        self.typefaces.insert(&mut self.flags, slot, typeface);
+        self.declared(leaf);
+        self.lettered.insert(leaf);
         self.restated = true;
         true
     }
@@ -1506,6 +1536,15 @@ impl Tree {
         })
     }
 
+    /// Whether `leaf` and what is grown under it are drawn as one picture while they fade.
+    pub(crate) fn set_together(&mut self, leaf: Leaf, together: bool) {
+        if let Some(slot) = self.held(leaf)
+            && self.flag(slot, TOGETHER, together)
+        {
+            self.restyled(leaf);
+        }
+    }
+
     pub(crate) fn set_disabled(&mut self, leaf: Leaf, disabled: bool) {
         if let Some(slot) = self.held(leaf)
             && self.flag(slot, DISABLED, disabled)
@@ -1518,6 +1557,24 @@ impl Tree {
     pub(crate) fn shift(&self, leaf: Leaf) -> Position {
         self.held(leaf)
             .map_or_else(Position::default, |slot| self.shift[slot].0)
+    }
+
+    /// How `leaf` is turned, scaled and slid where it is drawn.
+    pub(crate) fn pose(&self, leaf: Leaf) -> Pose {
+        self.held(leaf)
+            .map_or_else(Pose::default, |slot| self.pose[slot])
+    }
+
+    /// Writes one part of how `leaf` is posed, recording it where it changed anything.
+    pub(crate) fn set_pose(&mut self, leaf: Leaf, write: impl FnOnce(&mut Pose)) {
+        let Some(slot) = self.held(leaf) else {
+            return;
+        };
+        let held = self.pose[slot];
+        write(&mut self.pose[slot]);
+        if self.pose[slot] != held {
+            self.restyled(leaf);
+        }
     }
 
     pub(crate) fn set_shift(&mut self, leaf: Leaf, by: Position) {
@@ -1606,6 +1663,11 @@ impl Standing<'_> {
         self.flag(DISABLED)
     }
 
+    /// Whether it and what is grown under it are drawn as one picture while they fade.
+    pub(crate) fn together(self) -> bool {
+        self.flag(TOGETHER)
+    }
+
     /// How far in front of its trunk it was told to sit.
     pub(crate) fn elevation(self) -> Elevation {
         self.tree.elevation[self.slot]
@@ -1614,6 +1676,11 @@ impl Standing<'_> {
     /// How far it is drawn from where the layout put it, and everything under it with it.
     pub(crate) fn shift(self) -> Position {
         self.tree.shift[self.slot].0
+    }
+
+    /// How it is turned, scaled and slid where it is drawn, and everything under it with it.
+    pub(crate) fn pose(self) -> Pose {
+        self.tree.pose[self.slot]
     }
 
     /// Its own grid, divided at the breakpoint in force: what a child reads a track of. One column

@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "../searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-c59f2531.js"></script>
+        <script src="../toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -265,7 +265,9 @@ the web’s hidden input captured is not: it waits in the keyboard until intake 
 is remembered as owing a frame on its own account.</li>
 <li><strong>The app asking.</strong> An app animating something the engine cannot see (a value it moves itself
 from <code>frame_time</code>) has no clause of its own. <code>grove.again()</code> is that clause, and it lasts for
-exactly one frame, so the loop runs for as long as the app keeps asking and not a frame longer.</li>
+exactly one frame, so the loop runs for as long as the app keeps asking and not a frame longer.
+<code>grove.again_in(millis)</code> is the same ask with a time on it: the loop sleeps until then, with the
+platform’s timer as its wake, and the frame is owed once it comes.</li>
 </ul>
 <p><strong>Skipping a frame cannot lose a change.</strong> A frame that does not run leaves every write in the
 queue and every report in the drift, and the next frame that runs takes them. Extraction compares

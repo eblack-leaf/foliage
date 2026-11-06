@@ -188,12 +188,18 @@ impl Timing {
 
     /// How long to wait before it starts, in milliseconds.
     ///
-    /// The motion holds where it was for that long rather than being queued: it is running from the
-    /// frame it was asked for, and a write that cancels it cancels it whether or not it has begun
-    /// to move.
+    /// A motion waits touching nothing: whatever is moving the same property goes on until the
+    /// delay has passed, and the motion takes over from wherever that has got to. So delays on one
+    /// property chain, each motion starting where the one before left the element. A write that
+    /// cancels the property cancels a motion still waiting on it too.
     pub fn after(mut self, millis: u64) -> Self {
         self.delay = Duration::from_millis(millis);
         self
+    }
+
+    /// How long it waits before it starts.
+    pub(crate) fn delay(&self) -> Duration {
+        self.delay
     }
 
     /// The progress a motion `elapsed` into this timing has made.

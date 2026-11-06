@@ -181,6 +181,28 @@ fn the_keys_that_steer_focus_are_not_delivered() {
     assert!(heard.root_keys().is_empty());
 }
 
+/// `Escape` is heard by the app, in the report that says what it took focus from -- and with
+/// nothing focused at all, which is when an open sheet has as much reason to close as any.
+#[test]
+fn escape_is_reported_with_what_it_took_focus_from() {
+    let mut grove = grove();
+    let listener = listener(&mut grove);
+    grove.focus(listener);
+    tick(&mut grove);
+
+    key(&mut grove, Key::Escape);
+    tick(&mut grove);
+    let heard = frame(&mut grove);
+    assert!(heard.escaped());
+    assert!(heard.unfocused(listener));
+    assert_eq!(grove.focused(), None);
+    assert!(!frame(&mut grove).escaped());
+
+    key(&mut grove, Key::Escape);
+    tick(&mut grove);
+    assert!(frame(&mut grove).escaped());
+}
+
 /// A press a keyboard can make: `Enter` or the space bar on what holds focus reads as the tap would,
 /// and a key that is neither does not.
 #[test]

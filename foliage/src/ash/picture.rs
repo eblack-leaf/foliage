@@ -32,6 +32,8 @@ pub(crate) struct PictureQuad {
     pub(crate) crop: [f32; 4],
     pub(crate) radii: [f32; 4],
     pub(crate) opacity: f32,
+    /// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+    pub(crate) pose: crate::pose::Affine,
 }
 
 /// Every picture the backend has uploaded.

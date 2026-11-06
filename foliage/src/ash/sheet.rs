@@ -69,6 +69,8 @@ pub(crate) struct MarkQuad {
     /// How many screen pixels the field's baked range covers at this instance's size, which is what
     /// sets the width of the edge the shader smooths over.
     pub(crate) range: f32,
+    /// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+    pub(crate) pose: crate::pose::Affine,
 }
 
 impl MarkQuad {
@@ -85,6 +87,7 @@ impl MarkQuad {
                 // Nothing packed under this name. It draws blank whatever the range says.
                 false => 1.0,
             },
+            pose: instance.pose,
         }
     }
 }

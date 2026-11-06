@@ -47,10 +47,9 @@
 //! # Over the page
 //!
 //! An [`Overlay`] comes up over a page where it stands, and a [`Drawer`] slides in over it from
-//! an edge; both take the page out of reach, hold focus, and close on `Escape`. foliage sends
-//! `Escape` to nothing -- it only takes focus away -- so [`Escaped`] is how anything that closes on
-//! it reads it, told apart from a stray press and from focus swept off what went out of reach.
-//! [`Hover`] says which of a set of elements the pointer rests on, which foliage does not.
+//! an edge; both take the page out of reach, hold focus, and close on `Escape`, which foliage
+//! reports as [`escaped`](foliage::Pollen::escaped). [`Hover`] says which of a set of elements the
+//! pointer rests on, which foliage does not.
 //!
 //! # Lines and figures
 //!
@@ -67,7 +66,6 @@ mod cluster;
 mod confirm;
 mod cut;
 mod dashes;
-mod escaped;
 mod field;
 mod hover;
 mod measure;
@@ -93,7 +91,6 @@ pub use cluster::Cluster;
 pub use confirm::{Confirm, Step};
 pub use cut::{Cut, Section};
 pub use dashes::Dashes;
-pub use escaped::Escaped;
 pub use field::{Field, Holds, Origin, Pick, drawn, dress, mark};
 pub use hover::{Hover, topmost};
 pub use measure::{Density, Measure, density, measure};

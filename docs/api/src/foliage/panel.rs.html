@@ -92,28 +92,31 @@
 <a href=#92 id=92 data-nosnippet>92</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) outline: Color,
 <a href=#93 id=93 data-nosnippet>93</a>    <span class="doccomment">/// How far in from the box's edge the outline reaches, in logical pixels. Zero is none.
 <a href=#94 id=94 data-nosnippet>94</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) outline_width: f32,
-<a href=#95 id=95 data-nosnippet>95</a>}
-<a href=#96 id=96 data-nosnippet>96</a>
-<a href=#97 id=97 data-nosnippet>97</a><span class="kw">impl </span>PanelInstance {
-<a href=#98 id=98 data-nosnippet>98</a>    <span class="doccomment">/// What a panel resolved to, from what it was told and where it ended up.
-<a href=#99 id=99 data-nosnippet>99</a>    ///
-<a href=#100 id=100 data-nosnippet>100</a>    /// Takes the resolved state rather than reading it, because only the element's
-<a href=#101 id=101 data-nosnippet>101</a>    /// [`Chlorophyll`](crate::elm::Chlorophyll) says whether it is a panel at all -- a set of
-<a href=#102 id=102 data-nosnippet>102</a>    /// declarations that happens to look like one is not one.
-<a href=#103 id=103 data-nosnippet>103</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
-<a href=#104 id=104 data-nosnippet>104</a>        section: Section,
-<a href=#105 id=105 data-nosnippet>105</a>        color: Color,
-<a href=#106 id=106 data-nosnippet>106</a>        rounding: Corners,
-<a href=#107 id=107 data-nosnippet>107</a>        outline: Color,
-<a href=#108 id=108 data-nosnippet>108</a>        outline_width: f32,
-<a href=#109 id=109 data-nosnippet>109</a>    ) -&gt; <span class="self">Self </span>{
-<a href=#110 id=110 data-nosnippet>110</a>        <span class="self">Self </span>{
-<a href=#111 id=111 data-nosnippet>111</a>            section,
-<a href=#112 id=112 data-nosnippet>112</a>            color,
-<a href=#113 id=113 data-nosnippet>113</a>            radii: rounding.radii(section),
-<a href=#114 id=114 data-nosnippet>114</a>            outline,
-<a href=#115 id=115 data-nosnippet>115</a>            outline_width,
-<a href=#116 id=116 data-nosnippet>116</a>        }
-<a href=#117 id=117 data-nosnippet>117</a>    }
-<a href=#118 id=118 data-nosnippet>118</a>}
+<a href=#95 id=95 data-nosnippet>95</a>    <span class="doccomment">/// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+<a href=#96 id=96 data-nosnippet>96</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) pose: <span class="kw">crate</span>::pose::Affine,
+<a href=#97 id=97 data-nosnippet>97</a>}
+<a href=#98 id=98 data-nosnippet>98</a>
+<a href=#99 id=99 data-nosnippet>99</a><span class="kw">impl </span>PanelInstance {
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// What a panel resolved to, from what it was told and where it ended up.
+<a href=#101 id=101 data-nosnippet>101</a>    ///
+<a href=#102 id=102 data-nosnippet>102</a>    /// Takes the resolved state rather than reading it, because only the element's
+<a href=#103 id=103 data-nosnippet>103</a>    /// [`Chlorophyll`](crate::elm::Chlorophyll) says whether it is a panel at all -- a set of
+<a href=#104 id=104 data-nosnippet>104</a>    /// declarations that happens to look like one is not one.
+<a href=#105 id=105 data-nosnippet>105</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+<a href=#106 id=106 data-nosnippet>106</a>        section: Section,
+<a href=#107 id=107 data-nosnippet>107</a>        color: Color,
+<a href=#108 id=108 data-nosnippet>108</a>        rounding: Corners,
+<a href=#109 id=109 data-nosnippet>109</a>        outline: Color,
+<a href=#110 id=110 data-nosnippet>110</a>        outline_width: f32,
+<a href=#111 id=111 data-nosnippet>111</a>    ) -&gt; <span class="self">Self </span>{
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="self">Self </span>{
+<a href=#113 id=113 data-nosnippet>113</a>            section,
+<a href=#114 id=114 data-nosnippet>114</a>            color,
+<a href=#115 id=115 data-nosnippet>115</a>            radii: rounding.radii(section),
+<a href=#116 id=116 data-nosnippet>116</a>            outline,
+<a href=#117 id=117 data-nosnippet>117</a>            outline_width,
+<a href=#118 id=118 data-nosnippet>118</a>            pose: <span class="kw">crate</span>::pose::Affine::IDENTITY,
+<a href=#119 id=119 data-nosnippet>119</a>        }
+<a href=#120 id=120 data-nosnippet>120</a>    }
+<a href=#121 id=121 data-nosnippet>121</a>}
 </code></pre></div></section></main></body></html>

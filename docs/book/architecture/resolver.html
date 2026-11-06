@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "../searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-c59f2531.js"></script>
+        <script src="../toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -397,23 +397,36 @@ left(0.px()).width(2.row());</code></pre>
 <a href="resolution.html#r1m-and-r2-the-two-axes-and-a-measure-before-each">Resolution</a>). That question is
 answered next to the grammar, term by term, for the axis being measured:</p>
 <pre><code class="language-rust ignore">// placement/role.rs
-pub(crate) fn known(kind: Kind, axis: Axis) -&gt; bool {
+pub(crate) fn known(kind: Kind, axis: Axis) -&gt; Measure {
     match kind {
-        Kind::Px(_) =&gt; true,
-        Kind::Letters { .. } =&gt; true,
-        Kind::Character { .. } | Kind::Span { .. } =&gt; axis == Axis::Vertical,
-        Kind::Content { against } =&gt; against == Against::Own,
-        Kind::Extent { axis: read, .. } | Kind::Cell { axis: read, .. } =&gt; {
-            axis == Axis::Vertical &amp;&amp; read == Axis::Horizontal
-        }
-        Kind::Pct { .. } =&gt; false,
-        Kind::Edge { .. } =&gt; false,
+        Kind::Px(_) =&gt; Measure::Own,
+        Kind::Letters { .. } =&gt; Measure::Own,
+        Kind::Character { .. } | Kind::Span { .. } =&gt; own(axis == Axis::Vertical),
+        Kind::Content { against } =&gt; match against {
+            Against::Own =&gt; Measure::Own,
+            other =&gt; leans(other),
+        },
+        Kind::Extent { axis: read, against } =&gt; match read == axis {
+            true =&gt; leans(against),
+            false =&gt; own(axis == Axis::Vertical &amp;&amp; read == Axis::Horizontal),
+        },
+        Kind::Cell { axis: read, .. } =&gt; own(axis == Axis::Vertical &amp;&amp; read == Axis::Horizontal),
+        Kind::Pct { against, .. } =&gt; leans(against),
+        Kind::Edge { against, .. } =&gt; leans(against),
     }
 }</code></pre>
-<p>A placement is measurable on an axis if every term in it is known and it is not measured from an
-anchor’s edge. Across, nothing is laid out yet, so only pixels, letters and a child’s own content
-are known; down, the horizontal axis has settled, so a height may read a width. Everything else
-waits for its axis’s own pass.</p>
+<p><code>own(known)</code> is <code>Own</code> or <code>Never</code>. <code>leans(against)</code> is <code>Leans</code> for the anchor and <code>Never</code> for
+anything else. A placement’s answer combines its terms, and an anchor-origin coordinate leans too:</p>
+<ul>
+<li><strong><code>Never</code></strong> wins outright: the placement is left out of the measure.</li>
+<li><strong><code>Own</code></strong> is known before the axis is laid out. Across, that is pixels, letters and a child’s own
+content. Down, the horizontal axis has settled, so a height may also read a width.</li>
+<li><strong><code>Leans</code></strong> is known only where the measure has already placed the anchor. That means the anchor
+is a sibling under the same trunk and counted itself. Children are listed in resolution order, so
+the anchor is measured first. Its measured span is what the child resolves against, which is how
+a stack placed with <code>top(anchor().bottom() + gap)</code> is measured whole.</li>
+</ul>
+<p>Everything else waits for its axis’s own pass.</p>
 <h2 id="lines-are-the-same-grammar"><a class="header" href="#lines-are-the-same-grammar">Lines are the same grammar</a></h2>
 <p>A <code>Line</code> has no box: it has two ends. Each end is a <code>Point</code>, an x coordinate and a y coordinate in
 the same grammar, and <code>locate</code> resolves one axis of a point through the same <code>coordinate</code> function a

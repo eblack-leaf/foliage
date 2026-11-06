@@ -52,6 +52,8 @@ struct GlyphInstance {
     color: Color,
     /// The ink's rect on the sheet, normalised: origin then size.
     sheet: [f32; 4],
+    /// The run's, which every glyph of it is drawn through.
+    pose: crate::pose::Affine,
 }
 
 /// The pipeline, the sheet, and every run the backend is holding.
@@ -97,7 +99,14 @@ impl Texts {
         let atlas = Atlas::new(ginkgo);
         let shader = device.create_shader_module(ShaderModuleDescriptor {
             label: Some("glyph"),
-            source: ShaderSource::Wgsl(include_str!("glyph.wgsl").into()),
+            source: ShaderSource::Wgsl(
+                format!(
+                    "{}{}",
+                    include_str!("pose.wgsl"),
+                    include_str!("glyph.wgsl")
+                )
+                .into(),
+            ),
         });
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("glyph"),
@@ -124,6 +133,8 @@ impl Texts {
                             1 => Float32x4,
                             2 => Float32x4,
                             3 => Float32x4,
+                            5 => Float32x4,
+                            6 => Float32x2,
                         ],
                     }),
                     Some(VertexBufferLayout {
@@ -248,6 +259,7 @@ impl Texts {
                 // what an untinted character resolved to, and extraction has already answered both.
                 color: glyph.color,
                 sheet: placed.uv,
+                pose: run.pose,
             });
         }
         match self.held.get_mut(&key) {

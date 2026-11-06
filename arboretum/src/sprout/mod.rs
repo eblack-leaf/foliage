@@ -19,8 +19,9 @@
 //! | [`Courier`] | the mock backend: answers delivered late, as a server's are |
 //! | [`Signpost`] | the way between the portfolio's pieces |
 //!
-//! Promoted to lichen, and used from there: `Escaped`, `Overlay` and `Drawer`, `Hover`, `Dashes`,
-//! `Stamp`, the counting `Badge` (once `Tally`), `Roll` and `Wire`.
+//! Promoted to lichen, and used from there: `Overlay` and `Drawer`, `Hover`, `Dashes`, `Stamp`,
+//! the counting `Badge` (once `Tally`), `Roll` and `Wire`. `Escaped` was too, until foliage came to
+//! report `Escape` itself.
 
 mod courier;
 mod emerge;

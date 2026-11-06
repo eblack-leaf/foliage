@@ -52,6 +52,7 @@
 //! | [`Motion::Polygon`] | a shape, like its declaration | `animate` -- written back |
 //! | [`Motion::Scroll`] | an offset, where the target is a [`ScrollTo`] | `resolve`, at R4 |
 //! | [`Motion::Shift`] | a shift, like its declaration | `animate` -- written back |
+//! | [`Motion::Slide`], [`Motion::Turn`], [`Motion::Scale`] | a pose, like its declaration | `animate` -- written back |
 //!
 //! The fill case is the one that needs saying. A [`Fill`] is a role *or* a color, and a blend of two
 //! of them is always a color -- so even two literals cannot be written back, and the blend belongs
@@ -62,9 +63,11 @@
 //! # One writer per property
 //!
 //! There is at most one motion per property per element, so two motions are never blending the same
-//! declaration. A second one on a property already moving **replaces** it, starting from a snapshot
-//! of where the element is rather than from where the first motion began -- otherwise the element
-//! would jump back to the old start. The drain runs before this phase and cancels the motion on any
+//! declaration. A second one on a property already moving **replaces** it when it starts, from a
+//! snapshot of where the element is rather than from where the first motion began -- otherwise the
+//! element would jump back to the old start. A motion with a delay has not started: it waits beside
+//! the running ones touching nothing, and takes over when its delay has passed, so delays on one
+//! property are a chain. The drain runs before this phase and cancels the motion on any
 //! property it writes, so nothing reaches its applying phase with both a pending write and a
 //! running tween.
 
@@ -84,6 +87,7 @@ use crate::line::Stretched;
 use crate::palette::{Fill, Palette, Scheme};
 use crate::placement::location::Location;
 use crate::placement::trace::Trace;
+use crate::pollen::Drift;
 use crate::polygon::Shape;
 use crate::tree::Tree;
 use crate::view::ScrollTo;
@@ -185,6 +189,31 @@ pub enum Motion {
     /// written back over the declaration, as an opacity is. What eases a thing drawn aside back
     /// where it belongs.
     Shift(Position),
+    /// How far the element is turned where it is drawn, clockwise in radians, as
+    /// [`turn`](crate::Grow::turn) writes it. Blended plainly and written back, as a shift is.
+    Turn(f32),
+    /// How many times its size the element is drawn, as [`scale`](crate::Grow::scale) writes it.
+    Scale(f32),
+    /// How far the element is drawn from where the layout put it in its own size, as
+    /// [`slide`](crate::Grow::slide) writes it.
+    Slide(Position),
+}
+
+impl Motion {
+    /// Which property it moves.
+    fn property(&self) -> Property {
+        match self {
+            Motion::Location(_) | Motion::Trace(_) => Property::Location,
+            Motion::Opacity(_) => Property::Opacity,
+            Motion::Color(_) | Motion::Palette(_) => Property::Fill,
+            Motion::Scroll(_) => Property::Scroll,
+            Motion::Polygon(_) => Property::Shape,
+            Motion::Shift(_) => Property::Shift,
+            Motion::Turn(_) => Property::Turn,
+            Motion::Scale(_) => Property::Scale,
+            Motion::Slide(_) => Property::Slide,
+        }
+    }
 }
 
 impl From<Fill> for Motion {
@@ -224,18 +253,24 @@ pub(crate) enum Property {
     Scroll,
     Shape,
     Shift,
+    Turn,
+    Scale,
+    Slide,
 }
 
 impl Property {
     /// Every property a motion can be running on, which is what an element being taken down has to
     /// be cleared from.
-    const ALL: [Property; 6] = [
+    const ALL: [Property; 9] = [
         Property::Location,
         Property::Opacity,
         Property::Fill,
         Property::Scroll,
         Property::Shape,
         Property::Shift,
+        Property::Turn,
+        Property::Scale,
+        Property::Slide,
     ];
 }
 
@@ -282,6 +317,12 @@ enum Moving {
     /// Both ends, for the reason opacity carries both: the blend is written back over the
     /// declaration every frame.
     Shift { from: Position, to: Position },
+    /// Both ends, as a shift.
+    Turn { from: f32, to: f32 },
+    /// Both ends, as a shift.
+    Scale { from: f32, to: f32 },
+    /// Both ends, as a shift.
+    Slide { from: Position, to: Position },
 }
 
 /// How far a tween has come, against the one clock.
@@ -332,6 +373,11 @@ impl Progress {
     fn done(&self) -> bool {
         self.timing.done(self.elapsed)
     }
+
+    /// Whether its delay is still running.
+    fn waiting(&self) -> bool {
+        self.elapsed < self.timing.delay()
+    }
 }
 
 /// One running motion.
@@ -344,6 +390,22 @@ struct Motioning {
     /// and the name in the app's hand cannot come to mean the motion that replaced it.
     tween: Tween,
     /// The group its ending is counted into, if it was counted into one.
+    within: Option<Sequence>,
+}
+
+/// A motion asked for with a delay, waiting for it to pass before it takes over its property.
+///
+/// Nothing about the element is touched while it waits: whatever is moving the property goes on
+/// moving it, and whatever was written stays written. It is a motion that has not begun, rather
+/// than one that has begun by standing still -- so a motion waiting after another is the next one
+/// in a chain, and not the end of the one before.
+#[derive(Clone, Debug)]
+struct Waiting {
+    leaf: Leaf,
+    motion: Motion,
+    /// Its clock, running from the frame it was asked for, delay and all.
+    progress: Progress,
+    tween: Tween,
     within: Option<Sequence>,
 }
 
@@ -396,6 +458,9 @@ impl Hash for Moves {
 #[derive(Default)]
 pub(crate) struct Aspen {
     motions: Named<Moves, Motioning>,
+    /// Motions waiting out their delays, in the order they were asked for -- which is the order
+    /// two due on the same frame take over in.
+    waiting: Vec<Waiting>,
     channels: HashMap<Tween, Channel>,
     /// How many tweens are still running under each named group. An entry exists only while the
     /// group has something in it, so a group that is over holds nothing and a name that is used
@@ -431,12 +496,12 @@ impl Aspen {
 
     /// Whether nothing is running, which is half of whether the loop owes a frame.
     pub(crate) fn idle(&self) -> bool {
-        self.motions.is_empty() && self.channels.is_empty()
+        self.motions.is_empty() && self.waiting.is_empty() && self.channels.is_empty()
     }
 
-    /// How many tweens are running.
+    /// How many tweens are running, or waiting to.
     fn live(&self) -> usize {
-        self.motions.len() + self.channels.len()
+        self.motions.len() + self.waiting.len() + self.channels.len()
     }
 
     /// The motion moving `leaf`'s placement: where it came from, and how far it has come.
@@ -491,20 +556,71 @@ impl Aspen {
         self.motions.get(&Moves(leaf, property))
     }
 
-    /// Drops the motion on one property, reporting whether one was running.
+    /// Drops the motion on one property, and every motion waiting to take it over, reporting
+    /// whether there was any.
     ///
     /// F8: this is what a direct write does before it lands, so no property ever reaches its
-    /// applying phase with both a pending write and a running tween.
+    /// applying phase with both a pending write and a running tween -- and nothing waiting takes
+    /// over from a write later, as though the write had been a step in its chain.
     pub(crate) fn cancel(&mut self, leaf: Leaf, property: Property) -> bool {
-        let Some(motioning) = self.motions.remove(&Moves(leaf, property)) else {
-            return false;
-        };
-        self.release(motioning.within);
-        true
+        let mut released = Vec::new();
+        self.waiting.retain(|waiting| {
+            let moves = waiting.leaf == leaf && waiting.motion.property() == property;
+            if moves {
+                released.push(waiting.within);
+            }
+            !moves
+        });
+        if let Some(motioning) = self.motions.remove(&Moves(leaf, property)) {
+            released.push(motioning.within);
+        }
+        let any = !released.is_empty();
+        for within in released {
+            self.release(within);
+        }
+        any
     }
 
-    /// Drops everything running on elements that have gone.
+    /// Drops every motion waiting to take over `property` that would start no sooner than `delay`
+    /// from now: one asked for later, to start at or before it, supersedes it.
+    fn supersede(&mut self, leaf: Leaf, property: Property, delay: Duration) {
+        if self.waiting.is_empty() {
+            return;
+        }
+        let mut released = Vec::new();
+        self.waiting.retain(|waiting| {
+            let left = waiting
+                .progress
+                .timing
+                .delay()
+                .saturating_sub(waiting.progress.elapsed);
+            let superseded =
+                waiting.leaf == leaf && waiting.motion.property() == property && left >= delay;
+            if superseded {
+                released.push(waiting.within);
+            }
+            !superseded
+        });
+        for within in released {
+            self.release(within);
+        }
+    }
+
+    /// Drops everything running on elements that have gone, and everything waiting to.
     pub(crate) fn wither(&mut self, gone: &[Leaf]) {
+        if !self.waiting.is_empty() {
+            let mut released = Vec::new();
+            self.waiting.retain(|waiting| {
+                let went = gone.contains(&waiting.leaf);
+                if went {
+                    released.push(waiting.within);
+                }
+                !went
+            });
+            for within in released {
+                self.release(within);
+            }
+        }
         if self.motions.is_empty() {
             return;
         }
@@ -536,18 +652,78 @@ impl Aspen {
     }
 }
 
-/// Starts a motion, replacing whatever was moving that property, and reports whether it applied.
+/// Asks for a motion, and reports whether it applies to the element at all.
 ///
-/// The target is written to the element here rather than when the motion ends, so what the element
-/// declares is already where it is going. What the motion carries is what the element no longer
-/// holds: the placement or the role it left, or -- for a value written back over its own
-/// declaration -- both of its ends.
+/// One with no delay starts here. One with a delay waits, touching nothing, and starts once the
+/// delay has passed -- taking over then from whatever is moving the property, or from where it
+/// stands -- so a run of delayed motions on one property is a chain, each taking over from the one
+/// before, rather than the last of them freezing the others where they were asked.
+///
+/// What was asked last is where the property ends up. A motion still waiting that would start no
+/// sooner than this one is dropped, silently, as a running one replaced is: a fade-in asked to
+/// wait, and then a fade-out asked for now, leaves the element faded out rather than coming back
+/// once the wait is up. Waiting motions that start sooner are the chain leading up to it, and stay.
 pub(crate) fn animate(
     grove: &mut Grove,
     leaf: Leaf,
     motion: Motion,
     timing: Timing,
     tween: Tween,
+) -> bool {
+    if !applies(&grove.tree, leaf, &motion) {
+        return false;
+    }
+    grove.aspen.supersede(leaf, motion.property(), timing.delay());
+    let within = timing.sequence();
+    grove.aspen.enroll(within);
+    let progress = Progress::new(timing);
+    if progress.waiting() {
+        grove.aspen.waiting.push(Waiting {
+            leaf,
+            motion,
+            progress,
+            tween,
+            within,
+        });
+        return true;
+    }
+    begin(grove, leaf, motion, progress, tween, within)
+}
+
+/// Whether `motion` is something `leaf` has to move, asked when it is asked for so a motion that
+/// waits is refused as soon as one that starts at once would be.
+fn applies(tree: &Tree, leaf: Leaf, motion: &Motion) -> bool {
+    match motion {
+        // A stroke has no box to write a placement to, and a box has no ends to write a trace to.
+        Motion::Location(_) => tree.trace(leaf).is_none(),
+        Motion::Trace(_) => tree.trace(leaf).is_some(),
+        Motion::Color(_) | Motion::Palette(_) => tree.fill(leaf).is_some(),
+        Motion::Polygon(_) => tree.shape(leaf).is_some(),
+        Motion::Opacity(_)
+        | Motion::Shift(_)
+        | Motion::Scroll(_)
+        | Motion::Turn(_)
+        | Motion::Scale(_)
+        | Motion::Slide(_) => true,
+    }
+}
+
+/// Starts a motion, replacing whatever was moving that property, and reports whether it applied.
+///
+/// The target is written to the element here rather than when the motion ends, so what the element
+/// declares is already where it is going. What the motion carries is what the element no longer
+/// holds: the placement or the role it left, or -- for a value written back over its own
+/// declaration -- both of its ends.
+///
+/// `within` is already counted into its group, by the ask: a motion that waited was counted while
+/// it waited, so the group was not over in the meantime.
+fn begin(
+    grove: &mut Grove,
+    leaf: Leaf,
+    motion: Motion,
+    progress: Progress,
+    tween: Tween,
+    within: Option<Sequence>,
 ) -> bool {
     let scheme = grove.scheme;
     let Grove {
@@ -568,6 +744,7 @@ pub(crate) fn animate(
             // A stroke has no box to write a placement to, and refuses it. Refused here too, rather
             // than registering a motion nothing would read that still reported its arrival.
             if !tree.set_location(leaf, to) {
+                aspen.release(within);
                 return false;
             }
             (Property::Location, Moving::Location(departed))
@@ -581,6 +758,7 @@ pub(crate) fn animate(
             };
             // A box has no ends to write a trace to. The same refusal as above, the other way round.
             if !tree.set_trace(leaf, to) {
+                aspen.release(within);
                 return false;
             }
             (Property::Location, Moving::Trace(departed))
@@ -601,17 +779,24 @@ pub(crate) fn animate(
         // normalised the moment it arrives, so nothing past this point knows which was written.
         Motion::Color(to) => match filling(tree, aspen, &scheme, leaf, Fill::Literal(to)) {
             Some(moving) => (Property::Fill, moving),
-            None => return false,
+            None => {
+                aspen.release(within);
+                return false;
+            }
         },
         Motion::Palette(to) => match filling(tree, aspen, &scheme, leaf, Fill::Role(to)) {
             Some(moving) => (Property::Fill, moving),
-            None => return false,
+            None => {
+                aspen.release(within);
+                return false;
+            }
         },
         Motion::Polygon(to) => {
             // The blend is written back over the declaration every frame, so what the element
             // declares *is* the shape it currently is -- a retarget needs nothing else, exactly as
             // an opacity does not.
             let Some(from) = tree.shape(leaf) else {
+                aspen.release(within);
                 return false;
             };
             (Property::Shape, Moving::Shape { from, to })
@@ -620,6 +805,19 @@ pub(crate) fn animate(
             // Written back every frame, so what the element declares is where it currently is.
             let from = tree.shift(leaf);
             (Property::Shift, Moving::Shift { from, to })
+        }
+        // Written back every frame too, so each starts from what the element holds.
+        Motion::Turn(to) => {
+            let from = tree.pose(leaf).turn;
+            (Property::Turn, Moving::Turn { from, to })
+        }
+        Motion::Scale(to) => {
+            let from = tree.pose(leaf).scale;
+            (Property::Scale, Moving::Scale { from, to })
+        }
+        Motion::Slide(to) => {
+            let from = tree.pose(leaf).slide;
+            (Property::Slide, Moving::Slide { from, to })
         }
         Motion::Scroll(to) => {
             // Where the region is now, which is what the last frame's R4 settled it at. A retarget
@@ -631,13 +829,11 @@ pub(crate) fn animate(
             (Property::Scroll, Moving::Scroll { from, to })
         }
     };
-    let within = timing.sequence();
-    aspen.enroll(within);
     if let Some(replaced) = aspen.motions.insert(
         Moves(leaf, property),
         Motioning {
             moving,
-            progress: Progress::new(timing),
+            progress,
             tween,
             within,
         },
@@ -663,6 +859,25 @@ pub(crate) fn animate(
 /// Either way the group counting it hears the only thing a group is about -- that one fewer thing is
 /// running under it.
 pub(crate) fn stop(grove: &mut Grove, tween: Tween, reported: bool) -> bool {
+    // One still waiting is started now and then ended on its target like any other, so stopping a
+    // motion that had not begun leaves the element where it would have ended -- which is all
+    // stopping one ever means.
+    if let Some(at) = grove
+        .aspen
+        .waiting
+        .iter()
+        .position(|waiting| waiting.tween == tween)
+    {
+        let waiting = grove.aspen.waiting.remove(at);
+        begin(
+            grove,
+            waiting.leaf,
+            waiting.motion,
+            waiting.progress,
+            waiting.tween,
+            waiting.within,
+        );
+    }
     let Grove {
         aspen,
         tree,
@@ -720,6 +935,9 @@ fn stirred(tree: &mut Tree, leaf: Leaf, moving: &Moving) {
         Moving::Opacity { .. }
         | Moving::Shape { .. }
         | Moving::Shift { .. }
+        | Moving::Turn { .. }
+        | Moving::Scale { .. }
+        | Moving::Slide { .. }
         | Moving::Scroll { .. } => {}
     }
 }
@@ -742,6 +960,9 @@ fn land(tree: &mut Tree, sought: &mut Vec<(Leaf, ScrollTo)>, leaf: Leaf, moving:
             tree.set_shape(leaf, *to);
         }
         Moving::Shift { to, .. } => tree.set_shift(leaf, *to),
+        Moving::Turn { to, .. } => tree.set_pose(leaf, |pose| pose.turn = *to),
+        Moving::Scale { to, .. } => tree.set_pose(leaf, |pose| pose.scale = *to),
+        Moving::Slide { to, .. } => tree.set_pose(leaf, |pose| pose.slide = *to),
         Moving::Scroll { to, .. } => sought.push((leaf, *to)),
     }
 }
@@ -778,7 +999,118 @@ pub(crate) fn run(grove: &mut Grove) {
     let delta = grove.clock.delta();
     channels(grove, delta);
     motions(grove, delta);
+    waited(grove, delta);
     sequences(grove);
+}
+
+/// The motions waiting out their delays: advanced, and started once their delays have passed, in
+/// the order they were asked for. Reported at no progress while they wait, as a motion that has not
+/// begun to move has made none.
+///
+/// After the running motions have moved, so one taking over starts from where the motion it
+/// replaces got to this frame -- and then moves itself, by however far past its delay this frame
+/// took it, so a chain keeps time across the hand-over.
+fn waited(grove: &mut Grove, delta: Duration) {
+    if grove.aspen.waiting.is_empty() {
+        return;
+    }
+    let Grove { aspen, drift, .. } = grove;
+    let mut due = Vec::new();
+    aspen.waiting.retain_mut(|waiting| {
+        waiting.progress.advance(delta);
+        if waiting.progress.waiting() {
+            drift.tweens.insert(waiting.tween, 0.0);
+            return true;
+        }
+        due.push(waiting.clone());
+        false
+    });
+    for waiting in due {
+        let moves = Moves(waiting.leaf, waiting.motion.property());
+        if !begin(
+            grove,
+            waiting.leaf,
+            waiting.motion,
+            waiting.progress,
+            waiting.tween,
+            waiting.within,
+        ) {
+            debug!(
+                leaf = waiting.leaf.id(),
+                tween = waiting.tween.0,
+                "waiting motion dropped"
+            );
+            continue;
+        }
+        let Grove {
+            aspen,
+            tree,
+            drift,
+            sought,
+            ..
+        } = grove;
+        let Some(motioning) = aspen.motions.get(&moves) else {
+            continue;
+        };
+        let at = motioning.progress.at();
+        if !step(tree, drift, sought, waiting.leaf, motioning, at)
+            && let Some(landed) = aspen.motions.remove(&moves)
+        {
+            aspen.release(landed.within);
+        }
+    }
+}
+
+/// Moves one element as its motion has reached `at`, landing it if that is the end. Whether it is
+/// still running.
+fn step(
+    tree: &mut Tree,
+    drift: &mut Drift,
+    sought: &mut Vec<(Leaf, ScrollTo)>,
+    leaf: Leaf,
+    motioning: &Motioning,
+    at: f32,
+) -> bool {
+    // A motion is held here rather than written to the tree until it lands, so nothing else would
+    // record that the element is resolving to something new this frame. It is: the blend moved,
+    // and on the frame it ends the blend gives way to the declaration underneath it.
+    stirred(tree, leaf, &motioning.moving);
+    // How far it has come, for the app holding its name. The eased progress and not the fraction
+    // of the duration, because what a motion is a fraction of the way through is what it looks
+    // like, and the two differ under every shape but `Linear`.
+    drift.tweens.insert(motioning.tween, at);
+    if let Moving::Opacity { from, to } = motioning.moving {
+        tree.set_opacity(leaf, blend(from, to, at));
+    }
+    if let Moving::Shape { from, to } = motioning.moving {
+        tree.set_shape(leaf, from.blend(to, at));
+    }
+    if let Moving::Shift { from, to } = motioning.moving {
+        let by = Position::new(blend(from.x, to.x, at), blend(from.y, to.y, at));
+        tree.set_shift(leaf, by);
+    }
+    match motioning.moving {
+        Moving::Turn { from, to } => tree.set_pose(leaf, |pose| pose.turn = blend(from, to, at)),
+        Moving::Scale { from, to } => tree.set_pose(leaf, |pose| pose.scale = blend(from, to, at)),
+        Moving::Slide { from, to } => {
+            let by = Position::new(blend(from.x, to.x, at), blend(from.y, to.y, at));
+            tree.set_pose(leaf, |pose| pose.slide = by);
+        }
+        _ => {}
+    }
+    if !motioning.progress.done() {
+        return true;
+    }
+    // What the element declares is already the target, so ending is a removal: the blend at the
+    // end equals the plain reading of the declaration. What is not declared on the element is
+    // written out here, so the frame after a landing is identical to the one it landed in.
+    land(tree, sought, leaf, &motioning.moving);
+    // Two reports for one arrival, and they answer different questions: the element settled, and
+    // this motion is the one that ended.
+    drift.landed.insert(leaf);
+    drift.finished.insert(motioning.tween);
+    debug!(leaf = leaf.id(), tween = motioning.tween.0, "tween landed");
+    false
 }
 
 /// The channels: a value each, reported outward and written nowhere.
@@ -817,36 +1149,9 @@ fn motions(grove: &mut Grove, delta: Duration) {
     let mut ended = Vec::new();
     aspen.motions.retain(|Moves(leaf, _), motioning| {
         let at = motioning.progress.advance(delta);
-        // A motion is held here rather than written to the tree until it lands, so nothing else
-        // would record that the element is resolving to something new this frame. It is: the blend
-        // moved, and on the frame it ends the blend gives way to the declaration underneath it.
-        stirred(tree, *leaf, &motioning.moving);
-        // How far it has come, for the app holding its name. The eased progress and not the fraction
-        // of the duration, because what a motion is a fraction of the way through is what it looks
-        // like, and the two differ under every shape but `Linear`.
-        drift.tweens.insert(motioning.tween, at);
-        if let Moving::Opacity { from, to } = motioning.moving {
-            tree.set_opacity(*leaf, blend(from, to, at));
-        }
-        if let Moving::Shape { from, to } = motioning.moving {
-            tree.set_shape(*leaf, from.blend(to, at));
-        }
-        if let Moving::Shift { from, to } = motioning.moving {
-            let by = Position::new(blend(from.x, to.x, at), blend(from.y, to.y, at));
-            tree.set_shift(*leaf, by);
-        }
-        if !motioning.progress.done() {
+        if step(tree, drift, sought, *leaf, motioning, at) {
             return true;
         }
-        // What the element declares is already the target, so ending is a removal: the blend at the
-        // end equals the plain reading of the declaration. What is not declared on the element is
-        // written out here, so the frame after a landing is identical to the one it landed in.
-        land(tree, sought, *leaf, &motioning.moving);
-        // Two reports for one arrival, and they answer different questions: the element settled,
-        // and this motion is the one that ended.
-        drift.landed.insert(*leaf);
-        drift.finished.insert(motioning.tween);
-        debug!(leaf = leaf.id(), tween = motioning.tween.0, "tween landed");
         ended.push(motioning.within);
         false
     });

@@ -90,154 +90,159 @@
 <a href=#90 id=90 data-nosnippet>90</a><span class="kw">impl </span>Icon {
 <a href=#91 id=91 data-nosnippet>91</a>    <span class="doccomment">/// A mark drawing the registered `field`, filled with [`Palette::Ink`] -- what is read against a
 <a href=#92 id=92 data-nosnippet>92</a>    /// surface rather than drawn as one, which is what a mark beside a label is.
-<a href=#93 id=93 data-nosnippet>93</a>    </span><span class="kw">pub fn </span>new(field: Field) -&gt; <span class="self">Self </span>{
-<a href=#94 id=94 data-nosnippet>94</a>        <span class="self">Self </span>{
-<a href=#95 id=95 data-nosnippet>95</a>            placement: Placement::default(),
-<a href=#96 id=96 data-nosnippet>96</a>            field,
-<a href=#97 id=97 data-nosnippet>97</a>            fill: Fill::Role(Palette::Ink),
-<a href=#98 id=98 data-nosnippet>98</a>        }
-<a href=#99 id=99 data-nosnippet>99</a>    }
-<a href=#100 id=100 data-nosnippet>100</a>
-<a href=#101 id=101 data-nosnippet>101</a>    <span class="doccomment">/// What the mark is filled with: a [`Palette`] role, or a [`Color`](crate::Color) stated
-<a href=#102 id=102 data-nosnippet>102</a>    /// outright.
-<a href=#103 id=103 data-nosnippet>103</a>    </span><span class="kw">pub fn </span>color(<span class="kw-2">mut </span><span class="self">self</span>, fill: <span class="kw">impl </span>Into&lt;Fill&gt;) -&gt; <span class="self">Self </span>{
-<a href=#104 id=104 data-nosnippet>104</a>        <span class="self">self</span>.fill = fill.into();
-<a href=#105 id=105 data-nosnippet>105</a>        <span class="self">self
-<a href=#106 id=106 data-nosnippet>106</a>    </span>}
-<a href=#107 id=107 data-nosnippet>107</a>}
-<a href=#108 id=108 data-nosnippet>108</a>
-<a href=#109 id=109 data-nosnippet>109</a><span class="kw">impl </span>Places <span class="kw">for </span>Icon {
-<a href=#110 id=110 data-nosnippet>110</a>    <span class="kw">fn </span>placement(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Placement {
-<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.placement
-<a href=#112 id=112 data-nosnippet>112</a>    }
-<a href=#113 id=113 data-nosnippet>113</a>}
-<a href=#114 id=114 data-nosnippet>114</a>
-<a href=#115 id=115 data-nosnippet>115</a><span class="kw">impl </span>Boxed <span class="kw">for </span>Icon {}
-<a href=#116 id=116 data-nosnippet>116</a>
-<a href=#117 id=117 data-nosnippet>117</a><span class="kw">impl </span>Buds <span class="kw">for </span>Icon {
-<a href=#118 id=118 data-nosnippet>118</a>    <span class="kw">fn </span>bud(<span class="self">self</span>, at: Caller) -&gt; Bud {
-<a href=#119 id=119 data-nosnippet>119</a>        Bud {
-<a href=#120 id=120 data-nosnippet>120</a>            chlorophyll: Chlorophyll::Icon,
-<a href=#121 id=121 data-nosnippet>121</a>            pigment: <span class="prelude-val">Some</span>(Pigment::Icon(IconPigment {
-<a href=#122 id=122 data-nosnippet>122</a>                field: <span class="self">self</span>.field,
-<a href=#123 id=123 data-nosnippet>123</a>                fill: <span class="self">self</span>.fill,
-<a href=#124 id=124 data-nosnippet>124</a>            })),
-<a href=#125 id=125 data-nosnippet>125</a>            placement: <span class="self">self</span>.placement,
-<a href=#126 id=126 data-nosnippet>126</a>            at,
-<a href=#127 id=127 data-nosnippet>127</a>            ..Bud::bare()
-<a href=#128 id=128 data-nosnippet>128</a>        }
-<a href=#129 id=129 data-nosnippet>129</a>    }
-<a href=#130 id=130 data-nosnippet>130</a>}
-<a href=#131 id=131 data-nosnippet>131</a>
-<a href=#132 id=132 data-nosnippet>132</a><span class="doccomment">/// What the icon renderer was told.
-<a href=#133 id=133 data-nosnippet>133</a>///
-<a href=#134 id=134 data-nosnippet>134</a>/// Grown alongside [`Chlorophyll::Icon`] and by nothing else, so an element carries both or neither.
-<a href=#135 id=135 data-nosnippet>135</a></span><span class="attr">#[derive(Copy, Clone, Debug, PartialEq)]
-<a href=#136 id=136 data-nosnippet>136</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IconPigment {
-<a href=#137 id=137 data-nosnippet>137</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) field: Field,
-<a href=#138 id=138 data-nosnippet>138</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) fill: Fill,
-<a href=#139 id=139 data-nosnippet>139</a>}
-<a href=#140 id=140 data-nosnippet>140</a>
-<a href=#141 id=141 data-nosnippet>141</a><span class="doccomment">/// One icon, as extraction states it.
-<a href=#142 id=142 data-nosnippet>142</a>///
-<a href=#143 id=143 data-nosnippet>143</a>/// Not the form the vertex buffer takes: where the field sits on the sheet, and how many screen
-<a href=#144 id=144 data-nosnippet>144</a>/// pixels its distance range spans at this size, are both the backend's -- the first because only
-<a href=#145 id=145 data-nosnippet>145</a>/// the backend packs the sheet, the second because it depends on the display's density. What
-<a href=#146 id=146 data-nosnippet>146</a>/// extraction supplies is the box, the fill, and which field.
-<a href=#147 id=147 data-nosnippet>147</a></span><span class="attr">#[derive(Copy, Clone, Debug, PartialEq)]
-<a href=#148 id=148 data-nosnippet>148</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IconInstance {
-<a href=#149 id=149 data-nosnippet>149</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) section: Section,
-<a href=#150 id=150 data-nosnippet>150</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) color: Color,
-<a href=#151 id=151 data-nosnippet>151</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) field: Field,
-<a href=#152 id=152 data-nosnippet>152</a>}
-<a href=#153 id=153 data-nosnippet>153</a>
-<a href=#154 id=154 data-nosnippet>154</a><span class="doccomment">/// Every registered mark's field bytes.
-<a href=#155 id=155 data-nosnippet>155</a>///
-<a href=#156 id=156 data-nosnippet>156</a>/// Held on the engine rather than in the backend because a field is registered before there is a
-<a href=#157 id=157 data-nosnippet>157</a>/// device to hold it: an app names its marks at boot, and the surface arrives when the platform
-<a href=#158 id=158 data-nosnippet>158</a>/// resumes. The backend packs what is here onto its sheet the first time it draws one.
-<a href=#159 id=159 data-nosnippet>159</a></span><span class="attr">#[derive(Default)]
-<a href=#160 id=160 data-nosnippet>160</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Fields {
-<a href=#161 id=161 data-nosnippet>161</a>    <span class="doccomment">/// A slot per name. Empty where a name was handed out for a field that has not arrived yet: an
-<a href=#162 id=162 data-nosnippet>162</a>    /// element drawing one occupies its box and draws nothing until it does, exactly as a picture
-<a href=#163 id=163 data-nosnippet>163</a>    /// whose pixels are still coming does.
-<a href=#164 id=164 data-nosnippet>164</a>    </span>marks: Vec&lt;<span class="prelude-ty">Option</span>&lt;Mark&gt;&gt;,
-<a href=#165 id=165 data-nosnippet>165</a>}
-<a href=#166 id=166 data-nosnippet>166</a>
-<a href=#167 id=167 data-nosnippet>167</a><span class="doccomment">/// One registered mark: the field itself, and what the shader needs to read it.
-<a href=#168 id=168 data-nosnippet>168</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Mark {
-<a href=#169 id=169 data-nosnippet>169</a>    <span class="doccomment">/// The field, `side` by `side` texels of RGBA, row-major.
-<a href=#170 id=170 data-nosnippet>170</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) field: Vec&lt;u8&gt;,
-<a href=#171 id=171 data-nosnippet>171</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) side: u32,
-<a href=#172 id=172 data-nosnippet>172</a>    <span class="doccomment">/// How many texels the baked distance range spans. What turns a sampled distance into a
-<a href=#173 id=173 data-nosnippet>173</a>    /// screen-space edge one pixel wide at whatever size the mark is drawn.
-<a href=#174 id=174 data-nosnippet>174</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) range: f32,
-<a href=#175 id=175 data-nosnippet>175</a>}
-<a href=#176 id=176 data-nosnippet>176</a>
-<a href=#177 id=177 data-nosnippet>177</a><span class="kw">impl </span>Fields {
-<a href=#178 id=178 data-nosnippet>178</a>    <span class="doccomment">/// Fills a name with a field the program stated.
-<a href=#179 id=179 data-nosnippet>179</a>    ///
-<a href=#180 id=180 data-nosnippet>180</a>    /// # Panics
-<a href=#181 id=181 data-nosnippet>181</a>    ///
-<a href=#182 id=182 data-nosnippet>182</a>    /// If the field is smaller than `side` by `side` texels of RGBA.
-<a href=#183 id=183 data-nosnippet>183</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>register(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: Field, field: <span class="kw-2">&amp;</span>[u8], side: u32, range: f32) {
-<a href=#184 id=184 data-nosnippet>184</a>        <span class="macro">assert!</span>(
-<a href=#185 id=185 data-nosnippet>185</a>            side &gt; <span class="number">0 </span>&amp;&amp; field.len() <span class="kw">as </span>u32 &gt;= side * side * <span class="number">4</span>,
-<a href=#186 id=186 data-nosnippet>186</a>            <span class="string">"an icon field is {side}x{side} texels of RGBA, which is {} bytes, and {} were given"</span>,
-<a href=#187 id=187 data-nosnippet>187</a>            side * side * <span class="number">4</span>,
-<a href=#188 id=188 data-nosnippet>188</a>            field.len(),
-<a href=#189 id=189 data-nosnippet>189</a>        );
-<a href=#190 id=190 data-nosnippet>190</a>        <span class="kw-2">*</span><span class="self">self</span>.slot(name) = <span class="prelude-val">Some</span>(Mark {
-<a href=#191 id=191 data-nosnippet>191</a>            field: field.to_vec(),
-<a href=#192 id=192 data-nosnippet>192</a>            side,
-<a href=#193 id=193 data-nosnippet>193</a>            range: range.max(<span class="number">1.0</span>),
-<a href=#194 id=194 data-nosnippet>194</a>        });
-<a href=#195 id=195 data-nosnippet>195</a>        <span class="macro">info!</span>(field = name.<span class="number">0</span>, side, range, <span class="string">"icon registered"</span>);
-<a href=#196 id=196 data-nosnippet>196</a>    }
-<a href=#197 id=197 data-nosnippet>197</a>
-<a href=#198 id=198 data-nosnippet>198</a>    <span class="doccomment">/// Fills a name with a field that was read.
-<a href=#199 id=199 data-nosnippet>199</a>    ///
-<a href=#200 id=200 data-nosnippet>200</a>    /// Refuses rather than asserts, for the reason a fetched font is refused rather than panicked
-<a href=#201 id=201 data-nosnippet>201</a>    /// on: what arrived from a path or a URL is not something the program stated.
-<a href=#202 id=202 data-nosnippet>202</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fill(
-<a href=#203 id=203 data-nosnippet>203</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#204 id=204 data-nosnippet>204</a>        field: Field,
-<a href=#205 id=205 data-nosnippet>205</a>        bytes: <span class="kw-2">&amp;</span>[u8],
-<a href=#206 id=206 data-nosnippet>206</a>        side: u32,
-<a href=#207 id=207 data-nosnippet>207</a>        range: f32,
-<a href=#208 id=208 data-nosnippet>208</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
-<a href=#209 id=209 data-nosnippet>209</a>        <span class="kw">if </span>side == <span class="number">0 </span>|| (bytes.len() <span class="kw">as </span>u32) &lt; side * side * <span class="number">4 </span>{
-<a href=#210 id=210 data-nosnippet>210</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-<a href=#211 id=211 data-nosnippet>211</a>                <span class="string">"a {side}x{side} field is {} bytes of RGBA, and {} arrived"</span>,
-<a href=#212 id=212 data-nosnippet>212</a>                side * side * <span class="number">4</span>,
-<a href=#213 id=213 data-nosnippet>213</a>                bytes.len()
-<a href=#214 id=214 data-nosnippet>214</a>            ));
-<a href=#215 id=215 data-nosnippet>215</a>        }
-<a href=#216 id=216 data-nosnippet>216</a>        <span class="kw-2">*</span><span class="self">self</span>.slot(field) = <span class="prelude-val">Some</span>(Mark {
-<a href=#217 id=217 data-nosnippet>217</a>            field: bytes.to_vec(),
-<a href=#218 id=218 data-nosnippet>218</a>            side,
-<a href=#219 id=219 data-nosnippet>219</a>            range: range.max(<span class="number">1.0</span>),
-<a href=#220 id=220 data-nosnippet>220</a>        });
-<a href=#221 id=221 data-nosnippet>221</a>        <span class="macro">info!</span>(field = field.<span class="number">0</span>, side, range, <span class="string">"icon registered"</span>);
-<a href=#222 id=222 data-nosnippet>222</a>        <span class="prelude-val">Ok</span>(())
-<a href=#223 id=223 data-nosnippet>223</a>    }
-<a href=#224 id=224 data-nosnippet>224</a>
-<a href=#225 id=225 data-nosnippet>225</a>    <span class="doccomment">/// Where `field`'s mark goes, growing to reach it.
-<a href=#226 id=226 data-nosnippet>226</a>    ///
-<a href=#227 id=227 data-nosnippet>227</a>    /// Names come from [`Naming`](crate::naming::Naming) rather than from this registry, so that one
-<a href=#228 id=228 data-nosnippet>228</a>    /// can be taken where the registry is out of reach. A name that has not been filled draws
-<a href=#229 id=229 data-nosnippet>229</a>    /// nothing, which is what any unfilled name does.
-<a href=#230 id=230 data-nosnippet>230</a>    </span><span class="kw">fn </span>slot(<span class="kw-2">&amp;mut </span><span class="self">self</span>, field: Field) -&gt; <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;Mark&gt; {
-<a href=#231 id=231 data-nosnippet>231</a>        <span class="kw">let </span>index = field.<span class="number">0 </span><span class="kw">as </span>usize;
-<a href=#232 id=232 data-nosnippet>232</a>        <span class="kw">if </span>index &gt;= <span class="self">self</span>.marks.len() {
-<a href=#233 id=233 data-nosnippet>233</a>            <span class="self">self</span>.marks.resize_with(index + <span class="number">1</span>, || <span class="prelude-val">None</span>);
-<a href=#234 id=234 data-nosnippet>234</a>        }
-<a href=#235 id=235 data-nosnippet>235</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.marks[index]
-<a href=#236 id=236 data-nosnippet>236</a>    }
-<a href=#237 id=237 data-nosnippet>237</a>
-<a href=#238 id=238 data-nosnippet>238</a>    <span class="doccomment">/// The mark `field` names, or `None` where it named nothing or has yet to arrive.
-<a href=#239 id=239 data-nosnippet>239</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark(<span class="kw-2">&amp;</span><span class="self">self</span>, field: Field) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Mark&gt; {
-<a href=#240 id=240 data-nosnippet>240</a>        <span class="self">self</span>.marks.get(field.<span class="number">0 </span><span class="kw">as </span>usize)<span class="question-mark">?</span>.as_ref()
+<a href=#93 id=93 data-nosnippet>93</a>    ///
+<a href=#94 id=94 data-nosnippet>94</a>    /// So a gesture over it passes through to the surface unless it says
+<a href=#95 id=95 data-nosnippet>95</a>    /// [`interactive`](crate::Place::interactive) or [`tangible`](crate::Place::tangible).
+<a href=#96 id=96 data-nosnippet>96</a>    </span><span class="kw">pub fn </span>new(field: Field) -&gt; <span class="self">Self </span>{
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="self">Self </span>{
+<a href=#98 id=98 data-nosnippet>98</a>            placement: Placement::mark(),
+<a href=#99 id=99 data-nosnippet>99</a>            field,
+<a href=#100 id=100 data-nosnippet>100</a>            fill: Fill::Role(Palette::Ink),
+<a href=#101 id=101 data-nosnippet>101</a>        }
+<a href=#102 id=102 data-nosnippet>102</a>    }
+<a href=#103 id=103 data-nosnippet>103</a>
+<a href=#104 id=104 data-nosnippet>104</a>    <span class="doccomment">/// What the mark is filled with: a [`Palette`] role, or a [`Color`](crate::Color) stated
+<a href=#105 id=105 data-nosnippet>105</a>    /// outright.
+<a href=#106 id=106 data-nosnippet>106</a>    </span><span class="kw">pub fn </span>color(<span class="kw-2">mut </span><span class="self">self</span>, fill: <span class="kw">impl </span>Into&lt;Fill&gt;) -&gt; <span class="self">Self </span>{
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="self">self</span>.fill = fill.into();
+<a href=#108 id=108 data-nosnippet>108</a>        <span class="self">self
+<a href=#109 id=109 data-nosnippet>109</a>    </span>}
+<a href=#110 id=110 data-nosnippet>110</a>}
+<a href=#111 id=111 data-nosnippet>111</a>
+<a href=#112 id=112 data-nosnippet>112</a><span class="kw">impl </span>Places <span class="kw">for </span>Icon {
+<a href=#113 id=113 data-nosnippet>113</a>    <span class="kw">fn </span>placement(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Placement {
+<a href=#114 id=114 data-nosnippet>114</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.placement
+<a href=#115 id=115 data-nosnippet>115</a>    }
+<a href=#116 id=116 data-nosnippet>116</a>}
+<a href=#117 id=117 data-nosnippet>117</a>
+<a href=#118 id=118 data-nosnippet>118</a><span class="kw">impl </span>Boxed <span class="kw">for </span>Icon {}
+<a href=#119 id=119 data-nosnippet>119</a>
+<a href=#120 id=120 data-nosnippet>120</a><span class="kw">impl </span>Buds <span class="kw">for </span>Icon {
+<a href=#121 id=121 data-nosnippet>121</a>    <span class="kw">fn </span>bud(<span class="self">self</span>, at: Caller) -&gt; Bud {
+<a href=#122 id=122 data-nosnippet>122</a>        Bud {
+<a href=#123 id=123 data-nosnippet>123</a>            chlorophyll: Chlorophyll::Icon,
+<a href=#124 id=124 data-nosnippet>124</a>            pigment: <span class="prelude-val">Some</span>(Pigment::Icon(IconPigment {
+<a href=#125 id=125 data-nosnippet>125</a>                field: <span class="self">self</span>.field,
+<a href=#126 id=126 data-nosnippet>126</a>                fill: <span class="self">self</span>.fill,
+<a href=#127 id=127 data-nosnippet>127</a>            })),
+<a href=#128 id=128 data-nosnippet>128</a>            placement: <span class="self">self</span>.placement,
+<a href=#129 id=129 data-nosnippet>129</a>            at,
+<a href=#130 id=130 data-nosnippet>130</a>            ..Bud::bare()
+<a href=#131 id=131 data-nosnippet>131</a>        }
+<a href=#132 id=132 data-nosnippet>132</a>    }
+<a href=#133 id=133 data-nosnippet>133</a>}
+<a href=#134 id=134 data-nosnippet>134</a>
+<a href=#135 id=135 data-nosnippet>135</a><span class="doccomment">/// What the icon renderer was told.
+<a href=#136 id=136 data-nosnippet>136</a>///
+<a href=#137 id=137 data-nosnippet>137</a>/// Grown alongside [`Chlorophyll::Icon`] and by nothing else, so an element carries both or neither.
+<a href=#138 id=138 data-nosnippet>138</a></span><span class="attr">#[derive(Copy, Clone, Debug, PartialEq)]
+<a href=#139 id=139 data-nosnippet>139</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IconPigment {
+<a href=#140 id=140 data-nosnippet>140</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) field: Field,
+<a href=#141 id=141 data-nosnippet>141</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) fill: Fill,
+<a href=#142 id=142 data-nosnippet>142</a>}
+<a href=#143 id=143 data-nosnippet>143</a>
+<a href=#144 id=144 data-nosnippet>144</a><span class="doccomment">/// One icon, as extraction states it.
+<a href=#145 id=145 data-nosnippet>145</a>///
+<a href=#146 id=146 data-nosnippet>146</a>/// Not the form the vertex buffer takes: where the field sits on the sheet, and how many screen
+<a href=#147 id=147 data-nosnippet>147</a>/// pixels its distance range spans at this size, are both the backend's -- the first because only
+<a href=#148 id=148 data-nosnippet>148</a>/// the backend packs the sheet, the second because it depends on the display's density. What
+<a href=#149 id=149 data-nosnippet>149</a>/// extraction supplies is the box, the fill, and which field.
+<a href=#150 id=150 data-nosnippet>150</a></span><span class="attr">#[derive(Copy, Clone, Debug, PartialEq)]
+<a href=#151 id=151 data-nosnippet>151</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>IconInstance {
+<a href=#152 id=152 data-nosnippet>152</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) section: Section,
+<a href=#153 id=153 data-nosnippet>153</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) color: Color,
+<a href=#154 id=154 data-nosnippet>154</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) field: Field,
+<a href=#155 id=155 data-nosnippet>155</a>    <span class="doccomment">/// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+<a href=#156 id=156 data-nosnippet>156</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) pose: <span class="kw">crate</span>::pose::Affine,
+<a href=#157 id=157 data-nosnippet>157</a>}
+<a href=#158 id=158 data-nosnippet>158</a>
+<a href=#159 id=159 data-nosnippet>159</a><span class="doccomment">/// Every registered mark's field bytes.
+<a href=#160 id=160 data-nosnippet>160</a>///
+<a href=#161 id=161 data-nosnippet>161</a>/// Held on the engine rather than in the backend because a field is registered before there is a
+<a href=#162 id=162 data-nosnippet>162</a>/// device to hold it: an app names its marks at boot, and the surface arrives when the platform
+<a href=#163 id=163 data-nosnippet>163</a>/// resumes. The backend packs what is here onto its sheet the first time it draws one.
+<a href=#164 id=164 data-nosnippet>164</a></span><span class="attr">#[derive(Default)]
+<a href=#165 id=165 data-nosnippet>165</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Fields {
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="doccomment">/// A slot per name. Empty where a name was handed out for a field that has not arrived yet: an
+<a href=#167 id=167 data-nosnippet>167</a>    /// element drawing one occupies its box and draws nothing until it does, exactly as a picture
+<a href=#168 id=168 data-nosnippet>168</a>    /// whose pixels are still coming does.
+<a href=#169 id=169 data-nosnippet>169</a>    </span>marks: Vec&lt;<span class="prelude-ty">Option</span>&lt;Mark&gt;&gt;,
+<a href=#170 id=170 data-nosnippet>170</a>}
+<a href=#171 id=171 data-nosnippet>171</a>
+<a href=#172 id=172 data-nosnippet>172</a><span class="doccomment">/// One registered mark: the field itself, and what the shader needs to read it.
+<a href=#173 id=173 data-nosnippet>173</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Mark {
+<a href=#174 id=174 data-nosnippet>174</a>    <span class="doccomment">/// The field, `side` by `side` texels of RGBA, row-major.
+<a href=#175 id=175 data-nosnippet>175</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) field: Vec&lt;u8&gt;,
+<a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) side: u32,
+<a href=#177 id=177 data-nosnippet>177</a>    <span class="doccomment">/// How many texels the baked distance range spans. What turns a sampled distance into a
+<a href=#178 id=178 data-nosnippet>178</a>    /// screen-space edge one pixel wide at whatever size the mark is drawn.
+<a href=#179 id=179 data-nosnippet>179</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) range: f32,
+<a href=#180 id=180 data-nosnippet>180</a>}
+<a href=#181 id=181 data-nosnippet>181</a>
+<a href=#182 id=182 data-nosnippet>182</a><span class="kw">impl </span>Fields {
+<a href=#183 id=183 data-nosnippet>183</a>    <span class="doccomment">/// Fills a name with a field the program stated.
+<a href=#184 id=184 data-nosnippet>184</a>    ///
+<a href=#185 id=185 data-nosnippet>185</a>    /// # Panics
+<a href=#186 id=186 data-nosnippet>186</a>    ///
+<a href=#187 id=187 data-nosnippet>187</a>    /// If the field is smaller than `side` by `side` texels of RGBA.
+<a href=#188 id=188 data-nosnippet>188</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>register(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: Field, field: <span class="kw-2">&amp;</span>[u8], side: u32, range: f32) {
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="macro">assert!</span>(
+<a href=#190 id=190 data-nosnippet>190</a>            side &gt; <span class="number">0 </span>&amp;&amp; field.len() <span class="kw">as </span>u32 &gt;= side * side * <span class="number">4</span>,
+<a href=#191 id=191 data-nosnippet>191</a>            <span class="string">"an icon field is {side}x{side} texels of RGBA, which is {} bytes, and {} were given"</span>,
+<a href=#192 id=192 data-nosnippet>192</a>            side * side * <span class="number">4</span>,
+<a href=#193 id=193 data-nosnippet>193</a>            field.len(),
+<a href=#194 id=194 data-nosnippet>194</a>        );
+<a href=#195 id=195 data-nosnippet>195</a>        <span class="kw-2">*</span><span class="self">self</span>.slot(name) = <span class="prelude-val">Some</span>(Mark {
+<a href=#196 id=196 data-nosnippet>196</a>            field: field.to_vec(),
+<a href=#197 id=197 data-nosnippet>197</a>            side,
+<a href=#198 id=198 data-nosnippet>198</a>            range: range.max(<span class="number">1.0</span>),
+<a href=#199 id=199 data-nosnippet>199</a>        });
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="macro">info!</span>(field = name.<span class="number">0</span>, side, range, <span class="string">"icon registered"</span>);
+<a href=#201 id=201 data-nosnippet>201</a>    }
+<a href=#202 id=202 data-nosnippet>202</a>
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="doccomment">/// Fills a name with a field that was read.
+<a href=#204 id=204 data-nosnippet>204</a>    ///
+<a href=#205 id=205 data-nosnippet>205</a>    /// Refuses rather than asserts, for the reason a fetched font is refused rather than panicked
+<a href=#206 id=206 data-nosnippet>206</a>    /// on: what arrived from a path or a URL is not something the program stated.
+<a href=#207 id=207 data-nosnippet>207</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fill(
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#209 id=209 data-nosnippet>209</a>        field: Field,
+<a href=#210 id=210 data-nosnippet>210</a>        bytes: <span class="kw-2">&amp;</span>[u8],
+<a href=#211 id=211 data-nosnippet>211</a>        side: u32,
+<a href=#212 id=212 data-nosnippet>212</a>        range: f32,
+<a href=#213 id=213 data-nosnippet>213</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), String&gt; {
+<a href=#214 id=214 data-nosnippet>214</a>        <span class="kw">if </span>side == <span class="number">0 </span>|| (bytes.len() <span class="kw">as </span>u32) &lt; side * side * <span class="number">4 </span>{
+<a href=#215 id=215 data-nosnippet>215</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
+<a href=#216 id=216 data-nosnippet>216</a>                <span class="string">"a {side}x{side} field is {} bytes of RGBA, and {} arrived"</span>,
+<a href=#217 id=217 data-nosnippet>217</a>                side * side * <span class="number">4</span>,
+<a href=#218 id=218 data-nosnippet>218</a>                bytes.len()
+<a href=#219 id=219 data-nosnippet>219</a>            ));
+<a href=#220 id=220 data-nosnippet>220</a>        }
+<a href=#221 id=221 data-nosnippet>221</a>        <span class="kw-2">*</span><span class="self">self</span>.slot(field) = <span class="prelude-val">Some</span>(Mark {
+<a href=#222 id=222 data-nosnippet>222</a>            field: bytes.to_vec(),
+<a href=#223 id=223 data-nosnippet>223</a>            side,
+<a href=#224 id=224 data-nosnippet>224</a>            range: range.max(<span class="number">1.0</span>),
+<a href=#225 id=225 data-nosnippet>225</a>        });
+<a href=#226 id=226 data-nosnippet>226</a>        <span class="macro">info!</span>(field = field.<span class="number">0</span>, side, range, <span class="string">"icon registered"</span>);
+<a href=#227 id=227 data-nosnippet>227</a>        <span class="prelude-val">Ok</span>(())
+<a href=#228 id=228 data-nosnippet>228</a>    }
+<a href=#229 id=229 data-nosnippet>229</a>
+<a href=#230 id=230 data-nosnippet>230</a>    <span class="doccomment">/// Where `field`'s mark goes, growing to reach it.
+<a href=#231 id=231 data-nosnippet>231</a>    ///
+<a href=#232 id=232 data-nosnippet>232</a>    /// Names come from [`Naming`](crate::naming::Naming) rather than from this registry, so that one
+<a href=#233 id=233 data-nosnippet>233</a>    /// can be taken where the registry is out of reach. A name that has not been filled draws
+<a href=#234 id=234 data-nosnippet>234</a>    /// nothing, which is what any unfilled name does.
+<a href=#235 id=235 data-nosnippet>235</a>    </span><span class="kw">fn </span>slot(<span class="kw-2">&amp;mut </span><span class="self">self</span>, field: Field) -&gt; <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;Mark&gt; {
+<a href=#236 id=236 data-nosnippet>236</a>        <span class="kw">let </span>index = field.<span class="number">0 </span><span class="kw">as </span>usize;
+<a href=#237 id=237 data-nosnippet>237</a>        <span class="kw">if </span>index &gt;= <span class="self">self</span>.marks.len() {
+<a href=#238 id=238 data-nosnippet>238</a>            <span class="self">self</span>.marks.resize_with(index + <span class="number">1</span>, || <span class="prelude-val">None</span>);
+<a href=#239 id=239 data-nosnippet>239</a>        }
+<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.marks[index]
 <a href=#241 id=241 data-nosnippet>241</a>    }
-<a href=#242 id=242 data-nosnippet>242</a>}
+<a href=#242 id=242 data-nosnippet>242</a>
+<a href=#243 id=243 data-nosnippet>243</a>    <span class="doccomment">/// The mark `field` names, or `None` where it named nothing or has yet to arrive.
+<a href=#244 id=244 data-nosnippet>244</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mark(<span class="kw-2">&amp;</span><span class="self">self</span>, field: Field) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Mark&gt; {
+<a href=#245 id=245 data-nosnippet>245</a>        <span class="self">self</span>.marks.get(field.<span class="number">0 </span><span class="kw">as </span>usize)<span class="question-mark">?</span>.as_ref()
+<a href=#246 id=246 data-nosnippet>246</a>    }
+<a href=#247 id=247 data-nosnippet>247</a>}
 </code></pre></div></section></main></body></html>

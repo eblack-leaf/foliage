@@ -61,6 +61,19 @@ soft keyboard and the URL handler, is called only by `photosynthesize`, so no te
 clipboard, the keyboard or the browser of whoever runs it; the edges are tested at the seam, where
 what they would do is engine state.
 
+## The same doors, public
+
+The `Greenhouse` is these doors opened to an app's own tests ([Testing an app](../usage/testing.md)).
+It holds a grove and a registered `Root`. Its input methods push the same `Input` values onto the
+same queue. Its clock is the same `Clock::advance`. Its `frame` is `fern::run` with the app's turn
+in it. Whether a frame is owed is one question, `Grove::owed`, asked by both the loop and the
+greenhouse's `settle`.
+
+Its `render` reaches step 9 as well. `Ginkgo` can target a texture instead of a surface. The
+greenhouse builds one on first use, states the whole tree to fresh renderers (a recut, then one
+extraction), draws, and reads the texture back. After that, every frame's batch is absorbed as a
+window's would be.
+
 ## What a test looks like
 
 Tests are named as the rule they hold, and most carry a comment saying why the rule exists:
@@ -188,7 +201,9 @@ real page fails CI.
 ## What is not proven here
 
 The translation from platform events into `Input` (the whole of `photosynthesize.rs`'s
-`window_event`), the surface, and the pixels. Those are answered for by the site running on the web,
+`window_event`) and the surface. The pixels can be drawn offscreen and read back by the greenhouse
+(`foliage/tests/greenhouse.rs`), wherever the machine has an adapter. A CI runner with none skips
+that check instead of failing it. The rest is answered for by the site running on the web,
 by the examples building on three desktops, by the Android build being checked and run on an
 emulator, and by the `stress` example under a real surface. None of that is a test in CI, which is
 why the translation layer is kept as thin as it is: everything past it is on the one path the suite

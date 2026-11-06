@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-c59f2531.js"></script>
+        <script src="toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -290,7 +290,6 @@ impl Root for Counter {
             Text::new("count 0")
                 .color(Palette::Accent.on())
                 .font_size(FontSize::new().xs(14))
-                .intangible()
                 .at(Location::new().xs(
                     center_x(50.pct()).width(content()),
                     center_y(50.pct()).height(content()),
@@ -382,20 +381,22 @@ grammar properly.</p>
 <p><code>50.pct()</code> is half of the button’s width, measured from the button’s left edge, so the label is
 centred on it. <code>content()</code> is the label’s own measured size: as wide as its text, and as tall as
 the text turned out.</p>
-<h2 id="interactive-and-intangible-who-takes-the-press"><a class="header" href="#interactive-and-intangible-who-takes-the-press"><code>interactive</code> and <code>intangible</code>: who takes the press</a></h2>
+<h2 id="interactive-who-takes-the-press"><a class="header" href="#interactive-who-takes-the-press"><code>interactive</code>: who takes the press</a></h2>
 <p>A press goes to whatever is on top at that point. The label is on top of the button (it was grown
-under it, so it sits in front of it), which means that without anything said, a press on the
-label’s pixels would land on the label.</p>
-<p>Two declarations settle it:</p>
+under it, so it sits in front of it), but it is text, and text is a <em>mark</em>: something drawn on a
+surface rather than a surface itself. A gesture over a mark passes through to what it is drawn on,
+so a press on the label’s pixels is a press on the button.</p>
+<p><code>interactive()</code> on the button says it <strong>receives</strong> gestures. It is what <code>clicked</code> can report, and
+what focus can rest on.</p>
+<p>A surface (a panel, an image, a stem) stops a gesture instead. One on top that did not say
+<code>interactive()</code> <strong>eats</strong> the press: nothing receives it, and nothing behind it does either. That is
+the right answer for a backdrop or a sheet. Both defaults can be turned round:</p>
 <ul>
-<li><code>interactive()</code> on the button says it <strong>receives</strong> gestures. It is what <code>clicked</code> can report,
-and what focus can rest on.</li>
-<li><code>intangible()</code> on the label says a gesture over it <strong>passes through</strong> to whatever is beneath.</li>
+<li><code>intangible()</code> makes a surface pass presses through, which is what a highlight drawn over a
+button wants.</li>
+<li><code>tangible()</code> makes a mark stop them like a surface, and <code>interactive()</code> on a mark makes it take
+them itself.</li>
 </ul>
-<p>An element on top that says neither <strong>eats</strong> the press: nothing receives it, and nothing behind it
-does either. That is the right answer for a backdrop or a sheet, and the wrong one for a label
-drawn over a button. Try deleting <code>.intangible()</code> and pressing the middle of the button: only the
-rim still counts.</p>
 <h2 id="frame-answering"><a class="header" href="#frame-answering"><code>frame</code>: answering</a></h2>
 <pre><code class="language-rust ignore">fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
     if pollen.clicked(self.button) {
@@ -987,10 +988,12 @@ text (unwrapped across, as it wrapped down), and how far its children reach (rig
 edge, or down from its top). <strong>Only children that describe their own extent on that axis are
 counted</strong>: a child placed in pixels, in letters, or by its own content – and down, by any
 horizontal reading, since widths have settled by then. A child whose placement reads <em>another</em> box
-on that axis (a percentage of its trunk, a track of its trunk’s grid, an anchor’s edge) is asking
-how large something else is, so it cannot be what decides how large this is. It is left out of the
-measure and given its real place afterwards, which is what lets one child size a box that another
-child fills.</p>
+on that axis (a percentage of its trunk, a track of its trunk’s grid) is asking how large something
+else is, so it cannot be what decides how large this is. It is left out of the measure and given
+its real place afterwards, which is what lets one child size a box that another child fills.</p>
+<p>A child that reads its <strong>anchor</strong> counts too, when the anchor is grown under the same element and
+counts itself. The measure has already found where that anchor reaches, so <code>top(anchor().bottom() + 8.px())</code> is as well known as <code>top(40.px())</code>. Anchored to something elsewhere in the tree, it is left
+out as before.</p>
 <p>So a box <em>can</em> be sized to children at known offsets. A badge that hugs its label, with the label
 held two letters in from either side and 6 pixels from the top and bottom:</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Boxed, FontSize, Grove, Grow, Leaf, Location, Palette, Panel, Place, Rounding, Source, Text, content, left, top};
@@ -1028,10 +1031,37 @@ so a right margin is <code>content() + 2.letters()</code> and a bottom one is <c
 why the badge declares the label’s <code>font_size</code>: its two letters of margin are the label’s two. An
 element that names no font and no size has no cell and reads zero for every letter.</li>
 </ul>
-<p>A stack of things of unknown height, each placed under the last with an anchor, is the case that
-cannot be measured this way. Frame it the way the card does, with a sibling anchored to the last
-element, or put it in a scrolling region, whose extent is measured from wherever its children
-landed (<a href="#scrolling">Scrolling</a>).</p>
+<h3 id="a-stack-of-unknown-height"><a class="header" href="#a-stack-of-unknown-height">A stack of unknown height</a></h3>
+<p>The same rule measures a stack: things of unknown height, each placed under the last with an
+anchor, in a box as tall as where the last one stops. Rewrite or resize anything in it and
+everything after it moves, and the box with them, in that frame.</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Boxed, Grove, Grow, Leaf, Location, Place, Source, Stem, Text, anchor, center_y, content, left, top};
+</span><span class="boring">fn f(grove: &amp;mut Grove, page: Leaf) {
+</span>// As tall as what it holds, and centred in the page by that height.
+let column = grove.branch(
+    page,
+    Stem::new().at(Location::new().xs(
+        left(24.px()).width(320.px()),
+        center_y(50.pct()).height(content()),
+    )),
+);
+let title = grove.branch(
+    column,
+    Text::new("A title that may wrap")
+        .at(Location::new().xs(left(0.px()).width(100.pct()), top(0.px()).height(content()))),
+);
+grove.branch(
+    column,
+    Text::new("A paragraph of any length, under the title wherever it ended.")
+        .anchored(title)
+        .at(Location::new().xs(
+            left(0.px()).width(100.pct()),
+            top(anchor().bottom() + 12.px()).height(content()),
+        )),
+);
+<span class="boring">}</span></code></pre>
+<p>The same works across, for a row of parts each placed <code>left(anchor().right() + gap)</code>. An anchored
+part can’t hold its box open with a percentage of its trunk on that axis, for the reason above.</p>
 <h2 id="elevation"><a class="header" href="#elevation">Elevation</a></h2>
 <p>Where an element sits in depth is relative to its trunk:</p>
 <pre><code class="language-rust ignore">Panel::new().elevate(Elevation::up(2))   // two steps in front of its trunk
@@ -1073,6 +1103,34 @@ eases it there or back.</p>
 grove.animate(row, Motion::Shift(Position::default()), Timing::ms(450));</code></pre>
 <p>It is for a moment’s displacement – something tugged, nudged or shaken – without restating where
 it stands. An element that belongs somewhere else is given a new placement.</p>
+<p>Three more are drawn aside the same way: they are draw-time, carried by everything grown under the
+element, and cost no layout.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Verb</th><th>Draws it</th><th>Moved by</th></tr>
+</thead>
+<tbody>
+<tr><td><code>slide(leaf, by)</code></td><td><code>by</code> its own widths and heights from where it was placed, added to any shift</td><td><code>Motion::Slide</code></td></tr>
+<tr><td><code>turn(leaf, radians)</code></td><td>turned clockwise about its middle</td><td><code>Motion::Turn</code></td></tr>
+<tr><td><code>scale(leaf, scale)</code></td><td>at a multiple of its size, about its middle</td><td><code>Motion::Scale</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Each also has a spelling on the seed (<code>.slide(..)</code>, <code>.turn(..)</code>, <code>.scale(..)</code>).</p>
+<ul>
+<li><strong>Slide</strong> is the shift to reach for when the distance is the element’s own size: a sheet out by
+exactly its width, however wide it came out.</li>
+<li><strong>Turn and scale</strong> compose down the tree. A card scaled to <code>0.97</code> on a press scales its text and
+its marks with it, about the card’s middle, and a mark turned inside it turns about its own middle
+within that.</li>
+<li><strong>Hit-testing:</strong> a press is tested in the element’s own upright space, so it lands where the
+element is drawn, and <code>clicked_within</code> reports a point in the element’s own box.</li>
+<li><strong><code>Vein::Drawn</code></strong> stays the upright box: a turn and a scale are applied about it, not to it.</li>
+</ul>
+<pre><code class="language-rust ignore">// Pressed in, then back.
+grove.animate(card, Motion::Scale(0.97), Timing::ms(90));
+grove.animate(card, Motion::Scale(1.0), Timing::ms(160).after(90).ease(Ease::Decelerate));</code></pre>
 <h2 id="lines"><a class="header" href="#lines">Lines</a></h2>
 <p>A <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Line.html"><code>Line</code></a> has no box to
 state. It has two ends, and each end is a
@@ -1642,6 +1700,10 @@ that the hundredth column is exactly a hundred cells in.</p>
 <p>Both <code>font</code> and <code>font_size</code> are on every element, not only on text. A font and a size are what
 give an element a character cell, and <code>letters</code> counts the element’s <em>own</em> cells, so a panel meant
 to be eight characters wide states a size to be eight characters of.</p>
+<p>Both can be changed after an element is grown, with <code>grove.font_size(leaf, ..)</code> and
+<code>grove.face(leaf, font)</code>. The run is shaped again and measured in the same frame, so whatever is
+sized to it, or placed in its letters, is right on the frame the size changed. A field is set
+throughout: its value, its hint and its caret.</p>
 <h2 id="sizing-text"><a class="header" href="#sizing-text">Sizing text</a></h2>
 <p>In a width role, <code>content()</code> is the widest the run would like to be: its longest line, unwrapped.
 In a height role it is how tall the run came out at the width it was given. Those two combine into
@@ -1796,9 +1858,10 @@ what it can turn into, how focus moves, and how keys arrive.</p>
 <h2 id="two-questions"><a class="header" href="#two-questions">Two questions</a></h2>
 <p>A press raises two questions, and foliage answers them separately:</p>
 <ol>
-<li><strong>What is at this point?</strong> Every element that is shown and not clipped away is in the <em>box
-stack</em> at the points it covers, whatever it draws and whatever it declared. This is geometry,
-and nothing opts in.</li>
+<li><strong>What is at this point?</strong> Every surface that is shown and not clipped away is in the <em>box
+stack</em> at the points it covers, whatever it draws. This is geometry, and nothing opts in.
+<em>Marks</em> (text, icons, polygons and lines) are drawn on something, and a gesture over one passes
+through to it unless the mark says otherwise.</li>
 <li><strong>Who receives it?</strong> Only an element that declared
 <a href="https://eblack-leaf.github.io/foliage/api/foliage/trait.Place.html#method.interactive"><code>interactive</code></a>.</li>
 </ol>
@@ -1812,16 +1875,18 @@ there, and what that element declared decides what happens:</p>
 <tbody>
 <tr><td><code>interactive()</code></td><td>It receives the gesture, and focus can rest on it</td></tr>
 <tr><td><code>intangible()</code></td><td>The gesture passes through to whatever is beneath it</td></tr>
-<tr><td>neither</td><td>It <strong>eats</strong> the gesture: nothing receives it</td></tr>
+<tr><td>neither, on a surface</td><td>It <strong>eats</strong> the gesture: nothing receives it</td></tr>
+<tr><td>neither, on a mark</td><td>The gesture passes through, as for <code>intangible()</code></td></tr>
+<tr><td><code>tangible()</code>, on a mark</td><td>It eats the gesture, as a surface does</td></tr>
 </tbody>
 </table>
 </div>
 <p>The engine never searches down the stack for something willing to take a press. A search would
 have to decide, at each element it passed, whether that element is part of what it covers or a
 layer over it, and at a single point those are the same picture. So the rule is the top, and a
-composite marks its own decoration <code>intangible</code>. A backdrop behind a dialog, the padding of a
-menu, the ground of a sheet: those are the elements that should eat a press, and they do so by
-declaring nothing.</p>
+composite marks the surfaces it draws as decoration <code>intangible</code>; its text and icons pass presses
+through already. A backdrop behind a dialog, the padding of a menu, the ground of a sheet: those
+are the elements that should eat a press, and they do so by declaring nothing.</p>
 <p>Two more declarations shape how an element meets a hand:</p>
 <ul>
 <li><code>drags(Axes)</code> says which drags the element takes. Undeclared, it takes none.</li>
@@ -1842,7 +1907,8 @@ stage to the element holding the gesture:</p>
 <ul>
 <li><code>engaged(leaf)</code>: a gesture went down on it and is being held. The hook for a pressed visual.</li>
 <li><code>clicked(leaf)</code>: it ended without ever becoming a drag or a hold. <code>clicked_at(leaf)</code> is where it
-<em>began</em>, which is the point that was hit-tested and therefore the one certainly on the element.
+<em>began</em>, which is the point that was hit-tested and therefore the one certainly on the element,
+and <code>clicked_within(leaf)</code> is the same point measured from the element’s own top-left corner.
 <code>taps(leaf)</code> is how many taps in a row it makes: <code>2</code> for the second of a double, counted when it
 lands on the same element within <code>Taps</code> of the one before. Each tap of a run is reported as it
 lands, so a double tap is a second <code>clicked</code> with a count, not a first one taken back.</li>
@@ -1872,6 +1938,25 @@ was in a list.</p>
 goes and whatever that element declared. That is how an element scrolls like anything else and
 still takes a drag when it wants one, as a text field does to select: it declares no drags, and a
 press held still before moving is a selection.</p>
+<h2 id="where-the-cursor-rests"><a class="header" href="#where-the-cursor-rests">Where the cursor rests</a></h2>
+<p><code>grove.hovered()</code> is the element a press at the cursor would reach, where that is <code>interactive</code>
+and not disabled, and <code>pollen.hovered(leaf)</code> and <code>pollen.unhovered(leaf)</code> report it changing. It
+is read from the same box stack a press is, so it answers the question a person pointing is asking:
+a label over a button hovers the button, and nothing is hovered through a sheet laid over it.</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Grove, Grow, Leaf, Motion, Palette, Pollen, Timing};
+</span><span class="boring">fn f(grove: &amp;mut Grove, pollen: &amp;Pollen, row: Leaf, ground: Leaf) {
+</span>if pollen.hovered(row) {
+    grove.animate(ground, Motion::Opacity(1.0), Timing::ms(160));
+}
+if pollen.unhovered(row) {
+    grove.animate(ground, Motion::Opacity(0.0), Timing::ms(160));
+}
+<span class="boring">}</span></code></pre>
+<p>The engine wakes for a cursor move that would change what is hovered, and for no other, so
+following the cursor this way costs a frame only when there is something new to draw. An element
+hidden, covered or moved from under a cursor that did not move stops being hovered at the end of
+that frame. There is no hover on a touchscreen: a finger has no position between touches, so
+anything that has to be found there is found by pressing it too.</p>
 <h2 id="a-slider"><a class="header" href="#a-slider">A slider</a></h2>
 <pre><code class="language-rust no_run">use foliage::{
     Area, Axes, Boxed, Foliage, Grove, Grow, Key, Leaf, Location, Palette, Panel, Place, Pollen,
@@ -2051,12 +2136,14 @@ declaration to keep in step.</p>
 takes focus away.</li>
 <li><strong><code>Tab</code> and <code>Shift+Tab</code></strong> step to the next and previous element in focus order, and <strong><code>Escape</code></strong>
 takes focus away. The engine answers these three itself, wherever focus is (including nowhere),
-and they are not reported as keys.</li>
+and they are not reported as keys. <code>Escape</code> is reported on its own, as <code>pollen.escaped()</code>.</li>
 <li><strong>The verbs</strong>: <code>grove.focus(leaf)</code>, <code>grove.unfocus()</code>, <code>grove.focus_next()</code> and
 <code>grove.focus_previous()</code>.</li>
 </ul>
 <p>A drag and a hold move focus nowhere, because neither was a tap. And when whatever holds focus is
-hidden, disabled or pruned, focus lets go of it at the end of that frame’s drain.</p>
+hidden, disabled or pruned, focus lets go of it at the end of that frame’s drain. Focus asked for
+in a frame is answered after everything else that frame wrote, so <code>grove.focus(button)</code> and
+<code>grove.visible(drawer, true)</code> can be written in either order.</p>
 <p><code>Pollen::focused</code> and <code>Pollen::unfocused</code> report focus arriving and leaving, and <code>Grove::focused</code>
 says what holds it now. foliage <strong>draws nothing</strong> for focus. A focused element may be a <code>Stem</code>
 with nothing visible at all, so there is no mark the engine could draw that would be right; the
@@ -2102,9 +2189,10 @@ grove.focus(keep);
 </span><span class="boring">}</span></code></pre>
 <p>Tab now cycles between the two buttons and never leaves the dialog. Closing it is the reverse:
 <code>grove.prune(dialog)</code> and <code>grove.enable(page)</code>.</p>
-<p><code>Escape</code> takes focus away rather than being reported, so a dialog that should close on <code>Escape</code>
-watches for focus leaving it: <code>pollen.unfocused(keep)</code> in a frame where <code>grove.focused()</code> is
-<code>None</code>.</p>
+<p><code>Escape</code> takes focus away, and is reported as <code>pollen.escaped()</code> in the same frame as the
+<code>unfocused</code> it causes, so a dialog that should close on <code>Escape</code> reads that while it is open.
+Focus can be anywhere when it is pressed, including nowhere: a press on the dialog’s own ground
+takes focus away, and <code>Escape</code> should still close it.</p>
 <h2 id="keys"><a class="header" href="#keys">Keys</a></h2>
 <p>A key goes to whatever holds focus:</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Grove, Grow, Key, Leaf, Pollen};
@@ -2155,15 +2243,21 @@ reported either to an element or to the root, never both.</p>
 <tbody>
 <tr><td><code>visible(false)</code></td><td>no</td><td>no</td><td>no</td></tr>
 <tr><td><code>disable</code></td><td>yes</td><td><strong>yes</strong></td><td>no: swallows presses, passes scrolling on</td></tr>
-<tr><td><code>opacity(0.0)</code></td><td>nothing to see</td><td>no</td><td>no</td></tr>
+<tr><td><code>opacity(0.0)</code></td><td>no</td><td>no</td><td>no</td></tr>
 </tbody>
 </table>
 </div>
 <p>A disabled element still draws and still blocks, which is what makes it different from
 decoration, and what makes disabling a page enough on its own when a dialog opens over it. A drag
 over a disabled control still scrolls the list it is in, but a disabled region does not scroll.</p>
-<p>A fully transparent element is not there at all. That closes the case of an element faded out that
-went on taking presses. Anything above zero opacity is there and takes presses normally.</p>
+<p>A fully transparent element is not there at all, and neither is anything grown under it. It makes
+no difference where the fade was declared: on the control, on the root of the part it belongs to,
+or on a sheet holding it. Fading something out is enough to be rid of it, and no part’s inner
+structure decides whether a fade leaves an invisible control behind.</p>
+<p>A press target that shows nothing is said by what it draws instead: a <code>Stem</code>, or a panel in a
+clear color (<code>Color::rgba(.., 0.0)</code>), at full opacity. The ground of a row that only shows while
+the row is pointed at is grown under such a target, intangible, and fades in and out on its own
+while the target stays pressable throughout.</p>
 <p>All three are inherited as a product over the whole ancestry, recomputed every frame. An element
 grown under a disabled trunk is disabled on its first frame, and enabling the trunk leaves anything
 disabled in its own right disabled. <code>Vein::Visible</code>, <code>Vein::Disabled</code> and <code>Vein::Opacity</code> read
@@ -2808,6 +2902,9 @@ concept of, and motion an app drives by hand.</p>
 <tr><td><code>Scroll(ScrollTo)</code></td><td>where a region is moved to; the destination re-resolves every frame</td></tr>
 <tr><td><code>Polygon(Shape)</code></td><td>a polygon’s sides, rounding and rotation together</td></tr>
 <tr><td><code>Shift(Position)</code></td><td>how far the element is drawn from where it is placed (<a href="#drawn-aside">Drawn aside</a>)</td></tr>
+<tr><td><code>Slide(Position)</code></td><td>the same, in the element’s own widths and heights</td></tr>
+<tr><td><code>Turn(f32)</code></td><td>how far it is turned about its middle, clockwise in radians</td></tr>
+<tr><td><code>Scale(f32)</code></td><td>how many times its size it is drawn, about its middle</td></tr>
 </tbody>
 </table>
 </div>
@@ -2978,15 +3075,31 @@ fn main() {
 and is pruned. Tap it while it is up and it leaves at once.</p>
 <p>Every step of the chain hangs off the name the step before handed back, and <code>pollen.finished(name)</code>
 is the frame that step ended on. The app never counts frames or reads a clock.</p>
+<h2 id="fading-a-card-whole"><a class="header" href="#fading-a-card-whole">Fading a card whole</a></h2>
+<p>Opacity multiplies down the tree, but each element is faded on its own. A card fading out
+therefore shows its ground through its text, and its rows through each other where they overlap.
+Declare the card <code>together</code> and it is drawn as one picture while it fades, and the picture is
+what fades:</p>
+<pre><code class="language-rust ignore">let card = grove.branch(page, Stem::new().together().at(/* ... */));
+// ... its ground, its text, its rows ...
+grove.animate(card, Motion::Opacity(0.0), Timing::ms(240));</code></pre>
+<p>While it fades, the card is drawn at its own place in the stack. Something grown elsewhere at the
+same elevation no longer sits between its parts, as with a stacking context in CSS. At full
+opacity nothing is drawn apart and it costs nothing. While it fades it costs one picture the size
+of the window, so keep it to what fades as a whole: a card, a sheet, a page coming in.</p>
 <h2 id="ending-a-motion"><a class="header" href="#ending-a-motion">Ending a motion</a></h2>
 <p>A motion ends in one of these ways:</p>
 <ul>
 <li><strong>It runs out.</strong> The element reports <code>pollen.landed(leaf)</code>, and the motion reports
 <code>pollen.finished(tween)</code>. <code>landed</code> says the element settled and not which of its properties did;
 <code>finished</code> says which motion it was.</li>
-<li><strong>Another <code>animate</code> on the same property replaces it</strong>, starting from wherever the element
-currently is rather than where the first motion began, so nothing jumps back.</li>
-<li><strong>A direct write to the property cancels it</strong>, and the element is at what was written. <code>at</code>
+<li><strong>Another <code>animate</code> on the same property replaces it</strong> when that one starts, beginning from
+wherever the element currently is rather than where the first motion began, so nothing jumps
+back. One with no delay starts at once; one with a delay starts when its delay has passed.
+What is asked last is where the property ends up: a new motion drops any still waiting on the
+property that would start no sooner than it does.</li>
+<li><strong>A direct write to the property cancels it</strong>, and anything waiting to take it over, and the
+element is at what was written. <code>at</code>
 cancels a <code>Location</code> motion (and a <code>Trace</code> one, since both are where the element is), <code>color</code>
 cancels a fill motion, <code>opacity</code> an opacity motion, <code>reshape</code> a shape motion, and <code>scroll</code> a
 scroll motion. A write to one property leaves a motion on another alone.</li>
@@ -2995,7 +3108,9 @@ scroll motion. A write to one property leaves a motion on another alone.</li>
 runs this frame.</li>
 <li><strong>Its element withers.</strong></li>
 </ul>
-<p>Only running out and <code>finish</code> report <code>finished</code>. Stopping, replacing, cancelling and withering are
+<p>Only running out and <code>finish</code> report <code>finished</code> (and <code>finish</code> on a motion still waiting out its
+delay puts the element on its target as though it had run). Stopping, replacing, cancelling and
+withering are
 all ways the name stops meaning anything, and a chain hanging off it quietly never runs, which is
 what makes <code>stop</code> the way to break a chain.</p>
 <p><strong>Stopping gives up the duration, not the destination.</strong> A motion stopped half way leaves its
@@ -3009,7 +3124,7 @@ instead of animating, and the arrival motion would simply have been cancelled.</
 <h2 id="timing"><a class="header" href="#timing">Timing</a></h2>
 <pre><code class="language-rust"><span class="boring">use foliage::{Ease, Timing};
 </span>Timing::ms(240)                        // 240 milliseconds, starting now, unshaped
-    .after(60)                         // hold where it is for 60ms first
+    .after(60)                         // wait 60ms before it starts
     .ease(Ease::Decelerate);           // the shape it moves in</code></pre>
 <p>The duration and the shape are independent: one says when a motion is over, and the other says
 where it is on the way. <a href="https://eblack-leaf.github.io/foliage/api/foliage/enum.Ease.html"><code>Ease</code></a>
@@ -3031,9 +3146,21 @@ has three named shapes for the three things a surface does, and a curve for anyt
 <p>Every shape starts exactly where the motion started and ends exactly on its target. A <code>Curve</code> may
 overshoot in between. <code>Ease::at(fraction)</code> is public, for anything built on top of a motion that
 needs to say where it would be part way through.</p>
-<p>A delay is part of the motion, not a queue in front of it: the motion is running from the frame it
-was asked for and holds where it was for the delay, so a write that cancels it cancels it whether
-or not it has started to move.</p>
+<p>A motion with a delay waits without touching anything. Whatever is moving the property goes on
+moving it, and when the delay has passed the new motion takes over from wherever the element has
+got to. So delays on one property chain, and a motion that goes there and comes back is two calls:</p>
+<pre><code class="language-rust"><span class="boring">use foliage::{Ease, Grove, Grow, Leaf, Motion, Position, Timing};
+</span><span class="boring">fn f(grove: &amp;mut Grove, tile: Leaf) {
+</span>// Out to the right and back, as one gesture: the second starts as the first lands.
+grove.animate(tile, Motion::Shift(Position::new(6.0, 0.0)), Timing::ms(120).ease(Ease::Decelerate));
+grove.animate(tile, Motion::Shift(Position::default()), Timing::ms(240).after(120).ease(Ease::Emphasis));
+<span class="boring">}</span></code></pre>
+<p>A chain runs in the order its delays say, so ask for its steps in that order. What is asked
+<em>later</em> and starts <em>sooner</em> is not a step before the waiting ones but a change of mind: a sheet
+asked to fade in after a pause, then asked to fade out now because something else was chosen in
+the meantime, stays faded out. The waiting fade-in is dropped rather than bringing the sheet back
+once its pause is up. A direct write to the property cancels what is waiting as well as what is
+running.</p>
 <h2 id="several-at-once"><a class="header" href="#several-at-once">Several at once</a></h2>
 <p>A <a href="https://eblack-leaf.github.io/foliage/api/foliage/struct.Sequence.html"><code>Sequence</code></a> names a
 group of tweens so that the <em>last</em> of them ending is reported too:</p>
@@ -3105,6 +3232,11 @@ spring. That is written from the clock by hand:</p>
 <p>The engine idles when nothing is owed, and a value an app is moving itself is invisible to it.
 <code>grove.again()</code> asks for one more frame, and calling it every frame for as long as the motion runs
 keeps the loop going for exactly that long.</p>
+<p>A motion that is slow and goes on for a long time does not need every frame the display can show.
+<code>grove.again_in(40)</code> asks for the next frame 40 milliseconds from now instead, and while nothing
+else is owed the loop sleeps until then, so a light drifting across a picture or a clock’s second
+hand runs at the rate it needs and not at the display’s. Anything else that owes a frame still
+runs it at once, and the next one asked for is counted from that frame.</p>
 <p><code>grove.frame_time()</code> is how long the last frame took, on the one clock every tween reads. When the
 machine stalls (it slept, a tab was in the background, a window was dragged) a frame is never told
 more than 100 milliseconds passed, so everything on the clock is deferred by the gap rather than
@@ -4033,6 +4165,91 @@ spans, sees the frame broken into its phases without any instrumentation of the 
 <a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/examples/stress.rs"><code>stress</code></a> example
 does that under load and prints a table of what each phase cost, and
 <a href="#what-a-frame-costs">What a frame costs</a> explains how to read one.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="testing-an-app"><a class="header" href="#testing-an-app">Testing an app</a></h1>
+<p>An app’s [<code>Root</code>] does not know whether a window is around it. The <code>Greenhouse</code> grows the same
+<code>Root</code> with no window: input is written in, time is moved by hand, frames run when the test asks
+for one, and a frame can be drawn to a picture and read back. It is in foliage itself, so an app’s
+own tests need nothing else.</p>
+<pre><code class="language-rust">use foliage::{
+    Area, Boxed, Greenhouse, Grove, Grow, Leaf, Location, Palette, Panel, Place, Pollen, Position,
+    Root, Source, left, top,
+};
+
+struct Counter {
+    button: Leaf,
+    count: u32,
+}
+
+impl Root for Counter {
+    fn take_root(grove: &amp;mut Grove) -&gt; Self {
+        let button = grove.plant(
+            Panel::new()
+                .color(Palette::Accent)
+                .interactive()
+                .at(Location::new().xs(left(20.px()).width(80.px()), top(20.px()).height(40.px()))),
+        );
+        Counter { button, count: 0 }
+    }
+
+    fn frame(&amp;mut self, _grove: &amp;mut Grove, pollen: Pollen) {
+        if pollen.clicked(self.button) {
+            self.count += 1;
+        }
+    }
+}
+
+#[test]
+fn a_click_counts() {
+    let mut house = Greenhouse::&lt;Counter&gt;::new(Area::new(200.0, 100.0));
+    house.frame(); // take_root runs here, as it does in a window's first frame
+    house.tap(Position::new(60.0, 40.0));
+    house.settle(); // frames until nothing more is owed
+    assert_eq!(house.root().count, 1);
+}</code></pre>
+<h2 id="nothing-happens-between-two-lines"><a class="header" href="#nothing-happens-between-two-lines">Nothing happens between two lines</a></h2>
+<p>Every input method queues what a window would have queued, and returns. Nothing is taken in
+until a frame runs, so a test reads the way the loop runs:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Call</th><th>What it is</th></tr>
+</thead>
+<tbody>
+<tr><td><code>frame()</code></td><td>one frame, with the app’s turn in it. Hands back the <code>Pollen</code> the app was given</td></tr>
+<tr><td><code>advance(ms)</code></td><td>time passes, to be taken up by the next frame. Exactly: five seconds is five seconds, with none of the cap a window puts on a long gap</td></tr>
+<tr><td><code>step(ms)</code></td><td><code>advance</code>, then <code>frame</code></td></tr>
+<tr><td><code>settle()</code></td><td>frames 16ms apart until nothing more is owed: every motion landed, every report delivered. Frames asked for with <code>again_in</code> are not waited on</td></tr>
+<tr><td><code>press</code>, <code>release</code>, <code>tap</code>, <code>point</code>, <code>cancel</code>, <code>leave</code></td><td>the pointer. <code>point</code> with nothing held is where the cursor rests, which is what is hovered</td></tr>
+<tr><td><code>wheel(at, delta)</code></td><td>a scroll, as the distance a drag would cover</td></tr>
+<tr><td><code>key</code>, <code>chord(modifiers, key)</code>, <code>type_text</code></td><td>the keyboard</td></tr>
+<tr><td><code>resize(area)</code></td><td>the surface, at the next frame</td></tr>
+</tbody>
+</table>
+</div>
+<p>A report lands a frame after what caused it, as it does in a window: a tap is taken in by one
+frame and handed to the app in the next. <code>settle</code> covers that; with single frames, run one more.</p>
+<h2 id="reading-what-happened"><a class="header" href="#reading-what-happened">Reading what happened</a></h2>
+<ul>
+<li><code>root()</code> / <code>root_mut()</code>: the app itself, to read or change between frames.</li>
+<li><code>grove()</code>: what the last frame settled. <code>tap(leaf, Vein::Drawn)</code> for where an element ended
+up, <code>focused()</code>, <code>hovered()</code>.</li>
+<li><code>grove_mut()</code>: verbs, written between frames, landing in the next frame’s drain.</li>
+<li><code>pollen()</code>: what the last frame handed the app.</li>
+</ul>
+<h2 id="a-picture-of-a-frame"><a class="header" href="#a-picture-of-a-frame">A picture of a frame</a></h2>
+<p><code>render()</code> draws what the last frame settled and hands back a <code>Picture</code>: RGBA, at one device
+pixel per logical pixel, so a point in the picture is the point the tree was laid out in.</p>
+<pre><code class="language-rust ignore">let Some(picture) = house.render() else {
+    return; // no GPU and no software rasteriser: nothing to draw with
+};
+let at = picture.at(Position::new(60.0, 40.0)).unwrap();
+assert!(at.red &gt; 0.5);
+std::fs::write("counter.png", picture.png()).unwrap();</code></pre>
+<p>It uses the same renderers and the same pass a window uses. The difference is the target: a
+texture that is read back instead of presented. So the picture is what the app shows. The first
+call acquires a device, and every frame after that is handed to it as it runs. <code>None</code> means the
+machine has no adapter at all, so check for it rather than failing.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="platforms"><a class="header" href="#platforms">Platforms</a></h1>
 <p>The same app runs on Linux, Windows, macOS, the web and Android. <strong>Only construction differs</strong>:
@@ -5164,7 +5381,9 @@ the web’s hidden input captured is not: it waits in the keyboard until intake 
 is remembered as owing a frame on its own account.</li>
 <li><strong>The app asking.</strong> An app animating something the engine cannot see (a value it moves itself
 from <code>frame_time</code>) has no clause of its own. <code>grove.again()</code> is that clause, and it lasts for
-exactly one frame, so the loop runs for as long as the app keeps asking and not a frame longer.</li>
+exactly one frame, so the loop runs for as long as the app keeps asking and not a frame longer.
+<code>grove.again_in(millis)</code> is the same ask with a time on it: the loop sleeps until then, with the
+platform’s timer as its wake, and the frame is owed once it comes.</li>
 </ul>
 <p><strong>Skipping a frame cannot lose a change.</strong> A frame that does not run leaves every write in the
 queue and every report in the drift, and the next frame that runs takes them. Extraction compares
@@ -5966,9 +6185,12 @@ no wrapping to measure a run across, and R2m is the one moment in the frame when
 known and no height is, which is exactly what measuring down needs.</p>
 <p>The reach over children counts only children whose placement on that axis <strong>describes its own
 extent</strong>: pixels, letters, its own content, and down, any reading of the already-settled horizontal
-axis. A child placed by a percentage of its trunk, a track of its trunk’s grid, or an anchor’s edge
-is asking how large something else is, so it cannot also be what decides that size. It is left out
-of the measure and given its real extent by its axis’s own pass like anything else. Across, a
+axis. A child placed by a percentage of its trunk or a track of its trunk’s grid is asking how large
+something else is, so it cannot also be what decides that size. It is left out of the measure and
+given its real extent by its axis’s own pass like anything else. A child placed off its anchor
+counts when the anchor is a sibling the measure already placed. It is resolved against where the
+measure put that sibling, and asked again whenever the sibling is, so a chain of them follows
+whatever moved at its head. Across, a
 character’s place in a run is left out too: it is read off the run as it wrapped, at a width that is
 not known yet. This is <code>Config::measurable</code>
 (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/placement/role.rs"><code>placement/role.rs</code></a>),
@@ -6062,9 +6284,9 @@ is. There is no cascade to write and none to get wrong. An element grown under a
 disabled on its first frame because the pass does not care when it arrived, and enabling the trunk
 leaves anything disabled in its own right disabled because nothing was overwritten on the way down.</p>
 <h2 id="r8-regions"><a class="header" href="#r8-regions">R8: regions</a></h2>
-<p>The box stack is every element that is present (visible, and not fully transparent) and not clipped
-away entirely, sorted front-most first, each carrying its drawn box, its clip, its hit shape, and
-whether it is tangible, receives, and is disabled. It is what the next frame’s dispatch reads
+<p>The box stack is every element that is present (visible, and not fully transparent) and not
+clipped away entirely, sorted front-most first, each carrying its drawn box, its clip, its hit
+shape, and whether it is tangible, receives, and is disabled. It is what the next frame’s dispatch reads
 (<a href="#interaction">Interaction</a>).</p>
 <p>It is rebuilt only on a frame where something it is built from changed, which R4 to R7 recorded as
 <code>restack</code>, and re-sorted only when a rank changed. A frame where one element’s color fades, or
@@ -6314,23 +6536,36 @@ left(0.px()).width(2.row());</code></pre>
 <a href="#r1m-and-r2-the-two-axes-and-a-measure-before-each">Resolution</a>). That question is
 answered next to the grammar, term by term, for the axis being measured:</p>
 <pre><code class="language-rust ignore">// placement/role.rs
-pub(crate) fn known(kind: Kind, axis: Axis) -&gt; bool {
+pub(crate) fn known(kind: Kind, axis: Axis) -&gt; Measure {
     match kind {
-        Kind::Px(_) =&gt; true,
-        Kind::Letters { .. } =&gt; true,
-        Kind::Character { .. } | Kind::Span { .. } =&gt; axis == Axis::Vertical,
-        Kind::Content { against } =&gt; against == Against::Own,
-        Kind::Extent { axis: read, .. } | Kind::Cell { axis: read, .. } =&gt; {
-            axis == Axis::Vertical &amp;&amp; read == Axis::Horizontal
-        }
-        Kind::Pct { .. } =&gt; false,
-        Kind::Edge { .. } =&gt; false,
+        Kind::Px(_) =&gt; Measure::Own,
+        Kind::Letters { .. } =&gt; Measure::Own,
+        Kind::Character { .. } | Kind::Span { .. } =&gt; own(axis == Axis::Vertical),
+        Kind::Content { against } =&gt; match against {
+            Against::Own =&gt; Measure::Own,
+            other =&gt; leans(other),
+        },
+        Kind::Extent { axis: read, against } =&gt; match read == axis {
+            true =&gt; leans(against),
+            false =&gt; own(axis == Axis::Vertical &amp;&amp; read == Axis::Horizontal),
+        },
+        Kind::Cell { axis: read, .. } =&gt; own(axis == Axis::Vertical &amp;&amp; read == Axis::Horizontal),
+        Kind::Pct { against, .. } =&gt; leans(against),
+        Kind::Edge { against, .. } =&gt; leans(against),
     }
 }</code></pre>
-<p>A placement is measurable on an axis if every term in it is known and it is not measured from an
-anchor’s edge. Across, nothing is laid out yet, so only pixels, letters and a child’s own content
-are known; down, the horizontal axis has settled, so a height may read a width. Everything else
-waits for its axis’s own pass.</p>
+<p><code>own(known)</code> is <code>Own</code> or <code>Never</code>. <code>leans(against)</code> is <code>Leans</code> for the anchor and <code>Never</code> for
+anything else. A placement’s answer combines its terms, and an anchor-origin coordinate leans too:</p>
+<ul>
+<li><strong><code>Never</code></strong> wins outright: the placement is left out of the measure.</li>
+<li><strong><code>Own</code></strong> is known before the axis is laid out. Across, that is pixels, letters and a child’s own
+content. Down, the horizontal axis has settled, so a height may also read a width.</li>
+<li><strong><code>Leans</code></strong> is known only where the measure has already placed the anchor. That means the anchor
+is a sibling under the same trunk and counted itself. Children are listed in resolution order, so
+the anchor is measured first. Its measured span is what the child resolves against, which is how
+a stack placed with <code>top(anchor().bottom() + gap)</code> is measured whole.</li>
+</ul>
+<p>Everything else waits for its axis’s own pass.</p>
 <h2 id="lines-are-the-same-grammar"><a class="header" href="#lines-are-the-same-grammar">Lines are the same grammar</a></h2>
 <p>A <code>Line</code> has no box: it has two ends. Each end is a <code>Point</code>, an x coordinate and a y coordinate in
 the same grammar, and <code>locate</code> resolves one axis of a point through the same <code>coordinate</code> function a
@@ -6670,11 +6905,13 @@ duration whatever the shape, and <code>blend</code> returns exactly <code>from</
 than computing <code>from + (to - from) * 1.0</code>, which can land a rounding error short. A motion lands
 <em>on</em> its target, so no landing ever needs a correction after it. A curve whose control points
 overshoot is left to overshoot in the middle.</p>
-<p>Timing is milliseconds throughout. <code>after(n)</code> holds the motion where it was for <code>n</code> milliseconds
-rather than queuing it: the motion exists from the frame it was asked for, and a direct write cancels
-it whether or not it has begun to move. A motion of no length holds for its delay like any other and
-then lands in one step, because <code>Timing::at</code> asks whether the delay has passed before it asks whether
-there is a duration to be a fraction of.</p>
+<p>Timing is milliseconds throughout. A motion with <code>after(n)</code> waits for <code>n</code> milliseconds without
+touching its property, beside whatever is moving it, and then takes over from wherever the element
+has got to, so delays on one property are a chain of keyframes. A new motion on the property drops
+any still waiting that would start no sooner than it does, so what was asked last is where the
+property ends up, and a direct write cancels the waiting ones along with the running one. A motion
+of no length waits out its delay like any other and then lands in one step, because <code>Timing::at</code>
+asks whether the delay has passed before it asks whether there is a duration to be a fraction of.</p>
 <h2 id="one-clock-capped"><a class="header" href="#one-clock-capped">One clock, capped</a></h2>
 <p>Every motion reads the clock sampled at intake, so two motions started together stay together. The
 loop caps how far the clock may move in one frame at 100 milliseconds
@@ -7479,6 +7716,28 @@ the engine’s own sits behind the tree, so the ground is the app’s.</p>
 draw, so a draw can be repeated at any time (a window exposed, a compositor asking) and produce the
 same picture. A surface that cannot be acquired (occluded, or mid-resize) skips the paint and loses a
 picture, never a change; one that went stale is reconfigured once and tried again.</p>
+<h2 id="pictures-drawn-apart"><a class="header" href="#pictures-drawn-apart">Pictures drawn apart</a></h2>
+<p>An element declared <code>together</code> that is drawing at less than full opacity opens a picture. R7 gives
+each element under it two opacities:</p>
+<ul>
+<li><strong>Its whole product,</strong> which decides whether it is in the box stack at all.</li>
+<li><strong>Its opacity within the picture,</strong> which is the product from the element that opened it down.
+It is what the element is drawn at.</li>
+</ul>
+<p>Extraction puts the picture’s key on each instance’s rank, in a trailing field that never decides
+order. It also lists the open pictures with their opacity and the opener’s rank. Restacking then:</p>
+<ul>
+<li>puts each picture into the stack at the opener’s rank;</li>
+<li>walks every instance carrying an open picture’s key into that picture’s own span list instead of
+the window’s;</li>
+<li>counts depths per list, since each picture has its own depth attachment.</li>
+</ul>
+<p><code>Ginkgo::draw</code> draws every picture first, each in a pass of its own on a texture the size of the
+window, cleared to nothing. The window’s pass then lays each one down where it stands. That is one
+triangle loading the texel under each fragment, scaled by the picture’s opacity, with premultiplied
+blending: drawing straight-alpha elements onto clear leaves the picture premultiplied.</p>
+<p>A fade that only moves the opacity rewrites one value per picture. Nothing on the card is
+re-extracted and the stack is not walked again.</p>
 <h2 id="ginkgo-where-the-scale-factor-stops"><a class="header" href="#ginkgo-where-the-scale-factor-stops">Ginkgo: where the scale factor stops</a></h2>
 <p>The engine is written in logical pixels throughout, and the display’s ratio of device pixels to
 logical ones is applied in exactly two places below this line: the surface and its depth attachment
@@ -7705,6 +7964,16 @@ keeps each frame’s <code>Pollen</code>, so a test can ask what a frame reporte
 soft keyboard and the URL handler, is called only by <code>photosynthesize</code>, so no test ever touches the
 clipboard, the keyboard or the browser of whoever runs it; the edges are tested at the seam, where
 what they would do is engine state.</p>
+<h2 id="the-same-doors-public"><a class="header" href="#the-same-doors-public">The same doors, public</a></h2>
+<p>The <code>Greenhouse</code> is these doors opened to an app’s own tests (<a href="#testing-an-app">Testing an app</a>).
+It holds a grove and a registered <code>Root</code>. Its input methods push the same <code>Input</code> values onto the
+same queue. Its clock is the same <code>Clock::advance</code>. Its <code>frame</code> is <code>fern::run</code> with the app’s turn
+in it. Whether a frame is owed is one question, <code>Grove::owed</code>, asked by both the loop and the
+greenhouse’s <code>settle</code>.</p>
+<p>Its <code>render</code> reaches step 9 as well. <code>Ginkgo</code> can target a texture instead of a surface. The
+greenhouse builds one on first use, states the whole tree to fresh renderers (a recut, then one
+extraction), draws, and reads the texture back. After that, every frame’s batch is absorbed as a
+window’s would be.</p>
 <h2 id="what-a-test-looks-like"><a class="header" href="#what-a-test-looks-like">What a test looks like</a></h2>
 <p>Tests are named as the rule they hold, and most carry a comment saying why the rule exists:</p>
 <pre><code class="language-rust ignore">// tests/interaction.rs
@@ -7820,7 +8089,9 @@ written against nothing but the public surfaces of foliage and lichen, so an API
 real page fails CI.</p>
 <h2 id="what-is-not-proven-here"><a class="header" href="#what-is-not-proven-here">What is not proven here</a></h2>
 <p>The translation from platform events into <code>Input</code> (the whole of <code>photosynthesize.rs</code>’s
-<code>window_event</code>), the surface, and the pixels. Those are answered for by the site running on the web,
+<code>window_event</code>) and the surface. The pixels can be drawn offscreen and read back by the greenhouse
+(<code>foliage/tests/greenhouse.rs</code>), wherever the machine has an adapter. A CI runner with none skips
+that check instead of failing it. The rest is answered for by the site running on the web,
 by the examples building on three desktops, by the Android build being checked and run on an
 emulator, and by the <code>stress</code> example under a real surface. None of that is a test in CI, which is
 why the translation layer is kept as thin as it is: everything past it is on the one path the suite

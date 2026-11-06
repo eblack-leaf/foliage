@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "../searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-c59f2531.js"></script>
+        <script src="../toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -229,7 +229,6 @@ impl Root for Counter {
             Text::new("count 0")
                 .color(Palette::Accent.on())
                 .font_size(FontSize::new().xs(14))
-                .intangible()
                 .at(Location::new().xs(
                     center_x(50.pct()).width(content()),
                     center_y(50.pct()).height(content()),
@@ -321,20 +320,22 @@ grammar properly.</p>
 <p><code>50.pct()</code> is half of the button’s width, measured from the button’s left edge, so the label is
 centred on it. <code>content()</code> is the label’s own measured size: as wide as its text, and as tall as
 the text turned out.</p>
-<h2 id="interactive-and-intangible-who-takes-the-press"><a class="header" href="#interactive-and-intangible-who-takes-the-press"><code>interactive</code> and <code>intangible</code>: who takes the press</a></h2>
+<h2 id="interactive-who-takes-the-press"><a class="header" href="#interactive-who-takes-the-press"><code>interactive</code>: who takes the press</a></h2>
 <p>A press goes to whatever is on top at that point. The label is on top of the button (it was grown
-under it, so it sits in front of it), which means that without anything said, a press on the
-label’s pixels would land on the label.</p>
-<p>Two declarations settle it:</p>
+under it, so it sits in front of it), but it is text, and text is a <em>mark</em>: something drawn on a
+surface rather than a surface itself. A gesture over a mark passes through to what it is drawn on,
+so a press on the label’s pixels is a press on the button.</p>
+<p><code>interactive()</code> on the button says it <strong>receives</strong> gestures. It is what <code>clicked</code> can report, and
+what focus can rest on.</p>
+<p>A surface (a panel, an image, a stem) stops a gesture instead. One on top that did not say
+<code>interactive()</code> <strong>eats</strong> the press: nothing receives it, and nothing behind it does either. That is
+the right answer for a backdrop or a sheet. Both defaults can be turned round:</p>
 <ul>
-<li><code>interactive()</code> on the button says it <strong>receives</strong> gestures. It is what <code>clicked</code> can report,
-and what focus can rest on.</li>
-<li><code>intangible()</code> on the label says a gesture over it <strong>passes through</strong> to whatever is beneath.</li>
+<li><code>intangible()</code> makes a surface pass presses through, which is what a highlight drawn over a
+button wants.</li>
+<li><code>tangible()</code> makes a mark stop them like a surface, and <code>interactive()</code> on a mark makes it take
+them itself.</li>
 </ul>
-<p>An element on top that says neither <strong>eats</strong> the press: nothing receives it, and nothing behind it
-does either. That is the right answer for a backdrop or a sheet, and the wrong one for a label
-drawn over a button. Try deleting <code>.intangible()</code> and pressing the middle of the button: only the
-rim still counts.</p>
 <h2 id="frame-answering"><a class="header" href="#frame-answering"><code>frame</code>: answering</a></h2>
 <pre><code class="language-rust ignore">fn frame(&amp;mut self, grove: &amp;mut Grove, pollen: Pollen) {
     if pollen.clicked(self.button) {

@@ -425,7 +425,11 @@ mod tests {
     use super::*;
 
     fn rank(stack: i32, growth: u64) -> ResolvedElevation {
-        ResolvedElevation { stack, growth }
+        ResolvedElevation {
+            stack,
+            growth,
+            layer: 0,
+        }
     }
 
     /// The key of the name at `index`, at its first generation.

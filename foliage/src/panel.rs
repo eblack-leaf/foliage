@@ -92,6 +92,8 @@ pub(crate) struct PanelInstance {
     pub(crate) outline: Color,
     /// How far in from the box's edge the outline reaches, in logical pixels. Zero is none.
     pub(crate) outline_width: f32,
+    /// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+    pub(crate) pose: crate::pose::Affine,
 }
 
 impl PanelInstance {
@@ -113,6 +115,7 @@ impl PanelInstance {
             radii: rounding.radii(section),
             outline,
             outline_width,
+            pose: crate::pose::Affine::IDENTITY,
         }
     }
 }

@@ -144,6 +144,29 @@ draw, so a draw can be repeated at any time (a window exposed, a compositor aski
 same picture. A surface that cannot be acquired (occluded, or mid-resize) skips the paint and loses a
 picture, never a change; one that went stale is reconfigured once and tried again.
 
+## Pictures drawn apart
+
+An element declared `together` that is drawing at less than full opacity opens a picture. R7 gives
+each element under it two opacities:
+- **Its whole product,** which decides whether it is in the box stack at all.
+- **Its opacity within the picture,** which is the product from the element that opened it down.
+  It is what the element is drawn at.
+
+Extraction puts the picture's key on each instance's rank, in a trailing field that never decides
+order. It also lists the open pictures with their opacity and the opener's rank. Restacking then:
+- puts each picture into the stack at the opener's rank;
+- walks every instance carrying an open picture's key into that picture's own span list instead of
+  the window's;
+- counts depths per list, since each picture has its own depth attachment.
+
+`Ginkgo::draw` draws every picture first, each in a pass of its own on a texture the size of the
+window, cleared to nothing. The window's pass then lays each one down where it stands. That is one
+triangle loading the texel under each fragment, scaled by the picture's opacity, with premultiplied
+blending: drawing straight-alpha elements onto clear leaves the picture premultiplied.
+
+A fade that only moves the opacity rewrites one value per picture. Nothing on the card is
+re-extracted and the stack is not walked again.
+
 ## Ginkgo: where the scale factor stops
 
 The engine is written in logical pixels throughout, and the display's ratio of device pixels to

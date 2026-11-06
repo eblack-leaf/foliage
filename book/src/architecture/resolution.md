@@ -176,9 +176,12 @@ known and no height is, which is exactly what measuring down needs.
 
 The reach over children counts only children whose placement on that axis **describes its own
 extent**: pixels, letters, its own content, and down, any reading of the already-settled horizontal
-axis. A child placed by a percentage of its trunk, a track of its trunk's grid, or an anchor's edge
-is asking how large something else is, so it cannot also be what decides that size. It is left out
-of the measure and given its real extent by its axis's own pass like anything else. Across, a
+axis. A child placed by a percentage of its trunk or a track of its trunk's grid is asking how large
+something else is, so it cannot also be what decides that size. It is left out of the measure and
+given its real extent by its axis's own pass like anything else. A child placed off its anchor
+counts when the anchor is a sibling the measure already placed. It is resolved against where the
+measure put that sibling, and asked again whenever the sibling is, so a chain of them follows
+whatever moved at its head. Across, a
 character's place in a run is left out too: it is read off the run as it wrapped, at a width that is
 not known yet. This is `Config::measurable`
 ([`placement/role.rs`](https://github.com/eblack-leaf/foliage/blob/main/foliage/src/placement/role.rs)),
@@ -294,9 +297,9 @@ leaves anything disabled in its own right disabled because nothing was overwritt
 
 ## R8: regions
 
-The box stack is every element that is present (visible, and not fully transparent) and not clipped
-away entirely, sorted front-most first, each carrying its drawn box, its clip, its hit shape, and
-whether it is tangible, receives, and is disabled. It is what the next frame's dispatch reads
+The box stack is every element that is present (visible, and not fully transparent) and not
+clipped away entirely, sorted front-most first, each carrying its drawn box, its clip, its hit
+shape, and whether it is tangible, receives, and is disabled. It is what the next frame's dispatch reads
 ([Interaction](interaction.md)).
 
 It is rebuilt only on a frame where something it is built from changed, which R4 to R7 recorded as

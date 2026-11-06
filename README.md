@@ -10,8 +10,9 @@ and read-only taps taken at the app's own callsite. An app declares what an elem
 it sits, what fills it, whether it takes a gesture — and then only writes verbs against the name
 it got back. There is no render call to make; the next frame is already different.
 
-[![The foliage site: a leaf of scattered polygons in a gold-to-red gradient, inside a dashed
-outline, beside a label linking to three apps grown on foliage and to its source](site.png)](https://eblack-leaf.github.io/foliage/)
+[![The foliage site: a leaf of scattered polygons in a gold-to-red gradient, paled where light
+passes through it, inside a dashed outline, beside a label linking to three apps grown on foliage,
+its source, and its book and API reference](site.png)](https://eblack-leaf.github.io/foliage/)
 
 The [site](https://eblack-leaf.github.io/foliage/) is itself a foliage app, built from
 [`application/`](application) against nothing but the public surfaces of foliage and
@@ -97,6 +98,22 @@ cargo run -p foliage --example palette
 cargo run -p foliage --example animate
 cargo run -p foliage --example polyline
 ```
+
+## Testing an app
+
+An app's tests grow its `Root` in a `Greenhouse`, with no window. Input is written in, the clock is
+moved by hand, and frames run on request. A frame can be drawn offscreen and read back as pixels:
+
+```rust
+let mut house = Greenhouse::<Counter>::new(Area::new(320.0, 240.0));
+house.frame();
+house.tap(Position::new(100.0, 64.0));
+house.settle();
+assert!(house.root().pressed);
+let picture = house.render(); // None where the machine has no GPU adapter
+```
+
+See [Testing an app](https://eblack-leaf.github.io/foliage/book/usage/testing.html) in the book.
 
 ## Icons
 

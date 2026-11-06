@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "../searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-c59f2531.js"></script>
+        <script src="../toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -229,6 +229,16 @@ keeps each frame’s <code>Pollen</code>, so a test can ask what a frame reporte
 soft keyboard and the URL handler, is called only by <code>photosynthesize</code>, so no test ever touches the
 clipboard, the keyboard or the browser of whoever runs it; the edges are tested at the seam, where
 what they would do is engine state.</p>
+<h2 id="the-same-doors-public"><a class="header" href="#the-same-doors-public">The same doors, public</a></h2>
+<p>The <code>Greenhouse</code> is these doors opened to an app’s own tests (<a href="../usage/testing.html">Testing an app</a>).
+It holds a grove and a registered <code>Root</code>. Its input methods push the same <code>Input</code> values onto the
+same queue. Its clock is the same <code>Clock::advance</code>. Its <code>frame</code> is <code>fern::run</code> with the app’s turn
+in it. Whether a frame is owed is one question, <code>Grove::owed</code>, asked by both the loop and the
+greenhouse’s <code>settle</code>.</p>
+<p>Its <code>render</code> reaches step 9 as well. <code>Ginkgo</code> can target a texture instead of a surface. The
+greenhouse builds one on first use, states the whole tree to fresh renderers (a recut, then one
+extraction), draws, and reads the texture back. After that, every frame’s batch is absorbed as a
+window’s would be.</p>
 <h2 id="what-a-test-looks-like"><a class="header" href="#what-a-test-looks-like">What a test looks like</a></h2>
 <p>Tests are named as the rule they hold, and most carry a comment saying why the rule exists:</p>
 <pre><code class="language-rust ignore">// tests/interaction.rs
@@ -344,7 +354,9 @@ written against nothing but the public surfaces of foliage and lichen, so an API
 real page fails CI.</p>
 <h2 id="what-is-not-proven-here"><a class="header" href="#what-is-not-proven-here">What is not proven here</a></h2>
 <p>The translation from platform events into <code>Input</code> (the whole of <code>photosynthesize.rs</code>’s
-<code>window_event</code>), the surface, and the pixels. Those are answered for by the site running on the web,
+<code>window_event</code>) and the surface. The pixels can be drawn offscreen and read back by the greenhouse
+(<code>foliage/tests/greenhouse.rs</code>), wherever the machine has an adapter. A CI runner with none skips
+that check instead of failing it. The rest is answered for by the site running on the web,
 by the examples building on three desktops, by the Android build being checked and run on an
 emulator, and by the <code>stress</code> example under a real surface. None of that is a test in CI, which is
 why the translation layer is kept as thin as it is: everything past it is on the one path the suite

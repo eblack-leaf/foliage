@@ -56,7 +56,7 @@
 <a href=#56 id=56 data-nosnippet>56</a>/// [`letters`](crate::Source::letters) is the other half, and it stays: where the count is genuinely
 <a href=#57 id=57 data-nosnippet>57</a>/// known ahead of time it costs nothing to resolve and says what it means. Measuring is for where it
 <a href=#58 id=58 data-nosnippet>58</a>/// is not.
-<a href=#59 id=59 data-nosnippet>59</a></span><span class="attr">#[derive(Clone, Debug, Default)]
+<a href=#59 id=59 data-nosnippet>59</a></span><span class="attr">#[derive(Clone, Debug)]
 <a href=#60 id=60 data-nosnippet>60</a></span><span class="kw">pub struct </span>Text {
 <a href=#61 id=61 data-nosnippet>61</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) placement: Placement,
 <a href=#62 id=62 data-nosnippet>62</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) value: String,
@@ -64,118 +64,128 @@
 <a href=#64 id=64 data-nosnippet>64</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) tints: Tints,
 <a href=#65 id=65 data-nosnippet>65</a>}
 <a href=#66 id=66 data-nosnippet>66</a>
-<a href=#67 id=67 data-nosnippet>67</a><span class="kw">impl </span>Text {
-<a href=#68 id=68 data-nosnippet>68</a>    <span class="doccomment">/// A run saying `value`, filled with [`Palette::Ink`] -- what is read against a surface rather
-<a href=#69 id=69 data-nosnippet>69</a>    /// than drawn as one.
-<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">pub fn </span>new(value: <span class="kw">impl </span>Into&lt;String&gt;) -&gt; <span class="self">Self </span>{
-<a href=#71 id=71 data-nosnippet>71</a>        <span class="self">Self </span>{
-<a href=#72 id=72 data-nosnippet>72</a>            placement: Placement::default(),
-<a href=#73 id=73 data-nosnippet>73</a>            value: value.into(),
-<a href=#74 id=74 data-nosnippet>74</a>            fill: Fill::Role(Palette::Ink),
-<a href=#75 id=75 data-nosnippet>75</a>            tints: Tints::default(),
-<a href=#76 id=76 data-nosnippet>76</a>        }
-<a href=#77 id=77 data-nosnippet>77</a>    }
-<a href=#78 id=78 data-nosnippet>78</a>
-<a href=#79 id=79 data-nosnippet>79</a>    <span class="doccomment">/// What the glyphs are filled with: a [`Palette`] role, or a [`Color`](crate::Color) stated
-<a href=#80 id=80 data-nosnippet>80</a>    /// outright.
-<a href=#81 id=81 data-nosnippet>81</a>    ///
-<a href=#82 id=82 data-nosnippet>82</a>    /// The same [`Fill`] a panel takes, so a run is repainted, animated and cancelled by the same
-<a href=#83 id=83 data-nosnippet>83</a>    /// writes -- and so a per-character tint, when it lands, is stated in the vocabulary the run
-<a href=#84 id=84 data-nosnippet>84</a>    /// already is rather than in a second one beside it.
-<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">pub fn </span>color(<span class="kw-2">mut </span><span class="self">self</span>, fill: <span class="kw">impl </span>Into&lt;Fill&gt;) -&gt; <span class="self">Self </span>{
-<a href=#86 id=86 data-nosnippet>86</a>        <span class="self">self</span>.fill = fill.into();
-<a href=#87 id=87 data-nosnippet>87</a>        <span class="self">self
-<a href=#88 id=88 data-nosnippet>88</a>    </span>}
-<a href=#89 id=89 data-nosnippet>89</a>
-<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// Fills part of the run differently from the rest of it.
+<a href=#67 id=67 data-nosnippet>67</a><span class="kw">impl </span>Default <span class="kw">for </span>Text {
+<a href=#68 id=68 data-nosnippet>68</a>    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+<a href=#69 id=69 data-nosnippet>69</a>        <span class="self">Self</span>::new(String::new())
+<a href=#70 id=70 data-nosnippet>70</a>    }
+<a href=#71 id=71 data-nosnippet>71</a>}
+<a href=#72 id=72 data-nosnippet>72</a>
+<a href=#73 id=73 data-nosnippet>73</a><span class="kw">impl </span>Text {
+<a href=#74 id=74 data-nosnippet>74</a>    <span class="doccomment">/// A run saying `value`, filled with [`Palette::Ink`] -- what is read against a surface rather
+<a href=#75 id=75 data-nosnippet>75</a>    /// than drawn as one.
+<a href=#76 id=76 data-nosnippet>76</a>    ///
+<a href=#77 id=77 data-nosnippet>77</a>    /// So a gesture over it passes through to the surface unless it says
+<a href=#78 id=78 data-nosnippet>78</a>    /// [`interactive`](crate::Place::interactive) or [`tangible`](crate::Place::tangible): a label
+<a href=#79 id=79 data-nosnippet>79</a>    /// on a button is pressed as the button.
+<a href=#80 id=80 data-nosnippet>80</a>    </span><span class="kw">pub fn </span>new(value: <span class="kw">impl </span>Into&lt;String&gt;) -&gt; <span class="self">Self </span>{
+<a href=#81 id=81 data-nosnippet>81</a>        <span class="self">Self </span>{
+<a href=#82 id=82 data-nosnippet>82</a>            placement: Placement::mark(),
+<a href=#83 id=83 data-nosnippet>83</a>            value: value.into(),
+<a href=#84 id=84 data-nosnippet>84</a>            fill: Fill::Role(Palette::Ink),
+<a href=#85 id=85 data-nosnippet>85</a>            tints: Tints::default(),
+<a href=#86 id=86 data-nosnippet>86</a>        }
+<a href=#87 id=87 data-nosnippet>87</a>    }
+<a href=#88 id=88 data-nosnippet>88</a>
+<a href=#89 id=89 data-nosnippet>89</a>    <span class="doccomment">/// What the glyphs are filled with: a [`Palette`] role, or a [`Color`](crate::Color) stated
+<a href=#90 id=90 data-nosnippet>90</a>    /// outright.
 <a href=#91 id=91 data-nosnippet>91</a>    ///
-<a href=#92 id=92 data-nosnippet>92</a>    /// The range is in **characters of the value**, spaces included -- the same index space a caret
-<a href=#93 id=93 data-nosnippet>93</a>    /// and a selection are addressed in, and the space the string itself is written in. Anything
-<a href=#94 id=94 data-nosnippet>94</a>    /// untinted stays the run's own [`color`](Text::color), so a run with no tints is exactly the
-<a href=#95 id=95 data-nosnippet>95</a>    /// run it would otherwise be.
-<a href=#96 id=96 data-nosnippet>96</a>    ///
-<a href=#97 id=97 data-nosnippet>97</a>    /// ```no_run
-<a href=#98 id=98 data-nosnippet>98</a>    /// # use foliage::{Color, Palette, Text};
-<a href=#99 id=99 data-nosnippet>99</a>    /// Text::new("ok  warn  error")
-<a href=#100 id=100 data-nosnippet>100</a>    ///     .color(Palette::Ink)
-<a href=#101 id=101 data-nosnippet>101</a>    ///     .tint(4..8, Palette::Accent)
-<a href=#102 id=102 data-nosnippet>102</a>    ///     .tint(10..15, Color::rgb(0.9, 0.35, 0.3));
-<a href=#103 id=103 data-nosnippet>103</a>    /// ```
-<a href=#104 id=104 data-nosnippet>104</a>    ///
-<a href=#105 id=105 data-nosnippet>105</a>    /// A tint is a [`Fill`] like any other, so a role follows a
-<a href=#106 id=106 data-nosnippet>106</a>    /// [`repaint`](crate::Grow::repaint) and a literal does not. Where two overlap the later one
-<a href=#107 id=107 data-nosnippet>107</a>    /// wins, which is the rule a reader can predict without knowing what else was written.
-<a href=#108 id=108 data-nosnippet>108</a>    </span><span class="kw">pub fn </span>tint(<span class="kw-2">mut </span><span class="self">self</span>, range: Range&lt;usize&gt;, fill: <span class="kw">impl </span>Into&lt;Fill&gt;) -&gt; <span class="self">Self </span>{
-<a href=#109 id=109 data-nosnippet>109</a>        <span class="self">self</span>.tints.<span class="number">0</span>.push((range, fill.into()));
-<a href=#110 id=110 data-nosnippet>110</a>        <span class="self">self
-<a href=#111 id=111 data-nosnippet>111</a>    </span>}
-<a href=#112 id=112 data-nosnippet>112</a>}
-<a href=#113 id=113 data-nosnippet>113</a>
-<a href=#114 id=114 data-nosnippet>114</a><span class="kw">impl </span>Places <span class="kw">for </span>Text {
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="kw">fn </span>placement(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Placement {
-<a href=#116 id=116 data-nosnippet>116</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.placement
-<a href=#117 id=117 data-nosnippet>117</a>    }
-<a href=#118 id=118 data-nosnippet>118</a>}
-<a href=#119 id=119 data-nosnippet>119</a>
-<a href=#120 id=120 data-nosnippet>120</a><span class="kw">impl </span>Buds <span class="kw">for </span>Text {
-<a href=#121 id=121 data-nosnippet>121</a>    <span class="kw">fn </span>bud(<span class="kw-2">mut </span><span class="self">self</span>, at: Caller) -&gt; Bud {
-<a href=#122 id=122 data-nosnippet>122</a>        <span class="comment">// Every element may carry a typeface; a run of glyphs is the one that must, because there is
-<a href=#123 id=123 data-nosnippet>123</a>        // no reading of it at all without a font to read it in.
-<a href=#124 id=124 data-nosnippet>124</a>        </span><span class="self">self</span>.placement.typeface.get_or_insert_default();
-<a href=#125 id=125 data-nosnippet>125</a>        Bud {
-<a href=#126 id=126 data-nosnippet>126</a>            chlorophyll: Chlorophyll::Text,
-<a href=#127 id=127 data-nosnippet>127</a>            pigment: <span class="prelude-val">Some</span>(Pigment::Text(TextPigment { fill: <span class="self">self</span>.fill })),
-<a href=#128 id=128 data-nosnippet>128</a>            lettering: <span class="prelude-val">Some</span>(Lettering(<span class="self">self</span>.value)),
-<a href=#129 id=129 data-nosnippet>129</a>            <span class="comment">// Absent unless part of the run is filled differently, so a plain run carries nothing
-<a href=#130 id=130 data-nosnippet>130</a>            // for the tint lookup to walk.
-<a href=#131 id=131 data-nosnippet>131</a>            </span>tints: (!<span class="self">self</span>.tints.<span class="number">0</span>.is_empty()).then_some(<span class="self">self</span>.tints),
-<a href=#132 id=132 data-nosnippet>132</a>            placement: <span class="self">self</span>.placement,
-<a href=#133 id=133 data-nosnippet>133</a>            at,
-<a href=#134 id=134 data-nosnippet>134</a>            ..Bud::bare()
-<a href=#135 id=135 data-nosnippet>135</a>        }
-<a href=#136 id=136 data-nosnippet>136</a>    }
-<a href=#137 id=137 data-nosnippet>137</a>}
-<a href=#138 id=138 data-nosnippet>138</a>
-<a href=#139 id=139 data-nosnippet>139</a><span class="kw">impl </span>Boxed <span class="kw">for </span>Text {}
-<a href=#140 id=140 data-nosnippet>140</a>
-<a href=#141 id=141 data-nosnippet>141</a><span class="doccomment">/// What a run says.
-<a href=#142 id=142 data-nosnippet>142</a>///
-<a href=#143 id=143 data-nosnippet>143</a>/// Content rather than renderer state: it is what R1 shapes and what R2m wraps, so it is read by
-<a href=#144 id=144 data-nosnippet>144</a>/// passes that have nothing to do with drawing. [`text`](crate::Grow::text) writes it.
-<a href=#145 id=145 data-nosnippet>145</a></span><span class="attr">#[derive(Clone, Debug, Default, PartialEq, Eq)]
-<a href=#146 id=146 data-nosnippet>146</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Lettering(<span class="kw">pub</span>(<span class="kw">crate</span>) String);
-<a href=#147 id=147 data-nosnippet>147</a>
-<a href=#148 id=148 data-nosnippet>148</a><span class="doccomment">/// What the text renderer was told.
-<a href=#149 id=149 data-nosnippet>149</a>///
-<a href=#150 id=150 data-nosnippet>150</a>/// Grown alongside [`Chlorophyll::Text`] and by nothing else, so an element carries both or neither.
-<a href=#151 id=151 data-nosnippet>151</a></span><span class="attr">#[derive(Copy, Clone, Debug, Default, PartialEq)]
-<a href=#152 id=152 data-nosnippet>152</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>TextPigment {
-<a href=#153 id=153 data-nosnippet>153</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) fill: Fill,
-<a href=#154 id=154 data-nosnippet>154</a>}
-<a href=#155 id=155 data-nosnippet>155</a>
-<a href=#156 id=156 data-nosnippet>156</a><span class="doccomment">/// Fills over parts of a run's own index space.
-<a href=#157 id=157 data-nosnippet>157</a>///
-<a href=#158 id=158 data-nosnippet>158</a>/// Under the run's own fill rather than beside it: a run declares one fill, and a tint says that
-<a href=#159 id=159 data-nosnippet>159</a>/// some of its characters are not drawn in it. Everything untinted is the run's, so a run with no
-<a href=#160 id=160 data-nosnippet>160</a>/// tints is exactly the run it was before tints existed.
-<a href=#161 id=161 data-nosnippet>161</a>///
-<a href=#162 id=162 data-nosnippet>162</a>/// Content rather than renderer state, like [`Lettering`] and for the same reason: a range is stated
-<a href=#163 id=163 data-nosnippet>163</a>/// against the value, so the two have to be written and read in the same terms.
-<a href=#164 id=164 data-nosnippet>164</a></span><span class="attr">#[derive(Clone, Debug, Default, PartialEq)]
-<a href=#165 id=165 data-nosnippet>165</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Tints(<span class="kw">pub</span>(<span class="kw">crate</span>) Vec&lt;(Range&lt;usize&gt;, Fill)&gt;);
-<a href=#166 id=166 data-nosnippet>166</a>
-<a href=#167 id=167 data-nosnippet>167</a><span class="kw">impl </span>Tints {
-<a href=#168 id=168 data-nosnippet>168</a>    <span class="doccomment">/// What covers character `index`, if anything does.
-<a href=#169 id=169 data-nosnippet>169</a>    ///
-<a href=#170 id=170 data-nosnippet>170</a>    /// The last written wins where two overlap. That is the rule a reader can predict without
-<a href=#171 id=171 data-nosnippet>171</a>    /// knowing what else was written -- the alternative is a precedence order between ranges that
-<a href=#172 id=172 data-nosnippet>172</a>    /// have no natural one.
-<a href=#173 id=173 data-nosnippet>173</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>over(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; <span class="prelude-ty">Option</span>&lt;Fill&gt; {
-<a href=#174 id=174 data-nosnippet>174</a>        <span class="self">self</span>.<span class="number">0
-<a href=#175 id=175 data-nosnippet>175</a>            </span>.iter()
-<a href=#176 id=176 data-nosnippet>176</a>            .rev()
-<a href=#177 id=177 data-nosnippet>177</a>            .find(|(range, <span class="kw">_</span>)| range.contains(<span class="kw-2">&amp;</span>index))
-<a href=#178 id=178 data-nosnippet>178</a>            .map(|(<span class="kw">_</span>, fill)| <span class="kw-2">*</span>fill)
-<a href=#179 id=179 data-nosnippet>179</a>    }
-<a href=#180 id=180 data-nosnippet>180</a>}
+<a href=#92 id=92 data-nosnippet>92</a>    /// The same [`Fill`] a panel takes, so a run is repainted, animated and cancelled by the same
+<a href=#93 id=93 data-nosnippet>93</a>    /// writes -- and so a per-character tint, when it lands, is stated in the vocabulary the run
+<a href=#94 id=94 data-nosnippet>94</a>    /// already is rather than in a second one beside it.
+<a href=#95 id=95 data-nosnippet>95</a>    </span><span class="kw">pub fn </span>color(<span class="kw-2">mut </span><span class="self">self</span>, fill: <span class="kw">impl </span>Into&lt;Fill&gt;) -&gt; <span class="self">Self </span>{
+<a href=#96 id=96 data-nosnippet>96</a>        <span class="self">self</span>.fill = fill.into();
+<a href=#97 id=97 data-nosnippet>97</a>        <span class="self">self
+<a href=#98 id=98 data-nosnippet>98</a>    </span>}
+<a href=#99 id=99 data-nosnippet>99</a>
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="doccomment">/// Fills part of the run differently from the rest of it.
+<a href=#101 id=101 data-nosnippet>101</a>    ///
+<a href=#102 id=102 data-nosnippet>102</a>    /// The range is in **characters of the value**, spaces included -- the same index space a caret
+<a href=#103 id=103 data-nosnippet>103</a>    /// and a selection are addressed in, and the space the string itself is written in. Anything
+<a href=#104 id=104 data-nosnippet>104</a>    /// untinted stays the run's own [`color`](Text::color), so a run with no tints is exactly the
+<a href=#105 id=105 data-nosnippet>105</a>    /// run it would otherwise be.
+<a href=#106 id=106 data-nosnippet>106</a>    ///
+<a href=#107 id=107 data-nosnippet>107</a>    /// ```no_run
+<a href=#108 id=108 data-nosnippet>108</a>    /// # use foliage::{Color, Palette, Text};
+<a href=#109 id=109 data-nosnippet>109</a>    /// Text::new("ok  warn  error")
+<a href=#110 id=110 data-nosnippet>110</a>    ///     .color(Palette::Ink)
+<a href=#111 id=111 data-nosnippet>111</a>    ///     .tint(4..8, Palette::Accent)
+<a href=#112 id=112 data-nosnippet>112</a>    ///     .tint(10..15, Color::rgb(0.9, 0.35, 0.3));
+<a href=#113 id=113 data-nosnippet>113</a>    /// ```
+<a href=#114 id=114 data-nosnippet>114</a>    ///
+<a href=#115 id=115 data-nosnippet>115</a>    /// A tint is a [`Fill`] like any other, so a role follows a
+<a href=#116 id=116 data-nosnippet>116</a>    /// [`repaint`](crate::Grow::repaint) and a literal does not. Where two overlap the later one
+<a href=#117 id=117 data-nosnippet>117</a>    /// wins, which is the rule a reader can predict without knowing what else was written.
+<a href=#118 id=118 data-nosnippet>118</a>    </span><span class="kw">pub fn </span>tint(<span class="kw-2">mut </span><span class="self">self</span>, range: Range&lt;usize&gt;, fill: <span class="kw">impl </span>Into&lt;Fill&gt;) -&gt; <span class="self">Self </span>{
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="self">self</span>.tints.<span class="number">0</span>.push((range, fill.into()));
+<a href=#120 id=120 data-nosnippet>120</a>        <span class="self">self
+<a href=#121 id=121 data-nosnippet>121</a>    </span>}
+<a href=#122 id=122 data-nosnippet>122</a>}
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a><span class="kw">impl </span>Places <span class="kw">for </span>Text {
+<a href=#125 id=125 data-nosnippet>125</a>    <span class="kw">fn </span>placement(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>Placement {
+<a href=#126 id=126 data-nosnippet>126</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.placement
+<a href=#127 id=127 data-nosnippet>127</a>    }
+<a href=#128 id=128 data-nosnippet>128</a>}
+<a href=#129 id=129 data-nosnippet>129</a>
+<a href=#130 id=130 data-nosnippet>130</a><span class="kw">impl </span>Buds <span class="kw">for </span>Text {
+<a href=#131 id=131 data-nosnippet>131</a>    <span class="kw">fn </span>bud(<span class="kw-2">mut </span><span class="self">self</span>, at: Caller) -&gt; Bud {
+<a href=#132 id=132 data-nosnippet>132</a>        <span class="comment">// Every element may carry a typeface; a run of glyphs is the one that must, because there is
+<a href=#133 id=133 data-nosnippet>133</a>        // no reading of it at all without a font to read it in.
+<a href=#134 id=134 data-nosnippet>134</a>        </span><span class="self">self</span>.placement.typeface.get_or_insert_default();
+<a href=#135 id=135 data-nosnippet>135</a>        Bud {
+<a href=#136 id=136 data-nosnippet>136</a>            chlorophyll: Chlorophyll::Text,
+<a href=#137 id=137 data-nosnippet>137</a>            pigment: <span class="prelude-val">Some</span>(Pigment::Text(TextPigment { fill: <span class="self">self</span>.fill })),
+<a href=#138 id=138 data-nosnippet>138</a>            lettering: <span class="prelude-val">Some</span>(Lettering(<span class="self">self</span>.value)),
+<a href=#139 id=139 data-nosnippet>139</a>            <span class="comment">// Absent unless part of the run is filled differently, so a plain run carries nothing
+<a href=#140 id=140 data-nosnippet>140</a>            // for the tint lookup to walk.
+<a href=#141 id=141 data-nosnippet>141</a>            </span>tints: (!<span class="self">self</span>.tints.<span class="number">0</span>.is_empty()).then_some(<span class="self">self</span>.tints),
+<a href=#142 id=142 data-nosnippet>142</a>            placement: <span class="self">self</span>.placement,
+<a href=#143 id=143 data-nosnippet>143</a>            at,
+<a href=#144 id=144 data-nosnippet>144</a>            ..Bud::bare()
+<a href=#145 id=145 data-nosnippet>145</a>        }
+<a href=#146 id=146 data-nosnippet>146</a>    }
+<a href=#147 id=147 data-nosnippet>147</a>}
+<a href=#148 id=148 data-nosnippet>148</a>
+<a href=#149 id=149 data-nosnippet>149</a><span class="kw">impl </span>Boxed <span class="kw">for </span>Text {}
+<a href=#150 id=150 data-nosnippet>150</a>
+<a href=#151 id=151 data-nosnippet>151</a><span class="doccomment">/// What a run says.
+<a href=#152 id=152 data-nosnippet>152</a>///
+<a href=#153 id=153 data-nosnippet>153</a>/// Content rather than renderer state: it is what R1 shapes and what R2m wraps, so it is read by
+<a href=#154 id=154 data-nosnippet>154</a>/// passes that have nothing to do with drawing. [`text`](crate::Grow::text) writes it.
+<a href=#155 id=155 data-nosnippet>155</a></span><span class="attr">#[derive(Clone, Debug, Default, PartialEq, Eq)]
+<a href=#156 id=156 data-nosnippet>156</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Lettering(<span class="kw">pub</span>(<span class="kw">crate</span>) String);
+<a href=#157 id=157 data-nosnippet>157</a>
+<a href=#158 id=158 data-nosnippet>158</a><span class="doccomment">/// What the text renderer was told.
+<a href=#159 id=159 data-nosnippet>159</a>///
+<a href=#160 id=160 data-nosnippet>160</a>/// Grown alongside [`Chlorophyll::Text`] and by nothing else, so an element carries both or neither.
+<a href=#161 id=161 data-nosnippet>161</a></span><span class="attr">#[derive(Copy, Clone, Debug, Default, PartialEq)]
+<a href=#162 id=162 data-nosnippet>162</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>TextPigment {
+<a href=#163 id=163 data-nosnippet>163</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) fill: Fill,
+<a href=#164 id=164 data-nosnippet>164</a>}
+<a href=#165 id=165 data-nosnippet>165</a>
+<a href=#166 id=166 data-nosnippet>166</a><span class="doccomment">/// Fills over parts of a run's own index space.
+<a href=#167 id=167 data-nosnippet>167</a>///
+<a href=#168 id=168 data-nosnippet>168</a>/// Under the run's own fill rather than beside it: a run declares one fill, and a tint says that
+<a href=#169 id=169 data-nosnippet>169</a>/// some of its characters are not drawn in it. Everything untinted is the run's, so a run with no
+<a href=#170 id=170 data-nosnippet>170</a>/// tints is exactly the run it was before tints existed.
+<a href=#171 id=171 data-nosnippet>171</a>///
+<a href=#172 id=172 data-nosnippet>172</a>/// Content rather than renderer state, like [`Lettering`] and for the same reason: a range is stated
+<a href=#173 id=173 data-nosnippet>173</a>/// against the value, so the two have to be written and read in the same terms.
+<a href=#174 id=174 data-nosnippet>174</a></span><span class="attr">#[derive(Clone, Debug, Default, PartialEq)]
+<a href=#175 id=175 data-nosnippet>175</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Tints(<span class="kw">pub</span>(<span class="kw">crate</span>) Vec&lt;(Range&lt;usize&gt;, Fill)&gt;);
+<a href=#176 id=176 data-nosnippet>176</a>
+<a href=#177 id=177 data-nosnippet>177</a><span class="kw">impl </span>Tints {
+<a href=#178 id=178 data-nosnippet>178</a>    <span class="doccomment">/// What covers character `index`, if anything does.
+<a href=#179 id=179 data-nosnippet>179</a>    ///
+<a href=#180 id=180 data-nosnippet>180</a>    /// The last written wins where two overlap. That is the rule a reader can predict without
+<a href=#181 id=181 data-nosnippet>181</a>    /// knowing what else was written -- the alternative is a precedence order between ranges that
+<a href=#182 id=182 data-nosnippet>182</a>    /// have no natural one.
+<a href=#183 id=183 data-nosnippet>183</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>over(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; <span class="prelude-ty">Option</span>&lt;Fill&gt; {
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="self">self</span>.<span class="number">0
+<a href=#185 id=185 data-nosnippet>185</a>            </span>.iter()
+<a href=#186 id=186 data-nosnippet>186</a>            .rev()
+<a href=#187 id=187 data-nosnippet>187</a>            .find(|(range, <span class="kw">_</span>)| range.contains(<span class="kw-2">&amp;</span>index))
+<a href=#188 id=188 data-nosnippet>188</a>            .map(|(<span class="kw">_</span>, fill)| <span class="kw-2">*</span>fill)
+<a href=#189 id=189 data-nosnippet>189</a>    }
+<a href=#190 id=190 data-nosnippet>190</a>}
 </code></pre></div></section></main></body></html>

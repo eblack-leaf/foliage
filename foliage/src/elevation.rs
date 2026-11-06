@@ -54,4 +54,11 @@ impl Elevation {
 pub(crate) struct ResolvedElevation {
     pub(crate) stack: i32,
     pub(crate) growth: u64,
+    /// Which picture the element is drawn into, where it is part of something drawn
+    /// [`together`](crate::Place::together) and fading: one more than that element's slot, or
+    /// zero for the window itself. Set by extraction and read by the backend, which draws each
+    /// picture apart and puts it in the stack where the element that opened it sits.
+    ///
+    /// Last, so it never decides an order: two ranks that differ in it differ in growth first.
+    pub(crate) layer: u32,
 }

@@ -62,7 +62,6 @@ impl Root for Counter {
             Text::new("count 0")
                 .color(Palette::Accent.on())
                 .font_size(FontSize::new().xs(14))
-                .intangible()
                 .at(Location::new().xs(
                     center_x(50.pct()).width(content()),
                     center_y(50.pct()).height(content()),
@@ -180,22 +179,24 @@ The label is placed against its trunk, the button:
 centred on it. `content()` is the label's own measured size: as wide as its text, and as tall as
 the text turned out.
 
-## `interactive` and `intangible`: who takes the press
+## `interactive`: who takes the press
 
 A press goes to whatever is on top at that point. The label is on top of the button (it was grown
-under it, so it sits in front of it), which means that without anything said, a press on the
-label's pixels would land on the label.
+under it, so it sits in front of it), but it is text, and text is a *mark*: something drawn on a
+surface rather than a surface itself. A gesture over a mark passes through to what it is drawn on,
+so a press on the label's pixels is a press on the button.
 
-Two declarations settle it:
+`interactive()` on the button says it **receives** gestures. It is what `clicked` can report, and
+what focus can rest on.
 
-- `interactive()` on the button says it **receives** gestures. It is what `clicked` can report,
-  and what focus can rest on.
-- `intangible()` on the label says a gesture over it **passes through** to whatever is beneath.
+A surface (a panel, an image, a stem) stops a gesture instead. One on top that did not say
+`interactive()` **eats** the press: nothing receives it, and nothing behind it does either. That is
+the right answer for a backdrop or a sheet. Both defaults can be turned round:
 
-An element on top that says neither **eats** the press: nothing receives it, and nothing behind it
-does either. That is the right answer for a backdrop or a sheet, and the wrong one for a label
-drawn over a button. Try deleting `.intangible()` and pressing the middle of the button: only the
-rim still counts.
+- `intangible()` makes a surface pass presses through, which is what a highlight drawn over a
+  button wants.
+- `tangible()` makes a mark stop them like a surface, and `interactive()` on a mark makes it take
+  them itself.
 
 ## `frame`: answering
 

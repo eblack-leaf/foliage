@@ -151,31 +151,11 @@ impl Foliage {
     /// loop has cause to ask -- [`again`](crate::Grove::again) is the app's half and the only half
     /// an app can see.
     fn owed(&self) -> bool {
-        // The tree has not been grown yet: `take_root` runs inside the first frame.
-        self.grove.frames == 0
-            || self.grove.again
-            || self.grove.pending_resize.is_some()
-            // Something arrived from off the frame. Usually an op, which the clause below sees on
-            // its own; but a key the hidden input captured is nowhere this can look, and the rouse
-            // is the only word that it is there.
-            || self.grove.wake.pending()
-            || !self.grove.queue.is_empty()
-            || !self.grove.incoming.pending.is_empty()
-            || !self.grove.aspen.idle()
-            // A press that is not moving becomes a hold on its own, with nothing arriving to say
-            // so. Idling under a finger is how that duration would pass unremarked, so the frames
-            // that would notice it are owed until the gesture is past being able to become one.
-            || self.grove.incoming.awaiting_hold()
-            // A coasting region is pending work in its own right: it is not a tween, and there is
-            // nothing on the app's side asking for the frames it needs. So frames keep running
-            // until it settles, and stop afterwards.
-            || !self.grove.coasting.idle()
-            // Steps 4 through 7 emit into the drift and step 3 of the *next* frame is where an app
-            // is handed it, so a report that has been made and not yet delivered owes the frame
-            // that delivers it. Without this the loop could idle holding one.
-            || self.grove.drift.pending()
-            // The cursor moved, and the app asked to be woken for that.
-            || self.grove.roused
+        self.grove.owed()
+            // The time the app asked to be woken at has come.
+            || self
+                .deadline
+                .is_some_and(|deadline| web_time::Instant::now() >= deadline)
     }
 
     /// One platform input event, in the form dispatch takes.
@@ -289,6 +269,11 @@ impl Foliage {
         if self.owed() {
             self.advance();
             fern::run(&mut self.grove, self.root.as_deref_mut());
+            // This frame answers whatever wake was set, and the app may have asked for the next.
+            self.deadline = self
+                .grove
+                .again_in
+                .map(|after| web_time::Instant::now() + after);
             let ginkgo = self.ginkgo.as_ref().expect("device");
             let ash = self.ash.as_mut().expect("backend");
             ash.absorb(
@@ -413,9 +398,9 @@ impl ApplicationHandler for Foliage {
             WindowEvent::RedrawRequested => self.paint(),
             WindowEvent::CursorMoved { position, .. } => {
                 self.cursor = self.at(position.x, position.y);
-                // Read by the app as the cursor; a move owes a frame only if it asked to be roused.
-                self.grove.cursor = Some(self.cursor);
-                self.grove.roused |= self.grove.rouses;
+                // Read by the app as the cursor; a move owes a frame only if it asked to be roused,
+                // or if it moved what the cursor rests on.
+                self.grove.rest(Some(self.cursor));
                 // With no hover to report, a move with nothing held is no gesture. Where the
                 // pointer is still matters, because a press names no position.
                 if self.held {
@@ -507,8 +492,7 @@ impl ApplicationHandler for Foliage {
             // The gesture was taken away rather than finished, so it never becomes a tap.
             WindowEvent::CursorLeft { .. } | WindowEvent::Focused(false) => {
                 if matches!(event, WindowEvent::CursorLeft { .. }) && self.grove.cursor.is_some() {
-                    self.grove.cursor = None;
-                    self.grove.roused |= self.grove.rouses;
+                    self.grove.rest(None);
                 }
                 if self.held {
                     self.held = false;
@@ -520,7 +504,7 @@ impl ApplicationHandler for Foliage {
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         // What a soft keyboard typed on Android, read back from the activity's text once the pass
         // that carried it is over. See `keyboard`.
         #[cfg(target_os = "android")]
@@ -530,5 +514,11 @@ impl ApplicationHandler for Foliage {
         if self.owed() {
             self.willow.repaint();
         }
+        // Asleep until something arrives, or until a frame the app asked for at a time it chose:
+        // what lets a slow motion run at its own rate rather than at every frame the display has.
+        event_loop.set_control_flow(match self.deadline {
+            Some(deadline) => ControlFlow::WaitUntil(deadline),
+            None => ControlFlow::Wait,
+        });
     }
 }

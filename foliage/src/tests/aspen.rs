@@ -627,8 +627,8 @@ fn a_motion_takes_no_time_on_the_frame_it_starts() {
     assert_eq!(opacity(&grove, leaf), 0.5);
 }
 
-/// A delay holds the element where it was. The motion is running from the frame it was asked for,
-/// so it is cancellable throughout -- it is not queued somewhere waiting to begin.
+/// A delay holds the element where it was: the motion touches nothing until its delay has passed,
+/// and then runs.
 #[test]
 fn a_delay_holds_the_element_where_it_was() {
     let mut grove = grove();
@@ -648,6 +648,156 @@ fn a_delay_holds_the_element_where_it_was() {
     advance(&mut grove, 50);
     tick(&mut grove);
     assert_eq!(opacity(&grove, leaf), 0.0);
+}
+
+/// A motion asked for with a delay waits for it to pass before it takes over: the motion already
+/// running goes on, and the waiting one starts from wherever that has got to. A run of them is a
+/// chain of keyframes.
+#[test]
+fn delayed_motions_on_one_property_chain() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new());
+    tick(&mut grove);
+
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100));
+    grove.animate(leaf, Motion::Opacity(1.0), Timing::ms(100).after(100));
+    grove.animate(leaf, Motion::Opacity(0.5), Timing::ms(100).after(200));
+    tick(&mut grove);
+    for (at, expected) in [
+        (50, 0.5),
+        (50, 0.0),
+        (50, 0.5),
+        (50, 1.0),
+        (50, 0.75),
+        (50, 0.5),
+    ] {
+        advance(&mut grove, at);
+        tick(&mut grove);
+        close(opacity(&grove, leaf), expected);
+    }
+}
+
+/// One that takes over part way through what is running starts from where that has got to, as a
+/// retarget does, rather than from where either began.
+#[test]
+fn a_motion_that_waited_takes_over_from_where_the_element_is() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new());
+    tick(&mut grove);
+
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(200));
+    grove.animate(leaf, Motion::Opacity(1.0), Timing::ms(100).after(100));
+    tick(&mut grove);
+    advance(&mut grove, 100);
+    tick(&mut grove);
+    close(opacity(&grove, leaf), 0.5);
+    advance(&mut grove, 50);
+    tick(&mut grove);
+    close(opacity(&grove, leaf), 0.75);
+    advance(&mut grove, 50);
+    tick(&mut grove);
+    close(opacity(&grove, leaf), 1.0);
+}
+
+/// What was asked last is where the property ends up. A fade-in asked to wait, then a fade-out
+/// asked for now, a frame later -- a tip chosen and another chosen before the first came in --
+/// leaves it faded out, rather than coming back in once the wait is up. Waiting motions that start
+/// sooner than the new one are its chain, and stay.
+#[test]
+fn a_motion_asked_later_supersedes_one_waiting_to_start_after_it() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new().opacity(0.0));
+    tick(&mut grove);
+
+    grove.animate(leaf, Motion::Opacity(1.0), Timing::ms(100).after(200));
+    tick(&mut grove);
+    advance(&mut grove, 50);
+    tick(&mut grove);
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100));
+    tick(&mut grove);
+    advance(&mut grove, 400);
+    tick(&mut grove);
+    close(opacity(&grove, leaf), 0.0);
+    assert!(grove.aspen.idle());
+
+    // One waiting to start sooner than a later ask is the step before it, and runs.
+    grove.animate(leaf, Motion::Opacity(1.0), Timing::ms(100).after(100));
+    tick(&mut grove);
+    grove.animate(leaf, Motion::Opacity(0.5), Timing::ms(100).after(200));
+    tick(&mut grove);
+    advance(&mut grove, 200);
+    tick(&mut grove);
+    close(opacity(&grove, leaf), 1.0);
+    advance(&mut grove, 200);
+    tick(&mut grove);
+    close(opacity(&grove, leaf), 0.5);
+}
+
+/// A direct write cancels what is waiting on the property as well as what is running: a write is
+/// the last word, and nothing takes over from it later as though it had been a step in a chain.
+#[test]
+fn a_direct_write_cancels_what_is_waiting_too() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new());
+    tick(&mut grove);
+
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100).after(100));
+    tick(&mut grove);
+    grove.opacity(leaf, 0.3);
+    tick(&mut grove);
+    advance(&mut grove, 300);
+    tick(&mut grove);
+    close(opacity(&grove, leaf), 0.3);
+    assert!(grove.aspen.idle());
+}
+
+/// Stopping a motion that has not begun leaves the element where it would have ended, and
+/// reports it ended, as stopping one part way does.
+#[test]
+fn stopping_a_waiting_motion_lands_it() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new());
+    tick(&mut grove);
+
+    let tween = grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100).after(500));
+    tick(&mut grove);
+    grove.finish(tween);
+    tick(&mut grove);
+    close(opacity(&grove, leaf), 0.0);
+    let mut app = Observer::default();
+    tick_with(&mut grove, &mut app);
+    assert!(app.last().finished(tween));
+}
+
+/// A group is not over while a member is still waiting to begin.
+#[test]
+fn a_sequence_waits_for_members_that_are_waiting() {
+    let mut grove = grove();
+    let leaf = grove.plant(Stem::new());
+    tick(&mut grove);
+
+    let group = grove.sequence();
+    grove.animate(leaf, Motion::Opacity(0.0), Timing::ms(100).within(group));
+    grove.animate(
+        leaf,
+        Motion::Opacity(1.0),
+        Timing::ms(100).after(200).within(group),
+    );
+    let mut app = Observer::default();
+    tick_with(&mut grove, &mut app);
+    for _ in 0..2 {
+        advance(&mut grove, 100);
+        tick_with(&mut grove, &mut app);
+        assert!(!app.last().sequence_finished(group));
+    }
+    advance(&mut grove, 100);
+    tick_with(&mut grove, &mut app);
+    tick_with(&mut grove, &mut app);
+    assert!(
+        app.pollen
+            .iter()
+            .any(|pollen| pollen.sequence_finished(group))
+    );
 }
 
 /// A delay holds a motion of no length exactly as it holds any other: it waits where it was, and

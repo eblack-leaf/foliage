@@ -78,6 +78,13 @@ pub(crate) enum Op {
         leaf: Leaf,
         value: String,
     },
+    /// Sets what a run's characters are in -- a face, a size, or both -- after it was grown. What
+    /// was not said stays as it was. Measured again in the same frame, as a new value is.
+    Retype {
+        leaf: Leaf,
+        font: Option<crate::text::font::Font>,
+        size: Option<crate::text::font::FontSize>,
+    },
     /// One keystroke, against whatever holds focus. Which element that is is dispatch's answer;
     /// what the key does is the drain's.
     ///
@@ -190,7 +197,28 @@ pub(crate) enum Op {
         leaf: Leaf,
         opacity: f32,
     },
+    /// Draws an element and what is under it as one picture while they fade, or each on its own
+    /// again.
+    Together {
+        leaf: Leaf,
+        together: bool,
+    },
     Shift {
+        leaf: Leaf,
+        by: Position,
+    },
+    /// Turns an element where it is drawn, clockwise in radians about its middle.
+    Turn {
+        leaf: Leaf,
+        radians: f32,
+    },
+    /// Draws an element at a multiple of its size, about its middle.
+    Scale {
+        leaf: Leaf,
+        scale: f32,
+    },
+    /// Draws an element a fraction of its own size from where the layout put it.
+    Slide {
         leaf: Leaf,
         by: Position,
     },
@@ -219,10 +247,13 @@ pub(crate) enum Op {
         tween: Tween,
         reported: bool,
     },
-    /// Where focus is to go. Answered here, in the drain, against what has been declared so far and
-    /// the geometry the last frame drew -- so focus is final before resolution runs, and an element
-    /// shown by an earlier op in the same drain can take it.
+    /// Where focus is to go. Answered at the end of the drain, against everything the frame
+    /// declared and the geometry the last frame drew -- so focus is final before resolution runs,
+    /// and an element shown anywhere in the same drain can take it.
     Focus(Intent),
+    /// `Escape` was pressed: focus goes nowhere, as [`Focus`](Op::Focus) to nothing, and the app
+    /// is told -- in the report that carries what focus left.
+    Escape,
     /// The one op that names no element: what every role resolves to, for the whole tree.
     Repaint(Box<Scheme>),
     /// Bytes that were read from somewhere outside the frame, and the name they were read for.

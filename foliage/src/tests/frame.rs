@@ -318,6 +318,37 @@ fn asking_for_another_frame_lasts_exactly_one_frame() {
     assert!(!grove.again);
 }
 
+/// Asks for a frame later, twice in its first run and never again.
+#[derive(Default)]
+struct AsksLater {
+    frames: usize,
+}
+
+impl Rooted for AsksLater {
+    fn frame(&mut self, grove: &mut Grove, _pollen: Pollen) {
+        if self.frames == 0 {
+            grove.again_in(80);
+            grove.again_in(40);
+        }
+        self.frames += 1;
+    }
+}
+
+/// A frame asked for later keeps the soonest asked for, and lasts exactly the frame that asked --
+/// the loop counts it from there, and the frame it owes runs and asks again or does not.
+#[test]
+fn asking_for_a_frame_later_keeps_the_soonest_and_lasts_one_frame() {
+    let mut grove = grove();
+    let mut app = AsksLater::default();
+
+    tick_with(&mut grove, &mut app);
+    assert_eq!(grove.again_in, Some(Duration::from_millis(40)));
+    assert!(!grove.again);
+
+    tick_with(&mut grove, &mut app);
+    assert_eq!(grove.again_in, None);
+}
+
 /// A rouse from off the frame is owed a frame whether or not what it announced is something the
 /// loop can see, and the frame that runs answers it (F9).
 #[test]

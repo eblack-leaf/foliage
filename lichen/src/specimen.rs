@@ -21,7 +21,7 @@ use foliage::{
 };
 
 use crate::{
-    Chip, Cut, Escaped, Mosaic, Press, Ramp, Region, Rgb, Scatter, Section, Silhouette, measure, rgb,
+    Chip, Cut, Mosaic, Press, Ramp, Region, Rgb, Scatter, Section, Silhouette, measure, rgb,
 };
 
 /// The spectrum of the scheme in force the blip behind a chosen tip is drawn from: palest at its
@@ -269,15 +269,13 @@ impl Specimen {
     /// chip holds focus -- as it does from the press that chose it, or from [`choose`](Self::choose)
     /// -- and so nothing holds it that would have taken the key for its own.
     ///
-    /// foliage answers `Escape` itself and sends it to nothing, so it is read by what it leaves, as
-    /// [`Escaped::took`] reads it: the chip losing focus to nowhere, by no pointer -- a stray press
-    /// beside the shape lets nothing go. Where focus has moved on -- to a field, or a control the
-    /// tip opened -- `Escape` takes it out of that and lets the tip be.
-    pub fn dismissed(&self, grove: &Grove, pollen: &Pollen) -> bool {
+    /// Where focus has moved on -- to a field, or a control the tip opened -- `Escape` takes it
+    /// out of that and lets the tip be.
+    pub fn dismissed(&self, pollen: &Pollen) -> bool {
         let Some(chosen) = self.chosen else {
             return false;
         };
-        Escaped::took(grove, pollen, self.tips[chosen].chip.leaf())
+        pollen.escaped() && pollen.unfocused(self.tips[chosen].chip.leaf())
     }
 
     /// Carries the specimen: its arrival, and the tips being let in once it has arrived. Call once

@@ -90,9 +90,12 @@ pub struct Icon {
 impl Icon {
     /// A mark drawing the registered `field`, filled with [`Palette::Ink`] -- what is read against a
     /// surface rather than drawn as one, which is what a mark beside a label is.
+    ///
+    /// So a gesture over it passes through to the surface unless it says
+    /// [`interactive`](crate::Place::interactive) or [`tangible`](crate::Place::tangible).
     pub fn new(field: Field) -> Self {
         Self {
-            placement: Placement::default(),
+            placement: Placement::mark(),
             field,
             fill: Fill::Role(Palette::Ink),
         }
@@ -149,6 +152,8 @@ pub(crate) struct IconInstance {
     pub(crate) section: Section,
     pub(crate) color: Color,
     pub(crate) field: Field,
+    /// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+    pub(crate) pose: crate::pose::Affine,
 }
 
 /// Every registered mark's field bytes.

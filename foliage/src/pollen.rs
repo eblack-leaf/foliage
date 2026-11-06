@@ -88,6 +88,17 @@ impl Pollen {
         self.0.clicked.get(&leaf).map(|tap| tap.at)
     }
 
+    /// Where `leaf` was tapped, if it was, measured from its own top-left corner as it was drawn
+    /// when the press landed.
+    ///
+    /// [`clicked_at`](Pollen::clicked_at) in the element's own terms, which is what anything that
+    /// does something *at* the point -- a caret, a ripple, a mark on a map -- wants, and what
+    /// reading the element's box back to subtract would have to get from the same frame the press
+    /// was hit-tested in to be right.
+    pub fn clicked_within(&self, leaf: Leaf) -> Option<Position> {
+        self.0.clicked.get(&leaf).map(|tap| tap.within)
+    }
+
     /// How many taps in a row `leaf` has been given, counting this frame's: `1` for a tap on its
     /// own, `2` for the second of a double, and so on. `0` where it was not
     /// [`clicked`](Pollen::clicked) this frame.
@@ -223,6 +234,19 @@ impl Pollen {
         self.0.submitted.contains(&leaf)
     }
 
+    /// Whether the cursor came to rest on `leaf`: it is [`Grove::hovered`] now, and was not.
+    ///
+    /// [`Grove::hovered`]: crate::Grove::hovered
+    pub fn hovered(&self, leaf: Leaf) -> bool {
+        self.0.hovered.contains(&leaf)
+    }
+
+    /// Whether the cursor stopped resting on `leaf`: it moved off it, onto something covering it,
+    /// or out of the window, or `leaf` went -- hidden, disabled, pruned, or moved from under it.
+    pub fn unhovered(&self, leaf: Leaf) -> bool {
+        self.0.unhovered.contains(&leaf)
+    }
+
     /// Whether `leaf` took focus.
     pub fn focused(&self, leaf: Leaf) -> bool {
         self.0.focused.contains(&leaf)
@@ -318,6 +342,27 @@ impl Pollen {
         &self.0.root_keys
     }
 
+    /// Whether `Escape` was pressed this frame.
+    ///
+    /// `Escape` is focus's own -- it takes focus off whatever holds it -- so it is never sent to an
+    /// element or to [`root_keys`](Pollen::root_keys), and this is where it is heard. Reported
+    /// wherever focus was, including nowhere; what it took focus from is
+    /// [`unfocused`](Pollen::unfocused) in the same frame. The usual reader is whatever is open
+    /// and closes on it: a dialog, a drawer, a menu.
+    ///
+    /// ```no_run
+    /// # use foliage::{Grove, Grow, Leaf, Pollen};
+    /// # fn f(grove: &mut Grove, pollen: &Pollen, sheet: Leaf, open: &mut bool) {
+    /// if *open && pollen.escaped() {
+    ///     grove.visible(sheet, false);
+    ///     *open = false;
+    /// }
+    /// # }
+    /// ```
+    pub fn escaped(&self) -> bool {
+        self.0.escaped
+    }
+
     pub(crate) fn seal(drift: Drift) -> Self {
         Self(Arc::new(drift))
     }
@@ -352,6 +397,8 @@ pub(crate) struct Drift {
     pub(crate) keys: HashMap<Leaf, Vec<Keystroke>>,
     /// The same for keys that arrived while focus rested nowhere, which are the app's own.
     pub(crate) root_keys: Vec<Keystroke>,
+    /// Whether `Escape` was pressed, which is focus's own key and so is reported to nobody else.
+    pub(crate) escaped: bool,
     /// What a `paste` the app asked for came back with. A field's own paste is an `edited` instead,
     /// because what the person at the keyboard did to a value is one report however they did it.
     pub(crate) pasted: Option<String>,
@@ -362,16 +409,20 @@ pub(crate) struct Drift {
     pub(crate) submitted: HashSet<Leaf>,
     pub(crate) focused: HashSet<Leaf>,
     pub(crate) unfocused: HashSet<Leaf>,
+    pub(crate) hovered: HashSet<Leaf>,
+    pub(crate) unhovered: HashSet<Leaf>,
     pub(crate) landed: Leaves,
     pub(crate) tweens: Named<Tween, f32>,
     pub(crate) finished: HashSet<Tween, BuildHasherDefault<Fibonacci>>,
     pub(crate) sequences: HashSet<Sequence>,
 }
 
-/// One tap, as it is reported: where it landed, and how many taps in a row it made.
+/// One tap, as it is reported: where it landed, in the window and within what it landed on, and
+/// how many taps in a row it made.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct Tap {
     pub(crate) at: Position,
+    pub(crate) within: Position,
     pub(crate) count: u32,
 }
 

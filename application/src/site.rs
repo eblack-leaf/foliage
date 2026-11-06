@@ -13,16 +13,19 @@
 //! stands over the label, as large as leaves the label in view. Both are placements of the same
 //! things, stated again whenever the window is resized, and the page scrolls only where a window is
 //! too short for either.
+//!
+//! How tall the label is, is the engine's answer rather than the page's: the label is as tall as
+//! what it holds, each line placed under the last, and what the arrangement centres it by and leaves
+//! room for is the height it measured to.
 
 use core::f32::consts::FRAC_PI_3;
 
 use foliage::{
     Area, Axes, Boxed, Corners, Ease, Elevation, Field, FontSize, Grove, Grow, HAIRLINE, Icon,
-    Layout, Leaf, Location, Motion, Palette, Panel, Place, Polygon, Pollen, Position, Root,
-    Rounding, Shape, Short, Source, Stem, Text, Timing, anchor, center_y, content, left, right,
-    top,
+    Leaf, Location, Motion, Palette, Panel, Place, Pollen, Polygon, Position, Root, Rounding, Sap,
+    Shape, Source, Stem, Text, Timing, Vein, anchor, center_y, content, left, right, top,
 };
-use lichen::{Hover, Mosaic, Ramp, Scatter};
+use lichen::{Mosaic, Ramp, Scatter};
 use tracing::info;
 
 use crate::icons::Icons;
@@ -157,10 +160,6 @@ const SECTION: f32 = 30.0;
 /// whatever its width, and the names do the same.
 const WORDMARK: [u32; 3] = [34, 44, 52];
 
-/// How tall a line is, and how wide a letter, per pixel of its font size: the bundled face's own.
-const CELL: f32 = 1.32;
-const ADVANCE: f32 = 0.6;
-
 /// What quiet words are read in: what is there, under a way's name, the tagline and the heading.
 /// Ink, a step into the ground, rather than the muted role, which is a hint's colour and too faint
 /// to read whole lines in.
@@ -186,6 +185,10 @@ const HEXAGON: Shape = Shape {
 };
 const TURN: f32 = FRAC_PI_3;
 
+/// How often the light is moved: about twenty-five times a second, which a light crossing a few
+/// tiles a second needs and a phone's battery would rather not be asked for more of.
+const DRIFT_MS: u64 = 40;
+
 /// How wide the label is, at least and at most.
 const COLUMN: (f32, f32) = (300.0, 420.0);
 
@@ -209,11 +212,12 @@ pub(crate) struct Site {
     leaf: Leaf,
     /// What the label is grown in, placed again on every resize.
     label: Leaf,
+    /// How tall what the label holds measured, as the arrangement last used it.
+    tall: f32,
     aspect: f32,
     /// What takes a press on the leaf, over the whole of it.
     touch: Leaf,
     ways: Vec<Grown>,
-    hover: Hover,
     /// The light through the leaf.
     sun: Sun,
 }
@@ -248,7 +252,9 @@ impl Root for Site {
         );
         let mut mosaic = leaf::mosaic(Ramp::of(&scheme.stops(theme::SPECIMEN)));
         let aspect = mosaic.aspect();
-        let arranged = Arranged::of(aspect, grove.viewport());
+        // Nothing is measured before the first frame, so the first arrangement is a guess the
+        // second puts right -- before the label has started to come in.
+        let arranged = Arranged::of(aspect, grove.viewport(), 0.0);
         let shape = mosaic.grow(grove, page, arranged.leaf, &mut Scatter::new());
         mosaic.form(grove);
         // Over the tiles and the outline both, which would otherwise take a press themselves.
@@ -279,10 +285,8 @@ impl Root for Site {
                         .short(WORDMARK[0]),
                 )
                 .intangible()
-                .at(Location::new().xs(
-                    left(0.px()).width(content()),
-                    top(0.px()).height(content()),
-                )),
+                .at(Location::new()
+                    .xs(left(0.px()).width(content()), top(0.px()).height(content()))),
         );
         let tagline = grove.branch(
             label,
@@ -299,7 +303,16 @@ impl Root for Site {
         );
         let mut arrivals = vec![vec![wordmark], vec![tagline]];
         let mut ways = Vec::new();
-        let above = grow_set(grove, label, tagline, &GROWN, &APPS, &icons, &mut ways, &mut arrivals);
+        let above = grow_set(
+            grove,
+            label,
+            tagline,
+            &GROWN,
+            &APPS,
+            &icons,
+            &mut ways,
+            &mut arrivals,
+        );
         // The docs, set apart: a heading with a rule run out from it to the label's edge, and an
         // index under it.
         let heading = grove.branch(
@@ -326,14 +339,15 @@ impl Root for Site {
                 )),
         );
         arrivals.push(vec![heading, rule]);
-        let last = grow_set(grove, label, heading, &DOCS, &INDEX, &icons, &mut ways, &mut arrivals);
-        // Room under the last way, so a page short enough to scroll scrolls to a margin past it.
-        grove.branch(
+        grow_set(
+            grove,
             label,
-            Stem::new().intangible().anchored(last).at(Location::new().xs(
-                left(0.px()).width(1.px()),
-                top(anchor().bottom()).height(MARGIN.px()),
-            )),
+            heading,
+            &DOCS,
+            &INDEX,
+            &icons,
+            &mut ways,
+            &mut arrivals,
         );
         // The label comes in a line at a time while the leaf is still forming, so the ways off
         // the page are there to press without waiting on it.
@@ -348,32 +362,37 @@ impl Root for Site {
                 grove.animate(part, Motion::Shift(Position::default()), timing);
             }
         }
-        let mut hover = Hover::new(grove);
-        for way in &ways {
-            hover.watch(way.press);
-        }
         info!("leaf planted");
         Site {
             mosaic,
             leaf: shape,
             label,
+            tall: 0.0,
             aspect,
             touch,
             ways,
-            hover,
             sun: Sun::new(),
         }
     }
 
     fn frame(&mut self, grove: &mut Grove, pollen: Pollen) {
-        if let Some(viewport) = pollen.resized() {
-            let arranged = Arranged::of(self.aspect, viewport);
+        // Arranged again when the window changes, and when what the label holds measured to
+        // something else -- which a resize that rewraps it does a frame later, and the first frame
+        // does once.
+        let tall = match grove.tap(self.label, Vein::Placed) {
+            Some(Sap::Section(placed)) => placed.height() - MARGIN,
+            _ => self.tall,
+        };
+        if pollen.resized().is_some() || (tall - self.tall).abs() > 0.5 {
+            self.tall = tall;
+            let arranged = Arranged::of(self.aspect, grove.viewport(), tall);
             grove.at(self.leaf, arranged.leaf);
             grove.at(self.label, arranged.label);
         }
         self.mosaic.frame(grove, &pollen);
         // The light, from once the leaf has formed: drawn to where the leaf was pressed, or to
-        // its middle by a key, and moving every frame, so every frame is asked for.
+        // its middle by a key, and always moving -- slowly enough that a frame every `DRIFT_MS`
+        // carries it, and the page sleeps in between rather than drawing at the display's rate.
         if self.mosaic.formed(&pollen) {
             let pressed = match pollen.clicked_at(self.touch) {
                 Some(at) => self.mosaic.point(grove, at),
@@ -382,12 +401,13 @@ impl Root for Site {
             };
             let (at, strength) = self.sun.frame(grove.elapsed().as_secs_f32(), pressed);
             self.mosaic.shine(grove, at, leaf::REACH, strength);
-            grove.again();
+            grove.again_in(DRIFT_MS);
         }
-        self.hover.frame(grove, true);
-        let focused = grove.focused();
+        // Lit while the cursor rests on it or focus does: the one a press would reach, as the
+        // engine reads it, so nothing is lit through whatever covers it.
+        let (hovered, focused) = (grove.hovered(), grove.focused());
         for way in &mut self.ways {
-            let lit = self.hover.is_over(way.press) || focused == Some(way.press);
+            let lit = hovered == Some(way.press) || focused == Some(way.press);
             if lit != way.lit {
                 way.lit = lit;
                 way.light(grove, lit);
@@ -578,18 +598,20 @@ fn grow_way(
     let mut parts = vec![name, says, mark, arrow];
     // A rule between one way and the next, from where the words start.
     if ruled {
-        parts.push(grove.branch(
-            label,
-            Panel::new()
-                .color(Palette::Raised)
-                .intangible()
-                .elevate(Elevation::up(1))
-                .anchored(press)
-                .at(Location::new().xs(
-                    left(INDENT.px()).right(100.pct()),
-                    top(anchor().bottom() + (setting.space / 2.0).px()).height(HAIRLINE.px()),
-                )),
-        ));
+        parts.push(
+            grove.branch(
+                label,
+                Panel::new()
+                    .color(Palette::Raised)
+                    .intangible()
+                    .elevate(Elevation::up(1))
+                    .anchored(press)
+                    .at(Location::new().xs(
+                        left(INDENT.px()).right(100.pct()),
+                        top(anchor().bottom() + (setting.space / 2.0).px()).height(HAIRLINE.px()),
+                    )),
+            ),
+        );
     }
     let grown = Grown {
         press,
@@ -607,14 +629,16 @@ fn grow_way(
 ///
 /// From the window's size rather than a placement per breakpoint, because the leaf has to fit both
 /// ways -- as large as the room allows, and no taller than the window -- and a width in this
-/// grammar may not read a height. Stated again on every resize.
+/// grammar may not read a height. Stated again on every resize, and whenever the label measures to
+/// another height.
 struct Arranged {
     leaf: Location,
     label: Location,
 }
 
 impl Arranged {
-    fn of(aspect: f32, viewport: Area) -> Self {
+    /// For a label whose contents measured `tall`.
+    fn of(aspect: f32, viewport: Area, tall: f32) -> Self {
         let room = (
             (viewport.width - 2.0 * MARGIN).max(1.0),
             (viewport.height - 2.0 * MARGIN).max(1.0),
@@ -625,7 +649,6 @@ impl Arranged {
             // it reads well at, the two centred together, each centred down the window.
             true => {
                 let column = (room.0 * 0.36).clamp(COLUMN.0, COLUMN.1);
-                let tall = label_height(viewport, column);
                 let gap = (room.0 * 0.06).clamp(32.0, 96.0);
                 let width = (room.1 * SHARE / aspect)
                     .min(room.0 - column - gap)
@@ -633,12 +656,16 @@ impl Arranged {
                 let height = width * aspect;
                 let from = ((viewport.width - (width + gap + column)) / 2.0).max(MARGIN);
                 Self {
-                    leaf: boxed(from, ((viewport.height - height) / 2.0).max(MARGIN), width, height),
-                    label: boxed(
+                    leaf: boxed(
+                        from,
+                        ((viewport.height - height) / 2.0).max(MARGIN),
+                        width,
+                        height,
+                    ),
+                    label: hugging(
                         from + width + gap,
                         ((viewport.height - tall) / 2.0).max(MARGIN),
                         column,
-                        tall,
                     ),
                 }
             }
@@ -646,20 +673,15 @@ impl Arranged {
             // small it stops reading as a leaf -- the page scrolls instead.
             false => {
                 let column = room.0.min(COLUMN.1 + 40.0);
-                let tall = label_height(viewport, column);
                 let fits = (room.1 - tall - UNDER) / aspect;
-                let width = fits
-                    .min(room.0)
-                    .min(STACKED.0)
-                    .max(room.0.min(STACKED.1));
+                let width = fits.min(room.0).min(STACKED.0).max(room.0.min(STACKED.1));
                 let height = width * aspect;
                 Self {
                     leaf: boxed((viewport.width - width) / 2.0, MARGIN, width, height),
-                    label: boxed(
+                    label: hugging(
                         (viewport.width - column) / 2.0,
                         MARGIN + height + UNDER,
                         column,
-                        tall,
                     ),
                 }
             }
@@ -675,46 +697,88 @@ fn boxed(x: f32, y: f32, width: f32, height: f32) -> Location {
     )
 }
 
-/// About how tall the label stands on a window of `viewport`, `column` wide: what it is centred by,
-/// and what the leaf over it leaves room for. Content past it still counts for how far the page
-/// scrolls, so an estimate a line short costs a little scrolling and nothing else.
-fn label_height(viewport: Area, column: f32) -> f32 {
-    // Short by its entering height: past it the sizes may still be short, in the deadband, and the
-    // estimate is a line or so long for a frame, which costs nothing.
-    let layout = match viewport.height < Short::ENTER {
-        true => Layout::Xs,
-        false => Layout::of(viewport),
-    };
-    let wordmark = match layout {
-        Layout::Xs | Layout::Sm => WORDMARK[0],
-        Layout::Md => WORDMARK[1],
-        Layout::Lg | Layout::Xl => WORDMARK[2],
-    } as f32;
-    let narrow = matches!(layout, Layout::Xs | Layout::Sm);
-    let caption = lichen::measure().caption as f32;
-    let says = column - INDENT - ARROW - 8.0;
-    // A set: the room before it, each way's words and ground, and the room between them.
-    let set = |ways: &[Way], setting: &Set| -> f32 {
-        let name = setting.name[if narrow { 0 } else { 1 }] as f32;
-        let each: f32 = ways
-            .iter()
-            .map(|way| {
-                2.0 * setting.pad + CELL * name + 2.0 + CELL * caption * lines(way.says, caption, says)
-            })
-            .sum();
-        setting.lead + each + (ways.len() - 1) as f32 * setting.space
-    };
-    CELL * wordmark
-        + 4.0
-        + CELL * caption * lines(TAGLINE, caption, column)
-        + set(&GROWN, &APPS)
-        + SECTION
-        + CELL * caption
-        + set(&DOCS, &INDEX)
+/// A box `width` wide, its corner `x` across and `y` down, as tall as what it holds -- and a margin
+/// more, so a page short enough to scroll scrolls to a margin past it.
+fn hugging(x: f32, y: f32, width: f32) -> Location {
+    Location::new().xs(
+        left(x.px()).width(width.px()),
+        top(y.px()).height(content() + MARGIN.px()),
+    )
 }
 
-/// How many lines `text` wraps to at `size`, `width` wide.
-fn lines(text: &str, size: f32, width: f32) -> f32 {
-    let wide = text.chars().count() as f32 * ADVANCE * size;
-    (wide / width.max(1.0)).ceil().max(1.0)
+#[cfg(test)]
+mod tests {
+    use foliage::{Area, Greenhouse, Sap, Vein};
+
+    use super::{STACKED, Site, UNDER};
+    use crate::theme::MARGIN;
+
+    /// The site grown at `viewport` and run until it has settled.
+    fn grown(viewport: Area) -> Greenhouse<Site> {
+        let mut house = Greenhouse::<Site>::new(viewport);
+        house.frame();
+        house.settle();
+        // Saved where asked, to look at.
+        if let Ok(dir) = std::env::var("SITE_SHOTS")
+            && let Some(picture) = house.render()
+        {
+            let name = format!("{}x{}.png", viewport.width, viewport.height);
+            std::fs::write(std::path::Path::new(&dir).join(name), picture.png()).unwrap();
+        }
+        house
+    }
+
+    fn placed(house: &Greenhouse<Site>, leaf: foliage::Leaf) -> foliage::Section {
+        match house.grove().tap(leaf, Vein::Placed) {
+            Some(Sap::Section(section)) => section,
+            other => panic!("expected a section, got {other:?}"),
+        }
+    }
+
+    /// The label is as tall as what it holds, at either shape of window.
+    #[test]
+    fn the_label_is_as_tall_as_what_it_holds() {
+        for viewport in [Area::new(1280.0, 800.0), Area::new(390.0, 844.0)] {
+            let house = grown(viewport);
+            let site = house.root();
+            assert!(site.tall > 200.0, "{viewport:?}: measured {}", site.tall);
+            let label = placed(&house, site.label);
+            assert!(
+                (label.height() - (site.tall + MARGIN)).abs() < 0.01,
+                "{viewport:?}: {label:?}"
+            );
+        }
+    }
+
+    /// One over the other, the leaf leaves the label its measured height in view, and the label
+    /// stands under it.
+    #[test]
+    fn over_the_label_the_leaf_leaves_it_room() {
+        let viewport = Area::new(390.0, 844.0);
+        let house = grown(viewport);
+        let site = house.root();
+        let (leaf, label) = (placed(&house, site.leaf), placed(&house, site.label));
+        assert_eq!(label.top(), leaf.bottom() + UNDER);
+        // Narrow enough that the leaf is at its least, or the label ends inside the window.
+        assert!(
+            leaf.width() <= STACKED.1 + 0.5
+                || label.top() + site.tall <= viewport.height - MARGIN + 0.5,
+            "{leaf:?}, {label:?}, {}",
+            site.tall
+        );
+    }
+
+    /// Side by side, the label is centred down the window by the height it measured.
+    #[test]
+    fn beside_the_leaf_the_label_is_centred_by_its_height() {
+        let viewport = Area::new(1280.0, 800.0);
+        let house = grown(viewport);
+        let site = house.root();
+        let label = placed(&house, site.label);
+        let centred = ((viewport.height - site.tall) / 2.0).max(MARGIN);
+        assert!(
+            (label.top() - centred).abs() < 0.5,
+            "{label:?} against {centred}"
+        );
+    }
 }

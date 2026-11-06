@@ -17,6 +17,9 @@ struct Vertex {
     // Per instance, and the backend's own. Every glyph of a run carries its run's depth: a run is
     // one entry in the one stack, and its glyphs are all at that one place in it.
     @location(4) depth: f32,
+    // Per instance: how it and everything it is drawn inside of are turned and scaled.
+    @location(5) pose: vec4<f32>,
+    @location(6) pose_offset: vec2<f32>,
 };
 
 struct Fragment {
@@ -28,7 +31,7 @@ struct Fragment {
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
     let offset = vertex.corner * vertex.section.zw;
-    let position = vec4<f32>(vertex.section.xy + offset, vertex.depth, 1.0);
+    let position = vec4<f32>(posed(vertex.section.xy + offset, vertex.pose, vertex.pose_offset), vertex.depth, 1.0);
     return Fragment(
         viewport * position,
         vertex.color,

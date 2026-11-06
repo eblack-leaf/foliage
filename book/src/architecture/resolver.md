@@ -247,25 +247,38 @@ answered next to the grammar, term by term, for the axis being measured:
 
 ```rust,ignore
 // placement/role.rs
-pub(crate) fn known(kind: Kind, axis: Axis) -> bool {
+pub(crate) fn known(kind: Kind, axis: Axis) -> Measure {
     match kind {
-        Kind::Px(_) => true,
-        Kind::Letters { .. } => true,
-        Kind::Character { .. } | Kind::Span { .. } => axis == Axis::Vertical,
-        Kind::Content { against } => against == Against::Own,
-        Kind::Extent { axis: read, .. } | Kind::Cell { axis: read, .. } => {
-            axis == Axis::Vertical && read == Axis::Horizontal
-        }
-        Kind::Pct { .. } => false,
-        Kind::Edge { .. } => false,
+        Kind::Px(_) => Measure::Own,
+        Kind::Letters { .. } => Measure::Own,
+        Kind::Character { .. } | Kind::Span { .. } => own(axis == Axis::Vertical),
+        Kind::Content { against } => match against {
+            Against::Own => Measure::Own,
+            other => leans(other),
+        },
+        Kind::Extent { axis: read, against } => match read == axis {
+            true => leans(against),
+            false => own(axis == Axis::Vertical && read == Axis::Horizontal),
+        },
+        Kind::Cell { axis: read, .. } => own(axis == Axis::Vertical && read == Axis::Horizontal),
+        Kind::Pct { against, .. } => leans(against),
+        Kind::Edge { against, .. } => leans(against),
     }
 }
 ```
 
-A placement is measurable on an axis if every term in it is known and it is not measured from an
-anchor's edge. Across, nothing is laid out yet, so only pixels, letters and a child's own content
-are known; down, the horizontal axis has settled, so a height may read a width. Everything else
-waits for its axis's own pass.
+`own(known)` is `Own` or `Never`. `leans(against)` is `Leans` for the anchor and `Never` for
+anything else. A placement's answer combines its terms, and an anchor-origin coordinate leans too:
+
+- **`Never`** wins outright: the placement is left out of the measure.
+- **`Own`** is known before the axis is laid out. Across, that is pixels, letters and a child's own
+  content. Down, the horizontal axis has settled, so a height may also read a width.
+- **`Leans`** is known only where the measure has already placed the anchor. That means the anchor
+  is a sibling under the same trunk and counted itself. Children are listed in resolution order, so
+  the anchor is measured first. Its measured span is what the child resolves against, which is how
+  a stack placed with `top(anchor().bottom() + gap)` is measured whole.
+
+Everything else waits for its axis's own pass.
 
 ## Lines are the same grammar
 

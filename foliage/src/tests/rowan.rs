@@ -915,6 +915,137 @@ fn measuring_across_only_what_was_written_lands_where_measuring_everything_does(
     }
 }
 
+// -- Measuring stacks that lean on themselves ------------------------------------------------
+
+/// Everything a wandering script grew in stacks, in the order it grew it.
+#[derive(Default)]
+struct Stacks {
+    stacks: Vec<Leaf>,
+    parts: Vec<Leaf>,
+    labels: Vec<Leaf>,
+    grown: Vec<Leaf>,
+}
+
+/// Where a part of a stack goes, against the part it is anchored to: mostly under it or beside it,
+/// which a stack sized to its contents measures through; sometimes at a place of its own; and
+/// sometimes somewhere read off the stack, which counts for nothing.
+fn part_at(wander: &mut Wander) -> Location {
+    let gap = wander.px(12);
+    let tall = 4.0 + wander.px(40);
+    let across = match wander.below(4) {
+        0 => left(anchor().right() + gap.px()).width((10.0 + wander.px(40)).px()),
+        1 => left(anchor().left()).width(anchor().width()),
+        _ => left(wander.px(20).px()).right(100.pct() - wander.px(20).px()),
+    };
+    match wander.below(6) {
+        0 | 1 => Location::new().xs(across, top(anchor().bottom() + gap.px()).height(content())),
+        2 => Location::new().xs(across, top(anchor().bottom() + gap.px()).height(tall.px())),
+        3 => Location::new().xs(across, top(anchor().top()).height(anchor().height())),
+        4 => Location::new().xs(across, top(wander.px(200).px()).height(tall.px())),
+        _ => Location::new().xs(across, top(wander.px(100).pct()).height(10.pct())),
+    }
+}
+
+/// Grows a part in one of the stacks, anchored to a part grown before it -- in the same stack most
+/// of the time, which is what the measure reads through, and in another sometimes, which it does
+/// not -- with a label on it half the time.
+fn stack_up(grove: &mut Grove, wander: &mut Wander, stacks: &mut Stacks) {
+    let stack = stacks.stacks[wander.below(stacks.stacks.len())];
+    let mut seed = Stem::new().at(part_at(wander));
+    if !stacks.parts.is_empty() {
+        seed = seed.anchored(stacks.parts[wander.below(stacks.parts.len())]);
+    }
+    let part = grove.branch(stack, seed);
+    stacks.parts.push(part);
+    stacks.grown.push(part);
+    if wander.below(2) == 0 {
+        let label = grove.branch(
+            part,
+            Text::new(words(wander))
+                .font_size(FontSize::new().xs(14))
+                .at(Location::new().xs(
+                    left(4.px()).right(100.pct() - 4.px()),
+                    top(4.px()).height(content()),
+                )),
+        );
+        stacks.labels.push(label);
+        stacks.grown.push(label);
+    }
+}
+
+/// Three stacks sized to what is in them on both axes.
+fn stacking(grove: &mut Grove, wander: &mut Wander) -> Stacks {
+    let mut stacks = Stacks::default();
+    for n in 0..3 {
+        let stack = grove.plant(Stem::new().at(Location::new().xs(
+            left((n as f32 * 130.0).px()).width(content()),
+            top(0.px()).height(content()),
+        )));
+        stacks.stacks.push(stack);
+        stacks.grown.push(stack);
+    }
+    for _ in 0..24 {
+        stack_up(grove, wander, &mut stacks);
+    }
+    stacks
+}
+
+/// One frame's worth of writes: parts grown, moved, anchored elsewhere, set in motion, hidden and
+/// pruned, and labels rewritten so what leans on them moves.
+fn restack(grove: &mut Grove, wander: &mut Wander, stacks: &mut Stacks) {
+    for _ in 0..1 + wander.below(4) {
+        let at = wander.below(stacks.parts.len());
+        let part = stacks.parts[at];
+        match wander.below(9) {
+            0 => stack_up(grove, wander, stacks),
+            1 | 2 => grove.at(part, part_at(wander)),
+            3 | 4 => {
+                let label = stacks.labels[wander.below(stacks.labels.len())];
+                grove.text(label, words(wander));
+            }
+            // Only ever to one grown before it, so no anchor closes a loop.
+            5 if at > 0 => grove.anchor(part, stacks.parts[wander.below(at)]),
+            6 => {
+                let to = part_at(wander);
+                grove.animate(part, Motion::Location(to), Timing::ms(80));
+            }
+            7 => grove.visible(part, wander.below(2) == 0),
+            8 => grove.prune(part),
+            _ => {}
+        }
+    }
+}
+
+/// The claim incremental resolution rests on, held for stacks measured through their own anchors:
+/// a part asked again only where it or what it leans on was, and the rest kept, lands every part and
+/// every stack where measuring everything does.
+#[test]
+fn measuring_stacks_only_where_written_lands_where_measuring_everything_does() {
+    let mut incremental = grove();
+    let mut entire = grove();
+    let mut one = Wander(0x5eed_57ac);
+    let mut two = Wander(0x5eed_57ac);
+    let mut ours = stacking(&mut incremental, &mut one);
+    let mut theirs = stacking(&mut entire, &mut two);
+    for frame in 0..400 {
+        restack(&mut incremental, &mut one, &mut ours);
+        restack(&mut entire, &mut two, &mut theirs);
+        advance(&mut incremental, 16);
+        advance(&mut entire, 16);
+        entire.tree.invalidate();
+        tick(&mut incremental);
+        tick(&mut entire);
+        assert_eq!(ours.grown.len(), theirs.grown.len());
+        for (mine, reference) in ours.grown.iter().zip(&theirs.grown) {
+            assert_eq!(
+                incremental.tap(*mine, Vein::Drawn),
+                entire.tap(*reference, Vein::Drawn),
+                "frame {frame}: {mine:?} is not where measuring everything puts it",
+            );
+        }
+    }
+}
+
 /// A frame that only grows and withers repairs the order rather than building it again -- what is
 /// grown placed after everything already there -- and every element lands exactly where building
 /// the order from scratch would put it.

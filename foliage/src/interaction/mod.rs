@@ -46,6 +46,8 @@ pub(crate) mod focus;
 pub(crate) mod input;
 pub(crate) mod stack;
 
+use stack::Stack;
+
 use core::time::Duration;
 use std::collections::VecDeque;
 
@@ -73,14 +75,38 @@ pub(crate) struct Gestures {
     /// Declared [`interactive`](crate::Place::interactive): this element receives.
     pub(crate) receives: bool,
     /// Declared [`intangible`](crate::Place::intangible): a gesture over it reaches what is
-    /// beneath.
+    /// beneath, whatever else it declared.
     pub(crate) intangible: bool,
+    /// A mark that has not said [`tangible`](crate::Place::tangible): a gesture over it reaches
+    /// what is beneath unless it receives.
+    pub(crate) passes: bool,
     /// Which drags the element takes. Absent, it takes none -- so it holds a gesture only until
     /// that gesture becomes a drag, and then yields.
     pub(crate) drags: Option<Axes>,
     /// Declared [`wheels`](crate::Place::wheels): a notch over it is its own, and scrolls nothing.
     pub(crate) wheels: bool,
     pub(crate) shape: Shape,
+}
+
+impl Gestures {
+    /// What a mark -- a run of text, an icon, a polygon, a stroke -- declares unless it says
+    /// otherwise: a gesture over it passes through. A mark is drawn on something, and what it is
+    /// drawn on is what a press over it is meant for.
+    pub(crate) fn mark() -> Self {
+        Self {
+            passes: true,
+            ..Self::default()
+        }
+    }
+
+    /// Whether the element can be the top of the box stack.
+    ///
+    /// Not if it said `intangible`, which is the last word whatever else it said. A mark can if it
+    /// receives: what it starts with is a default, and saying `interactive` on one is saying it is
+    /// pressed itself rather than as what it is drawn on.
+    pub(crate) fn stacked(&self) -> bool {
+        !self.intangible && (self.receives || !self.passes)
+    }
 }
 
 /// The shape a hit is tested against inside an element's box.
@@ -281,6 +307,12 @@ const WINDOW: Duration = Duration::from_millis(100);
 pub(crate) struct Gesture {
     /// Where it began, which is where its tap would be.
     at: Position,
+    /// The top-left corner of what it landed on, as that was drawn when it did: what a tap's own
+    /// point within the element is measured from.
+    corner: Position,
+    /// What takes a point back into that element's own upright space, where the corner is, as it
+    /// was posed when the gesture landed.
+    unposed: crate::pose::Affine,
     /// Where the pointer is now.
     to: Position,
     /// The element receiving it, while one is. Cleared when a target yields, so nothing that has
@@ -423,6 +455,41 @@ pub(crate) fn dispatch(grove: &mut Grove) {
             Input::Pasted(text) => pasted(grove, text),
         }
     }
+    hover(grove);
+}
+
+/// What a press at `at` would reach, if anything: the top of the stack there, where that receives
+/// and is not disabled.
+pub(crate) fn reaches(stack: &Stack, at: Position) -> Option<Leaf> {
+    stack
+        .top(at)
+        .filter(|region| region.receives && !region.disabled)
+        .map(|region| region.leaf)
+}
+
+/// Settles what the cursor rests on, reporting it if that changed.
+///
+/// Asked at dispatch, against what the last frame drew -- the picture a person was pointing at --
+/// and again once a frame has settled the stack, so an element hidden, covered or moved from under
+/// a still cursor stops being hovered without waiting for the cursor to move. A change found then
+/// is a report pending, and so is a frame owed.
+pub(crate) fn hover(grove: &mut Grove) {
+    let now = grove.cursor.and_then(|at| reaches(&grove.stack, at));
+    if now == grove.hovered {
+        return;
+    }
+    if let Some(was) = grove.hovered {
+        grove.drift.unhovered.insert(was);
+    }
+    if let Some(now) = now {
+        grove.drift.hovered.insert(now);
+    }
+    debug!(
+        from = grove.hovered.map(|leaf| leaf.id()),
+        to = now.map(|leaf| leaf.id()),
+        "hover moved"
+    );
+    grove.hovered = now;
 }
 
 /// The second way out of resolving: a press that has been down long enough to be a statement of its
@@ -455,7 +522,9 @@ fn holding(grove: &mut Grove) {
 /// A keystroke, delivered to whatever it is about.
 ///
 /// `Tab` and `Escape` are focus's own and are answered wherever focus is, including nowhere --
-/// which is what makes keyboard navigation work on a page with no field on it at all. Everything
+/// which is what makes keyboard navigation work on a page with no field on it at all. `Escape` is
+/// reported to the app as [`escaped`](crate::Pollen::escaped) too, since taking focus away is not
+/// all it is ever meant to do. Everything
 /// else goes to whatever holds focus, and what an element makes of a key is that element's: this
 /// pass knows which keys steer focus and nothing else about any of them.
 ///
@@ -479,7 +548,9 @@ fn keyed(grove: &mut Grove, key: Key) {
         return;
     }
     if key == Key::Escape {
-        grove.queue.push(Op::Focus(Intent::Away));
+        // Taken focus away with, and heard by the app as well, since nothing focus does with it
+        // says what it was for.
+        grove.queue.push(Op::Escape);
         debug!("escaped");
         return;
     }
@@ -513,6 +584,8 @@ fn pressed(grove: &mut Grove, at: Position) {
     close(grove, false);
     let mut gesture = Gesture {
         at,
+        corner: at,
+        unposed: crate::pose::Affine::IDENTITY,
         to: at,
         target: None,
         chain: Vec::new(),
@@ -524,6 +597,8 @@ fn pressed(grove: &mut Grove, at: Position) {
     // release inside one frame and that movement has to land somewhere.
     gesture.open(grove.clock.delta());
     if let Some(region) = grove.stack.top(at) {
+        gesture.corner = Position::new(region.section.left(), region.section.top());
+        gesture.unposed = region.unposed;
         // A disabled element still blocks what is behind it, and its chain holds only the regions
         // above it that are not disabled themselves -- so a drag over a disabled control scrolls
         // the list it sits in, and a disabled region does not scroll.
@@ -709,6 +784,7 @@ fn close(grove: &mut Grove, released: bool) {
                 target,
                 Tap {
                     at: gesture.at,
+                    within: gesture.corner.to(gesture.unposed.apply(gesture.at)),
                     count,
                 },
             );

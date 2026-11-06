@@ -74,6 +74,8 @@ pub struct Grove {
     pub(crate) rouses: bool,
     /// The cursor moved since the last frame, and the app asked to hear of it.
     pub(crate) roused: bool,
+    /// What the cursor rests on that would take a press there. See [`Grove::hovered`].
+    pub(crate) hovered: Option<Leaf>,
     /// The system clipboard, and what this program last put on it.
     pub(crate) clipboard: Clipboard,
     /// The soft keyboard, and which one is up.
@@ -96,6 +98,8 @@ pub struct Grove {
     /// How a released drag coasts. Tuned at boot.
     pub(crate) momentum: Momentum,
     pub(crate) again: bool,
+    /// How long until the frame this one asked for with [`again_in`](Grove::again_in) is owed.
+    pub(crate) again_in: Option<Duration>,
     pub(crate) frames: u64,
 }
 
@@ -130,6 +134,7 @@ impl Grove {
             pointer: Vec::new(),
             cursor: None,
             rouses: false,
+            hovered: None,
             roused: false,
             clipboard: Clipboard::default(),
             keyboard: Keyboard::default(),
@@ -143,6 +148,7 @@ impl Grove {
             taps: Taps::default(),
             momentum: Momentum::default(),
             again: false,
+            again_in: None,
             frames: 0,
         }
     }
@@ -366,6 +372,22 @@ impl Grove {
         self.focus.held()
     }
 
+    /// What the cursor rests on, if a press there would reach it: the element a press at the
+    /// cursor would land on, where that is [`interactive`](crate::Place::interactive) and not
+    /// disabled.
+    ///
+    /// Read from the same stack a press is, so it knows what covers what: an element under a sheet
+    /// is not hovered through it, and a label over a button hovers the button. `None` while there
+    /// is no cursor -- off the window, or on a touchscreen, where a finger has no position between
+    /// touches.
+    ///
+    /// The engine wakes for a cursor move that would change this, and for no other, so following
+    /// it costs a frame only when there is something new to draw. Changes are reported as
+    /// [`hovered`](crate::Pollen::hovered) and [`unhovered`](crate::Pollen::unhovered).
+    pub fn hovered(&self) -> Option<Leaf> {
+        self.hovered
+    }
+
     /// The visible area.
     pub fn viewport(&self) -> Area {
         self.viewport
@@ -379,6 +401,49 @@ impl Grove {
     /// Whether the viewport is vertically cramped.
     pub fn short(&self) -> Short {
         self.short
+    }
+
+    /// The cursor rests somewhere else, or nowhere: owes a frame if the app asked to be woken for
+    /// any move, or if what it rests on is not what the last frame hovered -- read off the stack the
+    /// last frame drew, which is what the frame it owes will read it from too.
+    pub(crate) fn rest(&mut self, cursor: Option<Position>) {
+        self.cursor = cursor;
+        let rests = cursor.and_then(|at| crate::interaction::reaches(&self.stack, at));
+        self.roused |= self.rouses || rests != self.hovered;
+    }
+
+    /// Whether a frame is owed on the engine's own account: something is waiting to be drained,
+    /// moved, reported, or noticed.
+    ///
+    /// The loop's question less the clock -- what an app asked for at a time it chose is the
+    /// loop's to wait on, because only the loop has a wall to read it against. The greenhouse asks
+    /// the same question to know when a frame has settled.
+    pub(crate) fn owed(&self) -> bool {
+        // The tree has not been grown yet: `take_root` runs inside the first frame.
+        self.frames == 0
+            || self.again
+            || self.pending_resize.is_some()
+            // Something arrived from off the frame. Usually an op, which the clause below sees on
+            // its own; but a key the hidden input captured is nowhere this can look, and the rouse
+            // is the only word that it is there.
+            || self.wake.pending()
+            || !self.queue.is_empty()
+            || !self.incoming.pending.is_empty()
+            || !self.aspen.idle()
+            // A press that is not moving becomes a hold on its own, with nothing arriving to say
+            // so. Idling under a finger is how that duration would pass unremarked, so the frames
+            // that would notice it are owed until the gesture is past being able to become one.
+            || self.incoming.awaiting_hold()
+            // A coasting region is pending work in its own right: it is not a tween, and there is
+            // nothing on the app's side asking for the frames it needs. So frames keep running
+            // until it settles, and stop afterwards.
+            || !self.coasting.idle()
+            // Steps 4 through 7 emit into the drift and step 3 of the *next* frame is where an app
+            // is handed it, so a report that has been made and not yet delivered owes the frame
+            // that delivers it. Without this the loop could idle holding one.
+            || self.drift.pending()
+            // The cursor moved, and the app asked to be woken for that.
+            || self.roused
     }
 
     /// What every [`Palette`](crate::Palette) role currently resolves to.
@@ -440,6 +505,22 @@ impl Grove {
     /// has nothing the engine can detect, and calls this for as long as it is doing something.
     pub fn again(&mut self) {
         self.again = true;
+    }
+
+    /// Asks for another frame, `millis` from now rather than at once.
+    ///
+    /// For motion an app drives itself that does not need every frame the display can show: a
+    /// light drifting across a picture, a clock's second hand, a meter that settles. Asked each
+    /// frame for as long as it is moving, it holds the app to that rate -- and while nothing else is
+    /// owed, the engine sleeps in between rather than drawing frames nothing changed in. A frame
+    /// owed sooner for any other reason runs sooner, and the next one asked for is counted from
+    /// that.
+    ///
+    /// Asked more than once in a frame, the soonest is the one kept. [`again`](Grove::again) is
+    /// this at nothing.
+    pub fn again_in(&mut self, millis: u64) {
+        let after = Duration::from_millis(millis);
+        self.again_in = Some(self.again_in.map_or(after, |asked| asked.min(after)));
     }
 }
 

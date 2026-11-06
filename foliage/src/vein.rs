@@ -26,10 +26,13 @@ pub enum Vein {
     /// What a containing view's extent is measured from, and what to read when the question is
     /// where content sits rather than where it currently appears.
     Placed,
-    /// The element's box less every scrolling ancestor's offset, and moved by every shift on it and
-    /// above it: where it is on screen, which is what was drawn and what a hit test runs against.
+    /// The element's box less every scrolling ancestor's offset, and moved by every shift and slide
+    /// on it and above it: where it is on screen, which is what was drawn and what a hit test runs
+    /// against.
     ///
-    /// The two differ only inside a view that has been scrolled, or under a shift.
+    /// The two differ only inside a view that has been scrolled, or under a shift or a slide. A
+    /// [turn](crate::Place::turn) or a [scale](crate::Place::scale) is not in it: this is the box
+    /// upright, before either is applied about its middle.
     Drawn,
     /// The one other element this one's placement may read, if it has been given one.
     Anchor,

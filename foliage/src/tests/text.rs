@@ -1340,3 +1340,240 @@ fn a_run_that_stops_being_painted_is_withdrawn() {
     tick(&mut grove);
     assert_eq!(extracted(&grove, leaf).len(), 5);
 }
+
+/// A run set at another size after it was grown is shaped and measured at it in the same frame, so
+/// what is sized to its content is the right size on the frame the size changed.
+#[test]
+fn a_size_set_after_growth_is_measured_that_frame() {
+    let mut grove = grove();
+    let run = grove.plant(
+        Text::new("hello")
+            .font_size(FontSize::new().xs(10))
+            .at(Location::new().xs(left(0.px()).width(content()), top(0.px()).height(content()))),
+    );
+    tick(&mut grove);
+    let before = section(&grove, run);
+
+    grove.font_size(run, FontSize::new().xs(20));
+    tick(&mut grove);
+    let after = section(&grove, run);
+    assert!(
+        (after.width() - 2.0 * before.width()).abs() < 1.0,
+        "{before:?} to {after:?}"
+    );
+    assert!(after.height() > before.height());
+}
+
+// A stack or a row, each part placed after the last with an anchor.
+
+/// A box in a container, `height` tall, `width` wide, at the container's left edge, under its
+/// anchor by `gap` -- the stack's own spelling, which reads nothing but its anchor's bottom.
+fn under(gap: f32, width: f32, height: f32) -> Location {
+    Location::new().xs(
+        left(0.px()).width(width.px()),
+        top(anchor().bottom() + gap.px()).height(height.px()),
+    )
+}
+
+/// The case a measure could not reach until it could read an anchor it had already measured: each
+/// part under the one before, and the container as tall as where the last one stops.
+#[test]
+fn a_stack_each_under_the_last_is_measured_whole() {
+    let mut grove = grove();
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
+    let first = grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(20.px()))),
+    );
+    let second = grove.branch(
+        container,
+        Stem::new().anchored(first).at(under(10.0, 50.0, 30.0)),
+    );
+    let third = grove.branch(
+        container,
+        Text::new("one two three")
+            .anchored(second)
+            .at(Location::new().xs(
+                left(0.px()).width(50.px()),
+                top(anchor().bottom() + 5.px()).height(content()),
+            )),
+    );
+    tick(&mut grove);
+    // 20, 10 of room, 30, 5 of room, then three lines of 22.
+    assert_eq!(section(&grove, container).height(), 131.0);
+    assert_eq!(section(&grove, third).top(), 65.0);
+}
+
+/// A part in the middle that grows moves everything after it and the container around them, in
+/// the frame it grew -- the chain is followed through parts nothing was written to.
+#[test]
+fn a_stack_follows_its_middle_in_the_frame_it_grows() {
+    let mut grove = grove();
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
+    let first = grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(20.px()))),
+    );
+    let middle = grove.branch(
+        container,
+        Text::new("one").anchored(first).at(Location::new().xs(
+            left(0.px()).width(50.px()),
+            top(anchor().bottom()).height(content()),
+        )),
+    );
+    let last = grove.branch(
+        container,
+        Stem::new().anchored(middle).at(under(0.0, 50.0, 10.0)),
+    );
+    let after = grove.branch(
+        container,
+        Stem::new().anchored(last).at(under(0.0, 50.0, 10.0)),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).height(), 62.0);
+
+    grove.text(middle, "one two three");
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).height(), 106.0);
+    assert_eq!(section(&grove, last).top(), 86.0);
+    assert_eq!(section(&grove, after).top(), 96.0);
+
+    grove.text(middle, "one");
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).height(), 62.0);
+    assert_eq!(section(&grove, after).top(), 52.0);
+}
+
+/// Reading an anchor counts only where the measure placed it: anchored to something under another
+/// element, a part is asking where something else is, and is left out as before.
+#[test]
+fn a_part_anchored_outside_the_container_is_left_out() {
+    let mut grove = grove();
+    let elsewhere =
+        grove
+            .plant(Stem::new().at(
+                Location::new().xs(left(0.px()).width(50.px()), top(200.px()).height(20.px())),
+            ));
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
+    grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(20.px()))),
+    );
+    let outside = grove.branch(
+        container,
+        Stem::new().anchored(elsewhere).at(under(0.0, 50.0, 10.0)),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).height(), 20.0);
+    // And still lands where it reads.
+    assert_eq!(section(&grove, outside).top(), 220.0);
+}
+
+/// Across, the same: a row of parts each right of the last, and the container as wide as they run.
+#[test]
+fn a_row_each_after_the_last_is_measured_across() {
+    let mut grove = grove();
+    let container = grove.plant(Stem::new().at(hugging()));
+    let first = grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(30.px()), top(0.px()).height(10.px()))),
+    );
+    let second = grove.branch(
+        container,
+        Text::new("tag").anchored(first).at(Location::new().xs(
+            left(anchor().right() + 8.px()).width(content()),
+            top(0.px()).height(content()),
+        )),
+    );
+    let third = grove.branch(
+        container,
+        Stem::new().anchored(second).at(Location::new().xs(
+            left(anchor().right() + 8.px()).width(20.px()),
+            top(0.px()).height(10.px()),
+        )),
+    );
+    tick(&mut grove);
+    let tag = section(&grove, second).width();
+    assert!(tag > 0.0);
+    assert_eq!(
+        section(&grove, container).width(),
+        30.0 + 8.0 + tag + 8.0 + 20.0
+    );
+    assert_eq!(section(&grove, third).left(), 30.0 + 8.0 + tag + 8.0);
+}
+
+/// What the measure is for: a stack of unknown height centred in the window by what it turned out
+/// to hold, with no estimate on the app's side.
+#[test]
+fn a_stack_is_centred_by_what_it_holds() {
+    let mut grove = grove();
+    let column = grove.plant(Stem::new().at(Location::new().xs(
+        left(0.px()).width(200.px()),
+        crate::center_y(50.pct()).height(content()),
+    )));
+    let first = grove.branch(
+        column,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(40.px()))),
+    );
+    grove.branch(
+        column,
+        Stem::new().anchored(first).at(under(20.0, 50.0, 40.0)),
+    );
+    tick(&mut grove);
+    // A hundred tall, in a window three hundred tall.
+    assert_eq!(
+        section(&grove, column),
+        Section::from_edges(0.0, 100.0, 200.0, 200.0)
+    );
+}
+
+/// A part sized to what it holds grows when what it holds is rewritten -- nothing is written to the
+/// part, or to what leans on it -- and the stack follows in the same frame. The measure finds the
+/// part moved on its way up and asks again whatever leans on it.
+#[test]
+fn a_stack_follows_a_part_whose_contents_grew() {
+    let mut grove = grove();
+    let container = grove.plant(
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(200.px()), top(0.px()).height(content()))),
+    );
+    let part = grove.branch(
+        container,
+        Stem::new()
+            .at(Location::new().xs(left(0.px()).width(50.px()), top(0.px()).height(content()))),
+    );
+    let label = grove.branch(
+        part,
+        Text::new("one")
+            .at(Location::new().xs(left(0.px()).right(100.pct()), top(0.px()).height(content()))),
+    );
+    let next = grove.branch(
+        container,
+        Stem::new().anchored(part).at(under(0.0, 50.0, 10.0)),
+    );
+    let last = grove.branch(
+        container,
+        Stem::new().anchored(next).at(under(0.0, 50.0, 10.0)),
+    );
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).height(), 42.0);
+
+    grove.text(label, "one two three");
+    tick(&mut grove);
+    assert_eq!(section(&grove, container).height(), 86.0);
+    assert_eq!(section(&grove, last).top(), 76.0);
+}

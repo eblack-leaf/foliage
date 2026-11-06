@@ -299,10 +299,14 @@ text (unwrapped across, as it wrapped down), and how far its children reach (rig
 edge, or down from its top). **Only children that describe their own extent on that axis are
 counted**: a child placed in pixels, in letters, or by its own content -- and down, by any
 horizontal reading, since widths have settled by then. A child whose placement reads *another* box
-on that axis (a percentage of its trunk, a track of its trunk's grid, an anchor's edge) is asking
-how large something else is, so it cannot be what decides how large this is. It is left out of the
-measure and given its real place afterwards, which is what lets one child size a box that another
-child fills.
+on that axis (a percentage of its trunk, a track of its trunk's grid) is asking how large something
+else is, so it cannot be what decides how large this is. It is left out of the measure and given
+its real place afterwards, which is what lets one child size a box that another child fills.
+
+A child that reads its **anchor** counts too, when the anchor is grown under the same element and
+counts itself. The measure has already found where that anchor reaches, so `top(anchor().bottom() +
+8.px())` is as well known as `top(40.px())`. Anchored to something elsewhere in the tree, it is left
+out as before.
 
 So a box *can* be sized to children at known offsets. A badge that hugs its label, with the label
 held two letters in from either side and 6 pixels from the top and bottom:
@@ -345,10 +349,42 @@ the same frame. Two things in it are worth copying:
   why the badge declares the label's `font_size`: its two letters of margin are the label's two. An
   element that names no font and no size has no cell and reads zero for every letter.
 
-A stack of things of unknown height, each placed under the last with an anchor, is the case that
-cannot be measured this way. Frame it the way the card does, with a sibling anchored to the last
-element, or put it in a scrolling region, whose extent is measured from wherever its children
-landed ([Scrolling](scrolling.md)).
+### A stack of unknown height
+
+The same rule measures a stack: things of unknown height, each placed under the last with an
+anchor, in a box as tall as where the last one stops. Rewrite or resize anything in it and
+everything after it moves, and the box with them, in that frame.
+
+```rust
+# use foliage::{Boxed, Grove, Grow, Leaf, Location, Place, Source, Stem, Text, anchor, center_y, content, left, top};
+# fn f(grove: &mut Grove, page: Leaf) {
+// As tall as what it holds, and centred in the page by that height.
+let column = grove.branch(
+    page,
+    Stem::new().at(Location::new().xs(
+        left(24.px()).width(320.px()),
+        center_y(50.pct()).height(content()),
+    )),
+);
+let title = grove.branch(
+    column,
+    Text::new("A title that may wrap")
+        .at(Location::new().xs(left(0.px()).width(100.pct()), top(0.px()).height(content()))),
+);
+grove.branch(
+    column,
+    Text::new("A paragraph of any length, under the title wherever it ended.")
+        .anchored(title)
+        .at(Location::new().xs(
+            left(0.px()).width(100.pct()),
+            top(anchor().bottom() + 12.px()).height(content()),
+        )),
+);
+# }
+```
+
+The same works across, for a row of parts each placed `left(anchor().right() + gap)`. An anchored
+part can't hold its box open with a percentage of its trunk on that axis, for the reason above.
 
 ## Elevation
 
@@ -407,6 +443,31 @@ grove.animate(row, Motion::Shift(Position::default()), Timing::ms(450));
 
 It is for a moment's displacement -- something tugged, nudged or shaken -- without restating where
 it stands. An element that belongs somewhere else is given a new placement.
+
+Three more are drawn aside the same way: they are draw-time, carried by everything grown under the
+element, and cost no layout.
+
+| Verb | Draws it | Moved by |
+|---|---|---|
+| `slide(leaf, by)` | `by` its own widths and heights from where it was placed, added to any shift | `Motion::Slide` |
+| `turn(leaf, radians)` | turned clockwise about its middle | `Motion::Turn` |
+| `scale(leaf, scale)` | at a multiple of its size, about its middle | `Motion::Scale` |
+
+Each also has a spelling on the seed (`.slide(..)`, `.turn(..)`, `.scale(..)`).
+- **Slide** is the shift to reach for when the distance is the element's own size: a sheet out by
+  exactly its width, however wide it came out.
+- **Turn and scale** compose down the tree. A card scaled to `0.97` on a press scales its text and
+  its marks with it, about the card's middle, and a mark turned inside it turns about its own middle
+  within that.
+- **Hit-testing:** a press is tested in the element's own upright space, so it lands where the
+  element is drawn, and `clicked_within` reports a point in the element's own box.
+- **`Vein::Drawn`** stays the upright box: a turn and a scale are applied about it, not to it.
+
+```rust,ignore
+// Pressed in, then back.
+grove.animate(card, Motion::Scale(0.97), Timing::ms(90));
+grove.animate(card, Motion::Scale(1.0), Timing::ms(160).after(90).ease(Ease::Decelerate));
+```
 
 ## Lines
 

@@ -54,6 +54,11 @@ Both `font` and `font_size` are on every element, not only on text. A font and a
 give an element a character cell, and `letters` counts the element's *own* cells, so a panel meant
 to be eight characters wide states a size to be eight characters of.
 
+Both can be changed after an element is grown, with `grove.font_size(leaf, ..)` and
+`grove.face(leaf, font)`. The run is shaped again and measured in the same frame, so whatever is
+sized to it, or placed in its letters, is right on the frame the size changed. A field is set
+throughout: its value, its hint and its caret.
+
 ## Sizing text
 
 In a width role, `content()` is the widest the run would like to be: its longest line, unwrapped.

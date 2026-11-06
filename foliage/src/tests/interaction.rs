@@ -14,8 +14,8 @@ use crate::tests::{
     tick_with, wheel,
 };
 use crate::{
-    Boxed, Elevation, Grove, Grow, Hold, Leaf, Location, Panel, Place, Pollen, Source, Stem, left,
-    top,
+    Boxed, Elevation, Grove, Grow, Hold, Leaf, Line, Location, Panel, Place, Point, Pollen,
+    Polygon, Source, Stem, Text, left, top,
 };
 
 /// A box at a stated place, so a point can be aimed at it.
@@ -160,6 +160,218 @@ fn a_fully_transparent_element_is_not_in_the_stack() {
     grove.opacity(veil, 0.01);
     tick(&mut grove);
     assert!(!tap(&mut grove, 50.0, 25.0).clicked(button));
+}
+
+// -- Hover ---------------------------------------------------------------------------------------
+
+/// Puts the cursor somewhere, or takes it off the window.
+fn point(grove: &mut Grove, at: Option<(f32, f32)>) {
+    grove.cursor = at.map(|(x, y)| Position::new(x, y));
+}
+
+/// What the cursor rests on is what a press there would reach: a label over a button hovers the
+/// button, and moving off reports it.
+#[test]
+fn the_cursor_hovers_what_a_press_would_reach() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    grove.branch(button, Text::new("press").at(at(10.0, 10.0, 80.0, 30.0)));
+    tick(&mut grove);
+
+    point(&mut grove, Some((50.0, 25.0)));
+    let pollen = frame(&mut grove);
+    assert!(pollen.hovered(button));
+    assert_eq!(grove.hovered(), Some(button));
+    assert!(!frame(&mut grove).hovered(button));
+
+    point(&mut grove, Some((200.0, 200.0)));
+    let pollen = frame(&mut grove);
+    assert!(pollen.unhovered(button));
+    assert_eq!(grove.hovered(), None);
+}
+
+/// Nothing is hovered through what covers it: a sheet over a button takes the cursor as it takes a
+/// press, and so does a disabled control.
+#[test]
+fn nothing_is_hovered_through_what_covers_it() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    let sheet = grove.plant(
+        Panel::new()
+            .at(at(0.0, 0.0, 100.0, 50.0))
+            .elevate(Elevation::up(1))
+            .visible(false),
+    );
+    tick(&mut grove);
+    point(&mut grove, Some((50.0, 25.0)));
+    frame(&mut grove);
+    assert_eq!(grove.hovered(), Some(button));
+
+    grove.visible(sheet, true);
+    tick(&mut grove);
+    assert_eq!(grove.hovered(), None);
+
+    grove.visible(sheet, false);
+    grove.disable(button);
+    tick(&mut grove);
+    tick(&mut grove);
+    assert_eq!(grove.hovered(), None);
+}
+
+/// What is hovered going away under a cursor that never moved is reported without waiting for it
+/// to move, in the next frame's report -- which the change owes.
+#[test]
+fn what_goes_from_under_a_still_cursor_is_unhovered() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    tick(&mut grove);
+    point(&mut grove, Some((50.0, 25.0)));
+    frame(&mut grove);
+
+    grove.visible(button, false);
+    tick(&mut grove);
+    assert_eq!(grove.hovered(), None);
+    assert!(grove.drift.pending());
+    assert!(frame(&mut grove).unhovered(button));
+}
+
+/// A tap is reported where it landed in the window, and where within what it landed on.
+#[test]
+fn a_tap_is_reported_within_what_it_landed_on() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(40.0, 30.0, 100.0, 50.0)).interactive());
+    tick(&mut grove);
+    let pollen = tap(&mut grove, 50.0, 45.0);
+    assert_eq!(pollen.clicked_at(button), Some(Position::new(50.0, 45.0)));
+    assert_eq!(
+        pollen.clicked_within(button),
+        Some(Position::new(10.0, 15.0))
+    );
+}
+
+/// Faded to nothing is gone, wherever the fade was declared: on the control itself, on the root
+/// of the part it belongs to, or on a sheet holding it -- disabled controls included, which would
+/// otherwise block. Nothing about a part's inner structure decides whether a fade leaves an
+/// invisible control behind. Faded back in, it is pressed again.
+#[test]
+fn a_control_faded_out_is_gone_wherever_the_fade_is() {
+    let mut grove = grove();
+    let under = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    // A control that is its part's root, and one held by a sheet.
+    let root = grove.plant(
+        Panel::new()
+            .at(at(0.0, 0.0, 50.0, 50.0))
+            .elevate(Elevation::up(1))
+            .interactive(),
+    );
+    let sheet = grove.plant(
+        Stem::new()
+            .at(at(50.0, 0.0, 50.0, 50.0))
+            .elevate(Elevation::up(1)),
+    );
+    let held = grove.branch(sheet, Panel::new().at(at(0.0, 0.0, 50.0, 50.0)).interactive());
+    tick(&mut grove);
+    assert!(tap(&mut grove, 25.0, 25.0).clicked(root));
+    crate::tests::past_the_taps(&mut grove);
+    assert!(tap(&mut grove, 75.0, 25.0).clicked(held));
+    crate::tests::past_the_taps(&mut grove);
+
+    for leaf in [root, sheet] {
+        grove.disable(leaf);
+        grove.opacity(leaf, 0.0);
+    }
+    tick(&mut grove);
+    for x in [25.0, 75.0] {
+        let pollen = tap(&mut grove, x, 25.0);
+        assert!(pollen.clicked(under), "at {x}");
+        assert!(!pollen.clicked(root) && !pollen.clicked(held), "at {x}");
+        crate::tests::past_the_taps(&mut grove);
+    }
+
+    for leaf in [root, sheet] {
+        grove.enable(leaf);
+        grove.opacity(leaf, 1.0);
+    }
+    tick(&mut grove);
+    assert!(tap(&mut grove, 25.0, 25.0).clicked(root));
+    crate::tests::past_the_taps(&mut grove);
+    assert!(tap(&mut grove, 75.0, 25.0).clicked(held));
+}
+
+/// A press target that shows nothing -- the ground of a row that only fades in while it is
+/// pointed at -- is said by what it draws, not by fading it: a stem, or a panel in a clear color,
+/// at full opacity, is pressed and hovered while nothing of it shows.
+#[test]
+fn an_unseen_press_target_is_drawn_clear_rather_than_faded() {
+    let mut grove = grove();
+    let stem = grove.plant(Stem::new().at(at(0.0, 0.0, 50.0, 50.0)).interactive());
+    let clear = grove.plant(
+        Panel::new()
+            .color(crate::Color::rgba(0.0, 0.0, 0.0, 0.0))
+            .at(at(50.0, 0.0, 50.0, 50.0))
+            .interactive(),
+    );
+    // What fades in while the row is pointed at, grown under it and passing presses to it.
+    grove.branch(stem, Panel::new().at(at(0.0, 0.0, 50.0, 50.0)).intangible().opacity(0.0));
+    tick(&mut grove);
+    assert!(tap(&mut grove, 25.0, 25.0).clicked(stem));
+    crate::tests::past_the_taps(&mut grove);
+    assert!(tap(&mut grove, 75.0, 25.0).clicked(clear));
+    crate::tests::past_the_taps(&mut grove);
+
+    point(&mut grove, Some((25.0, 25.0)));
+    assert!(frame(&mut grove).hovered(stem));
+    assert_eq!(grove.hovered(), Some(stem));
+}
+
+/// A mark is pressed as what it is drawn on: text, a polygon and a stroke over a button each let a
+/// press through to the button without saying anything -- a diagonal stroke, whose box is the
+/// whole rectangle around it, included.
+#[test]
+fn a_mark_passes_a_press_to_what_it_is_drawn_on() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    let label = grove.branch(button, Text::new("press").at(at(10.0, 10.0, 80.0, 30.0)));
+    let dot = grove.branch(button, Polygon::new().at(at(60.0, 0.0, 40.0, 50.0)));
+    let rule = grove.branch(
+        button,
+        Line::new().between(Point::new(0.px(), 0.px()), Point::new(100.px(), 50.px())),
+    );
+    tick(&mut grove);
+
+    for (x, y) in [(50.0, 25.0), (80.0, 25.0), (20.0, 40.0)] {
+        let pollen = tap(&mut grove, x, y);
+        assert!(pollen.clicked(button), "at {x}, {y}");
+        for mark in [label, dot, rule] {
+            assert!(!pollen.clicked(mark));
+        }
+        crate::tests::past_the_taps(&mut grove);
+    }
+}
+
+/// A mark that says `tangible` stops a press as a surface does, and one that says `interactive`
+/// takes it itself.
+#[test]
+fn a_mark_can_be_made_to_stop_or_take_a_press() {
+    let mut grove = grove();
+    let button = grove.plant(Panel::new().at(at(0.0, 0.0, 100.0, 50.0)).interactive());
+    let wall = grove.branch(
+        button,
+        Text::new("wall").tangible().at(at(0.0, 0.0, 50.0, 50.0)),
+    );
+    let link = grove.branch(
+        button,
+        Text::new("link")
+            .interactive()
+            .at(at(50.0, 0.0, 50.0, 50.0)),
+    );
+    tick(&mut grove);
+
+    let pollen = tap(&mut grove, 25.0, 25.0);
+    assert!(!pollen.clicked(button) && !pollen.clicked(wall));
+    crate::tests::past_the_taps(&mut grove);
+    let pollen = tap(&mut grove, 75.0, 25.0);
+    assert!(pollen.clicked(link) && !pollen.clicked(button));
 }
 
 /// Hiding takes an element out of the stack the same way, and for the same reason: it is not there.

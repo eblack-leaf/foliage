@@ -24,6 +24,8 @@ pub(crate) struct LineQuad {
     pub(crate) round: f32,
     /// Half the coverage ramp -- see [`feather`].
     pub(crate) feather: f32,
+    /// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+    pub(crate) pose: crate::pose::Affine,
 }
 
 impl LineQuad {
@@ -44,6 +46,7 @@ impl LineQuad {
             half,
             round,
             feather: feather(half, scale),
+            pose: instance.pose,
         }
     }
 }

@@ -19,6 +19,7 @@
 - [Work off the frame](usage/off-frame.md)
 - [The host](usage/host.md)
 - [Debugging](usage/debugging.md)
+- [Testing an app](usage/testing.md)
 - [Platforms](usage/platforms.md)
 - [Walkthrough: a notes app](usage/notes.md)
 

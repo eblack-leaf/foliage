@@ -38,6 +38,7 @@
 //! or drawing an asset that has not arrived), and an element that withered, which resolution
 //! reports when it builds the order again. A frame that moves nothing does nothing here.
 
+use crate::pose::Affine;
 use tracing::field::Empty;
 use tracing::trace_span;
 
@@ -158,6 +159,22 @@ pub(crate) struct Elm {
     /// Whether the backend was let go of, so the next extraction has nothing to compare against and
     /// states every element rather than only what moved.
     recut: bool,
+    /// Every picture drawn apart this frame: one per element drawn
+    /// [`together`](crate::Place::together) while it fades, in the order of the key every
+    /// instance drawn into it carries in its rank.
+    pub(crate) layers: Vec<Layered>,
+    /// Whether [`layers`](Elm::layers) is other than what the last batch handed over.
+    pub(crate) relayered: bool,
+}
+
+/// One picture drawn apart: what its instances carry as their rank's
+/// [`layer`](ResolvedElevation::layer), how opaque it is laid onto everything else, and where in the
+/// stack it is laid -- the rank of the element that opened it.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) struct Layered {
+    pub(crate) layer: u32,
+    pub(crate) opacity: f32,
+    pub(crate) rank: ResolvedElevation,
 }
 
 impl Elm {
@@ -181,6 +198,7 @@ impl Elm {
 
     /// Opens an extraction on every renderer, dropping what the last one reported.
     fn open(&mut self) {
+        self.relayered = false;
         self.panels.open();
         self.polygons.open();
         self.lines.open();
@@ -197,6 +215,41 @@ impl Elm {
         self.icons.close();
         self.images.close();
         self.texts.close();
+    }
+
+    /// States the picture the element in slot `slot` opens, or that it opens none.
+    fn layer(&mut self, slot: usize, opens: Option<(f32, ResolvedElevation)>) {
+        let layer = slot as u32 + 1;
+        let at = self.layers.binary_search_by_key(&layer, |held| held.layer);
+        match (at, opens) {
+            (Ok(at), Some((opacity, rank))) => {
+                let stated = Layered {
+                    layer,
+                    opacity,
+                    rank,
+                };
+                if self.layers[at] != stated {
+                    self.layers[at] = stated;
+                    self.relayered = true;
+                }
+            }
+            (Err(at), Some((opacity, rank))) => {
+                self.layers.insert(
+                    at,
+                    Layered {
+                        layer,
+                        opacity,
+                        rank,
+                    },
+                );
+                self.relayered = true;
+            }
+            (Ok(at), None) => {
+                self.layers.remove(at);
+                self.relayered = true;
+            }
+            (Err(_), None) => {}
+        }
     }
 
     /// Lets go of whatever the backend holds for `leaf`, in the renderer it draws with.
@@ -291,6 +344,8 @@ pub(crate) struct Run {
     pub(crate) size: u32,
     pub(crate) rank: ResolvedElevation,
     pub(crate) clip: Section,
+    /// How the run is turned and scaled where it is drawn, glyphs and all.
+    pub(crate) pose: Affine,
 }
 
 impl Runs {
@@ -302,6 +357,10 @@ impl Runs {
 
     /// Takes one run as it now stands, and reports it written if the backend is holding it
     /// otherwise.
+    ///
+    /// Each part of a run is stated separately because each is compared separately, against what is
+    /// held, without building a run to compare.
+    #[allow(clippy::too_many_arguments)]
     fn want(
         &mut self,
         key: Key,
@@ -310,6 +369,7 @@ impl Runs {
         font: Font,
         size: u32,
         glyphs: &[Glyph],
+        pose: Affine,
     ) {
         match self.held.get_mut(&key) {
             Some(held) => {
@@ -317,6 +377,7 @@ impl Runs {
                     && held.size == size
                     && held.rank == rank
                     && held.clip == clip
+                    && held.pose == pose
                     && held.glyphs == glyphs
                 {
                     return;
@@ -325,6 +386,7 @@ impl Runs {
                 held.size = size;
                 held.rank = rank;
                 held.clip = clip;
+                held.pose = pose;
                 // Rewritten in place, so a run that changed costs its own glyphs and no allocation.
                 held.glyphs.clear();
                 held.glyphs.extend_from_slice(glyphs);
@@ -338,6 +400,7 @@ impl Runs {
                         size,
                         rank,
                         clip,
+                        pose,
                     },
                 );
             }
@@ -618,11 +681,15 @@ pub(crate) fn run(grove: &mut Grove) {
     // there is to do.
     let elements = core::mem::take(&mut grove.elements);
     let mut total = 0;
-    // Nothing is held to compare against, so nothing can be said to be unchanged.
+    // Nothing is held to compare against, so nothing can be said to be unchanged -- the pictures
+    // included, which are handed over whole.
     let recut = core::mem::take(&mut grove.elm.recut);
-    // Whatever the backend held for an element that withered, it holds for nothing now.
+    grove.elm.relayered |= recut;
+    // Whatever the backend held for an element that withered, it holds for nothing now -- and a
+    // picture it opened is not drawn.
     for &(leaf, chlorophyll) in &elements.gone {
         grove.elm.withdraw(chlorophyll, leaf);
+        grove.elm.layer(leaf.slot(), None);
     }
     let surface = Section::new(Position::default(), grove.viewport);
     // An element nothing extraction reads about moved is held by the backend as it should go on
@@ -634,7 +701,17 @@ pub(crate) fn run(grove: &mut Grove) {
     }
     let kept = elements.len() - moved.count();
     for at in moved.iter() {
-        let chlorophyll = grove.tree.standing(elements.order[at]).chlorophyll();
+        let leaf = elements.order[at];
+        // Whether it opens a picture is asked of every element that moved, stems included: a stem
+        // is the usual thing a card is grown in. Not of whether it is culled, since what is drawn
+        // into it may be on screen where its own box is not.
+        let inherited = elements.inherited[leaf.slot()];
+        grove.elm.layer(
+            leaf.slot(),
+            (inherited.visible && inherited.opens(leaf.slot()))
+                .then(|| (inherited.opacity, elements.rank[leaf.slot()])),
+        );
+        let chlorophyll = grove.tree.standing(leaf).chlorophyll();
         // Carrying no renderer is the whole of what makes an element a stem.
         if chlorophyll == Chlorophyll::None {
             continue;
@@ -692,7 +769,11 @@ fn state(
     } = drawing;
     let leaf = elements.order[at];
     let slot = leaf.slot();
-    let rank = elements.rank[slot];
+    // Where it is in the stack, and which picture it is drawn into.
+    let rank = ResolvedElevation {
+        layer: painted.layer,
+        ..elements.rank[slot]
+    };
     match chlorophyll {
         // Answered by the caller: carrying no renderer is the whole of what makes an element a stem.
         Chlorophyll::None => false,
@@ -704,13 +785,16 @@ fn state(
             // The outline is filled as a fill is, against the scheme the frame is drawn in, and
             // faded with the panel. It has no motion of its own, so there is no blend to read.
             let outline = pigment.outline;
-            let instance = PanelInstance::new(
-                painted.section,
-                tint(grove, leaf, pigment.fill).faded(painted.opacity),
-                pigment.rounding,
-                outline.fill.color(&grove.scheme).faded(painted.opacity),
-                outline.width,
-            );
+            let instance = PanelInstance {
+                pose: painted.posed,
+                ..PanelInstance::new(
+                    painted.section,
+                    tint(grove, leaf, pigment.fill).faded(painted.opacity),
+                    pigment.rounding,
+                    outline.fill.color(&grove.scheme).faded(painted.opacity),
+                    outline.width,
+                )
+            };
             grove.elm.panels.want(leaf, rank, painted.clip, instance);
             true
         }
@@ -721,11 +805,14 @@ fn state(
             // The shape is read plainly, with no blend applied here: a shape blends to a shape,
             // so a motion moving one writes it back over the declaration every frame and what
             // the element holds is already where the motion has reached.
-            let instance = PolygonInstance::new(
-                painted.section,
-                tint(grove, leaf, pigment.fill).faded(painted.opacity),
-                pigment.shape,
-            );
+            let instance = PolygonInstance {
+                pose: painted.posed,
+                ..PolygonInstance::new(
+                    painted.section,
+                    tint(grove, leaf, pigment.fill).faded(painted.opacity),
+                    pigment.shape,
+                )
+            };
             grove.elm.polygons.want(leaf, rank, painted.clip, instance);
             true
         }
@@ -746,6 +833,7 @@ fn state(
                 color: tint(grove, leaf, pigment.fill).faded(painted.opacity),
                 weight: stroke.weight,
                 cap: pigment.cap,
+                pose: painted.posed,
             };
             grove.elm.lines.want(leaf, rank, painted.clip, instance);
             true
@@ -767,6 +855,7 @@ fn state(
                 section: squared(painted.section),
                 color: tint(grove, leaf, pigment.fill).faded(painted.opacity),
                 field: pigment.field,
+                pose: painted.posed,
             };
             grove.elm.icons.want(leaf, rank, painted.clip, instance);
             true
@@ -788,6 +877,7 @@ fn state(
                 radii: pigment.rounding.radii(section),
                 opacity: painted.opacity,
                 plate: pigment.plate,
+                pose: painted.posed,
             };
             grove.elm.images.want(leaf, rank, painted.clip, instance);
             true
@@ -828,10 +918,15 @@ fn state(
                 });
             });
             *total += glyphs.len();
-            grove
-                .elm
-                .texts
-                .want(leaf.into(), rank, painted.clip, typeface.font, size, glyphs);
+            grove.elm.texts.want(
+                leaf.into(),
+                rank,
+                painted.clip,
+                typeface.font,
+                size,
+                glyphs,
+                painted.posed,
+            );
             true
         }
     }
@@ -841,7 +936,12 @@ fn state(
 struct Painted {
     section: Section,
     clip: Section,
+    /// How opaque it is drawn: into its picture, where it is drawn into one, and onto the window
+    /// otherwise.
     opacity: f32,
+    layer: u32,
+    /// How it is turned and scaled where it is drawn.
+    posed: Affine,
 }
 
 /// What is painted of the element at `at`, or `None` if nothing is.
@@ -857,13 +957,18 @@ fn painted(elements: &Elements, at: usize, surface: Section) -> Option<Painted> 
     // backend scissors the pass to, and nothing outside the surface is painted whatever the rect
     // says.
     let clip = elements.clip[slot].intersect(surface);
-    if !inherited.visible || section.intersect(clip).is_empty() {
+    // Culled by where it lands once turned and scaled, which may be on screen where its upright box
+    // is not.
+    let posed = elements.posed[slot];
+    if !inherited.visible || posed.bounds(section).intersect(clip).is_empty() {
         return None;
     }
     Some(Painted {
         section,
         clip,
-        opacity: inherited.opacity,
+        opacity: inherited.drawn,
+        layer: inherited.layer,
+        posed,
     })
 }
 

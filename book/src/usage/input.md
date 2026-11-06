@@ -8,9 +8,10 @@ what it can turn into, how focus moves, and how keys arrive.
 
 A press raises two questions, and foliage answers them separately:
 
-1. **What is at this point?** Every element that is shown and not clipped away is in the *box
-   stack* at the points it covers, whatever it draws and whatever it declared. This is geometry,
-   and nothing opts in.
+1. **What is at this point?** Every surface that is shown and not clipped away is in the *box
+   stack* at the points it covers, whatever it draws. This is geometry, and nothing opts in.
+   *Marks* (text, icons, polygons and lines) are drawn on something, and a gesture over one passes
+   through to it unless the mark says otherwise.
 2. **Who receives it?** Only an element that declared
    [`interactive`](https://eblack-leaf.github.io/foliage/api/foliage/trait.Place.html#method.interactive).
 
@@ -21,14 +22,16 @@ there, and what that element declared decides what happens:
 |---|---|
 | `interactive()` | It receives the gesture, and focus can rest on it |
 | `intangible()` | The gesture passes through to whatever is beneath it |
-| neither | It **eats** the gesture: nothing receives it |
+| neither, on a surface | It **eats** the gesture: nothing receives it |
+| neither, on a mark | The gesture passes through, as for `intangible()` |
+| `tangible()`, on a mark | It eats the gesture, as a surface does |
 
 The engine never searches down the stack for something willing to take a press. A search would
 have to decide, at each element it passed, whether that element is part of what it covers or a
 layer over it, and at a single point those are the same picture. So the rule is the top, and a
-composite marks its own decoration `intangible`. A backdrop behind a dialog, the padding of a
-menu, the ground of a sheet: those are the elements that should eat a press, and they do so by
-declaring nothing.
+composite marks the surfaces it draws as decoration `intangible`; its text and icons pass presses
+through already. A backdrop behind a dialog, the padding of a menu, the ground of a sheet: those
+are the elements that should eat a press, and they do so by declaring nothing.
 
 Two more declarations shape how an element meets a hand:
 
@@ -54,7 +57,8 @@ stage to the element holding the gesture:
 
 - `engaged(leaf)`: a gesture went down on it and is being held. The hook for a pressed visual.
 - `clicked(leaf)`: it ended without ever becoming a drag or a hold. `clicked_at(leaf)` is where it
-  *began*, which is the point that was hit-tested and therefore the one certainly on the element.
+  *began*, which is the point that was hit-tested and therefore the one certainly on the element,
+  and `clicked_within(leaf)` is the same point measured from the element's own top-left corner.
   `taps(leaf)` is how many taps in a row it makes: `2` for the second of a double, counted when it
   lands on the same element within `Taps` of the one before. Each tap of a run is reported as it
   lands, so a double tap is a second `clicked` with a count, not a first one taken back.
@@ -88,6 +92,31 @@ The drag out of a **hold** is the exception: it belongs to whoever took the hold
 goes and whatever that element declared. That is how an element scrolls like anything else and
 still takes a drag when it wants one, as a text field does to select: it declares no drags, and a
 press held still before moving is a selection.
+
+## Where the cursor rests
+
+`grove.hovered()` is the element a press at the cursor would reach, where that is `interactive`
+and not disabled, and `pollen.hovered(leaf)` and `pollen.unhovered(leaf)` report it changing. It
+is read from the same box stack a press is, so it answers the question a person pointing is asking:
+a label over a button hovers the button, and nothing is hovered through a sheet laid over it.
+
+```rust
+# use foliage::{Grove, Grow, Leaf, Motion, Palette, Pollen, Timing};
+# fn f(grove: &mut Grove, pollen: &Pollen, row: Leaf, ground: Leaf) {
+if pollen.hovered(row) {
+    grove.animate(ground, Motion::Opacity(1.0), Timing::ms(160));
+}
+if pollen.unhovered(row) {
+    grove.animate(ground, Motion::Opacity(0.0), Timing::ms(160));
+}
+# }
+```
+
+The engine wakes for a cursor move that would change what is hovered, and for no other, so
+following the cursor this way costs a frame only when there is something new to draw. An element
+hidden, covered or moved from under a cursor that did not move stops being hovered at the end of
+that frame. There is no hover on a touchscreen: a finger has no position between touches, so
+anything that has to be found there is found by pressing it too.
 
 ## A slider
 
@@ -275,12 +304,14 @@ It moves in these ways and no others:
   takes focus away.
 - **`Tab` and `Shift+Tab`** step to the next and previous element in focus order, and **`Escape`**
   takes focus away. The engine answers these three itself, wherever focus is (including nowhere),
-  and they are not reported as keys.
+  and they are not reported as keys. `Escape` is reported on its own, as `pollen.escaped()`.
 - **The verbs**: `grove.focus(leaf)`, `grove.unfocus()`, `grove.focus_next()` and
   `grove.focus_previous()`.
 
 A drag and a hold move focus nowhere, because neither was a tap. And when whatever holds focus is
-hidden, disabled or pruned, focus lets go of it at the end of that frame's drain.
+hidden, disabled or pruned, focus lets go of it at the end of that frame's drain. Focus asked for
+in a frame is answered after everything else that frame wrote, so `grove.focus(button)` and
+`grove.visible(drawer, true)` can be written in either order.
 
 `Pollen::focused` and `Pollen::unfocused` report focus arriving and leaving, and `Grove::focused`
 says what holds it now. foliage **draws nothing** for focus. A focused element may be a `Stem`
@@ -335,9 +366,10 @@ grove.focus(keep);
 Tab now cycles between the two buttons and never leaves the dialog. Closing it is the reverse:
 `grove.prune(dialog)` and `grove.enable(page)`.
 
-`Escape` takes focus away rather than being reported, so a dialog that should close on `Escape`
-watches for focus leaving it: `pollen.unfocused(keep)` in a frame where `grove.focused()` is
-`None`.
+`Escape` takes focus away, and is reported as `pollen.escaped()` in the same frame as the
+`unfocused` it causes, so a dialog that should close on `Escape` reads that while it is open.
+Focus can be anywhere when it is pressed, including nowhere: a press on the dialog's own ground
+takes focus away, and `Escape` should still close it.
 
 ## Keys
 
@@ -397,14 +429,21 @@ An element can be off in three ways, and they are different on purpose:
 |---|---|---|---|
 | `visible(false)` | no | no | no |
 | `disable` | yes | **yes** | no: swallows presses, passes scrolling on |
-| `opacity(0.0)` | nothing to see | no | no |
+| `opacity(0.0)` | no | no | no |
 
 A disabled element still draws and still blocks, which is what makes it different from
 decoration, and what makes disabling a page enough on its own when a dialog opens over it. A drag
 over a disabled control still scrolls the list it is in, but a disabled region does not scroll.
 
-A fully transparent element is not there at all. That closes the case of an element faded out that
-went on taking presses. Anything above zero opacity is there and takes presses normally.
+A fully transparent element is not there at all, and neither is anything grown under it. It makes
+no difference where the fade was declared: on the control, on the root of the part it belongs to,
+or on a sheet holding it. Fading something out is enough to be rid of it, and no part's inner
+structure decides whether a fade leaves an invisible control behind.
+
+A press target that shows nothing is said by what it draws instead: a `Stem`, or a panel in a
+clear color (`Color::rgba(.., 0.0)`), at full opacity. The ground of a row that only shows while
+the row is pointed at is grown under such a target, intangible, and fades in and out on its own
+while the target stays pressable throughout.
 
 All three are inherited as a product over the whole ancestry, recomputed every frame. An element
 grown under a disabled trunk is disabled on its first frame, and enabling the trunk leaves anything

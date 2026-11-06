@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "../searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-c59f2531.js"></script>
+        <script src="../toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -333,9 +333,12 @@ no wrapping to measure a run across, and R2m is the one moment in the frame when
 known and no height is, which is exactly what measuring down needs.</p>
 <p>The reach over children counts only children whose placement on that axis <strong>describes its own
 extent</strong>: pixels, letters, its own content, and down, any reading of the already-settled horizontal
-axis. A child placed by a percentage of its trunk, a track of its trunk’s grid, or an anchor’s edge
-is asking how large something else is, so it cannot also be what decides that size. It is left out
-of the measure and given its real extent by its axis’s own pass like anything else. Across, a
+axis. A child placed by a percentage of its trunk or a track of its trunk’s grid is asking how large
+something else is, so it cannot also be what decides that size. It is left out of the measure and
+given its real extent by its axis’s own pass like anything else. A child placed off its anchor
+counts when the anchor is a sibling the measure already placed. It is resolved against where the
+measure put that sibling, and asked again whenever the sibling is, so a chain of them follows
+whatever moved at its head. Across, a
 character’s place in a run is left out too: it is read off the run as it wrapped, at a width that is
 not known yet. This is <code>Config::measurable</code>
 (<a href="https://github.com/eblack-leaf/foliage/blob/main/foliage/src/placement/role.rs"><code>placement/role.rs</code></a>),
@@ -429,9 +432,9 @@ is. There is no cascade to write and none to get wrong. An element grown under a
 disabled on its first frame because the pass does not care when it arrived, and enabling the trunk
 leaves anything disabled in its own right disabled because nothing was overwritten on the way down.</p>
 <h2 id="r8-regions"><a class="header" href="#r8-regions">R8: regions</a></h2>
-<p>The box stack is every element that is present (visible, and not fully transparent) and not clipped
-away entirely, sorted front-most first, each carrying its drawn box, its clip, its hit shape, and
-whether it is tangible, receives, and is disabled. It is what the next frame’s dispatch reads
+<p>The box stack is every element that is present (visible, and not fully transparent) and not
+clipped away entirely, sorted front-most first, each carrying its drawn box, its clip, its hit
+shape, and whether it is tangible, receives, and is disabled. It is what the next frame’s dispatch reads
 (<a href="interaction.html">Interaction</a>).</p>
 <p>It is rebuilt only on a frame where something it is built from changed, which R4 to R7 recorded as
 <code>restack</code>, and re-sorted only when a rank changed. A frame where one element’s color fades, or

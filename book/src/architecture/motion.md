@@ -195,11 +195,13 @@ than computing `from + (to - from) * 1.0`, which can land a rounding error short
 *on* its target, so no landing ever needs a correction after it. A curve whose control points
 overshoot is left to overshoot in the middle.
 
-Timing is milliseconds throughout. `after(n)` holds the motion where it was for `n` milliseconds
-rather than queuing it: the motion exists from the frame it was asked for, and a direct write cancels
-it whether or not it has begun to move. A motion of no length holds for its delay like any other and
-then lands in one step, because `Timing::at` asks whether the delay has passed before it asks whether
-there is a duration to be a fraction of.
+Timing is milliseconds throughout. A motion with `after(n)` waits for `n` milliseconds without
+touching its property, beside whatever is moving it, and then takes over from wherever the element
+has got to, so delays on one property are a chain of keyframes. A new motion on the property drops
+any still waiting that would start no sooner than it does, so what was asked last is where the
+property ends up, and a direct write cancels the waiting ones along with the running one. A motion
+of no length waits out its delay like any other and then lands in one step, because `Timing::at`
+asks whether the delay has passed before it asks whether there is a duration to be a fraction of.
 
 ## One clock, capped
 

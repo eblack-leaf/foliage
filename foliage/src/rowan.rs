@@ -49,7 +49,7 @@
 //! | R2m | wrap | **bottom-up** | the measured-height half of the intrinsic size |
 //! | R2b | vertical | dependency order | the vertical axis, and with it the placed box |
 //! | R3 | extent | **bottom-up** | [`Extent`](crate::view::Extent): how far a region's content reaches |
-//! | R4 | scroll | top-down | the drawn box: the placed box less every scrolling ancestor's offset, and moved by every shift over it |
+//! | R4 | scroll | top-down | the drawn box: the placed box less every scrolling ancestor's offset, and moved by every shift and slide over it; and the pose every turn and scale over it composes to |
 //! | R5 | clip | top-down | the clip: what a scrolling ancestor leaves visible |
 //! | R6 | rank | dependency order | `ResolvedElevation`: elevation accumulated, then tie-broken |
 //! | R7 | inherit | top-down | [`Inherited`]: the visible, opacity and disabled products |
@@ -126,9 +126,10 @@ use crate::line::Stretched;
 use crate::placement::grid::Tracks;
 use crate::placement::location::Location;
 use crate::placement::resolve::{Basis, Context, Span, locate, resolve};
-use crate::placement::role::Config;
+use crate::placement::role::{Config, Measure};
 use crate::placement::source::Against;
 use crate::placement::trace::{Ends, Trace};
+use crate::pose::Affine;
 use crate::text::shape::Shaped;
 use crate::tree::{Placement, Tree, Written};
 use crate::view::{self, Clipped, Escape, Scroll, range};
@@ -289,8 +290,9 @@ pub(crate) struct Elements {
     /// at the width R2a gave it and how far down anything grown under it reaches. Width first and
     /// height after is the whole of width-down and height-up.
     intrinsic: Vec<Area>,
-    /// How far the element reaches below the top of what it is grown under, as R2m last found it
-    /// there, or `None` where its placement does not count toward that measure.
+    /// Where the element starts and stops below the top of what it is grown under, as R2m last
+    /// found it there, or `None` where its placement does not count toward that measure. The far
+    /// end is what its trunk reaches; the near one is what a sibling anchored under it reads.
     ///
     /// What each element contributes to its trunk's [`reach`], held like any other answer so that a
     /// trunk measuring again because one of its children moved asks the rest nothing. A child's
@@ -298,22 +300,23 @@ pub(crate) struct Elements {
     /// resolved to, and each of those that moves makes it dirty -- so an entry is found again
     /// exactly where its element is, and a container of thousands with one child written pays for
     /// one child.
-    reached: Vec<Option<f32>>,
+    reached: Vec<Option<(f32, f32)>>,
     /// Whether the element's placement describes its own height, and so counts toward the measure
-    /// of what it is grown under: [`measurable`] on the vertical axis, as R2a last found it.
+    /// of what it is grown under: [`measurable`] on the vertical axis, as R2a last found it. One
+    /// that [leans](Measure::Leans) on its anchor counts where R2m finds the anchor counted.
     ///
     /// Found where R2a already holds the placement, so R2m asks no element for it a second time.
     /// It is a fact about the placement and the breakpoint in force, either of which changing makes
     /// the element dirty -- so every element R2m asks about was found again by R2a this frame, or
     /// holds what it was found to be when last it was.
-    upright: Vec<bool>,
-    /// How far the element reaches right of the left edge of what it is grown under, as R1m last
-    /// found it there, or `None` where its placement does not count toward that measure.
+    upright: Vec<Measure>,
+    /// Where the element starts and stops right of the left edge of what it is grown under, as R1m
+    /// last found it there, or `None` where its placement does not count toward that measure.
     ///
     /// [`reached`](Elements::reached) across: what each element contributes to its trunk's
     /// [`spread`], held so that a trunk measuring again because one of its children moved asks the
     /// rest nothing.
-    spread: Vec<Option<f32>>,
+    spread: Vec<Option<(f32, f32)>>,
     /// The character cell the element's own font and size make, as R1 measured it. What
     /// [`letters`](crate::Source::letters) and a letter-pitched track are measured in; an element
     /// that named no font and no size has none.
@@ -345,6 +348,10 @@ pub(crate) struct Elements {
     pub(crate) rank: Vec<ResolvedElevation>,
     /// What the three off-states resolved to over the element's whole ancestry.
     pub(crate) inherited: Vec<Inherited>,
+    /// How each element is turned and scaled where it is drawn, its own inside every one above it:
+    /// what R4 composes beside the drawn box, what every instance is drawn through, and what the
+    /// box stack takes back out of a press. The identity for almost everything.
+    pub(crate) posed: Vec<Affine>,
     /// What R3 found the element reaches to: the far corner of it and everything under it that is
     /// content, or `None` where it is hidden. What its trunk measures its own from.
     extends: Vec<Option<Position>>,
@@ -374,6 +381,10 @@ pub(crate) struct Elements {
     /// Every element that withered since the order was last built, and what it drew. Read by
     /// extraction, which has to let go of whatever it was holding for them.
     pub(crate) gone: Vec<(Leaf, Chlorophyll)>,
+    /// What was anchored to something that withered, found while the order still said what that
+    /// was. Each reads a zero box where it read the anchor's, so each resolves again -- though
+    /// nothing was written to it, and the order it is resolved in no longer holds what it read.
+    bereft: Vec<Leaf>,
 }
 
 impl Elements {
@@ -974,17 +985,30 @@ fn spread(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
     for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
         let child_at = elements.children[index] as usize;
         let child = elements.order[child_at];
-        if elements.touched.get(child_at) {
+        let sibling = sibling(elements, at, child_at);
+        // A child leaning on a sibling reaches from wherever the sibling did, so it is asked again
+        // wherever the sibling was.
+        if elements.touched.get(child_at) || sibling.is_some_and(|on| elements.touched.get(on)) {
             let placement = grove.tree.placement(child);
-            let far = measurable(grove, placement, Axis::Horizontal).then(|| {
+            let counts = match measurable(grove, placement, Axis::Horizontal) {
+                Measure::Never => false,
+                Measure::Own => true,
+                Measure::Leans => {
+                    sibling.is_some_and(|on| elements.spread[elements.slot(on)].is_some())
+                }
+            };
+            let spanned = counts.then(|| {
                 let context = unlaid(grove, elements, (at, divided), child_at);
-                geometry(grove, child, placement, &context, Axis::Horizontal)
-                    .0
-                    .far
+                let span = geometry(grove, child, placement, &context, Axis::Horizontal).0;
+                (span.near, span.far)
             });
-            elements.spread[child.slot()] = far;
+            if spanned != elements.spread[child.slot()] {
+                elements.spread[child.slot()] = spanned;
+                // What leans on this one is asked again in turn.
+                elements.touched.set(child_at);
+            }
         }
-        if let Some(far) = elements.spread[child.slot()] {
+        if let Some((_, far)) = elements.spread[child.slot()] {
             spread = spread.max(far);
         }
     }
@@ -1021,7 +1045,17 @@ fn unlaid<'a>(
         own: own(elements, child, Axis::Horizontal),
         trunk: offered(trunk, divided),
         anchor: match elements.anchor(child) {
-            Some(anchor) => offered(anchor, tracks(grove, elements, anchor)),
+            Some(anchor) => {
+                let mut basis = offered(anchor, tracks(grove, elements, anchor));
+                // A sibling this measure already placed is where it placed it.
+                if let Some((near, far)) = sibling(elements, trunk, child)
+                    .and_then(|on| elements.spread[elements.slot(on)])
+                {
+                    basis.section.position.x = near;
+                    basis.section.area.width = far - near;
+                }
+                basis
+            }
             None => Basis::default(),
         },
     }
@@ -1038,10 +1072,12 @@ fn unlaid<'a>(
 ///
 /// The second is resolved in the element's own space, with its vertical extent taken as **not yet
 /// known**, which is exactly what it is at this point in the frame. So a child that reads that
-/// extent -- `100.pct()`, a row of a grid, an anchor's edge -- contributes nothing to the measure
-/// and is given its real height by R2b like anything else. That is the correct reading rather than a
-/// limitation: a child sized to its trunk cannot also be what sizes it, and nothing is asked to
-/// converge. [`across`] is the same reading on the other axis, taken before any width is known.
+/// extent -- `100.pct()`, a row of a grid -- contributes nothing to the measure and is given its
+/// real height by R2b like anything else. That is the correct reading rather than a limitation: a
+/// child sized to its trunk cannot also be what sizes it, and nothing is asked to converge. A child
+/// reading an anchor grown beside it reads where this measure already put that anchor, which is
+/// what [leaning](Measure::Leans) is. [`across`] is the same reading on the other axis, taken before
+/// any width is known.
 ///
 /// Both halves are taken in the one walk up the order. What reaches below an element reads the
 /// measures of everything under it, so it has to come after them -- and a run wraps at its own width
@@ -1080,8 +1116,9 @@ fn wrap(grove: &mut Grove, elements: &mut Elements) {
 /// How far the elements grown under the element at `at` reach below its top edge.
 ///
 /// Only the children that describe their own extent are counted. One that reads a vertical box --
-/// a percentage of this element, a row of its grid, an anchor's edge -- is asking how tall
-/// something else is, so it cannot be what decides how tall this is. See
+/// a percentage of this element, a row of its grid -- is asking how tall something else is, so it
+/// cannot be what decides how tall this is. One that reads its anchor counts where the anchor is
+/// one of these children and counted, and is asked again wherever the anchor was. See
 /// [`Config::measurable`](crate::placement::role::Config::measurable).
 ///
 /// A child is asked only where it is dirty, and its answer kept. Every other child reaches exactly
@@ -1094,21 +1131,44 @@ fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
     for index in elements.branches[at] as usize..elements.branches[at + 1] as usize {
         let child_at = elements.children[index] as usize;
         let child = elements.order[child_at];
-        if elements.dirty.get(child_at) {
-            let far = elements.upright[child.slot()].then(|| {
+        let sibling = sibling(elements, at, child_at);
+        // A child leaning on a sibling reaches from wherever the sibling did, so it is asked again
+        // wherever the sibling was.
+        if elements.dirty.get(child_at) || sibling.is_some_and(|on| elements.dirty.get(on)) {
+            let counts = match elements.upright[child.slot()] {
+                Measure::Never => false,
+                Measure::Own => true,
+                Measure::Leans => {
+                    sibling.is_some_and(|on| elements.reached[elements.slot(on)].is_some())
+                }
+            };
+            let spanned = counts.then(|| {
                 let context = raised(grove, elements, (at, divided), child_at);
                 let placement = grove.tree.placement(child);
-                geometry(grove, child, placement, &context, Axis::Vertical)
-                    .0
-                    .far
+                let span = geometry(grove, child, placement, &context, Axis::Vertical).0;
+                (span.near, span.far)
             });
-            elements.reached[child.slot()] = far;
+            if spanned != elements.reached[child.slot()] {
+                elements.reached[child.slot()] = spanned;
+                // What leans on this one is asked again in turn -- and it lands somewhere else, so
+                // R2b resolves it again, which it would have anyway once its sibling moved.
+                elements.dirty.set(child_at);
+            }
         }
-        if let Some(far) = elements.reached[child.slot()] {
+        if let Some((_, far)) = elements.reached[child.slot()] {
             reach = reach.max(far);
         }
     }
     reach
+}
+
+/// Where the element at `child` is anchored, if that is another element grown under `trunk`: the
+/// one case a measure can read an anchor on the axis it measures, because it measured that anchor
+/// first -- children are listed in resolution order, which puts an anchor before what reads it.
+fn sibling(elements: &Elements, trunk: usize, child: usize) -> Option<usize> {
+    elements
+        .anchor(child)
+        .filter(|&anchor| elements.trunk(anchor) == Some(trunk))
 }
 
 /// Whether `leaf`'s placement on `axis` describes its own extent, and so counts toward the measure
@@ -1117,11 +1177,14 @@ fn reach(grove: &Grove, elements: &mut Elements, at: usize) -> f32 {
 /// One question with two spellings, because a placement has two. A box asks it of its configuration
 /// on the axis; a trace asks it of both of its ends, since either one reading a box on the axis is
 /// enough to make the answer circular.
-fn measurable(grove: &Grove, placement: Option<Placement>, axis: Axis) -> bool {
+fn measurable(grove: &Grove, placement: Option<Placement>, axis: Axis) -> Measure {
     match placement {
         Some(Placement::Traced(trace, _)) => {
             let ends = pinned_ends(trace, grove);
-            ends.from.measurable(axis) && ends.to.measurable(axis)
+            match ends.from.measurable(axis) && ends.to.measurable(axis) {
+                true => Measure::Own,
+                false => Measure::Never,
+            }
         }
         Some(Placement::Boxed(location)) => pinned(location, grove, axis).measurable(axis),
         None => pinned(&Location::default(), grove, axis).measurable(axis),
@@ -1177,7 +1240,17 @@ fn raised<'a>(
         own: own(elements, child, Axis::Vertical),
         trunk: offered(trunk, divided),
         anchor: match elements.anchor(child) {
-            Some(anchor) => offered(anchor, tracks(grove, elements, anchor)),
+            Some(anchor) => {
+                let mut basis = offered(anchor, tracks(grove, elements, anchor));
+                // A sibling this measure already placed is where it placed it.
+                if let Some((near, far)) = sibling(elements, trunk, child)
+                    .and_then(|on| elements.reached[elements.slot(on)])
+                {
+                    basis.section.position.y = near;
+                    basis.section.area.height = far - near;
+                }
+                basis
+            }
             None => Basis::default(),
         },
     }
@@ -1325,6 +1398,12 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
         let trunk = elements.trunk(at).map(|trunk| elements.slot(trunk));
         let standing = grove.tree.standing(leaf);
         let (shift, pinned, scrolls) = (standing.shift(), standing.pinned(), standing.scrolls());
+        let pose = standing.pose();
+        // A slide is a shift measured in the element's own size, and the two add.
+        let shift = Position::new(
+            shift.x + pose.slide.x * placed.width(),
+            shift.y + pose.slide.y * placed.height(),
+        );
         // A shift moves the element and everything grown under it, pinned or not, so it comes off
         // both accumulations -- the other way to an offset, which moves content toward the near
         // edge.
@@ -1356,6 +1435,21 @@ fn scroll(grove: &mut Grove, elements: &mut Elements) {
             elements.drawn[slot] = drawn;
             elements.moved.set(at);
             elements.restack = true;
+        }
+        // Its own turn and scale about its own middle, inside whatever its trunk's are. Composed
+        // here because the middle is the drawn box's, which is settled a line above.
+        let around = trunk.map_or(Affine::IDENTITY, |trunk| elements.posed[trunk]);
+        let posed = match pose.upright() {
+            true => around,
+            false => Affine::about(drawn.center(), pose.turn, pose.scale).then(around),
+        };
+        if posed != elements.posed[slot] {
+            elements.posed[slot] = posed;
+            elements.moved.set(at);
+            elements.restack = true;
+            for child in elements.children(at) {
+                visit.set(child);
+            }
         }
         // A stroke's ends travel with its box, by the same offset, because they are the same
         // geometry said two ways. A stroke nothing wrote to keeps the ends it settled at, and moves
@@ -1540,13 +1634,14 @@ fn rank(tree: &Tree, elements: &mut Elements) {
         let rank = ResolvedElevation {
             stack: standing.elevation().accumulate(trunk),
             growth: standing.growth(),
+            layer: 0,
         };
         if rank != elements.rank[leaf.slot()] {
             elements.rank[leaf.slot()] = rank;
             elements.moved.set(at);
             elements.restack = true;
             // What the stack is sorted on moved, where the element is in it at all.
-            elements.reranked |= !standing.gestures().intangible;
+            elements.reranked |= standing.gestures().stacked();
             for child in elements.children(at) {
                 visit.set(child);
             }
@@ -1581,6 +1676,7 @@ fn inherit(tree: &Tree, elements: &mut Elements) {
             standing.visible(),
             standing.opacity(),
             standing.disabled(),
+            standing.together().then_some(leaf.slot() as u32 + 1),
         );
         if product != elements.inherited[leaf.slot()] {
             elements.inherited[leaf.slot()] = product;
@@ -1596,9 +1692,10 @@ fn inherit(tree: &Tree, elements: &mut Elements) {
 /// R8. The box stack the next frame's dispatch reads.
 ///
 /// Membership is universal: an element is here because it is there. What is left out is what is
-/// not there at all -- hidden, fully transparent, or clipped away by a region it sits inside -- and
-/// what is `intangible`. The one read of the stack is its top, the front-most tangible element at a
-/// point, and a gesture passes through an intangible one to whatever is beneath it: holding it
+/// not there at all -- hidden, fully transparent, or clipped away by a region it sits inside --
+/// and what a gesture passes through: anything `intangible`, and a mark that did not say
+/// otherwise. The one read of the stack is its top, the front-most tangible element at
+/// a point, and a gesture passes through an intangible one to whatever is beneath it: holding it
 /// would change no answer the stack gives, and would make the stack the size of everything drawn
 /// rather than of what can be pressed.
 ///
@@ -1634,9 +1731,12 @@ fn regions(grove: &mut Grove, elements: &mut Elements) {
         }
         let section = elements.drawn[slot];
         let clip = elements.clip[slot];
-        if section.intersect(clip).is_empty() {
+        let posed = elements.posed[slot];
+        if posed.bounds(section).intersect(clip).is_empty() {
             return None;
         }
+        // Scaled to nothing, it covers nothing.
+        let unposed = posed.inverse()?;
         Some(Region {
             leaf,
             section,
@@ -1644,6 +1744,7 @@ fn regions(grove: &mut Grove, elements: &mut Elements) {
             shape: gestures.shape,
             receives: gestures.receives,
             disabled: inherited.disabled,
+            unposed,
         })
     }));
 }
@@ -2132,7 +2233,7 @@ fn settle(
         if ahead(elements.trunk(at)) || ahead(elements.anchor(at)) {
             elements.forward.push(at as u32);
         }
-        if !tree.standing(elements.order[at]).gestures().intangible {
+        if tree.standing(elements.order[at]).gestures().stacked() {
             elements.stacking.push(at as u32);
         }
     }
@@ -2170,7 +2271,7 @@ fn columns(elements: &mut Elements, each: &impl Each) {
     each.apply(&mut elements.section, Section::default());
     each.apply(&mut elements.intrinsic, Area::default());
     each.apply(&mut elements.reached, None);
-    each.apply(&mut elements.upright, false);
+    each.apply(&mut elements.upright, Measure::Never);
     each.apply(&mut elements.spread, None);
     each.apply(&mut elements.cell, Area::default());
     each.apply(&mut elements.composed, None);
@@ -2180,6 +2281,7 @@ fn columns(elements: &mut Elements, each: &impl Each) {
     each.apply(&mut elements.clip, Clipped::unbounded().0);
     each.apply(&mut elements.rank, ResolvedElevation::default());
     each.apply(&mut elements.inherited, Inherited::default());
+    each.apply(&mut elements.posed, Affine::IDENTITY);
     // What the accumulations pass on, which an element new to the order is visited for.
     each.apply(&mut elements.extends, None);
     each.apply(&mut elements.accumulated, Position::default());
@@ -2244,6 +2346,14 @@ fn read(elements: &mut Elements, grove: &Grove) {
     for &(leaf, _) in &gone {
         elements.composed[leaf.slot()] = None;
     }
+    let mut bereft = core::mem::take(&mut elements.bereft);
+    bereft.clear();
+    for &(leaf, _) in &gone {
+        let at = elements.at(leaf).expect("found in the order above");
+        let anchored = &elements.anchored
+            [elements.anchoring[at] as usize..elements.anchoring[at + 1] as usize];
+        bereft.extend(anchored.iter().map(|&on| elements.order[on as usize]));
+    }
     elements.gone = gone;
     elements.restack = false;
     elements.reranked = false;
@@ -2278,6 +2388,13 @@ fn read(elements: &mut Elements, grove: &Grove) {
             }
         }
     };
+    let gather = |marks: &mut Positions, leaves: &[Leaf]| {
+        for &leaf in leaves {
+            if let Some(at) = elements.at(leaf) {
+                marks.set(at);
+            }
+        }
+    };
     let mut dirty = Positions::default();
     let mut lettered = Positions::default();
     match written.all {
@@ -2290,6 +2407,7 @@ fn read(elements: &mut Elements, grove: &Grove) {
             lettered.reset(count);
             marked(&mut lettered, written.lettered);
             marked(&mut dirty, written.declared);
+            gather(&mut dirty, &bereft);
         }
     }
     let mut measures = Positions::default();
@@ -2301,7 +2419,10 @@ fn read(elements: &mut Elements, grove: &Grove) {
     } else {
         touched.reset(count);
         marked(&mut touched, written.declared);
+        gather(&mut touched, &bereft);
     }
+    // What lost its anchor measures again where it sits, like anything written to.
+    gather(&mut measures, &bereft);
     elements.dirty = dirty;
     elements.lettered = lettered;
     elements.measures = measures;
@@ -2317,8 +2438,11 @@ fn read(elements: &mut Elements, grove: &Grove) {
     // across reads changed; where only the viewport moved, it changed nothing a measure reads, and
     // what was written is what was. Nothing at all, and nothing is filled in, where nothing was
     // written and nothing went.
-    elements.across =
-        written.across || !written.declared.is_empty() || !written.measures.is_empty();
+    elements.across = written.across
+        || !written.declared.is_empty()
+        || !written.measures.is_empty()
+        || !bereft.is_empty();
+    elements.bereft = bereft;
     if elements.across {
         elements.measures_across.copy_from(&touched);
         elements.measures_across.add(&elements.measures);

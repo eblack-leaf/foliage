@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
+            window.path_to_searchindex_js = "../searchindex-51f3862c.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-c59f2531.js"></script>
+        <script src="../toc-1bf566e8.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -292,6 +292,28 @@ the engine’s own sits behind the tree, so the ground is the app’s.</p>
 draw, so a draw can be repeated at any time (a window exposed, a compositor asking) and produce the
 same picture. A surface that cannot be acquired (occluded, or mid-resize) skips the paint and loses a
 picture, never a change; one that went stale is reconfigured once and tried again.</p>
+<h2 id="pictures-drawn-apart"><a class="header" href="#pictures-drawn-apart">Pictures drawn apart</a></h2>
+<p>An element declared <code>together</code> that is drawing at less than full opacity opens a picture. R7 gives
+each element under it two opacities:</p>
+<ul>
+<li><strong>Its whole product,</strong> which decides whether it is in the box stack at all.</li>
+<li><strong>Its opacity within the picture,</strong> which is the product from the element that opened it down.
+It is what the element is drawn at.</li>
+</ul>
+<p>Extraction puts the picture’s key on each instance’s rank, in a trailing field that never decides
+order. It also lists the open pictures with their opacity and the opener’s rank. Restacking then:</p>
+<ul>
+<li>puts each picture into the stack at the opener’s rank;</li>
+<li>walks every instance carrying an open picture’s key into that picture’s own span list instead of
+the window’s;</li>
+<li>counts depths per list, since each picture has its own depth attachment.</li>
+</ul>
+<p><code>Ginkgo::draw</code> draws every picture first, each in a pass of its own on a texture the size of the
+window, cleared to nothing. The window’s pass then lays each one down where it stands. That is one
+triangle loading the texel under each fragment, scaled by the picture’s opacity, with premultiplied
+blending: drawing straight-alpha elements onto clear leaves the picture premultiplied.</p>
+<p>A fade that only moves the opacity rewrites one value per picture. Nothing on the card is
+re-extracted and the stack is not walked again.</p>
 <h2 id="ginkgo-where-the-scale-factor-stops"><a class="header" href="#ginkgo-where-the-scale-factor-stops">Ginkgo: where the scale factor stops</a></h2>
 <p>The engine is written in logical pixels throughout, and the display’s ratio of device pixels to
 logical ones is applied in exactly two places below this line: the surface and its depth attachment

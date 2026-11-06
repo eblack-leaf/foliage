@@ -38,6 +38,21 @@ pub(crate) struct Placement {
     /// character cell and reads zero for everything measured in one.
     pub(crate) typeface: Option<Typeface>,
     pub(crate) manner: Manner,
+    /// How it is turned, scaled and slid where it is drawn.
+    pub(crate) pose: crate::pose::Pose,
+}
+
+impl Placement {
+    /// What a mark starts from: nothing stated, and a gesture over it passing through.
+    pub(crate) fn mark() -> Self {
+        Self {
+            manner: Manner {
+                gestures: Gestures::mark(),
+                ..Manner::default()
+            },
+            ..Self::default()
+        }
+    }
 }
 
 /// What a seed carries about how it behaves: what it does with a gesture, whether it scrolls, and
@@ -58,6 +73,9 @@ pub(crate) struct Manner {
     pub(crate) focusing: Focusing,
     pub(crate) visible: Visible,
     pub(crate) opacity: Opacity,
+    /// Declared [`together`](Place::together): drawn with what is under it as one picture while
+    /// it fades.
+    pub(crate) together: bool,
 }
 
 /// Where an element sits in focus order, and whether it holds focus inside itself.
@@ -158,6 +176,11 @@ pub trait Place: Places + Sized {
     ///
     /// It is also what makes an element reachable by focus, because the set that asked to receive
     /// input is the set a keyboard should be able to reach.
+    ///
+    /// On a mark it overrides the passing through a mark starts with, and on anything it holds at
+    /// any opacity -- a press target whose look fades in while it is pointed at is pressed while
+    /// it shows nothing. What takes one out of reach is [`visible`](Place::visible),
+    /// [`disable`](crate::Grow::disable) or [`intangible`](Place::intangible).
     fn interactive(mut self) -> Self {
         self.placement().manner.gestures.receives = true;
         self
@@ -165,9 +188,11 @@ pub trait Place: Places + Sized {
 
     /// A gesture over the element goes to whatever is beneath it.
     ///
-    /// What a composite marks its own decoration with. A label drawn over a button, a highlight, a
-    /// gradient across a card -- each of them is above its target at those pixels, and each would
-    /// otherwise be what a press lands on.
+    /// What a composite marks its own decoration with. A highlight, a gradient across a card, the
+    /// ground of a row -- each of them is above its target at those pixels, and each would
+    /// otherwise be what a press lands on. A mark -- [`Text`](crate::Text),
+    /// [`Icon`](crate::Icon), [`Polygon`](crate::Polygon), [`Line`](crate::Line) -- already
+    /// passes gestures through unless it says [`tangible`](Place::tangible), so it needs nothing.
     ///
     /// It does not take the element out of the box stack, only out of what may be the top of it:
     /// the drag that follows a press still finds the region containing it, so scrolling works over
@@ -178,6 +203,20 @@ pub trait Place: Places + Sized {
     /// [`interactive`](Place::interactive) already does.
     fn intangible(mut self) -> Self {
         self.placement().manner.gestures.intangible = true;
+        self
+    }
+
+    /// A gesture over the element stops on it: the opposite of
+    /// [`intangible`](Place::intangible).
+    ///
+    /// What every surface -- a panel, an image, a stem -- already is, and what a mark is not until
+    /// it says so. For a mark that should block what is beneath it without receiving anything
+    /// itself; one that receives says [`interactive`](Place::interactive), which is tangible
+    /// already.
+    fn tangible(mut self) -> Self {
+        let gestures = &mut self.placement().manner.gestures;
+        gestures.intangible = false;
+        gestures.passes = false;
         self
     }
 
@@ -315,11 +354,68 @@ pub trait Place: Places + Sized {
 
     /// How opaque the element is, in `0.0..=1.0`, multiplied through everything grown under it.
     ///
-    /// Fully transparent is **not there**: it is out of the box stack and receives nothing, which
-    /// closes the case of an element faded out that went on taking presses. Anything above zero is
-    /// there and takes them normally.
+    /// Each element under it is faded on its own, so where two of them overlap, the one behind
+    /// shows through the one in front. Declare [`together`](Place::together) on the element to fade
+    /// it and everything under it as one picture instead.
+    ///
+    /// Fully transparent draws nothing and takes nothing: the element and everything under it
+    /// are out of the box stack, wherever the fade was declared, so a fade to nothing is enough to
+    /// be rid of something. A press target that shows nothing -- the ground of a row that only
+    /// fades in while it is pointed at -- is a [`Stem`](crate::Stem), or a panel in a clear color,
+    /// at full opacity, with what fades in grown under it.
     fn opacity(mut self, opacity: f32) -> Self {
         self.placement().manner.opacity = Opacity::new(opacity);
+        self
+    }
+
+    /// Draws the element and everything grown under it as one picture whenever they are drawn at
+    /// less than full opacity, so a fade fades the whole of it at once.
+    ///
+    /// Without it, opacity is applied to each element on its own. A card fading out shows its
+    /// ground through its text, and a button's face through its label. With it, the card is drawn
+    /// first at full strength, and the picture is what fades.
+    ///
+    /// While it fades, it is drawn at its own place in the stack, and nothing grown elsewhere sits
+    /// between its parts. That is how a CSS stacking context behaves. At full opacity nothing is
+    /// different, and it costs nothing. While it fades it costs one picture the size of the window,
+    /// so keep this to what fades as a whole: a card, a sheet, a page coming in. A `together`
+    /// inside another one that is fading is drawn as part of the outer picture.
+    fn together(mut self) -> Self {
+        self.placement().manner.together = true;
+        self
+    }
+
+    /// Turns the element where it is drawn, clockwise by `radians` about its middle -- and
+    /// everything grown under it with it.
+    ///
+    /// Draw-time, as a [`shift`](crate::Grow::shift) is: where the layout put it does not change,
+    /// so nothing placed against it moves and nothing is laid out again. What is drawn and what is
+    /// pressed turn; [`Drawn`](crate::Vein::Drawn) still reads the upright box. Written later with
+    /// [`turn`](crate::Grow::turn), and moved with [`Motion::Turn`](crate::Motion::Turn).
+    fn turn(mut self, radians: f32) -> Self {
+        self.placement().pose.turn = radians;
+        self
+    }
+
+    /// Draws the element `scale` times its size about its middle, and everything grown under it
+    /// with it: a card pressed down to `0.97`, a mark that swells while it is lit.
+    ///
+    /// Draw-time, as [`turn`](Place::turn) is. Written later with [`scale`](crate::Grow::scale), and
+    /// moved with [`Motion::Scale`](crate::Motion::Scale).
+    fn scale(mut self, scale: f32) -> Self {
+        self.placement().pose.scale = scale;
+        self
+    }
+
+    /// Draws the element `by` its own size from where the layout put it, and everything grown under
+    /// it with it: `(1.0, 0.0)` is one of its own widths to the right.
+    ///
+    /// A [`shift`](crate::Grow::shift) measured in the element rather than in pixels, so a sheet
+    /// slides out by exactly its width without asking how wide it came out. The two add together.
+    /// Written later with [`slide`](crate::Grow::slide), and moved with
+    /// [`Motion::Slide`](crate::Motion::Slide).
+    fn slide(mut self, by: crate::Position) -> Self {
+        self.placement().pose.slide = by;
         self
     }
 }

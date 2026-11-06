@@ -74,403 +74,484 @@
 <a href=#74 id=74 data-nosnippet>74</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) rouses: bool,
 <a href=#75 id=75 data-nosnippet>75</a>    <span class="doccomment">/// The cursor moved since the last frame, and the app asked to hear of it.
 <a href=#76 id=76 data-nosnippet>76</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) roused: bool,
-<a href=#77 id=77 data-nosnippet>77</a>    <span class="doccomment">/// The system clipboard, and what this program last put on it.
-<a href=#78 id=78 data-nosnippet>78</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) clipboard: Clipboard,
-<a href=#79 id=79 data-nosnippet>79</a>    <span class="doccomment">/// The soft keyboard, and which one is up.
-<a href=#80 id=80 data-nosnippet>80</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) keyboard: Keyboard,
-<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// Whether a URL reaches the host.
-<a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) links: Links,
-<a href=#83 id=83 data-nosnippet>83</a>    <span class="doccomment">/// What the last frame drew, which is what a gesture is resolved against.
-<a href=#84 id=84 data-nosnippet>84</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) stack: Stack,
-<a href=#85 id=85 data-nosnippet>85</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) focus: Focus,
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="doccomment">/// Every region still moving from a release, held beside the tree like the running tweens.
-<a href=#87 id=87 data-nosnippet>87</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) coasting: Coasting,
-<a href=#88 id=88 data-nosnippet>88</a>    <span class="doccomment">/// The destinations written this frame, waiting on the extent R3 measures. Drained at R4.
-<a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) sought: Vec&lt;(Leaf, ScrollTo)&gt;,
-<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// How far a gesture travels before it is claimed as a drag. Tuned at boot.
-<a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) claim: Claim,
-<a href=#92 id=92 data-nosnippet>92</a>    <span class="doccomment">/// How long a press is down before it is a hold. Tuned at boot.
-<a href=#93 id=93 data-nosnippet>93</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) hold: Hold,
-<a href=#94 id=94 data-nosnippet>94</a>    <span class="doccomment">/// How close together two taps are for the second to follow the first. Tuned at boot.
-<a href=#95 id=95 data-nosnippet>95</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) taps: Taps,
-<a href=#96 id=96 data-nosnippet>96</a>    <span class="doccomment">/// How a released drag coasts. Tuned at boot.
-<a href=#97 id=97 data-nosnippet>97</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) momentum: Momentum,
-<a href=#98 id=98 data-nosnippet>98</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) again: bool,
-<a href=#99 id=99 data-nosnippet>99</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) frames: u64,
-<a href=#100 id=100 data-nosnippet>100</a>}
-<a href=#101 id=101 data-nosnippet>101</a>
-<a href=#102 id=102 data-nosnippet>102</a><span class="kw">impl </span>Grove {
-<a href=#103 id=103 data-nosnippet>103</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(viewport: Area) -&gt; <span class="self">Self </span>{
-<a href=#104 id=104 data-nosnippet>104</a>        <span class="kw">let </span>naming = Naming::new();
-<a href=#105 id=105 data-nosnippet>105</a>        <span class="kw">let </span>tree = Tree::new(naming.clone());
-<a href=#106 id=106 data-nosnippet>106</a>        <span class="kw">let </span>queue = Queue::default();
-<a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span>wake = Wake::default();
-<a href=#108 id=108 data-nosnippet>108</a>        <span class="self">Self </span>{
-<a href=#109 id=109 data-nosnippet>109</a>            sprig: Sprig::new(queue.clone(), wake.clone(), naming.clone()),
-<a href=#110 id=110 data-nosnippet>110</a>            watched: Watches::default(),
-<a href=#111 id=111 data-nosnippet>111</a>            tree,
-<a href=#112 id=112 data-nosnippet>112</a>            elm: Elm::default(),
-<a href=#113 id=113 data-nosnippet>113</a>            queue,
-<a href=#114 id=114 data-nosnippet>114</a>            wake,
-<a href=#115 id=115 data-nosnippet>115</a>            naming,
-<a href=#116 id=116 data-nosnippet>116</a>            clock: Clock::new(),
-<a href=#117 id=117 data-nosnippet>117</a>            aspen: Aspen::default(),
-<a href=#118 id=118 data-nosnippet>118</a>            fonts: Fonts::new(),
-<a href=#119 id=119 data-nosnippet>119</a>            fields: Fields::default(),
-<a href=#120 id=120 data-nosnippet>120</a>            plates: Plates::default(),
-<a href=#121 id=121 data-nosnippet>121</a>            shaping: Shaping::default(),
-<a href=#122 id=122 data-nosnippet>122</a>            elements: Elements::default(),
-<a href=#123 id=123 data-nosnippet>123</a>            drift: Drift::default(),
-<a href=#124 id=124 data-nosnippet>124</a>            viewport,
-<a href=#125 id=125 data-nosnippet>125</a>            pending_resize: <span class="prelude-val">None</span>,
-<a href=#126 id=126 data-nosnippet>126</a>            layout: Layout::of(viewport),
-<a href=#127 id=127 data-nosnippet>127</a>            short: Short::No.next(viewport),
-<a href=#128 id=128 data-nosnippet>128</a>            scheme: Scheme::default(),
-<a href=#129 id=129 data-nosnippet>129</a>            incoming: Incoming::default(),
-<a href=#130 id=130 data-nosnippet>130</a>            pointer: Vec::new(),
-<a href=#131 id=131 data-nosnippet>131</a>            cursor: <span class="prelude-val">None</span>,
-<a href=#132 id=132 data-nosnippet>132</a>            rouses: <span class="bool-val">false</span>,
-<a href=#133 id=133 data-nosnippet>133</a>            roused: <span class="bool-val">false</span>,
-<a href=#134 id=134 data-nosnippet>134</a>            clipboard: Clipboard::default(),
-<a href=#135 id=135 data-nosnippet>135</a>            keyboard: Keyboard::default(),
-<a href=#136 id=136 data-nosnippet>136</a>            links: Links::default(),
-<a href=#137 id=137 data-nosnippet>137</a>            stack: Stack::default(),
-<a href=#138 id=138 data-nosnippet>138</a>            focus: Focus::default(),
-<a href=#139 id=139 data-nosnippet>139</a>            coasting: Coasting::default(),
-<a href=#140 id=140 data-nosnippet>140</a>            sought: Vec::new(),
-<a href=#141 id=141 data-nosnippet>141</a>            claim: Claim::default(),
-<a href=#142 id=142 data-nosnippet>142</a>            hold: Hold::default(),
-<a href=#143 id=143 data-nosnippet>143</a>            taps: Taps::default(),
-<a href=#144 id=144 data-nosnippet>144</a>            momentum: Momentum::default(),
-<a href=#145 id=145 data-nosnippet>145</a>            again: <span class="bool-val">false</span>,
-<a href=#146 id=146 data-nosnippet>146</a>            frames: <span class="number">0</span>,
-<a href=#147 id=147 data-nosnippet>147</a>        }
-<a href=#148 id=148 data-nosnippet>148</a>    }
-<a href=#149 id=149 data-nosnippet>149</a>
-<a href=#150 id=150 data-nosnippet>150</a>    <span class="doccomment">/// What `leaf` names right now.
-<a href=#151 id=151 data-nosnippet>151</a>    </span><span class="kw">pub fn </span>presence(<span class="kw-2">&amp;</span><span class="self">self</span>, leaf: Leaf) -&gt; Presence {
-<a href=#152 id=152 data-nosnippet>152</a>        <span class="self">self</span>.tree.presence(leaf)
-<a href=#153 id=153 data-nosnippet>153</a>    }
-<a href=#154 id=154 data-nosnippet>154</a>
-<a href=#155 id=155 data-nosnippet>155</a>    <span class="doccomment">/// Reads one property of an element, or `None` if it has withered, has not been grown yet, or
-<a href=#156 id=156 data-nosnippet>156</a>    /// does not carry that property.
-<a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">pub fn </span>tap(<span class="kw-2">&amp;</span><span class="self">self</span>, leaf: Leaf, vein: Vein) -&gt; <span class="prelude-ty">Option</span>&lt;Sap&gt; {
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">if </span>!<span class="self">self</span>.tree.is_live(leaf) {
-<a href=#159 id=159 data-nosnippet>159</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
-<a href=#160 id=160 data-nosnippet>160</a>        }
-<a href=#161 id=161 data-nosnippet>161</a>        <span class="prelude-val">Some</span>(<span class="kw">match </span>vein {
-<a href=#162 id=162 data-nosnippet>162</a>            Vein::Branches =&gt; Sap::Leaves(<span class="self">self</span>.tree.branches(leaf)),
-<a href=#163 id=163 data-nosnippet>163</a>            Vein::Trunk =&gt; Sap::Leaf(<span class="self">self</span>.tree.trunk(leaf)),
-<a href=#164 id=164 data-nosnippet>164</a>            Vein::Placed =&gt; Sap::Section(<span class="self">self</span>.elements.placed(leaf)),
-<a href=#165 id=165 data-nosnippet>165</a>            Vein::Drawn =&gt; Sap::Section(<span class="self">self</span>.elements.drawn(leaf)),
-<a href=#166 id=166 data-nosnippet>166</a>            Vein::Anchor =&gt; Sap::Leaf(<span class="self">self</span>.tree.anchor(leaf)),
-<a href=#167 id=167 data-nosnippet>167</a>            Vein::Elevation =&gt; Sap::Elevation(<span class="self">self</span>.tree.elevation(leaf)),
-<a href=#168 id=168 data-nosnippet>168</a>            <span class="comment">// A field is filled as its value is, since a fill written to it goes to the run.
-<a href=#169 id=169 data-nosnippet>169</a>            </span>Vein::Color =&gt; Sap::Color(<span class="kw">match </span><span class="self">self</span>.tree.parts(leaf) {
-<a href=#170 id=170 data-nosnippet>170</a>                <span class="prelude-val">Some</span>(parts) =&gt; <span class="self">self</span>.tree.fill(parts.run)<span class="question-mark">?</span>,
-<a href=#171 id=171 data-nosnippet>171</a>                <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.tree.fill(leaf)<span class="question-mark">?</span>,
-<a href=#172 id=172 data-nosnippet>172</a>            }),
-<a href=#173 id=173 data-nosnippet>173</a>            Vein::Rounding =&gt; Sap::Rounding(<span class="self">self</span>.tree.rounding(leaf)<span class="question-mark">?</span>),
-<a href=#174 id=174 data-nosnippet>174</a>            Vein::Outline =&gt; {
-<a href=#175 id=175 data-nosnippet>175</a>                <span class="kw">let </span>outline = <span class="self">self</span>.tree.outline(leaf)<span class="question-mark">?</span>;
-<a href=#176 id=176 data-nosnippet>176</a>                Sap::Outline(outline.width, outline.fill)
-<a href=#177 id=177 data-nosnippet>177</a>            }
-<a href=#178 id=178 data-nosnippet>178</a>            Vein::Ends =&gt; {
-<a href=#179 id=179 data-nosnippet>179</a>                <span class="kw">let </span>stretched = <span class="self">self</span>.elements.stretched(leaf)<span class="question-mark">?</span>;
-<a href=#180 id=180 data-nosnippet>180</a>                Sap::Ends(stretched.from, stretched.to)
-<a href=#181 id=181 data-nosnippet>181</a>            }
-<a href=#182 id=182 data-nosnippet>182</a>            Vein::Weight =&gt; Sap::Weight(<span class="self">self</span>.tree.stroke(leaf)<span class="question-mark">?</span>.weight),
-<a href=#183 id=183 data-nosnippet>183</a>            Vein::Cap =&gt; Sap::Cap(<span class="self">self</span>.tree.line_pigment(leaf)<span class="question-mark">?</span>.cap),
-<a href=#184 id=184 data-nosnippet>184</a>            Vein::Shape =&gt; Sap::Shape(<span class="self">self</span>.tree.shape(leaf)<span class="question-mark">?</span>),
-<a href=#185 id=185 data-nosnippet>185</a>            Vein::Mark =&gt; Sap::Mark(<span class="self">self</span>.tree.icon_pigment(leaf)<span class="question-mark">?</span>.field),
-<a href=#186 id=186 data-nosnippet>186</a>            Vein::Picture =&gt; Sap::Picture(<span class="self">self</span>.tree.image_pigment(leaf)<span class="question-mark">?</span>.plate),
-<a href=#187 id=187 data-nosnippet>187</a>            Vein::Fit =&gt; Sap::Fit(<span class="self">self</span>.tree.image_pigment(leaf)<span class="question-mark">?</span>.fit),
-<a href=#188 id=188 data-nosnippet>188</a>            <span class="comment">// A field says what its run says. Every verb and every read is addressed to the field,
-<a href=#189 id=189 data-nosnippet>189</a>            // so what it is made of is never a name an app has to hold.
-<a href=#190 id=190 data-nosnippet>190</a>            </span>Vein::Text =&gt; Sap::Text(<span class="kw">match </span><span class="self">self</span>.tree.parts(leaf) {
-<a href=#191 id=191 data-nosnippet>191</a>                <span class="prelude-val">Some</span>(parts) =&gt; <span class="self">self</span>.tree.lettering(parts.run)<span class="question-mark">?</span>.to_string(),
-<a href=#192 id=192 data-nosnippet>192</a>                <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.tree.lettering(leaf)<span class="question-mark">?</span>.to_string(),
-<a href=#193 id=193 data-nosnippet>193</a>            }),
-<a href=#194 id=194 data-nosnippet>194</a>            Vein::Selection =&gt; {
-<a href=#195 id=195 data-nosnippet>195</a>                <span class="self">self</span>.tree.parts(leaf)<span class="question-mark">?</span>;
-<a href=#196 id=196 data-nosnippet>196</a>                Sap::Selection(<span class="self">self</span>.tree.editing(leaf).span())
-<a href=#197 id=197 data-nosnippet>197</a>            }
-<a href=#198 id=198 data-nosnippet>198</a>            Vein::Visible =&gt; Sap::Visible(<span class="self">self</span>.tree.visible(leaf).<span class="number">0</span>),
-<a href=#199 id=199 data-nosnippet>199</a>            Vein::Opacity =&gt; Sap::Opacity(<span class="self">self</span>.tree.opacity(leaf).<span class="number">0</span>),
-<a href=#200 id=200 data-nosnippet>200</a>            Vein::Disabled =&gt; Sap::Disabled(<span class="self">self</span>.tree.disabled(leaf).<span class="number">0</span>),
-<a href=#201 id=201 data-nosnippet>201</a>            Vein::Shift =&gt; Sap::Position(<span class="self">self</span>.tree.shift(leaf)),
-<a href=#202 id=202 data-nosnippet>202</a>            <span class="comment">// The three a region has and nothing else does. `None` where the element does not
-<a href=#203 id=203 data-nosnippet>203</a>            // scroll, which is the reading that keeps "an axis that was not declared has no extent"
-<a href=#204 id=204 data-nosnippet>204</a>            // true of the whole element as well as of one of its axes.
-<a href=#205 id=205 data-nosnippet>205</a>            </span>Vein::Offset =&gt; {
-<a href=#206 id=206 data-nosnippet>206</a>                <span class="self">self</span>.tree.scrolls(leaf)<span class="question-mark">?</span>;
-<a href=#207 id=207 data-nosnippet>207</a>                Sap::Position(<span class="self">self</span>.tree.offset(leaf))
-<a href=#208 id=208 data-nosnippet>208</a>            }
-<a href=#209 id=209 data-nosnippet>209</a>            Vein::Extent =&gt; {
-<a href=#210 id=210 data-nosnippet>210</a>                <span class="self">self</span>.tree.scrolls(leaf)<span class="question-mark">?</span>;
-<a href=#211 id=211 data-nosnippet>211</a>                Sap::Area(<span class="self">self</span>.tree.extent(leaf))
-<a href=#212 id=212 data-nosnippet>212</a>            }
-<a href=#213 id=213 data-nosnippet>213</a>            Vein::Progress =&gt; {
-<a href=#214 id=214 data-nosnippet>214</a>                <span class="self">self</span>.tree.scrolls(leaf)<span class="question-mark">?</span>;
-<a href=#215 id=215 data-nosnippet>215</a>                <span class="kw">let </span>(offset, extent) = (<span class="self">self</span>.tree.offset(leaf), <span class="self">self</span>.tree.extent(leaf));
-<a href=#216 id=216 data-nosnippet>216</a>                <span class="kw">let </span>own = <span class="self">self</span>.elements.placed(leaf).area;
-<a href=#217 id=217 data-nosnippet>217</a>                Sap::Progress(Position::new(
-<a href=#218 id=218 data-nosnippet>218</a>                    progress(offset, extent, own, Axis::Horizontal),
-<a href=#219 id=219 data-nosnippet>219</a>                    progress(offset, extent, own, Axis::Vertical),
-<a href=#220 id=220 data-nosnippet>220</a>                ))
-<a href=#221 id=221 data-nosnippet>221</a>            }
-<a href=#222 id=222 data-nosnippet>222</a>        })
-<a href=#223 id=223 data-nosnippet>223</a>    }
-<a href=#224 id=224 data-nosnippet>224</a>
-<a href=#225 id=225 data-nosnippet>225</a>    <span class="doccomment">/// Registers a font and hands back the name elements compose in.
-<a href=#226 id=226 data-nosnippet>226</a>    ///
-<a href=#227 id=227 data-nosnippet>227</a>    /// Takes the bytes, or an [`Origin`] to read them from -- and hands back the name either way, at
-<a href=#228 id=228 data-nosnippet>228</a>    /// once. A face that has yet to arrive is composed in the bundled one until it does, so a page
-<a href=#229 id=229 data-nosnippet>229</a>    /// laid out in [`letters`](crate::Source::letters) is laid out sensibly from the first frame and
-<a href=#230 id=230 data-nosnippet>230</a>    /// reflows when the real face lands. [`loaded`](crate::Pollen::loaded) is how an app waits for
-<a href=#231 id=231 data-nosnippet>231</a>    /// that instead.
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="doccomment">/// What the cursor rests on that would take a press there. See [`Grove::hovered`].
+<a href=#78 id=78 data-nosnippet>78</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) hovered: <span class="prelude-ty">Option</span>&lt;Leaf&gt;,
+<a href=#79 id=79 data-nosnippet>79</a>    <span class="doccomment">/// The system clipboard, and what this program last put on it.
+<a href=#80 id=80 data-nosnippet>80</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) clipboard: Clipboard,
+<a href=#81 id=81 data-nosnippet>81</a>    <span class="doccomment">/// The soft keyboard, and which one is up.
+<a href=#82 id=82 data-nosnippet>82</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) keyboard: Keyboard,
+<a href=#83 id=83 data-nosnippet>83</a>    <span class="doccomment">/// Whether a URL reaches the host.
+<a href=#84 id=84 data-nosnippet>84</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) links: Links,
+<a href=#85 id=85 data-nosnippet>85</a>    <span class="doccomment">/// What the last frame drew, which is what a gesture is resolved against.
+<a href=#86 id=86 data-nosnippet>86</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) stack: Stack,
+<a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) focus: Focus,
+<a href=#88 id=88 data-nosnippet>88</a>    <span class="doccomment">/// Every region still moving from a release, held beside the tree like the running tweens.
+<a href=#89 id=89 data-nosnippet>89</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) coasting: Coasting,
+<a href=#90 id=90 data-nosnippet>90</a>    <span class="doccomment">/// The destinations written this frame, waiting on the extent R3 measures. Drained at R4.
+<a href=#91 id=91 data-nosnippet>91</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) sought: Vec&lt;(Leaf, ScrollTo)&gt;,
+<a href=#92 id=92 data-nosnippet>92</a>    <span class="doccomment">/// How far a gesture travels before it is claimed as a drag. Tuned at boot.
+<a href=#93 id=93 data-nosnippet>93</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) claim: Claim,
+<a href=#94 id=94 data-nosnippet>94</a>    <span class="doccomment">/// How long a press is down before it is a hold. Tuned at boot.
+<a href=#95 id=95 data-nosnippet>95</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) hold: Hold,
+<a href=#96 id=96 data-nosnippet>96</a>    <span class="doccomment">/// How close together two taps are for the second to follow the first. Tuned at boot.
+<a href=#97 id=97 data-nosnippet>97</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) taps: Taps,
+<a href=#98 id=98 data-nosnippet>98</a>    <span class="doccomment">/// How a released drag coasts. Tuned at boot.
+<a href=#99 id=99 data-nosnippet>99</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) momentum: Momentum,
+<a href=#100 id=100 data-nosnippet>100</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) again: bool,
+<a href=#101 id=101 data-nosnippet>101</a>    <span class="doccomment">/// How long until the frame this one asked for with [`again_in`](Grove::again_in) is owed.
+<a href=#102 id=102 data-nosnippet>102</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) again_in: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
+<a href=#103 id=103 data-nosnippet>103</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) frames: u64,
+<a href=#104 id=104 data-nosnippet>104</a>}
+<a href=#105 id=105 data-nosnippet>105</a>
+<a href=#106 id=106 data-nosnippet>106</a><span class="kw">impl </span>Grove {
+<a href=#107 id=107 data-nosnippet>107</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(viewport: Area) -&gt; <span class="self">Self </span>{
+<a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">let </span>naming = Naming::new();
+<a href=#109 id=109 data-nosnippet>109</a>        <span class="kw">let </span>tree = Tree::new(naming.clone());
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">let </span>queue = Queue::default();
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">let </span>wake = Wake::default();
+<a href=#112 id=112 data-nosnippet>112</a>        <span class="self">Self </span>{
+<a href=#113 id=113 data-nosnippet>113</a>            sprig: Sprig::new(queue.clone(), wake.clone(), naming.clone()),
+<a href=#114 id=114 data-nosnippet>114</a>            watched: Watches::default(),
+<a href=#115 id=115 data-nosnippet>115</a>            tree,
+<a href=#116 id=116 data-nosnippet>116</a>            elm: Elm::default(),
+<a href=#117 id=117 data-nosnippet>117</a>            queue,
+<a href=#118 id=118 data-nosnippet>118</a>            wake,
+<a href=#119 id=119 data-nosnippet>119</a>            naming,
+<a href=#120 id=120 data-nosnippet>120</a>            clock: Clock::new(),
+<a href=#121 id=121 data-nosnippet>121</a>            aspen: Aspen::default(),
+<a href=#122 id=122 data-nosnippet>122</a>            fonts: Fonts::new(),
+<a href=#123 id=123 data-nosnippet>123</a>            fields: Fields::default(),
+<a href=#124 id=124 data-nosnippet>124</a>            plates: Plates::default(),
+<a href=#125 id=125 data-nosnippet>125</a>            shaping: Shaping::default(),
+<a href=#126 id=126 data-nosnippet>126</a>            elements: Elements::default(),
+<a href=#127 id=127 data-nosnippet>127</a>            drift: Drift::default(),
+<a href=#128 id=128 data-nosnippet>128</a>            viewport,
+<a href=#129 id=129 data-nosnippet>129</a>            pending_resize: <span class="prelude-val">None</span>,
+<a href=#130 id=130 data-nosnippet>130</a>            layout: Layout::of(viewport),
+<a href=#131 id=131 data-nosnippet>131</a>            short: Short::No.next(viewport),
+<a href=#132 id=132 data-nosnippet>132</a>            scheme: Scheme::default(),
+<a href=#133 id=133 data-nosnippet>133</a>            incoming: Incoming::default(),
+<a href=#134 id=134 data-nosnippet>134</a>            pointer: Vec::new(),
+<a href=#135 id=135 data-nosnippet>135</a>            cursor: <span class="prelude-val">None</span>,
+<a href=#136 id=136 data-nosnippet>136</a>            rouses: <span class="bool-val">false</span>,
+<a href=#137 id=137 data-nosnippet>137</a>            hovered: <span class="prelude-val">None</span>,
+<a href=#138 id=138 data-nosnippet>138</a>            roused: <span class="bool-val">false</span>,
+<a href=#139 id=139 data-nosnippet>139</a>            clipboard: Clipboard::default(),
+<a href=#140 id=140 data-nosnippet>140</a>            keyboard: Keyboard::default(),
+<a href=#141 id=141 data-nosnippet>141</a>            links: Links::default(),
+<a href=#142 id=142 data-nosnippet>142</a>            stack: Stack::default(),
+<a href=#143 id=143 data-nosnippet>143</a>            focus: Focus::default(),
+<a href=#144 id=144 data-nosnippet>144</a>            coasting: Coasting::default(),
+<a href=#145 id=145 data-nosnippet>145</a>            sought: Vec::new(),
+<a href=#146 id=146 data-nosnippet>146</a>            claim: Claim::default(),
+<a href=#147 id=147 data-nosnippet>147</a>            hold: Hold::default(),
+<a href=#148 id=148 data-nosnippet>148</a>            taps: Taps::default(),
+<a href=#149 id=149 data-nosnippet>149</a>            momentum: Momentum::default(),
+<a href=#150 id=150 data-nosnippet>150</a>            again: <span class="bool-val">false</span>,
+<a href=#151 id=151 data-nosnippet>151</a>            again_in: <span class="prelude-val">None</span>,
+<a href=#152 id=152 data-nosnippet>152</a>            frames: <span class="number">0</span>,
+<a href=#153 id=153 data-nosnippet>153</a>        }
+<a href=#154 id=154 data-nosnippet>154</a>    }
+<a href=#155 id=155 data-nosnippet>155</a>
+<a href=#156 id=156 data-nosnippet>156</a>    <span class="doccomment">/// What `leaf` names right now.
+<a href=#157 id=157 data-nosnippet>157</a>    </span><span class="kw">pub fn </span>presence(<span class="kw-2">&amp;</span><span class="self">self</span>, leaf: Leaf) -&gt; Presence {
+<a href=#158 id=158 data-nosnippet>158</a>        <span class="self">self</span>.tree.presence(leaf)
+<a href=#159 id=159 data-nosnippet>159</a>    }
+<a href=#160 id=160 data-nosnippet>160</a>
+<a href=#161 id=161 data-nosnippet>161</a>    <span class="doccomment">/// Reads one property of an element, or `None` if it has withered, has not been grown yet, or
+<a href=#162 id=162 data-nosnippet>162</a>    /// does not carry that property.
+<a href=#163 id=163 data-nosnippet>163</a>    </span><span class="kw">pub fn </span>tap(<span class="kw-2">&amp;</span><span class="self">self</span>, leaf: Leaf, vein: Vein) -&gt; <span class="prelude-ty">Option</span>&lt;Sap&gt; {
+<a href=#164 id=164 data-nosnippet>164</a>        <span class="kw">if </span>!<span class="self">self</span>.tree.is_live(leaf) {
+<a href=#165 id=165 data-nosnippet>165</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
+<a href=#166 id=166 data-nosnippet>166</a>        }
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="prelude-val">Some</span>(<span class="kw">match </span>vein {
+<a href=#168 id=168 data-nosnippet>168</a>            Vein::Branches =&gt; Sap::Leaves(<span class="self">self</span>.tree.branches(leaf)),
+<a href=#169 id=169 data-nosnippet>169</a>            Vein::Trunk =&gt; Sap::Leaf(<span class="self">self</span>.tree.trunk(leaf)),
+<a href=#170 id=170 data-nosnippet>170</a>            Vein::Placed =&gt; Sap::Section(<span class="self">self</span>.elements.placed(leaf)),
+<a href=#171 id=171 data-nosnippet>171</a>            Vein::Drawn =&gt; Sap::Section(<span class="self">self</span>.elements.drawn(leaf)),
+<a href=#172 id=172 data-nosnippet>172</a>            Vein::Anchor =&gt; Sap::Leaf(<span class="self">self</span>.tree.anchor(leaf)),
+<a href=#173 id=173 data-nosnippet>173</a>            Vein::Elevation =&gt; Sap::Elevation(<span class="self">self</span>.tree.elevation(leaf)),
+<a href=#174 id=174 data-nosnippet>174</a>            <span class="comment">// A field is filled as its value is, since a fill written to it goes to the run.
+<a href=#175 id=175 data-nosnippet>175</a>            </span>Vein::Color =&gt; Sap::Color(<span class="kw">match </span><span class="self">self</span>.tree.parts(leaf) {
+<a href=#176 id=176 data-nosnippet>176</a>                <span class="prelude-val">Some</span>(parts) =&gt; <span class="self">self</span>.tree.fill(parts.run)<span class="question-mark">?</span>,
+<a href=#177 id=177 data-nosnippet>177</a>                <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.tree.fill(leaf)<span class="question-mark">?</span>,
+<a href=#178 id=178 data-nosnippet>178</a>            }),
+<a href=#179 id=179 data-nosnippet>179</a>            Vein::Rounding =&gt; Sap::Rounding(<span class="self">self</span>.tree.rounding(leaf)<span class="question-mark">?</span>),
+<a href=#180 id=180 data-nosnippet>180</a>            Vein::Outline =&gt; {
+<a href=#181 id=181 data-nosnippet>181</a>                <span class="kw">let </span>outline = <span class="self">self</span>.tree.outline(leaf)<span class="question-mark">?</span>;
+<a href=#182 id=182 data-nosnippet>182</a>                Sap::Outline(outline.width, outline.fill)
+<a href=#183 id=183 data-nosnippet>183</a>            }
+<a href=#184 id=184 data-nosnippet>184</a>            Vein::Ends =&gt; {
+<a href=#185 id=185 data-nosnippet>185</a>                <span class="kw">let </span>stretched = <span class="self">self</span>.elements.stretched(leaf)<span class="question-mark">?</span>;
+<a href=#186 id=186 data-nosnippet>186</a>                Sap::Ends(stretched.from, stretched.to)
+<a href=#187 id=187 data-nosnippet>187</a>            }
+<a href=#188 id=188 data-nosnippet>188</a>            Vein::Weight =&gt; Sap::Weight(<span class="self">self</span>.tree.stroke(leaf)<span class="question-mark">?</span>.weight),
+<a href=#189 id=189 data-nosnippet>189</a>            Vein::Cap =&gt; Sap::Cap(<span class="self">self</span>.tree.line_pigment(leaf)<span class="question-mark">?</span>.cap),
+<a href=#190 id=190 data-nosnippet>190</a>            Vein::Shape =&gt; Sap::Shape(<span class="self">self</span>.tree.shape(leaf)<span class="question-mark">?</span>),
+<a href=#191 id=191 data-nosnippet>191</a>            Vein::Mark =&gt; Sap::Mark(<span class="self">self</span>.tree.icon_pigment(leaf)<span class="question-mark">?</span>.field),
+<a href=#192 id=192 data-nosnippet>192</a>            Vein::Picture =&gt; Sap::Picture(<span class="self">self</span>.tree.image_pigment(leaf)<span class="question-mark">?</span>.plate),
+<a href=#193 id=193 data-nosnippet>193</a>            Vein::Fit =&gt; Sap::Fit(<span class="self">self</span>.tree.image_pigment(leaf)<span class="question-mark">?</span>.fit),
+<a href=#194 id=194 data-nosnippet>194</a>            <span class="comment">// A field says what its run says. Every verb and every read is addressed to the field,
+<a href=#195 id=195 data-nosnippet>195</a>            // so what it is made of is never a name an app has to hold.
+<a href=#196 id=196 data-nosnippet>196</a>            </span>Vein::Text =&gt; Sap::Text(<span class="kw">match </span><span class="self">self</span>.tree.parts(leaf) {
+<a href=#197 id=197 data-nosnippet>197</a>                <span class="prelude-val">Some</span>(parts) =&gt; <span class="self">self</span>.tree.lettering(parts.run)<span class="question-mark">?</span>.to_string(),
+<a href=#198 id=198 data-nosnippet>198</a>                <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.tree.lettering(leaf)<span class="question-mark">?</span>.to_string(),
+<a href=#199 id=199 data-nosnippet>199</a>            }),
+<a href=#200 id=200 data-nosnippet>200</a>            Vein::Selection =&gt; {
+<a href=#201 id=201 data-nosnippet>201</a>                <span class="self">self</span>.tree.parts(leaf)<span class="question-mark">?</span>;
+<a href=#202 id=202 data-nosnippet>202</a>                Sap::Selection(<span class="self">self</span>.tree.editing(leaf).span())
+<a href=#203 id=203 data-nosnippet>203</a>            }
+<a href=#204 id=204 data-nosnippet>204</a>            Vein::Visible =&gt; Sap::Visible(<span class="self">self</span>.tree.visible(leaf).<span class="number">0</span>),
+<a href=#205 id=205 data-nosnippet>205</a>            Vein::Opacity =&gt; Sap::Opacity(<span class="self">self</span>.tree.opacity(leaf).<span class="number">0</span>),
+<a href=#206 id=206 data-nosnippet>206</a>            Vein::Disabled =&gt; Sap::Disabled(<span class="self">self</span>.tree.disabled(leaf).<span class="number">0</span>),
+<a href=#207 id=207 data-nosnippet>207</a>            Vein::Shift =&gt; Sap::Position(<span class="self">self</span>.tree.shift(leaf)),
+<a href=#208 id=208 data-nosnippet>208</a>            <span class="comment">// The three a region has and nothing else does. `None` where the element does not
+<a href=#209 id=209 data-nosnippet>209</a>            // scroll, which is the reading that keeps "an axis that was not declared has no extent"
+<a href=#210 id=210 data-nosnippet>210</a>            // true of the whole element as well as of one of its axes.
+<a href=#211 id=211 data-nosnippet>211</a>            </span>Vein::Offset =&gt; {
+<a href=#212 id=212 data-nosnippet>212</a>                <span class="self">self</span>.tree.scrolls(leaf)<span class="question-mark">?</span>;
+<a href=#213 id=213 data-nosnippet>213</a>                Sap::Position(<span class="self">self</span>.tree.offset(leaf))
+<a href=#214 id=214 data-nosnippet>214</a>            }
+<a href=#215 id=215 data-nosnippet>215</a>            Vein::Extent =&gt; {
+<a href=#216 id=216 data-nosnippet>216</a>                <span class="self">self</span>.tree.scrolls(leaf)<span class="question-mark">?</span>;
+<a href=#217 id=217 data-nosnippet>217</a>                Sap::Area(<span class="self">self</span>.tree.extent(leaf))
+<a href=#218 id=218 data-nosnippet>218</a>            }
+<a href=#219 id=219 data-nosnippet>219</a>            Vein::Progress =&gt; {
+<a href=#220 id=220 data-nosnippet>220</a>                <span class="self">self</span>.tree.scrolls(leaf)<span class="question-mark">?</span>;
+<a href=#221 id=221 data-nosnippet>221</a>                <span class="kw">let </span>(offset, extent) = (<span class="self">self</span>.tree.offset(leaf), <span class="self">self</span>.tree.extent(leaf));
+<a href=#222 id=222 data-nosnippet>222</a>                <span class="kw">let </span>own = <span class="self">self</span>.elements.placed(leaf).area;
+<a href=#223 id=223 data-nosnippet>223</a>                Sap::Progress(Position::new(
+<a href=#224 id=224 data-nosnippet>224</a>                    progress(offset, extent, own, Axis::Horizontal),
+<a href=#225 id=225 data-nosnippet>225</a>                    progress(offset, extent, own, Axis::Vertical),
+<a href=#226 id=226 data-nosnippet>226</a>                ))
+<a href=#227 id=227 data-nosnippet>227</a>            }
+<a href=#228 id=228 data-nosnippet>228</a>        })
+<a href=#229 id=229 data-nosnippet>229</a>    }
+<a href=#230 id=230 data-nosnippet>230</a>
+<a href=#231 id=231 data-nosnippet>231</a>    <span class="doccomment">/// Registers a font and hands back the name elements compose in.
 <a href=#232 id=232 data-nosnippet>232</a>    ///
-<a href=#233 id=233 data-nosnippet>233</a>    /// ```no_run
-<a href=#234 id=234 data-nosnippet>234</a>    /// # use foliage::{Grove, Origin};
-<a href=#235 id=235 data-nosnippet>235</a>    /// # fn f(grove: &amp;mut Grove, bundled: &amp;[u8]) {
-<a href=#236 id=236 data-nosnippet>236</a>    /// // `bundled` is what `include_bytes!("assets/mono.ttf")` produced.
-<a href=#237 id=237 data-nosnippet>237</a>    /// let here = grove.font(bundled);
-<a href=#238 id=238 data-nosnippet>238</a>    /// # #[cfg(not(target_family = "wasm"))]
-<a href=#239 id=239 data-nosnippet>239</a>    /// let read = grove.font(Origin::path("assets/mono.ttf"));
-<a href=#240 id=240 data-nosnippet>240</a>    /// # }
-<a href=#241 id=241 data-nosnippet>241</a>    /// ```
-<a href=#242 id=242 data-nosnippet>242</a>    ///
-<a href=#243 id=243 data-nosnippet>243</a>    /// # Panics
-<a href=#244 id=244 data-nosnippet>244</a>    ///
-<a href=#245 id=245 data-nosnippet>245</a>    /// If bytes that were given outright are not a monospaced font. Every measurement foliage makes
-<a href=#246 id=246 data-nosnippet>246</a>    /// is a count of character cells -- [`letters`](crate::Source::letters), a letter-pitched track,
-<a href=#247 id=247 data-nosnippet>247</a>    /// max-content width, wrapping -- so a proportional font does not degrade, it silently puts
-<a href=#248 id=248 data-nosnippet>248</a>    /// every column address somewhere it does not belong.
-<a href=#249 id=249 data-nosnippet>249</a>    ///
-<a href=#250 id=250 data-nosnippet>250</a>    /// Bytes that were *read* are refused rather than panicked on, and reported as
-<a href=#251 id=251 data-nosnippet>251</a>    /// [`missing`](crate::Pollen::missing): what a path or a URL turned out to hold is not something
-<a href=#252 id=252 data-nosnippet>252</a>    /// the program stated.
-<a href=#253 id=253 data-nosnippet>253</a>    </span><span class="kw">pub fn </span>font(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw">impl </span>Into&lt;Bytes&gt;) -&gt; Font {
-<a href=#254 id=254 data-nosnippet>254</a>        <span class="kw">let </span>font = <span class="self">self</span>.naming.face();
-<a href=#255 id=255 data-nosnippet>255</a>        <span class="kw">match </span>bytes.into().<span class="number">0 </span>{
-<a href=#256 id=256 data-nosnippet>256</a>            Supply::Held(bytes) =&gt; <span class="self">self</span>.fonts.register(font, <span class="kw-2">&amp;</span>bytes),
-<a href=#257 id=257 data-nosnippet>257</a>            Supply::At(origin) =&gt; <span class="self">self</span>.retrieve(Destination::Face(font), origin),
-<a href=#258 id=258 data-nosnippet>258</a>        }
-<a href=#259 id=259 data-nosnippet>259</a>        font
-<a href=#260 id=260 data-nosnippet>260</a>    }
-<a href=#261 id=261 data-nosnippet>261</a>
-<a href=#262 id=262 data-nosnippet>262</a>    <span class="doccomment">/// Registers a mark and hands back the name elements draw it by.
-<a href=#263 id=263 data-nosnippet>263</a>    ///
-<a href=#264 id=264 data-nosnippet>264</a>    /// The same registration [`Foliage::icon`](crate::Foliage::icon) is at boot, available at any
-<a href=#265 id=265 data-nosnippet>265</a>    /// frame -- which is what lets an app that takes root inside the first frame register its marks
-<a href=#266 id=266 data-nosnippet>266</a>    /// there rather than having to thread handles in from outside.
-<a href=#267 id=267 data-nosnippet>267</a>    ///
-<a href=#268 id=268 data-nosnippet>268</a>    /// `field` is a multi-channel signed distance field: `side` by `side` texels of RGBA, row-major.
-<a href=#269 id=269 data-nosnippet>269</a>    /// `range` is how many texels the baked distance spread covers. Both are stated by the app
-<a href=#270 id=270 data-nosnippet>270</a>    /// because they are facts about how the field was baked, and a fetched one cannot be asked.
-<a href=#271 id=271 data-nosnippet>271</a>    ///
-<a href=#272 id=272 data-nosnippet>272</a>    /// An element drawing a mark that has yet to arrive occupies its box and draws nothing, and
-<a href=#273 id=273 data-nosnippet>273</a>    /// appears in the frame it lands.
-<a href=#274 id=274 data-nosnippet>274</a>    ///
-<a href=#275 id=275 data-nosnippet>275</a>    /// # Panics
-<a href=#276 id=276 data-nosnippet>276</a>    ///
-<a href=#277 id=277 data-nosnippet>277</a>    /// If bytes that were given outright are smaller than `side` by `side` texels of RGBA. Bytes
-<a href=#278 id=278 data-nosnippet>278</a>    /// that were read are refused rather than panicked on, and reported as
-<a href=#279 id=279 data-nosnippet>279</a>    /// [`missing`](crate::Pollen::missing).
-<a href=#280 id=280 data-nosnippet>280</a>    </span><span class="kw">pub fn </span>icon(<span class="kw-2">&amp;mut </span><span class="self">self</span>, field: <span class="kw">impl </span>Into&lt;Bytes&gt;, side: u32, range: f32) -&gt; Field {
-<a href=#281 id=281 data-nosnippet>281</a>        <span class="kw">let </span>name = <span class="self">self</span>.naming.mark();
-<a href=#282 id=282 data-nosnippet>282</a>        <span class="kw">match </span>field.into().<span class="number">0 </span>{
-<a href=#283 id=283 data-nosnippet>283</a>            Supply::Held(bytes) =&gt; <span class="self">self</span>.fields.register(name, <span class="kw-2">&amp;</span>bytes, side, range),
-<a href=#284 id=284 data-nosnippet>284</a>            Supply::At(origin) =&gt; <span class="self">self</span>.retrieve(Destination::Mark(name, side, range), origin),
-<a href=#285 id=285 data-nosnippet>285</a>        }
-<a href=#286 id=286 data-nosnippet>286</a>        name
-<a href=#287 id=287 data-nosnippet>287</a>    }
-<a href=#288 id=288 data-nosnippet>288</a>
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="doccomment">/// Registers every mark an app draws, and hands back the set it declared them in.
-<a href=#290 id=290 data-nosnippet>290</a>    ///
-<a href=#291 id=291 data-nosnippet>291</a>    /// [`icon`](Grove::icon) for more than one, and the shape
-<a href=#292 id=292 data-nosnippet>292</a>    /// [`root`](crate::Foliage::root) already takes: the type is named here and the engine calls
-<a href=#293 id=293 data-nosnippet>293</a>    /// into [`Marks::register`], so what comes back is the app's own value with a [`Field`] under
-<a href=#294 id=294 data-nosnippet>294</a>    /// each name it gave. A set is registered once and held for as long as the app is.
-<a href=#295 id=295 data-nosnippet>295</a>    ///
-<a href=#296 id=296 data-nosnippet>296</a>    /// ```no_run
-<a href=#297 id=297 data-nosnippet>297</a>    /// # use foliage::{Grove, Marks};
-<a href=#298 id=298 data-nosnippet>298</a>    /// # fn f&lt;Icons: Marks&gt;(grove: &amp;mut Grove) {
-<a href=#299 id=299 data-nosnippet>299</a>    /// let icons = grove.marks::&lt;Icons&gt;();
-<a href=#300 id=300 data-nosnippet>300</a>    /// # }
-<a href=#301 id=301 data-nosnippet>301</a>    /// ```
-<a href=#302 id=302 data-nosnippet>302</a>    </span><span class="kw">pub fn </span>marks&lt;M: Marks&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; M {
-<a href=#303 id=303 data-nosnippet>303</a>        M::register(<span class="self">self</span>)
-<a href=#304 id=304 data-nosnippet>304</a>    }
-<a href=#305 id=305 data-nosnippet>305</a>
-<a href=#306 id=306 data-nosnippet>306</a>    <span class="doccomment">/// Registers a picture and hands back the name elements draw it by.
-<a href=#307 id=307 data-nosnippet>307</a>    ///
-<a href=#308 id=308 data-nosnippet>308</a>    /// PNG or JPEG, decoded here. The format is read from the bytes and the size is what the decode
-<a href=#309 id=309 data-nosnippet>309</a>    /// says, so neither is stated: a name and a path can both be wrong about what a file holds, and
-<a href=#310 id=310 data-nosnippet>310</a>    /// the file cannot be.
-<a href=#311 id=311 data-nosnippet>311</a>    ///
-<a href=#312 id=312 data-nosnippet>312</a>    /// Pixels an app made itself are [`pixels`](crate::Grow::pixels), which states a size because
-<a href=#313 id=313 data-nosnippet>313</a>    /// there is nothing to read one from. An element drawing a picture that has yet to arrive
-<a href=#314 id=314 data-nosnippet>314</a>    /// occupies its box and draws nothing, and appears in the frame it lands.
-<a href=#315 id=315 data-nosnippet>315</a>    </span><span class="kw">pub fn </span>image(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw">impl </span>Into&lt;Bytes&gt;) -&gt; Plate {
-<a href=#316 id=316 data-nosnippet>316</a>        <span class="kw">let </span>plate = <span class="self">self</span>.naming.plate();
-<a href=#317 id=317 data-nosnippet>317</a>        <span class="kw">match </span>bytes.into().<span class="number">0 </span>{
-<a href=#318 id=318 data-nosnippet>318</a>            Supply::Held(bytes) =&gt; {
-<a href=#319 id=319 data-nosnippet>319</a>                <span class="kw">if let </span><span class="prelude-val">Err</span>(refused) = <span class="self">self</span>.plates.decoded(plate, <span class="kw-2">&amp;</span>bytes) {
-<a href=#320 id=320 data-nosnippet>320</a>                    <span class="macro">tracing::warn!</span>(plate = plate.<span class="number">0</span>, reason = refused, <span class="string">"asset missing"</span>);
-<a href=#321 id=321 data-nosnippet>321</a>                    <span class="self">self</span>.drift.missing.insert(plate.into());
-<a href=#322 id=322 data-nosnippet>322</a>                }
-<a href=#323 id=323 data-nosnippet>323</a>            }
-<a href=#324 id=324 data-nosnippet>324</a>            Supply::At(origin) =&gt; <span class="self">self</span>.retrieve(Destination::Picture(plate), origin),
-<a href=#325 id=325 data-nosnippet>325</a>        }
-<a href=#326 id=326 data-nosnippet>326</a>        plate
-<a href=#327 id=327 data-nosnippet>327</a>    }
-<a href=#328 id=328 data-nosnippet>328</a>
-<a href=#329 id=329 data-nosnippet>329</a>    <span class="doccomment">/// Starts a read, against the queue and the wake it will come back through.
-<a href=#330 id=330 data-nosnippet>330</a>    </span><span class="kw">fn </span>retrieve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: Destination, origin: Origin) {
-<a href=#331 id=331 data-nosnippet>331</a>        retrieve(<span class="kw-2">&amp;</span><span class="self">self</span>.queue, <span class="kw-2">&amp;</span><span class="self">self</span>.wake, destination, origin);
-<a href=#332 id=332 data-nosnippet>332</a>    }
-<a href=#333 id=333 data-nosnippet>333</a>
-<a href=#334 id=334 data-nosnippet>334</a>    <span class="doccomment">/// Opens the platform edges, once, at boot.
-<a href=#335 id=335 data-nosnippet>335</a>    ///
-<a href=#336 id=336 data-nosnippet>336</a>    /// Called by `photosynthesize` after the [`Wake`] is installed and by nothing else -- so the
-<a href=#337 id=337 data-nosnippet>337</a>    /// headless suite, which runs frames by hand, reaches none of them. That is what keeps a test
-<a href=#338 id=338 data-nosnippet>338</a>    /// off the clipboard, the keyboard and the browser of whoever is running it, and it is the same
-<a href=#339 id=339 data-nosnippet>339</a>    /// seam the wake itself sits on: what is here on both sides of it is engine state, and what is
-<a href=#340 id=340 data-nosnippet>340</a>    /// past it is the host.
-<a href=#341 id=341 data-nosnippet>341</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>attach(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#342 id=342 data-nosnippet>342</a>        <span class="self">self</span>.clipboard.attach();
-<a href=#343 id=343 data-nosnippet>343</a>        <span class="self">self</span>.keyboard.attach(<span class="kw-2">&amp;</span><span class="self">self</span>.wake);
-<a href=#344 id=344 data-nosnippet>344</a>        <span class="self">self</span>.links.attach();
-<a href=#345 id=345 data-nosnippet>345</a>        <span class="kw">crate</span>::location::attach(<span class="kw-2">&amp;</span><span class="self">self</span>.wake);
-<a href=#346 id=346 data-nosnippet>346</a>    }
-<a href=#347 id=347 data-nosnippet>347</a>
-<a href=#348 id=348 data-nosnippet>348</a>    <span class="doccomment">/// A handle on the engine that can be carried off the frame.
-<a href=#349 id=349 data-nosnippet>349</a>    ///
-<a href=#350 id=350 data-nosnippet>350</a>    /// Everything an app writes here it can write from a thread, a promise or a callback through
-<a href=#351 id=351 data-nosnippet>351</a>    /// one of these, and it reads identically: a [`Sprig`] carries [`Grow`](crate::Grow) entire and
-<a href=#352 id=352 data-nosnippet>352</a>    /// pushes onto the one queue this does.
-<a href=#353 id=353 data-nosnippet>353</a>    ///
-<a href=#354 id=354 data-nosnippet>354</a>    /// Every call hands back the same handle rather than a new one, so the reports and the watches
-<a href=#355 id=355 data-nosnippet>355</a>    /// are one stream however many workers are holding it.
-<a href=#356 id=356 data-nosnippet>356</a>    </span><span class="kw">pub fn </span>sprig(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Sprig {
-<a href=#357 id=357 data-nosnippet>357</a>        <span class="self">self</span>.sprig.clone()
-<a href=#358 id=358 data-nosnippet>358</a>    }
-<a href=#359 id=359 data-nosnippet>359</a>
-<a href=#360 id=360 data-nosnippet>360</a>    <span class="doccomment">/// What holds focus, if anything does.
-<a href=#361 id=361 data-nosnippet>361</a>    ///
-<a href=#362 id=362 data-nosnippet>362</a>    /// Frame-wide rather than per-element, because focus is: one element holds it, and asking every
-<a href=#363 id=363 data-nosnippet>363</a>    /// element in turn whether it is that one is a worse way to ask the same question. Changes are
-<a href=#364 id=364 data-nosnippet>364</a>    /// reported through [`Pollen`](crate::Pollen) like anything else.
-<a href=#365 id=365 data-nosnippet>365</a>    </span><span class="kw">pub fn </span>focused(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Leaf&gt; {
-<a href=#366 id=366 data-nosnippet>366</a>        <span class="self">self</span>.focus.held()
-<a href=#367 id=367 data-nosnippet>367</a>    }
-<a href=#368 id=368 data-nosnippet>368</a>
-<a href=#369 id=369 data-nosnippet>369</a>    <span class="doccomment">/// The visible area.
-<a href=#370 id=370 data-nosnippet>370</a>    </span><span class="kw">pub fn </span>viewport(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Area {
-<a href=#371 id=371 data-nosnippet>371</a>        <span class="self">self</span>.viewport
-<a href=#372 id=372 data-nosnippet>372</a>    }
-<a href=#373 id=373 data-nosnippet>373</a>
-<a href=#374 id=374 data-nosnippet>374</a>    <span class="doccomment">/// The width breakpoint in force, which every placement is read against.
-<a href=#375 id=375 data-nosnippet>375</a>    </span><span class="kw">pub fn </span>layout(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Layout {
-<a href=#376 id=376 data-nosnippet>376</a>        <span class="self">self</span>.layout
-<a href=#377 id=377 data-nosnippet>377</a>    }
-<a href=#378 id=378 data-nosnippet>378</a>
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// Whether the viewport is vertically cramped.
-<a href=#380 id=380 data-nosnippet>380</a>    </span><span class="kw">pub fn </span>short(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Short {
-<a href=#381 id=381 data-nosnippet>381</a>        <span class="self">self</span>.short
-<a href=#382 id=382 data-nosnippet>382</a>    }
-<a href=#383 id=383 data-nosnippet>383</a>
-<a href=#384 id=384 data-nosnippet>384</a>    <span class="doccomment">/// What every [`Palette`](crate::Palette) role currently resolves to.
-<a href=#385 id=385 data-nosnippet>385</a>    ///
-<a href=#386 id=386 data-nosnippet>386</a>    /// Written with [`repaint`](crate::Grow::repaint), which lands at the drain like any other op --
-<a href=#387 id=387 data-nosnippet>387</a>    /// so this is what the frame was drawn in, not what a repaint queued this frame will make it.
-<a href=#388 id=388 data-nosnippet>388</a>    </span><span class="kw">pub fn </span>scheme(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Scheme {
-<a href=#389 id=389 data-nosnippet>389</a>        <span class="self">self</span>.scheme
-<a href=#390 id=390 data-nosnippet>390</a>    }
-<a href=#391 id=391 data-nosnippet>391</a>
-<a href=#392 id=392 data-nosnippet>392</a>    <span class="doccomment">/// How long the last frame took.
-<a href=#393 id=393 data-nosnippet>393</a>    </span><span class="kw">pub fn </span>frame_time(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
-<a href=#394 id=394 data-nosnippet>394</a>        <span class="self">self</span>.clock.delta()
-<a href=#395 id=395 data-nosnippet>395</a>    }
-<a href=#396 id=396 data-nosnippet>396</a>
-<a href=#397 id=397 data-nosnippet>397</a>    <span class="doccomment">/// Time since the engine was built.
-<a href=#398 id=398 data-nosnippet>398</a>    </span><span class="kw">pub fn </span>elapsed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
-<a href=#399 id=399 data-nosnippet>399</a>        <span class="self">self</span>.clock.elapsed()
-<a href=#400 id=400 data-nosnippet>400</a>    }
-<a href=#401 id=401 data-nosnippet>401</a>
-<a href=#402 id=402 data-nosnippet>402</a>    <span class="doccomment">/// Every pointer event that arrived since the last frame, in order and unmerged.
-<a href=#403 id=403 data-nosnippet>403</a>    ///
-<a href=#404 id=404 data-nosnippet>404</a>    /// The hand itself rather than the gesture made of it: each press, move and release with where
-<a href=#405 id=405 data-nosnippet>405</a>    /// it was, which pointer, and when it arrived. Nothing reads the tree to produce it, so an app
-<a href=#406 id=406 data-nosnippet>406</a>    /// finds which of them fell on an element of its own by where that element is.
-<a href=#407 id=407 data-nosnippet>407</a>    ///
-<a href=#408 id=408 data-nosnippet>408</a>    /// Empty in a frame nothing touched the window. Each frame's are gone by the next.
-<a href=#409 id=409 data-nosnippet>409</a>    </span><span class="kw">pub fn </span>pointer(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[Pointer] {
-<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.pointer
-<a href=#411 id=411 data-nosnippet>411</a>    }
-<a href=#412 id=412 data-nosnippet>412</a>
-<a href=#413 id=413 data-nosnippet>413</a>    <span class="doccomment">/// Where a hovering pointer is -- a mouse or a pen over the window -- whether or not it is
-<a href=#414 id=414 data-nosnippet>414</a>    /// pressed.
-<a href=#415 id=415 data-nosnippet>415</a>    ///
-<a href=#416 id=416 data-nosnippet>416</a>    /// `None` where there is no such pointer: it has left the window, or the last pointer to touch
-<a href=#417 id=417 data-nosnippet>417</a>    /// it was a finger, which has no position between touches. An app that follows the cursor reads
-<a href=#418 id=418 data-nosnippet>418</a>    /// this and does without on a touchscreen, rather than being told about a device.
-<a href=#419 id=419 data-nosnippet>419</a>    ///
-<a href=#420 id=420 data-nosnippet>420</a>    /// Read on any frame; a move alone does not run one unless [`rouse_on_cursor`] asked it to.
-<a href=#421 id=421 data-nosnippet>421</a>    ///
-<a href=#422 id=422 data-nosnippet>422</a>    /// [`rouse_on_cursor`]: Grove::rouse_on_cursor
-<a href=#423 id=423 data-nosnippet>423</a>    </span><span class="kw">pub fn </span>cursor(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Position&gt; {
-<a href=#424 id=424 data-nosnippet>424</a>        <span class="self">self</span>.cursor
-<a href=#425 id=425 data-nosnippet>425</a>    }
-<a href=#426 id=426 data-nosnippet>426</a>
-<a href=#427 id=427 data-nosnippet>427</a>    <span class="doccomment">/// Whether the cursor moving, with nothing pressed, owes a frame. Off until asked.
-<a href=#428 id=428 data-nosnippet>428</a>    ///
-<a href=#429 id=429 data-nosnippet>429</a>    /// An engine with no hover has no reason to wake for a pointer passing over it, so by default
-<a href=#430 id=430 data-nosnippet>430</a>    /// it does not: a move with nothing held says nothing. An app that follows the cursor -- even
-<a href=#431 id=431 data-nosnippet>431</a>    /// while it is otherwise idle -- turns this on, and every move then runs a frame to read it in.
-<a href=#432 id=432 data-nosnippet>432</a>    </span><span class="kw">pub fn </span>rouse_on_cursor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rouse: bool) {
-<a href=#433 id=433 data-nosnippet>433</a>        <span class="self">self</span>.rouses = rouse;
-<a href=#434 id=434 data-nosnippet>434</a>    }
-<a href=#435 id=435 data-nosnippet>435</a>
-<a href=#436 id=436 data-nosnippet>436</a>    <span class="doccomment">/// Asks for another frame after this one.
-<a href=#437 id=437 data-nosnippet>437</a>    ///
-<a href=#438 id=438 data-nosnippet>438</a>    /// The engine idles when nothing is owed. An app driving its own motion from
-<a href=#439 id=439 data-nosnippet>439</a>    /// [`frame_time`](Grove::frame_time) -- coasting a scroll, running a hand-rolled transition --
-<a href=#440 id=440 data-nosnippet>440</a>    /// has nothing the engine can detect, and calls this for as long as it is doing something.
-<a href=#441 id=441 data-nosnippet>441</a>    </span><span class="kw">pub fn </span>again(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#442 id=442 data-nosnippet>442</a>        <span class="self">self</span>.again = <span class="bool-val">true</span>;
-<a href=#443 id=443 data-nosnippet>443</a>    }
-<a href=#444 id=444 data-nosnippet>444</a>}
-<a href=#445 id=445 data-nosnippet>445</a>
-<a href=#446 id=446 data-nosnippet>446</a><span class="kw">impl </span>Queues <span class="kw">for </span>Grove {
-<a href=#447 id=447 data-nosnippet>447</a>    <span class="kw">fn </span>queue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: Op) {
-<a href=#448 id=448 data-nosnippet>448</a>        <span class="self">self</span>.queue.push(op);
-<a href=#449 id=449 data-nosnippet>449</a>    }
-<a href=#450 id=450 data-nosnippet>450</a>
-<a href=#451 id=451 data-nosnippet>451</a>    <span class="kw">fn </span>sow(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: Op, bud: Bud) {
-<a href=#452 id=452 data-nosnippet>452</a>        <span class="self">self</span>.queue.sow(op, bud);
-<a href=#453 id=453 data-nosnippet>453</a>    }
-<a href=#454 id=454 data-nosnippet>454</a>
-<a href=#455 id=455 data-nosnippet>455</a>    <span class="kw">fn </span>allocate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Leaf, Growth) {
-<a href=#456 id=456 data-nosnippet>456</a>        <span class="self">self</span>.naming.leaf()
-<a href=#457 id=457 data-nosnippet>457</a>    }
-<a href=#458 id=458 data-nosnippet>458</a>
-<a href=#459 id=459 data-nosnippet>459</a>    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Tween {
-<a href=#460 id=460 data-nosnippet>460</a>        <span class="self">self</span>.naming.tween()
-<a href=#461 id=461 data-nosnippet>461</a>    }
-<a href=#462 id=462 data-nosnippet>462</a>
-<a href=#463 id=463 data-nosnippet>463</a>    <span class="kw">fn </span>group(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Sequence {
-<a href=#464 id=464 data-nosnippet>464</a>        <span class="self">self</span>.naming.sequence()
+<a href=#233 id=233 data-nosnippet>233</a>    /// Takes the bytes, or an [`Origin`] to read them from -- and hands back the name either way, at
+<a href=#234 id=234 data-nosnippet>234</a>    /// once. A face that has yet to arrive is composed in the bundled one until it does, so a page
+<a href=#235 id=235 data-nosnippet>235</a>    /// laid out in [`letters`](crate::Source::letters) is laid out sensibly from the first frame and
+<a href=#236 id=236 data-nosnippet>236</a>    /// reflows when the real face lands. [`loaded`](crate::Pollen::loaded) is how an app waits for
+<a href=#237 id=237 data-nosnippet>237</a>    /// that instead.
+<a href=#238 id=238 data-nosnippet>238</a>    ///
+<a href=#239 id=239 data-nosnippet>239</a>    /// ```no_run
+<a href=#240 id=240 data-nosnippet>240</a>    /// # use foliage::{Grove, Origin};
+<a href=#241 id=241 data-nosnippet>241</a>    /// # fn f(grove: &amp;mut Grove, bundled: &amp;[u8]) {
+<a href=#242 id=242 data-nosnippet>242</a>    /// // `bundled` is what `include_bytes!("assets/mono.ttf")` produced.
+<a href=#243 id=243 data-nosnippet>243</a>    /// let here = grove.font(bundled);
+<a href=#244 id=244 data-nosnippet>244</a>    /// # #[cfg(not(target_family = "wasm"))]
+<a href=#245 id=245 data-nosnippet>245</a>    /// let read = grove.font(Origin::path("assets/mono.ttf"));
+<a href=#246 id=246 data-nosnippet>246</a>    /// # }
+<a href=#247 id=247 data-nosnippet>247</a>    /// ```
+<a href=#248 id=248 data-nosnippet>248</a>    ///
+<a href=#249 id=249 data-nosnippet>249</a>    /// # Panics
+<a href=#250 id=250 data-nosnippet>250</a>    ///
+<a href=#251 id=251 data-nosnippet>251</a>    /// If bytes that were given outright are not a monospaced font. Every measurement foliage makes
+<a href=#252 id=252 data-nosnippet>252</a>    /// is a count of character cells -- [`letters`](crate::Source::letters), a letter-pitched track,
+<a href=#253 id=253 data-nosnippet>253</a>    /// max-content width, wrapping -- so a proportional font does not degrade, it silently puts
+<a href=#254 id=254 data-nosnippet>254</a>    /// every column address somewhere it does not belong.
+<a href=#255 id=255 data-nosnippet>255</a>    ///
+<a href=#256 id=256 data-nosnippet>256</a>    /// Bytes that were *read* are refused rather than panicked on, and reported as
+<a href=#257 id=257 data-nosnippet>257</a>    /// [`missing`](crate::Pollen::missing): what a path or a URL turned out to hold is not something
+<a href=#258 id=258 data-nosnippet>258</a>    /// the program stated.
+<a href=#259 id=259 data-nosnippet>259</a>    </span><span class="kw">pub fn </span>font(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw">impl </span>Into&lt;Bytes&gt;) -&gt; Font {
+<a href=#260 id=260 data-nosnippet>260</a>        <span class="kw">let </span>font = <span class="self">self</span>.naming.face();
+<a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">match </span>bytes.into().<span class="number">0 </span>{
+<a href=#262 id=262 data-nosnippet>262</a>            Supply::Held(bytes) =&gt; <span class="self">self</span>.fonts.register(font, <span class="kw-2">&amp;</span>bytes),
+<a href=#263 id=263 data-nosnippet>263</a>            Supply::At(origin) =&gt; <span class="self">self</span>.retrieve(Destination::Face(font), origin),
+<a href=#264 id=264 data-nosnippet>264</a>        }
+<a href=#265 id=265 data-nosnippet>265</a>        font
+<a href=#266 id=266 data-nosnippet>266</a>    }
+<a href=#267 id=267 data-nosnippet>267</a>
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="doccomment">/// Registers a mark and hands back the name elements draw it by.
+<a href=#269 id=269 data-nosnippet>269</a>    ///
+<a href=#270 id=270 data-nosnippet>270</a>    /// The same registration [`Foliage::icon`](crate::Foliage::icon) is at boot, available at any
+<a href=#271 id=271 data-nosnippet>271</a>    /// frame -- which is what lets an app that takes root inside the first frame register its marks
+<a href=#272 id=272 data-nosnippet>272</a>    /// there rather than having to thread handles in from outside.
+<a href=#273 id=273 data-nosnippet>273</a>    ///
+<a href=#274 id=274 data-nosnippet>274</a>    /// `field` is a multi-channel signed distance field: `side` by `side` texels of RGBA, row-major.
+<a href=#275 id=275 data-nosnippet>275</a>    /// `range` is how many texels the baked distance spread covers. Both are stated by the app
+<a href=#276 id=276 data-nosnippet>276</a>    /// because they are facts about how the field was baked, and a fetched one cannot be asked.
+<a href=#277 id=277 data-nosnippet>277</a>    ///
+<a href=#278 id=278 data-nosnippet>278</a>    /// An element drawing a mark that has yet to arrive occupies its box and draws nothing, and
+<a href=#279 id=279 data-nosnippet>279</a>    /// appears in the frame it lands.
+<a href=#280 id=280 data-nosnippet>280</a>    ///
+<a href=#281 id=281 data-nosnippet>281</a>    /// # Panics
+<a href=#282 id=282 data-nosnippet>282</a>    ///
+<a href=#283 id=283 data-nosnippet>283</a>    /// If bytes that were given outright are smaller than `side` by `side` texels of RGBA. Bytes
+<a href=#284 id=284 data-nosnippet>284</a>    /// that were read are refused rather than panicked on, and reported as
+<a href=#285 id=285 data-nosnippet>285</a>    /// [`missing`](crate::Pollen::missing).
+<a href=#286 id=286 data-nosnippet>286</a>    </span><span class="kw">pub fn </span>icon(<span class="kw-2">&amp;mut </span><span class="self">self</span>, field: <span class="kw">impl </span>Into&lt;Bytes&gt;, side: u32, range: f32) -&gt; Field {
+<a href=#287 id=287 data-nosnippet>287</a>        <span class="kw">let </span>name = <span class="self">self</span>.naming.mark();
+<a href=#288 id=288 data-nosnippet>288</a>        <span class="kw">match </span>field.into().<span class="number">0 </span>{
+<a href=#289 id=289 data-nosnippet>289</a>            Supply::Held(bytes) =&gt; <span class="self">self</span>.fields.register(name, <span class="kw-2">&amp;</span>bytes, side, range),
+<a href=#290 id=290 data-nosnippet>290</a>            Supply::At(origin) =&gt; <span class="self">self</span>.retrieve(Destination::Mark(name, side, range), origin),
+<a href=#291 id=291 data-nosnippet>291</a>        }
+<a href=#292 id=292 data-nosnippet>292</a>        name
+<a href=#293 id=293 data-nosnippet>293</a>    }
+<a href=#294 id=294 data-nosnippet>294</a>
+<a href=#295 id=295 data-nosnippet>295</a>    <span class="doccomment">/// Registers every mark an app draws, and hands back the set it declared them in.
+<a href=#296 id=296 data-nosnippet>296</a>    ///
+<a href=#297 id=297 data-nosnippet>297</a>    /// [`icon`](Grove::icon) for more than one, and the shape
+<a href=#298 id=298 data-nosnippet>298</a>    /// [`root`](crate::Foliage::root) already takes: the type is named here and the engine calls
+<a href=#299 id=299 data-nosnippet>299</a>    /// into [`Marks::register`], so what comes back is the app's own value with a [`Field`] under
+<a href=#300 id=300 data-nosnippet>300</a>    /// each name it gave. A set is registered once and held for as long as the app is.
+<a href=#301 id=301 data-nosnippet>301</a>    ///
+<a href=#302 id=302 data-nosnippet>302</a>    /// ```no_run
+<a href=#303 id=303 data-nosnippet>303</a>    /// # use foliage::{Grove, Marks};
+<a href=#304 id=304 data-nosnippet>304</a>    /// # fn f&lt;Icons: Marks&gt;(grove: &amp;mut Grove) {
+<a href=#305 id=305 data-nosnippet>305</a>    /// let icons = grove.marks::&lt;Icons&gt;();
+<a href=#306 id=306 data-nosnippet>306</a>    /// # }
+<a href=#307 id=307 data-nosnippet>307</a>    /// ```
+<a href=#308 id=308 data-nosnippet>308</a>    </span><span class="kw">pub fn </span>marks&lt;M: Marks&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; M {
+<a href=#309 id=309 data-nosnippet>309</a>        M::register(<span class="self">self</span>)
+<a href=#310 id=310 data-nosnippet>310</a>    }
+<a href=#311 id=311 data-nosnippet>311</a>
+<a href=#312 id=312 data-nosnippet>312</a>    <span class="doccomment">/// Registers a picture and hands back the name elements draw it by.
+<a href=#313 id=313 data-nosnippet>313</a>    ///
+<a href=#314 id=314 data-nosnippet>314</a>    /// PNG or JPEG, decoded here. The format is read from the bytes and the size is what the decode
+<a href=#315 id=315 data-nosnippet>315</a>    /// says, so neither is stated: a name and a path can both be wrong about what a file holds, and
+<a href=#316 id=316 data-nosnippet>316</a>    /// the file cannot be.
+<a href=#317 id=317 data-nosnippet>317</a>    ///
+<a href=#318 id=318 data-nosnippet>318</a>    /// Pixels an app made itself are [`pixels`](crate::Grow::pixels), which states a size because
+<a href=#319 id=319 data-nosnippet>319</a>    /// there is nothing to read one from. An element drawing a picture that has yet to arrive
+<a href=#320 id=320 data-nosnippet>320</a>    /// occupies its box and draws nothing, and appears in the frame it lands.
+<a href=#321 id=321 data-nosnippet>321</a>    </span><span class="kw">pub fn </span>image(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bytes: <span class="kw">impl </span>Into&lt;Bytes&gt;) -&gt; Plate {
+<a href=#322 id=322 data-nosnippet>322</a>        <span class="kw">let </span>plate = <span class="self">self</span>.naming.plate();
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw">match </span>bytes.into().<span class="number">0 </span>{
+<a href=#324 id=324 data-nosnippet>324</a>            Supply::Held(bytes) =&gt; {
+<a href=#325 id=325 data-nosnippet>325</a>                <span class="kw">if let </span><span class="prelude-val">Err</span>(refused) = <span class="self">self</span>.plates.decoded(plate, <span class="kw-2">&amp;</span>bytes) {
+<a href=#326 id=326 data-nosnippet>326</a>                    <span class="macro">tracing::warn!</span>(plate = plate.<span class="number">0</span>, reason = refused, <span class="string">"asset missing"</span>);
+<a href=#327 id=327 data-nosnippet>327</a>                    <span class="self">self</span>.drift.missing.insert(plate.into());
+<a href=#328 id=328 data-nosnippet>328</a>                }
+<a href=#329 id=329 data-nosnippet>329</a>            }
+<a href=#330 id=330 data-nosnippet>330</a>            Supply::At(origin) =&gt; <span class="self">self</span>.retrieve(Destination::Picture(plate), origin),
+<a href=#331 id=331 data-nosnippet>331</a>        }
+<a href=#332 id=332 data-nosnippet>332</a>        plate
+<a href=#333 id=333 data-nosnippet>333</a>    }
+<a href=#334 id=334 data-nosnippet>334</a>
+<a href=#335 id=335 data-nosnippet>335</a>    <span class="doccomment">/// Starts a read, against the queue and the wake it will come back through.
+<a href=#336 id=336 data-nosnippet>336</a>    </span><span class="kw">fn </span>retrieve(<span class="kw-2">&amp;mut </span><span class="self">self</span>, destination: Destination, origin: Origin) {
+<a href=#337 id=337 data-nosnippet>337</a>        retrieve(<span class="kw-2">&amp;</span><span class="self">self</span>.queue, <span class="kw-2">&amp;</span><span class="self">self</span>.wake, destination, origin);
+<a href=#338 id=338 data-nosnippet>338</a>    }
+<a href=#339 id=339 data-nosnippet>339</a>
+<a href=#340 id=340 data-nosnippet>340</a>    <span class="doccomment">/// Opens the platform edges, once, at boot.
+<a href=#341 id=341 data-nosnippet>341</a>    ///
+<a href=#342 id=342 data-nosnippet>342</a>    /// Called by `photosynthesize` after the [`Wake`] is installed and by nothing else -- so the
+<a href=#343 id=343 data-nosnippet>343</a>    /// headless suite, which runs frames by hand, reaches none of them. That is what keeps a test
+<a href=#344 id=344 data-nosnippet>344</a>    /// off the clipboard, the keyboard and the browser of whoever is running it, and it is the same
+<a href=#345 id=345 data-nosnippet>345</a>    /// seam the wake itself sits on: what is here on both sides of it is engine state, and what is
+<a href=#346 id=346 data-nosnippet>346</a>    /// past it is the host.
+<a href=#347 id=347 data-nosnippet>347</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>attach(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#348 id=348 data-nosnippet>348</a>        <span class="self">self</span>.clipboard.attach();
+<a href=#349 id=349 data-nosnippet>349</a>        <span class="self">self</span>.keyboard.attach(<span class="kw-2">&amp;</span><span class="self">self</span>.wake);
+<a href=#350 id=350 data-nosnippet>350</a>        <span class="self">self</span>.links.attach();
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw">crate</span>::location::attach(<span class="kw-2">&amp;</span><span class="self">self</span>.wake);
+<a href=#352 id=352 data-nosnippet>352</a>    }
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>    <span class="doccomment">/// A handle on the engine that can be carried off the frame.
+<a href=#355 id=355 data-nosnippet>355</a>    ///
+<a href=#356 id=356 data-nosnippet>356</a>    /// Everything an app writes here it can write from a thread, a promise or a callback through
+<a href=#357 id=357 data-nosnippet>357</a>    /// one of these, and it reads identically: a [`Sprig`] carries [`Grow`](crate::Grow) entire and
+<a href=#358 id=358 data-nosnippet>358</a>    /// pushes onto the one queue this does.
+<a href=#359 id=359 data-nosnippet>359</a>    ///
+<a href=#360 id=360 data-nosnippet>360</a>    /// Every call hands back the same handle rather than a new one, so the reports and the watches
+<a href=#361 id=361 data-nosnippet>361</a>    /// are one stream however many workers are holding it.
+<a href=#362 id=362 data-nosnippet>362</a>    </span><span class="kw">pub fn </span>sprig(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Sprig {
+<a href=#363 id=363 data-nosnippet>363</a>        <span class="self">self</span>.sprig.clone()
+<a href=#364 id=364 data-nosnippet>364</a>    }
+<a href=#365 id=365 data-nosnippet>365</a>
+<a href=#366 id=366 data-nosnippet>366</a>    <span class="doccomment">/// What holds focus, if anything does.
+<a href=#367 id=367 data-nosnippet>367</a>    ///
+<a href=#368 id=368 data-nosnippet>368</a>    /// Frame-wide rather than per-element, because focus is: one element holds it, and asking every
+<a href=#369 id=369 data-nosnippet>369</a>    /// element in turn whether it is that one is a worse way to ask the same question. Changes are
+<a href=#370 id=370 data-nosnippet>370</a>    /// reported through [`Pollen`](crate::Pollen) like anything else.
+<a href=#371 id=371 data-nosnippet>371</a>    </span><span class="kw">pub fn </span>focused(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Leaf&gt; {
+<a href=#372 id=372 data-nosnippet>372</a>        <span class="self">self</span>.focus.held()
+<a href=#373 id=373 data-nosnippet>373</a>    }
+<a href=#374 id=374 data-nosnippet>374</a>
+<a href=#375 id=375 data-nosnippet>375</a>    <span class="doccomment">/// What the cursor rests on, if a press there would reach it: the element a press at the
+<a href=#376 id=376 data-nosnippet>376</a>    /// cursor would land on, where that is [`interactive`](crate::Place::interactive) and not
+<a href=#377 id=377 data-nosnippet>377</a>    /// disabled.
+<a href=#378 id=378 data-nosnippet>378</a>    ///
+<a href=#379 id=379 data-nosnippet>379</a>    /// Read from the same stack a press is, so it knows what covers what: an element under a sheet
+<a href=#380 id=380 data-nosnippet>380</a>    /// is not hovered through it, and a label over a button hovers the button. `None` while there
+<a href=#381 id=381 data-nosnippet>381</a>    /// is no cursor -- off the window, or on a touchscreen, where a finger has no position between
+<a href=#382 id=382 data-nosnippet>382</a>    /// touches.
+<a href=#383 id=383 data-nosnippet>383</a>    ///
+<a href=#384 id=384 data-nosnippet>384</a>    /// The engine wakes for a cursor move that would change this, and for no other, so following
+<a href=#385 id=385 data-nosnippet>385</a>    /// it costs a frame only when there is something new to draw. Changes are reported as
+<a href=#386 id=386 data-nosnippet>386</a>    /// [`hovered`](crate::Pollen::hovered) and [`unhovered`](crate::Pollen::unhovered).
+<a href=#387 id=387 data-nosnippet>387</a>    </span><span class="kw">pub fn </span>hovered(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Leaf&gt; {
+<a href=#388 id=388 data-nosnippet>388</a>        <span class="self">self</span>.hovered
+<a href=#389 id=389 data-nosnippet>389</a>    }
+<a href=#390 id=390 data-nosnippet>390</a>
+<a href=#391 id=391 data-nosnippet>391</a>    <span class="doccomment">/// The visible area.
+<a href=#392 id=392 data-nosnippet>392</a>    </span><span class="kw">pub fn </span>viewport(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Area {
+<a href=#393 id=393 data-nosnippet>393</a>        <span class="self">self</span>.viewport
+<a href=#394 id=394 data-nosnippet>394</a>    }
+<a href=#395 id=395 data-nosnippet>395</a>
+<a href=#396 id=396 data-nosnippet>396</a>    <span class="doccomment">/// The width breakpoint in force, which every placement is read against.
+<a href=#397 id=397 data-nosnippet>397</a>    </span><span class="kw">pub fn </span>layout(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Layout {
+<a href=#398 id=398 data-nosnippet>398</a>        <span class="self">self</span>.layout
+<a href=#399 id=399 data-nosnippet>399</a>    }
+<a href=#400 id=400 data-nosnippet>400</a>
+<a href=#401 id=401 data-nosnippet>401</a>    <span class="doccomment">/// Whether the viewport is vertically cramped.
+<a href=#402 id=402 data-nosnippet>402</a>    </span><span class="kw">pub fn </span>short(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Short {
+<a href=#403 id=403 data-nosnippet>403</a>        <span class="self">self</span>.short
+<a href=#404 id=404 data-nosnippet>404</a>    }
+<a href=#405 id=405 data-nosnippet>405</a>
+<a href=#406 id=406 data-nosnippet>406</a>    <span class="doccomment">/// The cursor rests somewhere else, or nowhere: owes a frame if the app asked to be woken for
+<a href=#407 id=407 data-nosnippet>407</a>    /// any move, or if what it rests on is not what the last frame hovered -- read off the stack the
+<a href=#408 id=408 data-nosnippet>408</a>    /// last frame drew, which is what the frame it owes will read it from too.
+<a href=#409 id=409 data-nosnippet>409</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>rest(<span class="kw-2">&amp;mut </span><span class="self">self</span>, cursor: <span class="prelude-ty">Option</span>&lt;Position&gt;) {
+<a href=#410 id=410 data-nosnippet>410</a>        <span class="self">self</span>.cursor = cursor;
+<a href=#411 id=411 data-nosnippet>411</a>        <span class="kw">let </span>rests = cursor.and_then(|at| <span class="kw">crate</span>::interaction::reaches(<span class="kw-2">&amp;</span><span class="self">self</span>.stack, at));
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="self">self</span>.roused |= <span class="self">self</span>.rouses || rests != <span class="self">self</span>.hovered;
+<a href=#413 id=413 data-nosnippet>413</a>    }
+<a href=#414 id=414 data-nosnippet>414</a>
+<a href=#415 id=415 data-nosnippet>415</a>    <span class="doccomment">/// Whether a frame is owed on the engine's own account: something is waiting to be drained,
+<a href=#416 id=416 data-nosnippet>416</a>    /// moved, reported, or noticed.
+<a href=#417 id=417 data-nosnippet>417</a>    ///
+<a href=#418 id=418 data-nosnippet>418</a>    /// The loop's question less the clock -- what an app asked for at a time it chose is the
+<a href=#419 id=419 data-nosnippet>419</a>    /// loop's to wait on, because only the loop has a wall to read it against. The greenhouse asks
+<a href=#420 id=420 data-nosnippet>420</a>    /// the same question to know when a frame has settled.
+<a href=#421 id=421 data-nosnippet>421</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>owed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#422 id=422 data-nosnippet>422</a>        <span class="comment">// The tree has not been grown yet: `take_root` runs inside the first frame.
+<a href=#423 id=423 data-nosnippet>423</a>        </span><span class="self">self</span>.frames == <span class="number">0
+<a href=#424 id=424 data-nosnippet>424</a>            </span>|| <span class="self">self</span>.again
+<a href=#425 id=425 data-nosnippet>425</a>            || <span class="self">self</span>.pending_resize.is_some()
+<a href=#426 id=426 data-nosnippet>426</a>            <span class="comment">// Something arrived from off the frame. Usually an op, which the clause below sees on
+<a href=#427 id=427 data-nosnippet>427</a>            // its own; but a key the hidden input captured is nowhere this can look, and the rouse
+<a href=#428 id=428 data-nosnippet>428</a>            // is the only word that it is there.
+<a href=#429 id=429 data-nosnippet>429</a>            </span>|| <span class="self">self</span>.wake.pending()
+<a href=#430 id=430 data-nosnippet>430</a>            || !<span class="self">self</span>.queue.is_empty()
+<a href=#431 id=431 data-nosnippet>431</a>            || !<span class="self">self</span>.incoming.pending.is_empty()
+<a href=#432 id=432 data-nosnippet>432</a>            || !<span class="self">self</span>.aspen.idle()
+<a href=#433 id=433 data-nosnippet>433</a>            <span class="comment">// A press that is not moving becomes a hold on its own, with nothing arriving to say
+<a href=#434 id=434 data-nosnippet>434</a>            // so. Idling under a finger is how that duration would pass unremarked, so the frames
+<a href=#435 id=435 data-nosnippet>435</a>            // that would notice it are owed until the gesture is past being able to become one.
+<a href=#436 id=436 data-nosnippet>436</a>            </span>|| <span class="self">self</span>.incoming.awaiting_hold()
+<a href=#437 id=437 data-nosnippet>437</a>            <span class="comment">// A coasting region is pending work in its own right: it is not a tween, and there is
+<a href=#438 id=438 data-nosnippet>438</a>            // nothing on the app's side asking for the frames it needs. So frames keep running
+<a href=#439 id=439 data-nosnippet>439</a>            // until it settles, and stop afterwards.
+<a href=#440 id=440 data-nosnippet>440</a>            </span>|| !<span class="self">self</span>.coasting.idle()
+<a href=#441 id=441 data-nosnippet>441</a>            <span class="comment">// Steps 4 through 7 emit into the drift and step 3 of the *next* frame is where an app
+<a href=#442 id=442 data-nosnippet>442</a>            // is handed it, so a report that has been made and not yet delivered owes the frame
+<a href=#443 id=443 data-nosnippet>443</a>            // that delivers it. Without this the loop could idle holding one.
+<a href=#444 id=444 data-nosnippet>444</a>            </span>|| <span class="self">self</span>.drift.pending()
+<a href=#445 id=445 data-nosnippet>445</a>            <span class="comment">// The cursor moved, and the app asked to be woken for that.
+<a href=#446 id=446 data-nosnippet>446</a>            </span>|| <span class="self">self</span>.roused
+<a href=#447 id=447 data-nosnippet>447</a>    }
+<a href=#448 id=448 data-nosnippet>448</a>
+<a href=#449 id=449 data-nosnippet>449</a>    <span class="doccomment">/// What every [`Palette`](crate::Palette) role currently resolves to.
+<a href=#450 id=450 data-nosnippet>450</a>    ///
+<a href=#451 id=451 data-nosnippet>451</a>    /// Written with [`repaint`](crate::Grow::repaint), which lands at the drain like any other op --
+<a href=#452 id=452 data-nosnippet>452</a>    /// so this is what the frame was drawn in, not what a repaint queued this frame will make it.
+<a href=#453 id=453 data-nosnippet>453</a>    </span><span class="kw">pub fn </span>scheme(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Scheme {
+<a href=#454 id=454 data-nosnippet>454</a>        <span class="self">self</span>.scheme
+<a href=#455 id=455 data-nosnippet>455</a>    }
+<a href=#456 id=456 data-nosnippet>456</a>
+<a href=#457 id=457 data-nosnippet>457</a>    <span class="doccomment">/// How long the last frame took.
+<a href=#458 id=458 data-nosnippet>458</a>    </span><span class="kw">pub fn </span>frame_time(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
+<a href=#459 id=459 data-nosnippet>459</a>        <span class="self">self</span>.clock.delta()
+<a href=#460 id=460 data-nosnippet>460</a>    }
+<a href=#461 id=461 data-nosnippet>461</a>
+<a href=#462 id=462 data-nosnippet>462</a>    <span class="doccomment">/// Time since the engine was built.
+<a href=#463 id=463 data-nosnippet>463</a>    </span><span class="kw">pub fn </span>elapsed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
+<a href=#464 id=464 data-nosnippet>464</a>        <span class="self">self</span>.clock.elapsed()
 <a href=#465 id=465 data-nosnippet>465</a>    }
 <a href=#466 id=466 data-nosnippet>466</a>
-<a href=#467 id=467 data-nosnippet>467</a>    <span class="kw">fn </span>picture(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Plate {
-<a href=#468 id=468 data-nosnippet>468</a>        <span class="self">self</span>.naming.plate()
-<a href=#469 id=469 data-nosnippet>469</a>    }
-<a href=#470 id=470 data-nosnippet>470</a>
-<a href=#471 id=471 data-nosnippet>471</a>    <span class="attr">#[track_caller]
-<a href=#472 id=472 data-nosnippet>472</a>    </span><span class="kw">fn </span>misfit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _plate: Plate, reason: String) {
-<a href=#473 id=473 data-nosnippet>473</a>        <span class="macro">panic!</span>(<span class="string">"{reason}"</span>);
-<a href=#474 id=474 data-nosnippet>474</a>    }
-<a href=#475 id=475 data-nosnippet>475</a>}
+<a href=#467 id=467 data-nosnippet>467</a>    <span class="doccomment">/// Every pointer event that arrived since the last frame, in order and unmerged.
+<a href=#468 id=468 data-nosnippet>468</a>    ///
+<a href=#469 id=469 data-nosnippet>469</a>    /// The hand itself rather than the gesture made of it: each press, move and release with where
+<a href=#470 id=470 data-nosnippet>470</a>    /// it was, which pointer, and when it arrived. Nothing reads the tree to produce it, so an app
+<a href=#471 id=471 data-nosnippet>471</a>    /// finds which of them fell on an element of its own by where that element is.
+<a href=#472 id=472 data-nosnippet>472</a>    ///
+<a href=#473 id=473 data-nosnippet>473</a>    /// Empty in a frame nothing touched the window. Each frame's are gone by the next.
+<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">pub fn </span>pointer(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[Pointer] {
+<a href=#475 id=475 data-nosnippet>475</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.pointer
+<a href=#476 id=476 data-nosnippet>476</a>    }
+<a href=#477 id=477 data-nosnippet>477</a>
+<a href=#478 id=478 data-nosnippet>478</a>    <span class="doccomment">/// Where a hovering pointer is -- a mouse or a pen over the window -- whether or not it is
+<a href=#479 id=479 data-nosnippet>479</a>    /// pressed.
+<a href=#480 id=480 data-nosnippet>480</a>    ///
+<a href=#481 id=481 data-nosnippet>481</a>    /// `None` where there is no such pointer: it has left the window, or the last pointer to touch
+<a href=#482 id=482 data-nosnippet>482</a>    /// it was a finger, which has no position between touches. An app that follows the cursor reads
+<a href=#483 id=483 data-nosnippet>483</a>    /// this and does without on a touchscreen, rather than being told about a device.
+<a href=#484 id=484 data-nosnippet>484</a>    ///
+<a href=#485 id=485 data-nosnippet>485</a>    /// Read on any frame; a move alone does not run one unless [`rouse_on_cursor`] asked it to.
+<a href=#486 id=486 data-nosnippet>486</a>    ///
+<a href=#487 id=487 data-nosnippet>487</a>    /// [`rouse_on_cursor`]: Grove::rouse_on_cursor
+<a href=#488 id=488 data-nosnippet>488</a>    </span><span class="kw">pub fn </span>cursor(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Position&gt; {
+<a href=#489 id=489 data-nosnippet>489</a>        <span class="self">self</span>.cursor
+<a href=#490 id=490 data-nosnippet>490</a>    }
+<a href=#491 id=491 data-nosnippet>491</a>
+<a href=#492 id=492 data-nosnippet>492</a>    <span class="doccomment">/// Whether the cursor moving, with nothing pressed, owes a frame. Off until asked.
+<a href=#493 id=493 data-nosnippet>493</a>    ///
+<a href=#494 id=494 data-nosnippet>494</a>    /// An engine with no hover has no reason to wake for a pointer passing over it, so by default
+<a href=#495 id=495 data-nosnippet>495</a>    /// it does not: a move with nothing held says nothing. An app that follows the cursor -- even
+<a href=#496 id=496 data-nosnippet>496</a>    /// while it is otherwise idle -- turns this on, and every move then runs a frame to read it in.
+<a href=#497 id=497 data-nosnippet>497</a>    </span><span class="kw">pub fn </span>rouse_on_cursor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rouse: bool) {
+<a href=#498 id=498 data-nosnippet>498</a>        <span class="self">self</span>.rouses = rouse;
+<a href=#499 id=499 data-nosnippet>499</a>    }
+<a href=#500 id=500 data-nosnippet>500</a>
+<a href=#501 id=501 data-nosnippet>501</a>    <span class="doccomment">/// Asks for another frame after this one.
+<a href=#502 id=502 data-nosnippet>502</a>    ///
+<a href=#503 id=503 data-nosnippet>503</a>    /// The engine idles when nothing is owed. An app driving its own motion from
+<a href=#504 id=504 data-nosnippet>504</a>    /// [`frame_time`](Grove::frame_time) -- coasting a scroll, running a hand-rolled transition --
+<a href=#505 id=505 data-nosnippet>505</a>    /// has nothing the engine can detect, and calls this for as long as it is doing something.
+<a href=#506 id=506 data-nosnippet>506</a>    </span><span class="kw">pub fn </span>again(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#507 id=507 data-nosnippet>507</a>        <span class="self">self</span>.again = <span class="bool-val">true</span>;
+<a href=#508 id=508 data-nosnippet>508</a>    }
+<a href=#509 id=509 data-nosnippet>509</a>
+<a href=#510 id=510 data-nosnippet>510</a>    <span class="doccomment">/// Asks for another frame, `millis` from now rather than at once.
+<a href=#511 id=511 data-nosnippet>511</a>    ///
+<a href=#512 id=512 data-nosnippet>512</a>    /// For motion an app drives itself that does not need every frame the display can show: a
+<a href=#513 id=513 data-nosnippet>513</a>    /// light drifting across a picture, a clock's second hand, a meter that settles. Asked each
+<a href=#514 id=514 data-nosnippet>514</a>    /// frame for as long as it is moving, it holds the app to that rate -- and while nothing else is
+<a href=#515 id=515 data-nosnippet>515</a>    /// owed, the engine sleeps in between rather than drawing frames nothing changed in. A frame
+<a href=#516 id=516 data-nosnippet>516</a>    /// owed sooner for any other reason runs sooner, and the next one asked for is counted from
+<a href=#517 id=517 data-nosnippet>517</a>    /// that.
+<a href=#518 id=518 data-nosnippet>518</a>    ///
+<a href=#519 id=519 data-nosnippet>519</a>    /// Asked more than once in a frame, the soonest is the one kept. [`again`](Grove::again) is
+<a href=#520 id=520 data-nosnippet>520</a>    /// this at nothing.
+<a href=#521 id=521 data-nosnippet>521</a>    </span><span class="kw">pub fn </span>again_in(<span class="kw-2">&amp;mut </span><span class="self">self</span>, millis: u64) {
+<a href=#522 id=522 data-nosnippet>522</a>        <span class="kw">let </span>after = Duration::from_millis(millis);
+<a href=#523 id=523 data-nosnippet>523</a>        <span class="self">self</span>.again_in = <span class="prelude-val">Some</span>(<span class="self">self</span>.again_in.map_or(after, |asked| asked.min(after)));
+<a href=#524 id=524 data-nosnippet>524</a>    }
+<a href=#525 id=525 data-nosnippet>525</a>}
+<a href=#526 id=526 data-nosnippet>526</a>
+<a href=#527 id=527 data-nosnippet>527</a><span class="kw">impl </span>Queues <span class="kw">for </span>Grove {
+<a href=#528 id=528 data-nosnippet>528</a>    <span class="kw">fn </span>queue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: Op) {
+<a href=#529 id=529 data-nosnippet>529</a>        <span class="self">self</span>.queue.push(op);
+<a href=#530 id=530 data-nosnippet>530</a>    }
+<a href=#531 id=531 data-nosnippet>531</a>
+<a href=#532 id=532 data-nosnippet>532</a>    <span class="kw">fn </span>sow(<span class="kw-2">&amp;mut </span><span class="self">self</span>, op: Op, bud: Bud) {
+<a href=#533 id=533 data-nosnippet>533</a>        <span class="self">self</span>.queue.sow(op, bud);
+<a href=#534 id=534 data-nosnippet>534</a>    }
+<a href=#535 id=535 data-nosnippet>535</a>
+<a href=#536 id=536 data-nosnippet>536</a>    <span class="kw">fn </span>allocate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Leaf, Growth) {
+<a href=#537 id=537 data-nosnippet>537</a>        <span class="self">self</span>.naming.leaf()
+<a href=#538 id=538 data-nosnippet>538</a>    }
+<a href=#539 id=539 data-nosnippet>539</a>
+<a href=#540 id=540 data-nosnippet>540</a>    <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Tween {
+<a href=#541 id=541 data-nosnippet>541</a>        <span class="self">self</span>.naming.tween()
+<a href=#542 id=542 data-nosnippet>542</a>    }
+<a href=#543 id=543 data-nosnippet>543</a>
+<a href=#544 id=544 data-nosnippet>544</a>    <span class="kw">fn </span>group(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Sequence {
+<a href=#545 id=545 data-nosnippet>545</a>        <span class="self">self</span>.naming.sequence()
+<a href=#546 id=546 data-nosnippet>546</a>    }
+<a href=#547 id=547 data-nosnippet>547</a>
+<a href=#548 id=548 data-nosnippet>548</a>    <span class="kw">fn </span>picture(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Plate {
+<a href=#549 id=549 data-nosnippet>549</a>        <span class="self">self</span>.naming.plate()
+<a href=#550 id=550 data-nosnippet>550</a>    }
+<a href=#551 id=551 data-nosnippet>551</a>
+<a href=#552 id=552 data-nosnippet>552</a>    <span class="attr">#[track_caller]
+<a href=#553 id=553 data-nosnippet>553</a>    </span><span class="kw">fn </span>misfit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _plate: Plate, reason: String) {
+<a href=#554 id=554 data-nosnippet>554</a>        <span class="macro">panic!</span>(<span class="string">"{reason}"</span>);
+<a href=#555 id=555 data-nosnippet>555</a>    }
+<a href=#556 id=556 data-nosnippet>556</a>}
 </code></pre></div></section></main></body></html>

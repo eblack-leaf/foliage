@@ -36,7 +36,7 @@ const LEAST: f32 = 3.0;
 /// The shape is inscribed in the largest circle its box holds, so a non-square box leaves room
 /// around it rather than distorting it. That is what lets a composite size a polygon's box loosely
 /// -- a fraction of its own geometry -- without having to reason about the aspect it lands at.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Polygon {
     pub(crate) placement: Placement,
     pub(crate) fill: Fill,
@@ -45,8 +45,15 @@ pub struct Polygon {
 
 impl Polygon {
     /// A surface-filled triangle with sharp corners, filling its trunk's box.
+    ///
+    /// A mark, so a gesture over it passes through to what it is drawn on unless it says
+    /// [`interactive`](crate::Place::interactive) or [`tangible`](crate::Place::tangible).
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            placement: Placement::mark(),
+            fill: Fill::default(),
+            shape: Shape::default(),
+        }
     }
 
     /// How many sides, clamped to at least three.
@@ -94,6 +101,12 @@ impl Polygon {
 impl Places for Polygon {
     fn placement(&mut self) -> &mut Placement {
         &mut self.placement
+    }
+}
+
+impl Default for Polygon {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -175,6 +188,8 @@ pub(crate) struct PolygonInstance {
     /// Sides, rounding and rotation, in that order. Three floats rather than a [`Shape`] so the
     /// instance stays plainly the bytes a vertex buffer takes.
     pub(crate) shape: [f32; 3],
+    /// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+    pub(crate) pose: crate::pose::Affine,
 }
 
 impl PolygonInstance {
@@ -183,6 +198,7 @@ impl PolygonInstance {
             section,
             color,
             shape: [shape.sides, shape.rounding, shape.rotation],
+            pose: crate::pose::Affine::IDENTITY,
         }
     }
 }

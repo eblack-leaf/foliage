@@ -8,8 +8,8 @@ use crate::elm::Key;
 use crate::panel::PanelInstance;
 use crate::tests::{grove, tick};
 use crate::{
-    Boxed, Color, Corner, Corners, Fill, Grove, Grow, Leaf, Location, Palette, Panel, Rounding,
-    Sap, Scheme, Side, Source, Stem, Vein, left, top,
+    Boxed, Color, Corner, Corners, Fill, Grove, Grow, Leaf, Location, Palette, Panel, Place,
+    Rounding, Sap, Scheme, Side, Source, Stem, Vein, left, top,
 };
 
 /// A panel filling a box of a stated size, so its radii have something to resolve against.
@@ -460,4 +460,151 @@ fn filling_a_stem_is_dropped() {
     tick(&mut grove);
     assert_eq!(grove.tap(leaf, Vein::Color), None);
     assert_eq!(grove.elm.panels.len(), 0);
+}
+
+// Drawn together.
+
+/// The rank the backend was last handed for a panel: which picture it is drawn into rides on it.
+fn layer_of(grove: &Grove, leaf: Leaf) -> u32 {
+    grove
+        .elm
+        .panels
+        .written
+        .iter()
+        .rev()
+        .find(|wanted| wanted.key == Key::from(leaf))
+        .map(|wanted| wanted.rank.layer)
+        .expect("written this frame")
+}
+
+/// A card drawn together and fading, with a panel on it at full opacity of its own.
+fn card(grove: &mut Grove, opacity: f32) -> (Leaf, Leaf) {
+    let card = grove.plant(
+        Stem::new()
+            .together()
+            .opacity(opacity)
+            .at(Location::new().xs(left(0.px()).width(100.px()), top(0.px()).height(100.px()))),
+    );
+    let face = grove.branch(card, panel(40.0).color(Color::rgb(1.0, 0.0, 0.0)));
+    (card, face)
+}
+
+/// While it fades, what is on it is drawn into a picture at its own strength, and the picture is
+/// what carries the fade -- once, whole.
+#[test]
+fn what_is_drawn_together_is_drawn_into_one_picture_while_it_fades() {
+    let mut grove = grove();
+    let (card, face) = card(&mut grove, 0.5);
+    tick(&mut grove);
+    assert_eq!(grove.elm.layers.len(), 1);
+    let picture = grove.elm.layers[0];
+    assert_eq!(picture.layer, card.slot() as u32 + 1);
+    assert_eq!(picture.opacity, 0.5);
+    assert_eq!(layer_of(&grove, face), picture.layer);
+    assert_eq!(held(&grove, face).color.alpha, 1.0);
+}
+
+/// At full opacity there is nothing to fade whole, so nothing is drawn apart -- and coming up to
+/// it closes the picture, and going down again opens it.
+#[test]
+fn a_picture_is_drawn_apart_only_while_there_is_a_fade() {
+    let mut grove = grove();
+    let (card, face) = card(&mut grove, 1.0);
+    tick(&mut grove);
+    assert!(grove.elm.layers.is_empty());
+    assert_eq!(layer_of(&grove, face), 0);
+
+    grove.opacity(card, 0.3);
+    tick(&mut grove);
+    assert_eq!(grove.elm.layers.len(), 1);
+    assert!(grove.elm.relayered);
+    assert_eq!(layer_of(&grove, face), card.slot() as u32 + 1);
+
+    // A fade that only moves how opaque the picture is rewrites nothing on it.
+    grove.opacity(card, 0.6);
+    tick(&mut grove);
+    assert!(grove.elm.relayered);
+    assert_eq!(grove.elm.layers[0].opacity, 0.6);
+    assert!(grove.elm.panels.written.is_empty());
+
+    grove.opacity(card, 1.0);
+    tick(&mut grove);
+    assert!(grove.elm.layers.is_empty());
+    assert_eq!(layer_of(&grove, face), 0);
+}
+
+/// What an ancestor fades counts too: the picture is faded by the whole product, and drawn at the
+/// strength of what is under the element that opened it.
+#[test]
+fn a_picture_is_faded_by_everything_above_it() {
+    let mut grove = grove();
+    let page = grove.plant(Stem::new().opacity(0.5));
+    let card = grove.branch(
+        page,
+        Stem::new()
+            .together()
+            .at(Location::new().xs(left(0.px()).width(100.px()), top(0.px()).height(100.px()))),
+    );
+    let face = grove.branch(card, panel(40.0).opacity(0.5));
+    tick(&mut grove);
+    assert_eq!(grove.elm.layers.len(), 1);
+    assert_eq!(grove.elm.layers[0].opacity, 0.5);
+    assert_eq!(grove.elm.layers[0].layer, card.slot() as u32 + 1);
+    // Its own half, and nothing of the page's.
+    assert_eq!(held(&grove, face).color.alpha, 0.5);
+}
+
+/// A picture inside one that is open is drawn as part of the outer one.
+#[test]
+fn a_picture_inside_an_open_one_is_part_of_it() {
+    let mut grove = grove();
+    let (outer, _) = card(&mut grove, 0.5);
+    let inner = grove.branch(outer, Stem::new().together().opacity(0.5));
+    let face = grove.branch(inner, panel(20.0));
+    tick(&mut grove);
+    assert_eq!(grove.elm.layers.len(), 1);
+    assert_eq!(layer_of(&grove, face), outer.slot() as u32 + 1);
+    assert_eq!(held(&grove, face).color.alpha, 0.5);
+}
+
+/// Hidden, there is nothing to lay down; pruned, the picture goes with it.
+#[test]
+fn a_hidden_or_pruned_card_lays_down_no_picture() {
+    let mut grove = grove();
+    let (card, _) = card(&mut grove, 0.5);
+    tick(&mut grove);
+    assert_eq!(grove.elm.layers.len(), 1);
+
+    grove.visible(card, false);
+    tick(&mut grove);
+    assert!(grove.elm.layers.is_empty());
+
+    grove.visible(card, true);
+    tick(&mut grove);
+    assert_eq!(grove.elm.layers.len(), 1);
+
+    grove.prune(card);
+    tick(&mut grove);
+    assert!(grove.elm.layers.is_empty());
+}
+
+/// Declared after it was grown, the same.
+#[test]
+fn together_can_be_declared_after_growth() {
+    let mut grove = grove();
+    let card = grove.plant(Stem::new().opacity(0.5));
+    let face = grove.branch(card, panel(40.0));
+    tick(&mut grove);
+    assert!(grove.elm.layers.is_empty());
+    assert_eq!(held(&grove, face).color.alpha, 0.5);
+
+    grove.together(card, true);
+    tick(&mut grove);
+    assert_eq!(grove.elm.layers.len(), 1);
+    assert_eq!(held(&grove, face).color.alpha, 1.0);
+
+    grove.together(card, false);
+    tick(&mut grove);
+    assert!(grove.elm.layers.is_empty());
+    assert_eq!(held(&grove, face).color.alpha, 0.5);
 }

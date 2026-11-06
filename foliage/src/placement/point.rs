@@ -13,7 +13,7 @@
 //! per breakpoint, in the chain a [`Location`](crate::Location) is written in.
 
 use crate::coordinate::Axis;
-use crate::placement::role::known;
+use crate::placement::role::{Measure, known};
 use crate::placement::source::{Against, Coord, HorizontalCoordinate, Origin, VerticalCoordinate};
 
 /// A position stated in the placement grammar: one coordinate on each axis.
@@ -107,6 +107,6 @@ impl Point {
                 .expr
                 .terms()
                 .iter()
-                .all(|term| known(term.kind, axis))
+                .all(|term| known(term.kind, axis) == Measure::Own)
     }
 }

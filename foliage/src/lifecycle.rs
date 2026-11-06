@@ -63,24 +63,62 @@ pub(crate) struct Disabled(pub(crate) bool);
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct Inherited {
     pub(crate) visible: bool,
+    /// The whole product, over every ancestor: how faint it looks, and what decides whether it is
+    /// there at all.
     pub(crate) opacity: f32,
     pub(crate) disabled: bool,
+    /// The picture it is drawn into, where something it is grown under -- or it -- is drawn
+    /// [`together`](crate::Place::together) and fading: one more than the slot of the element
+    /// that opened it, or zero.
+    pub(crate) layer: u32,
+    /// How opaque it is drawn into that picture: the product from the element that opened it down,
+    /// that element's own and everything above it left out, since the picture is faded by those
+    /// once, whole. The same as [`opacity`](Self::opacity) where there is no picture.
+    pub(crate) drawn: f32,
 }
 
 impl Inherited {
-    /// This element's own declarations resolved against what its trunk resolved to.
-    pub(crate) fn under(trunk: Inherited, visible: bool, opacity: f32, disabled: bool) -> Self {
+    /// This element's own declarations resolved against what its trunk resolved to. `together`
+    /// is the picture it would open, where it is declared [`together`](crate::Place::together).
+    pub(crate) fn under(
+        trunk: Inherited,
+        visible: bool,
+        opacity: f32,
+        disabled: bool,
+        together: Option<u32>,
+    ) -> Self {
+        let product = trunk.opacity * opacity;
+        let (layer, drawn) = match (trunk.layer, together) {
+            // Already in a picture: drawn into it, faded by everything between.
+            (layer, _) if layer != 0 => (layer, trunk.drawn * opacity),
+            // Opens one, but only while there is a fade to apply to it whole. At full opacity
+            // there is nothing to show through, and nothing is drawn apart.
+            (_, Some(layer)) if product < 1.0 => (layer, 1.0),
+            _ => (0, product),
+        };
         Self {
             visible: trunk.visible && visible,
-            opacity: trunk.opacity * opacity,
+            opacity: product,
             disabled: trunk.disabled || disabled,
+            layer,
+            drawn,
         }
+    }
+
+    /// Whether the element opens the picture it is drawn into, as against being drawn into one
+    /// something above it opened. `slot` is its own.
+    pub(crate) fn opens(&self, slot: usize) -> bool {
+        self.layer != 0 && self.layer == slot as u32 + 1
     }
 
     /// Whether the element is in the box stack at all.
     ///
-    /// Hidden or fully transparent is not there. Disabled is: it blocks, which is the whole
-    /// difference between a disabled control and decoration.
+    /// Hidden or fully transparent is not there, wherever the fade was declared -- on the element,
+    /// on the root of the part it belongs to, or on anything above -- so fading something out is
+    /// enough to be rid of it, and no part's inner structure decides whether a fade leaves an
+    /// invisible control behind. A press target that shows nothing is said by what it draws
+    /// rather than by fading it: a stem, or a clear color, at full opacity. Disabled is there: it
+    /// blocks, which is the whole difference between a disabled control and decoration.
     pub(crate) fn present(&self) -> bool {
         self.visible && self.opacity > 0.0
     }
@@ -92,6 +130,8 @@ impl Default for Inherited {
             visible: true,
             opacity: 1.0,
             disabled: false,
+            layer: 0,
+            drawn: 1.0,
         }
     }
 }

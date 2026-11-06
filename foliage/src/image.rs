@@ -142,6 +142,8 @@ pub(crate) struct ImageInstance {
     /// a colour, because a picture has no colour of its own for it to be folded into.
     pub(crate) opacity: f32,
     pub(crate) plate: Plate,
+    /// How it and everything it is drawn inside of are turned and scaled where it is drawn.
+    pub(crate) pose: crate::pose::Affine,
 }
 
 /// Every registered picture's pixels.

@@ -31,7 +31,7 @@ use foliage::{
     Area, Boxed, Cap, Claim, Elevation, Grove, Grow, Key, Keystroke, Layout, Leaf, Line, Location, Panel, Place,
     Point, Pollen, Position, Root, Source, Stem, Timing, Tween, left, top,
 };
-use lichen::{Escaped, Hover, Voice, drawn};
+use lichen::{Hover, Voice, drawn};
 
 use arboretum::sprout::Courier;
 
@@ -98,7 +98,6 @@ struct Trellis {
     tool: Tool,
     found: Option<Vec<Id>>,
     turn: usize,
-    escape: Escaped,
     seen: Option<((f32, f32), f32, Area)>,
 }
 
@@ -182,7 +181,6 @@ impl Root for Trellis {
             tool: Tool::Select,
             found: None,
             turn: 0,
-            escape: Escaped::new(),
             seen: None,
         };
         trellis.place(grove);
@@ -341,9 +339,8 @@ impl Root for Trellis {
             keys.extend_from_slice(pollen.keys(leaf));
         }
         self.keys(grove, &keys);
-        // Escape: focus gone from somewhere to nowhere, and not by a stray press or what held it
-        // going out of reach.
-        if self.escape.frame(grove) && !drawer_open && !drawer_closed {
+        // Escape, where no drawer took it for its own.
+        if pollen.escaped() && !drawer_open && !drawer_closed {
             self.escape(grove);
         }
         self.sheet.signpost(grove, &pollen);

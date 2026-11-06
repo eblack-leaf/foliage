@@ -44,6 +44,24 @@ fn focus_moves_by_the_verb_alone() {
     assert!(app.last().focused(field));
 }
 
+/// Focus asked for before the write that shows its target, in the same frame, still lands: it is
+/// answered once the frame's writes are, so the order an app wrote them in is not a question.
+#[test]
+fn focus_asked_before_its_target_is_shown_lands() {
+    let mut grove = grove();
+    let drawer = grove.plant(Stem::new().visible(false));
+    let inside = grove.branch(
+        drawer,
+        Panel::new().at(at(0.0, 0.0, 80.0, 20.0)).interactive(),
+    );
+    tick(&mut grove);
+
+    grove.focus(inside);
+    grove.visible(drawer, true);
+    tick(&mut grove);
+    assert_eq!(grove.focused(), Some(inside));
+}
+
 /// Focus goes to what was tapped. There is no second declaration deciding it: `interactive` is
 /// already the statement that an element takes input, and focus already rests only on what said
 /// that -- so the target of a tap is by definition somewhere focus can be.

@@ -2,8 +2,8 @@
 //! [`Drawer`], which slides in from an edge over a scrim.
 //!
 //! Both take the page out of reach while they are open, hold focus inside themselves as the
-//! [`focus_scope`](Place::focus_scope) they are, and close on `Escape` -- which foliage never sends
-//! as a key, and which is read by what it leaves, through [`Escaped`]. Both take every press that
+//! [`focus_scope`](Place::focus_scope) they are, and close on `Escape`, which foliage reports as
+//! [`escaped`](Pollen::escaped) wherever focus was. Both take every press that
 //! lands on them, so a stray press inside one focuses it rather than nothing: what is grown in one
 //! that is not a press should be intangible.
 //!
@@ -18,7 +18,6 @@ use foliage::{
 };
 
 use crate::chip::caption;
-use crate::escaped::Escaped;
 
 /// How long an overlay takes to come up, and to go.
 const UP_MS: u64 = 280;
@@ -54,7 +53,6 @@ struct Laid {
     page: Leaf,
     open: bool,
     going: Option<Tween>,
-    escape: Escaped,
 }
 
 impl Laid {
@@ -63,7 +61,6 @@ impl Laid {
             page,
             open: false,
             going: None,
-            escape: Escaped::new(),
         }
     }
 
@@ -78,7 +75,6 @@ impl Laid {
             grove.stop(going);
         }
         grove.disable(self.page);
-        self.escape.forget();
         true
     }
 
@@ -113,8 +109,8 @@ impl Laid {
     }
 
     /// Whether `Escape` was pressed this frame while it was open.
-    fn escaped(&mut self, grove: &Grove) -> bool {
-        self.open && self.escape.frame(grove)
+    fn escaped(&self, pollen: &Pollen) -> bool {
+        self.open && pollen.escaped()
     }
 }
 
@@ -199,7 +195,7 @@ impl Overlay {
         if self.laid.gone(pollen) {
             grove.visible(self.sheet, false);
         }
-        if self.laid.escaped(grove) {
+        if self.laid.escaped(pollen) {
             self.close(grove);
             return Some(Closed::Escape);
         }
@@ -333,7 +329,7 @@ impl Drawer {
             self.close(grove);
             return Some(Closed::Scrim);
         }
-        if self.laid.escaped(grove) {
+        if self.laid.escaped(pollen) {
             self.close(grove);
             return Some(Closed::Escape);
         }

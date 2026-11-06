@@ -54,5 +54,12 @@
 <a href=#54 id=54 data-nosnippet>54</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ResolvedElevation {
 <a href=#55 id=55 data-nosnippet>55</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) stack: i32,
 <a href=#56 id=56 data-nosnippet>56</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) growth: u64,
-<a href=#57 id=57 data-nosnippet>57</a>}
+<a href=#57 id=57 data-nosnippet>57</a>    <span class="doccomment">/// Which picture the element is drawn into, where it is part of something drawn
+<a href=#58 id=58 data-nosnippet>58</a>    /// [`together`](crate::Place::together) and fading: one more than that element's slot, or
+<a href=#59 id=59 data-nosnippet>59</a>    /// zero for the window itself. Set by extraction and read by the backend, which draws each
+<a href=#60 id=60 data-nosnippet>60</a>    /// picture apart and puts it in the stack where the element that opened it sits.
+<a href=#61 id=61 data-nosnippet>61</a>    ///
+<a href=#62 id=62 data-nosnippet>62</a>    /// Last, so it never decides an order: two ranks that differ in it differ in growth first.
+<a href=#63 id=63 data-nosnippet>63</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) layer: u32,
+<a href=#64 id=64 data-nosnippet>64</a>}
 </code></pre></div></section></main></body></html>

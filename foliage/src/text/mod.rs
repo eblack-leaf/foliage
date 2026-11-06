@@ -56,7 +56,7 @@ pub use font::{Font, FontSize};
 /// [`letters`](crate::Source::letters) is the other half, and it stays: where the count is genuinely
 /// known ahead of time it costs nothing to resolve and says what it means. Measuring is for where it
 /// is not.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Text {
     pub(crate) placement: Placement,
     pub(crate) value: String,
@@ -64,12 +64,22 @@ pub struct Text {
     pub(crate) tints: Tints,
 }
 
+impl Default for Text {
+    fn default() -> Self {
+        Self::new(String::new())
+    }
+}
+
 impl Text {
     /// A run saying `value`, filled with [`Palette::Ink`] -- what is read against a surface rather
     /// than drawn as one.
+    ///
+    /// So a gesture over it passes through to the surface unless it says
+    /// [`interactive`](crate::Place::interactive) or [`tangible`](crate::Place::tangible): a label
+    /// on a button is pressed as the button.
     pub fn new(value: impl Into<String>) -> Self {
         Self {
-            placement: Placement::default(),
+            placement: Placement::mark(),
             value: value.into(),
             fill: Fill::Role(Palette::Ink),
             tints: Tints::default(),

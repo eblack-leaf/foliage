@@ -18,6 +18,7 @@ use crate::polygon::Shape;
 use crate::rounding::Corners;
 use crate::seed::Seed;
 use crate::text::Tints;
+use crate::text::font::{Font, FontSize};
 use crate::view::{Escape, Scroll, ScrollTo};
 
 /// What an op sink has to be able to do: take an op, and hand out the names an op may need.
@@ -188,6 +189,34 @@ pub trait Grow: Queues {
         self.queue(Op::Letter {
             leaf,
             value: value.into(),
+        });
+    }
+
+    /// Sets how large an element's characters are, per breakpoint, after it was grown.
+    ///
+    /// What [`font_size`](crate::Place::font_size) declares at growth, written later: a run is
+    /// shaped again at the new size and measured in the same frame, so an element sized to its own
+    /// content is the right size on the frame the size changed, and so is anything placed in its
+    /// [`letters`](crate::Source::letters). A [`TextInput`](crate::TextInput) is set throughout --
+    /// its value, its hint and the caret that moves through them.
+    ///
+    /// An element with no characters takes the size as it would have at growth: it gains a
+    /// character cell, which is what letters are measured in.
+    fn font_size(&mut self, leaf: Leaf, size: FontSize) {
+        self.queue(Op::Retype {
+            leaf,
+            font: None,
+            size: Some(size),
+        });
+    }
+
+    /// Sets which registered face an element's characters are in, after it was grown, on the
+    /// terms [`font_size`](Grow::font_size) sets their size.
+    fn face(&mut self, leaf: Leaf, font: Font) {
+        self.queue(Op::Retype {
+            leaf,
+            font: Some(font),
+            size: None,
         });
     }
 
@@ -521,6 +550,12 @@ pub trait Grow: Queues {
         self.queue(Op::Fade { leaf, opacity });
     }
 
+    /// Whether an element and what is grown under it fade as one picture, as
+    /// [`together`](crate::Place::together) states it at spawn.
+    fn together(&mut self, leaf: Leaf, together: bool) {
+        self.queue(Op::Together { leaf, together });
+    }
+
     /// Draws an element `by` from where the layout put it, and everything grown under it with it --
     /// or back where it belongs, at zero. Positive is right and down.
     ///
@@ -544,17 +579,62 @@ pub trait Grow: Queues {
         self.queue(Op::Shift { leaf, by });
     }
 
+    /// Turns an element where it is drawn, clockwise by `radians` about its middle, and everything
+    /// grown under it with it -- as [`turn`](crate::Place::turn) states it at spawn.
+    ///
+    /// A direct write, so it cancels a [`Motion::Turn`](crate::Motion::Turn) still moving it.
+    fn turn(&mut self, leaf: Leaf, radians: f32) {
+        self.queue(Op::Turn { leaf, radians });
+    }
+
+    /// Draws an element `scale` times its size about its middle, and everything grown under it with
+    /// it -- as [`scale`](crate::Place::scale) states it at spawn.
+    ///
+    /// ```no_run
+    /// # use foliage::{Ease, Grove, Grow, Leaf, Motion, Timing};
+    /// # fn f(grove: &mut Grove, card: Leaf) {
+    /// // Pressed in, then back.
+    /// grove.animate(card, Motion::Scale(0.97), Timing::ms(90));
+    /// grove.animate(card, Motion::Scale(1.0), Timing::ms(160).after(90).ease(Ease::Decelerate));
+    /// # }
+    /// ```
+    ///
+    /// A direct write, so it cancels a [`Motion::Scale`](crate::Motion::Scale) still moving it.
+    fn scale(&mut self, leaf: Leaf, scale: f32) {
+        self.queue(Op::Scale { leaf, scale });
+    }
+
+    /// Draws an element `by` its own size from where the layout put it, and everything grown under
+    /// it with it -- as [`slide`](crate::Place::slide) states it at spawn.
+    ///
+    /// ```no_run
+    /// # use foliage::{Grove, Grow, Leaf, Motion, Position, Timing};
+    /// # fn f(grove: &mut Grove, sheet: Leaf) {
+    /// // In from off its own right edge, however wide it came out.
+    /// grove.slide(sheet, Position::new(1.0, 0.0));
+    /// grove.animate(sheet, Motion::Slide(Position::default()), Timing::ms(280));
+    /// # }
+    /// ```
+    ///
+    /// A direct write, so it cancels a [`Motion::Slide`](crate::Motion::Slide) still moving it.
+    fn slide(&mut self, leaf: Leaf, by: Position) {
+        self.queue(Op::Slide { leaf, by });
+    }
+
     /// Moves a property of an element over time.
     ///
     /// The target is written to the element at once and the tween carries what it left, so the
     /// element declares where it is going from the moment it is told to go there. Nothing has to be
     /// undone when it arrives: the blend at the end is the plain reading of the declaration.
     ///
-    /// A second `animate` on a property already moving replaces it, starting from where the element
-    /// currently is rather than from where the first one began. A **direct write** to that property
-    /// -- [`at`](Grow::at), [`color`](Grow::color), [`opacity`](Grow::opacity) -- cancels it, and
-    /// the element is at what was written. So a property that is animated somewhere does not have
-    /// to be animated everywhere.
+    /// A second `animate` on a property already moving replaces it when it starts, beginning from
+    /// where the element currently is rather than from where the first one began. One with no delay
+    /// starts at once. One with a [delay](crate::Timing::after) touches nothing while it waits and
+    /// takes over once the delay has passed -- so delays on one property chain, each motion taking
+    /// over from the one before. A **direct write** to that property -- [`at`](Grow::at),
+    /// [`color`](Grow::color), [`opacity`](Grow::opacity) -- cancels it and whatever is waiting to
+    /// take it over, and the element is at what was written. So a property that is animated
+    /// somewhere does not have to be animated everywhere.
     ///
     /// ```no_run
     /// # use foliage::{Color, Ease, Grow, Grove, Motion, Palette, Timing};
@@ -732,7 +812,9 @@ pub trait Grow: Queues {
     ///
     /// Dropped if the element cannot take focus -- it is not
     /// [`interactive`](crate::Place::interactive), or it is hidden or disabled. Focus stays where
-    /// it was rather than moving somewhere the app did not name.
+    /// it was rather than moving somewhere the app did not name. That is asked once every other
+    /// write of the frame has landed, so focusing into a drawer shown in the same frame lands
+    /// whichever of the two was written first.
     fn focus(&mut self, leaf: Leaf) {
         self.queue(Op::Focus(Intent::To(leaf)));
     }

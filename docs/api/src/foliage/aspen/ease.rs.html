@@ -188,34 +188,40 @@
 <a href=#188 id=188 data-nosnippet>188</a>
 <a href=#189 id=189 data-nosnippet>189</a>    <span class="doccomment">/// How long to wait before it starts, in milliseconds.
 <a href=#190 id=190 data-nosnippet>190</a>    ///
-<a href=#191 id=191 data-nosnippet>191</a>    /// The motion holds where it was for that long rather than being queued: it is running from the
-<a href=#192 id=192 data-nosnippet>192</a>    /// frame it was asked for, and a write that cancels it cancels it whether or not it has begun
-<a href=#193 id=193 data-nosnippet>193</a>    /// to move.
-<a href=#194 id=194 data-nosnippet>194</a>    </span><span class="kw">pub fn </span>after(<span class="kw-2">mut </span><span class="self">self</span>, millis: u64) -&gt; <span class="self">Self </span>{
-<a href=#195 id=195 data-nosnippet>195</a>        <span class="self">self</span>.delay = Duration::from_millis(millis);
-<a href=#196 id=196 data-nosnippet>196</a>        <span class="self">self
-<a href=#197 id=197 data-nosnippet>197</a>    </span>}
-<a href=#198 id=198 data-nosnippet>198</a>
-<a href=#199 id=199 data-nosnippet>199</a>    <span class="doccomment">/// The progress a motion `elapsed` into this timing has made.
-<a href=#200 id=200 data-nosnippet>200</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>at(<span class="kw-2">&amp;</span><span class="self">self</span>, elapsed: Duration) -&gt; f32 {
-<a href=#201 id=201 data-nosnippet>201</a>        <span class="comment">// Holding where it was until the delay has passed, whatever the duration. Asked first, so a
-<a href=#202 id=202 data-nosnippet>202</a>        // zero-length motion with a delay waits and then jumps, rather than jumping at once and
-<a href=#203 id=203 data-nosnippet>203</a>        // waiting only to report that it had.
-<a href=#204 id=204 data-nosnippet>204</a>        </span><span class="kw">if </span>elapsed &lt; <span class="self">self</span>.delay {
-<a href=#205 id=205 data-nosnippet>205</a>            <span class="kw">return </span><span class="number">0.0</span>;
-<a href=#206 id=206 data-nosnippet>206</a>        }
-<a href=#207 id=207 data-nosnippet>207</a>        <span class="comment">// Nothing to be a fraction of. A zero-duration motion is at its end from its first instant.
-<a href=#208 id=208 data-nosnippet>208</a>        </span><span class="kw">if </span><span class="self">self</span>.duration.is_zero() {
-<a href=#209 id=209 data-nosnippet>209</a>            <span class="kw">return </span><span class="number">1.0</span>;
-<a href=#210 id=210 data-nosnippet>210</a>        }
-<a href=#211 id=211 data-nosnippet>211</a>        <span class="kw">let </span>running = elapsed - <span class="self">self</span>.delay;
-<a href=#212 id=212 data-nosnippet>212</a>        <span class="kw">let </span>fraction = running.as_nanos() <span class="kw">as </span>f64 / <span class="self">self</span>.duration.as_nanos() <span class="kw">as </span>f64;
-<a href=#213 id=213 data-nosnippet>213</a>        <span class="self">self</span>.ease.at(fraction.clamp(<span class="number">0.0</span>, <span class="number">1.0</span>) <span class="kw">as </span>f32)
-<a href=#214 id=214 data-nosnippet>214</a>    }
-<a href=#215 id=215 data-nosnippet>215</a>
-<a href=#216 id=216 data-nosnippet>216</a>    <span class="doccomment">/// Whether a motion `elapsed` into this timing has reached its end.
-<a href=#217 id=217 data-nosnippet>217</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>done(<span class="kw-2">&amp;</span><span class="self">self</span>, elapsed: Duration) -&gt; bool {
-<a href=#218 id=218 data-nosnippet>218</a>        elapsed &gt;= <span class="self">self</span>.delay + <span class="self">self</span>.duration
-<a href=#219 id=219 data-nosnippet>219</a>    }
-<a href=#220 id=220 data-nosnippet>220</a>}
+<a href=#191 id=191 data-nosnippet>191</a>    /// A motion waits touching nothing: whatever is moving the same property goes on until the
+<a href=#192 id=192 data-nosnippet>192</a>    /// delay has passed, and the motion takes over from wherever that has got to. So delays on one
+<a href=#193 id=193 data-nosnippet>193</a>    /// property chain, each motion starting where the one before left the element. A write that
+<a href=#194 id=194 data-nosnippet>194</a>    /// cancels the property cancels a motion still waiting on it too.
+<a href=#195 id=195 data-nosnippet>195</a>    </span><span class="kw">pub fn </span>after(<span class="kw-2">mut </span><span class="self">self</span>, millis: u64) -&gt; <span class="self">Self </span>{
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="self">self</span>.delay = Duration::from_millis(millis);
+<a href=#197 id=197 data-nosnippet>197</a>        <span class="self">self
+<a href=#198 id=198 data-nosnippet>198</a>    </span>}
+<a href=#199 id=199 data-nosnippet>199</a>
+<a href=#200 id=200 data-nosnippet>200</a>    <span class="doccomment">/// How long it waits before it starts.
+<a href=#201 id=201 data-nosnippet>201</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>delay(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
+<a href=#202 id=202 data-nosnippet>202</a>        <span class="self">self</span>.delay
+<a href=#203 id=203 data-nosnippet>203</a>    }
+<a href=#204 id=204 data-nosnippet>204</a>
+<a href=#205 id=205 data-nosnippet>205</a>    <span class="doccomment">/// The progress a motion `elapsed` into this timing has made.
+<a href=#206 id=206 data-nosnippet>206</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>at(<span class="kw-2">&amp;</span><span class="self">self</span>, elapsed: Duration) -&gt; f32 {
+<a href=#207 id=207 data-nosnippet>207</a>        <span class="comment">// Holding where it was until the delay has passed, whatever the duration. Asked first, so a
+<a href=#208 id=208 data-nosnippet>208</a>        // zero-length motion with a delay waits and then jumps, rather than jumping at once and
+<a href=#209 id=209 data-nosnippet>209</a>        // waiting only to report that it had.
+<a href=#210 id=210 data-nosnippet>210</a>        </span><span class="kw">if </span>elapsed &lt; <span class="self">self</span>.delay {
+<a href=#211 id=211 data-nosnippet>211</a>            <span class="kw">return </span><span class="number">0.0</span>;
+<a href=#212 id=212 data-nosnippet>212</a>        }
+<a href=#213 id=213 data-nosnippet>213</a>        <span class="comment">// Nothing to be a fraction of. A zero-duration motion is at its end from its first instant.
+<a href=#214 id=214 data-nosnippet>214</a>        </span><span class="kw">if </span><span class="self">self</span>.duration.is_zero() {
+<a href=#215 id=215 data-nosnippet>215</a>            <span class="kw">return </span><span class="number">1.0</span>;
+<a href=#216 id=216 data-nosnippet>216</a>        }
+<a href=#217 id=217 data-nosnippet>217</a>        <span class="kw">let </span>running = elapsed - <span class="self">self</span>.delay;
+<a href=#218 id=218 data-nosnippet>218</a>        <span class="kw">let </span>fraction = running.as_nanos() <span class="kw">as </span>f64 / <span class="self">self</span>.duration.as_nanos() <span class="kw">as </span>f64;
+<a href=#219 id=219 data-nosnippet>219</a>        <span class="self">self</span>.ease.at(fraction.clamp(<span class="number">0.0</span>, <span class="number">1.0</span>) <span class="kw">as </span>f32)
+<a href=#220 id=220 data-nosnippet>220</a>    }
+<a href=#221 id=221 data-nosnippet>221</a>
+<a href=#222 id=222 data-nosnippet>222</a>    <span class="doccomment">/// Whether a motion `elapsed` into this timing has reached its end.
+<a href=#223 id=223 data-nosnippet>223</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>done(<span class="kw-2">&amp;</span><span class="self">self</span>, elapsed: Duration) -&gt; bool {
+<a href=#224 id=224 data-nosnippet>224</a>        elapsed &gt;= <span class="self">self</span>.delay + <span class="self">self</span>.duration
+<a href=#225 id=225 data-nosnippet>225</a>    }
+<a href=#226 id=226 data-nosnippet>226</a>}
 </code></pre></div></section></main></body></html>

@@ -11,6 +11,9 @@ struct Vertex {
     @location(3) shape: vec3<f32>,
     // Per instance, and the backend's own: where the element's rank placed it in the stack.
     @location(4) depth: f32,
+    // Per instance: how it and everything it is drawn inside of are turned and scaled.
+    @location(5) pose: vec4<f32>,
+    @location(6) pose_offset: vec2<f32>,
 };
 
 struct Fragment {
@@ -27,7 +30,7 @@ struct Fragment {
 @vertex
 fn vertex_entry(vertex: Vertex) -> Fragment {
     let offset = vertex.corner * vertex.section.zw;
-    let position = vec4<f32>(vertex.section.xy + offset, vertex.depth, 1.0);
+    let position = vec4<f32>(posed(vertex.section.xy + offset, vertex.pose, vertex.pose_offset), vertex.depth, 1.0);
     let half_extent = vertex.section.zw * 0.5;
     return Fragment(
         viewport * position,

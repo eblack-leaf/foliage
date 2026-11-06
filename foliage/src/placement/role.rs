@@ -50,51 +50,111 @@ impl Config {
     ///
     /// An element sized by its contents is being asked how large what is inside it turned out. A
     /// child that answers *by reading a box on that axis* -- a percentage of its trunk, a track of
-    /// its trunk's grid, an edge of an anchor -- is not describing how large it is, it is asking
-    /// someone else. It cannot be what decides the answer without deciding it circularly, so it is
-    /// left out of the measure and given its real extent by the axis's own pass like anything else.
+    /// its trunk's grid -- is not describing how large it is, it is asking someone else. It cannot be
+    /// what decides the answer without deciding it circularly, so it is left out of the measure and
+    /// given its real extent by the axis's own pass like anything else.
     ///
     /// Everything that describes an extent in its own terms counts: pixels, letters, its own
     /// content -- and on the vertical axis any horizontal reading, because the horizontal axis has
     /// already resolved by then. See [`known`] for the whole of it.
-    pub(crate) fn measurable(&self, axis: Axis) -> bool {
-        let terms = |expr: &Expr| expr.terms().iter().all(|term| known(term.kind, axis));
+    ///
+    /// Reading its **anchor** on the axis is the one case in between. The anchor's box is not laid
+    /// out yet either, but where the anchor is grown under the same element and itself counts, the
+    /// measure has already found where it reaches -- so a stack of things each placed under the
+    /// last is measured whole. That is [`Measure::Leans`], and the measure decides it, because only
+    /// it knows where the anchor is.
+    pub(crate) fn measurable(&self, axis: Axis) -> Measure {
+        let terms = |expr: &Expr| {
+            expr.terms().iter().fold(Measure::Own, |measure, term| {
+                measure.and(known(term.kind, axis))
+            })
+        };
         let coordinate = |coordinate: &Coord| {
-            // An anchor's near edge is a position on the axis, which is exactly what is not known.
-            coordinate.origin != Origin::Anchor && terms(&coordinate.expr)
+            // An anchor's near edge is a position on the axis, known only where the anchor is.
+            let origin = match coordinate.origin {
+                Origin::Anchor => Measure::Leans,
+                Origin::Trunk | Origin::Surface => Measure::Own,
+            };
+            origin.and(terms(&coordinate.expr))
         };
         let form = match &self.form {
-            Form::NearExtent { near, extent } => coordinate(near) && terms(extent),
-            Form::NearFar { near, far } => coordinate(near) && coordinate(far),
-            Form::FarExtent { far, extent } => coordinate(far) && terms(extent),
-            Form::CenterExtent { center, extent } => coordinate(center) && terms(extent),
+            Form::NearExtent { near, extent } => coordinate(near).and(terms(extent)),
+            Form::NearFar { near, far } => coordinate(near).and(coordinate(far)),
+            Form::FarExtent { far, extent } => coordinate(far).and(terms(extent)),
+            Form::CenterExtent { center, extent } => coordinate(center).and(terms(extent)),
         };
-        form && self.least.as_ref().is_none_or(terms) && self.most.as_ref().is_none_or(terms)
+        let clamp = |clamp: &Option<Expr>| clamp.as_ref().map_or(Measure::Own, terms);
+        form.and(clamp(&self.least)).and(clamp(&self.most))
+    }
+}
+
+/// How a placement on one axis counts toward the measure of what it is grown under.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) enum Measure {
+    /// It reads a box on the axis that nothing has laid out yet, so it is left out.
+    #[default]
+    Never,
+    /// It describes its own extent, and counts.
+    Own,
+    /// It describes its extent against its anchor's, and counts where the anchor is grown under
+    /// the same element and counts too.
+    Leans,
+}
+
+impl Measure {
+    /// Both at once: left out if either is, leaning if either leans.
+    pub(crate) fn and(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Never, _) | (_, Self::Never) => Self::Never,
+            (Self::Leans, _) | (_, Self::Leans) => Self::Leans,
+            (Self::Own, Self::Own) => Self::Own,
+        }
     }
 }
 
 /// Whether one term of a placement on `axis` reads something already settled when that axis is
 /// measured -- across before any width is laid out, and down once every width is.
-pub(crate) fn known(kind: Kind, axis: Axis) -> bool {
+pub(crate) fn known(kind: Kind, axis: Axis) -> Measure {
+    let own = |known: bool| match known {
+        true => Measure::Own,
+        false => Measure::Never,
+    };
+    // What reads the anchor on the axis being measured leans on it; anything else that reads a
+    // box on that axis is not known.
+    let leans = |against: Against| match against {
+        Against::Anchor => Measure::Leans,
+        Against::Trunk | Against::Own => Measure::Never,
+    };
     match kind {
         // Reads no geometry at all, or reads a cell -- which R1 answered before either axis.
-        Kind::Px(_) => true,
-        Kind::Letters { .. } => true,
+        Kind::Px(_) => Measure::Own,
+        Kind::Letters { .. } => Measure::Own,
         // A place in a run is read off the width the run resolved to, which the horizontal axis
         // settles: known down, once it has, and not across, where it is the width being asked for.
-        Kind::Character { .. } | Kind::Span { .. } => axis == Axis::Vertical,
-        // The element's own measure, which the bottom-up sweep answers below a trunk before the trunk
-        // asks. Anyone else's is still being measured.
-        Kind::Content { against } => against == Against::Own,
+        Kind::Character { .. } | Kind::Span { .. } => own(axis == Axis::Vertical),
+        // The element's own measure, which the bottom-up sweep answers below a trunk before the
+        // trunk asks; and an anchor's, which it answers too where the anchor is under that trunk.
+        Kind::Content { against } => match against {
+            Against::Own => Measure::Own,
+            other => leans(other),
+        },
         // An extent or a track on the other axis, once that axis has resolved -- which is only ever
-        // the horizontal one, read while measuring down.
-        Kind::Extent { axis: read, .. } | Kind::Cell { axis: read, .. } => {
-            axis == Axis::Vertical && read == Axis::Horizontal
-        }
-        // A fraction of the axis being measured, which nothing has laid out yet.
-        Kind::Pct { .. } => false,
-        // Already a position on a surface no box on this axis has been laid out on yet.
-        Kind::Edge { .. } => false,
+        // the horizontal one, read while measuring down. An anchor's extent on this axis is what
+        // the measure found it reaching to.
+        Kind::Extent {
+            axis: read,
+            against,
+        } => match read == axis {
+            true => leans(against),
+            false => own(axis == Axis::Vertical && read == Axis::Horizontal),
+        },
+        Kind::Cell { axis: read, .. } => own(axis == Axis::Vertical && read == Axis::Horizontal),
+        // A fraction of the axis being measured, which nothing has laid out yet -- unless it is a
+        // fraction of an anchor the measure has already found.
+        Kind::Pct { against, .. } => leans(against),
+        // Already a position on a surface no box on this axis has been laid out on yet, but for an
+        // anchor's, which the measure has placed.
+        Kind::Edge { against, .. } => leans(against),
     }
 }
 

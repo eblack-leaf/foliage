@@ -106,6 +106,8 @@ Each clause is there because something would otherwise stall:
 - **The app asking.** An app animating something the engine cannot see (a value it moves itself
   from `frame_time`) has no clause of its own. `grove.again()` is that clause, and it lasts for
   exactly one frame, so the loop runs for as long as the app keeps asking and not a frame longer.
+  `grove.again_in(millis)` is the same ask with a time on it: the loop sleeps until then, with the
+  platform's timer as its wake, and the frame is owed once it comes.
 
 **Skipping a frame cannot lose a change.** A frame that does not run leaves every write in the
 queue and every report in the drift, and the next frame that runs takes them. Extraction compares

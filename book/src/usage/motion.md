@@ -20,6 +20,9 @@ concept of, and motion an app drives by hand.
 | `Scroll(ScrollTo)` | where a region is moved to; the destination re-resolves every frame |
 | `Polygon(Shape)` | a polygon's sides, rounding and rotation together |
 | `Shift(Position)` | how far the element is drawn from where it is placed ([Drawn aside](placement.md#drawn-aside)) |
+| `Slide(Position)` | the same, in the element's own widths and heights |
+| `Turn(f32)` | how far it is turned about its middle, clockwise in radians |
+| `Scale(f32)` | how many times its size it is drawn, about its middle |
 
 Anything that can be filled converts into a motion toward that fill, so
 `Motion::from(Palette::Accent)` and `Palette::Accent.into()` are both `Motion::Palette`.
@@ -197,6 +200,24 @@ and is pruned. Tap it while it is up and it leaves at once.
 Every step of the chain hangs off the name the step before handed back, and `pollen.finished(name)`
 is the frame that step ended on. The app never counts frames or reads a clock.
 
+## Fading a card whole
+
+Opacity multiplies down the tree, but each element is faded on its own. A card fading out
+therefore shows its ground through its text, and its rows through each other where they overlap.
+Declare the card `together` and it is drawn as one picture while it fades, and the picture is
+what fades:
+
+```rust,ignore
+let card = grove.branch(page, Stem::new().together().at(/* ... */));
+// ... its ground, its text, its rows ...
+grove.animate(card, Motion::Opacity(0.0), Timing::ms(240));
+```
+
+While it fades, the card is drawn at its own place in the stack. Something grown elsewhere at the
+same elevation no longer sits between its parts, as with a stacking context in CSS. At full
+opacity nothing is drawn apart and it costs nothing. While it fades it costs one picture the size
+of the window, so keep it to what fades as a whole: a card, a sheet, a page coming in.
+
 ## Ending a motion
 
 A motion ends in one of these ways:
@@ -204,9 +225,13 @@ A motion ends in one of these ways:
 - **It runs out.** The element reports `pollen.landed(leaf)`, and the motion reports
   `pollen.finished(tween)`. `landed` says the element settled and not which of its properties did;
   `finished` says which motion it was.
-- **Another `animate` on the same property replaces it**, starting from wherever the element
-  currently is rather than where the first motion began, so nothing jumps back.
-- **A direct write to the property cancels it**, and the element is at what was written. `at`
+- **Another `animate` on the same property replaces it** when that one starts, beginning from
+  wherever the element currently is rather than where the first motion began, so nothing jumps
+  back. One with no delay starts at once; one with a delay starts when its delay has passed.
+  What is asked last is where the property ends up: a new motion drops any still waiting on the
+  property that would start no sooner than it does.
+- **A direct write to the property cancels it**, and anything waiting to take it over, and the
+  element is at what was written. `at`
   cancels a `Location` motion (and a `Trace` one, since both are where the element is), `color`
   cancels a fill motion, `opacity` an opacity motion, `reshape` a shape motion, and `scroll` a
   scroll motion. A write to one property leaves a motion on another alone.
@@ -215,7 +240,9 @@ A motion ends in one of these ways:
   runs this frame.
 - **Its element withers.**
 
-Only running out and `finish` report `finished`. Stopping, replacing, cancelling and withering are
+Only running out and `finish` report `finished` (and `finish` on a motion still waiting out its
+delay puts the element on its target as though it had run). Stopping, replacing, cancelling and
+withering are
 all ways the name stops meaning anything, and a chain hanging off it quietly never runs, which is
 what makes `stop` the way to break a chain.
 
@@ -234,7 +261,7 @@ instead of animating, and the arrival motion would simply have been cancelled.
 ```rust
 # use foliage::{Ease, Timing};
 Timing::ms(240)                        // 240 milliseconds, starting now, unshaped
-    .after(60)                         // hold where it is for 60ms first
+    .after(60)                         // wait 60ms before it starts
     .ease(Ease::Decelerate);           // the shape it moves in
 ```
 
@@ -254,9 +281,25 @@ Every shape starts exactly where the motion started and ends exactly on its targ
 overshoot in between. `Ease::at(fraction)` is public, for anything built on top of a motion that
 needs to say where it would be part way through.
 
-A delay is part of the motion, not a queue in front of it: the motion is running from the frame it
-was asked for and holds where it was for the delay, so a write that cancels it cancels it whether
-or not it has started to move.
+A motion with a delay waits without touching anything. Whatever is moving the property goes on
+moving it, and when the delay has passed the new motion takes over from wherever the element has
+got to. So delays on one property chain, and a motion that goes there and comes back is two calls:
+
+```rust
+# use foliage::{Ease, Grove, Grow, Leaf, Motion, Position, Timing};
+# fn f(grove: &mut Grove, tile: Leaf) {
+// Out to the right and back, as one gesture: the second starts as the first lands.
+grove.animate(tile, Motion::Shift(Position::new(6.0, 0.0)), Timing::ms(120).ease(Ease::Decelerate));
+grove.animate(tile, Motion::Shift(Position::default()), Timing::ms(240).after(120).ease(Ease::Emphasis));
+# }
+```
+
+A chain runs in the order its delays say, so ask for its steps in that order. What is asked
+*later* and starts *sooner* is not a step before the waiting ones but a change of mind: a sheet
+asked to fade in after a pause, then asked to fade out now because something else was chosen in
+the meantime, stays faded out. The waiting fade-in is dropped rather than bringing the sheet back
+once its pause is up. A direct write to the property cancels what is waiting as well as what is
+running.
 
 ## Several at once
 
@@ -347,6 +390,12 @@ fn frame(&mut self, grove: &mut Grove) {
 The engine idles when nothing is owed, and a value an app is moving itself is invisible to it.
 `grove.again()` asks for one more frame, and calling it every frame for as long as the motion runs
 keeps the loop going for exactly that long.
+
+A motion that is slow and goes on for a long time does not need every frame the display can show.
+`grove.again_in(40)` asks for the next frame 40 milliseconds from now instead, and while nothing
+else is owed the loop sleeps until then, so a light drifting across a picture or a clock's second
+hand runs at the rate it needs and not at the display's. Anything else that owes a frame still
+runs it at once, and the next one asked for is counted from that frame.
 
 `grove.frame_time()` is how long the last frame took, on the one clock every tween reads. When the
 machine stalls (it slept, a tab was in the background, a window was dragged) a frame is never told

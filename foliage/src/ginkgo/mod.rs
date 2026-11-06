@@ -11,6 +11,13 @@
 //! line: the surface and its depth attachment are sized in physical pixels, and the projection is
 //! built from the logical area. Between them the rasteriser does the conversion, so no instance,
 //! no radius and no section is ever carried in device pixels.
+//!
+//! # A surface, or a picture
+//!
+//! What a frame is drawn into is a window's surface while an app runs, and a texture with no window
+//! behind it under the [`Greenhouse`](crate::Greenhouse) -- the same renderers, the same pass, and a
+//! picture read back at the end of it instead of one presented. Everything above the draw is the
+//! one path either way, which is what makes a picture of a frame a picture of what an app shows.
 
 use std::sync::Arc;
 
@@ -23,8 +30,8 @@ use wgpu::{
     InstanceDescriptor, InstanceFlags, Limits, LoadOp, MultisampleState, Operations,
     PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology, Queue, RenderPass,
     RenderPassColorAttachment, RenderPassDescriptor, RequestAdapterOptions, ShaderStages, StoreOp,
-    Surface, SurfaceColorSpace, SurfaceConfiguration, TextureFormat, TextureUsages,
-    TextureViewDescriptor,
+    Surface, SurfaceColorSpace, SurfaceConfiguration, Texture, TextureFormat, TextureUsages,
+    TextureView, TextureViewDescriptor,
 };
 use winit::window::Window;
 
@@ -36,11 +43,23 @@ use crate::ginkgo::viewport::Viewport;
 pub(crate) mod depth;
 pub(crate) mod viewport;
 
+/// What a frame is drawn into.
+enum Target {
+    /// A window's, presented at the end of every draw.
+    Surface(Surface<'static>),
+    /// A texture nothing presents, read back by whoever asked for the picture. Never made on the
+    /// web, where a test cannot wait on the device to read one.
+    #[cfg_attr(target_family = "wasm", allow(dead_code))]
+    Offscreen(Texture),
+}
+
 /// The graphics context and the surface it draws to.
 pub(crate) struct Ginkgo {
     device: Device,
     queue: Queue,
-    surface: Surface<'static>,
+    target: Target,
+    /// The target's format and size in device pixels, whichever target it is: a texture is
+    /// described the way a surface is configured, so nothing that reads one has to ask which.
     configuration: SurfaceConfiguration,
     depth: Depth,
     viewport: Viewport,
@@ -113,6 +132,79 @@ impl Ginkgo {
         info!(?format, "surface");
         let configuration = configuration(format, area, scale);
         surface.configure(&device, &configuration);
+        Self::assemble(
+            device,
+            queue,
+            Target::Surface(surface),
+            configuration,
+            area,
+            scale,
+        )
+    }
+
+    /// Acquires a device with no window, drawing into a texture that can be read back.
+    ///
+    /// `None` where the machine has no adapter at all -- a container with no GPU and no software
+    /// rasteriser installed -- because a test asking for a picture there has nothing to compare and
+    /// should say so rather than fail. A software adapter is taken where it is the only one.
+    #[cfg(not(target_family = "wasm"))]
+    pub(crate) async fn offscreen(area: Area, scale: f32) -> Option<Self> {
+        let instance = wgpu::Instance::new(InstanceDescriptor {
+            backends: Backends::VULKAN | Backends::METAL | Backends::DX12 | Backends::GL,
+            flags: InstanceFlags::from_build_config(),
+            ..InstanceDescriptor::new_without_display_handle()
+        });
+        let mut adapter = None;
+        for fallback in [false, true] {
+            adapter = instance
+                .request_adapter(&RequestAdapterOptions {
+                    power_preference: PowerPreference::default(),
+                    force_fallback_adapter: fallback,
+                    compatible_surface: None,
+                    apply_limit_buckets: false,
+                })
+                .await
+                .ok();
+            if adapter.is_some() {
+                break;
+            }
+        }
+        let adapter = adapter?;
+        info!(adapter = adapter.get_info().name, backend = ?adapter.get_info().backend, "offscreen adapter");
+        let (device, queue) = adapter
+            .request_device(&DeviceDescriptor {
+                label: Some("foliage-offscreen"),
+                required_features: Features::default(),
+                // The least any target has, so a picture drawn here is drawn under the limits the
+                // most constrained platform holds the renderers to.
+                required_limits: Limits::downlevel_defaults().using_resolution(adapter.limits()),
+                ..DeviceDescriptor::default()
+            })
+            .await
+            .ok()?;
+        // Not sRGB, for the reason a surface's view is not: a `Color` is already sRGB channels, and
+        // the bytes read back are the ones a surface would have shown.
+        let configuration = configuration(TextureFormat::Rgba8Unorm, area, scale);
+        let canvas = canvas(&device, &configuration);
+        Some(Self::assemble(
+            device,
+            queue,
+            Target::Offscreen(canvas),
+            configuration,
+            area,
+            scale,
+        ))
+    }
+
+    /// Everything sized against the target, once there is a device and a target to size against.
+    fn assemble(
+        device: Device,
+        queue: Queue,
+        target: Target,
+        configuration: SurfaceConfiguration,
+        area: Area,
+        scale: f32,
+    ) -> Self {
         let depth = Depth::new(&device, &configuration);
         let viewport = Viewport::new(&device, area);
         let layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -139,7 +231,7 @@ impl Ginkgo {
         Self {
             device,
             queue,
-            surface,
+            target,
             configuration,
             depth,
             viewport,
@@ -156,7 +248,10 @@ impl Ginkgo {
     pub(crate) fn resize(&mut self, area: Area, scale: f32) {
         self.scale = scale;
         self.configuration = configuration(self.configuration.format, area, scale);
-        self.surface.configure(&self.device, &self.configuration);
+        match &mut self.target {
+            Target::Surface(surface) => surface.configure(&self.device, &self.configuration),
+            Target::Offscreen(texture) => *texture = canvas(&self.device, &self.configuration),
+        }
         self.depth = Depth::new(&self.device, &self.configuration);
         self.viewport.resize(&self.queue, area);
         debug!(
@@ -200,6 +295,21 @@ impl Ginkgo {
 
     pub(crate) fn queue(&self) -> &Queue {
         &self.queue
+    }
+
+    /// The format everything is drawn in: the window's, and every picture drawn apart from it.
+    pub(crate) fn format(&self) -> TextureFormat {
+        self.configuration.format
+    }
+
+    /// How large the target is, in device pixels.
+    pub(crate) fn size(&self) -> (u32, u32) {
+        (self.configuration.width, self.configuration.height)
+    }
+
+    /// A depth attachment of the target's size, for a picture drawn apart from it.
+    pub(crate) fn depth(&self) -> Depth {
+        Depth::new(&self.device, &self.configuration)
     }
 
     /// The layout every pipeline declares at group 0, and the projection bound into it.
@@ -246,20 +356,58 @@ impl Ginkgo {
 
     /// Draws one frame, clearing to `clear` and handing the pass to `draw`.
     ///
+    /// Each of `layers` is drawn first, in a pass of its own handed to `layer` with its index:
+    /// cleared to nothing, so what is drawn into it is all that is in it. The window's pass comes
+    /// after them all, so a picture is finished before anything lays it down.
+    ///
     /// A surface that cannot be acquired is skipped rather than retried in place: it means the
     /// window is gone, occluded, or being resized, and the next paint has everything it needs to
     /// produce the same image again. Nothing is lost by not painting, because what is drawn is
     /// held by the renderers rather than consumed by the draw.
-    pub(crate) fn draw(&self, clear: Color, draw: impl FnOnce(&mut RenderPass<'_>)) {
-        let Some(frame) = self.acquire_frame() else {
-            return;
+    pub(crate) fn draw(
+        &self,
+        clear: Color,
+        layers: &[(&TextureView, &Depth)],
+        mut layer: impl FnMut(usize, &mut RenderPass<'_>),
+        draw: impl FnOnce(&mut RenderPass<'_>),
+    ) {
+        let (frame, view) = match &self.target {
+            Target::Surface(surface) => {
+                let Some(frame) = self.acquire_frame(surface) else {
+                    return;
+                };
+                let view = frame.texture.create_view(&TextureViewDescriptor::default());
+                (Some(frame), view)
+            }
+            Target::Offscreen(texture) => {
+                (None, texture.create_view(&TextureViewDescriptor::default()))
+            }
         };
-        let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor {
                 label: Some("draw"),
             });
+        for (index, (target, depth)) in layers.iter().enumerate() {
+            let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                label: Some("layer"),
+                color_attachments: &[Some(RenderPassColorAttachment {
+                    view: target,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: Operations {
+                        load: LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(depth.attachment()),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_bind_group(0, &self.binding, &[]);
+            layer(index, &mut pass);
+        }
         {
             let mut pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("draw"),
@@ -286,19 +434,88 @@ impl Ginkgo {
             draw(&mut pass);
         }
         self.queue.submit(Some(encoder.finish()));
-        self.queue.present(frame);
+        if let Some(frame) = frame {
+            self.queue.present(frame);
+        }
+    }
+
+    /// What the last draw left in an offscreen target: its width and height in device pixels, and
+    /// its texels as RGBA, row-major, with no padding between rows.
+    ///
+    /// `None` on a surface, which is presented rather than kept, or if the copy could not be
+    /// mapped. Waits for the device, so it is a test's call and never a frame's.
+    #[cfg(not(target_family = "wasm"))]
+    pub(crate) fn read(&self) -> Option<(u32, u32, Vec<u8>)> {
+        let Target::Offscreen(texture) = &self.target else {
+            return None;
+        };
+        let width = self.configuration.width;
+        let height = self.configuration.height;
+        // A copy's rows are aligned to what the device requires, and a picture's are not.
+        let row = width * 4;
+        let aligned =
+            row.div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("readback"),
+            size: (aligned * height) as u64,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("readback"),
+            });
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(aligned),
+                    rows_per_image: Some(height),
+                },
+            },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.queue.submit(Some(encoder.finish()));
+        let slice = buffer.slice(..);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        slice.map_async(wgpu::MapMode::Read, move |mapped| {
+            sender.send(mapped).ok();
+        });
+        self.device.poll(wgpu::PollType::wait_indefinitely()).ok()?;
+        receiver.recv().ok()?.ok()?;
+        let mut pixels = Vec::with_capacity((row * height) as usize);
+        {
+            let mapped = slice.get_mapped_range().ok()?;
+            for line in mapped.chunks(aligned as usize).take(height as usize) {
+                pixels.extend_from_slice(&line[..row as usize]);
+            }
+        }
+        buffer.unmap();
+        Some((width, height, pixels))
     }
 
     /// The surface's next texture, reconfiguring once if the surface went stale under us.
-    fn acquire_frame(&self) -> Option<wgpu::SurfaceTexture> {
-        match self.surface.get_current_texture() {
+    fn acquire_frame(&self, surface: &Surface<'static>) -> Option<wgpu::SurfaceTexture> {
+        match surface.get_current_texture() {
             CurrentSurfaceTexture::Success(frame) | CurrentSurfaceTexture::Suboptimal(frame) => {
                 Some(frame)
             }
             CurrentSurfaceTexture::Outdated | CurrentSurfaceTexture::Lost => {
                 debug!("surface reconfigured");
-                self.surface.configure(&self.device, &self.configuration);
-                match self.surface.get_current_texture() {
+                surface.configure(&self.device, &self.configuration);
+                match surface.get_current_texture() {
                     CurrentSurfaceTexture::Success(frame)
                     | CurrentSurfaceTexture::Suboptimal(frame) => Some(frame),
                     _ => None,
@@ -323,4 +540,22 @@ fn configuration(format: TextureFormat, area: Area, scale: f32) -> SurfaceConfig
         color_space: SurfaceColorSpace::Auto,
         view_formats: vec![format],
     }
+}
+
+/// The texture an offscreen target draws into, at the size and format it is described as.
+fn canvas(device: &Device, configuration: &SurfaceConfiguration) -> Texture {
+    device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("offscreen"),
+        size: wgpu::Extent3d {
+            width: configuration.width,
+            height: configuration.height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: configuration.format,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC,
+        view_formats: &[],
+    })
 }

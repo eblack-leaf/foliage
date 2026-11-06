@@ -31,6 +31,8 @@ pub struct Foliage {
     pub(crate) ash: Option<Ash>,
     /// When the last frame was sampled, which is what the clock is advanced by.
     pub(crate) sampled: Option<Instant>,
+    /// When a frame asked for with [`again_in`](crate::Grove::again_in) is owed, if one was.
+    pub(crate) deadline: Option<Instant>,
     /// Where the pointer was last reported. The platform tells us where a press happened only by
     /// having told us where the pointer went, and a wheel notch names no position at all.
     pub(crate) cursor: Position,
@@ -63,6 +65,7 @@ impl Foliage {
             ginkgo: None,
             ash: None,
             sampled: None,
+            deadline: None,
             cursor: Position::default(),
             held: false,
             #[cfg(target_family = "wasm")]

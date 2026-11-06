@@ -11,6 +11,12 @@
 //! covering half a button is above it for those pixels and absent for the rest, with no special
 //! handling anywhere.
 //!
+//! What is there is a surface. A mark -- a run of text, an icon, a polygon, a stroke -- is drawn
+//! *on* one, and a gesture over it is meant for what it is drawn on, so a mark passes gestures
+//! through unless it says it is [`tangible`](crate::Place::tangible) or
+//! [`interactive`](crate::Place::interactive). Left in, every label would eat the press meant for
+//! its button, and every diagonal hairline would wall off the rectangle around it.
+//!
 //! # The read does not search
 //!
 //! A gesture goes to the top of the stack -- the element nearest the viewer at that point, whatever
@@ -32,6 +38,7 @@
 use crate::coordinate::{Position, Section};
 use crate::interaction::Shape;
 use crate::leaf::Leaf;
+use crate::pose::Affine;
 
 /// One element as the hit test sees it: where it is, what shape it is, and what it declared.
 #[derive(Copy, Clone, Debug)]
@@ -47,14 +54,20 @@ pub(crate) struct Region {
     pub(crate) receives: bool,
     /// Disabled, in its own right or by an ancestor. Blocks, and gives nothing back.
     pub(crate) disabled: bool,
+    /// What takes a point on the surface back into the element's own upright space, where its box
+    /// and its shape are: the identity unless it, or something it is grown under, is turned or
+    /// scaled.
+    pub(crate) unposed: Affine,
 }
 
 impl Region {
     /// Whether the element covers `point`.
     fn holds(&self, point: Position) -> bool {
+        // The clip is a region's, upright on the surface; the box is the element's, in its own.
         if !self.clip.contains(point) {
             return false;
         }
+        let point = self.unposed.apply(point);
         match self.shape {
             Shape::Box => self.section.contains(point),
             // The ellipse inscribed in the box, so a round control does not take presses in the

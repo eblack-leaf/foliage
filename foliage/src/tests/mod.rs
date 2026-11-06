@@ -17,6 +17,7 @@ mod lifecycle;
 mod palette;
 mod placement;
 mod platform;
+mod pose;
 mod renderers;
 mod root;
 mod rowan;
