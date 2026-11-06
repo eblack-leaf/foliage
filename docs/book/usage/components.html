@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-7f2d8efb.js";
+            window.path_to_searchindex_js = "../searchindex-40cfaa5b.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-c59f2531.js"></script>
@@ -385,8 +385,8 @@ fn below&lt;S: Seed + Place + Boxed&gt;(grove: &amp;mut Grove, under: Leaf, last
     grove.branch(under, placed)
 }</code></pre>
 <p><code>Seed</code> is what <code>branch</code> takes, <code>Place</code> gives <code>anchored</code>, and <code>Boxed</code> gives <code>at</code>; <code>Line</code> is the one
-seed that is not <code>Boxed</code>, and a helper like this refuses it at compile time. The site’s <code>Stack</code>
-(in <a href="https://github.com/eblack-leaf/foliage/blob/main/application/src/parts.rs"><code>application/src/parts.rs</code></a>)
+seed that is not <code>Boxed</code>, and a helper like this refuses it at compile time. The portfolio’s <code>Stack</code>
+(in <a href="https://github.com/eblack-leaf/foliage/blob/main/arboretum/src/parts.rs"><code>arboretum/src/parts.rs</code></a>)
 is this helper with a memory of what it placed last.</p>
 <h2 id="helpers-generic-over-where-the-writes-go"><a class="header" href="#helpers-generic-over-where-the-writes-go">Helpers generic over where the writes go</a></h2>
 <p>Every write is a method on the <a href="https://eblack-leaf.github.io/foliage/api/foliage/trait.Grow.html"><code>Grow</code></a>
@@ -405,9 +405,8 @@ trait, and both the <code>Grove</code> and a <a href="off-frame.html"><code>Spri
 <p>The same function grows a note from <code>take_root</code> and from a worker thread, and the result is
 identical, because an op is applied the same way whichever side issued it.</p>
 <h2 id="growing-on-demand"><a class="header" href="#growing-on-demand">Growing on demand</a></h2>
-<p>A part that is not showing yet does not have to exist yet. The site’s showcase grows each of its
-five themes the first time it is chosen, keeps it, and after that only toggles which one is
-<code>visible</code>:</p>
+<p>A part that is not showing yet does not have to exist yet. A set of tabs can grow each of its
+pages the first time it is chosen, keep it, and after that only toggle which one is <code>visible</code>:</p>
 <pre><code class="language-rust"><span class="boring">use foliage::{Boxed, Grove, Grow, Leaf, Location, Place, Stem};
 </span><span class="boring">struct Theme;
 </span><span class="boring">impl Theme { fn grow(_grove: &amp;mut Grove, _page: Leaf) -&gt; Self { Theme } }

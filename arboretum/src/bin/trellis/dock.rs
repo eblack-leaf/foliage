@@ -9,9 +9,8 @@ use foliage::{
     Area, Axes, Boxed, Cap, Elevation, Grove, Grow, Layout, Leaf, Location, Motion, Panel, Place, Pollen,
     Point, Polygon, Position, Source, Stem, Timing, center_y, content, left, top,
 };
-use lichen::{Chip, Switch};
+use lichen::{Chip, Dashes, Switch};
 
-use arboretum::sprout::Dashes;
 
 use crate::board::{Board, Id, Kind, Link};
 use crate::drawing::{LAYERS, WIRES};
@@ -119,7 +118,13 @@ impl Dock {
                 .elevate(Elevation::up(1))
                 .at(Location::new().xs(foliage::center_x(50.pct()).width(70.pct()), center_y(50.pct()).height(70.pct()))),
         );
-        let mut dashes = Dashes::grow(grove, legend, Area::new(14.0, 12.0), 5.0, 0.0, 1.0, theme::soft(), Elevation::up(2));
+        let mut dashes = Dashes::new(Area::new(14.0, 12.0))
+            .pitch(5.0)
+            .pad(0.0)
+            .weight(1.0)
+            .color(theme::soft())
+            .elevate(Elevation::up(2));
+        dashes.grow(grove, legend);
         dashes.over(grove, symbols[4]);
         dashes.draw(grove, true);
         kit::rule(

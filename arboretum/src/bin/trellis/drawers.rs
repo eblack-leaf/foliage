@@ -2,9 +2,8 @@
 //! find a card by name or code, with what it finds listed to press.
 
 use foliage::{Elevation, Grove, Grow, Leaf, Location, Pollen, Source, left, top};
-use lichen::{Chip, Field, measure};
+use lichen::{Chip, Drawer, Edge, Field, measure};
 
-use arboretum::sprout::{Drawer, Edge};
 
 use crate::board::{Board, Id, Kind};
 use crate::icons::Icons;

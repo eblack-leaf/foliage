@@ -28,10 +28,13 @@ pub mod sprout;
 
 use foliage::{Area, Foliage, Root};
 
-/// Where the portfolio is published: the GitHub Pages project page, under `portfolio/`.
-pub const PUBLISHED: &str = "https://eblack-leaf.github.io/foliage/portfolio/";
+/// Where the site is published: the GitHub Pages project page. The apps are under `portfolio/`.
+pub const PUBLISHED: &str = "https://eblack-leaf.github.io/foliage/";
 
-/// The path every app is served under on the web, from the site's root.
+/// The site's path on the web, from the host's root: foliage's own page, which links the apps.
+pub const SITE: &str = "/foliage/";
+
+/// The path every app is served under on the web, from the host's root.
 pub const PORTFOLIO: &str = "/foliage/portfolio/";
 
 /// Builds the engine, names the app, and grows `R` in it.

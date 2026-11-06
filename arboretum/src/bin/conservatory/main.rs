@@ -28,7 +28,8 @@ use foliage::{
     Palette, Panel, Place, Pollen, Root, Sap, ScrollTo, Stem, Timing, Vein,
 };
 
-use arboretum::sprout::{Emerge, Hover};
+use lichen::Hover;
+use arboretum::sprout::Emerge;
 
 use crate::colophon::Colophon;
 use crate::foyer::{Asked, Foyer};

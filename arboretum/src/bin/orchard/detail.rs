@@ -8,11 +8,11 @@
 use foliage::{
     Axes, Boxed, Ease, Elevation, Font, FontSize, Grove, Grow, Leaf, Location, Motion, Palette,
     Panel, Place, Pollen, Polygon, Sap, ScrollTo, Section, Source, Stem, Text, TextInput, Timing,
-    Tween, Vein, anchor, aspect, center_x, center_y, content, left, right, top, trunk,
+    Vein, anchor, aspect, center_x, center_y, content, left, right, top, trunk,
 };
-use lichen::{Chip, Origin, Pick, Ping, Press, Say, Switch, Voice, dress, measure};
+use lichen::{Chip, Origin, Overlay, Pick, Ping, Press, Roll, Say, Switch, Voice, dress, measure};
 
-use arboretum::sprout::{Escaped, Print, Printed, Progress, Roll};
+use arboretum::sprout::{Print, Printed, Progress};
 
 use crate::api;
 use crate::art::{Art, Scale};
@@ -63,12 +63,8 @@ struct Related {
 }
 
 pub struct Detail {
-    page: Leaf,
-    backing: Leaf,
+    overlay: Overlay,
     body: Leaf,
-    open: bool,
-    going: Option<Tween>,
-    escape: Escaped,
     good: usize,
     window: Leaf,
     art: Option<Art>,
@@ -107,33 +103,31 @@ pub struct Detail {
 impl Detail {
     pub fn grow(grove: &mut Grove, shop: Leaf, page: Leaf, faces: &Faces, icons: &Icons) -> Self {
         let m = measure();
-        let backing = grove.branch(
+        let mut overlay = Overlay::grow(
+            grove,
             shop,
-            Panel::new()
-                .color(Palette::Surface)
-                .interactive()
-                .focus_scope()
-                .elevate(Elevation::up(30))
-                .visible(false)
-                .opacity(0.0)
-                .at(Location::new()
-                    .xs(
-                        left(0.px()).right(100.pct()),
-                        top(BAR_NARROW.px()).bottom(100.pct()),
-                    )
-                    .lg(
-                        left(0.px()).right(100.pct()),
-                        top(BAR_WIDE.px()).bottom(100.pct()),
-                    )),
+            page,
+            Location::new()
+                .xs(
+                    left(0.px()).right(100.pct()),
+                    top(BAR_NARROW.px()).bottom(100.pct()),
+                )
+                .lg(
+                    left(0.px()).right(100.pct()),
+                    top(BAR_WIDE.px()).bottom(100.pct()),
+                ),
+            Elevation::up(30),
         );
         let body = grove.branch(
-            backing,
+            overlay.sheet(),
             Stem::new()
                 .interactive()
                 .scrolls(Axes::Vertical)
                 .elevate(Elevation::up(1))
                 .at(Location::new()),
         );
+        // The body holds focus while it is up, so the keys that scroll it reach it.
+        overlay.hold(body);
         let col = grove.branch(
             body,
             Stem::new()
@@ -410,12 +404,8 @@ impl Detail {
         rules.extend(rows_printed);
         let fixed = vec![Print::words(grove, heading), Print::words(grove, also)];
         Self {
-            page,
-            backing,
+            overlay,
             body,
-            open: false,
-            going: None,
-            escape: Escaped::new(),
             good: 0,
             window,
             art: None,
@@ -451,26 +441,12 @@ impl Detail {
     }
 
     pub fn is_open(&self) -> bool {
-        self.open
+        self.overlay.is_open()
     }
 
     /// Opens the detail on `good`, or turns it to `good` if it is open.
     pub fn open(&mut self, grove: &mut Grove, good: usize, print: &mut Print) {
-        if !self.open {
-            self.open = true;
-            if let Some(going) = self.going.take() {
-                grove.stop(going);
-            }
-            grove.disable(self.page);
-            grove.visible(self.backing, true);
-            grove.animate(
-                self.backing,
-                Motion::Opacity(1.0),
-                Timing::ms(260).ease(Ease::Decelerate),
-            );
-            grove.focus(self.body);
-            self.escape.forget();
-        }
+        self.overlay.open(grove);
         self.show(grove, good, print);
     }
 
@@ -653,23 +629,11 @@ impl Detail {
         Related { root, good, art }
     }
 
+    /// Takes the detail down, putting its art to sleep. Safe to repeat.
     pub fn close(&mut self, grove: &mut Grove) {
-        if !self.open {
-            return;
-        }
-        self.open = false;
-        grove.enable(self.page);
-        grove.animate(
-            self.backing,
-            Motion::Opacity(0.0),
-            Timing::ms(200).ease(Ease::Accelerate),
-        );
-        self.going = Some(grove.timer(Timing::ms(210)));
+        self.overlay.close(grove);
         if let Some(art) = &mut self.art {
             art.wake(grove, false);
-        }
-        if grove.focused().is_some() {
-            grove.unfocus();
         }
     }
 
@@ -696,20 +660,16 @@ impl Detail {
         print: &mut Print,
         budget: &mut u32,
     ) -> Option<Asked> {
-        if let Some(going) = self.going
-            && pollen.finished(going)
+        let escaped = self.overlay.frame(grove, pollen).is_some();
+        // Gone: the art it was showing is let go of.
+        if !self.overlay.is_shown()
+            && let Some(art) = self.art.take()
         {
-            self.going = None;
-            grove.visible(self.backing, false);
-            if let Some(art) = self.art.take() {
-                grove.prune(art.leaf());
-            }
+            grove.prune(art.leaf());
         }
-        if !self.open {
+        if !escaped && !self.overlay.is_open() {
             return None;
         }
-        // Escape: focus gone from somewhere to nowhere while the detail is up.
-        let escaped = self.escape.frame(grove);
         if escaped || self.close.pressed(pollen) || self.back.pressed(pollen) {
             self.close(grove);
             return Some(Asked::Closed);

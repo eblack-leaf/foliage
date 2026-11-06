@@ -5,18 +5,12 @@
 //! everything here is written against the public surfaces of `foliage` and `lichen` and reaches
 //! nothing else.
 //!
-//! What goes in [`site`] and the sections it opens is written by hand, and what it costs to write
-//! is the reading.
+//! What goes in [`site`] is written by hand, and what it costs to write is the reading.
 
-mod herbarium;
 #[path = "../assets/gen/icons.rs"]
 mod icons;
 mod leaf;
-mod links;
-mod parts;
-mod showcase;
 mod site;
-mod specimen;
 mod theme;
 
 use foliage::{Area, Foliage};
@@ -31,7 +25,7 @@ pub fn run(mut foliage: Foliage) {
     trace();
     foliage.title("foliage");
     foliage.app_id("foliage");
-    foliage.desktop_size(Area::new(390.0, 844.0));
+    foliage.desktop_size(Area::new(1200.0, 760.0));
     foliage.root::<site::Site>();
     foliage.photosynthesize();
 }

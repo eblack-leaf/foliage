@@ -30,7 +30,8 @@ use foliage::{
     Place, Pollen, Root, Sap, ScrollTo, Stem, Timing, Vein,
 };
 
-use arboretum::sprout::{Hover, Print, Shade};
+use lichen::Hover;
+use arboretum::sprout::{Print, Shade};
 
 use crate::api::Receipt;
 use crate::bag::Bag;

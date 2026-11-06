@@ -33,7 +33,7 @@ enum Cli {
     Api,
     /// Build the book and the API reference, leaving the rest of `docs/` alone.
     Docs,
-    /// Build the portfolio's apps into `docs/portfolio/`, with the hub that links them. Needs
+    /// Build the portfolio's apps into `docs/portfolio/`. The site is what links them. Needs
     /// `trunk`.
     ///
     /// Clears `docs/portfolio/` and nothing else, and only once every app has built.
@@ -90,13 +90,6 @@ fn serve(app: Option<&str>) -> Result<(), String> {
 /// `arboretum/web/<app>/`.
 const PORTFOLIO: [&str; 3] = ["conservatory", "orchard", "trellis"];
 
-/// The faces the hub sets each app's name in, copied beside it so its `@font-face` rules resolve.
-const HUB_FACES: [&str; 3] = [
-    "major-mono-display/MajorMonoDisplay-Regular.ttf",
-    "xanh-mono/XanhMono-Italic.ttf",
-    "ibm-plex-mono/IBMPlexMono-SemiBold.ttf",
-];
-
 /// Where one of the portfolio's apps is built from, or why that name is not one.
 fn portfolio_app(app: &str) -> Result<PathBuf, String> {
     match PORTFOLIO.contains(&app) {
@@ -124,16 +117,6 @@ fn portfolio() -> Result<(), String> {
         let dist = web.join(app).join("dist");
         copy_dir(&dist, &out.join(app))?;
         rm_rf(&dist)?;
-    }
-    fs::copy(web.join("index.html"), out.join("index.html"))
-        .map_err(|e| format!("copying the hub: {e}"))?;
-    let faces = out.join("fonts");
-    fs::create_dir_all(&faces).map_err(|e| format!("creating {}: {e}", faces.display()))?;
-    for face in HUB_FACES {
-        let from = root.join("arboretum/assets/fonts").join(face);
-        let name = Path::new(face).file_name().expect("a face has a file name");
-        fs::copy(&from, faces.join(name))
-            .map_err(|e| format!("copying {}: {e}", from.display()))?;
     }
     println!("built portfolio -> {}", out.display());
     Ok(())

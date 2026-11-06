@@ -11,9 +11,9 @@ use foliage::{
     Palette, Place, Pollen, Sap, ScrollTo, Source, Stem, Text, Timing, Vein, anchor, content, left,
     right, top,
 };
-use lichen::{Chip, measure};
+use lichen::{Chip, Dashes, Hover, measure};
 
-use arboretum::sprout::{Arrival, Dashes, Emerge, Hover};
+use arboretum::sprout::{Arrival, Emerge};
 
 use crate::frame::{Frame, PLACARD, SIDE, Spot};
 use crate::icons::Icons;
@@ -212,16 +212,11 @@ impl Hall {
                 frame
             })
             .collect();
-        let dashes = Dashes::grow(
-            grove,
-            corridor,
-            Area::new(SIDE.1, SIDE.1),
-            12.0,
-            4.0,
-            1.25,
-            Palette::Accent,
-            Elevation::up(5),
-        );
+        let mut dashes = Dashes::new(Area::new(SIDE.1, SIDE.1))
+            .pitch(12.0)
+            .color(Palette::Accent)
+            .elevate(Elevation::up(5));
+        dashes.grow(grove, corridor);
         let brought = vec![false; frames.len()];
         Self {
             root,

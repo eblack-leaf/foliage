@@ -11,15 +11,12 @@
 
 use foliage::{
     Axes, Boxed, Ease, Elevation, Field as Mark, FontSize, Grove, Grow, Leaf, Length, Location,
-    Motion, Palette, Panel, Place, Pollen, Position, ScrollTo, Source, Stem, Text, Timing, Tween,
+    Motion, Palette, Panel, Place, Pollen, Position, ScrollTo, Source, Stem, Text, Timing,
     anchor, bottom, center_x, center_y, content, left, right, top,
 };
-use lichen::{
-    Chip, Confirm, Field, Mosaic, Pick, Ping, Press, Say, Scatter, Silhouette, Step, Voice, gate,
-    measure,
-};
+use lichen::{Chip, Confirm, Field, Mosaic, Overlay, Pick, Ping, Press, Say, Scatter, Silhouette, Stamp, Step, Voice, gate, measure};
 
-use arboretum::sprout::{Courier, Escaped, Print, Printed, Progress, Stamp};
+use arboretum::sprout::{Courier, Print, Printed, Progress};
 
 use crate::api::{self, Bought, Declined, Order, Receipt};
 use crate::cart::Cart;
@@ -110,12 +107,8 @@ struct Slip {
 }
 
 pub struct Till {
-    page: Leaf,
-    backing: Leaf,
+    overlay: Overlay,
     body: Leaf,
-    open: bool,
-    going: Option<Tween>,
-    escape: Escaped,
     back: Chip,
     close: Chip,
     title: Leaf,
@@ -154,33 +147,31 @@ pub struct Till {
 impl Till {
     pub fn grow(grove: &mut Grove, shop: Leaf, page: Leaf, faces: &Faces, icons: &Icons) -> Self {
         let m = measure();
-        let backing = grove.branch(
+        let mut overlay = Overlay::grow(
+            grove,
             shop,
-            Panel::new()
-                .color(Palette::Surface)
-                .interactive()
-                .focus_scope()
-                .elevate(Elevation::up(32))
-                .visible(false)
-                .opacity(0.0)
-                .at(Location::new()
-                    .xs(
-                        left(0.px()).right(100.pct()),
-                        top(BAR_NARROW.px()).bottom(100.pct()),
-                    )
-                    .lg(
-                        left(0.px()).right(100.pct()),
-                        top(BAR_WIDE.px()).bottom(100.pct()),
-                    )),
+            page,
+            Location::new()
+                .xs(
+                    left(0.px()).right(100.pct()),
+                    top(BAR_NARROW.px()).bottom(100.pct()),
+                )
+                .lg(
+                    left(0.px()).right(100.pct()),
+                    top(BAR_WIDE.px()).bottom(100.pct()),
+                ),
+            Elevation::up(32),
         );
         let body = grove.branch(
-            backing,
+            overlay.sheet(),
             Stem::new()
                 .interactive()
                 .scrolls(Axes::Vertical)
                 .elevate(Elevation::up(1))
                 .at(Location::new()),
         );
+        // The body holds focus while it is up, so the keys that scroll it reach it.
+        overlay.hold(body);
         let col = grove.branch(
             body,
             Stem::new()
@@ -455,12 +446,8 @@ impl Till {
         let docket = docket(grove, checkout, steps_col, faces);
         let slip = slip(grove, col, rule, faces, icons);
         let mut till = Self {
-            page,
-            backing,
+            overlay,
             body,
-            open: false,
-            going: None,
-            escape: Escaped::new(),
             back,
             close,
             title,
@@ -499,7 +486,7 @@ impl Till {
     }
 
     pub fn is_open(&self) -> bool {
-        self.open
+        self.overlay.is_open()
     }
 
     /// Opens the till on the checkout for `cart`.
@@ -525,7 +512,7 @@ impl Till {
 
     /// Writes the checkout over for `cart`, changed in the bag while the till is up.
     pub fn refresh(&mut self, grove: &mut Grove, cart: &Cart) {
-        if !self.open || self.on_receipt {
+        if !self.overlay.is_open() || self.on_receipt {
             return;
         }
         if cart.is_empty() {
@@ -548,45 +535,19 @@ impl Till {
     }
 
     fn show(&mut self, grove: &mut Grove) {
-        if !self.open {
-            self.open = true;
-            if let Some(going) = self.going.take() {
-                grove.stop(going);
-            }
-            grove.disable(self.page);
-            grove.visible(self.backing, true);
-            grove.animate(
-                self.backing,
-                Motion::Opacity(1.0),
-                Timing::ms(260).ease(Ease::Decelerate),
-            );
-            grove.focus(self.body);
-            self.escape.forget();
-        }
+        self.overlay.open(grove);
         grove.scroll(self.body, ScrollTo::start());
     }
 
+    /// Takes the till down. Safe to repeat.
     pub fn close(&mut self, grove: &mut Grove) {
-        if !self.open {
-            return;
-        }
-        self.open = false;
-        grove.enable(self.page);
-        grove.animate(
-            self.backing,
-            Motion::Opacity(0.0),
-            Timing::ms(200).ease(Ease::Accelerate),
-        );
-        self.going = Some(grove.timer(Timing::ms(210)));
+        self.overlay.close(grove);
         // An order half placed is not placed: the till lets it go.
         if self.placing {
             self.courier.cancel_all(grove);
             self.placing = false;
         }
         self.confirm.disarm(grove);
-        if grove.focused().is_some() {
-            grove.unfocus();
-        }
     }
 
     /// Carries the till for a frame.
@@ -597,19 +558,13 @@ impl Till {
         cart: &Cart,
         print: &mut Print,
     ) -> Option<Asked> {
-        if let Some(going) = self.going
-            && pollen.finished(going)
-        {
-            self.going = None;
-            grove.visible(self.backing, false);
-        }
+        let escaped = self.overlay.frame(grove, pollen).is_some();
         if let Some((seal, _)) = &mut self.slip.seal {
             seal.frame(grove, pollen);
         }
-        if !self.open {
+        if !escaped && !self.overlay.is_open() {
             return None;
         }
-        let escaped = self.escape.frame(grove);
         if escaped || self.close.pressed(pollen) || self.slip.shop.pressed(pollen) {
             self.close(grove);
             return None;
@@ -776,7 +731,7 @@ impl Till {
         if !reachable {
             return;
         }
-        let moved = self.at != n || !self.open;
+        let moved = self.at != n || !self.overlay.is_open();
         self.at = n;
         for (k, &panel) in self.panels.iter().enumerate() {
             grove.visible(panel, k == n);

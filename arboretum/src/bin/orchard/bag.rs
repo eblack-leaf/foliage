@@ -9,9 +9,9 @@ use foliage::{
     Place, Pollen, Position, ScrollTo, Source, Stem, Text, Timing, Tween, anchor, center_x,
     center_y, content, left, right, top,
 };
-use lichen::{Chip, Field, Press, Say, Voice, measure};
+use lichen::{Chip, Closed, Drawer, Edge, Field, Press, Roll, Say, Voice, measure};
 
-use arboretum::sprout::{Closed, Courier, Drawer, Edge, Roll};
+use arboretum::sprout::Courier;
 
 use crate::api::{self, Refused};
 use crate::art::{Art, Scale};

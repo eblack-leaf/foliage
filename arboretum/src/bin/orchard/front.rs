@@ -5,9 +5,9 @@ use foliage::{
     Boxed, Elevation, Grove, Grow, Leaf, Location, Palette, Panel, Place, Plate, Pollen, Source,
     Stem, Text, Vertical, anchor, aspect, bottom, content, left, right, top,
 };
-use lichen::{Chip, Field, Press, measure};
+use lichen::{Badge, Chip, Field, Press, Tone, measure};
 
-use arboretum::sprout::{Marquee, Print, Printed, Tally};
+use arboretum::sprout::{Marquee, Print, Printed};
 
 use crate::card::{Card, Size};
 use crate::catalog::{Aisle, FEATURED, GOODS, weight};
@@ -31,7 +31,7 @@ pub enum Asked {
 pub struct Bar {
     search: Field,
     bag: Chip,
-    tally: Tally,
+    tally: Badge,
     library: Chip,
     has_library: bool,
     printed: Vec<Printed>,
@@ -101,7 +101,14 @@ impl Bar {
             "bag",
         );
         bag.arm(grove, Press::Rest);
-        let tally = Tally::grow(grove, bag.leaf(), Palette::Accent, Palette::Contrast);
+        let tally = Badge::counting(
+            grove,
+            bag.leaf(),
+            Tone {
+                fill: Palette::Accent.into(),
+                ink: Palette::Contrast.into(),
+            },
+        );
         let library = Chip::grow(
             grove,
             col,

@@ -10,8 +10,8 @@
 
 use foliage::{Color, Elevation, Fill, Grove, Grow, Leaf, Line, Motion, Place, Point, Pollen, Source, Timing, Tween};
 
-use arboretum::sprout::wire::{Spot, dashes, length};
-use arboretum::sprout::{Look, Route, Stroke, Wire};
+use lichen::wire::{Spot, dashes, length};
+use lichen::{Look, Route, Stroke, Wire};
 
 use crate::board::{Board, Edge, Id, Link};
 use crate::theme;

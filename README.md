@@ -10,12 +10,13 @@ and read-only taps taken at the app's own callsite. An app declares what an elem
 it sits, what fills it, whether it takes a gesture — and then only writes verbs against the name
 it got back. There is no render call to make; the next frame is already different.
 
-[![The foliage site: a leaf of scattered polygons in a gradient, inside a dashed outline, with chips
-linking to each section](site.png)](https://eblack-leaf.github.io/foliage/)
+[![The foliage site: a leaf of scattered polygons in a gold-to-red gradient, inside a dashed
+outline, beside a label linking to three apps grown on foliage and to its source](site.png)](https://eblack-leaf.github.io/foliage/)
 
 The [site](https://eblack-leaf.github.io/foliage/) is itself a foliage app, built from
 [`application/`](application) against nothing but the public surfaces of foliage and
-[`lichen`](lichen).
+[`lichen`](lichen). It leads to three apps grown on both -- an exhibition, a store and a planning
+sheet, from [`arboretum/`](arboretum) -- and back here.
 
 ## Getting started
 
@@ -219,7 +220,7 @@ bundles its assets or reads them from an `Origin::path` compiles neither depende
 |---|---|---|
 | `site` | Builds the site into `docs/`. | [`trunk`](https://trunkrs.dev) |
 | `serve` | Serves the site locally with auto-reload, or one portfolio app when named: `cargo xtask serve conservatory`. | `trunk` |
-| `portfolio` | Builds the three [`arboretum`](arboretum) apps and their hub into `docs/portfolio/`. | `trunk` |
+| `portfolio` | Builds the three [`arboretum`](arboretum) apps into `docs/portfolio/`. | `trunk` |
 | `book` | Builds the book into `docs/book`. | [`mdbook`](https://crates.io/crates/mdbook) |
 | `api` | Builds the API reference for `foliage`, `foliage-icons` and `foliage-android` into `docs/api`. | — |
 | `docs` | The book and the API reference. | `mdbook` |

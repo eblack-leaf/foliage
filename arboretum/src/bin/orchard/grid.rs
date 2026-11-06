@@ -10,9 +10,9 @@ use foliage::{
     Plate, Pollen, Position, Sap, Source, Stem, Text, Timing, Tween, Vein, anchor, aspect,
     center_y, content, left, right, top, trunk,
 };
-use lichen::{Chip, Pick, Say, Voice, measure};
+use lichen::{Chip, Hover, Pick, Say, Voice, measure};
 
-use arboretum::sprout::{Hover, Print, Printed};
+use arboretum::sprout::{Print, Printed};
 
 use crate::card::{Card, Size};
 use crate::catalog::{Aisle, GOODS, Sort, shelf};

@@ -7,9 +7,8 @@
 //! pixels, and is narrower than the narrowest window it is used at.
 
 use foliage::{Elevation, Grove, Grow, Layout, Leaf, Location, Pollen, Source, center_y, content, left, top};
-use lichen::{Chip, Field, Holds, Press};
+use lichen::{Badge, Chip, Field, Holds, Press, Tone};
 
-use arboretum::sprout::Tally;
 
 use crate::board::Kind;
 use crate::drawing::Tool;
@@ -119,7 +118,7 @@ fn width(item: Item, layout: Layout) -> f32 {
 pub struct Rail {
     plate: Leaf,
     chips: Vec<(Item, Chip)>,
-    tallies: Vec<Tally>,
+    tallies: Vec<Badge>,
     scale: Leaf,
     field: Field,
     breaks: Vec<Leaf>,
@@ -158,7 +157,14 @@ impl Rail {
         let mut tallies = Vec::new();
         for (item, chip) in &chips {
             if matches!(item, Item::Clashes | Item::ClashesNamed) {
-                tallies.push(Tally::grow(grove, chip.leaf(), theme::pencil(), theme::plate()));
+                tallies.push(Badge::counting(
+                    grove,
+                    chip.leaf(),
+                    Tone {
+                        fill: theme::pencil().into(),
+                        ink: theme::plate().into(),
+                    },
+                ));
             }
         }
         let scale = kit::letter(

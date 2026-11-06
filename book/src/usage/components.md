@@ -232,8 +232,8 @@ fn below<S: Seed + Place + Boxed>(grove: &mut Grove, under: Leaf, last: Option<L
 ```
 
 `Seed` is what `branch` takes, `Place` gives `anchored`, and `Boxed` gives `at`; `Line` is the one
-seed that is not `Boxed`, and a helper like this refuses it at compile time. The site's `Stack`
-(in [`application/src/parts.rs`](https://github.com/eblack-leaf/foliage/blob/main/application/src/parts.rs))
+seed that is not `Boxed`, and a helper like this refuses it at compile time. The portfolio's `Stack`
+(in [`arboretum/src/parts.rs`](https://github.com/eblack-leaf/foliage/blob/main/arboretum/src/parts.rs))
 is this helper with a memory of what it placed last.
 
 ## Helpers generic over where the writes go
@@ -260,9 +260,8 @@ identical, because an op is applied the same way whichever side issued it.
 
 ## Growing on demand
 
-A part that is not showing yet does not have to exist yet. The site's showcase grows each of its
-five themes the first time it is chosen, keeps it, and after that only toggles which one is
-`visible`:
+A part that is not showing yet does not have to exist yet. A set of tabs can grow each of its
+pages the first time it is chosen, keep it, and after that only toggle which one is `visible`:
 
 ```rust
 # use foliage::{Boxed, Grove, Grow, Leaf, Location, Place, Stem};

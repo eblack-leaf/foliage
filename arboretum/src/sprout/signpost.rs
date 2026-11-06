@@ -6,21 +6,21 @@ use lichen::{Chip, measure};
 /// One of the portfolio's pages.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum App {
-    /// The hub, which links the three.
-    Hub,
+    /// foliage's own page, which links the three.
+    Home,
     Conservatory,
     Orchard,
     Trellis,
 }
 
 impl App {
-    /// The three pieces, in the order the hub shows them.
+    /// The three pieces, in the order the site lists them.
     pub const PIECES: [App; 3] = [App::Conservatory, App::Orchard, App::Trellis];
 
     /// What it is called in a URL, and on a signpost.
     pub fn name(self) -> &'static str {
         match self {
-            App::Hub => "portfolio",
+            App::Home => "foliage",
             App::Conservatory => "conservatory",
             App::Orchard => "orchard",
             App::Trellis => "trellis",
@@ -30,25 +30,24 @@ impl App {
     /// Where it is. On the web, the absolute path on the site, which holds whether or not the
     /// address it is read from ends in a slash; natively, the published page.
     pub fn href(self) -> String {
-        let base = match cfg!(target_arch = "wasm32") {
-            true => crate::PORTFOLIO,
-            false => crate::PUBLISHED,
-        };
+        let web = cfg!(target_arch = "wasm32");
         match self {
-            App::Hub => base.to_string(),
-            app => format!("{base}{}/", app.name()),
+            App::Home if web => crate::SITE.to_string(),
+            App::Home => crate::PUBLISHED.to_string(),
+            app if web => format!("{}{}/", crate::PORTFOLIO, app.name()),
+            app => format!("{}portfolio/{}/", crate::PUBLISHED, app.name()),
         }
     }
 }
 
-/// A row of presses leading to the other pieces and back to the hub.
+/// A row of presses leading to the other pieces and back to foliage's page.
 pub struct Signpost {
     ways: Vec<(App, Chip)>,
 }
 
 impl Signpost {
     /// A row under `under`, its left edge at `left_px` and its top `top_px` down, leading from
-    /// `here` to the hub (marked `home`) and to each other piece (marked `away`).
+    /// `here` to foliage's page (marked `home`) and to each other piece (marked `away`).
     pub fn grow(
         grove: &mut Grove,
         under: Leaf,
@@ -61,9 +60,9 @@ impl Signpost {
         let m = measure();
         let mut from: Length = left_px.px();
         let mut ways = Vec::new();
-        let destinations = std::iter::once(App::Hub).chain(App::PIECES.into_iter().filter(|app| *app != here));
+        let destinations = std::iter::once(App::Home).chain(App::PIECES.into_iter().filter(|app| *app != here));
         for (n, app) in destinations.enumerate() {
-            let mark = if app == App::Hub { home } else { away };
+            let mark = if app == App::Home { home } else { away };
             let width = Chip::width(app.name());
             // One above another on a narrow window, where three side by side would not fit.
             let below = top_px + n as f32 * (m.height + m.gap);
@@ -101,7 +100,7 @@ impl Signpost {
         let m = measure();
         let mut total: Length = 0.px();
         let mut first = true;
-        for app in std::iter::once(App::Hub).chain(App::PIECES.into_iter().filter(|app| *app != here)) {
+        for app in std::iter::once(App::Home).chain(App::PIECES.into_iter().filter(|app| *app != here)) {
             if !first {
                 total = total + m.gap.px();
             }

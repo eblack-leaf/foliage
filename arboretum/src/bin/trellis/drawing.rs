@@ -9,8 +9,7 @@ use foliage::{
     Rounding, Source, Stem, Timing, Tween, anchor, left, top,
 };
 
-use arboretum::sprout::{Hover, topmost};
-use lichen::drawn;
+use lichen::{Hover, drawn, topmost};
 
 use crate::arrange::{self, Body, Bounds};
 use crate::board::{Board, Id, Kind, Link};

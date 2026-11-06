@@ -589,9 +589,9 @@ fn title_block(grove: &mut Grove, paper: Leaf, faces: &Faces, icons: &Icons) -> 
     let m = measure();
     let mut x = 40.0;
     let mut ways = Vec::new();
-    for app in [App::Hub, App::Conservatory, App::Orchard] {
+    for app in [App::Home, App::Conservatory, App::Orchard] {
         let name = app.name();
-        let mark = if app == App::Hub { icons.home } else { icons.arrow_right };
+        let mark = if app == App::Home { icons.home } else { icons.arrow_right };
         let chip = Chip::grow(
             grove,
             block,

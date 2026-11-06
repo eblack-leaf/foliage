@@ -12,7 +12,7 @@ use foliage::{
     Polygon, Position, Source, Timing, center_x, center_y, content, left, right, top,
 };
 
-use arboretum::sprout::{Dashes, Stamp};
+use lichen::{Dashes, Stamp};
 
 use crate::board::{Kind, Node, Status};
 use crate::kit::{self, letter};
@@ -42,7 +42,8 @@ pub struct NodeView {
     initials: Option<Leaf>,
     strip: Option<(Leaf, Leaf)>,
     stamp: Option<Stamp>,
-    dashes: Option<Dashes>,
+    /// A note's dashed outline, and its box, hidden with the card.
+    dashes: Option<(Dashes, Leaf)>,
     /// Where the card stands now, on the sheet at full scale -- the board's word for it, or where
     /// a drag or an arrangement has it on the way.
     pub at: (f32, f32),
@@ -265,9 +266,13 @@ impl NodeView {
                 );
                 title = letter(grove, root, title_words(node), faces.regular, theme::SUB, ink, across(8.0, 20.0));
                 part(title, Some(across(8.0, 20.0)), None);
-                let mut d = Dashes::grow(grove, paper, Area::new(w, h), 11.5, 4.0, 1.25, theme::faint(), Elevation::up(8));
+                let mut d = Dashes::new(Area::new(w, h))
+                    .pitch(11.5)
+                    .color(theme::faint())
+                    .elevate(Elevation::up(8));
+                let outline = d.grow(grove, paper);
                 d.over(grove, root);
-                dashes = Some(d);
+                dashes = Some((d, outline));
             }
         }
         Self {
@@ -366,8 +371,8 @@ impl NodeView {
         if shown {
             grove.opacity(self.root, if self.dim { 0.28 } else { 1.0 });
         }
-        if let Some(dashes) = &mut self.dashes {
-            grove.visible(dashes.leaf(), shown);
+        if let Some((_, outline)) = self.dashes {
+            grove.visible(outline, shown);
         }
     }
 
@@ -381,8 +386,8 @@ impl NodeView {
         let timing = Timing::ms(320).after(after).ease(foliage::Ease::Decelerate);
         grove.animate(self.root, Motion::Opacity(1.0), timing);
         grove.animate(self.root, Motion::Shift(Position::default()), timing);
-        if let Some(dashes) = &mut self.dashes {
-            grove.visible(dashes.leaf(), true);
+        if let Some((dashes, outline)) = &mut self.dashes {
+            grove.visible(*outline, true);
             dashes.draw(grove, true);
         }
     }

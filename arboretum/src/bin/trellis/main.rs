@@ -31,9 +31,9 @@ use foliage::{
     Area, Boxed, Cap, Claim, Elevation, Grove, Grow, Key, Keystroke, Layout, Leaf, Line, Location, Panel, Place,
     Point, Pollen, Position, Root, Source, Stem, Timing, Tween, left, top,
 };
-use lichen::{Voice, drawn};
+use lichen::{Escaped, Hover, Voice, drawn};
 
-use arboretum::sprout::{Courier, Escaped, Hover};
+use arboretum::sprout::Courier;
 
 use crate::api::{Busy, Rejected, Saved};
 use crate::board::{Board, Id, Kind, Slot};

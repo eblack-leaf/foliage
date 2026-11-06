@@ -10,10 +10,10 @@ use foliage::{
     Palette, Panel, Place, Plate, Pollen, Source, Stem, Text, Timing, Tween, anchor, aspect,
     content, left, right, top, trunk,
 };
-use lichen::{Chip, Press, measure};
+use lichen::{Chip, Dashes, Hover, Press, measure};
 
 use arboretum::genart::{Denoise, Painter, Params};
-use arboretum::sprout::{Arrival, Dashes, Emerge, Hover, Typewriter};
+use arboretum::sprout::{Arrival, Emerge, Typewriter};
 
 use crate::develop::{PATCHES, area, blank};
 use crate::icons::Icons;
@@ -217,16 +217,10 @@ impl Foyer {
                 Step { root, plate, tag }
             })
             .collect();
-        let dashes = Dashes::grow(
-            grove,
-            strip,
-            foliage::Area::new(190.0, 190.0),
-            11.0,
-            4.0,
-            1.25,
-            Palette::Accent,
-            Elevation::up(3),
-        );
+        let mut dashes = Dashes::new(foliage::Area::new(190.0, 190.0))
+            .color(Palette::Accent)
+            .elevate(Elevation::up(3));
+        dashes.grow(grove, strip);
         // The work the strip is showing: its number and title, and its prompt being typed.
         let caption = grove.branch(
             col,

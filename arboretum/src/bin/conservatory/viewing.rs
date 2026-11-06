@@ -6,15 +6,14 @@
 //! turned to is sampled anew -- the picture out of the dark, the sheet into focus.
 
 use foliage::{
-    Axes, Boxed, Corners, Ease, Elevation, Fit, Font, FontSize, Grove, Grow, HAIRLINE, Image, Key,
-    Leaf, Location, Motion, Palette, Panel, Place, Plate, Pollen, Polygon, Rounding, Sap, Source,
-    Stem, Text, Timing, Tween, Vein, anchor, aspect, center_x, center_y, content, left, right,
-    top,
+    Axes, Boxed, Corners, Elevation, Fit, Font, FontSize, Grove, Grow, HAIRLINE, Image, Key, Leaf,
+    Location, Palette, Panel, Place, Plate, Pollen, Polygon, Rounding, Sap, Source, Stem, Text,
+    Vein, anchor, aspect, center_x, center_y, content, left, right, top,
 };
-use lichen::{Chip, Press, measure};
+use lichen::{Chip, Overlay, Press, Stamp, measure};
 
 use arboretum::genart::{Painter, Params, paint};
-use arboretum::sprout::{Arrival, Courier, Emerge, Escaped, Stamp};
+use arboretum::sprout::{Arrival, Courier, Emerge};
 
 use crate::api::{self, Certificate};
 use crate::develop::{Develop, area};
@@ -52,12 +51,8 @@ struct Variation {
 }
 
 pub struct Viewing {
-    page: Leaf,
-    backing: Leaf,
+    room: Overlay,
     body: Leaf,
-    open: bool,
-    going: Option<Tween>,
-    escape: Escaped,
     work: usize,
     image: Leaf,
     plate: Plate,
@@ -94,17 +89,8 @@ pub struct Viewing {
 impl Viewing {
     pub fn grow(grove: &mut Grove, window: Leaf, page: Leaf, light: Plate, face: Font, icons: &Icons) -> Self {
         let m = measure();
-        let backing = grove.branch(
-            window,
-            Panel::new()
-                .color(Palette::Surface)
-                .interactive()
-                .focus_scope()
-                .elevate(Elevation::up(30))
-                .visible(false)
-                .opacity(0.0)
-                .at(Location::new()),
-        );
+        let mut room = Overlay::grow(grove, window, page, Location::new(), Elevation::up(30));
+        let backing = room.sheet();
         // The same light on the room's wall as on the page's.
         grove.branch(
             backing,
@@ -145,6 +131,8 @@ impl Viewing {
             Elevation::up(1),
             icons.x,
         );
+        // The close chip holds focus while the room is up, so the keys that turn the works reach it.
+        room.hold(close.leaf());
         // The picture, hung bare, its reading on its corner.
         let plate = grove.plate();
         let preview = grove.plate();
@@ -425,12 +413,8 @@ impl Viewing {
         );
         let keys = vec![backing, close.leaf(), prev.leaf(), next.leaf(), replay.leaf(), reserve.leaf(), knob];
         Self {
-            page,
-            backing,
+            room,
             body,
-            open: false,
-            going: None,
-            escape: Escaped::new(),
             work: 0,
             image,
             plate,
@@ -470,22 +454,14 @@ impl Viewing {
     }
 
     pub fn is_open(&self) -> bool {
-        self.open
+        self.room.is_open()
     }
 
     /// Opens the room on `work`, starting from `picture` where the hall already developed it.
     pub fn open(&mut self, grove: &mut Grove, work: usize, picture: Option<&[u8]>, emerge: &mut Emerge) {
-        if !self.open {
-            self.open = true;
-            if let Some(going) = self.going.take() {
-                grove.stop(going);
-            }
-            grove.disable(self.page);
-            grove.visible(self.backing, true);
-            grove.animate(self.backing, Motion::Opacity(1.0), Timing::ms(320).ease(Ease::Decelerate));
+        if !self.room.is_open() {
+            self.room.open(grove);
             grove.scroll(self.body, foliage::ScrollTo::start());
-            grove.focus(self.close.leaf());
-            self.escape.forget();
             emerge.hide(grove, &self.controls);
             let controls: Vec<Arrival> = self.controls.iter().map(|&leaf| Arrival::from(leaf)).collect();
             emerge.bring(grove, &controls, 380, 90);
@@ -561,33 +537,18 @@ impl Viewing {
         self.readout(grove);
     }
 
+    /// Takes the room down, letting go of any print it was asking for. Safe to repeat.
     pub fn close(&mut self, grove: &mut Grove) {
-        if !self.open {
-            return;
-        }
-        self.open = false;
-        grove.enable(self.page);
-        grove.animate(self.backing, Motion::Opacity(0.0), Timing::ms(240).ease(Ease::Accelerate));
-        self.going = Some(grove.timer(Timing::ms(240)));
+        self.room.close(grove);
         self.courier.cancel_all(grove);
-        if grove.focused().is_some() {
-            grove.unfocus();
-        }
     }
 
     /// Carries the room. Hands back the work it was showing, the frame it closes.
     pub fn frame(&mut self, grove: &mut Grove, pollen: &Pollen, emerge: &mut Emerge) -> Option<Left> {
-        if let Some(going) = self.going
-            && pollen.finished(going)
-        {
-            self.going = None;
-            grove.visible(self.backing, false);
-        }
-        if !self.open {
+        let escaped = self.room.frame(grove, pollen).is_some();
+        if !escaped && !self.room.is_open() {
             return None;
         }
-        // Escape: focus gone from somewhere to nowhere while the room is up.
-        let escaped = self.escape.frame(grove);
         if escaped || self.close.pressed(pollen) {
             self.close(grove);
             return Some(Left(self.work));

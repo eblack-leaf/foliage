@@ -20,7 +20,7 @@ All three set their UI in the bundled JetBrains Mono. Each face is OFL, kept wit
 ```sh
 cargo run -p arboretum --bin conservatory      # or orchard, trellis
 cargo xtask serve conservatory                 # on the web, with reload: :8081, :8082, :8083
-cargo xtask portfolio                          # all three, release, into docs/portfolio/ with the hub
+cargo xtask portfolio                          # all three, release, into docs/portfolio/
 ```
 
 `cargo xtask portfolio` builds every app before touching `docs/portfolio/`, so a failed build leaves
@@ -30,10 +30,10 @@ book and the API docs.
 ## Layout
 
 - `src/lib.rs`: boot (title, app id, window size, tracing). Shared by the three apps.
-- `src/sprout/`: parts grown beside the apps as candidates for lichen. Among them are `Hover`, `Dashes`, `Wire`, `Drawer`, `Roll`, `Stamp`, `Courier`, `Emerge`, `Print` and `Signpost`. Each follows lichen's rules: the caller places it, it takes input in one element only, and it reports what happened.
+- `src/sprout/`: parts grown beside the apps as candidates for lichen. Among them are `Courier`, `Emerge`, `Print`, `Glow`, `Lean`, `Marquee` and `Signpost`. Each follows lichen's rules: the caller places it, it takes input in one element only, and it reports what happened. The parts that proved themselves here have moved into lichen: `Escaped`, `Overlay` and `Drawer`, `Hover`, `Dashes`, `Stamp`, the counting `Badge` (once `Tally`), `Roll` and `Wire`.
 - `src/genart/`: procedural pictures and the soft-focus develop. These are pure functions with unit tests.
 - `src/bin/<app>/`: each app's own module tree, so each wasm build compiles only its own code and fonts.
-- `web/<app>/`: each app's trunk project. `web/index.html` is the hub that links them.
+- `web/<app>/`: each app's trunk project. The site (`application/`) is what links them, and each app's signpost leads back to it.
 - `assets/works/`: real pictures for the conservatory. See [its README](assets/works/README.md).
 
 ## Checks
