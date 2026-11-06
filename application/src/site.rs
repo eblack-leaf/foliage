@@ -144,7 +144,9 @@ pub(crate) struct Site {
 
 /// One way, grown.
 struct Grown {
-    /// The one element of it that takes a press: the ground under its words.
+    /// The one element of it that takes a press, over the whole of it.
+    press: Leaf,
+    /// What comes up under its words while it is lit.
     ground: Leaf,
     tile: Leaf,
     arrow: Leaf,
@@ -215,7 +217,7 @@ impl Root for Site {
         let mut ways = Vec::new();
         for (n, (way, hue)) in WAYS.iter().zip(theme::HUES).enumerate() {
             let (grown, parts) = grow_way(grove, label, above, n, way, hue, icons.arrow_right);
-            above = grown.ground;
+            above = grown.press;
             ways.push(grown);
             arrivals.push(parts);
         }
@@ -242,7 +244,7 @@ impl Root for Site {
         }
         let mut hover = Hover::new(grove);
         for way in &ways {
-            hover.watch(way.ground);
+            hover.watch(way.press);
         }
         info!("leaf planted");
         Site {
@@ -266,7 +268,7 @@ impl Root for Site {
         self.hover.frame(grove, true);
         let focused = grove.focused();
         for (n, way) in self.ways.iter_mut().enumerate() {
-            let lit = self.hover.is_over(way.ground) || focused == Some(way.ground);
+            let lit = self.hover.is_over(way.press) || focused == Some(way.press);
             if lit != way.lit {
                 way.lit = lit;
                 way.light(grove, lit);
@@ -275,7 +277,7 @@ impl Root for Site {
                     false => self.mosaic.unemphasize(grove, n),
                 }
             }
-            if pollen.activated(way.ground) {
+            if pollen.activated(way.press) {
                 grove.navigate(WAYS[n].href());
             }
         }
@@ -340,14 +342,13 @@ fn grow_way(
                 top(anchor().bottom() + 2.px()).height(content()),
             )),
     );
-    // Set at the name's size, so a letter of its own is a line of the name.
-    let ground = grove.branch(
+    // The press is a stem over the whole way rather than the ground it shows: foliage leaves a
+    // fully transparent element out of the box stack, so a ground at rest is not there to press,
+    // or to be pointed at. Set at the name's size, so a letter of its own is a line of the name.
+    let press = grove.branch(
         label,
-        Panel::new()
-            .color(Palette::Raised)
-            .rounding(Corners::all(Rounding::Sm))
+        Stem::new()
             .interactive()
-            .opacity(0.0)
             .elevate(Elevation::up(1))
             .font_size(size)
             .anchored(says)
@@ -356,6 +357,15 @@ fn grow_way(
                 top(anchor().top() - 1.letters() - (2.0 + PAD).px())
                     .bottom(anchor().bottom() + PAD.px()),
             )),
+    );
+    let ground = grove.branch(
+        press,
+        Panel::new()
+            .color(Palette::Raised)
+            .rounding(Corners::all(Rounding::Sm))
+            .intangible()
+            .opacity(0.0)
+            .at(Location::new()),
     );
     let tile = grove.branch(
         label,
@@ -377,7 +387,7 @@ fn grow_way(
             .color(QUIET)
             .intangible()
             .elevate(Elevation::up(2))
-            .anchored(ground)
+            .anchored(press)
             .at(Location::new().xs(
                 right(100.pct()).width(ARROW.px()),
                 center_y(anchor().top() + anchor().height() * 0.5).height(ARROW.px()),
@@ -392,7 +402,7 @@ fn grow_way(
                 .color(Palette::Raised)
                 .intangible()
                 .elevate(Elevation::up(1))
-                .anchored(ground)
+                .anchored(press)
                 .at(Location::new().xs(
                     left(INDENT.px()).right(100.pct()),
                     top(anchor().bottom() + (SPACE / 2.0).px()).height(HAIRLINE.px()),
@@ -400,6 +410,7 @@ fn grow_way(
         ));
     }
     let grown = Grown {
+        press,
         ground,
         tile,
         arrow,
