@@ -119,7 +119,7 @@ impl Root for Site {
         if let Some(tip) = self.leaf.pressed(&pollen) {
             chose = Some((self.leaf.chosen() != Some(tip)).then_some(tip));
         }
-        if self.leaf.dismissed(&pollen) {
+        if self.leaf.dismissed(grove, &pollen) {
             chose = Some(None);
         }
         if let Some(chosen) = chose {

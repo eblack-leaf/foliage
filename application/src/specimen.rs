@@ -257,10 +257,10 @@ impl Specimen {
         self.shape.pressed(pollen)
     }
 
-    /// Whether the frame asks for whatever is chosen to be let go: `Escape`, with nothing holding
-    /// focus that would have taken it.
-    pub(crate) fn dismissed(&self, pollen: &Pollen) -> bool {
-        self.shape.dismissed(pollen)
+    /// Whether the frame asks for whatever is chosen to be let go: `Escape`, while the chosen tip's
+    /// chip holds focus. A field or a control the tip opened that holds it takes the key instead.
+    pub(crate) fn dismissed(&self, grove: &Grove, pollen: &Pollen) -> bool {
+        self.shape.dismissed(grove, pollen)
     }
 
     /// Scrolls the page to bring `to` into view, where what a tip opens stands beside the leaf --

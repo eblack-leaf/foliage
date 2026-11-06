@@ -21,30 +21,42 @@ enum Cli {
     /// would otherwise pile up forever. That takes `docs/book` and `docs/api` with it, so use
     /// `web` to rebuild all three.
     Site,
-    /// Serve the site locally with auto-reload. Needs `trunk`.
-    Serve,
+    /// Serve the site locally with auto-reload, or one of the portfolio's apps when one is named
+    /// (`cargo xtask serve trellis`). Needs `trunk`.
+    Serve {
+        /// A portfolio app to serve instead of the site: `conservatory`, `orchard` or `trellis`.
+        app: Option<String>,
+    },
     /// Build the book into `docs/book`. Needs `mdbook`.
     Book,
     /// Build the API reference into `docs/api`.
     Api,
     /// Build the book and the API reference, leaving the rest of `docs/` alone.
     Docs,
-    /// Build everything `docs/` holds: the site, then the book, then the API reference.
+    /// Build the portfolio's apps into `docs/portfolio/`, with the hub that links them. Needs
+    /// `trunk`.
     ///
-    /// The order is not a preference. `site` clears `docs/`, so the other two have to repopulate
-    /// it afterwards.
+    /// Clears `docs/portfolio/` and nothing else, and only once every app has built.
+    Portfolio,
+    /// Build everything `docs/` holds: the site, then the portfolio, then the book, then the API
+    /// reference.
+    ///
+    /// The order is not a preference. `site` clears `docs/`, so the rest have to repopulate it
+    /// afterwards.
     Web,
 }
 
 fn main() -> Result<(), String> {
     match Cli::parse() {
         Cli::Site => site(),
-        Cli::Serve => serve(),
+        Cli::Serve { app } => serve(app.as_deref()),
         Cli::Book => book(),
         Cli::Api => api(),
         Cli::Docs => docs(),
+        Cli::Portfolio => portfolio(),
         Cli::Web => {
             site()?;
+            portfolio()?;
             docs()
         }
     }
@@ -67,8 +79,64 @@ fn site() -> Result<(), String> {
     Ok(())
 }
 
-fn serve() -> Result<(), String> {
-    run("trunk", &["serve"], &root().join("application"))
+fn serve(app: Option<&str>) -> Result<(), String> {
+    match app {
+        None => run("trunk", &["serve"], &root().join("application")),
+        Some(app) => run("trunk", &["serve"], &portfolio_app(app)?),
+    }
+}
+
+/// The portfolio's apps, each a binary of `arboretum` with a trunk project of its own under
+/// `arboretum/web/<app>/`.
+const PORTFOLIO: [&str; 3] = ["conservatory", "orchard", "trellis"];
+
+/// The faces the hub sets each app's name in, copied beside it so its `@font-face` rules resolve.
+const HUB_FACES: [&str; 3] = [
+    "major-mono-display/MajorMonoDisplay-Regular.ttf",
+    "xanh-mono/XanhMono-Italic.ttf",
+    "ibm-plex-mono/IBMPlexMono-SemiBold.ttf",
+];
+
+/// Where one of the portfolio's apps is built from, or why that name is not one.
+fn portfolio_app(app: &str) -> Result<PathBuf, String> {
+    match PORTFOLIO.contains(&app) {
+        true => Ok(root().join("arboretum/web").join(app)),
+        false => Err(format!(
+            "no portfolio app named `{app}` -- one of {}",
+            PORTFOLIO.join(", ")
+        )),
+    }
+}
+
+fn portfolio() -> Result<(), String> {
+    let root = root();
+    let web = root.join("arboretum/web");
+    let out = root.join("docs/portfolio");
+
+    // Every app builds before anything is cleared, so a failed build leaves the last good
+    // portfolio where it was.
+    for app in PORTFOLIO {
+        run("trunk", &["build", "--release"], &web.join(app))?;
+    }
+
+    clear_dir(&out)?;
+    for app in PORTFOLIO {
+        let dist = web.join(app).join("dist");
+        copy_dir(&dist, &out.join(app))?;
+        rm_rf(&dist)?;
+    }
+    fs::copy(web.join("index.html"), out.join("index.html"))
+        .map_err(|e| format!("copying the hub: {e}"))?;
+    let faces = out.join("fonts");
+    fs::create_dir_all(&faces).map_err(|e| format!("creating {}: {e}", faces.display()))?;
+    for face in HUB_FACES {
+        let from = root.join("arboretum/assets/fonts").join(face);
+        let name = Path::new(face).file_name().expect("a face has a file name");
+        fs::copy(&from, faces.join(name))
+            .map_err(|e| format!("copying {}: {e}", from.display()))?;
+    }
+    println!("built portfolio -> {}", out.display());
+    Ok(())
 }
 
 fn docs() -> Result<(), String> {

@@ -184,6 +184,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "arboretum"
+version = "0.1.0"
+dependencies = [
+ "foliage",
+ "fontdue",
+ "image",
+ "lichen",
+ "tracing",
+ "tracing-subscriber",
+ "tracing-web",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

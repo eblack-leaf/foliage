@@ -58,7 +58,7 @@ jobs:
       # Build-only: there is no browser here to execute a wasm test binary in, and the suite is
       # headless-native anyway -- `Foliage::new()` touches neither wgpu nor winit.
       - name: cargo check --target wasm32-unknown-unknown
-        run: cargo check -p foliage -p application --target wasm32-unknown-unknown
+        run: cargo check -p foliage -p application -p arboretum --target wasm32-unknown-unknown
 
   android:
     runs-on: ubuntu-latest

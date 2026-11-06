@@ -1,0 +1,30 @@
+# One of the portfolio's three apps, built on its own: `trunk serve` here, or `cargo xtask serve orchard`.
+# `cargo xtask portfolio` builds all three into `docs/portfolio/`.
+
+[build]
+target = "index.html"
+release = false
+dist = "dist"
+# Served from the project page's `portfolio/` rather than a domain root, so every emitted asset is
+# addressed under it -- which is also where `trunk serve` puts it locally.
+public_url = "/foliage/portfolio/orchard/"
+filehash = true
+
+[watch]
+# The default is this directory alone, which holds none of the code.
+watch = ["index.html", "../../src", "../../assets"]
+
+[serve]
+addresses = ["127.0.0.1"]
+# One port per app, so all three can run at once.
+port = 8082
+open = false
+
+[clean]
+cargo = false
+
+# Pinned: wasm-bindgen's CLI and its crate have to be the same version, and the crate's is resolved
+# in `Cargo.lock`. The same pins as `application/Trunk.toml`.
+[tools]
+wasm_bindgen = "0.2.127"
+wasm_opt = "version_123"

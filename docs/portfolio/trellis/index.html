@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, viewport-fit=cover, initial-scale=1.0" name="viewport"/>
+    <title>DWG TR-001 — trellis</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23edf0ee'/%3E%3Cpath d='M16 4v24M4 16h24' stroke='%2331363b' stroke-width='2'/%3E%3C/svg%3E"/>
+    <style type="text/css">
+        html, body {
+            margin: 0;
+            border: 0;
+            padding: 0;
+            height: 100%;
+            background: #edf0ee;
+        }
+    </style>
+    
+<script type="module">
+import init, * as bindings from '/foliage/portfolio/trellis/trellis-677c45df32a3fdce.js';
+const wasm = await init({ module_or_path: '/foliage/portfolio/trellis/trellis-677c45df32a3fdce_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+<link rel="modulepreload" href="/foliage/portfolio/trellis/trellis-677c45df32a3fdce.js" crossorigin="anonymous" integrity="sha384-nau3Uiq0IQbfg6yOlpX6tgcvrzhOzfuZbEInO2jikuaaESr9trhFoPJ3d+9Cqoi0"><link rel="preload" href="/foliage/portfolio/trellis/trellis-677c45df32a3fdce_bg.wasm" crossorigin="anonymous" integrity="sha384-yJiJatT4U2FfRFe0b/yrqXAMLfSc+H7TXfT0L3UilwgCtNybFfSxLiFqzWh3il4H" as="fetch" type="application/wasm"></head>
+<body>
+</body>
+</html>

@@ -16,7 +16,7 @@
 //! has drawn in to a chosen tip, for what the app brings in on what it cleared.
 
 use foliage::{
-    Ease, Elevation, Field, Grove, Grow, Key, Leaf, Location, Motion, Palette, Pollen, Scheme,
+    Ease, Elevation, Field, Grove, Grow, Leaf, Location, Motion, Palette, Phase, Pollen, Scheme,
     Source, Timing, center_x, center_y,
 };
 
@@ -265,14 +265,23 @@ impl Specimen {
         self.tips.iter().position(|tip| tip.chip.pressed(pollen))
     }
 
-    /// Whether the frame asks for whatever is chosen to be let go: `Escape`, with nothing holding
-    /// focus that would have taken it.
-    pub fn dismissed(&self, pollen: &Pollen) -> bool {
-        self.chosen.is_some()
-            && pollen
-                .root_keys()
-                .iter()
-                .any(|stroke| stroke.key == Key::Escape)
+    /// Whether the frame asks for whatever is chosen to be let go: `Escape`, while the chosen tip's
+    /// chip holds focus -- as it does from the press that chose it, or from [`choose`](Self::choose)
+    /// -- and so nothing holds it that would have taken the key for its own.
+    ///
+    /// foliage answers `Escape` itself and sends it to nothing: it takes focus away, wherever focus
+    /// is. So it is read here by what it leaves -- the chip losing focus to nowhere. A press on
+    /// nothing that takes input leaves the same, but only ever as a pointer comes up in the frame
+    /// it is reported in, and a key comes with none; so a stray press beside the shape lets nothing
+    /// go. Where focus has moved on -- to a field, or a control the tip opened -- `Escape` takes it
+    /// out of that and lets the tip be.
+    pub fn dismissed(&self, grove: &Grove, pollen: &Pollen) -> bool {
+        let Some(chosen) = self.chosen else {
+            return false;
+        };
+        pollen.unfocused(self.tips[chosen].chip.leaf())
+            && grove.focused().is_none()
+            && !grove.pointer().iter().any(|pointer| pointer.phase == Phase::Up)
     }
 
     /// Carries the specimen: its arrival, and the tips being let in once it has arrived. Call once
@@ -325,6 +334,9 @@ impl Specimen {
     /// drawn; or the whole comes back out from the tip that was chosen and its line goes. The
     /// other tips go, and are not there to press until nothing is chosen again. What stands on
     /// the cleared side is the app's to bring in, [`GATHERED`](Self::GATHERED) after this.
+    ///
+    /// The chosen tip's chip takes focus, where the press that chose it has not given it already,
+    /// so that `Escape` has something to take away and [`dismissed`](Self::dismissed) hears it.
     pub fn choose(&mut self, grove: &mut Grove, chosen: Option<usize>) {
         if chosen == self.chosen || (self.withheld && chosen.is_some()) {
             return;
@@ -367,6 +379,9 @@ impl Specimen {
             tip.chip.arm(grove, worn);
         }
         self.chosen = chosen;
+        if let Some(tip) = chosen {
+            grove.focus(self.tips[tip].chip.leaf());
+        }
     }
 }
 

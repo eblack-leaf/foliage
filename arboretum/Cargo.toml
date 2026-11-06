@@ -1,0 +1,32 @@
+[package]
+name = "arboretum"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "A portfolio grown on foliage and dressed in lichen: an exhibition, a boutique and a planning sheet."
+
+# Three binaries, found where cargo looks for them: `src/bin/<app>/main.rs`. Each is its own module
+# tree, so a wasm carries only its own app, its own icons and its own face. What they share -- the
+# sprouts, the generated art, the boot -- is the library.
+#
+# The library is never a `cdylib`: trunk picks the artifact named by `data-bin`, and a second wasm
+# artifact under the same name would compete with it (see `application-android/src/lib.rs`).
+
+[dependencies]
+foliage = { path = "../foliage" }
+lichen = { path = "../lichen" }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
+[target.'cfg(target_family = "wasm")'.dependencies]
+# A browser discards stderr and does not answer `SystemTime`, which are the two things
+# `tracing-subscriber` writes to by default; this is the console writer that stands in for both.
+tracing-web = "0.1.3"
+
+[dev-dependencies]
+# The rasteriser foliage itself reads faces with, so a test can hold each bundled face to the same
+# monospace probe and ask it whether it carries every character the apps set in it.
+fontdue = "0.9.4"
+# Writes the styles out as pictures to look at (`tests/preview.rs`, ignored by default). The same
+# version and codec foliage already builds, so nothing new is compiled for it.
+image = { version = "0.25.8", default-features = false, features = ["png"] }

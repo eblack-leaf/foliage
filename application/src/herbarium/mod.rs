@@ -329,7 +329,7 @@ impl Credentials {
             let chosen = (self.key.chosen() != Some(tip)).then_some(tip);
             self.key.choose(grove, chosen);
         }
-        if self.key.dismissed(pollen) {
+        if self.key.dismissed(grove, pollen) {
             self.key.choose(grove, None);
         }
         self.sections.show(grove, self.key.chosen());

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>arboretum — grown on foliage</title>
+    <meta name="description" content="Three showpieces grown on foliage and dressed in lichen: an exhibition, a boutique and a planning sheet."/>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,3 27,9.5 27,22.5 16,29 5,22.5 5,9.5' fill='%23e8853b'/%3E%3C/svg%3E"/>
+    <style>
+        /* The three faces the apps speak in, each set beside the page by `cargo xtask portfolio`. */
+        @font-face { font-family: "Major Mono Display"; src: url("fonts/MajorMonoDisplay-Regular.ttf"); font-display: swap; }
+        @font-face { font-family: "Xanh Mono"; src: url("fonts/XanhMono-Italic.ttf"); font-style: italic; font-display: swap; }
+        @font-face { font-family: "IBM Plex Mono"; src: url("fonts/IBMPlexMono-SemiBold.ttf"); font-weight: 600; font-display: swap; }
+
+        :root {
+            --ground: #121116;
+            --ink: #ece9f1;
+            --quiet: #8c8796;
+            --edge: #3a3742;
+            --ember: #e8853b;
+            --ease: cubic-bezier(0, 0, 0.2, 1);
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; background: var(--ground); color: var(--ink); }
+        body {
+            font: 14px/1.6 ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+            min-height: 100vh;
+        }
+        main { max-width: 1120px; margin: 0 auto; padding: 72px 24px 48px; }
+        header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; margin-bottom: 40px; }
+        h1 { font-size: 40px; font-weight: 500; letter-spacing: -0.5px; margin: 0; }
+        header p { margin: 0; color: var(--quiet); }
+        header a { color: var(--ember); text-decoration: none; }
+        header a:hover { text-decoration: underline; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+        .card {
+            position: relative; display: flex; flex-direction: column; justify-content: space-between;
+            min-height: 380px; padding: 24px; border-radius: 4px; color: inherit; text-decoration: none;
+            overflow: hidden; outline: 1px dashed var(--edge); outline-offset: 6px;
+            transition: transform 260ms var(--ease), outline-color 260ms var(--ease);
+        }
+        .card:hover, .card:focus-visible { transform: translateY(-4px); outline-color: var(--accent); }
+        .card .art { position: absolute; inset: 0; pointer-events: none; }
+        .card .art svg { width: 100%; height: 100%; }
+        .card .kicker { position: relative; font-size: 12px; letter-spacing: 1px; color: var(--muted); }
+        .card .say { position: relative; }
+        .card h2 { margin: 0 0 6px; font-weight: 400; line-height: 1.05; }
+        .card p { margin: 0; color: var(--muted); max-width: 34ch; }
+        .card .go { margin-top: 14px; font-size: 12px; color: var(--accent); }
+
+        .conservatory {
+            --accent: #f2603a; --muted: #8d8a84; color: #ece8df;
+            background: radial-gradient(120% 80% at 40% 0%, #1d1e21 0%, #121315 60%, #0d0e10 100%);
+        }
+        .conservatory h2 { font-family: "Major Mono Display", monospace; font-size: 34px; color: #ece8df; }
+
+        .orchard { --accent: #86262e; --muted: #857f79; background: #f3efe7; color: #1c1613; }
+        .orchard h2 { font-family: "Xanh Mono", serif; font-style: italic; font-size: 44px; }
+
+        .trellis {
+            --accent: #31363b; --muted: #6a6f74; color: #31363b;
+            background-color: #edf0ee;
+            background-image:
+                linear-gradient(#ccd3d6 1px, transparent 1px),
+                linear-gradient(90deg, #ccd3d6 1px, transparent 1px),
+                linear-gradient(#dee3e4 1px, transparent 1px),
+                linear-gradient(90deg, #dee3e4 1px, transparent 1px);
+            background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+        }
+        .trellis h2 { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 30px; letter-spacing: 1px; }
+
+        footer { margin-top: 56px; color: var(--quiet); font-size: 12px; display: flex; flex-wrap: wrap; gap: 6px 24px; }
+        footer a { color: var(--quiet); }
+    </style>
+</head>
+<body>
+<main>
+    <header>
+        <h1>arboretum</h1>
+        <p>three showpieces grown on <a href="../">foliage</a>, dressed in lichen. nothing behind them is real: every
+            answer is a mock, and every wait is staged.</p>
+    </header>
+
+    <div class="grid">
+        <a class="card conservatory" href="conservatory/">
+            <div class="art" aria-hidden="true">
+                <svg viewBox="0 0 300 380" preserveAspectRatio="xMidYMid slice">
+                    <defs>
+                        <radialGradient id="pool" cx=".45" cy=".4" r=".7">
+                            <stop offset="0" stop-color="#b8f0ee"/>
+                            <stop offset=".35" stop-color="#2a8f9b"/>
+                            <stop offset="1" stop-color="#02161a"/>
+                        </radialGradient>
+                        <clipPath id="cell"><rect width="36" height="36"/></clipPath>
+                        <filter id="soft0"><feGaussianBlur stdDeviation="9"/></filter>
+                        <filter id="soft1"><feGaussianBlur stdDeviation="5"/></filter>
+                        <filter id="soft2"><feGaussianBlur stdDeviation="2.5"/></filter>
+                        <filter id="soft3"><feGaussianBlur stdDeviation="1"/></filter>
+                        <filter id="soft4"><feGaussianBlur stdDeviation=".35"/></filter>
+                        <g id="work">
+                            <rect width="36" height="36" fill="url(#pool)"/>
+                            <path d="M4 28 C10 14 16 30 22 12 S32 8 34 20" stroke="#dffbf8" stroke-width="1.6" fill="none"/>
+                            <path d="M2 10 C9 16 13 4 20 22 S28 30 35 33" stroke="#7fd9da" stroke-width="1" fill="none"/>
+                        </g>
+                    </defs>
+                    <line x1="24" y1="58" x2="276" y2="58" stroke="#3a3c40" stroke-width="1"/>
+                    <g transform="translate(24 84)">
+                        <g clip-path="url(#cell)"><use href="#work" filter="url(#soft0)" opacity=".1"/></g>
+                        <g transform="translate(43 0)" clip-path="url(#cell)"><use href="#work" filter="url(#soft1)" opacity=".32"/></g>
+                        <g transform="translate(86 0)" clip-path="url(#cell)"><use href="#work" filter="url(#soft2)" opacity=".6"/></g>
+                        <g transform="translate(129 0)" clip-path="url(#cell)"><use href="#work" filter="url(#soft3)" opacity=".84"/></g>
+                        <g transform="translate(172 0)" clip-path="url(#cell)"><use href="#work" filter="url(#soft4)" opacity=".96"/></g>
+                        <g transform="translate(215 0)" clip-path="url(#cell)"><use href="#work"/></g>
+                        <g fill="none" stroke="#2c2e32" stroke-width=".6">
+                            <rect width="36" height="36"/><rect x="43" width="36" height="36"/><rect x="86" width="36" height="36"/>
+                            <rect x="129" width="36" height="36"/><rect x="172" width="36" height="36"/><rect x="215" width="36" height="36"/>
+                        </g>
+                        <text y="52" font-family="monospace" font-size="8" fill="#f2603a">step 0</text>
+                        <text x="215" y="52" font-family="monospace" font-size="8" fill="#8d8a84">step 50</text>
+                    </g>
+                </svg>
+            </div>
+            <span class="kicker">01 · exhibition</span>
+            <div class="say">
+                <h2>latent flora</h2>
+                <p>twelve works from a model that does not exist, each coming up out of the dark and into focus in front of you, step by step.</p>
+                <div class="go">enter the conservatory →</div>
+            </div>
+        </a>
+
+        <a class="card orchard" href="orchard/">
+            <div class="art" aria-hidden="true">
+                <svg viewBox="0 0 300 380" preserveAspectRatio="xMidYMid slice">
+                    <g transform="translate(184 48)">
+                        <rect x="0" y="0" width="86" height="106" fill="#fdfcf9" stroke="#1c1613" stroke-width="1"/>
+                        <rect x="7" y="7" width="18" height="40" fill="#2f6b5e"/>
+                        <rect x="25" y="7" width="18" height="40" fill="#c9a24b"/>
+                        <rect x="43" y="7" width="18" height="40" fill="#d98c6f"/>
+                        <rect x="61" y="7" width="18" height="40" fill="#1c1613"/>
+                        <rect x="7" y="54" width="72" height="1" fill="#1c1613"/>
+                        <rect x="7" y="61" width="42" height="5" fill="#1c1613"/>
+                        <rect x="7" y="84" width="72" height="2.5" fill="#1c1613"/>
+                        <rect x="7" y="93" width="26" height="3" fill="#857f79"/>
+                        <rect x="66" y="91" width="13" height="5" fill="#1c1613"/>
+                        <g transform="translate(84 104)">
+                            <circle r="15" fill="#86262e"/>
+                            <circle r="15" fill="none" stroke="#86262e" stroke-width="3" stroke-linecap="round" stroke-dasharray="1.4 2.53"/>
+                        </g>
+                    </g>
+                </svg>
+            </div>
+            <span class="kicker">02 · boutique</span>
+            <div class="say">
+                <h2>bits &amp; bytes</h2>
+                <p>digital goods sold by the byte: palettes, shaders, type and sound, each weighed and printed on its label. a bag, a till, a wax seal.</p>
+                <div class="go">visit the orchard →</div>
+            </div>
+        </a>
+
+        <a class="card trellis" href="trellis/">
+            <div class="art" aria-hidden="true">
+                <svg viewBox="0 0 300 380" preserveAspectRatio="xMidYMid slice" fill="none" stroke="#31363b" stroke-width="1.5">
+                    <circle cx="190" cy="90" r="16"/>
+                    <rect x="222" y="138" width="58" height="34" rx="2"/>
+                    <rect x="140" y="160" width="58" height="34" rx="2" stroke-dasharray="4 3"/>
+                    <path d="M190 106 V122 H251 V138"/>
+                    <path d="M190 106 V128 H169 V160" stroke-dasharray="4 3"/>
+                    <polygon points="248,134 251,140 254,134" fill="#31363b"/>
+                    <rect x="130" y="150" width="78" height="54" stroke="#dc4b33"/>
+                    <polygon points="122,150 138,150 130,136" fill="#dc4b33" stroke="none"/>
+                </svg>
+            </div>
+            <span class="kicker">03 · planning sheet</span>
+            <div class="say">
+                <h2>DWG TR-001</h2>
+                <p>people, meetings and specs on one drawing: drag, connect, find the clash, fix it.</p>
+                <div class="go">unroll the trellis →</div>
+            </div>
+        </a>
+    </div>
+
+    <footer>
+        <span>made with foliage + lichen · faces: major mono display, xanh mono, ibm plex mono (OFL)</span>
+        <a href="../">← foliage</a>
+    </footer>
+</main>
+</body>
+</html>
